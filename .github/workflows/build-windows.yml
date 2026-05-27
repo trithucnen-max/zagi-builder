@@ -85,21 +85,20 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          repository: babyvibe/zagi-builder
           tag_name: ${{ steps.get_tag.outputs.tag }}
           name: "Zagi ${{ steps.get_tag.outputs.tag }}"
           files: |
             dist-electron-build/*.exe
             dist-electron-build/*.blockmap
             dist-electron-build/latest.yml
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
           make_latest: false
           fail_on_unmatched_files: false
 
       # ─── File .exe sau khi publish ───────────────────────────────────────────
-      # Xem release tại: https://github.com/babyvibe/zagi-builder/releases
+      # Xem release tại: https://github.com/trithucnen-max/zagi-builder/releases
       # Link tải cố định:
-      #   https://github.com/babyvibe/zagi-builder/releases/latest/download/Zagi-Setup-{version}.exe
+      #   https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-{version}.exe
 
