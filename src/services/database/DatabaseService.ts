@@ -6470,26 +6470,32 @@ class DatabaseService {
                 const allowedGroupsList = access.allowed_groups
                     ? access.allowed_groups.split(',').map((id: string) => id.trim()).filter(Boolean)
                     : [];
+                // Empty allowed_groups = no restriction → employee sees all groups
+                if (allowedGroupsList.length === 0) return true;
                 return allowedGroupsList.includes(threadId);
             }
 
             // Rule: Users (Contacts)
-            // Query local labels (tags) assigned to this contact
-            const contactTags = this.query<{ name: string }>(
-                `SELECT name FROM local_labels ll JOIN local_label_threads llt ON ll.id = llt.label_id WHERE llt.owner_zalo_id = ? AND llt.thread_id = ?`,
+            // Parse allowed tag IDs (stored as comma-separated numeric IDs from UI)
+            const allowedTagIds = access.allowed_tags
+                ? access.allowed_tags.split(',').map((id: string) => id.trim()).filter(Boolean)
+                : [];
+
+            // No tag restriction configured: employee sees everyone
+            if (allowedTagIds.length === 0) return true;
+
+            // Query label IDs assigned to this contact (compare by ID, not name)
+            const contactLabelIds = this.query<{ label_id: number }>(
+                `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`,
                 [zaloId, threadId]
             );
 
-            // If contact has no CRM tags assigned: visible to everyone (unclassified)
-            if (contactTags.length === 0) {
-                return true;
-            }
+            // Unclassified contacts (no CRM tags): visible to all employees
+            if (contactLabelIds.length === 0) return true;
 
-            // If contact has tags: only visible if at least one tag is allowed
-            const allowedTagsList = access.allowed_tags
-                ? access.allowed_tags.split(',').map((tag: string) => tag.trim().toLowerCase()).filter(Boolean)
-                : [];
-            return contactTags.some(t => allowedTagsList.includes(t.name.trim().toLowerCase()));
+            // Has tags: check if any label ID matches the allowed set
+            const contactLabelIdStrs = contactLabelIds.map(r => String(r.label_id));
+            return contactLabelIdStrs.some(id => allowedTagIds.includes(id));
 
         } catch (err: any) {
             Logger.error(`[DB] isThreadAllowedForEmployee error: ${err.message}`);
