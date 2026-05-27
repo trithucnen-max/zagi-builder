@@ -526,36 +526,47 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
         }
     };
 
+    const selectedAccountsStr = Array.from(selectedAccounts).sort().join(',');
+
     // ─── Load existing access config + labels + groups ───────────
     useEffect(() => {
-        const load = async () => {
-            // Load local labels (CRM tags)
+        const loadLabels = async () => {
             try {
                 const labRes = await ipc.db?.getLocalLabels({});
                 if (labRes?.success) {
-                    setAvailableLabels((labRes.labels || []).map((l: any) => ({ id: l.id, text: l.text, color: l.color })));
+                    setAvailableLabels((labRes.labels || []).map((l: any) => ({ id: l.id, text: l.name || l.text, color: l.color })));
                 }
             } catch {}
-            // Load Zalo groups (contact_type = group)
+        };
+        loadLabels();
+    }, []);
+
+    useEffect(() => {
+        const loadGroups = async () => {
             try {
-                // Use contacts table to find groups for any assigned account
-                const allAccIds = Array.from(new Set([...(employee?.assigned_accounts || [])]));
+                const allAccIds = selectedAccountsStr.split(',').filter(Boolean);
                 const groupSet: { id: string; name: string }[] = [];
                 const seen = new Set<string>();
                 for (const zId of allAccIds) {
-                    const r = await ipc.crm?.getContacts({ zaloId: zId, opts: { contact_type: 2 } });
+                    const r = await ipc.crm?.getContacts({ zaloId: zId, opts: { contactType: 'group' } });
                     if (r?.success) {
                         for (const c of (r.contacts || [])) {
-                            if (!seen.has(c.uid)) {
-                                seen.add(c.uid);
-                                groupSet.push({ id: c.uid, name: c.display_name || c.name || c.uid });
+                            const gid = c.contact_id;
+                            if (gid && !seen.has(gid)) {
+                                seen.add(gid);
+                                groupSet.push({ id: gid, name: c.display_name || c.alias || gid });
                             }
                         }
                     }
                 }
                 setAvailableGroups(groupSet);
             } catch {}
-            // Load existing access configs
+        };
+        loadGroups();
+    }, [selectedAccountsStr]);
+
+    useEffect(() => {
+        const loadAccess = async () => {
             if (employee?.employee_id) {
                 try {
                     const accRes = await ipc.employee?.getAccountAccessDetails(employee.employee_id);
@@ -573,8 +584,8 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                 } catch {}
             }
         };
-        load();
-    }, [employee?.employee_id, employee?.assigned_accounts]);
+        loadAccess();
+    }, [employee?.employee_id]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -956,22 +967,27 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                                                 </div>
 
                                                 {/* Exclude blocked */}
-                                                <label className="flex items-center gap-2 cursor-pointer">
-                                                    <input type="checkbox"
-                                                        checked={!!zaloAccessConfig[acc.zalo_id]?.exclude_blocked}
-                                                        className="sr-only"
-                                                        onChange={() => setZaloAccessConfig(prev => {
-                                                            const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [], exclude_blocked: false };
-                                                            return { ...prev, [acc.zalo_id]: { ...cur, exclude_blocked: !cur.exclude_blocked } };
-                                                        })}
-                                                    />
-                                                    <span className={`w-3.5 h-3.5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                                                        zaloAccessConfig[acc.zalo_id]?.exclude_blocked ? 'bg-red-600 border-red-500' : 'border-gray-500'
-                                                    }`}>
-                                                        {zaloAccessConfig[acc.zalo_id]?.exclude_blocked && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
-                                                    </span>
-                                                    <span className="text-[10px] text-gray-300">🚫 Ẩn liên hệ bị khóa (Exclude Blocked)</span>
-                                                </label>
+                                                <div className="space-y-1">
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input type="checkbox"
+                                                            checked={!!zaloAccessConfig[acc.zalo_id]?.exclude_blocked}
+                                                            className="sr-only"
+                                                            onChange={() => setZaloAccessConfig(prev => {
+                                                                const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [], exclude_blocked: false };
+                                                                return { ...prev, [acc.zalo_id]: { ...cur, exclude_blocked: !cur.exclude_blocked } };
+                                                            })}
+                                                        />
+                                                        <span className={`w-3.5 h-3.5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                                                            zaloAccessConfig[acc.zalo_id]?.exclude_blocked ? 'bg-red-600 border-red-500' : 'border-gray-500'
+                                                        }`}>
+                                                            {zaloAccessConfig[acc.zalo_id]?.exclude_blocked && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-300 font-medium">🚫 Ẩn liên hệ bị khóa (Exclude Blocked)</span>
+                                                    </label>
+                                                    <p className="text-[9px] text-gray-500 ml-5.5 leading-relaxed">
+                                                        Liên hệ đã bị Boss bấm Khóa (Block) trên màn hình Chat sẽ tự động bị ẩn khỏi tài khoản của nhân viên này (ưu tiên cao nhất, đè lên phân quyền Thẻ/Nhóm).
+                                                    </p>
+                                                </div>
 
                                                 {/* Rule summary */}
                                                 <div className="bg-gray-900/40 rounded-lg px-2.5 py-2 text-[9px] text-gray-500 space-y-0.5">
