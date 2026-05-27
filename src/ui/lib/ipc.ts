@@ -351,6 +351,7 @@ declare global {
         getAccountAssistants: (zaloId: string) => Promise<{ success: boolean; suggestion?: string | null; panel?: string | null; error?: string }>;
         getUsageLogs:  (opts?: { assistantId?: string; dateFrom?: number; dateTo?: number; limit?: number }) => Promise<{ success: boolean; logs: any[]; error?: string }>;
         getUsageStats: (opts?: { assistantId?: string; days?: number }) => Promise<{ success: boolean; stats: any[]; error?: string }>;
+        fetchModels:   (params: { platform: string; customUrl?: string; apiKey: string; assistantId?: string }) => Promise<{ success: boolean; models: string[]; error?: string }>;
       };
       tunnel: {
         start:  () => Promise<{ success: boolean; url?: string; error?: string }>;
@@ -367,6 +368,8 @@ declare global {
         getPermissions: (employeeId: string) => Promise<{ success: boolean; permissions?: Record<string, boolean>; error?: string }>;
         assignAccounts: (employeeId: string, zaloIds: string[]) => Promise<{ success: boolean; error?: string }>;
         getAssignedAccounts: (employeeId: string) => Promise<{ success: boolean; accounts?: string[]; error?: string }>;
+        getAccountAccessDetails: (employeeId: string) => Promise<{ success: boolean; details: Array<{ zalo_id: string; allowed_groups: string; allowed_tags: string; exclude_blocked: number }>; error?: string }>;
+        assignAccountAccessDetails: (employeeId: string, accessDetails: Array<{ zalo_id: string; allowed_groups: string; allowed_tags: string; exclude_blocked: number }>) => Promise<{ success: boolean; error?: string }>;
         getStats: (employeeId: string, sinceTs?: number, untilTs?: number) => Promise<{ success: boolean; stats?: any; error?: string }>;
         getSessions: (employeeId: string, limit?: number) => Promise<{ success: boolean; sessions?: any[]; error?: string }>;
         login: (username: string, password: string) => Promise<{ success: boolean; token?: string; employee?: any; error?: string }>;

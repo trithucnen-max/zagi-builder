@@ -2254,6 +2254,41 @@ class DatabaseService {
         } catch (err: any) {
             Logger.warn(`[DatabaseService] handled_by_employee migration: ${err.message}`);
         }
+
+        // Migration: add allowed_groups, allowed_tags, exclude_blocked to employee_account_access and is_blocked to contacts
+        try {
+            const accessCols = this.query<any>(`PRAGMA table_info(employee_account_access)`);
+            if (accessCols.length > 0) {
+                let accessNeedSave = false;
+                if (!accessCols.some((c: any) => c.name === 'allowed_groups')) {
+                    db!.exec(`ALTER TABLE employee_account_access ADD COLUMN allowed_groups TEXT DEFAULT ''`);
+                    Logger.log('[DatabaseService] Migration: added allowed_groups to employee_account_access');
+                    accessNeedSave = true;
+                }
+                if (!accessCols.some((c: any) => c.name === 'allowed_tags')) {
+                    db!.exec(`ALTER TABLE employee_account_access ADD COLUMN allowed_tags TEXT DEFAULT ''`);
+                    Logger.log('[DatabaseService] Migration: added allowed_tags to employee_account_access');
+                    accessNeedSave = true;
+                }
+                if (!accessCols.some((c: any) => c.name === 'exclude_blocked')) {
+                    db!.exec(`ALTER TABLE employee_account_access ADD COLUMN exclude_blocked INTEGER DEFAULT 0`);
+                    Logger.log('[DatabaseService] Migration: added exclude_blocked to employee_account_access');
+                    accessNeedSave = true;
+                }
+                if (accessNeedSave) {
+                    this.save();
+                }
+            }
+
+            const contactCols = this.query<any>(`PRAGMA table_info(contacts)`);
+            if (contactCols.length > 0 && !contactCols.some((c: any) => c.name === 'is_blocked')) {
+                db!.exec(`ALTER TABLE contacts ADD COLUMN is_blocked INTEGER DEFAULT 0`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added is_blocked to contacts');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] employee_account_access/contacts columns migration: ${err.message}`);
+        }
     }
 
     // ─── Account Operations ───────────────────────────────────────────────
@@ -6333,19 +6368,132 @@ class DatabaseService {
         }
     }
 
-    public setEmployeeAccountAccess(employeeId: string, zaloIds: string[]): void {
+    public getEmployeeAccountAccessDetails(employeeId: string): Array<{ zalo_id: string; allowed_groups: string; allowed_tags: string; exclude_blocked: number }> {
+        if (!this.initialized) return [];
+        try {
+            return this.query<any>(
+                `SELECT zalo_id, allowed_groups, allowed_tags, exclude_blocked FROM employee_account_access WHERE employee_id = ?`,
+                [employeeId]
+            );
+        } catch (err: any) {
+            Logger.error(`[DB] getEmployeeAccountAccessDetails error: ${err.message}`);
+            return [];
+        }
+    }
+
+    public setEmployeeAccountAccessDetails(employeeId: string, accessDetails: Array<{ zalo_id: string; allowed_groups: string; allowed_tags: string; exclude_blocked: number }>): void {
         if (!this.initialized) return;
         try {
             this.runNoSave(`DELETE FROM employee_account_access WHERE employee_id = ?`, [employeeId]);
-            for (const zaloId of zaloIds) {
+            for (const detail of accessDetails) {
                 this.runNoSave(
-                    `INSERT INTO employee_account_access (employee_id, zalo_id) VALUES (?,?)`,
-                    [employeeId, zaloId]
+                    `INSERT INTO employee_account_access (employee_id, zalo_id, allowed_groups, allowed_tags, exclude_blocked) VALUES (?,?,?,?,?)`,
+                    [employeeId, detail.zalo_id, detail.allowed_groups || '', detail.allowed_tags || '', detail.exclude_blocked || 0]
+                );
+            }
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] setEmployeeAccountAccessDetails error: ${err.message}`);
+        }
+    }
+
+    public setEmployeeAccountAccess(employeeId: string, zaloIds: string[]): void {
+        if (!this.initialized) return;
+        try {
+            // Get existing configurations to preserve them
+            const existingDetails = this.getEmployeeAccountAccessDetails(employeeId);
+            const existingMap = new Map(existingDetails.map(d => [d.zalo_id, d]));
+
+            this.runNoSave(`DELETE FROM employee_account_access WHERE employee_id = ?`, [employeeId]);
+            for (const zaloId of zaloIds) {
+                const existing = existingMap.get(zaloId);
+                const allowedGroups = existing ? existing.allowed_groups : '';
+                const allowedTags = existing ? existing.allowed_tags : '';
+                const excludeBlocked = existing ? existing.exclude_blocked : 0;
+                
+                this.runNoSave(
+                    `INSERT INTO employee_account_access (employee_id, zalo_id, allowed_groups, allowed_tags, exclude_blocked) VALUES (?,?,?,?,?)`,
+                    [employeeId, zaloId, allowedGroups, allowedTags, excludeBlocked]
                 );
             }
             this.save();
         } catch (err: any) {
             Logger.error(`[DB] setEmployeeAccountAccess error: ${err.message}`);
+        }
+    }
+
+    public setContactBlocked(ownerZaloId: string, contactId: string, isBlocked: number): void {
+        if (!this.initialized) return;
+        try {
+            this.run(
+                `UPDATE contacts SET is_blocked = ? WHERE owner_zalo_id = ? AND contact_id = ?`,
+                [isBlocked, ownerZaloId, contactId]
+            );
+        } catch (err: any) {
+            Logger.error(`[DB] setContactBlocked error: ${err.message}`);
+        }
+    }
+
+    public isThreadAllowedForEmployee(employeeId: string, zaloId: string, threadId: string): boolean {
+        if (!this.initialized) return false;
+        try {
+            // First check employee role. If boss, always allowed.
+            const employee = this.query<any>(`SELECT role FROM employees WHERE employee_id = ?`, [employeeId])[0];
+            if (!employee) return false;
+            if (employee.role === 'boss') return true;
+
+            // Get access details for this Zalo ID
+            const access = this.query<any>(
+                `SELECT allowed_groups, allowed_tags, exclude_blocked FROM employee_account_access WHERE employee_id = ? AND zalo_id = ?`,
+                [employeeId, zaloId]
+            )[0];
+            if (!access) return false; // Not assigned to this account
+
+            // Get contact info
+            const contact = this.query<any>(
+                `SELECT contact_type, is_blocked FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`,
+                [zaloId, threadId]
+            )[0];
+
+            if (!contact) {
+                // If contact is not in SQLite yet, treat as allowed (unclassified / temporary)
+                return true;
+            }
+
+            // Rule: Exclude blocked
+            if (access.exclude_blocked === 1 && contact.is_blocked === 1) {
+                return false;
+            }
+
+            // Rule: Groups
+            if (contact.contact_type === 'group') {
+                const allowedGroupsList = access.allowed_groups
+                    ? access.allowed_groups.split(',').map((id: string) => id.trim()).filter(Boolean)
+                    : [];
+                return allowedGroupsList.includes(threadId);
+            }
+
+            // Rule: Users (Contacts)
+            // Query local labels (tags) assigned to this contact
+            const contactTags = this.query<{ name: string }>(
+                `SELECT name FROM local_labels ll JOIN local_label_threads llt ON ll.id = llt.label_id WHERE llt.owner_zalo_id = ? AND llt.thread_id = ?`,
+                [zaloId, threadId]
+            );
+
+            // If contact has no CRM tags assigned: visible to everyone (unclassified)
+            if (contactTags.length === 0) {
+                return true;
+            }
+
+            // If contact has tags: only visible if at least one tag is allowed
+            const allowedTagsList = access.allowed_tags
+                ? access.allowed_tags.split(',').map((tag: string) => tag.trim().toLowerCase()).filter(Boolean)
+                : [];
+            return contactTags.some(t => allowedTagsList.includes(t.name.trim().toLowerCase()));
+
+        } catch (err: any) {
+            Logger.error(`[DB] isThreadAllowedForEmployee error: ${err.message}`);
+            return false;
         }
     }
 

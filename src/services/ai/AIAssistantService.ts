@@ -692,6 +692,96 @@ VÍ DỤ ĐẦU RA ĐÚNG:
       updatedAt: row.updated_at,
     };
   }
+
+  // ─── Fetch available models from external provider ────────────────────────
+
+  /**
+   * Fetches available models from the given platform endpoint.
+   * Returns { success, models } where models is string[].
+   * On error, returns { success: false, error } without throwing.
+   */
+  public async fetchAvailableModels(params: {
+    platform: AIPlatform;
+    customUrl?: string;
+    apiKey: string;
+  }): Promise<{ success: boolean; models: string[]; error?: string }> {
+    const { platform, customUrl, apiKey } = params;
+    try {
+      // Gemini
+      if (platform === 'gemini') {
+        return {
+          success: true,
+          models: [
+            'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-pro-exp',
+            'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
+            'gemini-1.0-pro',
+          ],
+        };
+      }
+
+      // Claude (Anthropic) — static known list
+      if (platform === 'claude') {
+        return {
+          success: true,
+          models: [
+            'claude-opus-4-5', 'claude-sonnet-4-5', 'claude-haiku-4-5',
+            'claude-3-7-sonnet-20250219', 'claude-3-5-haiku-20241022',
+            'claude-3-opus-20240229', 'claude-3-haiku-20240307',
+          ],
+        };
+      }
+
+      // OpenRouter — GET /api/v1/models
+      if (platform === 'openrouter') {
+        const baseUrl = (customUrl || 'https://openrouter.ai').replace(/\/$/, '');
+        const resp = await axios.get(`${baseUrl}/api/v1/models`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          timeout: 15000,
+        });
+        const data = resp.data?.data || resp.data?.models || [];
+        const models: string[] = data.map((m: any) => m.id || m.name || '').filter(Boolean);
+        return { success: true, models };
+      }
+
+      // custom_claude — list via Anthropic API
+      if (platform === 'custom_claude') {
+        const baseUrl = (customUrl || 'https://api.anthropic.com').replace(/\/$/, '');
+        const resp = await axios.get(`${baseUrl}/v1/models`, {
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          timeout: 15000,
+        });
+        const data = resp.data?.data || [];
+        const models: string[] = data.map((m: any) => m.id || '').filter(Boolean);
+        return { success: true, models };
+      }
+
+      // OpenAI-compatible platforms (openai, deepseek, grok, mistral, custom_openai)
+      let baseUrl = '';
+      switch (platform) {
+        case 'deepseek':    baseUrl = 'https://api.deepseek.com'; break;
+        case 'grok':        baseUrl = 'https://api.x.ai'; break;
+        case 'mistral':     baseUrl = 'https://api.mistral.ai'; break;
+        case 'custom_openai': baseUrl = (customUrl || '').replace(/\/$/, '').replace(/\/chat\/completions$/, '').replace(/\/v1$/, ''); break;
+        default:            baseUrl = 'https://api.openai.com'; break;
+      }
+      const resp = await axios.get(`${baseUrl}/v1/models`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        timeout: 15000,
+      });
+      const data = resp.data?.data || [];
+      const models: string[] = data.map((m: any) => m.id || '').filter(Boolean).sort();
+      return { success: true, models };
+
+    } catch (err: any) {
+      const status = err.response?.status;
+      const msg = err.response?.data?.error?.message || err.message || 'Lỗi kết nối';
+      Logger.error(`[AIAssistantService] fetchAvailableModels(${platform}): status=${status} ${msg}`);
+      return { success: false, models: [], error: `Không thể tải danh sách model (${status || 'timeout'}): ${msg}` };
+    }
+  }
 }
 
 export default AIAssistantService;

@@ -819,11 +819,51 @@ class HttpRelayService {
         for (const emp of this.employees.values()) {
             if (!emp.callbackUrl) continue;
             if (!this.shouldRelayErpEventToEmployee(channel, data, emp.employee_id)) continue;
-
+            if (!this.shouldRelayZaloEventToEmployee(channel, data, emp.employee_id)) continue;
 
             // Fire-and-forget push
             this.pushToEmployee(emp, channel, data).catch(() => {});
         }
+    }
+
+    private shouldRelayZaloEventToEmployee(channel: string, data: any, employeeId: string): boolean {
+        if (!channel.startsWith('event:')) return true;
+
+        // Skip connection status events (they don't contain specific chat thread info)
+        if (channel === 'event:connected' || channel === 'event:disconnected' || channel === 'event:listenerDead') {
+            return true;
+        }
+
+        // Skip friend events as they are globally accessible or handled differently
+        if (channel.startsWith('event:friend')) {
+            return true;
+        }
+
+        const zaloId = data?.zaloId;
+        if (!zaloId) return true;
+
+        let threadId = data?.threadId;
+
+        if (channel === 'event:message') {
+            threadId = data.message?.threadId || threadId;
+        } else if (channel === 'event:reaction') {
+            threadId = data.reaction?.threadId || data.reaction?.data?.threadId || threadId;
+        } else if (channel === 'event:groupEvent' || channel === 'event:groupInfoUpdate' || channel === 'event:pinsUpdated') {
+            threadId = data.groupId || threadId;
+        } else if (channel === 'event:typing') {
+            threadId = data.typing?.threadId || threadId;
+        } else if (channel === 'event:seen') {
+            threadId = data.seen?.threadId || threadId;
+        } else if (channel === 'event:undo') {
+            threadId = data.undo?.threadId || threadId;
+        } else if (channel === 'event:delete') {
+            threadId = data.delete?.threadId || threadId;
+        }
+
+        if (!threadId) return true;
+
+        // Check permission in DatabaseService
+        return DatabaseService.getInstance().isThreadAllowedForEmployee(employeeId, zaloId, threadId);
     }
 
     private shouldRelayErpEventToEmployee(channel: string, data: any, employeeId: string): boolean {

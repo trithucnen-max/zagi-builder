@@ -472,10 +472,17 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
         return result;
     });
 
-    // Account access
     const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(
         new Set(employee?.assigned_accounts || [])
     );
+
+    // Zalo access config: map zaloId -> { allowed_groups, allowed_tags, exclude_blocked }
+    const [zaloAccessConfig, setZaloAccessConfig] = useState<Record<string, {
+        allowed_groups: string[]; allowed_tags: string[]; exclude_blocked: boolean;
+    }>>({});
+    const [availableGroups, setAvailableGroups] = useState<{ id: string; name: string }[]>([]);
+    const [availableLabels, setAvailableLabels] = useState<{ id: number; text: string; color?: string }[]>([]);
+    const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
 
     const togglePermission = (key: string) => {
         setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
@@ -519,26 +526,80 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
         }
     };
 
+    // ─── Load existing access config + labels + groups ───────────
+    useEffect(() => {
+        const load = async () => {
+            // Load local labels (CRM tags)
+            try {
+                const labRes = await ipc.db?.getLocalLabels({});
+                if (labRes?.success) {
+                    setAvailableLabels((labRes.labels || []).map((l: any) => ({ id: l.id, text: l.text, color: l.color })));
+                }
+            } catch {}
+            // Load Zalo groups (contact_type = group)
+            try {
+                // Use contacts table to find groups for any assigned account
+                const allAccIds = Array.from(new Set([...(employee?.assigned_accounts || [])]));
+                const groupSet: { id: string; name: string }[] = [];
+                const seen = new Set<string>();
+                for (const zId of allAccIds) {
+                    const r = await ipc.crm?.getContacts({ zaloId: zId, opts: { contact_type: 2 } });
+                    if (r?.success) {
+                        for (const c of (r.contacts || [])) {
+                            if (!seen.has(c.uid)) {
+                                seen.add(c.uid);
+                                groupSet.push({ id: c.uid, name: c.display_name || c.name || c.uid });
+                            }
+                        }
+                    }
+                }
+                setAvailableGroups(groupSet);
+            } catch {}
+            // Load existing access configs
+            if (employee?.employee_id) {
+                try {
+                    const accRes = await ipc.employee?.getAccountAccessDetails(employee.employee_id);
+                    if (accRes?.success) {
+                        const cfg: Record<string, { allowed_groups: string[]; allowed_tags: string[]; exclude_blocked: boolean }> = {};
+                        for (const d of (accRes.details || [])) {
+                            cfg[d.zalo_id] = {
+                                allowed_groups: d.allowed_groups ? d.allowed_groups.split(',').filter(Boolean) : [],
+                                allowed_tags: d.allowed_tags ? d.allowed_tags.split(',').filter(Boolean) : [],
+                                exclude_blocked: !!d.exclude_blocked,
+                            };
+                        }
+                        setZaloAccessConfig(cfg);
+                    }
+                } catch {}
+            }
+        };
+        load();
+    }, [employee?.employee_id, employee?.assigned_accounts]);
+
     const handleSave = async () => {
         setSaving(true);
         try {
             if (isEdit) {
-                // Update employee info
                 const updates: any = { display_name: displayName, role, avatar_url: avatarUrl, group_id: groupId || null };
                 if (password) updates.password = password;
                 const res = await ipc.employee?.update(employee!.employee_id, updates);
                 if (!res?.success) { showNotification(res?.error || 'Cập nhật thất bại', 'error'); setSaving(false); return; }
 
-                // Update permissions
                 const permArray = ALL_MODULES.map(m => ({ module: m.key, can_access: !!permissions[m.key] }));
                 await ipc.employee?.setPermissions(employee!.employee_id, permArray);
-
-                // Update account access
                 await ipc.employee?.assignAccounts(employee!.employee_id, Array.from(selectedAccounts));
+
+                // Save Zalo access details (groups, tags, blocked filter)
+                const accessDetails = Array.from(selectedAccounts).map(zaloId => ({
+                    zalo_id: zaloId,
+                    allowed_groups: (zaloAccessConfig[zaloId]?.allowed_groups || []).join(','),
+                    allowed_tags: (zaloAccessConfig[zaloId]?.allowed_tags || []).join(','),
+                    exclude_blocked: zaloAccessConfig[zaloId]?.exclude_blocked ? 1 : 0,
+                }));
+                await ipc.employee?.assignAccountAccessDetails(employee!.employee_id, accessDetails);
 
                 showNotification('Đã cập nhật nhân viên', 'success');
             } else {
-                // Create new
                 const res = await ipc.employee?.create({ username, password, display_name: displayName, avatar_url: avatarUrl || undefined, role });
                 if (!res?.success) { showNotification(res?.error || 'Tạo thất bại', 'error'); setSaving(false); return; }
 
@@ -547,10 +608,17 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                     const permArray = ALL_MODULES.map(m => ({ module: m.key, can_access: !!permissions[m.key] }));
                     await ipc.employee?.setPermissions(empId, permArray);
                     await ipc.employee?.assignAccounts(empId, Array.from(selectedAccounts));
-                    // Set group if selected
-                    if (groupId) {
-                        await ipc.employee?.update(empId, { group_id: groupId });
-                    }
+
+                    // Save Zalo access details
+                    const accessDetails = Array.from(selectedAccounts).map(zaloId => ({
+                        zalo_id: zaloId,
+                        allowed_groups: (zaloAccessConfig[zaloId]?.allowed_groups || []).join(','),
+                        allowed_tags: (zaloAccessConfig[zaloId]?.allowed_tags || []).join(','),
+                        exclude_blocked: zaloAccessConfig[zaloId]?.exclude_blocked ? 1 : 0,
+                    }));
+                    await ipc.employee?.assignAccountAccessDetails(empId, accessDetails);
+
+                    if (groupId) await ipc.employee?.update(empId, { group_id: groupId });
                 }
 
                 showNotification('Đã thêm nhân viên mới', 'success');
@@ -760,7 +828,7 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                         </div>
                     </div>
 
-                    {/* Account access — with avatar + phone */}
+                    {/* Account access — with avatar + phone + Zalo access config */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tài khoản Zalo được quản lý</p>
@@ -771,46 +839,154 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                         {accounts.length === 0 ? (
                             <p className="text-xs text-gray-500 py-2">Chưa có tài khoản Zalo nào</p>
                         ) : (
-                            <div className="space-y-1 max-h-48 overflow-y-auto">
+                            <div className="space-y-2 max-h-80 overflow-y-auto">
                                 {accounts.map(acc => (
-                                    <label
-                                        key={acc.zalo_id}
-                                        className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${
-                                            selectedAccounts.has(acc.zalo_id) ? 'bg-green-600/15 border border-green-500/30' : 'bg-gray-700/50 border border-transparent hover:bg-gray-700'
-                                        }`}
-                                    >
-                                        <input
-                                            type="checkbox" checked={selectedAccounts.has(acc.zalo_id)}
-                                            onChange={() => toggleAccount(acc.zalo_id)}
-                                            className="sr-only"
-                                        />
-                                        <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                                            selectedAccounts.has(acc.zalo_id) ? 'bg-green-600 border-green-500' : 'border-gray-500'
-                                        }`}>
-                                            {selectedAccounts.has(acc.zalo_id) && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
-                                        </span>
-                                        {/* Account avatar */}
-                                        <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gray-600">
-                                            {acc.avatar_url ? (
-                                                <img src={acc.avatar_url} className="w-full h-full object-cover" alt=""
-                                                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-bold">
-                                                    {(acc.full_name || acc.zalo_id).charAt(0).toUpperCase()}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${acc.isOnline ? 'bg-green-400' : 'bg-gray-500'}`} />
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-xs text-gray-200 font-medium truncate">{acc.full_name || acc.zalo_id}</p>
-                                            <div className="flex items-center gap-2">
-                                                {acc.phone && (
-                                                    <p className="text-[10px] text-gray-500">📞 {acc.phone}</p>
+                                    <div key={acc.zalo_id} className={`rounded-xl border transition-colors ${
+                                        selectedAccounts.has(acc.zalo_id) ? 'border-green-500/40 bg-green-600/10' : 'border-transparent bg-gray-700/50'
+                                    }`}>
+                                        {/* Account row */}
+                                        <label className="flex items-center gap-2.5 p-2 cursor-pointer">
+                                            <input type="checkbox" checked={selectedAccounts.has(acc.zalo_id)}
+                                                onChange={() => toggleAccount(acc.zalo_id)} className="sr-only" />
+                                            <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                                selectedAccounts.has(acc.zalo_id) ? 'bg-green-600 border-green-500' : 'border-gray-500'
+                                            }`}>
+                                                {selectedAccounts.has(acc.zalo_id) && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
+                                            </span>
+                                            <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gray-600">
+                                                {acc.avatar_url ? (
+                                                    <img src={acc.avatar_url} className="w-full h-full object-cover" alt=""
+                                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-bold">
+                                                        {(acc.full_name || acc.zalo_id).charAt(0).toUpperCase()}
+                                                    </div>
                                                 )}
-                                                <p className="text-[10px] text-gray-600">{acc.zalo_id}</p>
                                             </div>
-                                        </div>
-                                    </label>
+                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${acc.isOnline ? 'bg-green-400' : 'bg-gray-500'}`} />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs text-gray-200 font-medium truncate">{acc.full_name || acc.zalo_id}</p>
+                                                <div className="flex items-center gap-2">
+                                                    {acc.phone && <p className="text-[10px] text-gray-500">📞 {acc.phone}</p>}
+                                                    <p className="text-[10px] text-gray-600">{acc.zalo_id}</p>
+                                                </div>
+                                            </div>
+                                            {/* Toggle expand permissions for this account */}
+                                            {selectedAccounts.has(acc.zalo_id) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.preventDefault(); setExpandedAccount(expandedAccount === acc.zalo_id ? null : acc.zalo_id); }}
+                                                    className="flex-shrink-0 text-[10px] text-slate-400 hover:text-slate-200 px-2 py-0.5 bg-slate-700/60 rounded border border-slate-600/40 transition-colors"
+                                                >
+                                                    {expandedAccount === acc.zalo_id ? '▲ Ẩn' : '⚙️ Phân quyền'}
+                                                </button>
+                                            )}
+                                        </label>
+
+                                        {/* Expandable Zalo access config panel */}
+                                        {selectedAccounts.has(acc.zalo_id) && expandedAccount === acc.zalo_id && (
+                                            <div className="px-3 pb-3 space-y-3 border-t border-gray-700/50 pt-2.5">
+                                                <p className="text-[10px] text-slate-400 font-medium">⚙️ Phân quyền Zalo cho tài khoản này</p>
+
+                                                {/* Groups multi-select */}
+                                                <div>
+                                                    <label className="text-[10px] text-gray-400 mb-1 block">👥 Chỉ thấy các Nhóm Zalo sau (bỏ trống = thấy tất cả)</label>
+                                                    <div className="max-h-28 overflow-y-auto space-y-1">
+                                                        {availableGroups.length === 0 ? (
+                                                            <p className="text-[10px] text-gray-600 italic">Chưa có nhóm nào trong DB</p>
+                                                        ) : availableGroups.map(grp => {
+                                                            const isChecked = (zaloAccessConfig[acc.zalo_id]?.allowed_groups || []).includes(grp.id);
+                                                            return (
+                                                                <label key={grp.id} className={`flex items-center gap-1.5 p-1.5 rounded-lg cursor-pointer text-[10px] transition-colors ${
+                                                                    isChecked ? 'bg-blue-600/15 text-blue-300' : 'text-gray-400 hover:bg-gray-700/50'
+                                                                }`}>
+                                                                    <input type="checkbox" checked={isChecked} className="sr-only"
+                                                                        onChange={() => setZaloAccessConfig(prev => {
+                                                                            const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [], exclude_blocked: false };
+                                                                            const next = isChecked
+                                                                                ? cur.allowed_groups.filter(g => g !== grp.id)
+                                                                                : [...cur.allowed_groups, grp.id];
+                                                                            return { ...prev, [acc.zalo_id]: { ...cur, allowed_groups: next } };
+                                                                        })}
+                                                                    />
+                                                                    <span className={`w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center ${
+                                                                        isChecked ? 'bg-blue-600 border-blue-500' : 'border-gray-500'
+                                                                    }`}>
+                                                                        {isChecked && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
+                                                                    </span>
+                                                                    <span className="truncate">{grp.name}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Tags/Labels multi-select */}
+                                                <div>
+                                                    <label className="text-[10px] text-gray-400 mb-1 block">🏷️ Chỉ thấy liên hệ có các Thẻ CRM sau (bỏ trống = thấy chưa phân loại + tất cả)</label>
+                                                    <div className="max-h-28 overflow-y-auto space-y-1">
+                                                        {availableLabels.length === 0 ? (
+                                                            <p className="text-[10px] text-gray-600 italic">Chưa có thẻ nào trong DB</p>
+                                                        ) : availableLabels.map(lbl => {
+                                                            const isChecked = (zaloAccessConfig[acc.zalo_id]?.allowed_tags || []).includes(String(lbl.id));
+                                                            return (
+                                                                <label key={lbl.id} className={`flex items-center gap-1.5 p-1.5 rounded-lg cursor-pointer text-[10px] transition-colors ${
+                                                                    isChecked ? 'bg-green-600/15 text-green-300' : 'text-gray-400 hover:bg-gray-700/50'
+                                                                }`}>
+                                                                    <input type="checkbox" checked={isChecked} className="sr-only"
+                                                                        onChange={() => setZaloAccessConfig(prev => {
+                                                                            const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [], exclude_blocked: false };
+                                                                            const tagId = String(lbl.id);
+                                                                            const next = isChecked
+                                                                                ? cur.allowed_tags.filter(t => t !== tagId)
+                                                                                : [...cur.allowed_tags, tagId];
+                                                                            return { ...prev, [acc.zalo_id]: { ...cur, allowed_tags: next } };
+                                                                        })}
+                                                                    />
+                                                                    <span className={`w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center ${
+                                                                        isChecked ? 'bg-green-600 border-green-500' : 'border-gray-500'
+                                                                    }`}>
+                                                                        {isChecked && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
+                                                                    </span>
+                                                                    <span className="truncate">{lbl.text}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Exclude blocked */}
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input type="checkbox"
+                                                        checked={!!zaloAccessConfig[acc.zalo_id]?.exclude_blocked}
+                                                        className="sr-only"
+                                                        onChange={() => setZaloAccessConfig(prev => {
+                                                            const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [], exclude_blocked: false };
+                                                            return { ...prev, [acc.zalo_id]: { ...cur, exclude_blocked: !cur.exclude_blocked } };
+                                                        })}
+                                                    />
+                                                    <span className={`w-3.5 h-3.5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                                                        zaloAccessConfig[acc.zalo_id]?.exclude_blocked ? 'bg-red-600 border-red-500' : 'border-gray-500'
+                                                    }`}>
+                                                        {zaloAccessConfig[acc.zalo_id]?.exclude_blocked && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-300">🚫 Ẩn liên hệ bị khóa (Exclude Blocked)</span>
+                                                </label>
+
+                                                {/* Rule summary */}
+                                                <div className="bg-gray-900/40 rounded-lg px-2.5 py-2 text-[9px] text-gray-500 space-y-0.5">
+                                                    <p className="font-semibold text-gray-400 mb-1">📋 Quy tắc áp dụng:</p>
+                                                    {(zaloAccessConfig[acc.zalo_id]?.exclude_blocked) && <p>• Ẩn tất cả liên hệ bị Boss khóa (ưu tiên cao nhất)</p>}
+                                                    {(zaloAccessConfig[acc.zalo_id]?.allowed_groups || []).length > 0
+                                                        ? <p>• Chỉ thấy {(zaloAccessConfig[acc.zalo_id]?.allowed_groups || []).length} nhóm đã chọn</p>
+                                                        : <p>• Thấy tất cả nhóm Zalo</p>}
+                                                    {(zaloAccessConfig[acc.zalo_id]?.allowed_tags || []).length > 0
+                                                        ? <p>• Thấy liên hệ có thẻ: {(zaloAccessConfig[acc.zalo_id]?.allowed_tags || []).map(tid => availableLabels.find(l => String(l.id) === tid)?.text || tid).join(', ')} + chưa phân loại</p>
+                                                        : <p>• Thấy tất cả liên hệ (kể cả chưa gắn thẻ)</p>}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
                         )}

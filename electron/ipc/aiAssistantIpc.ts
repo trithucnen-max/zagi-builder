@@ -191,5 +191,28 @@ export function registerAIAssistantIpc(): void {
       return { success: false, error: e.message, stats: [] };
     }
   });
+
+  // ─── Fetch available models dynamically ───────────────────────────────────
+  ipcMain.handle('ai:fetchModels', async (_e, {
+    platform, customUrl, apiKey, assistantId,
+  }: { platform: string; customUrl?: string; apiKey: string; assistantId?: string }) => {
+    try {
+      // If the renderer sent masked '***', resolve the real key from the saved assistant
+      let resolvedKey = apiKey;
+      if (apiKey === '***' && assistantId) {
+        const saved = AIAssistantService.getInstance().getAssistant(assistantId);
+        if (saved?.apiKey) resolvedKey = saved.apiKey; // already decrypted by getAssistant
+      }
+      const result = await AIAssistantService.getInstance().fetchAvailableModels({
+        platform: platform as any,
+        customUrl,
+        apiKey: resolvedKey,
+      });
+      return result;
+    } catch (e: any) {
+      Logger.error(`[AIAssistantIpc] fetchModels: ${e.message}`);
+      return { success: false, models: [], error: e.message };
+    }
+  });
 }
 

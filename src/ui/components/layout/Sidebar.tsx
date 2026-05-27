@@ -287,7 +287,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
           label="Công cụ"
           active={view === 'workflow' || view === 'integration'}
           items={[
-            ...(hasPerm('workflow') ? [{ icon: 'workflow' as const, label: 'Workflow (n8n)', active: view === 'workflow', onClick: () => setView('workflow') }] : []),
+            ...(hasPerm('workflow') ? [{ icon: 'workflow' as const, label: 'Workflow', active: view === 'workflow', onClick: () => setView('workflow') }] : []),
             ...(hasPerm('integration') ? [{ icon: 'integration' as const, label: 'Tích hợp', active: view === 'integration', onClick: () => setView('integration') }] : []),
           ]}
           onGuide={() => setShowToolsGuide(true)}

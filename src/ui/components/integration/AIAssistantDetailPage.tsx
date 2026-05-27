@@ -218,6 +218,11 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(assistantId);
 
+  // Dynamic model list state
+  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [fetchModelError, setFetchModelError] = useState<string | null>(null);
+
   // Chat preview state
   const [showChatPanel, setShowChatPanel] = useState(true);
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
@@ -354,6 +359,10 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
       if (res?.success && res.id) {
         setSavedId(res.id);
         showNotification('✅ Đã lưu trợ lý AI!', 'success');
+        // Auto-fetch model list after successful save for custom platforms
+        if (['openrouter', 'custom_openai', 'custom_claude'].includes(platform)) {
+          handleFetchModels(res.id);
+        }
       } else {
         showNotification('❌ Lưu thất bại: ' + (res?.error || ''), 'error');
       }
@@ -374,6 +383,33 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
       setTestResult({ success: false, message: e.message });
     }
     setTesting(false);
+  };
+
+  // ─── Fetch available models ──────────────────────────────────────────────
+  const handleFetchModels = async (overrideId?: string) => {
+    const activeId = overrideId || savedId;
+    setFetchingModels(true);
+    setFetchModelError(null);
+    try {
+      const res = await ipc.ai?.fetchModels({
+        platform,
+        customUrl: customUrl.trim() || undefined,
+        apiKey: apiKey || '***',
+        assistantId: activeId || undefined,
+      });
+      if (res?.success && res.models.length > 0) {
+        setFetchedModels(res.models);
+        // Auto-select first model if current model not in list
+        if (model && !res.models.includes(model)) {
+          setModel(res.models[0]);
+        }
+      } else {
+        setFetchModelError(res?.error || 'Không lấy được danh sách model');
+      }
+    } catch (e: any) {
+      setFetchModelError('Lỗi kết nối: ' + e.message);
+    }
+    setFetchingModels(false);
   };
 
   const handleDelete = async () => {
@@ -638,9 +674,48 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Model</label>
                   {['openrouter', 'custom_openai', 'custom_claude'].includes(platform) ? (
-                    <input type="text" value={model} onChange={e => setModel(e.target.value)}
-                      placeholder={platform === 'openrouter' ? 'VD: google/gemini-2.5-flash' : 'Tên model...'}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        {fetchedModels.length > 0 ? (
+                          <select value={model} onChange={e => setModel(e.target.value)}
+                            className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            {model && !fetchedModels.includes(model) && (
+                              <option value={model}>{model}</option>
+                            )}
+                            {fetchedModels.map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                        ) : (
+                          <input type="text" value={model} onChange={e => setModel(e.target.value)}
+                            placeholder={platform === 'openrouter' ? 'VD: google/gemini-2.5-flash' : 'Tên model...'}
+                            className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleFetchModels()}
+                          disabled={fetchingModels}
+                          title="Tải danh sách model khả dụng từ API"
+                          className="flex-shrink-0 flex items-center gap-1 px-2.5 py-2 text-xs font-medium rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                        >
+                          {fetchingModels ? (
+                            <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeOpacity="0.3"/>
+                              <path d="M21 12a9 9 0 01-9-9"/>
+                            </svg>
+                          ) : '🔄'}
+                          {fetchingModels ? '' : 'Tải model'}
+                        </button>
+                      </div>
+                      {fetchModelError && (
+                        <p className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-md px-2 py-1">
+                          ⚠️ {fetchModelError}
+                        </p>
+                      )}
+                      {fetchedModels.length > 0 && (
+                        <p className="text-[10px] text-green-400">
+                          ✅ Đã tải {fetchedModels.length} model khả dụng
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <select value={model} onChange={e => setModel(e.target.value)}
                       className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">

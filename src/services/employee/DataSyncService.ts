@@ -192,7 +192,10 @@ class DataSyncService {
             }
         }
 
-        if (employeeId) this.appendPrivateErpTables(tables, employeeId);
+        if (employeeId) {
+            this.appendPrivateErpTables(tables, employeeId);
+            this.filterSyncPayload(tables, employeeId);
+        }
 
         const totalRows = Object.values(tables).reduce((sum, arr) => sum + arr.length, 0);
         Logger.log(`[DataSyncService] Full export: ${Object.keys(tables).length} tables, ${totalRows} rows for ${zaloIds.length} accounts`);
@@ -261,7 +264,10 @@ class DataSyncService {
             }
         }
 
-        if (employeeId) this.appendPrivateErpTables(tables, employeeId);
+        if (employeeId) {
+            this.appendPrivateErpTables(tables, employeeId);
+            this.filterSyncPayload(tables, employeeId);
+        }
 
         const totalRows = Object.values(tables).reduce((sum, arr) => sum + arr.length, 0);
         Logger.log(`[DataSyncService] Delta export (since ${new Date(sinceTs).toISOString()}): ${Object.keys(tables).length} tables, ${totalRows} rows`);
@@ -431,6 +437,40 @@ class DataSyncService {
                 tables.erp_note_tags = this.queryByIds(db, 'erp_note_tags', 'id', tagIds);
             }
         }
+    }
+
+    private filterSyncPayload(tables: Record<string, any[]>, employeeId: string): Record<string, any[]> {
+        const db = DatabaseService.getInstance();
+        
+        // Define how to get owner_zalo_id and thread/contact/user ID for each syncable table
+        const filters: Record<string, { zaloCol: string; threadCol: string }> = {
+            'contacts': { zaloCol: 'owner_zalo_id', threadCol: 'contact_id' },
+            'messages': { zaloCol: 'owner_zalo_id', threadCol: 'thread_id' },
+            'crm_notes': { zaloCol: 'owner_zalo_id', threadCol: 'contact_id' },
+            'crm_contact_tags': { zaloCol: 'owner_zalo_id', threadCol: 'contact_id' },
+            'pinned_messages': { zaloCol: 'owner_zalo_id', threadCol: 'thread_id' },
+            'local_pinned_conversations': { zaloCol: 'owner_zalo_id', threadCol: 'thread_id' },
+            'message_drafts': { zaloCol: 'owner_zalo_id', threadCol: 'thread_id' },
+            'friends': { zaloCol: 'owner_zalo_id', threadCol: 'user_id' },
+            'friend_requests': { zaloCol: 'owner_zalo_id', threadCol: 'user_id' },
+            'links': { zaloCol: 'owner_zalo_id', threadCol: 'thread_id' },
+        };
+
+        for (const tableName of Object.keys(tables)) {
+            const rule = filters[tableName];
+            if (!rule) continue;
+
+            const rows = tables[tableName];
+            if (Array.isArray(rows)) {
+                tables[tableName] = rows.filter(row => {
+                    const zaloId = row[rule.zaloCol];
+                    const threadId = row[rule.threadCol];
+                    if (!zaloId || !threadId) return true; // Fail-safe
+                    return db.isThreadAllowedForEmployee(employeeId, zaloId, threadId);
+                });
+            }
+        }
+        return tables;
     }
 
     private getAccessibleCalendarEvents(db: DatabaseService, employeeId: string): any[] {

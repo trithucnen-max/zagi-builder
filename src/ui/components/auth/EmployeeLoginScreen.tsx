@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ipc from '@/lib/ipc';
 import { useEmployeeStore } from '@/store/employeeStore';
 import { useAppStore } from '@/store/appStore';
+import logoImg from './logo.png';
 
 interface Props {
     onBossMode: () => void;
@@ -159,8 +160,8 @@ export default function EmployeeLoginScreen({ onBossMode, onEmployeeConnected }:
         return (
             <div className="flex-1 flex items-center justify-center bg-gray-900 p-4">
                 <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
-                    <div className="px-6 pt-6 pb-4 text-center">
-                        <h1 className="text-xl font-bold text-white mb-1">Zagi</h1>
+                    <div className="px-6 pt-6 pb-2 text-center">
+                        <img src={logoImg} alt="Zagi Logo" className="w-56 h-auto mx-auto mb-3 object-contain" />
                         <p className="text-sm text-gray-400">Đồng bộ dữ liệu</p>
                     </div>
 
@@ -210,8 +211,8 @@ export default function EmployeeLoginScreen({ onBossMode, onEmployeeConnected }:
         <div className="flex-1 flex items-center justify-center bg-gray-900 p-4">
             <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
                 {/* Header */}
-                <div className="px-6 pt-6 pb-4 text-center">
-                    <h1 className="text-xl font-bold text-white mb-1">Zagi</h1>
+                <div className="px-6 pt-6 pb-2 text-center">
+                    <img src={logoImg} alt="Zagi Logo" className="w-56 h-auto mx-auto mb-3 object-contain" />
                     <p className="text-sm text-gray-400">Chọn chế độ đăng nhập</p>
                 </div>
 

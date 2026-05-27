@@ -87,8 +87,14 @@ export function registerCRMIpc(): void {
 
     ipcMain.handle('crm:addCampaignContacts', async (_e, { zaloId, campaignId, contacts }: { zaloId: string; campaignId: number; contacts: any[] }) => {
         try {
-            DatabaseService.getInstance().addCampaignContacts(campaignId, zaloId, contacts);
-            DatabaseService.getInstance().save();
+            const db = DatabaseService.getInstance();
+            db.addCampaignContacts(campaignId, zaloId, contacts);
+            db.save();
+            // Auto-start queue if the campaign is already active
+            const campaign = db.getCRMCampaign(campaignId);
+            if (campaign && campaign.status === 'active') {
+                CRMQueueService.getInstance().startForAccount(zaloId);
+            }
             return { success: true };
         } catch (e: any) { return { success: false, error: e.message }; }
     });

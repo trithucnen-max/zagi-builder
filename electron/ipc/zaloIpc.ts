@@ -308,9 +308,23 @@ export function registerZaloIpc() {
         s.getFriendRequestStatus(p.userId)
     );
 
-    wrap('zalo:blockUser', (s, p) => s.blockUser(p.userId));
+    wrap('zalo:blockUser', async (s, p) => {
+        const result = await s.blockUser(p.userId);
+        const ownerZaloId = s.getZaloId();
+        if (ownerZaloId) {
+            DatabaseService.getInstance().setContactBlocked(ownerZaloId, p.userId, 1);
+        }
+        return result;
+    });
 
-    wrap('zalo:unblockUser', (s, p) => s.unblockUser(p.userId));
+    wrap('zalo:unblockUser', async (s, p) => {
+        const result = await s.unblockUser(p.userId);
+        const ownerZaloId = s.getZaloId();
+        if (ownerZaloId) {
+            DatabaseService.getInstance().setContactBlocked(ownerZaloId, p.userId, 0);
+        }
+        return result;
+    });
 
     wrap('zalo:getRelatedFriendGroup', (s, p) => s.getRelatedFriendGroup(p.userId));
 

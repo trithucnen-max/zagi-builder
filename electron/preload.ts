@@ -337,6 +337,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAccountAssistants: (zaloId: string) => ipcRenderer.invoke('ai:getAccountAssistants', { zaloId }),
     getUsageLogs:  (opts?: any) => ipcRenderer.invoke('ai:getUsageLogs', opts || {}),
     getUsageStats: (opts?: any) => ipcRenderer.invoke('ai:getUsageStats', opts || {}),
+    fetchModels:   (params: any) => ipcRenderer.invoke('ai:fetchModels', params),
   },
 
   // ─── Tunnel ───────────────────────────────────────────────────────
@@ -357,6 +358,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getPermissions:     (employeeId: string) => ipcRenderer.invoke('employee:getPermissions', { employeeId }),
     assignAccounts:     (employeeId: string, zaloIds: string[]) => ipcRenderer.invoke('employee:assignAccounts', { employeeId, zaloIds }),
     getAssignedAccounts:(employeeId: string) => ipcRenderer.invoke('employee:getAssignedAccounts', { employeeId }),
+    getAccountAccessDetails:(employeeId: string) => ipcRenderer.invoke('employee:getAccountAccessDetails', { employeeId }),
+    assignAccountAccessDetails:(employeeId: string, accessDetails: any[]) => ipcRenderer.invoke('employee:assignAccountAccessDetails', { employeeId, accessDetails }),
     getStats:           (employeeId: string, sinceTs?: number, untilTs?: number) => ipcRenderer.invoke('employee:getStats', { employeeId, sinceTs, untilTs }),
     getSessions:        (employeeId: string, limit?: number) => ipcRenderer.invoke('employee:getSessions', { employeeId, limit }),
     login:              (username: string, password: string) => ipcRenderer.invoke('employee:login', { username, password }),

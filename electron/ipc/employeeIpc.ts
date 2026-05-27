@@ -118,6 +118,30 @@ export function registerEmployeeIpc(): void {
         }
     });
 
+    ipcMain.handle('employee:getAccountAccessDetails', async (_e, { employeeId }: { employeeId: string }) => {
+        try {
+            const details = DatabaseService.getInstance().getEmployeeAccountAccessDetails(employeeId);
+            return { success: true, details };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcMain.handle('employee:assignAccountAccessDetails', async (_e, { employeeId, accessDetails }: {
+        employeeId: string;
+        accessDetails: Array<{ zalo_id: string; allowed_groups: string; allowed_tags: string; exclude_blocked: number }>;
+    }) => {
+        try {
+            DatabaseService.getInstance().setEmployeeAccountAccessDetails(employeeId, accessDetails);
+            const zaloIds = accessDetails.map(d => d.zalo_id);
+            HttpRelayService.getInstance().updateEmployeeRooms(employeeId, zaloIds);
+            HttpRelayService.getInstance().refreshEmployeeState(employeeId, 'accounts-assigned');
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
     // ─── Stats ─────────────────────────────────────────────────────────
 
     ipcMain.handle('employee:getStats', async (_e, { employeeId, sinceTs, untilTs }: {
