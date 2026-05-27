@@ -1,5 +1,5 @@
 # ─── Build Zagi — Windows + macOS cùng lúc ─────────────────────────────────
-# Workflow tổng hợp: trigger cả 2 job song song, publish lên cùng 1 Release tag
+# Tự động build khi push lên main, publish khi push tag v*
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Build All Platforms
@@ -11,6 +11,15 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
+  # ── Push tag v* → Build + Publish Release tự động ────────────────────────
+  push:
+    tags:
+      - 'v*'
+    # ── Push lên main → Build only (không publish) ─────────────────────────
+    branches:
+      - main
+
+  # ── Trigger thủ công từ GitHub UI ────────────────────────────────────────
   workflow_dispatch:
     inputs:
       publish:
@@ -22,14 +31,10 @@ on:
           - 'false'
           - 'true'
       tag_name:
-        description: 'Tag cho release (vd: v26.4.0). Bỏ trống = tự lấy từ package.json'
+        description: 'Tag cho release (vd: v26.4.3). Bỏ trống = tự lấy từ package.json'
         required: false
         default: ''
         type: string
-
-  push:
-    tags:
-      - 'v*'
 
 # ─── SECRETS cần cấu hình ────────────────────────────────────────────────────
 #   GH_TOKEN — GitHub Personal Access Token (repo scope)
@@ -51,15 +56,21 @@ jobs:
         run: |
           SHOULD_PUBLISH="false"
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # Push tag v* → tự động publish Release
             TAG="${GITHUB_REF_NAME}"
             SHOULD_PUBLISH="true"
+          elif [[ "$GITHUB_REF" == refs/heads/* ]]; then
+            # Push branch (main) → build only, không publish
+            VERSION=$(node -p "require('./package.json').version")
+            TAG="v${VERSION}"
+            SHOULD_PUBLISH="false"
           elif [ -n "${{ github.event.inputs.tag_name }}" ]; then
             TAG="${{ github.event.inputs.tag_name }}"
             SHOULD_PUBLISH="${{ github.event.inputs.publish }}"
           else
             VERSION=$(node -p "require('./package.json').version")
             TAG="v${VERSION}"
-            SHOULD_PUBLISH="${{ github.event.inputs.publish }}"
+            SHOULD_PUBLISH="${{ github.event.inputs.publish || 'false' }}"
           fi
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
           echo "should_publish=${SHOULD_PUBLISH}" >> $GITHUB_OUTPUT
@@ -97,6 +108,15 @@ jobs:
 
       - name: 📦 Build Windows app (x64)
         run: npx electron-builder --win --x64 --publish never
+
+      - name: ⬆️ Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zagi-Windows-${{ needs.resolve-tag.outputs.tag }}
+          path: |
+            dist-electron-build/*.exe
+            dist-electron-build/latest.yml
+          retention-days: 7
 
       - name: 🚀 Publish Windows → GitHub Releases
         if: needs.resolve-tag.outputs.should_publish == 'true'
@@ -147,6 +167,15 @@ jobs:
       - name: 📦 Build macOS app (arm64)
         run: npx electron-builder --mac --arm64 --publish never
 
+      - name: ⬆️ Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zagi-macOS-arm64-${{ needs.resolve-tag.outputs.tag }}
+          path: |
+            dist-electron-build/*.dmg
+            dist-electron-build/latest-mac.yml
+          retention-days: 7
+
       - name: 🚀 Publish macOS → GitHub Releases
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
@@ -162,4 +191,3 @@ jobs:
           prerelease: false
           make_latest: true
           fail_on_unmatched_files: false
-
