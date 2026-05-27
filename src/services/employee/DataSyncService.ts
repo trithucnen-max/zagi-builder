@@ -442,7 +442,6 @@ class DataSyncService {
     private filterSyncPayload(tables: Record<string, any[]>, employeeId: string): Record<string, any[]> {
         const db = DatabaseService.getInstance();
         
-        // Define how to get owner_zalo_id and thread/contact/user ID for each syncable table
         const filters: Record<string, { zaloCol: string; threadCol: string }> = {
             'contacts': { zaloCol: 'owner_zalo_id', threadCol: 'contact_id' },
             'messages': { zaloCol: 'owner_zalo_id', threadCol: 'thread_id' },
@@ -454,6 +453,11 @@ class DataSyncService {
             'friends': { zaloCol: 'owner_zalo_id', threadCol: 'user_id' },
             'friend_requests': { zaloCol: 'owner_zalo_id', threadCol: 'user_id' },
             'links': { zaloCol: 'owner_zalo_id', threadCol: 'thread_id' },
+            'local_label_threads': { zaloCol: 'owner_zalo_id', threadCol: 'thread_id' },
+            'page_group_member': { zaloCol: 'owner_zalo_id', threadCol: 'group_id' },
+            'crm_campaign_contacts': { zaloCol: 'owner_zalo_id', threadCol: 'contact_id' },
+            'crm_send_log': { zaloCol: 'owner_zalo_id', threadCol: 'contact_id' },
+            'employee_message_log': { zaloCol: 'zalo_id', threadCol: 'thread_id' },
         };
 
         for (const tableName of Object.keys(tables)) {
