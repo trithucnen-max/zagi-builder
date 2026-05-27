@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-electron/
+dist-electron-build/
+.idea/
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
