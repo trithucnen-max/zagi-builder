@@ -7,13 +7,13 @@
   🇬🇧 <strong>English</strong>
 </p>
 
-*Introduction*:  https://babyvibe.github.io/zagi-builder/
+*Introduction*:  https://itngon.com/zagi
 
 ---
 
 > A multi-account Zalo desktop app with integrated CRM, ERP, POS, Workflow automation and AI Assistant — helping sales, customer care teams and marketing operate centrally in one single application.
 
-[![Version](https://img.shields.io/badge/version-26.4.1-22c55e)](#)
+[![Version](https://img.shields.io/badge/version-26.4.2-22c55e)](#)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-3b82f6)](#-runtime-requirements)
 [![Electron](https://img.shields.io/badge/Electron-41-47848f?logo=electron&logoColor=white)](#)
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](#)
@@ -22,25 +22,25 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](#)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-ISC-f59e0b)](#)
-[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/babyvibe/zagi-builder/issues)
+[![Support](https://img.shields.io/badge/support-LarkSuite_Ticket-0ea5e9)](https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg)
 
 ### ⬇️ Quick Download
 
 <p>
-  <a href="https://github.com/babyvibe/zagi-builder/releases/latest/download/Zagi-Setup-26.4.1.exe">
-    <img src="https://img.shields.io/badge/%F0%9F%AA%9F_Windows-Zagi--Setup--26.4.1.exe-0078d4?style=for-the-badge" alt="Download Windows" />
+  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-26.4.2.exe">
+    <img src="https://img.shields.io/badge/%F0%9F%AA%9F_Windows-Zagi--Setup--26.4.2.exe-0078d4?style=for-the-badge" alt="Download Windows" />
   </a>
   &nbsp;
-  <a href="https://github.com/babyvibe/zagi-builder/releases/latest/download/Zagi-26.4.1-arm64.dmg">
-    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_M1%2B-Zagi--26.4.1--arm64.dmg-000000?style=for-the-badge" alt="Download macOS Apple Silicon" />
+  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-26.4.2-arm64.dmg">
+    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_M1%2B-Zagi--26.4.2--arm64.dmg-000000?style=for-the-badge" alt="Download macOS Apple Silicon" />
   </a>
   &nbsp;
-  <a href="https://github.com/babyvibe/zagi-builder/releases/latest/download/Zagi-26.4.1.dmg">
-    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_Intel-Zagi--26.4.1.dmg-000000?style=for-the-badge" alt="Download macOS Intel" />
+  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-26.4.2.dmg">
+    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_Intel-Zagi--26.4.2.dmg-000000?style=for-the-badge" alt="Download macOS Intel" />
   </a>
 </p>
 
-👉 All releases: https://github.com/babyvibe/zagi-builder/releases
+👉 All releases: https://github.com/trithucnen-max/zagi-builder/releases
 
 <details>
 <summary>⚠️ Security warning on first launch (blocked by Windows / macOS)</summary>
@@ -449,11 +449,11 @@ Zagi prioritizes a local-first architecture:
 
 ## 📣 Contact & support
 
-- Bug reports, feature requests, questions: 👉 [Open an issue](https://github.com/babyvibe/zagi-builder/issues)
+- Bug reports, feature requests, questions: 👉 [Submit a ticket here](https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg)
 
 ## 🙏 Acknowledgements
 
-Zagi would like to thank the project: 👉 https://github.com/RFS-ADRENO/zca-js
+Zagi would like to thank the project: 👉 https://github.com/RFS-ADRENO/zca-js and https://github.com/babyvibe/deplao-builder
 Without the contributions and foundation from this project, Zagi would not have been possible. We deeply appreciate the value the open-source community brings 💙
 
 ---

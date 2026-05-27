@@ -23,8 +23,8 @@ flowchart TD
     
     subgraph "3. Đóng gói (electron-builder)"
         B & D & G --> H["electron-builder --publish never"]
-        H -->|Chạy trên Windows| I["📥 Zagi-Setup-26.4.1.exe"]
-        H -->|Chạy trên macOS| J["📥 Zagi-26.4.1-arm64.dmg / .dmg Intel"]
+        H -->|Chạy trên Windows| I["📥 Zagi-Setup-26.4.2.exe"]
+        H -->|Chạy trên macOS| J["📥 Zagi-26.4.2-arm64.dmg / .dmg Intel"]
     end
 ```
 
@@ -78,9 +78,9 @@ npm run production
 
 ### Kết quả đầu ra:
 Sau khi tiến trình hoàn tất, thư mục **`dist-electron-build/`** sẽ được tạo ra ở thư mục gốc chứa các tệp:
-- `Zagi-26.4.1-arm64.dmg` (Dành cho máy Mac dùng chip Apple Silicon: M1, M2, M3, M4...).
-- `Zagi-26.4.1.dmg` (Dành cho máy Mac dùng chip Intel).
-- `Zagi-26.4.1-mac.zip` (Bản nén zip chạy trực tiếp không cần cài đặt).
+- `Zagi-26.4.2-arm64.dmg` (Dành cho máy Mac dùng chip Apple Silicon: M1, M2, M3, M4...).
+- `Zagi-26.4.2.dmg` (Dành cho máy Mac dùng chip Intel).
+- `Zagi-26.4.2-mac.zip` (Bản nén zip chạy trực tiếp không cần cài đặt).
 
 ---
 
@@ -109,7 +109,7 @@ Lúc này, công cụ đóng gói sẽ tự động:
 
 ### Kết quả đầu ra:
 Trong thư mục **`dist-electron-build/`**:
-- `Zagi-Setup-26.4.1.exe` (File cài đặt chuẩn cho Windows 10/11).
+- `Zagi-Setup-26.4.2.exe` (File cài đặt chuẩn cho Windows 10/11).
 - `win-unpacked/` (Thư mục chứa ứng dụng đã giải nén, có thể chạy trực tiếp bằng file `Zagi.exe`).
 
 ---

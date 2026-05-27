@@ -7,13 +7,13 @@
   🇬🇧 <a href="./README.en.md">English</a>
 </p>
 
-*Giới thiệu*:  https://babyvibe.github.io/zagi-builder/
+*Giới thiệu*:  https://itngon.com/zagi
 
 ---
 
 > Phần mềm desktop quản lý Zalo Đa tài khoản tích hợp CRM, ERP, POS, Workflow và AI Assistant giúp đội nhóm bán hàng, chăm sóc khách hàng và marketing trên Zalo vận hành tập trung trong một ứng dụng duy nhất.
 
-[![Version](https://img.shields.io/badge/version-26.4.1-22c55e)](#)
+[![Version](https://img.shields.io/badge/version-26.4.2-22c55e)](#)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-3b82f6)](#-runtime-requirements)
 [![Electron](https://img.shields.io/badge/Electron-41-47848f?logo=electron&logoColor=white)](#)
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](#)
@@ -22,26 +22,26 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](#)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-ISC-f59e0b)](#)
-[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/babyvibe/zagi-builder/issues)
+[![Support](https://img.shields.io/badge/support-LarkSuite_Ticket-0ea5e9)](https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg)
 
 
 ### ⬇️ Tải xuống nhanh
 
 <p>
-  <a href="https://github.com/babyvibe/zagi-builder/releases/latest/download/Zagi-Setup-26.4.1.exe">
-    <img src="https://img.shields.io/badge/%F0%9F%AA%9F_Windows-Zagi--Setup--26.4.1.exe-0078d4?style=for-the-badge" alt="Download Windows" />
+  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-26.4.2.exe">
+    <img src="https://img.shields.io/badge/%F0%9F%AA%9F_Windows-Zagi--Setup--26.4.2.exe-0078d4?style=for-the-badge" alt="Download Windows" />
   </a>
   &nbsp;
-  <a href="https://github.com/babyvibe/zagi-builder/releases/latest/download/Zagi-26.4.1-arm64.dmg">
-    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_M1%2B-Zagi--26.4.1--arm64.dmg-000000?style=for-the-badge" alt="Download macOS Apple Silicon" />
+  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-26.4.2-arm64.dmg">
+    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_M1%2B-Zagi--26.4.2--arm64.dmg-000000?style=for-the-badge" alt="Download macOS Apple Silicon" />
   </a>
   &nbsp;
-  <a href="https://github.com/babyvibe/zagi-builder/releases/latest/download/Zagi-26.4.1.dmg">
-    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_Intel-Zagi--26.4.1.dmg-000000?style=for-the-badge" alt="Download macOS Intel" />
+  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-26.4.2.dmg">
+    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_Intel-Zagi--26.4.2.dmg-000000?style=for-the-badge" alt="Download macOS Intel" />
   </a>
 </p>
 
-👉 Tất cả phiên bản: https://github.com/babyvibe/zagi-builder/releases
+👉 Tất cả phiên bản: https://github.com/trithucnen-max/zagi-builder/releases
 
 <details>
 <summary>⚠️ Lưu ý khi mở file cài đặt (bị chặn bởi Windows / macOS)</summary>
@@ -459,11 +459,11 @@ Zagi ưu tiên kiến trúc chạy cục bộ trên máy người dùng:
 
 ## 📣 Liên hệ
 
-- Báo lỗi, góp ý hoặc cần hỗ trợ: 👉 [Tạo issue tại đây](https://github.com/babyvibe/zagi-builder/issues)
+- Báo lỗi, góp ý hoặc cần hỗ trợ: 👉 Tạo issue tại đây đẩy qua : https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg
 
 ## 🙏 Lời cảm ơn
 
-Zagi xin gửi lời cảm ơn đến dự án:  👉 https://github.com/RFS-ADRENO/zca-js
+Zagi xin gửi lời cảm ơn đến dự án: 👉 https://github.com/RFS-ADRENO/zca-js và https://github.com/babyvibe/deplao-builder
 Nhờ những đóng góp và nền tảng từ dự án này, Zagi mới có thể được hoàn thiện và ra mắt như ngày hôm nay. Rất trân trọng những giá trị mà cộng đồng open-source mang lại 💙
 
 ---

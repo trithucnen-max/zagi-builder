@@ -14,6 +14,25 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '26.4.2',
+    date: '05/2026',
+    type: 'patch',
+    highlights: [
+      '🌐 Cập nhật thông tin giới thiệu chính thức: https://itngon.com/zagi',
+      '💬 Nâng cấp kênh báo lỗi & hỗ trợ sang LarkSuite ticket',
+      '🙏 Lời cảm ơn đặc biệt đến cộng đồng zca-js và deplao-builder',
+    ],
+    changes: [
+      {
+        category: 'improved',
+        items: [
+          'Thay đổi link giới thiệu sang trang chủ chính thức: https://itngon.com/zagi',
+          'Đổi kênh tiếp nhận hỗ trợ, góp ý và báo lỗi qua cổng LarkSuite ticket',
+        ],
+      },
+    ],
+  },
+  {
     version: '26.4.1',
     date: '05/2026',
     type: 'patch',
