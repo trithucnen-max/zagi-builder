@@ -15,6 +15,9 @@ const PLATFORM_META: Record<string, { label: string; color: string; icon: string
   deepseek: { label: 'DeepSeek', color: 'bg-purple-600',  icon: '🔮' },
   grok:     { label: 'Grok',     color: 'bg-orange-600',  icon: '⚡' },
   mistral:  { label: 'Mistral',  color: 'bg-sky-600',     icon: '🌀' },
+  openrouter: { label: 'OpenRouter', color: 'bg-indigo-600', icon: '🚀' },
+  custom_openai: { label: 'Custom (OpenAI)', color: 'bg-teal-600', icon: '⚙️' },
+  custom_claude: { label: 'Custom (Claude)', color: 'bg-rose-600', icon: '🛠️' },
 };
 
 interface AIAssistantSummary {

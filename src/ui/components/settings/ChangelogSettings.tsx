@@ -14,6 +14,37 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '26.4.3',
+    date: '05/2026',
+    type: 'patch',
+    highlights: [
+      '🚀 Bổ sung nhà cung cấp AI mới: OpenRouter và Custom API Endpoint tương thích OpenAI / Anthropic Claude',
+      '📊 Nâng cấp tính năng Tóm tắt hội thoại bằng AI thành báo cáo chi tiết có cấu trúc',
+      '🐛 Sửa lỗi lọc danh sách liên hệ CRM — loại bỏ hoàn toàn trò chuyện nhóm ra khỏi tab khách hàng',
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Tích hợp nhà cung cấp OpenRouter hỗ trợ hàng trăm mô hình ngôn ngữ lớn',
+          'Bổ sung tuỳ chọn Custom API Endpoint tương thích với chuẩn OpenAI và Anthropic Claude',
+        ],
+      },
+      {
+        category: 'improved',
+        items: [
+          'Nâng cấp prompt tóm tắt cuộc trò chuyện bằng AI để tự động tạo báo cáo CRM đầy đủ cấu trúc (Bối cảnh, Yêu cầu của khách, Giải pháp & Trạng thái hiện tại, Actions Items)',
+        ],
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi logic hiển thị danh sách Liên hệ trong CRM bị gộp sai các phòng chat nhóm',
+        ],
+      },
+    ],
+  },
+  {
     version: '26.4.2',
     date: '05/2026',
     type: 'patch',

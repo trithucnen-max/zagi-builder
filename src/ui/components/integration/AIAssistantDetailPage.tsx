@@ -18,6 +18,9 @@ const PLATFORMS = [
   { value: 'deepseek', label: 'DeepSeek',        icon: '🔮', color: 'bg-purple-600' },
   { value: 'grok',     label: 'Grok (xAI)',      icon: '⚡', color: 'bg-orange-600' },
   { value: 'mistral',  label: 'Mistral AI',      icon: '🌀', color: 'bg-sky-600' },
+  { value: 'openrouter', label: 'OpenRouter',    icon: '🚀', color: 'bg-indigo-600' },
+  { value: 'custom_openai', label: 'Custom API (OpenAI)', icon: '⚙️', color: 'bg-teal-600' },
+  { value: 'custom_claude', label: 'Custom API (Claude)', icon: '🛠️', color: 'bg-rose-600' },
 ] as const;
 
 const MODELS_BY_PLATFORM: Record<string, { value: string; label: string }[]> = {
@@ -72,6 +75,9 @@ const MODELS_BY_PLATFORM: Record<string, { value: string; label: string }[]> = {
     { value: 'open-mistral-nemo-2',     label: 'Mistral Nemo 2 (mở, nhẹ)' },
     { value: 'mistral-large-latest',    label: 'Mistral Large (legacy)' },
   ],
+  openrouter: [],
+  custom_openai: [],
+  custom_claude: [],
 };
 
 interface AIFile {
@@ -196,6 +202,7 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
   const [contextMessageCount, setContextMessageCount] = useState(30);
   const [enabled, setEnabled] = useState(true);
   const [isDefault, setIsDefault] = useState(false);
+  const [customUrl, setCustomUrl] = useState('');
 
   // Files
   const [files, setFiles] = useState<AIFile[]>([]);
@@ -278,6 +285,7 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
           setContextMessageCount(a.contextMessageCount || 30);
           setEnabled(a.enabled !== false);
           setIsDefault(!!a.isDefault);
+          setCustomUrl(a.customUrl || '');
         }
       } catch {}
 
@@ -294,8 +302,14 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
   // Auto-set first model when platform changes
   useEffect(() => {
     const models = MODELS_BY_PLATFORM[platform];
-    if (models?.length && !models.find(m => m.value === model)) {
-      setModel(models[0].value);
+    if (models && models.length > 0) {
+      if (!models.find(m => m.value === model)) {
+        setModel(models[0].value);
+      }
+    } else if (platform === 'openrouter' || platform === 'custom_openai' || platform === 'custom_claude') {
+      if (platform === 'openrouter' && !model) {
+        setModel('google/gemini-2.5-flash');
+      }
     }
   }, [platform]);
 
@@ -318,7 +332,7 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
         name: name.trim(),
         platform,
         apiKey: apiKey || '***',
-        model,
+        model: model.trim(),
         systemPrompt: systemPrompt.trim(),
         posIntegrationId: posIntegrationId || null,
         pinnedProductsJson: JSON.stringify(pinnedProducts),
@@ -327,6 +341,7 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
         contextMessageCount,
         enabled,
         isDefault,
+        customUrl: (platform === 'openrouter' || platform === 'custom_openai' || platform === 'custom_claude') ? customUrl.trim() : '',
       };
       console.log('[AIAssistantDetailPage] saving payload:', {
         id: payload.id,
@@ -622,14 +637,43 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Model</label>
-                  <select value={model} onChange={e => setModel(e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
-                    {currentModels.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
+                  {['openrouter', 'custom_openai', 'custom_claude'].includes(platform) ? (
+                    <input type="text" value={model} onChange={e => setModel(e.target.value)}
+                      placeholder={platform === 'openrouter' ? 'VD: google/gemini-2.5-flash' : 'Tên model...'}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                  ) : (
+                    <select value={model} onChange={e => setModel(e.target.value)}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                      {currentModels.map(m => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
+
+              {/* Custom URL endpoint */}
+              {['openrouter', 'custom_openai', 'custom_claude'].includes(platform) && (
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">
+                    Custom API Endpoint {platform === 'openrouter' && '(Tùy chọn)'}
+                  </label>
+                  <input type="text" value={customUrl} onChange={e => setCustomUrl(e.target.value)}
+                    placeholder={
+                      platform === 'openrouter'
+                        ? 'Bỏ trống để dùng mặc định: https://openrouter.ai/api/v1/chat/completions'
+                        : platform === 'custom_openai'
+                          ? 'VD: https://api.yourprovider.com/v1/chat/completions'
+                          : 'VD: https://api.yourprovider.com/v1/messages'
+                    }
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"/>
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    {platform === 'openrouter'
+                      ? 'Nhập endpoint tuỳ chỉnh nếu bạn sử dụng proxy hoặc cổng định tuyến riêng.'
+                      : 'Địa chỉ URL API hoàn chỉnh để gọi LLM tương thích.'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -655,6 +699,8 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                 {platform === 'deepseek' && 'Lấy tại: platform.deepseek.com/api-keys'}
                 {platform === 'grok' && 'Lấy tại: console.x.ai'}
                 {platform === 'mistral' && 'Lấy tại: console.mistral.ai/api-keys'}
+                {platform === 'openrouter' && 'Lấy tại: openrouter.ai/keys'}
+                {['custom_openai', 'custom_claude'].includes(platform) && 'Nhập API Key của nhà cung cấp dịch vụ tương thích.'}
               </p>
             </div>
           </div>

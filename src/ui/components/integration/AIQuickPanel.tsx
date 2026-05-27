@@ -27,7 +27,7 @@ interface AssistantSummary {
 }
 
 const PLATFORM_ICONS: Record<string, string> = {
-  openai: '🤖', gemini: '✨', deepseek: '🔮', grok: '⚡',
+  openai: '🤖', gemini: '✨', claude: '🟠', deepseek: '🔮', grok: '⚡', mistral: '🌀', openrouter: '🚀', custom_openai: '⚙️', custom_claude: '🛠️'
 };
 
 const clampContextCount = (value: number) => Math.min(100, Math.max(1, Math.round(value)));
@@ -208,7 +208,27 @@ export default function AIQuickPanel({ onClose }: { onClose: () => void }) {
     const zaloContext = getRawZaloChatContext();
     if (!zaloContext) return;
     setLoading(true);
-    const summaryPrompt = `Hãy tóm tắt cuộc hội thoại sau trong 3-5 dòng, nêu rõ: chủ đề chính, yêu cầu của khách, trạng thái hiện tại.\n\n${zaloContext}`;
+    const summaryPrompt = `Hãy đóng vai trò là một quản lý CRM chuyên nghiệp. Hãy đọc và phân tích cuộc hội thoại Zalo dưới đây để viết một bản Tóm Tắt Hội Thoại chi tiết, rõ ràng và có cấu trúc mạch lạc theo định dạng sau:
+
+📌 **BỐI CẢNH & CHỦ ĐỀ CHÍNH**
+- Tóm tắt ngắn gọn bối cảnh cuộc hội thoại và mục đích liên hệ của khách hàng.
+
+👤 **YÊU CẦU & THÔNG TIN CỦA KHÁCH HÀNG**
+- Liệt kê các câu hỏi cụ thể, thắc mắc hoặc vấn đề khách hàng đang quan tâm.
+- Ghi lại các thông tin cá nhân/nhu cầu đặc biệt nếu khách hàng đã cung cấp (VD: số điện thoại, địa chỉ, loại sản phẩm quan tâm).
+
+💡 **PHƯƠNG ÁN GIẢI QUYẾT & TRẠNG THÁI HIỆN TẠI**
+- Người bán hàng/hỗ trợ viên đã giải thích hoặc đề xuất giải pháp gì?
+- Trạng thái hiện tại của hội thoại là gì? (VD: Đang chờ khách phản hồi, đã chốt đơn, chờ gửi mẫu thử, v.v.)
+
+⚡ **CÁC HÀNH ĐỘNG TIẾP THEO (ACTION ITEMS)**
+- Liệt kê các đầu việc cần làm tiếp theo để chăm sóc khách hàng này (kèm theo thời hạn hoặc mức độ ưu tiên nếu có suy luận được).
+
+Chú ý: Trình bày chi tiết, chuyên nghiệp bằng tiếng Việt, phân tách rõ ràng các mục bằng emoji và gạch đầu dòng.
+
+---
+[NỘI DUNG HỘI THOẠI ZALO]
+${zaloContext}`;
     const userMsg: ChatMsg = { role: 'user', content: '📑 Tóm tắt hội thoại' };
     setMessages(prev => [...prev, userMsg]);
     try {

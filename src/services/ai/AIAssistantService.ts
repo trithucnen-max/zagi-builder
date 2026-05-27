@@ -15,7 +15,7 @@ import Logger from '../../utils/Logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type AIPlatform = 'openai' | 'gemini' | 'claude' | 'deepseek' | 'grok' | 'mistral';
+export type AIPlatform = 'openai' | 'gemini' | 'claude' | 'deepseek' | 'grok' | 'mistral' | 'openrouter' | 'custom_openai' | 'custom_claude';
 
 export interface AIAssistant {
   id: string;
@@ -31,6 +31,7 @@ export interface AIAssistant {
   contextMessageCount: number;
   enabled: boolean;
   isDefault: boolean;
+  customUrl?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -159,8 +160,8 @@ class AIAssistantService {
       db.run(`UPDATE ai_assistants SET is_default = 0`);
     }
 
-    db.run(`INSERT INTO ai_assistants (id, name, platform, api_key_encrypted, model, system_prompt, pos_integration_id, pinned_products_json, max_tokens, temperature, context_message_count, enabled, is_default, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    db.run(`INSERT INTO ai_assistants (id, name, platform, api_key_encrypted, model, system_prompt, pos_integration_id, pinned_products_json, max_tokens, temperature, context_message_count, enabled, is_default, custom_url, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               name = excluded.name, platform = excluded.platform,
               api_key_encrypted = CASE WHEN excluded.api_key_encrypted = '***' THEN ai_assistants.api_key_encrypted ELSE excluded.api_key_encrypted END,
@@ -170,6 +171,7 @@ class AIAssistantService {
               max_tokens = excluded.max_tokens, temperature = excluded.temperature,
               context_message_count = excluded.context_message_count,
               enabled = excluded.enabled, is_default = excluded.is_default,
+              custom_url = excluded.custom_url,
               updated_at = excluded.updated_at`,
       [
         id, data.name, data.platform, encrypted, data.model,
@@ -178,6 +180,7 @@ class AIAssistantService {
         data.maxTokens || 1000, data.temperature ?? 0.7,
         data.contextMessageCount || 30,
         data.enabled !== false ? 1 : 0, data.isDefault ? 1 : 0,
+        data.customUrl || '',
         data.id ? now : now, now,
       ]);
 
@@ -359,20 +362,26 @@ VÍ DỤ ĐẦU RA ĐÚNG:
         promptTokens = res.data.usageMetadata?.promptTokenCount || 0;
         completionTokens = res.data.usageMetadata?.candidatesTokenCount || 0;
         totalTokens = promptTokens + completionTokens;
-      } else if (assistant.platform === 'claude') {
+      } else if (assistant.platform === 'claude' || assistant.platform === 'custom_claude') {
         // Anthropic Claude Messages API
-        Logger.info(`[AIAssistant] Claude URL: https://api.anthropic.com/v1/messages`);
         const systemText = messages.filter(m => m.role === 'system').map(m => m.content).join('\n');
         const claudeMessages = messages
           .filter(m => m.role !== 'system')
           .map(m => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: m.content }));
+        
+        const apiUrl = assistant.platform === 'custom_claude'
+          ? (assistant.customUrl || 'https://api.anthropic.com/v1/messages')
+          : 'https://api.anthropic.com/v1/messages';
+
+        Logger.info(`[AIAssistant] Claude/Custom Claude URL: ${apiUrl}`);
         const res = await axios.post(
-          'https://api.anthropic.com/v1/messages',
+          apiUrl,
           {
             model: assistant.model,
             max_tokens: maxTokens,
             ...(systemText ? { system: systemText } : {}),
             messages: claudeMessages,
+            temperature,
           },
           {
             headers: {
@@ -388,8 +397,25 @@ VÍ DỤ ĐẦU RA ĐÚNG:
         completionTokens = res.data.usage?.output_tokens || 0;
         totalTokens = promptTokens + completionTokens;
       } else {
-        const apiUrl = getOpenAICompatibleUrl(assistant.platform);
-        Logger.info(`[AIAssistant] OpenAI-compat URL: ${apiUrl}, model: ${assistant.model}`);
+        let apiUrl = '';
+        let headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (assistant.platform === 'openrouter') {
+          apiUrl = assistant.customUrl || 'https://openrouter.ai/api/v1/chat/completions';
+          headers['Authorization'] = `Bearer ${assistant.apiKey}`;
+          headers['HTTP-Referer'] = 'https://itngon.com/zagi';
+          headers['X-Title'] = 'Zagi Builder';
+        } else if (assistant.platform === 'custom_openai') {
+          apiUrl = assistant.customUrl || 'https://api.openai.com/v1/chat/completions';
+          headers['Authorization'] = `Bearer ${assistant.apiKey}`;
+        } else {
+          apiUrl = getOpenAICompatibleUrl(assistant.platform);
+          headers['Authorization'] = `Bearer ${assistant.apiKey}`;
+        }
+
+        Logger.info(`[AIAssistant] OpenAI-compat/OpenRouter URL: ${apiUrl}, model: ${assistant.model}`);
         const tokenParam = assistant.platform === 'openai'
           ? { max_completion_tokens: maxTokens }
           : { max_tokens: maxTokens };
@@ -397,10 +423,7 @@ VÍ DỤ ĐẦU RA ĐÚNG:
           apiUrl,
           { model: assistant.model, messages, ...tokenParam, temperature },
           {
-            headers: {
-              Authorization: `Bearer ${assistant.apiKey}`,
-              'Content-Type': 'application/json',
-            },
+            headers,
             timeout: 60000,
           }
         );
@@ -664,6 +687,7 @@ VÍ DỤ ĐẦU RA ĐÚNG:
       contextMessageCount: row.context_message_count || 30,
       enabled: row.enabled === 1,
       isDefault: row.is_default === 1,
+      customUrl: row.custom_url || '',
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

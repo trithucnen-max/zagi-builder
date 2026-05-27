@@ -933,6 +933,7 @@ class DatabaseService {
                 max_tokens            INTEGER NOT NULL DEFAULT 1000,
                 temperature           REAL NOT NULL DEFAULT 0.7,
                 context_message_count INTEGER NOT NULL DEFAULT 30,
+                custom_url            TEXT DEFAULT '',
                 enabled               INTEGER NOT NULL DEFAULT 1,
                 is_default            INTEGER NOT NULL DEFAULT 0,
                 created_at            INTEGER NOT NULL,
@@ -1988,6 +1989,18 @@ class DatabaseService {
             }
         } catch (err: any) {
             Logger.warn(`[DatabaseService] pinned_products_json migration: ${err.message}`);
+        }
+
+        // Migration: add custom_url to ai_assistants if missing
+        try {
+            const aiCols3 = this.query<any>(`PRAGMA table_info(ai_assistants)`);
+            if (aiCols3.length > 0 && !aiCols3.some((c: any) => c.name === 'custom_url')) {
+                db!.exec(`ALTER TABLE ai_assistants ADD COLUMN custom_url TEXT DEFAULT ''`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added custom_url to ai_assistants');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] custom_url migration: ${err.message}`);
         }
 
         // Migration: create ai_account_assistants table for per-account assistant assignment
@@ -4873,6 +4886,9 @@ class DatabaseService {
                 } else if (!effectiveTypes && legacyType === 'non_friend') {
                     // Legacy non_friend single type
                     all = all.filter((c: any) => c.is_friend !== 1 && c.contact_type !== 'group');
+                } else if (!effectiveTypes && legacyType === 'all') {
+                    // Filter out group chats by default when viewing all contacts
+                    all = all.filter((c: any) => c.contact_type !== 'group');
                 }
             }
 
