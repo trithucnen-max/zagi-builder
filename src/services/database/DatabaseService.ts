@@ -6460,10 +6460,6 @@ class DatabaseService {
                 return true;
             }
 
-            // Rule: Exclude blocked
-            if (access.exclude_blocked === 1 && contact.is_blocked === 1) {
-                return false;
-            }
 
             // Rule: Groups
             if (contact.contact_type === 'group') {

@@ -476,9 +476,9 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
         new Set(employee?.assigned_accounts || [])
     );
 
-    // Zalo access config: map zaloId -> { allowed_groups, allowed_tags, exclude_blocked }
+    // Zalo access config: map zaloId -> { allowed_groups, allowed_tags }
     const [zaloAccessConfig, setZaloAccessConfig] = useState<Record<string, {
-        allowed_groups: string[]; allowed_tags: string[]; exclude_blocked: boolean;
+        allowed_groups: string[]; allowed_tags: string[];
     }>>({});
     const [availableGroups, setAvailableGroups] = useState<{ id: string; name: string }[]>([]);
     const [availableLabels, setAvailableLabels] = useState<{ id: number; text: string; color?: string }[]>([]);
@@ -571,12 +571,11 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                 try {
                     const accRes = await ipc.employee?.getAccountAccessDetails(employee.employee_id);
                     if (accRes?.success) {
-                        const cfg: Record<string, { allowed_groups: string[]; allowed_tags: string[]; exclude_blocked: boolean }> = {};
+                        const cfg: Record<string, { allowed_groups: string[]; allowed_tags: string[] }> = {};
                         for (const d of (accRes.details || [])) {
                             cfg[d.zalo_id] = {
                                 allowed_groups: d.allowed_groups ? d.allowed_groups.split(',').filter(Boolean) : [],
                                 allowed_tags: d.allowed_tags ? d.allowed_tags.split(',').filter(Boolean) : [],
-                                exclude_blocked: !!d.exclude_blocked,
                             };
                         }
                         setZaloAccessConfig(cfg);
@@ -600,12 +599,12 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                 await ipc.employee?.setPermissions(employee!.employee_id, permArray);
                 await ipc.employee?.assignAccounts(employee!.employee_id, Array.from(selectedAccounts));
 
-                // Save Zalo access details (groups, tags, blocked filter)
+                // Save Zalo access details (groups, tags)
                 const accessDetails = Array.from(selectedAccounts).map(zaloId => ({
                     zalo_id: zaloId,
                     allowed_groups: (zaloAccessConfig[zaloId]?.allowed_groups || []).join(','),
                     allowed_tags: (zaloAccessConfig[zaloId]?.allowed_tags || []).join(','),
-                    exclude_blocked: zaloAccessConfig[zaloId]?.exclude_blocked ? 1 : 0,
+                    exclude_blocked: 0,
                 }));
                 await ipc.employee?.assignAccountAccessDetails(employee!.employee_id, accessDetails);
 
@@ -625,7 +624,7 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                         zalo_id: zaloId,
                         allowed_groups: (zaloAccessConfig[zaloId]?.allowed_groups || []).join(','),
                         allowed_tags: (zaloAccessConfig[zaloId]?.allowed_tags || []).join(','),
-                        exclude_blocked: zaloAccessConfig[zaloId]?.exclude_blocked ? 1 : 0,
+                        exclude_blocked: 0,
                     }));
                     await ipc.employee?.assignAccountAccessDetails(empId, accessDetails);
 
@@ -913,7 +912,7 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                                                                 }`}>
                                                                     <input type="checkbox" checked={isChecked} className="sr-only"
                                                                         onChange={() => setZaloAccessConfig(prev => {
-                                                                            const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [], exclude_blocked: false };
+                                                                            const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [] };
                                                                             const next = isChecked
                                                                                 ? cur.allowed_groups.filter(g => g !== grp.id)
                                                                                 : [...cur.allowed_groups, grp.id];
@@ -946,7 +945,7 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                                                                 }`}>
                                                                     <input type="checkbox" checked={isChecked} className="sr-only"
                                                                         onChange={() => setZaloAccessConfig(prev => {
-                                                                            const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [], exclude_blocked: false };
+                                                                            const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [] };
                                                                             const tagId = String(lbl.id);
                                                                             const next = isChecked
                                                                                 ? cur.allowed_tags.filter(t => t !== tagId)
@@ -966,33 +965,9 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                                                     </div>
                                                 </div>
 
-                                                {/* Exclude blocked */}
-                                                <div className="space-y-1">
-                                                    <label className="flex items-center gap-2 cursor-pointer">
-                                                        <input type="checkbox"
-                                                            checked={!!zaloAccessConfig[acc.zalo_id]?.exclude_blocked}
-                                                            className="sr-only"
-                                                            onChange={() => setZaloAccessConfig(prev => {
-                                                                const cur = prev[acc.zalo_id] || { allowed_groups: [], allowed_tags: [], exclude_blocked: false };
-                                                                return { ...prev, [acc.zalo_id]: { ...cur, exclude_blocked: !cur.exclude_blocked } };
-                                                            })}
-                                                        />
-                                                        <span className={`w-3.5 h-3.5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                                                            zaloAccessConfig[acc.zalo_id]?.exclude_blocked ? 'bg-red-600 border-red-500' : 'border-gray-500'
-                                                        }`}>
-                                                            {zaloAccessConfig[acc.zalo_id]?.exclude_blocked && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
-                                                        </span>
-                                                        <span className="text-[10px] text-gray-300 font-medium">🚫 Ẩn liên hệ bị khóa (Exclude Blocked)</span>
-                                                    </label>
-                                                    <p className="text-[9px] text-gray-500 ml-5.5 leading-relaxed">
-                                                        Liên hệ đã bị Boss bấm Khóa (Block) trên màn hình Chat sẽ tự động bị ẩn khỏi tài khoản của nhân viên này (ưu tiên cao nhất, đè lên phân quyền Thẻ/Nhóm).
-                                                    </p>
-                                                </div>
-
                                                 {/* Rule summary */}
                                                 <div className="bg-gray-900/40 rounded-lg px-2.5 py-2 text-[9px] text-gray-500 space-y-0.5">
                                                     <p className="font-semibold text-gray-400 mb-1">📋 Quy tắc áp dụng:</p>
-                                                    {(zaloAccessConfig[acc.zalo_id]?.exclude_blocked) && <p>• Ẩn tất cả liên hệ bị Boss khóa (ưu tiên cao nhất)</p>}
                                                     {(zaloAccessConfig[acc.zalo_id]?.allowed_groups || []).length > 0
                                                         ? <p>• Chỉ thấy {(zaloAccessConfig[acc.zalo_id]?.allowed_groups || []).length} nhóm đã chọn</p>
                                                         : <p>• Thấy tất cả nhóm Zalo</p>}
