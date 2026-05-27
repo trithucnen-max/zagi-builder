@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const png2icons = require('png2icons');
 
-const SOURCE_PNG = '/Users/kimtrungduong/.gemini/antigravity-ide/brain/91da3c0a-f337-4b37-898e-c744f49d0878/media__1779869856583.png';
+const SOURCE_PNG = '/Users/kimtrungduong/.gemini/antigravity-ide/brain/d7c09809-e4b5-4924-8655-d004802c6cec/media__1779908852256.png';
 const ICONS_DIR = path.resolve(__dirname, '../resources/icons');
 
 function generate() {
