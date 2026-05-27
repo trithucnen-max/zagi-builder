@@ -92,6 +92,28 @@ export default function GroupMembersTab() {
   const [searchGroup, setSearchGroup] = useState('');
   const [searchMember, setSearchMember] = useState('');
 
+  // ── Managed groups state ──────────────────────────────────────────────────
+  const [groupFilter, setGroupFilter] = useState<'all' | 'managed'>('all');
+  const [managedGroupIds, setManagedGroupIds] = useState<Set<string>>(new Set());
+
+  // ── Add to multiple groups modal state ───────────────────────────────────
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<any | null>(null);
+  const [searchContact, setSearchContact] = useState('');
+  const [allContacts, setAllContacts] = useState<any[]>([]);
+  const [checkedGroupIds, setCheckedGroupIds] = useState<Set<string>>(new Set());
+  const [existingGroupMembers, setExistingGroupMembers] = useState<Record<string, Set<string>>>({});
+  const [isRunningAdd, setIsRunningAdd] = useState(false);
+  const [addProgress, setAddProgress] = useState<{ current: number; total: number; msg: string } | null>(null);
+
+  // ── Remove from multiple groups modal state ──────────────────────────────
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [checkedRemoveGroupIds, setCheckedRemoveGroupIds] = useState<Set<string>>(new Set());
+  const [memberGroups, setMemberGroups] = useState<any[]>([]);
+  const [isRunningRemove, setIsRunningRemove] = useState(false);
+  const [removeProgress, setRemoveProgress] = useState<{ current: number; total: number; msg: string } | null>(null);
+
+
   // ── Progress state ────────────────────────────────────────────────────────
   /** Phase 1: syncing groups from API | Phase 2: enriching member details */
   type GroupFetchProgress =
@@ -150,7 +172,14 @@ export default function GroupMembersTab() {
     const allMembersRes = await ipc.db?.getAllGroupMembers({ zaloId: activeAccountId });
     const memberRows = allMembersRes?.rows ?? [];
     const countMap: Record<string, number> = {};
-    for (const row of memberRows) countMap[row.group_id] = (countMap[row.group_id] || 0) + 1;
+    const managedIds = new Set<string>();
+    for (const row of memberRows) {
+      countMap[row.group_id] = (countMap[row.group_id] || 0) + 1;
+      if (row.member_id === activeAccountId && (row.role === 1 || row.role === 2)) {
+        managedIds.add(row.group_id);
+      }
+    }
+    setManagedGroupIds(managedIds);
 
     const mapped = groupContacts.map((c: any) => ({
       contact_id: c.contact_id,
@@ -457,16 +486,165 @@ export default function GroupMembersTab() {
     if (selectedGroupId) loadMembersFromDB(selectedGroupId);
   }, [selectedGroupId]);
 
+  // Load list of contacts for AddUserToGroupsModal
+  useEffect(() => {
+    if (showAddModal && activeAccountId) {
+      ipc.db?.getContacts(activeAccountId).then((res: any) => {
+        const list = res?.contacts ?? res ?? [];
+        setAllContacts(list.filter((c: any) => c.contact_type !== 'group'));
+      });
+      ipc.db?.getAllGroupMembers({ zaloId: activeAccountId }).then((res: any) => {
+        const rows = res?.rows ?? [];
+        const map: Record<string, Set<string>> = {};
+        for (const r of rows) {
+          if (!map[r.group_id]) map[r.group_id] = new Set();
+          map[r.group_id].add(r.member_id);
+        }
+        setExistingGroupMembers(map);
+      });
+      setSelectedContact(null);
+      setSearchContact('');
+      setCheckedGroupIds(new Set());
+    }
+  }, [showAddModal, activeAccountId]);
+
+  // Load groups the selected member is in for RemoveUserFromGroupsModal
+  useEffect(() => {
+    if (showRemoveModal && activeAccountId && selectedMemberIds.size === 1) {
+      const targetId = Array.from(selectedMemberIds)[0];
+      ipc.db?.getAllGroupMembers({ zaloId: activeAccountId }).then((res: any) => {
+        const rows = res?.rows ?? [];
+        const filtered = rows.filter((r: any) => r.member_id === targetId && managedGroupIds.has(r.group_id));
+        setMemberGroups(filtered);
+        setCheckedRemoveGroupIds(new Set(filtered.map((f: any) => f.group_id)));
+      });
+    }
+  }, [showRemoveModal, activeAccountId, selectedMemberIds, managedGroupIds]);
+
+  const handleAddUserToGroups = async () => {
+    if (!activeAccountId || !selectedContact || checkedGroupIds.size === 0) return;
+    setIsRunningAdd(true);
+    const groupIdsArray = Array.from(checkedGroupIds);
+    const acc = useAccountStore.getState().getActiveAccount();
+    if (!acc) {
+      setIsRunningAdd(false);
+      return;
+    }
+    const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+
+    for (let i = 0; i < groupIdsArray.length; i++) {
+      const gId = groupIdsArray[i];
+      const groupObj = groups.find(g => g.contact_id === gId);
+      const groupName = groupObj?.display_name || gId;
+
+      setAddProgress({
+        current: i + 1,
+        total: groupIdsArray.length,
+        msg: `Đang thêm vào nhóm: ${groupName}...`
+      });
+
+      try {
+        const res = await ipc.zalo?.addUserToGroup({ auth, userId: selectedContact.contact_id, groupId: gId });
+        if (res?.success) {
+          await ipc.db?.upsertGroupMember({
+            zaloId: activeAccountId,
+            groupId: gId,
+            member: {
+              memberId: selectedContact.contact_id,
+              displayName: selectedContact.display_name || '',
+              avatar: selectedContact.avatar_url || '',
+              role: 0
+            }
+          });
+        } else {
+          console.warn(`[AddUserToGroup] Failed for ${gId}:`, res?.error);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+
+      if (i < groupIdsArray.length - 1) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    setIsRunningAdd(false);
+    setAddProgress(null);
+    setShowAddModal(false);
+    await loadGroupsFromDB();
+    if (selectedGroupId) {
+      await loadMembersFromDB(selectedGroupId);
+    }
+  };
+
+  const handleRemoveUserFromGroups = async () => {
+    if (!activeAccountId || selectedMemberIds.size !== 1 || checkedRemoveGroupIds.size === 0) return;
+    setIsRunningRemove(true);
+    const targetId = Array.from(selectedMemberIds)[0];
+    const groupIdsArray = Array.from(checkedRemoveGroupIds);
+    const acc = useAccountStore.getState().getActiveAccount();
+    if (!acc) {
+      setIsRunningRemove(false);
+      return;
+    }
+    const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+
+    for (let i = 0; i < groupIdsArray.length; i++) {
+      const gId = groupIdsArray[i];
+      const groupObj = groups.find(g => g.contact_id === gId);
+      const groupName = groupObj?.display_name || gId;
+
+      setRemoveProgress({
+        current: i + 1,
+        total: groupIdsArray.length,
+        msg: `Đang xóa khỏi nhóm: ${groupName}...`
+      });
+
+      try {
+        const res = await ipc.zalo?.removeUserFromGroup({ auth, userId: targetId, groupId: gId });
+        if (res?.success) {
+          await ipc.db?.removeGroupMember({ zaloId: activeAccountId, groupId: gId, memberId: targetId });
+        } else {
+          console.warn(`[RemoveUserFromGroup] Failed for ${gId}:`, res?.error);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+
+      if (i < groupIdsArray.length - 1) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    setIsRunningRemove(false);
+    setRemoveProgress(null);
+    setShowRemoveModal(false);
+    setSelectedMemberIds(new Set());
+    await loadGroupsFromDB();
+    if (selectedGroupId) {
+      await loadMembersFromDB(selectedGroupId);
+    }
+  };
+
   // ── Filtered lists ────────────────────────────────────────────────────────
-  const filteredGroups = groups.filter(g =>
-    !searchGroup.trim() ||
-    g.display_name.toLowerCase().includes(searchGroup.toLowerCase()) ||
-    g.contact_id.includes(searchGroup)
-  );
+  const filteredGroups = groups.filter(g => {
+    if (groupFilter === 'managed' && !managedGroupIds.has(g.contact_id)) return false;
+    return (
+      !searchGroup.trim() ||
+      g.display_name.toLowerCase().includes(searchGroup.toLowerCase()) ||
+      g.contact_id.includes(searchGroup)
+    );
+  });
   const filteredMembers = members.filter(m =>
     !searchMember.trim() ||
     m.display_name.toLowerCase().includes(searchMember.toLowerCase()) ||
     m.member_id.includes(searchMember)
+  );
+  const filteredContacts = allContacts.filter(c =>
+    !searchContact.trim() ||
+    (c.display_name || '').toLowerCase().includes(searchContact.toLowerCase()) ||
+    (c.phone || '').includes(searchContact) ||
+    (c.contact_id || '').includes(searchContact)
   );
 
   const allFilteredSelected = filteredMembers.length > 0 &&
@@ -528,10 +706,34 @@ export default function GroupMembersTab() {
         </div>
 
         {groups.length > 0 && (
-          <div className="px-3 py-2 border-b border-gray-700/50 flex-shrink-0">
+          <div className="px-3 py-2 border-b border-gray-700/50 flex-shrink-0 flex flex-col gap-2">
             <input type="text" value={searchGroup} onChange={e => setSearchGroup(e.target.value)}
               placeholder="Tìm nhóm..."
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+            
+            <div className="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700">
+              <button
+                onClick={() => setGroupFilter('all')}
+                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'all' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                Tất cả ({groups.length})
+              </button>
+              <button
+                onClick={() => setGroupFilter('managed')}
+                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'managed' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                Tôi quản lý ({managedGroupIds.size})
+              </button>
+            </div>
+
+            {groupFilter === 'managed' && managedGroupIds.size > 0 && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1 shadow-sm"
+              >
+                <span>➕ Thêm người vào nhóm</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -540,7 +742,11 @@ export default function GroupMembersTab() {
             <EmptyState icon={GroupIcon} title="Chưa có dữ liệu nhóm"
               desc={<>Nhấn <span className="text-blue-400 font-medium">Tải từ API</span> để đồng bộ nhóm từ Zalo.</>} />
           ) : filteredGroups.length === 0 ? (
-            <div className="flex items-center justify-center h-16 text-xs text-gray-500">Không tìm thấy nhóm</div>
+            <div className="flex flex-col items-center justify-center p-6 text-center text-xs text-gray-500">
+              {groupFilter === 'managed'
+                ? 'Bạn chưa có nhóm nào làm Trưởng/Phó nhóm, hoặc cần nhấn "Tải toàn bộ nhóm từ Zalo" để cập nhật thông tin vai trò.'
+                : 'Không tìm thấy nhóm'}
+            </div>
           ) : (
             <div className="py-1">
               {filteredGroups.map(group => (
@@ -718,6 +924,16 @@ export default function GroupMembersTab() {
                   className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs transition-colors">
                   Bỏ chọn
                 </button>
+                {selectedMemberIds.size === 1 && (
+                  <button onClick={() => setShowRemoveModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                      <line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/>
+                    </svg>
+                    Xóa khỏi các nhóm
+                  </button>
+                )}
                 <button onClick={openCampaignPicker}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -1050,6 +1266,213 @@ export default function GroupMembersTab() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Modal: Add User to Multiple Groups ────────────────────────────── */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => { if (!isRunningAdd) setShowAddModal(false); }}>
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl w-[480px] max-w-full p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2 flex-shrink-0">
+              <h3 className="font-semibold text-white text-sm">Thêm người vào nhiều nhóm</h3>
+              <button onClick={() => setShowAddModal(false)} disabled={isRunningAdd}
+                className="text-gray-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-gray-700">✕</button>
+            </div>
+            
+            {isRunningAdd && addProgress ? (
+              <div className="py-8 text-center flex flex-col items-center gap-3">
+                {SpinIcon}
+                <p className="text-xs text-gray-300 font-medium">{addProgress.msg}</p>
+                <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden mt-2">
+                  <div className="bg-blue-500 h-full transition-all duration-300"
+                    style={{ width: `${(addProgress.current / addProgress.total) * 100}%` }} />
+                </div>
+                <span className="text-[10px] text-gray-500">{addProgress.current}/{addProgress.total} nhóm</span>
+              </div>
+            ) : (
+              <>
+                {/* Step 1: Select User */}
+                <div className="mb-4 flex flex-col overflow-hidden min-h-[160px] max-h-[220px]">
+                  <span className="text-xs font-semibold text-gray-300 mb-1.5 block">1. Chọn liên hệ</span>
+                  <input type="text" value={searchContact} onChange={e => setSearchContact(e.target.value)}
+                    placeholder="Tìm theo tên hoặc SĐT..."
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 mb-2 focus:outline-none focus:border-blue-500" />
+                  
+                  <div className="flex-1 overflow-y-auto border border-gray-700 rounded-lg p-1 bg-gray-900/50 space-y-0.5">
+                    {filteredContacts.length === 0 ? (
+                      <div className="text-center py-4 text-xs text-gray-500">Không tìm thấy liên hệ nào</div>
+                    ) : (
+                      filteredContacts.map(c => {
+                        const isSelected = selectedContact?.contact_id === c.contact_id;
+                        return (
+                          <button key={c.contact_id} onClick={() => setSelectedContact(c)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs transition-colors
+                              ${isSelected ? 'bg-blue-600 text-white font-medium' : 'text-gray-300 hover:bg-gray-800'}`}>
+                            <Avatar src={c.avatar_url} name={c.display_name} size={24} />
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate">{c.display_name || c.contact_id}</p>
+                              {c.phone && <p className={`text-[10px] truncate ${isSelected ? 'text-blue-100' : 'text-gray-500'}`}>{c.phone}</p>}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Step 2: Select Groups */}
+                {selectedContact && (
+                  <div className="mb-4 flex flex-col overflow-hidden min-h-[160px] max-h-[220px]">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-gray-300">2. Chọn nhóm muốn thêm</span>
+                      <button onClick={() => {
+                        const notIn = groups.filter(g => managedGroupIds.has(g.contact_id) && !existingGroupMembers[g.contact_id]?.has(selectedContact.contact_id));
+                        setCheckedGroupIds(new Set(notIn.map(g => g.contact_id)));
+                      }}
+                        className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors font-medium">Chọn tất cả</button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto border border-gray-700 rounded-lg p-1 bg-gray-900/50 space-y-0.5">
+                      {groups.filter(g => managedGroupIds.has(g.contact_id)).length === 0 ? (
+                        <div className="text-center py-4 text-xs text-gray-500">Không có nhóm nào bạn làm Trưởng/Phó nhóm</div>
+                      ) : (
+                        groups.filter(g => managedGroupIds.has(g.contact_id)).map(g => {
+                          const isAlreadyIn = existingGroupMembers[g.contact_id]?.has(selectedContact.contact_id);
+                          const isChecked = checkedGroupIds.has(g.contact_id);
+                          return (
+                            <div key={g.contact_id} onClick={() => {
+                              if (isAlreadyIn) return;
+                              setCheckedGroupIds(prev => {
+                                const next = new Set(prev);
+                                next.has(g.contact_id) ? next.delete(g.contact_id) : next.add(g.contact_id);
+                                return next;
+                              });
+                            }}
+                              className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-colors select-none
+                                ${isAlreadyIn ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-800 cursor-pointer'}`}>
+                              <input type="checkbox" checked={isChecked || isAlreadyIn} disabled={isAlreadyIn} onChange={() => {}}
+                                className="rounded text-blue-600 bg-gray-800 border-gray-600 focus:ring-blue-500" />
+                              <GroupAvatar avatarUrl={g.avatar_url} name={g.display_name} size="xs" />
+                              <span className="flex-1 truncate text-gray-200">{g.display_name}</span>
+                              {isAlreadyIn && <span className="text-[10px] text-gray-500 font-medium whitespace-nowrap">Đã tham gia</span>}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 justify-end mt-2 flex-shrink-0">
+                  <button onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-semibold transition-colors">
+                    Hủy
+                  </button>
+                  <button onClick={handleAddUserToGroups} disabled={!selectedContact || checkedGroupIds.size === 0}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors">
+                    Xác nhận thêm
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Remove User from Multiple Groups ────────────────────────── */}
+      {showRemoveModal && selectedMemberIds.size === 1 && (
+        (() => {
+          const targetId = Array.from(selectedMemberIds)[0];
+          const memberObj = members.find(m => m.member_id === targetId);
+          return (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+              onClick={() => { if (!isRunningRemove) setShowRemoveModal(false); }}>
+              <div className="bg-gray-800 border border-gray-700 rounded-2xl w-[440px] max-w-full p-5 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+                onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                  <h3 className="font-semibold text-white text-sm">Xóa thành viên khỏi nhóm</h3>
+                  <button onClick={() => setShowRemoveModal(false)} disabled={isRunningRemove}
+                    className="text-gray-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-gray-700">✕</button>
+                </div>
+
+                {isRunningRemove && removeProgress ? (
+                  <div className="py-8 text-center flex flex-col items-center gap-3">
+                    {SpinIcon}
+                    <p className="text-xs text-gray-300 font-medium">{removeProgress.msg}</p>
+                    <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden mt-2">
+                      <div className="bg-red-500 h-full transition-all duration-300"
+                        style={{ width: `${(removeProgress.current / removeProgress.total) * 100}%` }} />
+                    </div>
+                    <span className="text-[10px] text-gray-500">{removeProgress.current}/{removeProgress.total} nhóm</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl bg-gray-900/40 border border-gray-700/50 mb-4 flex-shrink-0">
+                      <Avatar src={memberObj?.avatar} name={memberObj?.display_name || targetId} size={36} />
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-400">Thành viên</p>
+                        <p className="text-sm font-semibold text-white truncate">{memberObj?.display_name || targetId}</p>
+                        {memberObj?.phone && <p className="text-[10px] text-green-400 font-medium">{memberObj.phone}</p>}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                      <span className="text-xs font-semibold text-gray-300">Chọn nhóm muốn xóa thành viên khỏi:</span>
+                      <div className="flex gap-2">
+                        <button onClick={() => setCheckedRemoveGroupIds(new Set(memberGroups.map(g => g.group_id)))}
+                          className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors font-medium">Chọn tất cả</button>
+                        <span className="text-gray-600 text-[10px]">|</span>
+                        <button onClick={() => setCheckedRemoveGroupIds(new Set())}
+                          className="text-[10px] text-gray-400 hover:text-gray-300 transition-colors font-medium">Bỏ chọn</button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto border border-gray-700 rounded-lg p-1 bg-gray-900/50 space-y-0.5 mb-4">
+                      {memberGroups.length === 0 ? (
+                        <div className="text-center py-6 text-xs text-gray-500">
+                          Thành viên này không thuộc nhóm quản lý nào của bạn.
+                        </div>
+                      ) : (
+                        memberGroups.map(mg => {
+                          const isChecked = checkedRemoveGroupIds.has(mg.group_id);
+                          const gObj = groups.find(g => g.contact_id === mg.group_id);
+                          const gName = gObj?.display_name || mg.group_id;
+                          return (
+                            <div key={mg.group_id} onClick={() => {
+                              setCheckedRemoveGroupIds(prev => {
+                                const next = new Set(prev);
+                                next.has(mg.group_id) ? next.delete(mg.group_id) : next.add(mg.group_id);
+                                return next;
+                              });
+                            }}
+                              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs hover:bg-gray-800 cursor-pointer transition-colors select-none">
+                              <input type="checkbox" checked={isChecked} onChange={() => {}}
+                                className="rounded text-red-600 bg-gray-800 border-gray-600 focus:ring-red-500" />
+                              <GroupAvatar avatarUrl={gObj?.avatar_url} name={gName} size="xs" />
+                              <span className="flex-1 truncate text-gray-200">{gName}</span>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 justify-end flex-shrink-0">
+                      <button onClick={() => setShowRemoveModal(false)}
+                        className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-semibold transition-colors">
+                        Hủy
+                      </button>
+                      <button onClick={handleRemoveUserFromGroups} disabled={checkedRemoveGroupIds.size === 0}
+                        className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors">
+                        Xác nhận xóa ({checkedRemoveGroupIds.size})
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()
       )}
     </div>
   );

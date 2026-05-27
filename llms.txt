@@ -1,0 +1,18 @@
+# Zagi Builder
+> Phần mềm desktop quản lý đa tài khoản Zalo chạy local-first (cục bộ) tích hợp CRM, ERP, POS, đơn vị vận chuyển, tự động hóa quy trình (workflow) và trợ lý AI.
+
+## Các Thư Mục & Tệp Tin Cốt Lõi
+- [electron/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/electron): Logic cho tiến trình chính (Main process) của Electron.
+  - [electron/main.ts](file:///Users/kimtrungduong/Downloads/deplao-builder-main/electron/main.ts): Điểm khởi chạy của tiến trình chính.
+  - [electron/preload.ts](file:///Users/kimtrungduong/Downloads/deplao-builder-main/electron/preload.ts): Thiết lập cầu nối IPC an toàn.
+  - [electron/ipc/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/electron/ipc): Các hàm xử lý yêu cầu IPC từ UI (đăng nhập, tích hợp, AI, ERP, chat).
+- [src/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src): Mã nguồn Frontend React (Renderer process).
+  - [src/ui/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src/ui): Các component React và cấu trúc trang.
+  - [src/services/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src/services): Các dịch vụ đơn lẻ (DatabaseService, AIAssistantService).
+  - [src/store/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src/store): Các kho lưu trữ trạng thái Zustand (accountStore, chatStore, workspaceStore).
+- [docs/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/docs): Tài liệu hướng dẫn sử dụng, quy trình vận hành và tài liệu API hệ thống.
+
+## Kiến Trúc Cốt Lõi
+- **Lưu trữ SQLite Local-first**: Cơ sở dữ liệu được lưu trữ cục bộ dưới dạng SQLite (`zagi-tool.db`) sử dụng thư viện đồng bộ hiệu năng cao `better-sqlite3`. Các tệp đa phương tiện được giải nén ngoài kho lưu trữ ASAR và lưu trong thư mục AppData của người dùng dưới dạng `~/media`.
+- **Cầu nối IPC Main-Renderer**: Tất cả các yêu cầu từ giao diện React tới cơ sở dữ liệu SQLite hoặc gọi mạng đều được chuyển tiếp bất đồng bộ từ renderer tới tiến trình main của Electron thông qua các kênh IPC tùy chỉnh được định nghĩa chi tiết tại [docs/API.md](file:///Users/kimtrungduong/Downloads/deplao-builder-main/docs/API.md).
+- **Relay Boss-Employee**: Phiên bản chạy của chủ doanh nghiệp (Boss) đóng vai trò làm máy chủ trung tâm (Express + WebSockets trên cổng `9900`), cho phép các phiên bản nhân viên kết nối từ xa để truy vấn dữ liệu và phát lệnh dựa trên phân quyền chi tiết (RBAC).
