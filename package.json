@@ -109,8 +109,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "babyvibe",
-        "repo": "deplao-builder-main"
+        "owner": "trithucnen-max",
+        "repo": "zagi-builder"
       }
     ],
     "win": {
