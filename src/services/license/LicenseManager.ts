@@ -11,7 +11,7 @@ const LICENSE_CONFIG = {
   get apiUrl(): string {
     return LicenseManager._runtimeConfig?.apiUrl
       || process.env.LICENSE_API_URL
-      || 'https://script.google.com/macros/s/AKfycbzhNIEpifUJuwquObVZWfNPHFTrQEOuFkJ0mctF7XLn_XGOYSWryg4AI3f_Ik-xvGLMMg/exec';
+      || 'https://script.google.com/macros/s/AKfycbwfAp3H9lUTrFLDakhpCmLZB6h9V9bViGSmCTMtp49MbujLK-vT6aPbSQhsJZNs0T4qVg/exec';
   },
   get apiSecret(): string {
     // Production builds không có .env → dùng fallback mặc định
