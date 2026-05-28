@@ -609,3 +609,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 });
 
+contextBridge.exposeInMainWorld('licenseAPI', {
+  verify: (email: string, licenseKey: string | null) => ipcRenderer.invoke('license:verify', { email, licenseKey }),
+  register: (data: any) => ipcRenderer.invoke('license:register', data),
+  activateAfterRegister: (email: string, licenseKey: string) => ipcRenderer.invoke('license:activateAfterRegister', { email, licenseKey }),
+  get: () => ipcRenderer.invoke('license:get'),
+  logout: () => ipcRenderer.invoke('license:logout')
+});
+

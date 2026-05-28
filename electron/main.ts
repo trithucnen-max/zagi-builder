@@ -30,6 +30,7 @@ import EventBroadcaster from '../src/services/event/EventBroadcaster';
 import CRMQueueService from '../src/services/crm/CRMQueueService';
 import FileStorageService from '../src/services/file/FileStorageService';
 import { SHOW_DEV_TOOLS, IS_DEV_BUILD } from '../src/configs/BuildConfig';
+import licenseManager from '../src/services/license/LicenseManager';
 
 const isDev = IS_DEV_BUILD;
 let isQuitting = false;
@@ -144,6 +145,7 @@ if (!gotLock) {
   process.exit(0);
 }
 
+let licenseWindow: BrowserWindow | null = null;
 let mainWindow: BrowserWindow | null = null;
 let inAppBrowserWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -580,7 +582,11 @@ function migrateDataFromDeplaoToZagi(): void {
   }
 }
 
-app.whenReady().then(async () => {
+let appStarted = false;
+async function startApp() {
+  if (appStarted) return;
+  appStarted = true;
+
   migrateDataFromDeplaoToZagi();
   // ── Register local-media:// protocol handler ───────────────────────────
   protocol.handle('local-media', (request) => {
@@ -780,6 +786,94 @@ app.whenReady().then(async () => {
   ipcMain.on('update:install', () => {
     if (!isDev) autoUpdater.quitAndInstall(false, true);
   });
+}
+
+function createLicenseWindow() {
+  const isMac = process.platform === 'darwin';
+  licenseWindow = new BrowserWindow({
+    width: 520,
+    height: 680,
+    resizable: false,
+    maximizable: false,
+    title: 'License Manager',
+    frame: isMac,
+    titleBarStyle: isMac ? 'hiddenInset' : 'default',
+    trafficLightPosition: isMac ? { x: 12, y: 12 } : undefined,
+    backgroundColor: '#1e293b',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    }
+  });
+
+  licenseWindow.loadFile(resolveIconPath('resources/license/popup.html'));
+  licenseWindow.setMenu(null);
+
+  licenseWindow.on('closed', () => {
+    licenseWindow = null;
+    if (!mainWindow && !isQuitting) {
+      app.quit();
+      process.exit(0);
+    }
+  });
+}
+
+function registerLicenseIpc() {
+  ipcMain.handle('license:verify', async (event, { email, licenseKey }) => {
+    const result = await licenseManager.verifyEmail(email, licenseKey);
+    if (result.success) {
+      setTimeout(async () => {
+        await startApp();
+        if (licenseWindow) {
+          licenseWindow.close();
+          licenseWindow = null;
+        }
+      }, 1500);
+    }
+    return result;
+  });
+
+  ipcMain.handle('license:register', async (event, data) => {
+    return await licenseManager.register(data);
+  });
+
+  ipcMain.handle('license:activateAfterRegister', async (event, { email, licenseKey }) => {
+    const result = await licenseManager.verifyEmail(email, licenseKey);
+    if (result.success) {
+      setTimeout(async () => {
+        await startApp();
+        if (licenseWindow) {
+          licenseWindow.close();
+          licenseWindow = null;
+        }
+      }, 1500);
+    }
+    return result;
+  });
+
+  ipcMain.handle('license:get', () => {
+    const license = licenseManager.getCurrentLicense();
+    if (!license) return null;
+    return { ...license, displayMessage: licenseManager.getDisplayMessage(license) };
+  });
+
+  ipcMain.handle('license:logout', () => {
+    licenseManager.clearLicense();
+    app.relaunch();
+    app.exit(0);
+  });
+}
+
+app.whenReady().then(async () => {
+  registerLicenseIpc();
+
+  if (licenseManager.needsActivation()) {
+    createLicenseWindow();
+  } else {
+    await startApp();
+  }
 });
 
 app.on('window-all-closed', () => {

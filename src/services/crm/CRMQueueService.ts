@@ -1,5 +1,6 @@
 import DatabaseService from '../database/DatabaseService';
 import ConnectionManager from '../../utils/ConnectionManager';
+import ZaloService from '../zalo/ZaloService';
 import EventBroadcaster from '../event/EventBroadcaster';
 import Logger from '../../utils/Logger';
 
@@ -137,6 +138,10 @@ class CRMQueueService {
             return;
         }
 
+        const zaloService = await ZaloService.getInstance(
+            typeof conn.auth === 'string' ? conn.auth : JSON.stringify(conn.auth)
+        );
+
         this.isProcessing.set(zaloId, true);
         db.updateCampaignContactStatus(item.id!, 'sending');
 
@@ -188,11 +193,11 @@ class CRMQueueService {
             const imgs = (block.images || []).filter(Boolean);
             if (imgs.length === 1) {
                 await new Promise(r => setTimeout(r, 500));
-                await (conn.api as any).sendImage(imgs[0], threadId, threadType);
+                await zaloService.sendImage(imgs[0], threadId, threadType);
             } else if (imgs.length > 1) {
                 // Batch send all images in one call
                 await new Promise(r => setTimeout(r, 500));
-                await (conn.api as any).sendImages(imgs, threadId, threadType);
+                await zaloService.sendImages(imgs, threadId, threadType);
             }
         };
 
