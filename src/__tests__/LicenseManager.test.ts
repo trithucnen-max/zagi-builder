@@ -115,18 +115,20 @@ describe('LicenseManager', () => {
       expect(res.license).toEqual(mockLicense);
     });
 
-    it('should override payment details for paid plan (solo_6m)', async () => {
+    it('should return payment details returned by server for paid plan (solo_6m)', async () => {
       const mockResponse = {
         data: {
           success: true,
           pending: true,
           licenseKey: 'SOLO-6M-KEY',
+          duration: 'Gói Solo 6 tháng',
           paymentInfo: {
-            bankName: 'Old Bank',
-            accountNumber: '11111',
-            accountName: 'Old Owner',
-            amount: 500000,
-            transferContent: 'ZAGI SOLO-6M-KEY'
+            bankName: 'Ngân hàng TMCP Kỹ thương Việt Nam (Techcombank) - CN Bờ Hồ',
+            accountNumber: '63666999',
+            accountName: 'CÔNG TY CỔ PHẦN BASAN',
+            amount: 2450000,
+            transferContent: 'ZAGI SOLO-6M-KEY',
+            qrUrl: 'https://img.vietqr.io/image/...'
           }
         },
       };
@@ -145,40 +147,7 @@ describe('LicenseManager', () => {
       expect(res.paymentInfo.accountNumber).toBe('63666999');
       expect(res.paymentInfo.accountName).toBe('CÔNG TY CỔ PHẦN BASAN');
       expect(res.paymentInfo.amount).toBe(2450000);
-      expect(res.paymentInfo.companyAddress).toContain('FLC Garden City');
       expect(res.paymentInfo.transferContent).toBe('ZAGI SOLO-6M-KEY');
-      expect(res.paymentInfo.qrUrl).toContain('amount=2450000');
-      expect(res.paymentInfo.qrUrl).toContain('addInfo=ZAGI%20SOLO-6M-KEY');
-    });
-
-    it('should override payment details for paid plan (team_lifetime)', async () => {
-      const mockResponse = {
-        data: {
-          success: true,
-          pending: true,
-          licenseKey: 'TEAM-LIFETIME-KEY',
-          paymentInfo: {
-            bankName: 'Old Bank',
-            accountNumber: '11111',
-            accountName: 'Old Owner',
-            amount: 500000,
-            transferContent: 'ZAGI TEAM-LIFETIME-KEY'
-          }
-        },
-      };
-      (axios.post as jest.Mock).mockResolvedValue(mockResponse);
-
-      const res = await licenseManager.register({
-        email: 'test@example.com',
-        fullName: 'Test User',
-        phone: '0901234567',
-        plan: 'team_lifetime',
-      });
-
-      expect(res.success).toBe(true);
-      expect(res.duration).toBe('Gói Team Vĩnh viễn');
-      expect(res.paymentInfo.amount).toBe(14900000);
-      expect(res.paymentInfo.qrUrl).toContain('amount=14900000');
     });
 
     it('should handle registration API error', async () => {
@@ -189,6 +158,35 @@ describe('LicenseManager', () => {
         plan: 'trial',
       });
 
+      expect(res.success).toBe(false);
+      expect(res.message).toContain('Không thể kết nối server');
+    });
+  });
+
+  describe('getPlans', () => {
+    it('should fetch plans and bank configs from server', async () => {
+      const mockResponse = {
+        data: {
+          success: true,
+          plans: {
+            'solo_6m': { name: 'Gói Solo 6 tháng', amount: 2450000 }
+          },
+          paymentConfig: {
+            bankName: 'Techcombank'
+          }
+        }
+      };
+      (axios.post as jest.Mock).mockResolvedValue(mockResponse);
+
+      const res = await licenseManager.getPlans();
+      expect(res.success).toBe(true);
+      expect(res.plans['solo_6m'].name).toBe('Gói Solo 6 tháng');
+      expect(res.paymentConfig.bankName).toBe('Techcombank');
+    });
+
+    it('should handle getPlans API error', async () => {
+      (axios.post as jest.Mock).mockRejectedValue(new Error('Network Error'));
+      const res = await licenseManager.getPlans();
       expect(res.success).toBe(false);
       expect(res.message).toContain('Không thể kết nối server');
     });

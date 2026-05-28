@@ -8,3 +8,7 @@ dist-electron-build/
 .env.production
 *.log
 .DS_Store
+:memory:*
+coverage/
+
+
