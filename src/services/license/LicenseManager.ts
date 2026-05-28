@@ -70,6 +70,35 @@ export class LicenseManager {
   static setRuntimeConfig(config: { apiUrl?: string; apiSecret?: string }): void {
     LicenseManager._runtimeConfig = config;
   }
+
+  /**
+   * Google Apps Script trả về 302 redirect khi nhận POST.
+   * Redirect URL chỉ nhận GET (không nhận POST lại).
+   * Flow đúng: POST gốc → lấy Location URL → GET vào URL đó.
+   */
+  private async postWithRedirect(url: string, body: object, timeoutMs = 15000): Promise<any> {
+    // Bước 1: POST đến URL gốc, KHÔNG follow redirect (để lấy Location)
+    const firstRes = await axios.post(url, body, {
+      timeout: timeoutMs,
+      headers: { 'Content-Type': 'application/json' },
+      maxRedirects: 0,
+      validateStatus: (s) => s < 400 || s === 302 || s === 301,
+    });
+
+    // Bước 2: Nếu có redirect → GET vào Location URL (Apps Script pattern)
+    if ((firstRes.status === 301 || firstRes.status === 302) && firstRes.headers['location']) {
+      const redirectUrl = firstRes.headers['location'];
+      Logger.log(`[LicenseManager] Following redirect (GET) to: ${redirectUrl}`);
+      const secondRes = await axios.get(redirectUrl, {
+        timeout: timeoutMs,
+        maxRedirects: 5,
+      });
+      return secondRes.data;
+    }
+
+    return firstRes.data;
+  }
+
   private getLicenseFile(): string {
     return path.join(app.getPath('userData'), 'license.dat');
   }
@@ -77,19 +106,14 @@ export class LicenseManager {
   // === ĐĂNG KÝ LICENSE MỚI ===
   async register({ email, fullName, phone, plan }: RegisterParams): Promise<any> {
     try {
-      const response = await axios.post(LICENSE_CONFIG.apiUrl, {
+      const result = await this.postWithRedirect(LICENSE_CONFIG.apiUrl, {
         secret: LICENSE_CONFIG.apiSecret,
         action: 'register',
         email: email.trim().toLowerCase(),
         fullName: fullName || '',
         phone: phone || '',
         plan: plan
-      }, {
-        timeout: 15000,
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      const result = response.data;
+      }, 15000);
       
       // Nếu là trial → auto activate luôn
       if (result.success && !result.pending && result.license) {
@@ -110,20 +134,14 @@ export class LicenseManager {
     Logger.log(`[LicenseManager] Fetching plans from: ${LICENSE_CONFIG.apiUrl}`);
     Logger.log(`[LicenseManager] Using API secret: ${LICENSE_CONFIG.apiSecret ? '***' + LICENSE_CONFIG.apiSecret.slice(-4) : 'none'}`);
     try {
-      const response = await axios.post(LICENSE_CONFIG.apiUrl, {
+      const result = await this.postWithRedirect(LICENSE_CONFIG.apiUrl, {
         secret: LICENSE_CONFIG.apiSecret,
         action: 'get_plans'
-      }, {
-        timeout: 10000,
-        headers: { 'Content-Type': 'application/json' }
-      });
-      Logger.log('[LicenseManager] Fetch plans response:', JSON.stringify(response.data));
-      return response.data;
+      }, 10000);
+      Logger.log('[LicenseManager] Fetch plans response:', JSON.stringify(result));
+      return result;
     } catch (err: any) {
       Logger.error('[LicenseManager] Fetch plans error:', err.message);
-      if (err.response) {
-        Logger.error('[LicenseManager] Fetch plans error response:', JSON.stringify(err.response.data));
-      }
       return { 
         success: false, 
         message: 'Không thể kết nối server: ' + err.message 
@@ -134,17 +152,12 @@ export class LicenseManager {
   // === VERIFY (giữ nguyên + thêm licenseKey) ===
   async verifyEmail(email: string, licenseKey: string | null = null): Promise<any> {
     try {
-      const response = await axios.post(LICENSE_CONFIG.apiUrl, {
+      const result = await this.postWithRedirect(LICENSE_CONFIG.apiUrl, {
         secret: LICENSE_CONFIG.apiSecret,
         action: 'verify',
         email: email.trim().toLowerCase(),
         licenseKey: licenseKey
-      }, {
-        timeout: 10000,
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      const result = response.data;
+      }, 10000);
       
       if (result.success) {
         if (result.license.status === 'expired') {
