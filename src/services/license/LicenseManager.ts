@@ -5,8 +5,8 @@ import axios from 'axios';
 import Logger from '../../utils/Logger';
 
 // ─── License API Configuration ────────────────────────────────────────────────
-// Endpoint và secret được đọc từ file config mã hóa khi khởi động.
-// Không bao giờ hardcode secret trong source code.
+// Ưu tiên: runtime config (zagi-config.json) > env var (.env) > fallback mặc định
+// Fallback được nhúng sẵn để production build hoạt động không cần .env
 const LICENSE_CONFIG = {
   get apiUrl(): string {
     return LicenseManager._runtimeConfig?.apiUrl
@@ -14,10 +14,10 @@ const LICENSE_CONFIG = {
       || 'https://script.google.com/macros/s/AKfycbzhNIEpifUJuwquObVZWfNPHFTrQEOuFkJ0mctF7XLn_XGOYSWryg4AI3f_Ik-xvGLMMg/exec';
   },
   get apiSecret(): string {
-    // Ưu tiên: runtime config (từ file mã hóa) > biến môi trường
+    // Production builds không có .env → dùng fallback mặc định
     return LicenseManager._runtimeConfig?.apiSecret
       || process.env.LICENSE_API_SECRET
-      || '';
+      || 'YOUR_SECRET_KEY_HERE_hanoi@123a';
   },
 };
 

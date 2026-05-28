@@ -319,13 +319,17 @@ describe('LicenseManager', () => {
       expect(needsAct).toBe(true);
     });
 
-    it('should return true if license status is expired', () => {
-      const fiveDaysAgo = new Date();
-      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    it('should return true if license status is expired (beyond grace period)', () => {
+      // GRACE_PERIOD_DAYS = 7, phải hết hạn > 7 ngày để needsActivation = true
+      const eightDaysAgo = new Date();
+      eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
+      const dd = String(eightDaysAgo.getDate()).padStart(2, '0');
+      const mm = String(eightDaysAgo.getMonth() + 1).padStart(2, '0');
+      const yyyy = eightDaysAgo.getFullYear();
       const expired = {
         ...mockLicense,
         isLifetime: false,
-        expiryDate: fiveDaysAgo.toISOString(),
+        expiryDate: `${dd}/${mm}/${yyyy}`, // parseDateStr expects dd/MM/yyyy
       };
       (fs.existsSync as jest.Mock).mockReturnValue(true);
       (fs.readFileSync as jest.Mock).mockReturnValue(Buffer.from(JSON.stringify(expired)));
