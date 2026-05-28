@@ -69,7 +69,7 @@ export default function AddToCampaignModal({
         showNotification('Đã tạo chiến dịch mới', 'success');
         setShowCreateInAddModal(false);
       } else {
-        throw new Error(res?.error || 'Không thể tạo chiến dịch');
+        throw new Error((res as any)?.error || 'Không thể tạo chiến dịch');
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Không rõ';

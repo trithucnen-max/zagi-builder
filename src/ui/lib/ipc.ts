@@ -208,6 +208,10 @@ declare global {
         deletePipelineStage: (params: { id: number }) => Promise<{ success: boolean; error?: string }>;
         updateContactPipelineStage: (params: { ownerZaloId: string; contactId: string; stageId: number | null }) => Promise<{ success: boolean; error?: string }>;
         getCalendarEventsByContact: (params: { contactId: string }) => Promise<{ success: boolean; events: any[]; error?: string }>;
+        // Pin Scheduler
+        upsertPinSchedule: (params: { zaloId: string; groupId: string; message: string; scheduleType: string; scheduleTime: string; weekday?: string }) => Promise<{ success: boolean; error?: string }>;
+        getPinSchedule: (params: { zaloId: string; groupId: string }) => Promise<{ success: boolean; schedule?: any; error?: string }>;
+        deletePinSchedule: (params: { zaloId: string; groupId: string }) => Promise<{ success: boolean; error?: string }>;
         // Local Labels
         getLocalLabels: (params: { zaloId?: string }) => Promise<{ success: boolean; labels: any[] }>;
         upsertLocalLabel: (params: { label: { id?: number; name: string; color: string; textColor?: string; emoji: string; pageIds: string; isActive?: number; sortOrder?: number; shortcut?: string } }) => Promise<{ success: boolean; id?: number; error?: string }>;

@@ -232,6 +232,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deletePipelineStage: (params: unknown) => ipcRenderer.invoke('db:deletePipelineStage', params),
     updateContactPipelineStage: (params: unknown) => ipcRenderer.invoke('db:updateContactPipelineStage', params),
     getCalendarEventsByContact: (params: unknown) => ipcRenderer.invoke('db:getCalendarEventsByContact', params),
+    upsertPinSchedule: (params: unknown) => ipcRenderer.invoke('db:upsertPinSchedule', params),
+    getPinSchedule: (params: unknown) => ipcRenderer.invoke('db:getPinSchedule', params),
+    deletePinSchedule: (params: unknown) => ipcRenderer.invoke('db:deletePinSchedule', params),
   },
 
   // ─── CRM ─────────────────────────────────────────────────────────
@@ -622,6 +625,10 @@ contextBridge.exposeInMainWorld('licenseAPI', {
   register: (data: unknown) => ipcRenderer.invoke('license:register', data),
   activateAfterRegister: (email: string, licenseKey: string) => ipcRenderer.invoke('license:activateAfterRegister', { email, licenseKey }),
   get: () => ipcRenderer.invoke('license:get'),
+  getPlans: () => ipcRenderer.invoke('license:getPlans'),
+  isInGracePeriod: () => ipcRenderer.invoke('license:isInGracePeriod'),
+  isExpiringSoon: () => ipcRenderer.invoke('license:isExpiringSoon'),
   logout: () => ipcRenderer.invoke('license:logout')
 });
+
 

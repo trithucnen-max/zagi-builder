@@ -8,7 +8,7 @@ import ZaloLabelBadge from '../tags/ZaloLabelBadge';
 import { UserProfilePopup } from '@/components/common/UserProfilePopup';
 import PhoneDisplay from '@/components/common/PhoneDisplay';
 import GroupAvatar from '@/components/common/GroupAvatar';
-
+import ipc from '@/lib/ipc';
 
 interface CRMContactListProps {
   contacts: CRMContact[];

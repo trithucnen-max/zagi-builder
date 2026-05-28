@@ -15,6 +15,8 @@ import ReminderNotification from './components/chat/ReminderNotification';
 import FriendRequestNotification, { FriendRequestNotifData } from './components/common/FriendRequestNotification';
 import QuickChatModal from './components/chat/QuickChatModal';
 import CommandPalette from './components/common/CommandPalette';
+import LicenseWarningBanner from './components/common/LicenseWarningBanner';
+
 
 // Stores
 import { useAppStore } from './store/appStore';
@@ -66,6 +68,8 @@ export default function App() {
   } | null>(null);
   const [friendRequestQueue, setFriendRequestQueue] = useState<FriendRequestNotifData[]>([]);
   const [accountInitId, setAccountInitId] = useState<string | null>(null);
+  const [isInGracePeriod, setIsInGracePeriod] = useState(false);
+
 
   // ─── Domain hooks ─────────────────────────────────────────────────────────
   useZaloEvents();
@@ -78,6 +82,13 @@ export default function App() {
   useAppEventHandlers(isWindowFocusedRef, setReminderNotification, setFriendRequestQueue, accounts, contacts);
   const { handleFriendRequestAccept, handleFriendRequestReject, handleFriendRequestOpenAll } =
     useFriendRequestActions(accounts);
+
+  // ─── Grace period check ────────────────────────────────────────────────
+  useEffect(() => {
+    (window as any).licenseAPI?.isInGracePeriod?.().then((grace: boolean) => {
+      setIsInGracePeriod(!!grace);
+    }).catch(() => {});
+  }, []);
 
   // ─── Sync theme to <html> element ─────────────────────────────────────────
   useEffect(() => {
@@ -122,6 +133,9 @@ export default function App() {
   // ─── Main render ──────────────────────────────────────────────────────────
   return (
     <>
+      {/* Banner cảnh báo sắp hết hạn / grace period */}
+      <LicenseWarningBanner onRenew={() => useViewStore.getState().setView('settings')} />
+
       <MainLayout onAddAccount={() => setAddAccountModalOpen(true)}>
         <AppRouter view={view} />
       </MainLayout>

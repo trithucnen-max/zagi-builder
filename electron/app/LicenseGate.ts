@@ -41,6 +41,7 @@ export class LicenseGate {
 
     this.licenseWindow.loadFile(appMgr.resolveIconPath('resources/license/popup.html'));
     this.licenseWindow.setMenu(null);
+    this.licenseWindow.webContents.openDevTools({ mode: 'detach' });
 
     this.licenseWindow.on('closed', () => {
       this.licenseWindow = null;
@@ -90,11 +91,23 @@ export class LicenseGate {
       return { ...license, displayMessage: licenseManager.getDisplayMessage(license) };
     });
 
-    ipcRouter.registerOn('license:logout', null, () => {
+    ipcRouter.register('license:getPlans', null, async () => {
+      return await licenseManager.getPlans();
+    });
+
+    ipcRouter.register('license:logout', null, async () => {
       licenseManager.clearLicense();
       app.relaunch();
       app.exit(0);
     });
-  }
+
+    ipcRouter.register('license:isInGracePeriod', null, async () => {
+      return licenseManager.isInGracePeriod();
+    });
+
+    ipcRouter.register('license:isExpiringSoon', null, async () => {
+      return licenseManager.isExpiringSoon();
+    });
+  }  // end registerLicenseIpc
 }
 export default LicenseGate;

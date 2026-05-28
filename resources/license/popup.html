@@ -268,21 +268,7 @@
       </div>
       
       <div class="plan-grid">
-        <div class="plan-card" data-plan="solo_6m" id="plan-6m">
-          <div class="plan-name">📅 Gói 6 tháng</div>
-          <div class="plan-price" id="price-6m">2.450.000đ</div>
-          <div class="plan-desc">Sử dụng đầy đủ trong 6 tháng</div>
-        </div>
-        <div class="plan-card popular" data-plan="solo_12m" id="plan-12m">
-          <div class="plan-name">⭐ Gói 12 tháng</div>
-          <div class="plan-price" id="price-12m">4.450.000đ</div>
-          <div class="plan-desc">Lựa chọn tối ưu cho 1 năm</div>
-        </div>
-        <div class="plan-card" data-plan="solo_lifetime" id="plan-lifetime">
-          <div class="plan-name">💎 Vĩnh viễn</div>
-          <div class="plan-price" id="price-lifetime">7.450.000đ</div>
-          <div class="plan-desc">Thanh toán một lần, dùng trọn đời</div>
-        </div>
+        <!-- Rendered dynamically -->
       </div>
       
       <button class="btn" id="registerBtn">Nhận key bản quyền</button>
@@ -304,60 +290,84 @@
     
     // === PLAN SELECTION & PRICING ===
     let selectedPlan = null;
+    let plansData = {}; // Cache plans from server
     
-    document.querySelectorAll('.plan-card').forEach(card => {
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        selectedPlan = card.dataset.plan;
+    function attachPlanCardListeners() {
+      document.querySelectorAll('.plan-card').forEach(card => {
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedPlan = card.dataset.plan;
+        });
       });
-    });
+    }
+
+    function formatCurrency(amount) {
+      if (amount === 0) return 'Miễn phí';
+      return amount.toLocaleString('vi-VN') + 'đ';
+    }
+
+    function renderPlans(type) {
+      const planGrid = document.querySelector('.plan-grid');
+      planGrid.innerHTML = '';
+      
+      Object.keys(plansData).forEach(key => {
+        const p = plansData[key];
+        if (p.type === type) {
+          const card = document.createElement('div');
+          card.className = 'plan-card' + (p.popular ? ' popular' : '');
+          card.dataset.plan = key;
+          
+          let prefixName = '📅 ';
+          if (p.name.includes('Vĩnh viễn') || p.name.includes('trọn đời')) prefixName = '💎 ';
+          else if (p.popular) prefixName = '⭐ ';
+
+          const shortName = p.name.replace('Gói Solo ', '').replace('Gói Team ', '');
+
+          card.innerHTML = `
+            <div class="plan-name">${prefixName}${shortName}</div>
+            <div class="plan-price">${formatCurrency(p.amount)}</div>
+            <div class="plan-desc">${p.desc || ''}</div>
+          `;
+          
+          if (selectedPlan === key) {
+            card.classList.add('selected');
+          }
+          planGrid.appendChild(card);
+        }
+      });
+      
+      attachPlanCardListeners();
+    }
 
     const priceTabs = document.querySelectorAll('.price-tab');
-    const plan6m = document.getElementById('plan-6m');
-    const plan12m = document.getElementById('plan-12m');
-    const planLifetime = document.getElementById('plan-lifetime');
-    
-    const price6m = document.getElementById('price-6m');
-    const price12m = document.getElementById('price-12m');
-    const priceLifetime = document.getElementById('price-lifetime');
-    
-    const prices = {
-      solo: {
-        '6m': { text: '2.450.000đ', plan: 'solo_6m' },
-        '12m': { text: '4.450.000đ', plan: 'solo_12m' },
-        'lifetime': { text: '7.450.000đ', plan: 'solo_lifetime' }
-      },
-      team: {
-        '6m': { text: '4.900.000đ', plan: 'team_6m' },
-        '12m': { text: '8.900.000đ', plan: 'team_12m' },
-        'lifetime': { text: '14.900.000đ', plan: 'team_lifetime' }
-      }
-    };
-    
-    function updatePlanPrices(type) {
-      price6m.textContent = prices[type]['6m'].text;
-      plan6m.dataset.plan = prices[type]['6m'].plan;
-      
-      price12m.textContent = prices[type]['12m'].text;
-      plan12m.dataset.plan = prices[type]['12m'].plan;
-      
-      priceLifetime.textContent = prices[type]['lifetime'].text;
-      planLifetime.dataset.plan = prices[type]['lifetime'].plan;
-      
-      // If one of the paid cards is selected, update selectedPlan variable
-      const selected = document.querySelector('.plan-card.selected');
-      if (selected && selected.dataset.plan !== 'trial') {
-        selectedPlan = selected.dataset.plan;
-      }
-    }
     
     priceTabs.forEach(tab => {
       tab.addEventListener('click', () => {
         priceTabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-        updatePlanPrices(tab.dataset.type);
+        renderPlans(tab.dataset.type);
+        
+        // Cập nhật selectedPlan nếu có thay đổi tab
+        const selected = document.querySelector('.plan-card.selected');
+        if (selected && selected.dataset.plan !== 'trial') {
+          selectedPlan = selected.dataset.plan;
+        }
       });
+    });
+
+    // Load plans on startup
+    window.addEventListener('DOMContentLoaded', async () => {
+      attachPlanCardListeners();
+      try {
+        const result = await window.licenseAPI.getPlans();
+        if (result && result.success && result.plans) {
+          plansData = result.plans;
+          renderPlans('solo');
+        }
+      } catch (err) {
+        console.error('Failed to load plans:', err);
+      }
     });
     
     // === HELPERS ===

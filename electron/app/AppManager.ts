@@ -101,7 +101,7 @@ export class AppManager {
     });
 
     if (IS_DEV_BUILD) {
-      this.mainWindow.loadURL('http://localhost:5173');
+      this.mainWindow.loadURL('http://localhost:5713');
     } else {
       this.mainWindow.loadFile(path.join(__dirname, '../../../dist/index.html'));
     }
@@ -138,7 +138,7 @@ export class AppManager {
         setTimeout(() => {
           if (this.mainWindow && !this.mainWindow.isDestroyed()) {
             if (IS_DEV_BUILD) {
-              this.mainWindow.loadURL('http://localhost:5173');
+              this.mainWindow.loadURL('http://localhost:5713');
             } else {
               this.mainWindow.loadFile(path.join(__dirname, '../../../dist/index.html'));
             }

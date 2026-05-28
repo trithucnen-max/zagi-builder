@@ -109,6 +109,7 @@ const QUICK_EMOJIS = Object.values(EMOJI_CATEGORIES).flat();
 export default function MessageInput() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [isInGracePeriod, setIsInGracePeriod] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [showSendCard, setShowSendCard] = useState(false);
@@ -412,6 +413,12 @@ export default function MessageInput() {
   useEffect(() => {
     if (replyTo) textareaRef.current?.focus();
   }, [replyTo]);
+
+  // Grace period: kểm tra license khi mount
+  useEffect(() => {
+    (window as any).licenseAPI?.isInGracePeriod?.().then((v: boolean) => setIsInGracePeriod(!!v)).catch(() => {});
+  }, []);
+
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -2723,13 +2730,24 @@ export default function MessageInput() {
           )}
         </div>
 
+        {/* Read-only overlay khi trong grace period */}
+        {isInGracePeriod && (
+          <div className="flex items-center gap-2 px-3 py-1.5 mx-1 mb-1 rounded-lg bg-rose-950/60 border border-rose-700/40 text-rose-300 text-xs">
+            <span>🔴</span>
+            <span>Bản quyền hết hạn — chỉ xem. <button onClick={() => { window.dispatchEvent(new CustomEvent('settings:openTab', { detail: { tab: 'license' } })); (window as any).__viewStore?.setView?.('settings'); }} className="underline font-medium hover:text-rose-100 transition-colors">Gia hạn ngay</button></span>
+          </div>
+        )}
+
         {/* Send or Like */}
         {(text.trim() || clipboardImages.length > 0) ? (
           <button
-            onClick={handleSend}
-            disabled={sending}
-            className={`flex-shrink-0 w-9 h-9 rounded-lg disabled:opacity-50 flex items-center justify-center text-white transition-colors ${isUrlOnly(text.trim()) && clipboardImages.length === 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-            title={isUrlOnly(text.trim()) && clipboardImages.length === 0 ? 'Gửi link (Enter)' : 'Gửi (Enter)'}
+            onClick={isInGracePeriod ? undefined : handleSend}
+            disabled={sending || isInGracePeriod}
+            className={`flex-shrink-0 w-9 h-9 rounded-lg disabled:opacity-50 flex items-center justify-center text-white transition-colors ${
+              isInGracePeriod ? 'bg-gray-600 cursor-not-allowed' :
+              isUrlOnly(text.trim()) && clipboardImages.length === 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+            title={isInGracePeriod ? 'Bản quyền hết hạn — không thể gửi tin nhắn' : (isUrlOnly(text.trim()) && clipboardImages.length === 0 ? 'Gửi link (Enter)' : 'Gửi (Enter)')}
           >
             {isUrlOnly(text.trim()) && clipboardImages.length === 0 ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -2744,10 +2762,12 @@ export default function MessageInput() {
           </button>
         ) : (
           <button
-            onClick={handleSendLike}
-            disabled={sending}
-            className="flex-shrink-0 w-9 h-9 rounded-lg hover:bg-gray-700 flex items-center justify-center text-blue-400 hover:text-blue-300 transition-colors text-xl"
-            title="Gửi 👍"
+            onClick={isInGracePeriod ? undefined : handleSendLike}
+            disabled={sending || isInGracePeriod}
+            className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-blue-400 transition-colors text-xl ${
+              isInGracePeriod ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-700 hover:text-blue-300'
+            }`}
+            title={isInGracePeriod ? 'Bản quyền hết hạn — không thể gửi tin nhắn' : 'Gửi 👍'}
           >
             👍
           </button>
