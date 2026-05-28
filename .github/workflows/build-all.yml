@@ -104,16 +104,22 @@ jobs:
 
       - name: 📦 Install dependencies
         if: steps.cache-modules-win.outputs.cache-hit != 'true'
-        # SKIP_ICON_PATCH=true → bỏ qua rcedit postinstall (không cần trên CI)
         run: npm ci --legacy-peer-deps
         env:
           SKIP_ICON_PATCH: 'true'
+          CI: 'true'
 
-      - name: 🔧 Rebuild native modules for Electron (better-sqlite3)
-        # better-sqlite3 là native addon — phải compile lại cho đúng Electron version
-        run: npx electron-rebuild --force --module-dir . --which-module better-sqlite3
-        env:
-          SKIP_ICON_PATCH: 'true'
+      - name: 📦 Fix Rollup and Esbuild optional dependencies for Windows
+        run: |
+          node -e "
+            const { execSync } = require('child_process');
+            const rollupVer = require('./node_modules/rollup/package.json').version;
+            const esbuildVer = require('./node_modules/esbuild/package.json').version;
+            console.log('Rollup version:', rollupVer);
+            console.log('Esbuild version:', esbuildVer);
+            execSync('npm install --no-save @rollup/rollup-win32-x64-msvc@' + rollupVer, { stdio: 'inherit' });
+            execSync('npm install --no-save @esbuild/win32-x64@' + esbuildVer, { stdio: 'inherit' });
+          "
 
       - name: 🏗️ Compile TypeScript (electron)
         run: npx tsc -p tsconfig.electron.prod.json

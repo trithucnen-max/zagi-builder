@@ -27,10 +27,6 @@ on:
         default: ''
         type: string
 
-  push:
-    tags:
-      - 'v*'
-
 # ─── SECRETS cần cấu hình ────────────────────────────────────────────────────
 #   GH_TOKEN — GitHub Personal Access Token (repo scope)
 
