@@ -14,6 +14,82 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '26.4.6',
+    date: '05/2026',
+    type: 'patch',
+    highlights: [
+      '🔐 Tích hợp giao diện Quản lý Bản quyền trực quan trong phần cài đặt của phần mềm Zagi',
+      '📊 Thêm thanh tiến trình (Progress bar) thể hiện thời hạn sử dụng bản quyền và cảnh báo màu sắc trực quan',
+      '👁️ Hỗ trợ tính năng ẩn/hiện License Key và nút Đăng xuất bản quyền (Danger Zone) an toàn',
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Thêm tab Bản quyền mới trong sidebar Cài đặt, hiển thị đầy đủ thông tin giấy phép: Email, Họ tên, Số điện thoại, Loại gói và Mã kích hoạt.',
+          'Thêm thanh tiến trình thời hạn sử dụng bản quyền, tự động đổi màu sắc cảnh báo: Xanh lá (>15 ngày hoặc Vĩnh viễn), Vàng cam (6-15 ngày), Đỏ (<=5 ngày).',
+          'Thêm nút bấm an toàn để Đăng xuất bản quyền và tự động khởi động lại ứng dụng để kích hoạt khóa mới.',
+        ],
+      },
+      {
+        category: 'improved',
+        items: [
+          'Che License Key dưới dạng dấu chấm để tăng tính bảo mật, hỗ trợ nút bấm con mắt để bật tắt chế độ hiển thị.',
+        ],
+      },
+    ],
+  },
+  {
+    version: '26.4.5',
+    date: '05/2026',
+    type: 'patch',
+    highlights: [
+      '🐛 Sửa lỗi xác thực 401 & 403 khi kết nối với server Google Apps Script API',
+      '📊 Đồng bộ hóa bảng tính lưu trữ để tối ưu hóa khả năng đối soát bản quyền',
+    ],
+    changes: [
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi chuyển hướng đăng nhập Google (401/403) bằng cách cấu hình quyền truy cập Web App thành Anyone.',
+          'Đồng bộ hóa tên bảng tính trong API Sheets sang Licenses để tránh lỗi truy vấn dữ liệu.',
+        ],
+      },
+    ],
+  },
+  {
+    version: '26.4.4',
+    date: '05/2026',
+    type: 'patch',
+    highlights: [
+      '🖼️ Cập nhật logo Zagi mới trên màn hình đăng nhập nhân viên và đóng gói lại toàn bộ icon ứng dụng',
+      '🐛 Sửa lỗi chiến dịch CRM không gửi được tin nhắn đính kèm ảnh',
+      '🔐 Triển khai nhân dịch vụ Quản lý Bản quyền mã hóa cục bộ và màn hình kích hoạt lúc khởi động',
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Triển khai lớp dịch vụ LicenseManager mã hóa dữ liệu license.dat bằng safeStorage bảo mật của Electron.',
+          'Tạo màn hình kích hoạt bản quyền (popup.html) với hiệu ứng kính mờ (glassmorphism) đẹp mắt, tự động kích hoạt gói dùng thử và hỗ trợ quét mã QR chuyển khoản gói trả phí.',
+        ],
+      },
+      {
+        category: 'improved',
+        items: [
+          'Cập nhật Logo Zagi mới trên giao diện đăng nhập nhân viên (logo.png).',
+          'Tái tạo các icon đóng gói ứng dụng (.ico, .icns, .png) cho mọi hệ điều hành macOS, Windows, Linux.',
+        ],
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi crash luồng gửi tin hàng loạt của chiến dịch CRM khi đính kèm ảnh bằng cách chuyển đổi qua ZaloService.',
+        ],
+      },
+    ],
+  },
+  {
     version: '26.4.3',
     date: '05/2026',
     type: 'patch',

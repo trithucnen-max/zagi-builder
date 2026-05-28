@@ -8,11 +8,13 @@
   - [electron/ipc/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/electron/ipc): Các hàm xử lý yêu cầu IPC từ UI (đăng nhập, tích hợp, AI, ERP, chat).
 - [src/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src): Mã nguồn Frontend React (Renderer process).
   - [src/ui/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src/ui): Các component React và cấu trúc trang.
-  - [src/services/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src/services): Các dịch vụ đơn lẻ (DatabaseService, AIAssistantService).
+  - [src/services/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src/services): Các dịch vụ đơn lẻ (DatabaseService, AIAssistantService, và [LicenseManager.ts](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src/services/license/LicenseManager.ts) quản lý bản quyền).
   - [src/store/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/src/store): Các kho lưu trữ trạng thái Zustand (accountStore, chatStore, workspaceStore).
+- [resources/license/popup.html](file:///Users/kimtrungduong/Downloads/deplao-builder-main/resources/license/popup.html): Giao diện HTML tĩnh kích hoạt/đăng ký bản quyền.
 - [docs/](file:///Users/kimtrungduong/Downloads/deplao-builder-main/docs): Tài liệu hướng dẫn sử dụng, quy trình vận hành và tài liệu API hệ thống.
 
 ## Kiến Trúc Cốt Lõi
 - **Lưu trữ SQLite Local-first**: Cơ sở dữ liệu được lưu trữ cục bộ dưới dạng SQLite (`zagi-tool.db`) sử dụng thư viện đồng bộ hiệu năng cao `better-sqlite3`. Các tệp đa phương tiện được giải nén ngoài kho lưu trữ ASAR và lưu trong thư mục AppData của người dùng dưới dạng `~/media`.
-- **Cầu nối IPC Main-Renderer**: Tất cả các yêu cầu từ giao diện React tới cơ sở dữ liệu SQLite hoặc gọi mạng đều được chuyển tiếp bất đồng bộ từ renderer tới tiến trình main của Electron thông qua các kênh IPC tùy chỉnh được định nghĩa chi tiết tại [docs/API.md](file:///Users/kimtrungduong/Downloads/deplao-builder-main/docs/API.md).
+- **Cầu nối IPC Main-Renderer**: Tất cả các yêu cầu từ giao diện React tới cơ sở dữ liệu SQLite hoặc gọi mạng đều được chuyển tiếp bất đồng bộ từ renderer tới tiến trình main của Electron thông qua các kênh IPC tùy chỉnh được định nghĩa chi tiết tại [docs/API.md](file:///Users/kimtrungduong/Downloads/deplao-builder-main/docs/API.md) và cầu nối `licenseAPI` của Electron.
 - **Relay Boss-Employee**: Phiên bản chạy của chủ doanh nghiệp (Boss) đóng vai trò làm máy chủ trung tâm (Express + WebSockets trên cổng `9900`), cho phép các phiên bản nhân viên kết nối từ xa để truy vấn dữ liệu và phát lệnh dựa trên phân quyền chi tiết (RBAC).
+- **Quy trình Xác thực Bản quyền**: Trước khi tải giao diện chính, ứng dụng xác thực tệp `license.dat` được mã hóa qua `safeStorage`. Nếu chưa kích hoạt hoặc hết hạn, màn hình kích hoạt bản quyền (`popup.html`) được hiển thị để người dùng nhập mã hoặc đăng ký dùng thử qua Google Apps Script API. Tab Cài đặt Bản quyền trong UI React cho phép theo dõi thời hạn (kèm thanh tiến trình màu sắc cảnh báo) và đăng xuất.

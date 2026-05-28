@@ -517,6 +517,13 @@ declare global {
       notifyUnreadCount:   (params: any) => Promise<{ success: boolean; count: number; error?: string }>;
     };
   };
+  licenseAPI: {
+    verify: (email: string, licenseKey: string | null) => Promise<any>;
+    register: (data: any) => Promise<any>;
+    activateAfterRegister: (email: string, licenseKey: string) => Promise<any>;
+    get: () => Promise<any>;
+    logout: () => Promise<any>;
+  };
 }
 }
 

@@ -5,7 +5,7 @@ Phần mềm desktop quản lý Zalo Đa tài khoản tích hợp CRM, ERP, POS,
 
 *Giới thiệu chính thức*: [itngon.com/zagi](https://itngon.com/zagi)
 
-[![Version](https://img.shields.io/badge/version-26.4.3-22c55e)](#)
+[![Version](https://img.shields.io/badge/version-26.4.6-22c55e)](#)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-3b82f6)](#-yêu-cầu-hệ-thống)
 [![Electron](https://img.shields.io/badge/Electron-41-47848f?logo=electron&logoColor=white)](#)
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](#)
@@ -21,16 +21,16 @@ Phần mềm desktop quản lý Zalo Đa tài khoản tích hợp CRM, ERP, POS,
 ## ⬇️ Tải xuống nhanh
 
 <p>
-  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-26.4.3.exe">
-    <img src="https://img.shields.io/badge/%F0%9F%AA%9F_Windows-Zagi--Setup--26.4.3.exe-0078d4?style=for-the-badge" alt="Download Windows" />
+  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-26.4.6.exe">
+    <img src="https://img.shields.io/badge/%F0%9F%AA%9F_Windows-Zagi--Setup--26.4.6.exe-0078d4?style=for-the-badge" alt="Download Windows" />
   </a>
   &nbsp;
-  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-26.4.3-arm64.dmg">
-    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_M1%2B-Zagi--26.4.3--arm64.dmg-000000?style=for-the-badge" alt="Download macOS Apple Silicon" />
+  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-26.4.6-arm64.dmg">
+    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_M1%2B-Zagi--26.4.6--arm64.dmg-000000?style=for-the-badge" alt="Download macOS Apple Silicon" />
   </a>
   &nbsp;
-  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-26.4.3.dmg">
-    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_Intel-Zagi--26.4.3.dmg-000000?style=for-the-badge" alt="Download macOS Intel" />
+  <a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-26.4.6.dmg">
+    <img src="https://img.shields.io/badge/%F0%9F%8D%8E_macOS_Intel-Zagi--26.4.6.dmg-000000?style=for-the-badge" alt="Download macOS Intel" />
   </a>
 </p>
 
