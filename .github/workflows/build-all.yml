@@ -82,7 +82,7 @@ jobs:
   build-windows:
     needs: resolve-tag
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: 📥 Checkout code
@@ -104,7 +104,16 @@ jobs:
 
       - name: 📦 Install dependencies
         if: steps.cache-modules-win.outputs.cache-hit != 'true'
+        # SKIP_ICON_PATCH=true → bỏ qua rcedit postinstall (không cần trên CI)
         run: npm ci --legacy-peer-deps
+        env:
+          SKIP_ICON_PATCH: 'true'
+
+      - name: 🔧 Rebuild native modules for Electron (better-sqlite3)
+        # better-sqlite3 là native addon — phải compile lại cho đúng Electron version
+        run: npx electron-rebuild --force --module-dir . --which-module better-sqlite3
+        env:
+          SKIP_ICON_PATCH: 'true'
 
       - name: 🏗️ Compile TypeScript (electron)
         run: npx tsc -p tsconfig.electron.prod.json
@@ -117,14 +126,30 @@ jobs:
 
       - name: 📦 Build Windows app (x64)
         run: npx electron-builder --win --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: electron-builder
+
+      - name: 📋 List build output (debug)
+        if: always()
+        shell: bash
+        run: |
+          echo "=== dist-electron-build/ ==="
+          ls -la dist-electron-build/ 2>/dev/null || echo "⚠️ dist-electron-build/ not found!"
+          echo "=== dist/ ==="
+          ls -la dist/ 2>/dev/null | head -5 || echo "⚠️ dist/ not found!"
+          echo "=== dist-electron/ ==="
+          ls -la dist-electron/ 2>/dev/null | head -5 || echo "⚠️ dist-electron/ not found!"
 
       - name: ⬆️ Upload Windows artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Zagi-Windows-${{ needs.resolve-tag.outputs.tag }}
           path: |
             dist-electron-build/*.exe
             dist-electron-build/latest.yml
+          if-no-files-found: warn
           retention-days: 7
 
       - name: 🚀 Publish Windows → GitHub Releases

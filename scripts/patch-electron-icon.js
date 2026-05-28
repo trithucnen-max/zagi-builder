@@ -13,6 +13,12 @@ const path = require('path');
 const fs   = require('fs');
 
 async function main() {
+  // Cho phép CI bỏ qua bước này (rcedit không cần thiết khi build production)
+  if (process.env.SKIP_ICON_PATCH === 'true' || process.env.CI === 'true') {
+    console.log('[patch-icon] CI/SKIP_ICON_PATCH detected — skipping exe patch');
+    return;
+  }
+
   if (process.platform !== 'win32') {
     console.log('[patch-icon] Non-Windows platform — skipping exe patch');
     return;
