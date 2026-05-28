@@ -24,6 +24,7 @@ import { useWorkspaceStore } from '@/store/workspaceStore';
 import { syncZaloGroups, SyncGroupsProgress } from './zaloGroupUtils';
 import { syncZaloLabelsToLocalDB } from './labelUtils';
 import { extractUserProfile } from '../../utils/profileUtils';
+import Logger from '../../utils/Logger';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -298,7 +299,7 @@ async function _syncFriends(
               if (saves.length > 0) await Promise.all(saves);
             }
           } catch (err) {
-            console.warn('[zaloInitUtils] getUserInfo batch error:', err);
+            Logger.warn('[zaloInitUtils] getUserInfo batch error:', err);
           }
           onProgress({
             task: 'friends', status: 'running',
@@ -312,7 +313,7 @@ async function _syncFriends(
           }
         }
       } catch (err) {
-        console.warn('[zaloInitUtils] getUserInfo profile fetch error:', err);
+        Logger.warn('[zaloInitUtils] getUserInfo profile fetch error:', err);
       }
 
       // ── Done ────────────────────────────────────────────────────────────

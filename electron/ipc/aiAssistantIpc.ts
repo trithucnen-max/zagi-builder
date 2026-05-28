@@ -214,5 +214,38 @@ export function registerAIAssistantIpc(): void {
       return { success: false, models: [], error: e.message };
     }
   });
+
+  // ─── Analyze Sentiment & Intent ───
+  ipcMain.handle('ai:analyzeContact', async (_e, { ownerZaloId, contactId }: { ownerZaloId: string; contactId: string }) => {
+    try {
+      const result = await AIAssistantService.getInstance().analyzeContact(ownerZaloId, contactId);
+      return { success: true, ...result };
+    } catch (e: any) {
+      Logger.error(`[AIAssistantIpc] analyzeContact: ${e.message}`);
+      return { success: false, error: e.message };
+    }
+  });
+
+  // ─── Summarize CRM Notes ───
+  ipcMain.handle('ai:batchSummarizeContactNotes', async (_e, { ownerZaloId, contactId }: { ownerZaloId: string; contactId: string }) => {
+    try {
+      const summary = await AIAssistantService.getInstance().batchSummarizeContactNotes(ownerZaloId, contactId);
+      return { success: true, summary };
+    } catch (e: any) {
+      Logger.error(`[AIAssistantIpc] batchSummarizeContactNotes: ${e.message}`);
+      return { success: false, error: e.message };
+    }
+  });
+
+  // ─── Suggest Smart Tags ───
+  ipcMain.handle('ai:suggestSmartTags', async (_e, { ownerZaloId, contactId }: { ownerZaloId: string; contactId: string }) => {
+    try {
+      const tags = await AIAssistantService.getInstance().suggestSmartTags(ownerZaloId, contactId);
+      return { success: true, tags };
+    } catch (e: any) {
+      Logger.error(`[AIAssistantIpc] suggestSmartTags: ${e.message}`);
+      return { success: false, error: e.message };
+    }
+  });
 }
 

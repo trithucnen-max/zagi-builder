@@ -55,7 +55,7 @@ class ZaloLoginHelper {
         const api = await zalo.loginQR({
             userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
         }, (res) => {
-            console.log(`[ZaloLoginHelper] loginQR event type: ${res.type}`, JSON.stringify((res as any).data || {}).substring(0, 100));
+            Logger.log(`[ZaloLoginHelper] loginQR event type: ${res.type}`, JSON.stringify((res as any).data || {}).substring(0, 100));
 
             if (res.type === LoginQRCallbackEventType.QRCodeGenerated) {
                 // Lưu abort function từ actions
@@ -67,24 +67,24 @@ class ZaloLoginHelper {
                     ? (raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`)
                     : '';
 
-                console.log(`[ZaloLoginHelper] QR generated, image length: ${raw.length}, tempId: ${tempId}`);
+                Logger.log(`[ZaloLoginHelper] QR generated, image length: ${raw.length}, tempId: ${tempId}`);
                 EventBroadcaster.broadcastQRUpdate(tempId, qrDataUrl, 'waiting');
             }
 
             if (res.type === LoginQRCallbackEventType.QRCodeExpired) {
-                console.log(`[ZaloLoginHelper] QR expired for tempId: ${tempId}`);
+                Logger.log(`[ZaloLoginHelper] QR expired for tempId: ${tempId}`);
                 EventBroadcaster.broadcastQRUpdate(tempId, '', 'expired');
             }
 
             if (res.type === LoginQRCallbackEventType.QRCodeDeclined) {
-                console.log(`[ZaloLoginHelper] QR declined for tempId: ${tempId}`);
+                Logger.log(`[ZaloLoginHelper] QR declined for tempId: ${tempId}`);
                 EventBroadcaster.broadcastQRUpdate(tempId, '', 'declined');
             }
 
             if (res.type === LoginQRCallbackEventType.QRCodeScanned) {
                 account.avatar = (res as any).data?.avatar || '';
                 account.displayName = (res as any).data?.display_name || '';
-                console.log(`[ZaloLoginHelper] QR scanned: ${account.displayName}`);
+                Logger.log(`[ZaloLoginHelper] QR scanned: ${account.displayName}`);
                 EventBroadcaster.broadcastQRUpdate(tempId, '', 'scanned');
             }
         });

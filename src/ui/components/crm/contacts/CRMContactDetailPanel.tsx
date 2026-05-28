@@ -11,6 +11,8 @@ import type { LocalLabelItem } from '@/components/common/LocalLabelSelector';
 import NoteList from '../notes/NoteList';
 import PhoneDisplay from '@/components/common/PhoneDisplay';
 import type { PinnedNote } from '@/components/chat/PinnedMessages';
+import CRMContactTimeline from './CRMContactTimeline';
+import { useCRMStore } from '@/store/crmStore';
 
 interface CRMContactDetailPanelProps {
   contact: CRMContact;
@@ -21,7 +23,7 @@ interface CRMContactDetailPanelProps {
   onMessage: (contact: CRMContact) => void;
 }
 
-type DetailTab = 'info' | 'history';
+type DetailTab = 'info' | 'timeline' | 'history';
 
 export default function CRMContactDetailPanel({ contact, allLabels, localLabels, localLabelThreadMap, onClose, onMessage }: CRMContactDetailPanelProps) {
   const { activeAccountId } = useAccountStore();
@@ -31,6 +33,7 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
   const [zaloNotes, setZaloNotes] = useState<PinnedNote[]>([]);
   const [noteTab, setNoteTab] = useState<'local' | 'zalo'>('local');
   const [sendLog, setSendLog] = useState<any[]>([]);
+  const [suggestingTags, setSuggestingTags] = useState(false);
 
   const isGroup = contact.contact_type === 'group';
 
@@ -81,6 +84,59 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
     const toggleId = added ?? removed;
     if (toggleId != null) handleToggleLocalLabel(toggleId);
   }, [threadLocalLabelIds, handleToggleLocalLabel]);
+
+  const handleSuggestSmartTags = async () => {
+    if (!activeAccountId || !contact.contact_id || suggestingTags) return;
+    setSuggestingTags(true);
+    try {
+      const res = await ipc.ai?.suggestSmartTags({
+        ownerZaloId: activeAccountId,
+        contactId: contact.contact_id,
+      });
+      if (res?.success && res.tags && res.tags.length > 0) {
+        const suggestedNames = res.tags.map((t: string) => t.toLowerCase());
+        const matchedLabelIds = (localLabels || [])
+          .filter(l => suggestedNames.includes(l.name.toLowerCase()))
+          .map(l => l.id);
+
+        if (matchedLabelIds.length > 0) {
+          const threadType = contact.contact_type === 'group' ? 1 : 0;
+          let assignedCount = 0;
+          for (const lid of matchedLabelIds) {
+            if (!threadLocalLabelIds.includes(lid)) {
+              const label = localLabels?.find(l => l.id === lid);
+              if (label) {
+                await ipc.db?.assignLocalLabelToThread({
+                  zaloId: activeAccountId,
+                  labelId: lid,
+                  threadId: contact.contact_id,
+                  threadType,
+                  labelText: label.name || '',
+                  labelColor: label.color || '',
+                  labelEmoji: label.emoji || ''
+                });
+                assignedCount++;
+              }
+            }
+          }
+          if (assignedCount > 0) {
+            window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId: activeAccountId } }));
+            showNotification(`✨ Đã tự động gán ${assignedCount} nhãn phù hợp!`, 'success');
+          } else {
+            showNotification('Các nhãn gợi ý đã được gán từ trước.', 'info');
+          }
+        } else {
+          showNotification(`AI gợi ý nhãn: ${res.tags.join(', ')} (chưa khớp nhãn local nào)`, 'info');
+        }
+      } else {
+        showNotification('AI không có đề xuất nhãn nào phù hợp cho liên hệ này.', 'info');
+      }
+    } catch (e: any) {
+      showNotification('Lỗi gợi ý nhãn: ' + e.message, 'error');
+    } finally {
+      setSuggestingTags(false);
+    }
+  };
 
   // Re-sync when contact or allLabels change
   useEffect(() => {
@@ -259,10 +315,10 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
 
       {/* Tabs */}
       <div className="flex border-b border-gray-700 text-xs">
-        {(['info','history'] as DetailTab[]).map(t => (
+        {(['info', 'timeline', 'history'] as DetailTab[]).map(t => (
           <button key={t} onClick={() => setDetailTab(t)}
             className={`flex-1 py-2.5 font-medium transition-colors ${detailTab === t ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}>
-            {t === 'info' ? 'Nhãn/Ghi chú' : 'Lịch sử gửi tin'}
+            {t === 'info' ? 'Nhãn/Ghi chú' : t === 'timeline' ? 'Dòng thời gian' : 'Chiến dịch'}
           </button>
         ))}
       </div>
@@ -275,7 +331,26 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
             {/* Local labels */}
             {localLabels && localLabels.length > 0 && (
               <>
-                <p className="text-xs text-gray-400 font-medium">Nhãn Local</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-400 font-medium">Nhãn Local</p>
+                  <button
+                    onClick={handleSuggestSmartTags}
+                    disabled={suggestingTags}
+                    className="text-[10px] text-blue-400 hover:text-blue-300 disabled:opacity-50 flex items-center gap-1 transition-colors font-medium cursor-pointer"
+                  >
+                    {suggestingTags ? (
+                      <>
+                        <svg className="animate-spin h-2.5 w-2.5 text-blue-400" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                        <span>Đang gợi ý...</span>
+                      </>
+                    ) : (
+                      <span>✨ AI gợi ý nhãn</span>
+                    )}
+                  </button>
+                </div>
                 <LocalLabelSelector
                   labels={localLabels}
                   selectedIds={threadLocalLabelIds}
@@ -351,6 +426,16 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
               </div>
             )}
           </div>
+        )}
+
+        {detailTab === 'timeline' && activeAccountId && (
+          <CRMContactTimeline
+            contact={contact}
+            notes={notes}
+            activeAccountId={activeAccountId}
+            stages={useCRMStore.getState().pipelineStages}
+            onRefreshNotes={loadNotes}
+          />
         )}
 
         {detailTab === 'history' && (

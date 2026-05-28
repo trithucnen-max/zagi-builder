@@ -13,6 +13,7 @@
  */
 
 import { getProvinceName, getDistrictName, getWardName, stripAdministrativePrefix } from './vnDivisions';
+import Logger from '../../../utils/Logger';
 
 // ─── Generic Order Data (internal) ──────────────────────────────────────────
 
@@ -396,7 +397,7 @@ export function adaptOrderForPlatform(platform: string, data: GenericOrderData):
   const adapter = ADAPTERS[platform as PlatformType];
   if (!adapter) {
     // Fallback: gửi nguyên generic data cho nền tảng chưa hỗ trợ
-    console.warn(`[adaptOrderForPlatform] No adapter for platform "${platform}", using generic data`);
+    Logger.warn(`[adaptOrderForPlatform] No adapter for platform "${platform}", using generic data`);
     return data;
   }
   return adapter(data);

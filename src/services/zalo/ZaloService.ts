@@ -240,7 +240,7 @@ export default class ZaloService {
                                     metadata: metadata,
                                 }
                             } catch (err) {
-                                console.warn(`⚠️ Không đọc được kích thước ảnh: ${filePath}`, err);
+                                Logger.warn(`⚠️ Không đọc được kích thước ảnh: ${filePath}`, err);
                             }
                         } else {
                             attachment = filePath

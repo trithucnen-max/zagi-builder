@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
+import Logger from '../../../utils/Logger';
 interface Group {
   id: string;
   name: string;
@@ -69,7 +70,7 @@ const GroupPicker: React.FC<GroupPickerProps> = ({
         });
       });
     } catch (err: any) {
-      console.warn('[GroupPicker] Failed to load from DB:', err);
+      Logger.warn('[GroupPicker] Failed to load from DB:', err);
     }
 
     // Load from API as backup
@@ -94,7 +95,7 @@ const GroupPicker: React.FC<GroupPickerProps> = ({
         });
       }
     } catch (err: any) {
-      console.warn('[GroupPicker] Failed to load from API:', err);
+      Logger.warn('[GroupPicker] Failed to load from API:', err);
       if (items.length === 0) {
         setError('Không thể tải danh sách nhóm');
       }

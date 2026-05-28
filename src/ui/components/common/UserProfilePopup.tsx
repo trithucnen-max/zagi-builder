@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
 import PhoneDisplay from './PhoneDisplay';
 import GroupAvatarCommon from './GroupAvatar';
+import Logger from '../../../utils/Logger';
 
 // ─── ActionRow ────────────────────────────────────────────────────────────────
 export function ActionRow({ icon, label, onClick, textColor = 'text-gray-300' }: {
@@ -221,7 +222,7 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
                       creatorId, adminIds, settings: gi.setting, fetchedAt: Date.now(),
                     });
                     useChatStore.getState().updateContact(activeAccountId, { contact_id: g.groupId, display_name: groupName, avatar_url: groupAvt, contact_type: 'group' });
-                  } catch (err: any) { console.warn(`[MutualGroups] failed for ${g.groupId}:`, err?.message); }
+                  } catch (err: any) { Logger.warn(`[MutualGroups] failed for ${g.groupId}:`, err?.message); }
                 })
               );
               setMutualGroups([...updated]);

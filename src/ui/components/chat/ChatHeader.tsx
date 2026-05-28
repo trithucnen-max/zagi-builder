@@ -7,6 +7,7 @@ import { UserProfilePopup } from '../common/UserProfilePopup';
 import LabelPicker, { ActiveLabels, EditLabelsModal } from './LabelPicker';
 import useIsMobile from '@/hooks/useIsMobile';
 import ChannelBadge from '../common/ChannelBadge';
+import Logger from '../../../utils/Logger';
 
 interface HeaderLocalLabel {
   id: number;
@@ -216,7 +217,7 @@ export default function ChatHeader() {
         scrollAndHighlight(el2);
       }
     } catch (err) {
-      console.error('[scrollToResult] Failed to load messages around target:', err);
+      Logger.error('[scrollToResult] Failed to load messages around target:', err);
     }
   };
 

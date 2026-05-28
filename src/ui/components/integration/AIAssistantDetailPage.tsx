@@ -272,12 +272,6 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
         const res = await ipc.ai?.getAssistant(assistantId);
         if (res?.success && res.assistant) {
           const a = res.assistant;
-          console.log('[AIAssistantDetailPage] loaded assistant:', {
-            id: a.id, name: a.name,
-            posIntegrationId: a.posIntegrationId,
-            pinnedProductsJsonLen: a.pinnedProductsJson?.length,
-            pinnedProductsJsonPreview: a.pinnedProductsJson?.substring(0, 200),
-          });
           setName(a.name || '');
           setPlatform(a.platform || 'openai');
           setApiKey(a.apiKey || '');
@@ -348,13 +342,6 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
         isDefault,
         customUrl: (platform === 'openrouter' || platform === 'custom_openai' || platform === 'custom_claude') ? customUrl.trim() : '',
       };
-      console.log('[AIAssistantDetailPage] saving payload:', {
-        id: payload.id,
-        posIntegrationId: payload.posIntegrationId,
-        pinnedProductsJsonLen: payload.pinnedProductsJson?.length,
-        pinnedProductsCount: pinnedProducts.length,
-        pinnedProductsJsonPreview: payload.pinnedProductsJson?.substring(0, 200),
-      });
       const res = await ipc.ai?.saveAssistant(payload);
       if (res?.success && res.id) {
         setSavedId(res.id);

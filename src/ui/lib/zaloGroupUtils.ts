@@ -21,6 +21,7 @@
 
 import ipc from '@/lib/ipc';
 import { extractUserProfile } from '../../utils/profileUtils';
+import Logger from '../../utils/Logger';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -125,11 +126,9 @@ async function _fetchGroupMembersComplete(opts: _EnrichOpts): Promise<void> {
 
   const membersWithoutNames = memberIds.filter(id => !existingNameSet.has(id));
   if (membersWithoutNames.length === 0) {
-    console.log(`[zaloGroupUtils] Group ${groupId}: all ${memberIds.length} named → skip`);
     onProgress?.(memberIds.length, memberIds.length);
     return;
   }
-  console.log(`[zaloGroupUtils] Group ${groupId}: ${membersWithoutNames.length}/${memberIds.length} need enrichment (skipStep1=${skipGetGroupMembersInfo})`);
 
   const coveredByStep1 = new Set<string>();
 
@@ -140,7 +139,6 @@ async function _fetchGroupMembersComplete(opts: _EnrichOpts): Promise<void> {
       const profiles: Record<string, any> = res?.success
         ? (res.response?.profiles ?? res.response?.membersInfo ?? res.response?.data?.membersInfo ?? {})
         : {};
-      console.log(`[zaloGroupUtils] getGroupMembersInfo → ${Object.keys(profiles).length} profiles for ${groupId}`);
 
       if (Object.keys(profiles).length > 0) {
         const updates: MemberPlaceholder[] = [];
@@ -157,15 +155,13 @@ async function _fetchGroupMembersComplete(opts: _EnrichOpts): Promise<void> {
         }
       }
     } catch (err) {
-      console.warn('[zaloGroupUtils] getGroupMembersInfo error:', err);
+      Logger.warn('[zaloGroupUtils] getGroupMembersInfo error:', err);
     }
 
     if (coveredByStep1.size >= membersWithoutNames.length * 0.5) {
-      console.log(`[zaloGroupUtils] Group ${groupId}: step1 sufficient (${coveredByStep1.size}/${membersWithoutNames.length}) → skip getUserInfo`);
       onProgress?.(memberIds.length, memberIds.length);
       return;
     }
-    console.log(`[zaloGroupUtils] Group ${groupId}: step1 insufficient → getUserInfo fallback`);
   }
 
   const BATCH = batchSize;
@@ -200,7 +196,7 @@ async function _fetchGroupMembersComplete(opts: _EnrichOpts): Promise<void> {
         if (contactSaves.length > 0) await Promise.all(contactSaves);
       }
     } catch (err) {
-      console.warn('[zaloGroupUtils] getUserInfo batch error:', err);
+      Logger.warn('[zaloGroupUtils] getUserInfo batch error:', err);
     }
     onProgress?.(Math.min(j + BATCH, memberIds.length), memberIds.length);
     if (!stopRef?.current && j + BATCH < memberIds.length) {
@@ -226,14 +222,13 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
     // Caller already called getGroupInfo → skip duplicate API call
     memberIds = prebuiltMemberIds;
     placeholders = prebuiltPlaceholders;
-    console.log(`[zaloGroupUtils] _syncSingleGroup: using pre-built memberIds (${memberIds.length}) for ${groupId}`);
   } else {
     // getGroupInfo → member IDs + roles
     const infoRes = await ipc.zalo?.getGroupInfo({ auth, groupId });
     const gridMap = infoRes?.response?.gridInfoMap ?? {};
     const gData: any = gridMap[groupId] ?? Object.values(gridMap)[0];
     if (!gData) {
-      console.warn('[zaloGroupUtils] getGroupInfo returned no data for:', groupId);
+      Logger.warn('[zaloGroupUtils] getGroupInfo returned no data for:', groupId);
       return;
     }
 
@@ -257,7 +252,7 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
     )];
 
     if (memberIds.length === 0) {
-      console.warn('[zaloGroupUtils] No UIDs from getGroupInfo for:', groupId);
+      Logger.warn('[zaloGroupUtils] No UIDs from getGroupInfo for:', groupId);
       return;
     }
 
@@ -297,13 +292,12 @@ async function _syncAllGroups(opts: SyncGroupsOptions): Promise<void> {
 
   const res = await ipc.zalo?.getGroups(auth);
   if (!res?.success) {
-    console.warn('[zaloGroupUtils] getGroups failed:', res?.error);
+    Logger.warn('[zaloGroupUtils] getGroups failed:', res?.error);
     return;
   }
 
   const gridVerMap: Record<string, string> = res.response?.gridVerMap ?? {};
   const groupIds = Object.keys(gridVerMap);
-  console.log(`[zaloGroupUtils] getAllGroups: ${groupIds.length} IDs`);
   if (groupIds.length === 0) return;
 
   // Load ALL existing members in one shot (no extra DB queries per group later)
@@ -405,13 +399,11 @@ async function _syncAllGroups(opts: SyncGroupsOptions): Promise<void> {
     }
   }
 
-  console.log(`[zaloGroupUtils] Phase 1 done: ${processed}/${groupIds.length}. New: ${newlySaved.length}, UID-only: ${uidOnlyExisting.length}`);
   await onPhase1Done?.();
 
   // Phase 2: enrich member details
   const allToEnrich = [...newlySaved, ...uidOnlyExisting];
   for (let i = 0; i < allToEnrich.length; i++) {
-    if (stopRef?.current) { console.log('[zaloGroupUtils] Phase 2 stopped by user'); break; }
     const { groupId, groupName, memberIds, placeholders, skipGetGroupMembersInfo } = allToEnrich[i];
 
     onProgress?.({ phase: 'members', current: 0, total: memberIds.length, groupCurrent: i + 1, groupTotal: allToEnrich.length, currentGroupName: groupName });
@@ -427,7 +419,6 @@ async function _syncAllGroups(opts: SyncGroupsOptions): Promise<void> {
 
     await onGroupEnriched?.();
   }
-  console.log('[zaloGroupUtils] Phase 2 done.');
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────

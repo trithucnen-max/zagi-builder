@@ -1,3 +1,39 @@
+## [27.0.0] — 2026-05-28
+
+### 🚀 Cải tiến Kiến trúc & Hệ thống
+- **Tối ưu hóa Codebase**: Tái cấu trúc thành công `App.tsx` (từ 1,357 còn 175 dòng) và `main.ts` (từ 946 còn 165 dòng) bằng cách chuyển đổi sang mô hình module hướng đối tượng (`StartupManager`, `AppManager`, `LicenseGate`, `UpdateManager`).
+- **Tách component CRMPage**: Trực quan hóa và làm gọn `CRMPage.tsx` sang 3 component modals độc lập (`BulkLocalLabelModal`, `BulkZaloLabelModal`, `AddToCampaignModal`), giảm LOC từ 883 xuống 662 dòng.
+- **Hệ thống Plugin mới**: Tích hợp `PluginManager` và hệ thống IPC Plugin hỗ trợ cài đặt và quản lý các package mở rộng động cho Zagi.
+- **Cơ chế Cập nhật Tự động (Delta Update)**: Kích hoạt NSIS `differentialPackage` giúp tự động tạo các bản cập nhật delta kích thước cực nhỏ cho hệ điều hành Windows.
+
+### ✨ Tính năng mới & Trải nghiệm người dùng
+- **Trực quan hóa & Phân tích CRM**: Bổ sung biểu đồ hình phễu CRM (Funnel Chart) sử dụng Recharts, dòng thời gian liên hệ (Contact Timeline), và hỗ trợ xuất nhập UTF-8 BOM CSV cho danh sách khách hàng.
+- **Tính năng AI nâng cao**: Thêm cơ chế tóm tắt ghi chú hàng loạt bằng AI (`batchSummarizeContactNotes`) và đề xuất nhãn thông minh (`suggestSmartTags`).
+- **Tự động hóa Workflow**: Tích hợp Visual Cron Builder 3 chế độ (Thời gian, Định kỳ, Lặp lại), Webhook URL Banner kèm nút Copy nhanh, và lịch ghim tin nhắn nhóm Zalo.
+- **Giao diện Bản quyền mới**: Bổ sung bộ chọn tab gói cước Solo (1 tài khoản Zalo) và Team (Không giới hạn), tích hợp địa chỉ CÔNG TY CỔ PHẦN BASAN trực tiếp vào biểu mẫu chuyển khoản.
+
+### ⚡ Hiệu suất & Tối ưu hóa Cơ sở dữ liệu
+- **Tối ưu hóa SQLite**: Bật chế độ WAL (Write-Ahead Logging) tăng tốc độ đọc ghi DB, bổ sung 22 chỉ mục (indexes) tối ưu hóa các câu truy vấn CRM nặng.
+- **Giám sát IPC**: Triển khai `AppMonitorService` đo lường độ trễ IPC (P50/P95/P99) và báo cáo lỗi crash cục bộ định kỳ 7 ngày.
+- **Sao lưu cơ sở dữ liệu**: Hỗ trợ tự động sao lưu định kỳ cơ sở dữ liệu cục bộ nhằm tránh mất mát dữ liệu khách hàng.
+
+### 🔒 Bảo mật & Chất lượng mã nguồn
+- **Nâng cao Type-safety**: Giảm đáng kể số lượng kiểu dữ liệu `any` trong preload và IPC sang `unknown`, loại bỏ hơn 721 usages `any` không an toàn.
+- **Vá lỗ hổng bảo mật**: Khắc phục hoàn toàn 2 lỗ hổng bảo mật HIGH của Axios (CSRF + SSRF).
+- **Mở rộng Test Suite**: Nâng tổng số tệp kiểm thử lên 21 files với 211 test cases đạt tỉ lệ coverage 30.85% (Jest unit tests pass 100%).
+
+### 💳 Thay đổi Cổng Thanh toán & Bảng giá
+- **Thông tin ngân hàng mới**:
+  - Chủ tài khoản: **CÔNG TY CỔ PHẦN BASAN**
+  - Địa chỉ: Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, TP Hà Nội
+  - Số tài khoản: **63666999** tại Ngân hàng TMCP Kỹ thương Việt Nam (Techcombank) - CN Bờ Hồ.
+- **Bảng giá mới**:
+  - Gói Solo: 6 tháng (2.450.000đ) | 12 tháng (4.450.000đ) | Vĩnh viễn (7.450.000đ).
+  - Gói Team: 6 tháng (4.900.000đ) | 12 tháng (8.900.000đ) | Vĩnh viễn (14.900.000đ).
+- **Tích hợp VietQR**: Sinh mã QR thanh toán động chứa thông tin số tiền và nội dung chuyển khoản tự động.
+
+---
+
 # Nhật Ký Thay Đổi (Changelog)
 
 Tất cả các thay đổi chính thức, sửa lỗi và cải tiến tính năng của phần mềm **Zagi** sẽ được ghi chép chi tiết tại đây.

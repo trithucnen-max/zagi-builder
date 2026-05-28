@@ -10,13 +10,16 @@ import * as cron from 'node-cron';
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as http from 'http';
+import AIAssistantService from '../ai/AIAssistantService';
+import { PluginManager } from '../plugins/PluginManager';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type NodeType =
   | 'trigger.message' | 'trigger.friendRequest' | 'trigger.groupEvent'
   | 'trigger.reaction' | 'trigger.undo' | 'trigger.schedule' | 'trigger.manual'
-  | 'trigger.labelAssigned'
+  | 'trigger.labelAssigned' | 'trigger.webhook'
   | 'zalo.sendMessage' | 'zalo.sendImage' | 'zalo.sendFile' | 'zalo.sendVoice'
   | 'zalo.forwardMessage' | 'zalo.addReaction' | 'zalo.undoMessage'
   | 'zalo.sendTyping'
@@ -126,6 +129,25 @@ class WorkflowEngineService {
   private debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   /** Buffered message events for debounce — key = workflowId:threadId */
   private debounceBuffers: Map<string, any[]> = new Map();
+  private lastMessageSentAt: Map<string, number> = new Map();
+
+  private async enforceRateLimit(pageId: string): Promise<void> {
+    const key = pageId || 'default';
+    const now = Date.now();
+    const lastSent = this.lastMessageSentAt.get(key) || 0;
+    const elapsed = now - lastSent;
+    const minDelay = 2000; // 2 seconds minimum delay
+
+    if (elapsed < minDelay) {
+      const waitTime = minDelay - elapsed;
+      Logger.info(`[WorkflowEngine] Rate limiting active for account ${key}. Waiting ${waitTime}ms...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    this.lastMessageSentAt.set(key, Date.now());
+  }
+
+  private webhookServer: http.Server | null = null;
+  private readonly webhookPort: number = 5678;
 
   public static getInstance(): WorkflowEngineService {
     if (!this.instance) this.instance = new WorkflowEngineService();
@@ -136,7 +158,135 @@ class WorkflowEngineService {
     this.loadWorkflows();
     this.registerZaloEventListeners();
     this.registerCronJobs();
+    this.startWebhookServer();
     Logger.log(`[WorkflowEngine] Initialized — ${this.workflows.size} workflows loaded`);
+  }
+
+  public startWebhookServer(): void {
+    if (this.webhookServer) return;
+
+    this.webhookServer = http.createServer((req, res) => {
+      const url = req.url || '/';
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url, `http://${req.headers.host || 'localhost'}`);
+      } catch (e: any) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid URL' }));
+        return;
+      }
+
+      const pathname = parsedUrl.pathname;
+
+      if (req.method !== 'POST') {
+        res.writeHead(405, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Method Not Allowed. Use POST.' }));
+        return;
+      }
+
+      // Route format: /webhook/:workflowId
+      const parts = pathname.split('/').filter(Boolean);
+      if (parts[0] !== 'webhook' || !parts[1]) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Not Found' }));
+        return;
+      }
+
+      const workflowId = parts[1];
+      const wf = this.workflows.get(workflowId);
+
+      if (!wf) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Workflow not found or disabled' }));
+        return;
+      }
+
+      if (!wf.enabled) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Workflow is disabled' }));
+        return;
+      }
+
+      const triggerNode = wf.nodes.find(n => n.type === 'trigger.webhook');
+      if (!triggerNode) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Workflow does not start with a Webhook Trigger' }));
+        return;
+      }
+
+      // Verify token/secret if configured
+      const authSecret = triggerNode.config?.authSecret;
+      if (authSecret) {
+        const authHeader = req.headers['authorization'] || '';
+        const tokenQuery = parsedUrl.searchParams.get('token') || '';
+        const incomingToken = authHeader.replace(/^Bearer\s+/i, '').trim() || tokenQuery;
+
+        if (incomingToken !== authSecret.trim()) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Unauthorized: Invalid token' }));
+          return;
+        }
+      }
+
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        try {
+          let payload = {};
+          if (body) {
+            try {
+              payload = JSON.parse(body);
+            } catch {
+              payload = { rawText: body };
+            }
+          }
+
+          // Build query object
+          const queryParams: Record<string, string> = {};
+          parsedUrl.searchParams.forEach((value, key) => {
+            queryParams[key] = value;
+          });
+
+          const triggerData = {
+            body: payload,
+            query: queryParams,
+            headers: req.headers,
+            zaloId: wf.pageIds[0] || wf.pageId || '',
+          };
+
+          // Run workflow async to not block client request
+          this.executeWorkflow(wf, triggerData, 'trigger.webhook')
+            .then((log) => {
+              Logger.log(`[WorkflowWebhook] Executed workflow ${wf.name} (id: ${wf.id}) successfully.`);
+            })
+            .catch((err) => {
+              Logger.error(`[WorkflowWebhook] Error executing workflow ${wf.name}: ${err.message}`);
+            });
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, message: 'Workflow triggered' }));
+        } catch (e: any) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+      });
+    });
+
+    this.webhookServer.on('error', (err: any) => {
+      Logger.error(`[WorkflowWebhookServer] Server error: ${err.message}`);
+    });
+
+    this.webhookServer.listen(this.webhookPort, '0.0.0.0', () => {
+      Logger.log(`[WorkflowWebhookServer] Listening on port ${this.webhookPort}`);
+    });
+  }
+
+  public stopWebhookServer(): void {
+    if (this.webhookServer) {
+      this.webhookServer.close();
+      this.webhookServer = null;
+      Logger.log('[WorkflowWebhookServer] Stopped');
+    }
   }
 
   private normalizeWorkflowChannel(channel?: string): WorkflowChannel {
@@ -229,6 +379,33 @@ class WorkflowEngineService {
     for (const [channel, triggerType] of Object.entries(EVENT_MAP)) {
       EventBroadcaster.onBeforeSend(channel, (data: any) => {
         this.triggerWorkflows(triggerType, data);
+
+        // Auto run analyzeContact when a new message from customer is received
+        if (channel === 'event:message') {
+          const message = data?.message;
+          if (message && !message.isSelf && message.type !== 1) {
+            try {
+              const aiService = AIAssistantService.getInstance();
+              const assistant = aiService.getDefaultAssistant();
+              if (assistant) {
+                aiService.analyzeContact(data.zaloId, message.threadId)
+                  .then((res: any) => {
+                    EventBroadcaster.emit('ai:contact-analyzed', {
+                      zaloId: data.zaloId,
+                      contactId: message.threadId,
+                      sentiment: res.sentiment,
+                      intent: res.intent,
+                    });
+                  })
+                  .catch((err: any) => {
+                    Logger.error(`[WorkflowEngineService] Auto analyzeContact error: ${err.message}`);
+                  });
+              }
+            } catch (e: any) {
+              Logger.error(`[WorkflowEngineService] Auto analyzeContact setup error: ${e.message}`);
+            }
+          }
+        }
       });
     }
 
@@ -508,6 +685,12 @@ class WorkflowEngineService {
       _wfName: wf.name,
     };
 
+    // Emit workflow run started for live debug highlighting
+    EventBroadcaster.emit('workflow:debug-start', {
+      workflowId: wf.id,
+      runId,
+    });
+
     const order = this.topologicalSort(wf);
     let status: 'success' | 'error' | 'partial' = 'success';
     let errorMessage: string | undefined;
@@ -519,6 +702,13 @@ class WorkflowEngineService {
 
       if (context.skippedNodes.has(nodeId)) {
         nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'skipped', input: {}, output: {}, durationMs: 0 });
+        // Emit node status: skipped
+        EventBroadcaster.emit('workflow:debug-node-status', {
+          workflowId: wf.id,
+          runId,
+          nodeId,
+          status: 'skipped',
+        });
         // Propagate skip to downstream nodes
         this.markDownstreamSkipped(nodeId, wf, context.skippedNodes);
         continue;
@@ -526,6 +716,13 @@ class WorkflowEngineService {
 
       let renderedConfig: Record<string, any> = {};
       try {
+        // Emit node status: running
+        EventBroadcaster.emit('workflow:debug-node-status', {
+          workflowId: wf.id,
+          runId,
+          nodeId,
+          status: 'running',
+        });
         renderedConfig = this.renderConfig(node.config, context);
         const output = await this.executeNode(node, renderedConfig, context, wf);
         context.nodes[nodeId] = { output };
@@ -557,13 +754,35 @@ class WorkflowEngineService {
         }
 
         nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'success', input: renderedConfig, output, durationMs: Date.now() - t0 });
+        // Emit node status: success
+        EventBroadcaster.emit('workflow:debug-node-status', {
+          workflowId: wf.id,
+          runId,
+          nodeId,
+          status: 'success',
+        });
       } catch (err: any) {
         // logic.stopIf signals a graceful stop — treat as success, halt loop
         if (err.message === '__STOP__') {
           nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'success', input: renderedConfig, output: { stopped: true }, durationMs: Date.now() - t0 });
+          // Emit node status: success (graceful stop)
+          EventBroadcaster.emit('workflow:debug-node-status', {
+            workflowId: wf.id,
+            runId,
+            nodeId,
+            status: 'success',
+          });
           break;
         }
         nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'error', input: {}, output: {}, durationMs: Date.now() - t0, error: err.message });
+        // Emit node status: error
+        EventBroadcaster.emit('workflow:debug-node-status', {
+          workflowId: wf.id,
+          runId,
+          nodeId,
+          status: 'error',
+          error: err.message,
+        });
         if (node.config.continueOnError) {
           status = 'partial';
         } else {
@@ -740,6 +959,7 @@ class WorkflowEngineService {
       case 'trigger.schedule':
       case 'trigger.manual':
       case 'trigger.labelAssigned':
+      case 'trigger.webhook':
         return { ...ctx.trigger };
 
       // ── Zalo Actions ─────────────────────────────────────────────────────
@@ -1806,15 +2026,31 @@ class WorkflowEngineService {
         if (!threadId) throw new Error('[fb.action.sendImage] threadId required');
         const att = await service.uploadAttachment(String(cfg.filePath));
         if (!att) throw new Error('[fb.action.sendImage] Upload failed');
-        // Send message with attachment reference
         const result = await service.sendMessage(String(threadId), cfg.body || '', { attachmentId: att.attachmentId });
         return { success: result.success };
       }
 
-      default:
+      default: {
+        // ── Plugin extension point ──────────────────────────────────
+        // If a registered plugin contributes this node type, delegate to it.
+        const pluginExecutor = PluginManager.getInstance().getNodeExecutor(node.type);
+        if (pluginExecutor) {
+          Logger.info(`[WorkflowEngine] Delegating node '${node.type}' to plugin executor.`);
+          const pluginResult = await pluginExecutor(cfg, {
+            trigger: ctx.trigger || {},
+            variables: ctx.variables || {},
+            accountId: ctx.pageId,
+          });
+          if (!pluginResult.success) {
+            Logger.warn(`[WorkflowEngine] Plugin node '${node.type}' returned error: ${pluginResult.error}`);
+          }
+          return pluginResult.output ?? {};
+        }
+        Logger.warn(`[WorkflowEngine] Unknown node type: '${node.type}' — skipping.`);
         return {};
-    }
-  }
+      }
+    } // end switch
+  } // end executeNode
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 

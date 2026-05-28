@@ -209,7 +209,6 @@ function QRLoginTab({ onSuccess }: { onSuccess: () => void }) {
     setStatus('loading');
     clearTimer();
 
-    console.log('[QRLoginTab] Starting QR with tempId:', tempId.current);
     await ipc.login?.loginQR(tempId.current);
   };
 
@@ -224,7 +223,6 @@ function QRLoginTab({ onSuccess }: { onSuccess: () => void }) {
   useEffect(() => {
     // Subscribe to qr:update events
     const unsub = ipc.on('qr:update', (data: any) => {
-      console.log('[QRLoginTab] Received qr:update:', data.status, 'tempId match:', data.tempId === tempId.current, 'qrDataUrl length:', data.qrDataUrl?.length || 0);
 
       if (data.tempId !== tempId.current) return;
 

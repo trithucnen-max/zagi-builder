@@ -282,6 +282,47 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
     });
   }, [workflowId, toRFNode]);
 
+  // Listen to workflow debug events
+  useEffect(() => {
+    if (!ipc.on) return;
+
+    const unsubStart = ipc.on('workflow:debug-start', (data: any) => {
+      if (data?.workflowId === workflowId) {
+        setNodes(ns => ns.map(n => ({
+          ...n,
+          data: {
+            ...n.data,
+            status: undefined,
+            error: undefined,
+          }
+        })));
+      }
+    });
+
+    const unsubStatus = ipc.on('workflow:debug-node-status', (data: any) => {
+      if (data?.workflowId === workflowId && data?.nodeId) {
+        setNodes(ns => ns.map(n => {
+          if (n.id === data.nodeId) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                status: data.status,
+                error: data.error,
+              }
+            };
+          }
+          return n;
+        }));
+      }
+    });
+
+    return () => {
+      if (unsubStart) unsubStart();
+      if (unsubStatus) unsubStatus();
+    };
+  }, [workflowId, setNodes]);
+
   const onConnect = useCallback((params: Connection | Edge) => {
     setEdges(es => addEdge({
       ...params,

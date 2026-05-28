@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
+import Logger from '../../../utils/Logger';
 
 export interface MediaViewerImage {
   src: string;           // remote/view URL
@@ -114,7 +115,7 @@ export default function MediaViewer({ src, images, initialIndex = 0, alt = 'ản
       const safetyTimer = setTimeout(() => {
         if (cancelled) return;
         setIsImageLoading(prev => {
-          if (prev) console.warn('[MediaViewer] Loading timeout for:', displaySrc.substring(0, 80));
+          if (prev) Logger.warn('[MediaViewer] Loading timeout for:', displaySrc.substring(0, 80));
           return false;
         });
       }, 15_000);

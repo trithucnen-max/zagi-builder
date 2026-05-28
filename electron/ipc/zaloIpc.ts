@@ -7,6 +7,7 @@ import DatabaseService from '../../src/services/database/DatabaseService';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
 import Logger from '../../src/utils/Logger';
 import EventBroadcaster from '../../src/services/event/EventBroadcaster';
+import { validateIpc, SendMessageSchema, AcceptFriendRequestSchema } from './ipcValidator';
 
 /**
  * Registry of IPC handler functions.
@@ -56,7 +57,7 @@ function resolveZaloId(auth: any): string {
     return '';
 }
 
-function wrap(channel: string, fn: (service: ZaloService, params: any) => Promise<any>) {
+function wrap(channel: string, fn: (service: ZaloService, params: any) => Promise<any>, schema?: any) {
     const handler = async (_event: any, params: any) => {
         try {
             // ─── Workspace-aware proxy routing ─────────────────────────
@@ -71,6 +72,12 @@ function wrap(channel: string, fn: (service: ZaloService, params: any) => Promis
                 }
             }
             // ───────────────────────────────────────────────────────────
+
+            // Schema validation (if configured)
+            if (schema && params) {
+                const v = validateIpc(schema, params);
+                if (!v.success) return v;
+            }
 
             // Strip relay flag before passing to service
             const { auth, isReconnection = false, _fromRelay, ...rest } = params;
@@ -106,7 +113,8 @@ function wrap(channel: string, fn: (service: ZaloService, params: any) => Promis
 export function registerZaloIpc() {
     // ─── Tin nhắn ────────────────────────────────────────────────────────
     wrap('zalo:sendMessage', (s, p) =>
-        s.sendMessage(p.message, p.threadId, p.type, p.typeMessage, p.quote, p.mentions, p.styles)
+        s.sendMessage(p.message, p.threadId, p.type, p.typeMessage, p.quote, p.mentions, p.styles),
+        SendMessageSchema
     );
 
     wrap('zalo:sendSticker', (s, p) =>
@@ -281,7 +289,8 @@ export function registerZaloIpc() {
     );
 
     wrap('zalo:acceptFriendRequest', (s, p) =>
-        s.acceptFriendRequest(p.userId)
+        s.acceptFriendRequest(p.userId),
+        AcceptFriendRequestSchema
     );
 
     wrap('zalo:rejectFriendRequest', (s, p) =>

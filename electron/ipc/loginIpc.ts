@@ -6,6 +6,7 @@ import FacebookConnectionManager from '../../src/utils/FacebookConnectionManager
 import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import Logger from '../../src/utils/Logger';
 import ZaloLoginHelper from '../../src/utils/ZaloLoginHelper';
+import { validateIpc, LoginQRSchema, LoginAuthSchema, LoginCookiesSchema, LoginConnectSchema } from './ipcValidator';
 function postLoginSetup(_zaloId: string, _mainWindow: BrowserWindow | null, _name?: string, _phone?: string) {
     // No-op in open-source build.
 }
@@ -20,11 +21,14 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
 
 
     // ─── Đăng nhập QR ─────────────────────────────────────────────────────
-    ipcMain.handle('login:qr', async (_event, { tempId }) => {
+    ipcMain.handle('login:qr', async (_event, args) => {
+        const v = validateIpc(LoginQRSchema, args);
+        if (!v.success) return v;
+        const { tempId } = v.data;
         try {
-            console.log(`[loginIpc] Starting QR login for tempId: ${tempId}`);
+            Logger.log(`[loginIpc] Starting QR login for tempId: ${tempId}`);
             loginService.loginQR(tempId).catch((err) => {
-                console.error(`[loginIpc] QR login error: ${err.message}`);
+                Logger.error(`[loginIpc] QR login error: ${err.message}`);
             });
             return { success: true };
         } catch (error: any) {
@@ -43,10 +47,13 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
         }
     });
 
-    // ─── Đăng nhập bằng JSON auth (1 ô paste) ────────────────────────────
+    // ─── Đăng nhập bằng JSON auth (1 ô paste) ────────────────────
     // Format: { "imei": "...", "cookies": "...", "userAgent": "..." }
-    ipcMain.handle('login:auth', async (_event, { authJson }) => {
+    ipcMain.handle('login:auth', async (_event, args) => {
+        const v = validateIpc(LoginAuthSchema, args);
+        if (!v.success) return v;
         try {
+            const { authJson } = v.data;
             if (!authJson) return { success: false, error: 'Thiếu auth JSON' };
             let parsed: any;
             try {
@@ -96,9 +103,12 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
         }
     });
 
-    // ─── Đăng nhập Cookies/IMEI (legacy — 3 ô) ───────────────────────────
-    ipcMain.handle('login:cookies', async (_event, { imei, cookies, userAgent }) => {
+    // ─── Đăng nhập Cookies/IMEI (legacy — 3 ô) ────────────────────
+    ipcMain.handle('login:cookies', async (_event, args) => {
+        const v = validateIpc(LoginCookiesSchema, args);
+        if (!v.success) return v;
         try {
+            const { imei, cookies, userAgent } = v.data;
             if (!imei || !cookies || !userAgent) {
                 return { success: false, error: 'Thiếu thông tin đăng nhập (imei, cookies, userAgent)' };
             }

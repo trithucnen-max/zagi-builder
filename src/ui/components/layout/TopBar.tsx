@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ipc from '@/lib/ipc';
 
 const SUPPORT_GITHUB_URL = 'https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg';
-import { useAppStore } from '@/store/appStore';
+import { useViewStore } from '@/store/viewStore';
+import { useModalStore } from '@/store/modalStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useUpdateStore } from '@/store/updateStore';
 import { useEmployeeStore } from '@/store/employeeStore';
@@ -17,7 +18,8 @@ const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSI
 
 export default function TopBar() {
   const [isMaximized, setIsMaximized] = useState(false);
-  const { theme, setTheme, showNotification } = useAppStore();
+  const { theme, setTheme } = useViewStore();
+  const { showNotification } = useModalStore();
   const { activeAccountId } = useAccountStore();
   const [loadingOldMsgs, setLoadingOldMsgs] = useState(false);
 

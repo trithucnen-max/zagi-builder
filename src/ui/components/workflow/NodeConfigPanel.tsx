@@ -4,6 +4,7 @@ import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import { getNodeLabel } from './workflowConfig';
 import GroupAvatar from '@/components/common/GroupAvatar';
+import Logger from '../../../utils/Logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,18 +74,54 @@ const CRON_PRESETS = [
   { label: 'Mỗi thứ Hai 8h',    value: '0 8 * * 1'    },
   { label: 'Đầu tháng 8h',      value: '0 8 1 * *'    },
   { label: 'Mỗi đêm 0h',        value: '0 0 * * *'    },
+  { label: 'Mỗi 15 phút',       value: '*/15 * * * *' },
+  { label: 'Thứ Sáu 17h',       value: '0 17 * * 5'   },
+];
+
+const WEEKDAYS = [
+  { value: '1', label: 'T2' }, { value: '2', label: 'T3' },
+  { value: '3', label: 'T4' }, { value: '4', label: 'T5' },
+  { value: '5', label: 'T6' }, { value: '6', label: 'T7' },
+  { value: '0', label: 'CN' },
 ];
 
 function cronToHuman(expr: string): string {
+  if (!expr?.trim()) return '';
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return '';
+  const [min, hour, dom, , dow] = parts;
+
+  const timeStr = (h: string, m: string) => {
+    if (h === '*' || h.startsWith('*/')) return null;
+    const hNum = parseInt(h);
+    const mNum = parseInt(m) || 0;
+    return `${hNum}:${String(mNum).padStart(2, '0')}`;
+  };
+
   const map: Record<string, string> = {
     '0 8 * * *':    'Mỗi ngày lúc 8:00 sáng',
     '0 * * * *':    'Mỗi giờ một lần',
     '*/30 * * * *': 'Mỗi 30 phút',
+    '*/15 * * * *': 'Mỗi 15 phút',
     '0 8 * * 1':    'Mỗi thứ Hai lúc 8:00',
     '0 8 1 * *':    'Ngày đầu tháng lúc 8:00',
     '0 0 * * *':    'Mỗi đêm lúc 0:00',
+    '0 17 * * 5':   'Mỗi thứ Sáu lúc 17:00',
   };
-  return map[expr.trim()] || '';
+  if (map[expr.trim()]) return map[expr.trim()];
+
+  // Interpret custom
+  const t = timeStr(hour, min);
+  if (min.startsWith('*/')) return `Mỗi ${min.slice(2)} phút`;
+  if (hour.startsWith('*/')) return `Mỗi ${hour.slice(2)} giờ`;
+  const dayNames: Record<string, string> = { '0': 'CN', '1': 'T2', '2': 'T3', '3': 'T4', '4': 'T5', '5': 'T6', '6': 'T7' };
+  if (t && dow !== '*') {
+    const days = dow.split(',').map(d => dayNames[d] || d).join(', ');
+    return `${days} lúc ${t}`;
+  }
+  if (t && dom !== '*') return `Ngày ${dom} hàng tháng lúc ${t}`;
+  if (t) return `Mỗi ngày lúc ${t}`;
+  return '';
 }
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -226,6 +263,13 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
         { value: 'UTC',              label: '🌍 UTC (chuẩn quốc tế)' },
       ],
       advanced: true,
+    },
+  ],
+  'trigger.webhook': [
+    {
+      key: 'authSecret', label: 'Auth Token bảo mật (tùy chọn)', type: 'text',
+      placeholder: 'my-secret-token-123',
+      desc: 'Nếu điền, client phải gửi header "Authorization: Bearer <token>" hoặc ?token=... để được xác thực. Để trống = public endpoint.',
     },
   ],
   'zalo.sendMessage': [
@@ -1605,32 +1649,181 @@ function ToggleSwitch({ checked, onChange, label, desc }: {
 }
 
 function CronField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [mode, setMode] = useState<'preset' | 'visual' | 'custom'>('preset');
+
+  // Visual builder state — parse from current value
+  const parsedParts = value?.trim().split(/\s+/) || [];
+  const [vHour, setVHour]   = useState(parsedParts[1] && parsedParts[1] !== '*' && !parsedParts[1].startsWith('*/') ? parsedParts[1] : '8');
+  const [vMin, setVMin]     = useState(parsedParts[0] && parsedParts[0] !== '*' && !parsedParts[0].startsWith('*/') ? parsedParts[0] : '0');
+  const [vFreq, setVFreq]   = useState<'daily' | 'weekly' | 'monthly' | 'interval'>('daily');
+  const [vDays, setVDays]   = useState<string[]>(['1']);
+  const [vDom, setVDom]     = useState('1');
+  const [vInterval, setVInterval] = useState('30');
+  const [vIntervalUnit, setVIntervalUnit] = useState<'min' | 'hour'>('min');
+
+  const buildVisualCron = () => {
+    if (vFreq === 'interval') {
+      return vIntervalUnit === 'min' ? `*/${vInterval} * * * *` : `0 */${vInterval} * * *`;
+    }
+    const h = String(parseInt(vHour) || 0);
+    const m = String(parseInt(vMin) || 0);
+    if (vFreq === 'daily')   return `${m} ${h} * * *`;
+    if (vFreq === 'weekly')  return `${m} ${h} * * ${vDays.join(',') || '1'}`;
+    if (vFreq === 'monthly') return `${m} ${h} ${vDom} * *`;
+    return `${m} ${h} * * *`;
+  };
+
+  const applyVisual = () => onChange(buildVisualCron());
+
   const human = value ? cronToHuman(value) : '';
+
+  const tabCls = (t: string) => `px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${
+    mode === t ? 'bg-blue-600 text-white' : 'bg-gray-800 border border-gray-700 text-gray-400 hover:text-white'
+  }`;
+
   return (
-    <div className="space-y-2">
-      <input
-        value={value ?? ''} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder || '0 8 * * *'}
-        className={`${inputCls} font-mono`}
-      />
+    <div className="space-y-3">
+      {/* Mode tabs */}
+      <div className="flex gap-1.5">
+        <button type="button" onClick={() => setMode('preset')} className={tabCls('preset')}>🎯 Mẫu</button>
+        <button type="button" onClick={() => setMode('visual')} className={tabCls('visual')}>🛠 Tùy chọn</button>
+        <button type="button" onClick={() => setMode('custom')} className={tabCls('custom')}>⌨️ Nâng cao</button>
+      </div>
+
+      {/* Preset mode */}
+      {mode === 'preset' && (
+        <div className="flex flex-wrap gap-1.5">
+          {CRON_PRESETS.map(p => (
+            <button key={p.value} type="button" onClick={() => onChange(p.value)}
+              className={`text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors ${
+                value === p.value
+                  ? 'bg-blue-600 border-blue-500 text-white shadow-sm shadow-blue-500/30'
+                  : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white'
+              }`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Visual builder mode */}
+      {mode === 'visual' && (
+        <div className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-3 space-y-3">
+          {/* Frequency */}
+          <div>
+            <label className="text-[11px] text-gray-400 font-medium mb-1.5 block">Lặp lại</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[{v:'daily',l:'📅 Mỗi ngày'},{v:'weekly',l:'🗓 Hàng tuần'},{v:'monthly',l:'📆 Hàng tháng'},{v:'interval',l:'⏱ Theo chu kỳ'}].map(f => (
+                <button key={f.v} type="button" onClick={() => setVFreq(f.v as any)}
+                  className={`text-[11px] px-2 py-1.5 rounded-lg border text-left transition-colors ${
+                    vFreq === f.v ? 'bg-blue-600/20 border-blue-500/60 text-blue-300' : 'bg-gray-700/50 border-gray-700 text-gray-400 hover:border-gray-600'
+                  }`}>
+                  {f.l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Time picker — shown unless interval */}
+          {vFreq !== 'interval' && (
+            <div>
+              <label className="text-[11px] text-gray-400 font-medium mb-1.5 block">Thời gian chạy</label>
+              <div className="flex items-center gap-2">
+                <select value={vHour} onChange={e => setVHour(e.target.value)}
+                  className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-sm text-white">
+                  {Array.from({length:24},(_,i) => String(i)).map(h => (
+                    <option key={h} value={h}>{String(parseInt(h)).padStart(2,'0')}:xx</option>
+                  ))}
+                </select>
+                <span className="text-gray-500 text-xs">:</span>
+                <select value={vMin} onChange={e => setVMin(e.target.value)}
+                  className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-sm text-white">
+                  {['0','5','10','15','20','30','45'].map(m => (
+                    <option key={m} value={m}>{String(parseInt(m)).padStart(2,'0')} phút</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Weekday picker */}
+          {vFreq === 'weekly' && (
+            <div>
+              <label className="text-[11px] text-gray-400 font-medium mb-1.5 block">Ngày trong tuần</label>
+              <div className="flex gap-1">
+                {WEEKDAYS.map(d => (
+                  <button key={d.value} type="button"
+                    onClick={() => setVDays(prev => prev.includes(d.value) ? prev.filter(x => x !== d.value) : [...prev, d.value])}
+                    className={`flex-1 text-[11px] py-1 rounded-lg border transition-colors ${
+                      vDays.includes(d.value) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-700/50 border-gray-700 text-gray-400 hover:border-gray-600'
+                    }`}>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Day of month picker */}
+          {vFreq === 'monthly' && (
+            <div>
+              <label className="text-[11px] text-gray-400 font-medium mb-1.5 block">Ngày trong tháng</label>
+              <select value={vDom} onChange={e => setVDom(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-sm text-white">
+                {Array.from({length:28},(_,i) => String(i+1)).map(d => (
+                  <option key={d} value={d}>Ngày {d}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Interval picker */}
+          {vFreq === 'interval' && (
+            <div>
+              <label className="text-[11px] text-gray-400 font-medium mb-1.5 block">Mỗi bao lâu</label>
+              <div className="flex items-center gap-2">
+                <input type="number" min="1" max="59" value={vInterval} onChange={e => setVInterval(e.target.value)}
+                  className="w-20 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-sm text-white text-center" />
+                <select value={vIntervalUnit} onChange={e => setVIntervalUnit(e.target.value as any)}
+                  className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-sm text-white">
+                  <option value="min">phút</option>
+                  <option value="hour">giờ</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Preview + Apply */}
+          <div className="border-t border-gray-700/50 pt-2.5 flex items-center justify-between">
+            <code className="text-[11px] text-blue-400 bg-blue-500/10 px-2 py-1 rounded font-mono">{buildVisualCron()}</code>
+            <button type="button" onClick={applyVisual}
+              className="text-[11px] px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-medium">
+              Áp dụng ✓
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Custom / advanced mode */}
+      {mode === 'custom' && (
+        <input
+          value={value ?? ''} onChange={e => onChange(e.target.value)}
+          placeholder={placeholder || '0 8 * * *'}
+          className={`${inputCls} font-mono`}
+        />
+      )}
+
+      {/* Human readable interpretation */}
       {human && (
         <p className="text-[11px] text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-2.5 py-1.5">
           ⏰ {human}
         </p>
       )}
-      <div className="flex flex-wrap gap-1.5">
-        {CRON_PRESETS.map(p => (
-          <button key={p.value} type="button" onClick={() => onChange(p.value)}
-            className={`text-[11px] px-2 py-1 rounded-lg border transition-colors
-              ${value === p.value
-                ? 'bg-blue-600 border-blue-500 text-white'
-                : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white'
-              }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      {value && !human && value.trim().split(/\s+/).length === 5 && (
+        <p className="text-[11px] text-blue-400/80 bg-blue-500/5 border border-blue-500/15 rounded-lg px-2.5 py-1.5 font-mono">
+          📅 Biểu thức: {value.trim()}
+        </p>
+      )}
     </div>
   );
 }
@@ -2423,7 +2616,7 @@ function ContactPickerModal({
           });
         });
       } catch (err: any) {
-        console.warn('[ContactPicker] Failed to load contacts from DB:', err);
+        Logger.warn('[ContactPicker] Failed to load contacts from DB:', err);
       }
       
       // Load groups from API - requires active connection (as backup if not in DB)
@@ -2436,7 +2629,7 @@ function ContactPickerModal({
           if (groupsRes?.error) {
             hasError = true;
             errorMsg = groupsRes.error;
-            console.warn('[ContactPicker] Groups API error:', groupsRes.error);
+            Logger.warn('[ContactPicker] Groups API error:', groupsRes.error);
           } else {
             const groups = groupsRes?.response?.gridInfoMap || {};
             const existingIds = new Set(items.map(i => i.id));
@@ -2458,7 +2651,7 @@ function ContactPickerModal({
         } catch (err: any) {
           hasError = true;
           errorMsg = err?.message || 'Không thể tải danh sách nhóm';
-          console.warn('[ContactPicker] Failed to load groups:', err);
+          Logger.warn('[ContactPicker] Failed to load groups:', err);
         }
       }
       
@@ -2966,7 +3159,7 @@ function FilePickerField({
         setPreviewError(false);
       }
     } catch (err) {
-      console.warn('[FilePicker] Error selecting file:', err);
+      Logger.warn('[FilePicker] Error selecting file:', err);
     }
   };
 
@@ -3078,6 +3271,62 @@ function FilePickerField({
   );
 }
 
+// ─── Webhook Info Banner ──────────────────────────────────────────────────────
+
+function WebhookInfoBanner({ nodeId }: { nodeId: string }) {
+  const [copied, setCopied] = useState(false);
+  const webhookPort = 5678;
+  const webhookUrl = `http://localhost:${webhookPort}/webhook/${nodeId}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(webhookUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-3 space-y-2">
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+        <span className="text-[11px] font-semibold text-indigo-300">URL Webhook nhận trigger</span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <code className="flex-1 text-[10px] text-indigo-200 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-2 py-1.5 font-mono break-all leading-relaxed">
+          {webhookUrl}
+        </code>
+        <button
+          type="button"
+          onClick={handleCopy}
+          title="Copy URL"
+          className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+            copied
+              ? 'bg-green-500/20 border border-green-500/40 text-green-400'
+              : 'bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30'
+          }`}
+        >
+          {copied ? (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          )}
+        </button>
+      </div>
+
+      <div className="text-[10px] text-indigo-400/70 space-y-1">
+        <p>📮 Gửi <strong className="text-indigo-300">HTTP POST</strong> đến URL trên để kích hoạt workflow.</p>
+        <p>🔐 Cấu hình <strong className="text-indigo-300">Auth Token</strong> bên dưới để bảo mật endpoint.</p>
+        <p>📦 Body JSON sẽ được truy cập qua <code className="font-mono bg-indigo-500/10 px-1 rounded">{'{{ $trigger.body.field }}'}</code></p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function NodeConfigPanel({ node, onConfigChange, onLabelChange, onClose }: Props) {
@@ -3165,7 +3414,7 @@ export default function NodeConfigPanel({ node, onConfigChange, onLabelChange, o
               });
             });
           } catch (err: any) {
-            console.warn(`[LabelPicker] Account ${acc.zalo_id} error:`, err?.message || err);
+            Logger.warn(`[LabelPicker] Account ${acc.zalo_id} error:`, err?.message || err);
             // Continue with other accounts
           }
         }
@@ -3467,6 +3716,11 @@ export default function NodeConfigPanel({ node, onConfigChange, onLabelChange, o
           className={inputCls} placeholder={getNodeLabel(node.type)} />
         <p className={descCls}>Tên gợi nhớ hiển thị trên node trong sơ đồ workflow.</p>
       </div>
+
+      {/* ── Webhook URL Info Banner ─────────────────────────────────── */}
+      {node.type === 'trigger.webhook' && (
+        <WebhookInfoBanner nodeId={node.id} />
+      )}
 
       {allFields.length > 0 && <div className="border-t border-gray-700/50" />}
 

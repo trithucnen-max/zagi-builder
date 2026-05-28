@@ -138,6 +138,49 @@
     .plan-name { font-weight: 600; color: #f1f5f9; font-size: 14px; }
     .plan-price { color: #3b82f6; font-size: 16px; font-weight: 700; margin-top: 3px; }
     .plan-desc { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+
+    /* Price Tabs */
+    .price-tabs {
+      display: flex;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 12px;
+    }
+    .price-tab {
+      flex: 1;
+      padding: 8px 12px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .price-tab:hover {
+      color: #f8fafc;
+    }
+    .price-tab.active {
+      background: #3b82f6;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+    .plan-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      font-size: 9px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
     
     /* Payment info */
     .payment-box {
@@ -209,26 +252,36 @@
       <input type="tel" id="regPhone" placeholder="0901234567">
       
       <label>Chọn gói cước <span style="color:#f87171">*</span></label>
-      <div class="plan-grid">
-        <div class="plan-card" data-plan="trial">
+      <div style="margin-top: 8px; margin-bottom: 12px;">
+        <div class="plan-card" data-plan="trial" style="border-style: dashed;">
           <div class="plan-name">🎁 Dùng thử 14 ngày</div>
           <div class="plan-price">Miễn phí</div>
           <div class="plan-desc">Trải nghiệm đầy đủ tính năng Zagi</div>
+          <span class="plan-badge">FREE</span>
         </div>
-        <div class="plan-card" data-plan="6m">
+      </div>
+      
+      <label style="margin-top: 14px;">Gói cước trả phí</label>
+      <div class="price-tabs">
+        <button type="button" class="price-tab active" data-type="solo">Gói Solo (1 Zalo)</button>
+        <button type="button" class="price-tab" data-type="team">Gói Team (Không giới hạn)</button>
+      </div>
+      
+      <div class="plan-grid">
+        <div class="plan-card" data-plan="solo_6m" id="plan-6m">
           <div class="plan-name">📅 Gói 6 tháng</div>
-          <div class="plan-price">499.000đ</div>
+          <div class="plan-price" id="price-6m">2.450.000đ</div>
           <div class="plan-desc">Sử dụng đầy đủ trong 6 tháng</div>
         </div>
-        <div class="plan-card popular" data-plan="12m">
+        <div class="plan-card popular" data-plan="solo_12m" id="plan-12m">
           <div class="plan-name">⭐ Gói 12 tháng</div>
-          <div class="plan-price">799.000đ</div>
-          <div class="plan-desc">Tiết kiệm 33% so với gói 6 tháng</div>
+          <div class="plan-price" id="price-12m">4.450.000đ</div>
+          <div class="plan-desc">Lựa chọn tối ưu cho 1 năm</div>
         </div>
-        <div class="plan-card" data-plan="lifetime">
+        <div class="plan-card" data-plan="solo_lifetime" id="plan-lifetime">
           <div class="plan-name">💎 Vĩnh viễn</div>
-          <div class="plan-price">2.000.000đ</div>
-          <div class="plan-desc">Thanh toán một lần, dùng mãi mãi</div>
+          <div class="plan-price" id="price-lifetime">7.450.000đ</div>
+          <div class="plan-desc">Thanh toán một lần, dùng trọn đời</div>
         </div>
       </div>
       
@@ -249,13 +302,61 @@
       });
     });
     
-    // === PLAN SELECTION ===
+    // === PLAN SELECTION & PRICING ===
     let selectedPlan = null;
+    
     document.querySelectorAll('.plan-card').forEach(card => {
       card.addEventListener('click', () => {
         document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         selectedPlan = card.dataset.plan;
+      });
+    });
+
+    const priceTabs = document.querySelectorAll('.price-tab');
+    const plan6m = document.getElementById('plan-6m');
+    const plan12m = document.getElementById('plan-12m');
+    const planLifetime = document.getElementById('plan-lifetime');
+    
+    const price6m = document.getElementById('price-6m');
+    const price12m = document.getElementById('price-12m');
+    const priceLifetime = document.getElementById('price-lifetime');
+    
+    const prices = {
+      solo: {
+        '6m': { text: '2.450.000đ', plan: 'solo_6m' },
+        '12m': { text: '4.450.000đ', plan: 'solo_12m' },
+        'lifetime': { text: '7.450.000đ', plan: 'solo_lifetime' }
+      },
+      team: {
+        '6m': { text: '4.900.000đ', plan: 'team_6m' },
+        '12m': { text: '8.900.000đ', plan: 'team_12m' },
+        'lifetime': { text: '14.900.000đ', plan: 'team_lifetime' }
+      }
+    };
+    
+    function updatePlanPrices(type) {
+      price6m.textContent = prices[type]['6m'].text;
+      plan6m.dataset.plan = prices[type]['6m'].plan;
+      
+      price12m.textContent = prices[type]['12m'].text;
+      plan12m.dataset.plan = prices[type]['12m'].plan;
+      
+      priceLifetime.textContent = prices[type]['lifetime'].text;
+      planLifetime.dataset.plan = prices[type]['lifetime'].plan;
+      
+      // If one of the paid cards is selected, update selectedPlan variable
+      const selected = document.querySelector('.plan-card.selected');
+      if (selected && selected.dataset.plan !== 'trial') {
+        selectedPlan = selected.dataset.plan;
+      }
+    }
+    
+    priceTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        priceTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        updatePlanPrices(tab.dataset.type);
       });
     });
     
@@ -339,6 +440,10 @@
                 <div class="payment-row"><span>Ngân hàng nhận:</span><span>${pInfo.bankName}</span></div>
                 <div class="payment-row"><span>Số tài khoản:</span><span>${pInfo.accountNumber} <button class="copy-btn" onclick="navigator.clipboard.writeText('${pInfo.accountNumber}')">Copy</button></span></div>
                 <div class="payment-row"><span>Chủ tài khoản:</span><span>${pInfo.accountName}</span></div>
+                <div class="payment-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                  <span>Địa chỉ công ty:</span>
+                  <span style="color:#cbd5e1; font-size:11px; font-family:inherit; text-align:left; line-height:1.4;">${pInfo.companyAddress || 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, TP Hà Nội'}</span>
+                </div>
                 <div class="payment-row"><span>Nội dung CK:</span><span style="color:#f59e0b">${pInfo.transferContent} <button class="copy-btn" onclick="navigator.clipboard.writeText('${pInfo.transferContent}')">Copy</button></span></div>
                 <img src="${pInfo.qrUrl}" class="qr-img" alt="Mã QR thanh toán">
                 <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:8px;line-height: 1.4;">

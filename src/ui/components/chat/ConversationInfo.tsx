@@ -54,6 +54,7 @@ function UserConversationInfo() {
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [mediaDetailTab, setMediaDetailTab] = useState<MediaTab | null>(null);
   const [showMutualGroups, setShowMutualGroups] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [mutualGroups, setMutualGroups] = useState<{ groupId: string; name: string; avatar: string }[]>([]);
   const [mutualGroupsLoading, setMutualGroupsLoading] = useState(false);
   // isFriendDB: check thực từ bảng friends trong DB (đáng tin hơn contact.is_friend)
@@ -289,6 +290,31 @@ function UserConversationInfo() {
       .finally(() => setMutualGroupsLoading(false));
   };
 
+  const handleAnalyzeContact = async () => {
+    if (!activeAccountId || !activeThreadId || analyzing) return;
+    setAnalyzing(true);
+    try {
+      const res = await ipc.ai?.analyzeContact({
+        ownerZaloId: activeAccountId,
+        contactId: activeThreadId,
+      });
+      if (res?.success) {
+        updateContact(activeAccountId, {
+          contact_id: activeThreadId,
+          ai_sentiment: res.sentiment,
+          ai_intent: res.intent,
+        });
+        showNotification('Đã phân tích cảm xúc & ý định thành công!', 'success');
+      } else {
+        showNotification('Không thể phân tích: ' + (res?.error || 'Lỗi không xác định'), 'error');
+      }
+    } catch (e: any) {
+      showNotification('Lỗi phân tích: ' + e.message, 'error');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const isMuted = activeAccountId && activeThreadId ? isMutedFn(activeAccountId, activeThreadId) : false;
 
   // Mutual groups sub-panel
@@ -459,6 +485,50 @@ function UserConversationInfo() {
         {channelCap.supportsCreateGroup && (
           <UserActionBtn icon="👥" label="Tạo nhóm" onClick={() => setCreateGroupOpen(true)} />
         )}
+      </div>
+
+      {/* AI Insights */}
+      <div className="px-4 py-4 border-b border-gray-700">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AI Insights</span>
+          <button
+            onClick={handleAnalyzeContact}
+            disabled={analyzing}
+            className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50 flex items-center gap-1 transition-colors font-medium"
+          >
+            {analyzing ? (
+              <>
+                <svg className="animate-spin h-3.5 w-3.5 text-blue-400" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                <span>Đang phân tích...</span>
+              </>
+            ) : (
+              <span>✨ Phân tích</span>
+            )}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {contact?.ai_sentiment ? (
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+              contact.ai_sentiment === 'Tích cực' ? 'bg-green-950/50 text-green-300 border border-green-800/60' :
+              contact.ai_sentiment === 'Tiêu cực' ? 'bg-red-950/50 text-red-300 border border-red-800/60' :
+              'bg-gray-700/60 text-gray-300 border border-gray-600'
+            }`}>
+              Cảm xúc: {contact.ai_sentiment}
+            </span>
+          ) : (
+            <span className="text-xs text-gray-500 italic">Chưa phân tích cảm xúc</span>
+          )}
+          {contact?.ai_intent ? (
+            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-950/50 text-blue-300 border border-blue-800/60">
+              Ý định: {contact.ai_intent}
+            </span>
+          ) : (
+            <span className="text-xs text-gray-500 italic">Chưa phân tích ý định</span>
+          )}
+        </div>
       </div>
 
 

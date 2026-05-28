@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useChatStore } from '@/store/chatStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
@@ -15,6 +16,7 @@ import useIsMobile from '@/hooks/useIsMobile';
 import { syncZaloGroups, MemberPlaceholder } from '@/lib/zaloGroupUtils';
 import { ChannelBadgeOverlay } from '../common/ChannelBadge';
 import type { Channel } from '@/../configs/channelConfig';
+import Logger from '../../../utils/Logger';
 
 interface LabelData { id: number; text: string; color: string; emoji: string; conversations: string[]; textKey?: string; offset?: number; createTime?: number; }
 interface LocalLabelData {
@@ -103,37 +105,21 @@ export default function ConversationList() {
   const [editLabelsZaloId, setEditLabelsZaloId] = useState<string | null>(null);
   const [editLabelsPickerOpen, setEditLabelsPickerOpen] = useState(false);
   const [syncingLabels, setSyncingLabels] = useState(false);
+  const [dragOverLabelId, setDragOverLabelId] = useState<string | null>(null);
   const ctxRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   // Prevents the activeAccountId useEffect from overriding a manual merged-mode selection
   const isManualSelectingRef = React.useRef(false);
 
-  // ── Pagination: cố định 250 hội thoại mỗi trang, infinite scroll ──────
-  const PAGE_SIZE = 250;
-  const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
   const listContainerRef = useRef<HTMLDivElement>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // Reset displayCount khi đổi account hoặc filter
-  useEffect(() => { setDisplayCount(PAGE_SIZE); }, [activeAccountId, filter, filterLabelIds, search, mergedInboxFilterAccount, channelFilter]);
-
-  // Infinite scroll: IntersectionObserver trên sentinel element
+  // Scroll to top when changing account or filter
   useEffect(() => {
-    const sentinel = sentinelRef.current;
-    const container = listContainerRef.current;
-    if (!sentinel || !container) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setDisplayCount(prev => prev + PAGE_SIZE);
-        }
-      },
-      { root: container, threshold: 0.1 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [searchPanelOpen, filter]); // re-attach khi panel/filter thay đổi
+    if (listContainerRef.current) {
+      listContainerRef.current.scrollTop = 0;
+    }
+  }, [activeAccountId, filter, filterLabelIds, search, mergedInboxFilterAccount, channelFilter]);
 
   const labels: LabelData[] = activeAccountId ? (allLabels[activeAccountId] || []) : [];
   const othersConversations: Set<string> = activeAccountId ? (allOthers[activeAccountId] || new Set()) : new Set();
@@ -248,7 +234,6 @@ export default function ConversationList() {
           return;
         }
 
-        console.log(`[ConversationList] Found ${groupsNeedingAvatars.length} groups needing avatars`);
 
         // ═══ PROGRESSIVE LOADING: Load 10 đầu tiên, sau đó load dần background ═══
         const INITIAL_BATCH = 10;
@@ -292,12 +277,11 @@ export default function ConversationList() {
                 settings: undefined,
                 fetchedAt: Date.now(),
               });
-              console.log(`[ConversationList] Group ${group.contact_id}: loaded ${validMembers.length} members from DB`);
               return true; // Success - no API needed
             }
             return false; // Need API
           } catch (err) {
-            console.warn(`[ConversationList] DB error for group ${group.contact_id}:`, err);
+            Logger.warn(`[ConversationList] DB error for group ${group.contact_id}:`, err);
             return false; // Need API
           }
         };
@@ -317,7 +301,6 @@ export default function ConversationList() {
 
         // STEP 2: Load remaining groups in background (non-blocking)
         if (remainingGroups.length > 0) {
-          console.log(`[ConversationList] Loading ${remainingGroups.length} remaining groups in background...`);
           
           // Fire-and-forget background loading
           (async () => {
@@ -338,13 +321,11 @@ export default function ConversationList() {
             
             // After all DB loads complete, do API calls if needed
             if (groupsNeedingAPI.length > 0) {
-              console.log(`[ConversationList] ${groupsNeedingAPI.length} groups need API call (background)`);
               await loadGroupsFromAPI(groupsNeedingAPI, activeAccountId);
             }
           })();
         } else if (groupsNeedingAPI.length > 0) {
           // Only initial batch needed API
-          console.log(`[ConversationList] ${groupsNeedingAPI.length} groups need API call`);
           await loadGroupsFromAPI(groupsNeedingAPI, activeAccountId);
         }
 
@@ -370,7 +351,7 @@ export default function ConversationList() {
           const res = await ipc.zalo?.getGroupInfo({ auth, groupId: batch });
           gridMap = res?.response?.gridInfoMap || {};
         } catch (err) {
-          console.warn('[ConversationList] Batch getGroupInfo failed:', err);
+          Logger.warn('[ConversationList] Batch getGroupInfo failed:', err);
           continue;
         }
 
@@ -438,7 +419,6 @@ export default function ConversationList() {
                   displayName: groupName, avatarUrl: effectiveAvatar,
                   phone: '', contactType: 'group',
                 }).catch(() => {});
-                console.log(`[ConversationList] Group ${groupId}: single-member, using member avatar as group avatar`);
               }
             }
 
@@ -457,7 +437,6 @@ export default function ConversationList() {
               settings: gi.setting || {},
               fetchedAt: Date.now(),
             });
-            console.log(`[ConversationList] Group ${groupId}: enriched ${rows.filter((r: any) => r.avatar).length}/${rows.length} members`);
           };
 
           // Use syncZaloGroups (pre-parsed → skips duplicate getGroupInfo call)
@@ -469,7 +448,7 @@ export default function ConversationList() {
             placeholders,
             onPhase1Done: () => reloadFromDB(false),
             onGroupEnriched: () => reloadFromDB(true),
-          }).catch(err => console.warn(`[ConversationList] syncZaloGroups failed for ${groupId}:`, err));
+          }).catch(err => Logger.warn(`[ConversationList] syncZaloGroups failed for ${groupId}:`, err));
         }
         
         // Add small delay between API batches to avoid rate limiting
@@ -633,7 +612,7 @@ export default function ConversationList() {
           });
         }
       } catch (err: any) {
-        console.warn('[ConversationList] batch getGroupInfo error:', err?.message);
+        Logger.warn('[ConversationList] batch getGroupInfo error:', err?.message);
       }
     }, 1500); // delay 1.5s để contacts kịp load
 
@@ -820,6 +799,15 @@ export default function ConversationList() {
       return true;
     });
   }, [mergedContacts, mergedInboxFilterAccount, search, filter, filterLabelIds, allOthers, allLabels, mergedLabels]);
+
+  const rowItems = mergedInboxMode ? (filteredMerged || []) : filtered;
+
+  const rowVirtualizer = useVirtualizer({
+    count: rowItems.length,
+    getScrollElement: () => listContainerRef.current,
+    estimateSize: () => 80,
+    overscan: 10,
+  });
 
   const mergedUnreadCount = mergedContacts
     ? mergedContacts.reduce((s, c) => {
@@ -1122,7 +1110,7 @@ export default function ConversationList() {
     setCtxMenu(null);
   };
 
-  const handleAssignLabel = async (contactId: string, labelId: number, overrideZaloId?: string) => {
+  const handleAssignLabel = async (contactId: string, labelId: number, overrideZaloId?: string, forceAssign = false) => {
     const zId = overrideZaloId || activeAccountId;
     const accObj = useAccountStore.getState().accounts.find(a => a.zalo_id === zId);
     if (!accObj || !zId) return;
@@ -1161,6 +1149,10 @@ export default function ConversationList() {
 
     const target = freshLabels.find(l => l.id === labelId); if (!target) return;
     const alreadyHas = target.conversations.includes(labelContactId) || target.conversations.includes(contactId);
+    if (alreadyHas && forceAssign) {
+      showNotification(`Đã gán nhãn "${target.text}"`, 'success');
+      return;
+    }
     let updated = buildUpdated(freshLabels, alreadyHas);
 
     // Try update; if Outdated, re-fetch and retry once
@@ -1461,7 +1453,7 @@ export default function ConversationList() {
                   scrollAndHighlight(el2);
                 }
               } catch (err) {
-                console.error('[onSelectMessage] Failed to load messages around target:', err);
+                Logger.error('[onSelectMessage] Failed to load messages around target:', err);
               }
             }}
           />
@@ -1519,7 +1511,42 @@ export default function ConversationList() {
                       <button key={l.id} onClick={() => {
                         setFilterLabelIds(prev => isActive ? prev.filter(x => x !== l.id) : [...prev, l.id]);
                       }}
-                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-700 text-left ${isActive ? 'text-white' : 'text-gray-300'}`}>
+                        onDragOver={(e) => e.preventDefault()}
+                        onDragEnter={(e) => { e.preventDefault(); setDragOverLabelId(`local_${l.id}`); }}
+                        onDragLeave={() => setDragOverLabelId(null)}
+                        onDrop={async (e) => {
+                          e.preventDefault();
+                          setDragOverLabelId(null);
+                          const dragData = e.dataTransfer.getData('text/plain');
+                          if (!dragData) return;
+                          try {
+                            const { contactId, zaloId, threadType } = JSON.parse(dragData);
+                            const res = await ipc.db?.assignLocalLabelToThread({
+                              zaloId,
+                              labelId: l.id,
+                              threadId: contactId,
+                              threadType: threadType ?? 0,
+                              labelText: l.name || '',
+                              labelColor: l.color || '',
+                              labelEmoji: l.emoji || '',
+                            });
+                            if (res?.success) {
+                              window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId } }));
+                              showNotification(`Đã gán nhãn "${l.name}"`, 'success');
+                            } else {
+                              showNotification('Lỗi: ' + (res?.error || 'Không thể gán nhãn local'), 'error');
+                            }
+                          } catch (err) {
+                            Logger.error('[ConversationList] Failed to parse drag data or assign local label:', err);
+                          }
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-all duration-150 ${
+                          dragOverLabelId === `local_${l.id}`
+                            ? 'bg-gray-600 text-white border-l-2 border-blue-500 pl-2.5'
+                            : isActive
+                              ? 'text-white hover:bg-gray-700'
+                              : 'text-gray-300 hover:bg-gray-700'
+                        }`}>
                         <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center text-[10px] ${isActive ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-500'}`}>
                           {isActive && '✓'}
                         </span>
@@ -1588,7 +1615,28 @@ export default function ConversationList() {
                       <button key={l.id} onClick={() => {
                         setFilterLabelIds(prev => isActive ? prev.filter(x => x !== l.id) : [...prev, l.id]);
                       }}
-                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-700 text-left ${isActive ? 'text-white' : 'text-gray-300'}`}>
+                        onDragOver={(e) => e.preventDefault()}
+                        onDragEnter={(e) => { e.preventDefault(); setDragOverLabelId(`zalo_${l.id}`); }}
+                        onDragLeave={() => setDragOverLabelId(null)}
+                        onDrop={async (e) => {
+                          e.preventDefault();
+                          setDragOverLabelId(null);
+                          const dragData = e.dataTransfer.getData('text/plain');
+                          if (!dragData) return;
+                          try {
+                            const { contactId, zaloId, threadType } = JSON.parse(dragData);
+                            await handleAssignLabel(contactId, l.id, zaloId, true);
+                          } catch (err) {
+                            Logger.error('[ConversationList] Failed to parse drag data or assign Zalo label:', err);
+                          }
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-all duration-150 ${
+                          dragOverLabelId === `zalo_${l.id}`
+                            ? 'bg-gray-600 text-white border-l-2 border-blue-500 pl-2.5'
+                            : isActive
+                              ? 'text-white hover:bg-gray-700'
+                              : 'text-gray-300 hover:bg-gray-700'
+                        }`}>
                         <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center text-[10px] ${isActive ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-500'}`}>
                           {isActive && '✓'}
                         </span>
@@ -1778,147 +1826,181 @@ export default function ConversationList() {
             <span className="text-xs text-gray-400">Đang tải avatar nhóm...</span>
           </div>
         )}
-        {(mergedInboxMode ? (filteredMerged?.length ?? 0) : filtered.length) === 0 ? (
+        {rowItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm"><p>Không có hội thoại</p></div>
-        ) : (mergedInboxMode ? filteredMerged! : filtered).slice(0, displayCount).map((contact) => {
-          const threadType = contact.contact_type === 'group' ? 1 : 0;
-          const contactZaloId = contact.owner_zalo_id || activeAccountId || '';
-          const isPinned = pinnedThreads.has(contact.contact_id);
-          const isLocalPinned = localPinnedThreads.has(contact.contact_id);
-          const isMuted = contactZaloId ? isMutedFn(contactZaloId, contact.contact_id) : false;
-          const isHovered = hoveredId === `${contact.owner_zalo_id}_${contact.contact_id}`;
-          const isGroupC = contact.contact_type === 'group';
-          const labelCId = isGroupC ? `g${contact.contact_id}` : contact.contact_id;
-          const contactLabels = (allLabels[contactZaloId] || []).filter(l =>
-            l.conversations?.includes(labelCId) || l.conversations?.includes(contact.contact_id)
-          );
-          // Local labels for this thread
-          const threadLocalLabelIds = (localLabelThreadMapByAccount[contactZaloId] || {})[contact.contact_id] || [];
-          const threadLocalLabelsArr = threadLocalLabelIds
-            .map(lid => (localLabelsByAccount[contactZaloId] || []).find(l => l.id === lid))
-            .filter(Boolean) as LocalLabelData[];
-          // Badge tài khoản sở hữu (chỉ trong chế độ Gộp trang)
-          const ownerAcc = mergedInboxMode ? allAccountsList.find(a => a.zalo_id === contact.owner_zalo_id) : null;
-          return (
-            <div key={`${contact.owner_zalo_id}_${contact.contact_id}`}
-              className={`relative w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-700 transition-colors cursor-pointer ${threadLocalLabelsArr.length > 0 ? 'min-h-[72px]' : 'max-h-[80px] min-h-[80px]'} ${activeThreadId === contact.contact_id && activeAccountId === contact.owner_zalo_id ? 'bg-gray-700' : ''}`}
-              onClick={() => { if (mergedInboxMode) { handleMergedClick(contact); } else { handleSelect(contact.contact_id, threadType); setFilterDropdownOpen(false); } }}
-              onMouseEnter={() => setHoveredId(`${contact.owner_zalo_id}_${contact.contact_id}`)}
-              onMouseLeave={() => setHoveredId(null)}>
-              <div className="relative flex-shrink-0">
-                {threadType === 1 ? (
-                  <GroupAvatar
-                    avatarUrl={contact.avatar_url}
-                    groupInfo={(groupInfoCache[contact.owner_zalo_id] || {})[contact.contact_id]}
-                    name={contact.alias || contact.display_name}
-                    size="md"
-                  />
-                ) : (
-                  contact.avatar_url ? <img src={contact.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
-                    : <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-blue-600">{(contact.alias || contact.display_name).charAt(0).toUpperCase()}</div>
-                )}
-                {/* Badge tài khoản — chỉ hiện trong chế độ Gộp trang */}
-                {mergedInboxMode && ownerAcc && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border border-gray-800 overflow-hidden z-10 flex-shrink-0" title={ownerAcc.full_name || ownerAcc.zalo_id}>
-                    {ownerAcc.avatar_url
-                      ? <img src={ownerAcc.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full bg-purple-600 flex items-center justify-center text-white text-[6px] font-bold">{(ownerAcc.full_name || ownerAcc.zalo_id).charAt(0).toUpperCase()}</div>
-                    }
-                  </div>
-                )}
-                {/* Channel badge overlay — hiện trong chế độ Gộp trang */}
-                {mergedInboxMode && (
-                  <div className="absolute -top-0.5 -left-0.5 z-10">
-                    <ChannelBadgeOverlay channel={(contact.channel || 'zalo') as Channel} size="xs" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-sm font-medium text-gray-200 truncate flex items-center gap-1">
-                    {isLocalPinned && <span title="Ghim trong app">📎</span>}
-                    {isPinned && <span title="Ghim Zalo">📌</span>}
-                    {contact.alias || contact.display_name || contact.contact_id}
-                  </span>
-                  {/* Fixed-width slot: always reserve space to prevent layout shift on hover */}
-                  <div className="flex-shrink-0 w-14 flex items-center justify-end gap-1">
-                    {isHovered ? (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); setCtxMenu({ contactId: contact.contact_id, zaloId: contactZaloId, x: e.clientX, y: e.clientY }); setLabelPickerId(null); }}
-                          className="w-6 h-4 flex items-center justify-center rounded-md hover:bg-gray-600 text-gray-400 hover:text-white">
-                          {/* Horizontal 3-dot (⋯) */}
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                          </svg>
-                        </button>
-                      </>
-                    ) : contact.last_message_time ? (
-                      <span className="text-xs text-gray-500 whitespace-nowrap">{formatTime(contact.last_message_time)}</span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-1 mt-1">
-                  <span className="text-sm text-gray-500 truncate flex items-center gap-1">
-                    {/* Zalo label icon before lastMessage */}
-                    {contactLabels.length > 0 && (
-                      <span
-                        className="inline-flex items-center justify-center w-4 h-4 rounded flex-shrink-0"
-                        style={{ backgroundColor: contactLabels[0].color || '#3b82f6' }}
-                        title={contactLabels[0].text}
-                      >
-                        {contactLabels[0].emoji
-                          ? <span className="text-[7px] leading-none">{contactLabels[0].emoji}</span>
-                          : <svg width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg>
-                        }
-                      </span>
+        ) : (
+          <div
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const contact = rowItems[virtualRow.index];
+              const threadType = contact.contact_type === 'group' ? 1 : 0;
+              const contactZaloId = contact.owner_zalo_id || activeAccountId || '';
+              const isPinned = pinnedThreads.has(contact.contact_id);
+              const isLocalPinned = localPinnedThreads.has(contact.contact_id);
+              const isMuted = contactZaloId ? isMutedFn(contactZaloId, contact.contact_id) : false;
+              const isHovered = hoveredId === `${contact.owner_zalo_id}_${contact.contact_id}`;
+              const isGroupC = contact.contact_type === 'group';
+              const labelCId = isGroupC ? `g${contact.contact_id}` : contact.contact_id;
+              const contactLabels = (allLabels[contactZaloId] || []).filter(l =>
+                l.conversations?.includes(labelCId) || l.conversations?.includes(contact.contact_id)
+              );
+              // Local labels for this thread
+              const threadLocalLabelIds = (localLabelThreadMapByAccount[contactZaloId] || {})[contact.contact_id] || [];
+              const threadLocalLabelsArr = threadLocalLabelIds
+                .map(lid => (localLabelsByAccount[contactZaloId] || []).find(l => l.id === lid))
+                .filter(Boolean) as LocalLabelData[];
+              // Badge tài khoản sở hữu (chỉ trong chế độ Gộp trang)
+              const ownerAcc = mergedInboxMode ? allAccountsList.find(a => a.zalo_id === contact.owner_zalo_id) : null;
+              return (
+                <div key={`${contact.owner_zalo_id}_${contact.contact_id}`}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  className={`relative w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-700 transition-colors cursor-pointer ${threadLocalLabelsArr.length > 0 ? 'min-h-[72px]' : 'max-h-[80px] min-h-[80px]'} ${activeThreadId === contact.contact_id && activeAccountId === contact.owner_zalo_id ? 'bg-gray-700' : ''}`}
+                  onClick={() => { if (mergedInboxMode) { handleMergedClick(contact); } else { handleSelect(contact.contact_id, threadType); setFilterDropdownOpen(false); } }}
+                  onMouseEnter={() => setHoveredId(`${contact.owner_zalo_id}_${contact.contact_id}`)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  draggable={true}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                      contactId: contact.contact_id,
+                      zaloId: contactZaloId,
+                      threadType
+                    }));
+                  }}>
+                  <div className="relative flex-shrink-0">
+                    {threadType === 1 ? (
+                      <GroupAvatar
+                        avatarUrl={contact.avatar_url}
+                        groupInfo={(groupInfoCache[contact.owner_zalo_id] || {})[contact.contact_id]}
+                        name={contact.alias || contact.display_name}
+                        size="md"
+                      />
+                    ) : (
+                      contact.avatar_url ? <img src={contact.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        : <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-blue-600">{(contact.alias || contact.display_name).charAt(0).toUpperCase()}</div>
                     )}
-                    <span className="truncate">
-                      {(() => {
-                        const draftKey = `${contactZaloId}_${contact.contact_id}`;
-                        const draftText = contact.contact_id !== activeThreadId ? drafts[draftKey] : undefined;
-                        if (draftText) {
-                          return <><span className="text-red-400">Chưa gửi: </span><span className="text-gray-400">{draftText}</span></>;
+                    {/* Badge tài khoản — chỉ hiện trong chế độ Gộp trang */}
+                    {mergedInboxMode && ownerAcc && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border border-gray-800 overflow-hidden z-10 flex-shrink-0" title={ownerAcc.full_name || ownerAcc.zalo_id}>
+                        {ownerAcc.avatar_url
+                          ? <img src={ownerAcc.avatar_url} alt="" className="w-full h-full object-cover" />
+                          : <div className="w-full h-full bg-purple-600 flex items-center justify-center text-white text-[6px] font-bold">{(ownerAcc.full_name || ownerAcc.zalo_id).charAt(0).toUpperCase()}</div>
                         }
-                        return formatLastMessage(contact.last_message) || (contact.phone ? `📞 ${contact.phone}` : '');
-                      })()}
-                    </span>
-                  </span>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {isMuted && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-500"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>}
-                    {contact.unread_count > 0
-                      ? <span className="bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{contact.unread_count > 99 ? '99+' : contact.unread_count}</span>
-                      : contact.is_replied === 1
-                        ? (
-                          /* Icon double-checkmark "đã trả lời" */
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-blue-400"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
-                        )
-                        : null
-                    }
+                      </div>
+                    )}
+                    {/* Channel badge overlay — hiện trong chế độ Gộp trang */}
+                    {mergedInboxMode && (
+                      <div className="absolute -top-0.5 -left-0.5 z-10">
+                        <ChannelBadgeOverlay channel={(contact.channel || 'zalo') as Channel} size="xs" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-sm font-medium text-gray-200 truncate flex items-center gap-1">
+                        {isLocalPinned && <span title="Ghim trong app">📎</span>}
+                        {isPinned && <span title="Ghim Zalo">📌</span>}
+                        {contact.alias || contact.display_name || contact.contact_id}
+                        {contact.ai_sentiment && (
+                          <span className={`inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 scale-90 origin-left ${
+                            contact.ai_sentiment === 'Tích cực' ? 'bg-green-500/20 text-green-400 font-medium' :
+                            contact.ai_sentiment === 'Tiêu cực' ? 'bg-red-500/20 text-red-400 font-medium' :
+                            'bg-gray-700/60 text-gray-400 font-medium'
+                          }`} title={`Cảm xúc: ${contact.ai_sentiment}`}>
+                            {contact.ai_sentiment === 'Tích cực' ? '😊' :
+                             contact.ai_sentiment === 'Tiêu cực' ? '😠' : '😐'}
+                          </span>
+                        )}
+                      </span>
+                      {/* Fixed-width slot: always reserve space to prevent layout shift on hover */}
+                      <div className="flex-shrink-0 w-14 flex items-center justify-end gap-1">
+                        {isHovered ? (
+                          <>
+                            <button onClick={(e) => { e.stopPropagation(); setCtxMenu({ contactId: contact.contact_id, zaloId: contactZaloId, x: e.clientX, y: e.clientY }); setLabelPickerId(null); }}
+                              className="w-6 h-4 flex items-center justify-center rounded-md hover:bg-gray-600 text-gray-400 hover:text-white">
+                              {/* Horizontal 3-dot (⋯) */}
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                              </svg>
+                            </button>
+                          </>
+                        ) : contact.last_message_time ? (
+                          <span className="text-xs text-gray-500 whitespace-nowrap">{formatTime(contact.last_message_time)}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-1 mt-1">
+                      <span className="text-sm text-gray-500 truncate flex items-center gap-1">
+                        {/* Zalo label icon before lastMessage */}
+                        {contactLabels.length > 0 && (
+                          <span
+                            className="inline-flex items-center justify-center w-4 h-4 rounded flex-shrink-0"
+                            style={{ backgroundColor: contactLabels[0].color || '#3b82f6' }}
+                            title={contactLabels[0].text}
+                          >
+                            {contactLabels[0].emoji
+                              ? <span className="text-[7px] leading-none">{contactLabels[0].emoji}</span>
+                              : <svg width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg>
+                            }
+                          </span>
+                        )}
+                        <span className="truncate">
+                          {(() => {
+                            const draftKey = `${contactZaloId}_${contact.contact_id}`;
+                            const draftText = contact.contact_id !== activeThreadId ? drafts[draftKey] : undefined;
+                            if (draftText) {
+                              return <><span className="text-red-400">Chưa gửi: </span><span className="text-gray-400">{draftText}</span></>;
+                            }
+                            return formatLastMessage(contact.last_message) || (contact.phone ? `📞 ${contact.phone}` : '');
+                          })()}
+                        </span>
+                      </span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {isMuted && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-500"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>}
+                        {contact.unread_count > 0
+                          ? <span className="bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{contact.unread_count > 99 ? '99+' : contact.unread_count}</span>
+                          : contact.is_replied === 1
+                            ? (
+                              /* Icon double-checkmark "đã trả lời" */
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-blue-400"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
+                            )
+                            : null
+                        }
+                      </div>
+                    </div>
+                    {/* Local labels: pill tags on conversation item */}
+                    {threadLocalLabelsArr.length > 0 && (
+                      <div className="flex items-center gap-1 mt-1.5 overflow-hidden">
+                        {threadLocalLabelsArr.slice(0, 3).map(label => (
+                          <span key={label.id}
+                            className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] flex-shrink-0 max-w-[100px] leading-none"
+                            style={{ backgroundColor: label.color || '#3b82f6', color: label.text_color || '#ffffff' }}
+                            title={label.name}
+                          >
+                            {label.emoji && <span className="text-[8px] leading-none">{label.emoji}</span>}
+                            <span className="truncate">{label.name}</span>
+                          </span>
+                        ))}
+                        {threadLocalLabelsArr.length > 3 && <span className="text-[9px] text-gray-500">+{threadLocalLabelsArr.length - 3}</span>}
+                      </div>
+                    )}
                   </div>
                 </div>
-                {/* Local labels: pill tags on conversation item */}
-                {threadLocalLabelsArr.length > 0 && (
-                  <div className="flex items-center gap-1 mt-1.5 overflow-hidden">
-                    {threadLocalLabelsArr.slice(0, 3).map(label => (
-                      <span key={label.id}
-                        className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] flex-shrink-0 max-w-[100px] leading-none"
-                        style={{ backgroundColor: label.color || '#3b82f6', color: label.text_color || '#ffffff' }}
-                        title={label.name}
-                      >
-                        {label.emoji && <span className="text-[8px] leading-none">{label.emoji}</span>}
-                        <span className="truncate">{label.name}</span>
-                      </span>
-                    ))}
-                    {threadLocalLabelsArr.length > 3 && <span className="text-[9px] text-gray-500">+{threadLocalLabelsArr.length - 3}</span>}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {/* Sentinel element for infinite scroll */}
-        {displayCount < (mergedInboxMode ? filteredMerged?.length ?? 0 : filtered.length) && (
-          <div ref={sentinelRef} className="h-1 w-full" />
+              );
+            })}
+          </div>
         )}
       </div>
       </>)} {/* end !searchPanelOpen */}

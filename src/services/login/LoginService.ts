@@ -1,4 +1,5 @@
 import ZaloLoginHelper from "../../utils/ZaloLoginHelper";
+import Logger from '../../utils/Logger';
 
 export default class LoginService {
     private loginHelper: ZaloLoginHelper;
@@ -22,7 +23,7 @@ export default class LoginService {
                 timeoutPromise
             ]);
         } catch (error: any) {
-            console.error(`[LoginService] connectUser Failed:`, error.message);
+            Logger.error(`[LoginService] connectUser Failed:`, error.message);
             throw error;
         }
     }

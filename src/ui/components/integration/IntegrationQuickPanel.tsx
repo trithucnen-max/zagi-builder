@@ -10,6 +10,7 @@ import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import POSOrderPanel from './POSOrderPanel';
 import { IS_DEV_BUILD } from "../../../configs/BuildConfig";
+import Logger from '../../../utils/Logger';
 
 // ─── Pin icon emoji list ─────────────────────────────────────────────────────
 const PIN_EMOJIS = [
@@ -1237,12 +1238,8 @@ export default function IntegrationQuickPanel({ onClose, contextPhone, contextNa
       : await ipc.integration?.execute(selectedIntegration.id, action, actionParams);
 
     const nestedError = getNestedError(res?.data, fallbackMessage);
-    if (DEV_DEBUG) {
-      console.groupCollapsed(`[IntegrationQuickPanel] ${selectedIntegration.type}.${action}`);
-      console.log('params:', actionParams);
-      console.log('res:', res);
-      if (nestedError) console.warn('nestedError:', nestedError);
-      console.groupEnd();
+    if (DEV_DEBUG && nestedError) {
+      Logger.warn(`[IntegrationQuickPanel] ${selectedIntegration.type}.${action} nestedError:`, nestedError);
     }
     if (!res?.success || nestedError) {
       const msg = res?.error || nestedError || fallbackMessage;
@@ -1282,7 +1279,6 @@ export default function IntegrationQuickPanel({ onClose, contextPhone, contextNa
 
       const res = await executeStrict(actionToExecute, cleanParams, 'Thao tac that bai');
       if (DEV_DEBUG) {
-        console.log('[IntegrationQuickPanel] execute success data:', res?.data);
       }
       setExecutedAction(actionToExecute);
       setResult(res?.data);

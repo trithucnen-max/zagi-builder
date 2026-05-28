@@ -3,9 +3,99 @@ import * as fs from 'fs';
 import { app, safeStorage } from 'electron';
 import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
+import { AsyncLocalStorage } from 'async_hooks';
+import { runMigrations } from './DatabaseMigrations';
 
-// better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
-let db: BetterSqlite3.Database | null = null;
+let _mainDb: BetterSqlite3.Database | null = null;
+export const dbContext = new AsyncLocalStorage<{ zaloId?: string }>();
+
+// List of global tables that should always run on the main database
+const GLOBAL_TABLES = [
+    'accounts',
+    'app_settings',
+    'stickers',
+    'recent_stickers',
+    'keyword_stickers',
+    'sticker_packs',
+    'ai_assistants',
+    'ai_account_assistants',
+    'ai_usage_logs',
+    'employees',
+    'employee_permissions',
+    'employee_account_access',
+    'employee_message_log',
+    'employee_sessions',
+    'employee_groups',
+    'erp_projects',
+    'erp_tasks',
+    'erp_task_assignees',
+    'erp_task_checklist',
+    'erp_task_comments',
+    'erp_task_attachments',
+    'erp_task_activity_log',
+    'erp_calendar_events',
+    'erp_event_reminders',
+    'erp_note_folders',
+    'erp_notes',
+    'erp_note_tags',
+    'erp_note_tag_map',
+    'erp_note_versions',
+    'erp_task_watchers',
+    'erp_task_dependencies',
+    'erp_event_attendees',
+    'erp_note_shares',
+    'erp_departments',
+    'erp_positions',
+    'erp_employee_profiles',
+    'erp_attendance',
+    'erp_leave_requests',
+    'erp_notifications'
+];
+
+function isGlobalQuery(sql: string): boolean {
+    const cleanedSql = sql.toLowerCase();
+    for (const table of GLOBAL_TABLES) {
+        const regex = new RegExp(`\\b${table}\\b`);
+        if (regex.test(cleanedSql)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Proxy representing the database connection.
+// Dynamically routes all calls to the active connection (sharded or main).
+export const db = new Proxy({} as BetterSqlite3.Database, {
+    get(target, prop, receiver) {
+        if (prop === 'prepare') {
+            return function(sql: string) {
+                const conn = DatabaseService.getInstance().getDbConnection(sql);
+                return conn.prepare(sql);
+            };
+        }
+        if (prop === 'exec') {
+            return function(sql: string) {
+                const conn = DatabaseService.getInstance().getDbConnection(sql);
+                return conn.exec(sql);
+            };
+        }
+        if (prop === 'pragma') {
+            return function(sql: string, options?: any) {
+                const conn = DatabaseService.getInstance().getDbConnection(sql);
+                return conn.pragma(sql, options);
+            };
+        }
+        const conn = DatabaseService.getInstance().getDbConnection();
+        if (!conn) {
+            throw new Error('[DatabaseService] Database connection is not initialized');
+        }
+        const val = Reflect.get(conn, prop, receiver);
+        if (typeof val === 'function') {
+            return val.bind(conn);
+        }
+        return val;
+    }
+});
 
 // ── Cached secondary DB for withDbPath (avoids repeated open/close) ─────────
 let _cachedSecondaryDb: BetterSqlite3.Database | null = null;
@@ -101,6 +191,9 @@ export interface Contact {
     gender?: number | null;
     /** Ngày sinh format DD/MM/YYYY */
     birthday?: string | null;
+    pipeline_stage_id?: number | null;
+    ai_sentiment?: string | null;
+    ai_intent?: string | null;
 }
 
 // ─── CRM Types ────────────────────────────────────────────────────────────────
@@ -178,12 +271,15 @@ class DatabaseService {
     private static instance: DatabaseService;
     private dbPath: string = '';
     private initialized = false;
+    private shardedConnections: Map<string, BetterSqlite3.Database> = new Map();
 
-    /** Open a better-sqlite3 database at the given path with WAL mode */
+    /** Open a better-sqlite3 database at the given path with WAL mode and custom optimizations */
     private openDb(dbPath: string): BetterSqlite3.Database {
         const newDb = new BetterSqlite3(dbPath);
         newDb.pragma('journal_mode = WAL');
         newDb.pragma('synchronous = NORMAL');
+        newDb.pragma('cache_size = -64000'); // 64MB cache size
+        newDb.pragma('busy_timeout = 5000'); // 5s busy timeout
         return newDb;
     }
 
@@ -192,6 +288,37 @@ class DatabaseService {
             DatabaseService.instance = new DatabaseService();
         }
         return DatabaseService.instance;
+    }
+
+    public getDbConnection(sql?: string): BetterSqlite3.Database {
+        if (sql && isGlobalQuery(sql)) return _mainDb!;
+        const context = dbContext.getStore();
+        if (context?.zaloId) {
+            if (!this.shardedConnections.has(context.zaloId)) {
+                const shardPath = path.join(path.dirname(this.dbPath), `zagi-${context.zaloId}.db`);
+                const conn = this.openDb(shardPath);
+                // Cache immediately to prevent recursion during migration calls
+                this.shardedConnections.set(context.zaloId, conn);
+                try {
+                    runMigrations(conn);
+                    this.migrateLegacyDataToShards(context.zaloId, conn);
+                } catch (err: any) {
+                    this.shardedConnections.delete(context.zaloId);
+                    try { conn.close(); } catch {}
+                    Logger.error(`[DatabaseService] Failed to initialize sharded DB for ${context.zaloId}: ${err.message}`);
+                    throw err;
+                }
+            }
+            return this.shardedConnections.get(context.zaloId)!;
+        }
+        return _mainDb!;
+    }
+
+    private closeShardedConnections() {
+        for (const [zaloId, conn] of this.shardedConnections.entries()) {
+            try { conn.close(); } catch {}
+        }
+        this.shardedConnections.clear();
     }
 
     public async initialize(): Promise<void> {
@@ -249,21 +376,17 @@ class DatabaseService {
             }
 
             // Open DB with better-sqlite3 (native SQLite, memory-mapped I/O)
-            db = this.openDb(this.dbPath);
+            _mainDb = this.openDb(this.dbPath);
 
-            this.createTables();
-            this.migrate();
-            this.initErpSchema();
+            runMigrations(_mainDb);
             this.initialized = true;
-            Logger.log(`[DatabaseService] Initialized at ${this.dbPath} (better-sqlite3, WAL mode)`);
+            Logger.log(`[DatabaseService] Initialized at ${this.dbPath} (better-sqlite3, WAL mode, optimizations enabled)`);
         } catch (error: any) {
             Logger.error(`[DatabaseService] Failed to initialize: ${error.message}`);
             // Fall back to in-memory db so app still runs
             try {
-                db = new BetterSqlite3(':memory:');
-                this.createTables();
-                this.migrate();
-                this.initErpSchema();
+                _mainDb = new BetterSqlite3(':memory:');
+                runMigrations(_mainDb);
                 this.initialized = true;
                 Logger.warn(`[DatabaseService] Using in-memory database as fallback`);
             } catch (e2: any) {
@@ -288,9 +411,13 @@ class DatabaseService {
      */
     public forceFlush(): void {
         try {
-            if (db) {
-                db.pragma('wal_checkpoint(TRUNCATE)');
+            if (_mainDb) {
+                _mainDb.pragma('wal_checkpoint(TRUNCATE)');
                 Logger.log(`[DatabaseService] WAL checkpoint completed for ${this.dbPath}`);
+            }
+            for (const [zaloId, conn] of this.shardedConnections.entries()) {
+                conn.pragma('wal_checkpoint(TRUNCATE)');
+                Logger.log(`[DatabaseService] WAL checkpoint completed for sharded DB: ${zaloId}`);
             }
         } catch (err: any) {
             Logger.warn(`[DatabaseService] WAL checkpoint error: ${err.message}`);
@@ -303,8 +430,9 @@ class DatabaseService {
      */
     public async reinitialize(): Promise<void> {
         Logger.log('[DatabaseService] Reinitializing from new config...');
-        try { db?.close(); } catch {}
-        db = null;
+        try { _mainDb?.close(); } catch {}
+        _mainDb = null;
+        this.closeShardedConnections();
         this.initialized = false;
         this.dbPath = '';
         await this.initialize();
@@ -334,7 +462,7 @@ class DatabaseService {
         this.switching = true;
 
         const prevDbPath = this.dbPath;
-        const prevDb = db;
+        const prevDb = _mainDb;
 
         try {
             const dir = path.dirname(targetDbPath);
@@ -346,17 +474,20 @@ class DatabaseService {
             // Close cached secondary DB (if any) before switching
             closeCachedSecondaryDb();
 
+            // Close all sharded connections before switching workspace
+            this.closeShardedConnections();
+
             // Close old DB
             try {
                 prevDb?.close();
             } catch (closeErr: any) {
                 Logger.warn(`[DatabaseService] Failed to close previous DB before switch: ${closeErr.message}`);
             }
-            db = null;
+            _mainDb = null;
 
             // Open the new DB (better-sqlite3 handles create-if-not-exists automatically)
             try {
-                db = this.openDb(targetDbPath);
+                _mainDb = this.openDb(targetDbPath);
                 Logger.log(`[DatabaseService] Opened DB: ${targetDbPath}`);
             } catch (loadErr: any) {
                 const msg = loadErr?.message || String(loadErr);
@@ -370,14 +501,12 @@ class DatabaseService {
                 }
                 // Delete corrupt file and retry
                 try { fs.unlinkSync(targetDbPath); } catch {}
-                db = this.openDb(targetDbPath);
+                _mainDb = this.openDb(targetDbPath);
                 Logger.log(`[DatabaseService] Created fresh DB after failed load: ${targetDbPath}`);
             }
 
             this.dbPath = targetDbPath;
-            this.createTables();
-            this.migrate();
-            this.initErpSchema();
+            runMigrations(_mainDb);
             this.initialized = true;
 
             Logger.log(`[DatabaseService] Workspace DB ready at ${this.dbPath}`);
@@ -387,9 +516,9 @@ class DatabaseService {
             this.dbPath = prevDbPath;
             try {
                 if (prevDbPath && fs.existsSync(prevDbPath)) {
-                    db = this.openDb(prevDbPath);
+                    _mainDb = this.openDb(prevDbPath);
                 } else {
-                    db = new BetterSqlite3(':memory:');
+                    _mainDb = new BetterSqlite3(':memory:');
                 }
                 this.initialized = true;
                 Logger.warn(`[DatabaseService] Restored previous DB: ${prevDbPath}`);
@@ -413,17 +542,17 @@ class DatabaseService {
      */
     public withDbPath<T>(targetDbPath: string, fn: () => T): T {
         const currentPath = this.dbPath;
-        const currentDb = db;
+        const currentDb = _mainDb;
         if (currentPath === targetDbPath) {
             return fn();
         }
         try {
-            db = getCachedSecondaryDb(targetDbPath);
+            _mainDb = getCachedSecondaryDb(targetDbPath);
             this.dbPath = targetDbPath;
             const result = fn();
             return result;
         } finally {
-            db = currentDb;
+            _mainDb = currentDb;
             this.dbPath = currentPath;
         }
     }
@@ -504,1790 +633,85 @@ class DatabaseService {
             const local = cleaned.slice(2).replace(/^0+/, '');
             return `0${local}`;
         }
+        if (!cleaned.startsWith('0')) {
+            return `0${cleaned}`;
+        }
         return cleaned;
     }
 
-    private normalizeWorkflowChannel(channel?: string): 'zalo' | 'facebook' {
-        return channel === 'facebook' ? 'facebook' : 'zalo';
+    public runForAccount<T>(zaloId: string, fn: () => T): T {
+        return dbContext.run({ zaloId }, fn);
     }
 
-    private createTables(): void {
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS accounts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                zalo_id TEXT UNIQUE NOT NULL,
-                full_name TEXT NOT NULL DEFAULT '',
-                avatar_url TEXT DEFAULT '',
-                imei TEXT NOT NULL,
-                user_agent TEXT NOT NULL,
-                cookies TEXT NOT NULL,
-                is_active INTEGER DEFAULT 1,
-                is_business INTEGER DEFAULT 0,
-                created_at TEXT NOT NULL,
-                last_seen TEXT,
-                listener_active INTEGER DEFAULT 1
-            );
-        `);
+    private migrateLegacyDataToShards(zaloId: string, shardedDbConn: BetterSqlite3.Database): void {
+        if (!_mainDb) return;
+        
+        // Ensure app_settings exists
+        const hasAppSettings = _mainDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='app_settings'").get();
+        if (!hasAppSettings) return;
 
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                msg_id TEXT NOT NULL,
-                cli_msg_id TEXT,
-                owner_zalo_id TEXT NOT NULL,
-                thread_id TEXT NOT NULL,
-                thread_type INTEGER NOT NULL DEFAULT 0,
-                sender_id TEXT NOT NULL,
-                content TEXT NOT NULL DEFAULT '',
-                msg_type TEXT NOT NULL DEFAULT 'text',
-                timestamp INTEGER NOT NULL,
-                is_sent INTEGER DEFAULT 0,
-                attachments TEXT DEFAULT '[]',
-                local_paths TEXT DEFAULT '{}',
-                status TEXT DEFAULT 'received',
-                is_recalled INTEGER DEFAULT 0,
-                UNIQUE(msg_id, owner_zalo_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(owner_zalo_id, thread_id, timestamp);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS contacts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                contact_id TEXT NOT NULL,
-                display_name TEXT NOT NULL DEFAULT '',
-                avatar_url TEXT DEFAULT '',
-                phone TEXT DEFAULT '',
-                is_friend INTEGER DEFAULT 0,
-                contact_type TEXT DEFAULT 'user',
-                unread_count INTEGER DEFAULT 0,
-                last_message TEXT DEFAULT '',
-                last_message_time INTEGER DEFAULT 0,
-                UNIQUE(owner_zalo_id, contact_id)
-            );
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS app_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            );
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS friends (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                display_name TEXT DEFAULT '',
-                avatar TEXT DEFAULT '',
-                phone TEXT DEFAULT '',
-                updated_at INTEGER DEFAULT 0,
-                UNIQUE(owner_zalo_id, user_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_friends_owner ON friends(owner_zalo_id);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS links (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                thread_id TEXT NOT NULL,
-                msg_id TEXT NOT NULL,
-                url TEXT NOT NULL,
-                title TEXT DEFAULT '',
-                domain TEXT DEFAULT '',
-                thumb_url TEXT DEFAULT '',
-                timestamp INTEGER NOT NULL,
-                UNIQUE(owner_zalo_id, msg_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_links_thread ON links(owner_zalo_id, thread_id, timestamp);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS page_group_member (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                group_id TEXT NOT NULL,
-                member_id TEXT NOT NULL,
-                display_name TEXT DEFAULT '',
-                avatar TEXT DEFAULT '',
-                role INTEGER DEFAULT 0,
-                updated_at INTEGER DEFAULT 0,
-                UNIQUE(owner_zalo_id, group_id, member_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_group_member ON page_group_member(owner_zalo_id, group_id);
-        `);
-
-        // Sticker cache — device-wide (no owner_zalo_id)
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS stickers (
-                sticker_id INTEGER PRIMARY KEY,
-                cat_id INTEGER DEFAULT 0,
-                type INTEGER DEFAULT 0,
-                text TEXT DEFAULT '',
-                sticker_url TEXT DEFAULT '',
-                sticker_sprite_url TEXT DEFAULT '',
-                checksum TEXT DEFAULT '',
-                data_json TEXT DEFAULT '{}',
-                unsupported INTEGER DEFAULT 0,
-                updated_at INTEGER DEFAULT 0
-            );
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS sticker_packs (
-                cat_id INTEGER PRIMARY KEY,
-                name TEXT DEFAULT '',
-                thumb_url TEXT DEFAULT '',
-                sticker_count INTEGER DEFAULT 0,
-                data_json TEXT DEFAULT '{}',
-                updated_at INTEGER DEFAULT 0
-            );
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS recent_stickers (
-                sticker_id INTEGER PRIMARY KEY,
-                used_at INTEGER NOT NULL
-            );
-        `);
-
-        // Keyword → sticker IDs cache
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS keyword_stickers (
-                keyword TEXT PRIMARY KEY,
-                sticker_ids TEXT DEFAULT '[]',
-                updated_at INTEGER DEFAULT 0
-            );
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS pinned_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                thread_id TEXT NOT NULL,
-                msg_id TEXT NOT NULL,
-                msg_type TEXT NOT NULL DEFAULT 'text',
-                content TEXT NOT NULL DEFAULT '',
-                preview_text TEXT DEFAULT '',
-                preview_image TEXT DEFAULT '',
-                sender_id TEXT DEFAULT '',
-                sender_name TEXT DEFAULT '',
-                timestamp INTEGER NOT NULL DEFAULT 0,
-                pinned_at INTEGER NOT NULL DEFAULT 0,
-                UNIQUE(owner_zalo_id, thread_id, msg_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_pinned ON pinned_messages(owner_zalo_id, thread_id, pinned_at DESC);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS friend_requests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                display_name TEXT DEFAULT '',
-                avatar TEXT DEFAULT '',
-                phone TEXT DEFAULT '',
-                direction TEXT NOT NULL DEFAULT 'received',
-                msg TEXT DEFAULT '',
-                created_at INTEGER DEFAULT 0,
-                updated_at INTEGER DEFAULT 0,
-                UNIQUE(owner_zalo_id, user_id, direction)
-            );
-            CREATE INDEX IF NOT EXISTS idx_friend_requests_owner ON friend_requests(owner_zalo_id, direction);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS local_quick_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                keyword TEXT NOT NULL,
-                title TEXT NOT NULL DEFAULT '',
-                media_json TEXT DEFAULT NULL,
-                created_at INTEGER NOT NULL DEFAULT 0,
-                updated_at INTEGER NOT NULL DEFAULT 0,
-                UNIQUE(owner_zalo_id, keyword)
-            );
-            CREATE INDEX IF NOT EXISTS idx_lqm_owner ON local_quick_messages(owner_zalo_id);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS local_pinned_conversations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                thread_id TEXT NOT NULL,
-                pinned_at INTEGER NOT NULL DEFAULT 0,
-                UNIQUE(owner_zalo_id, thread_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_lpc_owner ON local_pinned_conversations(owner_zalo_id, pinned_at DESC);
-        `);
-
-        // ─── CRM tables ──────────────────────────────────────────────────────
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS crm_tags (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                name TEXT NOT NULL,
-                color TEXT NOT NULL DEFAULT '#3B82F6',
-                emoji TEXT NOT NULL DEFAULT '🏷️',
-                created_at INTEGER NOT NULL DEFAULT 0,
-                UNIQUE(owner_zalo_id, name)
-            );
-            CREATE INDEX IF NOT EXISTS idx_crm_tags_owner ON crm_tags(owner_zalo_id);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS crm_contact_tags (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                contact_id TEXT NOT NULL,
-                tag_id INTEGER NOT NULL,
-                UNIQUE(owner_zalo_id, contact_id, tag_id),
-                FOREIGN KEY(tag_id) REFERENCES crm_tags(id) ON DELETE CASCADE
-            );
-            CREATE INDEX IF NOT EXISTS idx_crm_ct_owner ON crm_contact_tags(owner_zalo_id, contact_id);
-            CREATE INDEX IF NOT EXISTS idx_crm_ct_tag ON crm_contact_tags(tag_id);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS crm_notes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                contact_id TEXT NOT NULL,
-                contact_type TEXT NOT NULL DEFAULT 'user',
-                content TEXT NOT NULL DEFAULT '',
-                topic_id TEXT DEFAULT NULL,
-                created_at INTEGER NOT NULL DEFAULT 0,
-                updated_at INTEGER NOT NULL DEFAULT 0
-            );
-            CREATE INDEX IF NOT EXISTS idx_crm_notes ON crm_notes(owner_zalo_id, contact_id);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS crm_campaigns (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                name TEXT NOT NULL,
-                template_message TEXT NOT NULL DEFAULT '',
-                friend_request_message TEXT NOT NULL DEFAULT '',
-                campaign_type TEXT NOT NULL DEFAULT 'message',
-                mixed_config TEXT NOT NULL DEFAULT '{}',
-                status TEXT NOT NULL DEFAULT 'draft',
-                delay_seconds INTEGER NOT NULL DEFAULT 60,
-                created_at INTEGER NOT NULL DEFAULT 0,
-                updated_at INTEGER NOT NULL DEFAULT 0
-            );
-            CREATE INDEX IF NOT EXISTS idx_crm_campaigns ON crm_campaigns(owner_zalo_id, status);
-        `);
-        // Migration: add new columns if they don't exist yet (existing DBs)
-        try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN friend_request_message TEXT NOT NULL DEFAULT ''`); } catch {}
-        try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN campaign_type TEXT NOT NULL DEFAULT 'message'`); } catch {}
-        try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN mixed_config TEXT NOT NULL DEFAULT '{}'`); } catch {}
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS crm_campaign_contacts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                campaign_id INTEGER NOT NULL,
-                owner_zalo_id TEXT NOT NULL,
-                contact_id TEXT NOT NULL,
-                display_name TEXT DEFAULT '',
-                avatar TEXT DEFAULT '',
-                status TEXT NOT NULL DEFAULT 'pending',
-                sent_at INTEGER DEFAULT 0,
-                retry_count INTEGER DEFAULT 0,
-                error TEXT DEFAULT '',
-                UNIQUE(campaign_id, contact_id),
-                FOREIGN KEY(campaign_id) REFERENCES crm_campaigns(id) ON DELETE CASCADE
-            );
-            CREATE INDEX IF NOT EXISTS idx_crm_cc_campaign ON crm_campaign_contacts(campaign_id, status);
-            CREATE INDEX IF NOT EXISTS idx_crm_cc_owner ON crm_campaign_contacts(owner_zalo_id, status);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS crm_send_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                contact_id TEXT NOT NULL,
-                display_name TEXT DEFAULT '',
-                phone TEXT DEFAULT '',
-                contact_type TEXT DEFAULT 'user',
-                campaign_id INTEGER DEFAULT NULL,
-                message TEXT NOT NULL DEFAULT '',
-                sent_at INTEGER NOT NULL DEFAULT 0,
-                status TEXT NOT NULL DEFAULT 'sent',
-                error TEXT DEFAULT '',
-                data_request TEXT DEFAULT '',
-                data_response TEXT DEFAULT '',
-                send_type TEXT DEFAULT ''
-            );
-            CREATE INDEX IF NOT EXISTS idx_crm_log_owner ON crm_send_log(owner_zalo_id, sent_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_crm_log_contact ON crm_send_log(owner_zalo_id, contact_id);
-        `);
-
-        // ─── Local Labels (custom per-app labels, independent from Zalo) ────────
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS local_labels (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                color TEXT NOT NULL DEFAULT '#3B82F6',
-                text_color TEXT NOT NULL DEFAULT '#FFFFFF',
-                emoji TEXT NOT NULL DEFAULT '🏷️',
-                page_ids TEXT NOT NULL DEFAULT '',
-                created_at INTEGER NOT NULL DEFAULT 0,
-                updated_at INTEGER NOT NULL DEFAULT 0
-            );
-            CREATE INDEX IF NOT EXISTS idx_local_labels_name ON local_labels(name);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS local_label_threads (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                owner_zalo_id TEXT NOT NULL,
-                label_id INTEGER NOT NULL,
-                thread_id TEXT NOT NULL,
-                created_at INTEGER NOT NULL DEFAULT 0,
-                UNIQUE(owner_zalo_id, label_id, thread_id),
-                FOREIGN KEY(label_id) REFERENCES local_labels(id) ON DELETE CASCADE
-            );
-            CREATE INDEX IF NOT EXISTS idx_llt_owner ON local_label_threads(owner_zalo_id, label_id);
-            CREATE INDEX IF NOT EXISTS idx_llt_thread ON local_label_threads(owner_zalo_id, thread_id);
-        `);
-
-        // ─── Workflow Engine Tables ────────────────────────────────────────────
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS workflows (
-                id           TEXT PRIMARY KEY,
-                name         TEXT NOT NULL,
-                description  TEXT DEFAULT '',
-                enabled      INTEGER DEFAULT 1,
-                channel      TEXT NOT NULL DEFAULT 'zalo',
-                page_id      TEXT DEFAULT '',
-                page_ids     TEXT DEFAULT '',
-                nodes_json   TEXT NOT NULL DEFAULT '[]',
-                edges_json   TEXT NOT NULL DEFAULT '[]',
-                created_at   INTEGER NOT NULL,
-                updated_at   INTEGER NOT NULL
-            );
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS workflow_run_logs (
-                id              TEXT PRIMARY KEY,
-                workflow_id     TEXT NOT NULL,
-                workflow_name   TEXT NOT NULL,
-                triggered_by    TEXT NOT NULL,
-                started_at      INTEGER NOT NULL,
-                finished_at     INTEGER NOT NULL,
-                status          TEXT NOT NULL,
-                error_message   TEXT,
-                node_results    TEXT NOT NULL DEFAULT '[]'
-            );
-            CREATE INDEX IF NOT EXISTS idx_wf_logs_workflow ON workflow_run_logs(workflow_id, started_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_wf_logs_status ON workflow_run_logs(status, started_at DESC);
-        `);
-
-        // Migration: add page_ids column to workflows if missing + backfill from page_id
-        try {
-            const wfCols = this.query<any>(`PRAGMA table_info(workflows)`);
-            if (!wfCols.some((c: any) => c.name === 'page_ids')) {
-                db!.exec(`ALTER TABLE workflows ADD COLUMN page_ids TEXT DEFAULT ''`);
-                // Backfill: migrate existing page_id → page_ids
-                db!.exec(`UPDATE workflows SET page_ids = page_id WHERE page_id != '' AND (page_ids IS NULL OR page_ids = '')`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added page_ids column to workflows');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] workflows page_ids migration: ${err.message}`);
+        const isMigratedSetting = _mainDb.prepare('SELECT value FROM app_settings WHERE key = ?').get(`sharding_migrated_${zaloId}`) as { value: string } | undefined;
+        if (isMigratedSetting?.value === 'true') {
+            return;
         }
 
-        // ─── Integration Hub Table ─────────────────────────────────────────────
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS integrations (
-                id                    TEXT PRIMARY KEY,
-                type                  TEXT NOT NULL,
-                name                  TEXT NOT NULL DEFAULT '',
-                enabled               INTEGER NOT NULL DEFAULT 1,
-                credentials_encrypted TEXT NOT NULL DEFAULT '{}',
-                settings              TEXT NOT NULL DEFAULT '{}',
-                connected_at          INTEGER,
-                created_at            INTEGER NOT NULL,
-                updated_at            INTEGER NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_integrations_type ON integrations(type, enabled);
-        `);
+        Logger.log(`[DatabaseService] Migrating legacy data from main DB to sharded DB for Zalo ID: ${zaloId}`);
 
-        // ─── AI Assistants ────────────────────���───────────────────────────────
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS ai_assistants (
-                id                    TEXT PRIMARY KEY,
-                name                  TEXT NOT NULL,
-                platform              TEXT NOT NULL DEFAULT 'openai',
-                api_key_encrypted     TEXT NOT NULL DEFAULT '',
-                model                 TEXT NOT NULL DEFAULT 'gpt-5.4-mini',
-                system_prompt         TEXT NOT NULL DEFAULT '',
-                pos_integration_id    TEXT DEFAULT NULL,
-                pinned_products_json  TEXT NOT NULL DEFAULT '[]',
-                max_tokens            INTEGER NOT NULL DEFAULT 1000,
-                temperature           REAL NOT NULL DEFAULT 0.7,
-                context_message_count INTEGER NOT NULL DEFAULT 30,
-                custom_url            TEXT DEFAULT '',
-                enabled               INTEGER NOT NULL DEFAULT 1,
-                is_default            INTEGER NOT NULL DEFAULT 0,
-                created_at            INTEGER NOT NULL,
-                updated_at            INTEGER NOT NULL
-            );
-        `);
+        const tablesToMigrate = [
+            { name: 'messages', ownerCol: 'owner_zalo_id' },
+            { name: 'contacts', ownerCol: 'owner_zalo_id' },
+            { name: 'friends', ownerCol: 'owner_zalo_id' },
+            { name: 'links', ownerCol: 'owner_zalo_id' },
+            { name: 'page_group_member', ownerCol: 'owner_zalo_id' },
+            { name: 'pinned_messages', ownerCol: 'owner_zalo_id' },
+            { name: 'friend_requests', ownerCol: 'owner_zalo_id' },
+            { name: 'local_quick_messages', ownerCol: 'owner_zalo_id' },
+            { name: 'local_pinned_conversations', ownerCol: 'owner_zalo_id' },
+            { name: 'crm_tags', ownerCol: 'owner_zalo_id' },
+            { name: 'crm_contact_tags', ownerCol: 'owner_zalo_id' },
+            { name: 'crm_notes', ownerCol: 'owner_zalo_id' },
+            { name: 'crm_campaigns', ownerCol: 'owner_zalo_id' },
+            { name: 'crm_send_log', ownerCol: 'owner_zalo_id' },
+            { name: 'message_drafts', ownerCol: 'owner_zalo_id' },
+            { name: 'bank_cards', ownerCol: 'owner_zalo_id' },
+        ];
 
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS ai_assistant_files (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                assistant_id    TEXT NOT NULL,
-                file_name       TEXT NOT NULL,
-                file_path       TEXT NOT NULL DEFAULT '',
-                file_size       INTEGER NOT NULL DEFAULT 0,
-                content_text    TEXT NOT NULL DEFAULT '',
-                created_at      INTEGER NOT NULL,
-                FOREIGN KEY(assistant_id) REFERENCES ai_assistants(id) ON DELETE CASCADE
-            );
-            CREATE INDEX IF NOT EXISTS idx_ai_files_assistant ON ai_assistant_files(assistant_id);
-        `);
-
-        // ─── Facebook Integration Tables ──────────────────────────────────────────
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS fb_accounts (
-                id                  TEXT PRIMARY KEY,
-                facebook_id         TEXT,
-                name                TEXT DEFAULT '',
-                avatar_url          TEXT DEFAULT '',
-                cookie_encrypted    TEXT NOT NULL DEFAULT '',
-                session_data        TEXT DEFAULT '',
-                status              TEXT DEFAULT 'disconnected',
-                last_cookie_check   INTEGER DEFAULT 0,
-                created_at          INTEGER NOT NULL,
-                updated_at          INTEGER NOT NULL
-            );
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS fb_threads (
-                id                      TEXT PRIMARY KEY,
-                account_id              TEXT NOT NULL,
-                name                    TEXT DEFAULT '',
-                type                    TEXT DEFAULT 'group',
-                emoji                   TEXT,
-                participant_count       INTEGER DEFAULT 0,
-                last_message_preview    TEXT,
-                last_message_at         INTEGER,
-                unread_count            INTEGER DEFAULT 0,
-                is_muted                INTEGER DEFAULT 0,
-                metadata                TEXT,
-                synced_at               INTEGER,
-                FOREIGN KEY (account_id) REFERENCES fb_accounts(id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_fb_threads_account ON fb_threads(account_id, last_message_at DESC);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS fb_messages (
-                id              TEXT PRIMARY KEY,
-                account_id      TEXT NOT NULL,
-                thread_id       TEXT NOT NULL,
-                sender_id       TEXT DEFAULT '',
-                sender_name     TEXT DEFAULT '',
-                body            TEXT,
-                timestamp       INTEGER NOT NULL,
-                type            TEXT DEFAULT 'text',
-                attachments     TEXT DEFAULT '[]',
-                reply_to_id     TEXT,
-                is_self         INTEGER DEFAULT 0,
-                is_unsent       INTEGER DEFAULT 0,
-                reactions       TEXT DEFAULT '{}',
-                created_at      INTEGER NOT NULL,
-                FOREIGN KEY (account_id) REFERENCES fb_accounts(id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_fb_messages_thread ON fb_messages(account_id, thread_id, timestamp DESC);
-        `);
-
-        this.exec(`
-            CREATE TABLE IF NOT EXISTS fb_crm_contacts (
-                id                  TEXT PRIMARY KEY,
-                fb_account_id       TEXT NOT NULL,
-                facebook_user_id    TEXT NOT NULL,
-                facebook_thread_id  TEXT,
-                display_name        TEXT DEFAULT '',
-                avatar_url          TEXT DEFAULT '',
-                tag_ids             TEXT DEFAULT '[]',
-                notes               TEXT DEFAULT '[]',
-                custom_fields       TEXT DEFAULT '{}',
-                created_at          INTEGER NOT NULL,
-                updated_at          INTEGER NOT NULL,
-                UNIQUE(fb_account_id, facebook_user_id),
-                FOREIGN KEY (fb_account_id) REFERENCES fb_accounts(id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_fb_crm_account ON fb_crm_contacts(fb_account_id);
-        `);
-
-    }
-
-    // ─── ERP Schema ────────────────────────────────────────────────────────────
-
-    /**
-     * Khởi tạo schema cho ERP module. Idempotent — safe to call on every startup.
-     * Tất cả bảng đều prefix erp_.
-     */
-    public initErpSchema(): void {
         try {
-            // ── Projects ──────────────────────────────────────────────────────
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_projects (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT DEFAULT '',
-                    color TEXT DEFAULT '#3b82f6',
-                    owner_employee_id TEXT DEFAULT '',
-                    department_id INTEGER,
-                    status TEXT DEFAULT 'active',
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_projects_status ON erp_projects(status);
-            `);
+            _mainDb.transaction(() => {
+                shardedDbConn.transaction(() => {
+                    for (const table of tablesToMigrate) {
+                        const hasTable = _mainDb!.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table.name);
+                        if (!hasTable) continue;
 
-            // ── Tasks ─────────────────────────────────────────────────────────
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_tasks (
-                    id TEXT PRIMARY KEY,
-                    project_id TEXT,
-                    parent_task_id TEXT,
-                    title TEXT NOT NULL,
-                    description TEXT DEFAULT '',
-                    status TEXT DEFAULT 'todo',
-                    priority TEXT DEFAULT 'normal',
-                    reporter_id TEXT DEFAULT '',
-                    start_date INTEGER,
-                    due_date INTEGER,
-                    completed_at INTEGER,
-                    estimated_hours REAL,
-                    actual_hours REAL DEFAULT 0,
-                    recurring_rule TEXT,
-                    linked_contact_id TEXT,
-                    linked_zalo_msg_id TEXT,
-                    sort_order INTEGER DEFAULT 0,
-                    archived INTEGER DEFAULT 0,
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_tasks_project ON erp_tasks(project_id);
-                CREATE INDEX IF NOT EXISTS idx_erp_tasks_status ON erp_tasks(status);
-                CREATE INDEX IF NOT EXISTS idx_erp_tasks_due ON erp_tasks(due_date);
-                CREATE INDEX IF NOT EXISTS idx_erp_tasks_parent ON erp_tasks(parent_task_id);
-            `);
+                        const rows = _mainDb!.prepare(`SELECT * FROM ${table.name} WHERE ${table.ownerCol} = ?`).all(zaloId) as any[];
+                        if (rows.length === 0) continue;
 
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_task_assignees (
-                    task_id TEXT NOT NULL,
-                    employee_id TEXT NOT NULL,
-                    assigned_at INTEGER NOT NULL,
-                    PRIMARY KEY (task_id, employee_id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_assignees_emp ON erp_task_assignees(employee_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_task_checklist (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    task_id TEXT NOT NULL,
-                    content TEXT NOT NULL DEFAULT '',
-                    done INTEGER DEFAULT 0,
-                    sort_order INTEGER DEFAULT 0,
-                    created_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_checklist_task ON erp_task_checklist(task_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_task_comments (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    task_id TEXT NOT NULL,
-                    author_id TEXT NOT NULL,
-                    content TEXT NOT NULL DEFAULT '',
-                    mentions TEXT DEFAULT '[]',
-                    parent_comment_id INTEGER,
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_comments_task ON erp_task_comments(task_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_task_attachments (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    task_id TEXT NOT NULL,
-                    file_name TEXT NOT NULL DEFAULT '',
-                    file_path TEXT NOT NULL DEFAULT '',
-                    mime_type TEXT DEFAULT '',
-                    size INTEGER DEFAULT 0,
-                    uploaded_by TEXT DEFAULT '',
-                    uploaded_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_attach_task ON erp_task_attachments(task_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_task_activity_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    task_id TEXT NOT NULL,
-                    actor_id TEXT NOT NULL,
-                    action TEXT NOT NULL,
-                    payload TEXT DEFAULT '{}',
-                    created_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_activity_task ON erp_task_activity_log(task_id);
-            `);
-
-            // ── Calendar ──────────────────────────────────────────────────────
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_calendar_events (
-                    id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    description TEXT DEFAULT '',
-                    type TEXT DEFAULT 'meeting',
-                    start_at INTEGER NOT NULL,
-                    end_at INTEGER NOT NULL,
-                    all_day INTEGER DEFAULT 0,
-                    location TEXT DEFAULT '',
-                    color TEXT DEFAULT '',
-                    organizer_id TEXT DEFAULT '',
-                    linked_task_id TEXT,
-                    linked_contact_id TEXT,
-                    recurring_rule TEXT,
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_events_start ON erp_calendar_events(start_at);
-                CREATE INDEX IF NOT EXISTS idx_erp_events_organizer ON erp_calendar_events(organizer_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_event_reminders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    event_id TEXT NOT NULL,
-                    minutes_before INTEGER NOT NULL,
-                    channel TEXT DEFAULT 'toast',
-                    triggered INTEGER DEFAULT 0
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_reminders_event ON erp_event_reminders(event_id);
-            `);
-
-            // ── Notes ─────────────────────────────────────────────────────────
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_note_folders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    parent_id INTEGER,
-                    owner_id TEXT NOT NULL,
-                    created_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_note_folders_owner ON erp_note_folders(owner_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_notes (
-                    id TEXT PRIMARY KEY,
-                    folder_id INTEGER,
-                    title TEXT NOT NULL DEFAULT 'Untitled',
-                    content TEXT DEFAULT '',
-                    author_id TEXT NOT NULL,
-                    pinned INTEGER DEFAULT 0,
-                    share_scope TEXT DEFAULT 'private',
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_notes_folder ON erp_notes(folder_id);
-                CREATE INDEX IF NOT EXISTS idx_erp_notes_author ON erp_notes(author_id);
-                CREATE INDEX IF NOT EXISTS idx_erp_notes_updated ON erp_notes(updated_at);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_note_tags (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE NOT NULL,
-                    color TEXT DEFAULT '#6b7280'
-                );
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_note_tag_map (
-                    note_id TEXT NOT NULL,
-                    tag_id INTEGER NOT NULL,
-                    PRIMARY KEY (note_id, tag_id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_note_tag_map_tag ON erp_note_tag_map(tag_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_note_versions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    note_id TEXT NOT NULL,
-                    content_snapshot TEXT NOT NULL DEFAULT '',
-                    editor_id TEXT NOT NULL,
-                    created_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_note_versions_note ON erp_note_versions(note_id);
-            `);
-
-            // ── Collab extras (Phase 2) ───────────────────────────────────────
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_task_watchers (
-                    task_id TEXT NOT NULL,
-                    employee_id TEXT NOT NULL,
-                    added_at INTEGER NOT NULL,
-                    PRIMARY KEY (task_id, employee_id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_watchers_emp ON erp_task_watchers(employee_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_task_dependencies (
-                    task_id TEXT NOT NULL,
-                    depends_on_task_id TEXT NOT NULL,
-                    type TEXT DEFAULT 'FS',
-                    created_at INTEGER NOT NULL,
-                    PRIMARY KEY (task_id, depends_on_task_id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_deps_dep ON erp_task_dependencies(depends_on_task_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_event_attendees (
-                    event_id TEXT NOT NULL,
-                    employee_id TEXT NOT NULL,
-                    status TEXT DEFAULT 'invited',
-                    PRIMARY KEY (event_id, employee_id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_event_attendees_emp ON erp_event_attendees(employee_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_note_shares (
-                    note_id TEXT NOT NULL,
-                    employee_id TEXT NOT NULL,
-                    permission TEXT DEFAULT 'read',
-                    PRIMARY KEY (note_id, employee_id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_note_shares_emp ON erp_note_shares(employee_id);
-            `);
-
-            // ── HRM (Phase 2) ─────────────────────────────────────────────────
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_departments (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    parent_id INTEGER,
-                    manager_employee_id TEXT DEFAULT '',
-                    description TEXT DEFAULT '',
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_dept_parent ON erp_departments(parent_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_positions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    level INTEGER DEFAULT 0,
-                    department_id INTEGER,
-                    created_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_positions_dept ON erp_positions(department_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_employee_profiles (
-                    employee_id TEXT PRIMARY KEY,
-                    department_id INTEGER,
-                    position_id INTEGER,
-                    manager_employee_id TEXT DEFAULT '',
-                    dob INTEGER,
-                    gender TEXT DEFAULT '',
-                    phone TEXT DEFAULT '',
-                    email TEXT DEFAULT '',
-                    address TEXT DEFAULT '',
-                    joined_at INTEGER,
-                    erp_role TEXT DEFAULT 'member',
-                    extra_json TEXT DEFAULT '{}',
-                    updated_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_profiles_dept ON erp_employee_profiles(department_id);
-                CREATE INDEX IF NOT EXISTS idx_erp_profiles_manager ON erp_employee_profiles(manager_employee_id);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_attendance (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    employee_id TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    check_in_at INTEGER,
-                    check_out_at INTEGER,
-                    note TEXT DEFAULT '',
-                    source TEXT DEFAULT 'manual',
-                    updated_at INTEGER NOT NULL,
-                    UNIQUE(employee_id, date)
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_attendance_emp_date ON erp_attendance(employee_id, date);
-            `);
-
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_leave_requests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    requester_id TEXT NOT NULL,
-                    leave_type TEXT DEFAULT 'annual',
-                    start_date TEXT NOT NULL,
-                    end_date TEXT NOT NULL,
-                    days REAL DEFAULT 1,
-                    reason TEXT DEFAULT '',
-                    status TEXT DEFAULT 'pending',
-                    approver_id TEXT DEFAULT '',
-                    decided_at INTEGER,
-                    decision_note TEXT DEFAULT '',
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_leave_status ON erp_leave_requests(status);
-                CREATE INDEX IF NOT EXISTS idx_erp_leave_requester ON erp_leave_requests(requester_id);
-                CREATE INDEX IF NOT EXISTS idx_erp_leave_approver ON erp_leave_requests(approver_id);
-            `);
-
-            // ── Notifications ─────────────────────────────────────────────────
-            this.exec(`
-                CREATE TABLE IF NOT EXISTS erp_notifications (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    recipient_id TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    body TEXT DEFAULT '',
-                    link TEXT DEFAULT '',
-                    payload TEXT DEFAULT '{}',
-                    read INTEGER DEFAULT 0,
-                    created_at INTEGER NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_erp_notify_recipient ON erp_notifications(recipient_id, read);
-                CREATE INDEX IF NOT EXISTS idx_erp_notify_created ON erp_notifications(created_at);
-            `);
-
-            Logger.log('[DatabaseService] ERP schema initialized');
-        } catch (err: any) {
-            Logger.error(`[DatabaseService] initErpSchema error: ${err.message}`);
-        }
-    }
-
-    /** Dọn dẹp dữ liệu cũ bị lỗi từ các phiên bản trước */
-    private migrate(): void {
-        try {
-            // Add quote_data column if it doesn't exist
-            const cols = this.query<any>(`PRAGMA table_info(messages)`);
-            const hasQuoteData = cols.some((c) => c.name === 'quote_data');
-            if (!hasQuoteData) {
-                db!.exec(`ALTER TABLE messages ADD COLUMN quote_data TEXT DEFAULT NULL`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added quote_data column');
-            }
-
-            const hasReactions = cols.some((c) => c.name === 'reactions');
-            if (!hasReactions) {
-                db!.exec(`ALTER TABLE messages ADD COLUMN reactions TEXT DEFAULT '{}'`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added reactions column');
-            }
-
-            const hasIsRecalled = cols.some((c: any) => c.name === 'is_recalled');
-            if (!hasIsRecalled) {
-                db!.exec(`ALTER TABLE messages ADD COLUMN is_recalled INTEGER DEFAULT 0`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added is_recalled column');
-            }
-
-            const hasRecalledContent = cols.some((c: any) => c.name === 'recalled_content');
-            if (!hasRecalledContent) {
-                db!.exec(`ALTER TABLE messages ADD COLUMN recalled_content TEXT DEFAULT NULL`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added recalled_content column');
-            }
-
-            const hasDeletedBy = cols.some((c: any) => c.name === 'deleted_by');
-            if (!hasDeletedBy) {
-                db!.exec(`ALTER TABLE messages ADD COLUMN deleted_by TEXT DEFAULT NULL`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added deleted_by column');
-            }
-
-            // Add listener_active column to accounts if missing
-            const accCols = this.query<any>(`PRAGMA table_info(accounts)`);
-            const hasListenerActive = accCols.some((c: any) => c.name === 'listener_active');
-            if (!hasListenerActive) {
-                db!.exec(`ALTER TABLE accounts ADD COLUMN listener_active INTEGER DEFAULT 1`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added listener_active column');
-            }
-
-            // Đếm trước để log
-            const badContacts = this.query<any>(`SELECT count(*) as n FROM contacts WHERE contact_id = 'undefined' OR contact_id = '' OR contact_id IS NULL`);
-            const badMessages = this.query<any>(`SELECT count(*) as n FROM messages WHERE thread_id = 'undefined' OR thread_id = '' OR thread_id IS NULL`);
-            const nContacts = badContacts[0]?.n || 0;
-            const nMessages = badMessages[0]?.n || 0;
-
-            if (nContacts > 0 || nMessages > 0) {
-                Logger.warn(`[DatabaseService] 🧹 Migration: found ${nContacts} bad contacts, ${nMessages} bad messages — deleting...`);
-                db!.exec(`DELETE FROM contacts WHERE contact_id = 'undefined' OR contact_id = '' OR contact_id IS NULL`);
-                db!.exec(`DELETE FROM messages WHERE thread_id = 'undefined' OR thread_id = '' OR thread_id IS NULL`);
-                this.save();
-                Logger.log(`[DatabaseService] ✅ Migration: deleted ${nContacts} bad contacts, ${nMessages} bad messages`);
-            } else {
-                Logger.log('[DatabaseService] ✅ Migration: no bad data found');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] Migration warning: ${err.message}`);
-        }
-
-        // ─── Migration: add `channel` column for multi-channel support ────────────
-        try {
-            const contactCols = this.query<any>(`PRAGMA table_info(contacts)`);
-            const hasChannel = contactCols.some((c: any) => c.name === 'channel');
-            if (!hasChannel) {
-                db!.exec(`ALTER TABLE contacts ADD COLUMN channel TEXT DEFAULT 'zalo'`);
-                db!.exec(`ALTER TABLE messages ADD COLUMN channel TEXT DEFAULT 'zalo'`);
-                db!.exec(`ALTER TABLE accounts ADD COLUMN channel TEXT DEFAULT 'zalo'`);
-                this.save();
-                Logger.log('[DatabaseService] ✅ Migration: added channel column to contacts, messages, accounts');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] Migration channel column: ${err.message}`);
-        }
-
-        // ─── Migration: copy fb_* data → unified tables (Phase B3) ─────────────
-        try {
-            const hasFbTable = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='fb_accounts'`);
-            if (hasFbTable.length > 0) {
-                const fbInAccounts = this.query<any>(`SELECT COUNT(*) as n FROM accounts WHERE channel = 'facebook'`);
-                if ((fbInAccounts[0]?.n || 0) === 0) {
-                    const fbAccCount = this.query<any>(`SELECT COUNT(*) as n FROM fb_accounts`);
-                    if ((fbAccCount[0]?.n || 0) > 0) {
-                        Logger.log('[DatabaseService] 🔄 Migration B3: copying fb_* data → unified tables...');
-                        db!.exec(`
-                            INSERT OR IGNORE INTO accounts (zalo_id, full_name, avatar_url, imei, user_agent, cookies, is_active, created_at, channel)
-                            SELECT COALESCE(facebook_id, id), COALESCE(name, ''), COALESCE(avatar_url, ''), '', '', COALESCE(cookie_encrypted, ''), 1, datetime(created_at/1000, 'unixepoch'), 'facebook'
-                            FROM fb_accounts
-                        `);
-                        db!.exec(`
-                            INSERT OR IGNORE INTO contacts (owner_zalo_id, contact_id, display_name, avatar_url, is_friend, contact_type, unread_count, last_message, last_message_time, channel)
-                            SELECT COALESCE(f.facebook_id, ft.account_id), ft.id, COALESCE(ft.name, ''), '', 0,
-                                   CASE WHEN ft.type = 'user' THEN 'user' ELSE 'group' END,
-                                   COALESCE(ft.unread_count, 0), COALESCE(ft.last_message_preview, ''), COALESCE(ft.last_message_at, 0), 'facebook'
-                            FROM fb_threads ft
-                            LEFT JOIN fb_accounts f ON f.id = ft.account_id
-                        `);
-                        db!.exec(`
-                            INSERT OR IGNORE INTO messages (msg_id, owner_zalo_id, thread_id, thread_type, sender_id, content, msg_type, timestamp, is_sent, attachments, status, channel)
-                            SELECT fm.id, COALESCE(f.facebook_id, fm.account_id), fm.thread_id, 0, COALESCE(fm.sender_id, ''),
-                                   COALESCE(fm.body, ''), COALESCE(fm.type, 'text'), fm.timestamp, COALESCE(fm.is_self, 0),
-                                   COALESCE(fm.attachments, '[]'), 'received', 'facebook'
-                            FROM fb_messages fm
-                            LEFT JOIN fb_accounts f ON f.id = fm.account_id
-                        `);
-                        this.save();
-                        Logger.log('[DatabaseService] ✅ Migration B3: fb_* data copied to unified tables');
+                        Logger.log(`[DatabaseService] Migrating ${rows.length} rows for table "${table.name}"`);
+                        const cols = Object.keys(rows[0]);
+                        const placeholders = cols.map(() => '?').join(', ');
+                        const stmt = shardedDbConn.prepare(`INSERT OR IGNORE INTO ${table.name} (${cols.join(', ')}) VALUES (${placeholders})`);
+                        for (const r of rows) {
+                            stmt.run(cols.map(c => r[c]));
+                        }
                     }
+                })();
+
+                // Delete legacy rows from main DB
+                for (const table of tablesToMigrate) {
+                    const hasTable = _mainDb!.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table.name);
+                    if (!hasTable) continue;
+                    _mainDb!.prepare(`DELETE FROM ${table.name} WHERE ${table.ownerCol} = ?`).run(zaloId);
                 }
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] Migration fb→unified: ${err.message}`);
-        }
 
-        // ─── Migration: channel indexes ────────────────────────────────────────
-        try {
-            db!.exec(`CREATE INDEX IF NOT EXISTS idx_contacts_channel ON contacts(channel, owner_zalo_id)`);
-            db!.exec(`CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel, owner_zalo_id, thread_id)`);
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] Migration channel indexes: ${err.message}`);
-        }
-
-        // ─── Migration: add channel to workflows + backfill legacy rows ───────
-        try {
-            const workflowCols = this.query<any>(`PRAGMA table_info(workflows)`);
-            if (workflowCols.length > 0 && !workflowCols.some((c: any) => c.name === 'channel')) {
-                db!.exec(`ALTER TABLE workflows ADD COLUMN channel TEXT NOT NULL DEFAULT 'zalo'`);
-                Logger.log('[DatabaseService] Migration: added channel column to workflows');
-            }
-            db!.exec(`UPDATE workflows SET channel = 'zalo' WHERE channel IS NULL OR TRIM(channel) = ''`);
-            this.save();
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] workflow channel migration warning: ${err.message}`);
-        }
-
-        // ─── Migration B4: FB accounts.zalo_id UUID → facebook_id ─────────────
-        // Previously FB accounts stored internal UUID as zalo_id; now we use the real Facebook UID
-        try {
-            const fbWithUuid = this.query<any>(
-                `SELECT a.zalo_id, f.facebook_id FROM accounts a
-                 JOIN fb_accounts f ON a.zalo_id = f.id
-                 WHERE a.channel = 'facebook' AND f.facebook_id IS NOT NULL AND f.facebook_id != ''`
-            );
-            for (const row of fbWithUuid) {
-                if (row.zalo_id !== row.facebook_id) {
-                    // Check if facebook_id already exists in accounts to avoid unique constraint violation
-                    const existing = this.queryOne<any>(`SELECT 1 FROM accounts WHERE zalo_id = ?`, [row.facebook_id]);
-                    if (!existing) {
-                        db!.exec(`UPDATE accounts SET zalo_id = '${row.facebook_id}' WHERE zalo_id = '${row.zalo_id}' AND channel = 'facebook'`);
-                        Logger.log(`[DatabaseService] ✅ Migration B4: FB account ${row.zalo_id} → ${row.facebook_id}`);
-                    } else {
-                        // Already migrated or duplicate — remove the old UUID row
-                        db!.exec(`DELETE FROM accounts WHERE zalo_id = '${row.zalo_id}' AND channel = 'facebook'`);
-                        Logger.log(`[DatabaseService] ✅ Migration B4: Removed duplicate FB account row ${row.zalo_id}`);
-                    }
-                }
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] Migration B4 fb zalo_id→facebook_id: ${err.message}`);
-        }
-
-        // ─── Migration: add channel to CRM tables ──────────────────────────────
-        // ─── Migration B5: fix contacts & messages owner_zalo_id UUID → facebook_id ──
-        // Migration B3 incorrectly used account_id (UUID) as owner_zalo_id.
-        // This rewrites them to the real facebook_id so UI queries match.
-        try {
-            const fbAccs = this.query<any>(
-                `SELECT id, facebook_id FROM fb_accounts WHERE facebook_id IS NOT NULL AND facebook_id != ''`
-            );
-            for (const acc of fbAccs) {
-                if (acc.id === acc.facebook_id) continue; // already correct
-                // Fix contacts
-                const contactsFixed = db!.prepare(
-                    `UPDATE contacts SET owner_zalo_id = ? WHERE owner_zalo_id = ? AND channel = 'facebook'`
-                ).run(acc.facebook_id, acc.id);
-                // Fix messages
-                const messagesFixed = db!.prepare(
-                    `UPDATE messages SET owner_zalo_id = ? WHERE owner_zalo_id = ? AND channel = 'facebook'`
-                ).run(acc.facebook_id, acc.id);
-                if ((contactsFixed.changes || 0) > 0 || (messagesFixed.changes || 0) > 0) {
-                    Logger.log(`[DatabaseService] ✅ Migration B5: Rewrote owner_zalo_id ${acc.id} → ${acc.facebook_id} (contacts: ${contactsFixed.changes}, messages: ${messagesFixed.changes})`);
-                }
-            }
-            // Also fix any stale UUIDs from previously deleted accounts
-            // Find contacts/messages with UUID owner_zalo_id that match no current fb_accounts
-            const staleContacts = this.query<any>(
-                `SELECT DISTINCT c.owner_zalo_id FROM contacts c
-                 WHERE c.channel = 'facebook'
-                 AND c.owner_zalo_id NOT GLOB '[0-9]*'
-                 AND NOT EXISTS (SELECT 1 FROM fb_accounts f WHERE f.id = c.owner_zalo_id)`
-            );
-            for (const sc of staleContacts) {
-                // Try to find fb_account by matching thread data
-                const sample = this.queryOne<any>(
-                    `SELECT t.account_id FROM fb_threads t
-                     JOIN contacts c ON c.contact_id = t.id
-                     WHERE c.owner_zalo_id = ? LIMIT 1`, [sc.owner_zalo_id]
+                // Mark as migrated in main DB
+                _mainDb!.prepare("INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))").run(
+                    `sharding_migrated_${zaloId}`,
+                    'true'
                 );
-                if (sample?.account_id) {
-                    const fbAcc = this.queryOne<any>(`SELECT facebook_id FROM fb_accounts WHERE id = ?`, [sample.account_id]);
-                    if (fbAcc?.facebook_id) {
-                        db!.prepare(`UPDATE contacts SET owner_zalo_id = ? WHERE owner_zalo_id = ? AND channel = 'facebook'`).run(fbAcc.facebook_id, sc.owner_zalo_id);
-                        db!.prepare(`UPDATE messages SET owner_zalo_id = ? WHERE owner_zalo_id = ? AND channel = 'facebook'`).run(fbAcc.facebook_id, sc.owner_zalo_id);
-                        Logger.log(`[DatabaseService] ✅ Migration B5: Fixed stale UUID ${sc.owner_zalo_id} → ${fbAcc.facebook_id}`);
-                    }
-                }
-            }
+            })();
+            Logger.log(`[DatabaseService] Successfully migrated legacy data to sharded DB for Zalo ID: ${zaloId}`);
         } catch (err: any) {
-            Logger.warn(`[DatabaseService] Migration B5 fix owner_zalo_id: ${err.message}`);
-        }
-
-        try {
-            const crmTagCols = this.query<any>(`PRAGMA table_info(crm_tags)`);
-            if (crmTagCols.length > 0 && !crmTagCols.some((c: any) => c.name === 'channel')) {
-                db!.exec(`ALTER TABLE crm_tags ADD COLUMN channel TEXT DEFAULT 'zalo'`);
-                db!.exec(`ALTER TABLE crm_contact_tags ADD COLUMN channel TEXT DEFAULT 'zalo'`);
-                db!.exec(`ALTER TABLE crm_notes ADD COLUMN channel TEXT DEFAULT 'zalo'`);
-                this.save();
-                Logger.log('[DatabaseService] ✅ Migration: added channel to CRM tables');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] Migration CRM channel: ${err.message}`);
-        }
-
-        // Migration: create friends table if missing
-        try {
-            const tables = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='friends'`);
-            if (tables.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS friends (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        owner_zalo_id TEXT NOT NULL,
-                        user_id TEXT NOT NULL,
-                        display_name TEXT DEFAULT '',
-                        avatar TEXT DEFAULT '',
-                        phone TEXT DEFAULT '',
-                        updated_at INTEGER DEFAULT 0,
-                        UNIQUE(owner_zalo_id, user_id)
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_friends_owner ON friends(owner_zalo_id)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created friends table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] Friends table migration warning: ${err.message}`);
-        }
-
-        // Migration: create page_group_member table if missing
-        try {
-            const gmt = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='page_group_member'`);
-            if (gmt.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS page_group_member (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        owner_zalo_id TEXT NOT NULL,
-                        group_id TEXT NOT NULL,
-                        member_id TEXT NOT NULL,
-                        display_name TEXT DEFAULT '',
-                        avatar TEXT DEFAULT '',
-                        role INTEGER DEFAULT 0,
-                        updated_at INTEGER DEFAULT 0,
-                        UNIQUE(owner_zalo_id, group_id, member_id)
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_group_member ON page_group_member(owner_zalo_id, group_id)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created page_group_member table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] page_group_member migration warning: ${err.message}`);
-        }
-
-        // Migration: create friend_requests table if missing
-        try {
-            const frt = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='friend_requests'`);
-            if (frt.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS friend_requests (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        owner_zalo_id TEXT NOT NULL,
-                        user_id TEXT NOT NULL,
-                        display_name TEXT DEFAULT '',
-                        avatar TEXT DEFAULT '',
-                        phone TEXT DEFAULT '',
-                        direction TEXT NOT NULL DEFAULT 'received',
-                        msg TEXT DEFAULT '',
-                        created_at INTEGER DEFAULT 0,
-                        updated_at INTEGER DEFAULT 0,
-                        UNIQUE(owner_zalo_id, user_id, direction)
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_friend_requests_owner ON friend_requests(owner_zalo_id, direction)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created friend_requests table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] friend_requests migration warning: ${err.message}`);
-        }
-        try {
-            const st = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='stickers'`);
-            if (st.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS stickers (
-                        sticker_id INTEGER PRIMARY KEY,
-                        cat_id INTEGER DEFAULT 0,
-                        type INTEGER DEFAULT 0,
-                        text TEXT DEFAULT '',
-                        sticker_url TEXT DEFAULT '',
-                        sticker_sprite_url TEXT DEFAULT '',
-                        checksum TEXT DEFAULT '',
-                        data_json TEXT DEFAULT '{}',
-                        updated_at INTEGER DEFAULT 0
-                    )
-                `);
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS recent_stickers (
-                        sticker_id INTEGER PRIMARY KEY,
-                        used_at INTEGER NOT NULL
-                    )
-                `);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created stickers/recent_stickers tables');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] stickers migration warning: ${err.message}`);
-        }
-
-        // Migration: add unsupported column to stickers + sticker_packs table
-        try {
-            const cols = this.query<any>(`PRAGMA table_info(stickers)`);
-            if (cols.length > 0 && !cols.find((c: any) => c.name === 'unsupported')) {
-                db!.exec(`ALTER TABLE stickers ADD COLUMN unsupported INTEGER DEFAULT 0`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added unsupported column to stickers');
-            }
-            const sp = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='sticker_packs'`);
-            if (sp.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS sticker_packs (
-                        cat_id INTEGER PRIMARY KEY,
-                        name TEXT DEFAULT '',
-                        thumb_url TEXT DEFAULT '',
-                        sticker_count INTEGER DEFAULT 0,
-                        data_json TEXT DEFAULT '{}',
-                        updated_at INTEGER DEFAULT 0
-                    )
-                `);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created sticker_packs table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] sticker_packs migration warning: ${err.message}`);
-        }
-
-        // Migration: create keyword_stickers table if missing
-        try {
-            const ks = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='keyword_stickers'`);
-            if (ks.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS keyword_stickers (
-                        keyword TEXT PRIMARY KEY,
-                        sticker_ids TEXT DEFAULT '[]',
-                        updated_at INTEGER DEFAULT 0
-                    )
-                `);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created keyword_stickers table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] keyword_stickers migration warning: ${err.message}`);
-        }
-
-        // Migration: create pinned_messages table if missing
-        try {
-            const pm = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='pinned_messages'`);
-            if (pm.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS pinned_messages (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        owner_zalo_id TEXT NOT NULL,
-                        thread_id TEXT NOT NULL,
-                        msg_id TEXT NOT NULL,
-                        msg_type TEXT NOT NULL DEFAULT 'text',
-                        content TEXT NOT NULL DEFAULT '',
-                        preview_text TEXT DEFAULT '',
-                        preview_image TEXT DEFAULT '',
-                        sender_id TEXT DEFAULT '',
-                        sender_name TEXT DEFAULT '',
-                        timestamp INTEGER NOT NULL DEFAULT 0,
-                        pinned_at INTEGER NOT NULL DEFAULT 0,
-                        UNIQUE(owner_zalo_id, thread_id, msg_id)
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_pinned ON pinned_messages(owner_zalo_id, thread_id, pinned_at)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created pinned_messages table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] pinned_messages migration warning: ${err.message}`);
-        }
-
-        // Migration: create local_quick_messages table if missing
-        try {
-            const lqm = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='local_quick_messages'`);
-            if (lqm.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS local_quick_messages (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        owner_zalo_id TEXT NOT NULL,
-                        keyword TEXT NOT NULL,
-                        title TEXT NOT NULL DEFAULT '',
-                        media_json TEXT DEFAULT NULL,
-                        created_at INTEGER NOT NULL DEFAULT 0,
-                        updated_at INTEGER NOT NULL DEFAULT 0,
-                        UNIQUE(owner_zalo_id, keyword)
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_lqm_owner ON local_quick_messages(owner_zalo_id)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created local_quick_messages table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] local_quick_messages migration warning: ${err.message}`);
-        }
-        // Migration: add phone column to accounts if missing
-        try {
-            const cols = this.query<any>(`PRAGMA table_info(accounts)`);
-            if (!cols.some((c: any) => c.name === 'phone')) {
-                db!.exec(`ALTER TABLE accounts ADD COLUMN phone TEXT DEFAULT ''`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added phone column to accounts');
-            }
-            if (!cols.some((c: any) => c.name === 'is_business')) {
-                db!.exec(`ALTER TABLE accounts ADD COLUMN is_business INTEGER DEFAULT 0`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added is_business column to accounts');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] accounts migration warning: ${err.message}`);
-        }
-
-        // Migration: add alias column to contacts if missing
-        try {
-            const contactCols = this.query<any>(`PRAGMA table_info(contacts)`);
-            const names = contactCols.map((c: any) => c.name);
-            let needSave = false;
-            if (!names.includes('is_muted')) {
-                db!.exec(`ALTER TABLE contacts ADD COLUMN is_muted INTEGER DEFAULT 0`);
-                Logger.log('[DatabaseService] Migration: added is_muted to contacts');
-                needSave = true;
-            }
-            if (!names.includes('mute_until')) {
-                db!.exec(`ALTER TABLE contacts ADD COLUMN mute_until INTEGER DEFAULT 0`);
-                Logger.log('[DatabaseService] Migration: added mute_until to contacts');
-                needSave = true;
-            }
-            if (!names.includes('is_in_others')) {
-                db!.exec(`ALTER TABLE contacts ADD COLUMN is_in_others INTEGER DEFAULT 0`);
-                Logger.log('[DatabaseService] Migration: added is_in_others to contacts');
-                needSave = true;
-            }
-            if (!names.includes('alias')) {
-                db!.exec(`ALTER TABLE contacts ADD COLUMN alias TEXT DEFAULT ''`);
-                Logger.log('[DatabaseService] Migration: added alias to contacts');
-                needSave = true;
-            }
-            if (!names.includes('gender')) {
-                db!.exec(`ALTER TABLE contacts ADD COLUMN gender INTEGER DEFAULT NULL`);
-                Logger.log('[DatabaseService] Migration: added gender to contacts');
-                needSave = true;
-            }
-            if (!names.includes('birthday')) {
-                db!.exec(`ALTER TABLE contacts ADD COLUMN birthday TEXT DEFAULT NULL`);
-                Logger.log('[DatabaseService] Migration: added birthday to contacts');
-                needSave = true;
-            }
-            if (needSave) this.save();
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] contacts flags migration warning: ${err.message}`);
-        }
-
-        // Migration: add display_name and phone to crm_send_log if missing
-        try {
-            const logCols = this.query<any>(`PRAGMA table_info(crm_send_log)`);
-            const logColNames = logCols.map((c: any) => c.name);
-            let needSave = false;
-            if (!logColNames.includes('display_name')) {
-                db!.exec(`ALTER TABLE crm_send_log ADD COLUMN display_name TEXT DEFAULT ''`);
-                Logger.log('[DatabaseService] Migration: added display_name to crm_send_log');
-                needSave = true;
-            }
-            if (!logColNames.includes('phone')) {
-                db!.exec(`ALTER TABLE crm_send_log ADD COLUMN phone TEXT DEFAULT ''`);
-                Logger.log('[DatabaseService] Migration: added phone to crm_send_log');
-                needSave = true;
-            }
-            if (!logColNames.includes('contact_type')) {
-                db!.exec(`ALTER TABLE crm_send_log ADD COLUMN contact_type TEXT DEFAULT 'user'`);
-                Logger.log('[DatabaseService] Migration: added contact_type to crm_send_log');
-                needSave = true;
-            }
-            if (!logColNames.includes('data_request')) {
-                db!.exec(`ALTER TABLE crm_send_log ADD COLUMN data_request TEXT DEFAULT ''`);
-                Logger.log('[DatabaseService] Migration: added data_request to crm_send_log');
-                needSave = true;
-            }
-            if (!logColNames.includes('data_response')) {
-                db!.exec(`ALTER TABLE crm_send_log ADD COLUMN data_response TEXT DEFAULT ''`);
-                Logger.log('[DatabaseService] Migration: added data_response to crm_send_log');
-                needSave = true;
-            }
-            if (!logColNames.includes('send_type')) {
-                db!.exec(`ALTER TABLE crm_send_log ADD COLUMN send_type TEXT DEFAULT ''`);
-                Logger.log('[DatabaseService] Migration: added send_type to crm_send_log');
-                needSave = true;
-            }
-            if (needSave) this.save();
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] crm_send_log migration warning: ${err.message}`);
-        }
-
-        // Migration: add text_color to local_labels if missing
-        try {
-            const llCols = this.query<any>(`PRAGMA table_info(local_labels)`);
-            if (llCols.length > 0 && !llCols.some((c: any) => c.name === 'text_color')) {
-                db!.exec(`ALTER TABLE local_labels ADD COLUMN text_color TEXT NOT NULL DEFAULT '#FFFFFF'`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added text_color to local_labels');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] local_labels text_color migration: ${err.message}`);
-        }
-
-        // Migration: add is_active + sort_order to local_quick_messages
-        try {
-            const lqmCols = this.query<any>(`PRAGMA table_info(local_quick_messages)`);
-            if (lqmCols.length > 0) {
-                const lqmNames = lqmCols.map((c: any) => c.name);
-                if (!lqmNames.includes('is_active')) {
-                    db!.exec(`ALTER TABLE local_quick_messages ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1`);
-                    Logger.log('[DatabaseService] Migration: added is_active to local_quick_messages');
-                }
-                if (!lqmNames.includes('sort_order')) {
-                    db!.exec(`ALTER TABLE local_quick_messages ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`);
-                    Logger.log('[DatabaseService] Migration: added sort_order to local_quick_messages');
-                }
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] local_quick_messages is_active/sort_order migration: ${err.message}`);
-        }
-
-        // Migration: add is_active + sort_order + shortcut to local_labels
-        try {
-            const llCols2 = this.query<any>(`PRAGMA table_info(local_labels)`);
-            if (llCols2.length > 0) {
-                const llNames2 = llCols2.map((c: any) => c.name);
-                if (!llNames2.includes('is_active')) {
-                    db!.exec(`ALTER TABLE local_labels ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1`);
-                    Logger.log('[DatabaseService] Migration: added is_active to local_labels');
-                }
-                if (!llNames2.includes('sort_order')) {
-                    db!.exec(`ALTER TABLE local_labels ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`);
-                    Logger.log('[DatabaseService] Migration: added sort_order to local_labels');
-                }
-                if (!llNames2.includes('shortcut')) {
-                    db!.exec(`ALTER TABLE local_labels ADD COLUMN shortcut TEXT NOT NULL DEFAULT ''`);
-                    Logger.log('[DatabaseService] Migration: added shortcut to local_labels');
-                }
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] local_labels is_active/sort_order/shortcut migration: ${err.message}`);
-        }
-
-        // Migration: add context_message_count to ai_assistants if missing
-        try {
-            const aiCols = this.query<any>(`PRAGMA table_info(ai_assistants)`);
-            if (aiCols.length > 0 && !aiCols.some((c: any) => c.name === 'context_message_count')) {
-                db!.exec(`ALTER TABLE ai_assistants ADD COLUMN context_message_count INTEGER NOT NULL DEFAULT 30`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added context_message_count to ai_assistants');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] ai_assistants context_message_count migration: ${err.message}`);
-        }
-
-        // Migration: add pinned_products_json to ai_assistants if missing
-        try {
-            const aiCols2 = this.query<any>(`PRAGMA table_info(ai_assistants)`);
-            if (aiCols2.length > 0 && !aiCols2.some((c: any) => c.name === 'pinned_products_json')) {
-                db!.exec(`ALTER TABLE ai_assistants ADD COLUMN pinned_products_json TEXT NOT NULL DEFAULT '[]'`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added pinned_products_json to ai_assistants');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] pinned_products_json migration: ${err.message}`);
-        }
-
-        // Migration: add custom_url to ai_assistants if missing
-        try {
-            const aiCols3 = this.query<any>(`PRAGMA table_info(ai_assistants)`);
-            if (aiCols3.length > 0 && !aiCols3.some((c: any) => c.name === 'custom_url')) {
-                db!.exec(`ALTER TABLE ai_assistants ADD COLUMN custom_url TEXT DEFAULT ''`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added custom_url to ai_assistants');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] custom_url migration: ${err.message}`);
-        }
-
-        // Migration: create ai_account_assistants table for per-account assistant assignment
-        try {
-            const aat = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='ai_account_assistants'`);
-            if (aat.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS ai_account_assistants (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        zalo_id TEXT NOT NULL,
-                        role TEXT NOT NULL CHECK(role IN ('suggestion', 'panel')),
-                        assistant_id TEXT NOT NULL,
-                        UNIQUE(zalo_id, role),
-                        FOREIGN KEY(assistant_id) REFERENCES ai_assistants(id) ON DELETE CASCADE
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_ai_account_role ON ai_account_assistants(zalo_id, role)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created ai_account_assistants table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] ai_account_assistants migration: ${err.message}`);
-        }
-
-        // Migration: create ai_usage_logs table for tracking AI usage
-        try {
-            const aul = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='ai_usage_logs'`);
-            if (aul.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS ai_usage_logs (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        assistant_id TEXT NOT NULL,
-                        assistant_name TEXT DEFAULT '',
-                        platform TEXT DEFAULT '',
-                        model TEXT DEFAULT '',
-                        prompt_text TEXT DEFAULT '',
-                        response_text TEXT DEFAULT '',
-                        prompt_tokens INTEGER DEFAULT 0,
-                        completion_tokens INTEGER DEFAULT 0,
-                        total_tokens INTEGER DEFAULT 0,
-                        created_at INTEGER NOT NULL DEFAULT 0
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_ai_usage_date ON ai_usage_logs(created_at)`);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_ai_usage_assistant ON ai_usage_logs(assistant_id, created_at)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created ai_usage_logs table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] ai_usage_logs migration: ${err.message}`);
-        }
-
-        // Migration: create message_drafts table if missing
-        try {
-            const md = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='message_drafts'`);
-            if (md.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS message_drafts (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        owner_zalo_id TEXT NOT NULL,
-                        thread_id TEXT NOT NULL,
-                        content TEXT NOT NULL DEFAULT '',
-                        updated_at INTEGER NOT NULL DEFAULT 0,
-                        UNIQUE(owner_zalo_id, thread_id)
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_drafts_owner ON message_drafts(owner_zalo_id)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created message_drafts table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] message_drafts migration: ${err.message}`);
-        }
-
-        // Migration: create bank_cards table if missing
-        try {
-            const bc = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='bank_cards'`);
-            if (bc.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS bank_cards (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        owner_zalo_id TEXT NOT NULL,
-                        bank_name TEXT NOT NULL DEFAULT '',
-                        bin_bank INTEGER NOT NULL DEFAULT 0,
-                        account_number TEXT NOT NULL DEFAULT '',
-                        account_name TEXT NOT NULL DEFAULT '',
-                        is_default INTEGER NOT NULL DEFAULT 0,
-                        created_at INTEGER NOT NULL DEFAULT 0,
-                        updated_at INTEGER NOT NULL DEFAULT 0
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_bank_cards_owner ON bank_cards(owner_zalo_id)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created bank_cards table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] bank_cards migration: ${err.message}`);
-        }
-
-        // Migration: create local_pinned_conversations table if missing
-        try {
-            const lpc = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='local_pinned_conversations'`);
-            if (lpc.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS local_pinned_conversations (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        owner_zalo_id TEXT NOT NULL,
-                        thread_id TEXT NOT NULL,
-                        pinned_at INTEGER NOT NULL DEFAULT 0,
-                        UNIQUE(owner_zalo_id, thread_id)
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_lpc_owner ON local_pinned_conversations(owner_zalo_id, pinned_at DESC)`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created local_pinned_conversations table');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] local_pinned_conversations migration: ${err.message}`);
-        }
-
-        // Migration: add topic_id and contact_type to crm_notes if missing
-        try {
-            const noteCols = this.query<any>(`PRAGMA table_info(crm_notes)`);
-            if (noteCols.length > 0) {
-                const noteColNames = noteCols.map((c: any) => c.name);
-                let needSave = false;
-                if (!noteColNames.includes('topic_id')) {
-                    db!.exec(`ALTER TABLE crm_notes ADD COLUMN topic_id TEXT DEFAULT NULL`);
-                    Logger.log('[DatabaseService] Migration: added topic_id to crm_notes');
-                    needSave = true;
-                }
-                if (!noteColNames.includes('contact_type')) {
-                    db!.exec(`ALTER TABLE crm_notes ADD COLUMN contact_type TEXT NOT NULL DEFAULT 'user'`);
-                    Logger.log('[DatabaseService] Migration: added contact_type to crm_notes');
-                    needSave = true;
-                }
-                if (needSave) this.save();
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] crm_notes migration: ${err.message}`);
-        }
-
-        // Migration: create employee management tables
-        try {
-            const empT = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='employees'`);
-            if (empT.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS employees (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        employee_id TEXT NOT NULL UNIQUE,
-                        username TEXT NOT NULL UNIQUE,
-                        password_hash TEXT NOT NULL,
-                        display_name TEXT NOT NULL,
-                        avatar_url TEXT DEFAULT '',
-                        role TEXT NOT NULL DEFAULT 'employee',
-                        is_active INTEGER NOT NULL DEFAULT 1,
-                        created_at INTEGER NOT NULL,
-                        updated_at INTEGER NOT NULL,
-                        last_login INTEGER DEFAULT NULL
-                    )
-                `);
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS employee_permissions (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        employee_id TEXT NOT NULL,
-                        module TEXT NOT NULL,
-                        can_access INTEGER NOT NULL DEFAULT 0,
-                        UNIQUE(employee_id, module),
-                        FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE
-                    )
-                `);
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS employee_account_access (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        employee_id TEXT NOT NULL,
-                        zalo_id TEXT NOT NULL,
-                        UNIQUE(employee_id, zalo_id),
-                        FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE
-                    )
-                `);
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS employee_message_log (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        employee_id TEXT NOT NULL,
-                        zalo_id TEXT NOT NULL,
-                        thread_id TEXT NOT NULL,
-                        thread_type INTEGER NOT NULL DEFAULT 0,
-                        msg_id TEXT,
-                        action TEXT NOT NULL,
-                        metadata TEXT DEFAULT '{}',
-                        timestamp INTEGER NOT NULL
-                    )
-                `);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_emp_msg_log_employee ON employee_message_log(employee_id)`);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_emp_msg_log_zalo ON employee_message_log(zalo_id)`);
-                db!.exec(`CREATE INDEX IF NOT EXISTS idx_emp_msg_log_ts ON employee_message_log(timestamp)`);
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS employee_sessions (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        employee_id TEXT NOT NULL,
-                        machine_name TEXT DEFAULT '',
-                        ip_address TEXT DEFAULT '',
-                        connected_at INTEGER NOT NULL,
-                        disconnected_at INTEGER DEFAULT NULL,
-                        FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE
-                    )
-                `);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created employee management tables (employees, employee_permissions, employee_account_access, employee_message_log, employee_sessions)');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] employee tables migration: ${err.message}`);
-        }
-
-        // Migration: create employee_groups table + add group_id to employees
-        try {
-            const grpT = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='employee_groups'`);
-            if (grpT.length === 0) {
-                db!.exec(`
-                    CREATE TABLE IF NOT EXISTS employee_groups (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        group_id TEXT NOT NULL UNIQUE,
-                        name TEXT NOT NULL,
-                        color TEXT DEFAULT '',
-                        sort_order INTEGER DEFAULT 0,
-                        created_at INTEGER NOT NULL
-                    )
-                `);
-                this.save();
-                Logger.log('[DatabaseService] Migration: created employee_groups table');
-            }
-            // Add group_id column to employees if missing
-            const empCols = this.query<any>(`PRAGMA table_info(employees)`);
-            if (empCols.length > 0 && !empCols.some((c: any) => c.name === 'group_id')) {
-                db!.exec(`ALTER TABLE employees ADD COLUMN group_id TEXT DEFAULT NULL`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added group_id to employees');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] employee_groups migration: ${err.message}`);
-        }
-
-        // Migration: add handled_by_employee column to messages if missing
-        try {
-            const msgCols = this.query<any>(`PRAGMA table_info(messages)`);
-            if (msgCols.length > 0 && !msgCols.some((c: any) => c.name === 'handled_by_employee')) {
-                db!.exec(`ALTER TABLE messages ADD COLUMN handled_by_employee TEXT DEFAULT NULL`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added handled_by_employee to messages');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] handled_by_employee migration: ${err.message}`);
-        }
-
-        // Migration: add allowed_groups, allowed_tags, exclude_blocked to employee_account_access and is_blocked to contacts
-        try {
-            const accessCols = this.query<any>(`PRAGMA table_info(employee_account_access)`);
-            if (accessCols.length > 0) {
-                let accessNeedSave = false;
-                if (!accessCols.some((c: any) => c.name === 'allowed_groups')) {
-                    db!.exec(`ALTER TABLE employee_account_access ADD COLUMN allowed_groups TEXT DEFAULT ''`);
-                    Logger.log('[DatabaseService] Migration: added allowed_groups to employee_account_access');
-                    accessNeedSave = true;
-                }
-                if (!accessCols.some((c: any) => c.name === 'allowed_tags')) {
-                    db!.exec(`ALTER TABLE employee_account_access ADD COLUMN allowed_tags TEXT DEFAULT ''`);
-                    Logger.log('[DatabaseService] Migration: added allowed_tags to employee_account_access');
-                    accessNeedSave = true;
-                }
-                if (!accessCols.some((c: any) => c.name === 'exclude_blocked')) {
-                    db!.exec(`ALTER TABLE employee_account_access ADD COLUMN exclude_blocked INTEGER DEFAULT 0`);
-                    Logger.log('[DatabaseService] Migration: added exclude_blocked to employee_account_access');
-                    accessNeedSave = true;
-                }
-                if (accessNeedSave) {
-                    this.save();
-                }
-            }
-
-            const contactCols = this.query<any>(`PRAGMA table_info(contacts)`);
-            if (contactCols.length > 0 && !contactCols.some((c: any) => c.name === 'is_blocked')) {
-                db!.exec(`ALTER TABLE contacts ADD COLUMN is_blocked INTEGER DEFAULT 0`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added is_blocked to contacts');
-            }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] employee_account_access/contacts columns migration: ${err.message}`);
+            Logger.error(`[DatabaseService] Error migrating legacy data to sharded DB for ${zaloId}: ${err.message}`);
         }
     }
 
@@ -3702,15 +2126,24 @@ class DatabaseService {
     }
 
     public close(): void {
-        if (db) {
-            try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch {}
-            db.close();
-            db = null;
+        try {
+            this.forceFlush();
+        } catch {}
+        if (_mainDb) {
+            try { _mainDb.close(); } catch {}
+            _mainDb = null;
         }
+        this.closeShardedConnections();
+        closeCachedSecondaryDb();
+        this.initialized = false;
     }
 
     public getDbPath(): string {
         return this.dbPath;
+    }
+
+    public getOpenShardedConnections(): Map<string, BetterSqlite3.Database> {
+        return this.shardedConnections;
     }
 
     // ─── Link Operations ──────────────────────────────────────────────
@@ -4858,7 +3291,7 @@ class DatabaseService {
                     `SELECT contact_id, COALESCE(alias,'') as alias, COALESCE(display_name,'') as display_name,
                         COALESCE(avatar_url,'') as avatar, '' as phone,
                         0 as is_friend, COALESCE(last_message_time,0) as last_message_time, 'group' as contact_type,
-                        gender, birthday
+                        gender, birthday, pipeline_stage_id, ai_sentiment, ai_intent
                      FROM contacts WHERE owner_zalo_id=? AND contact_type='group'
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -4872,7 +3305,7 @@ class DatabaseService {
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_sentiment, c.ai_intent
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -4887,7 +3320,7 @@ class DatabaseService {
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_sentiment, c.ai_intent
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -4899,7 +3332,7 @@ class DatabaseService {
                         COALESCE(avatar_url,'') as avatar, COALESCE(phone,'') as phone,
                         is_friend, COALESCE(last_message_time,0) as last_message_time,
                         COALESCE(contact_type,'user') as contact_type,
-                        gender, birthday
+                        gender, birthday, pipeline_stage_id, ai_sentiment, ai_intent
                      FROM contacts WHERE owner_zalo_id=?
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -5810,6 +4243,10 @@ class DatabaseService {
     }
 
     // ─── Workflow Engine ──────────────────────────────────────────────────────
+
+    private normalizeWorkflowChannel(channel?: string): string {
+        return channel === 'facebook' ? 'facebook' : 'zalo';
+    }
 
     public getWorkflows(): any[] {
         if (!this.initialized) return [];
@@ -7106,6 +5543,60 @@ class DatabaseService {
             `SELECT * FROM fb_crm_contacts WHERE fb_account_id = ? ORDER BY display_name ASC`,
             [fbAccountId]
         );
+    }
+
+    // ── CRM Pipeline Stages & AI Insights ──
+
+    public getPipelineStages(): any[] {
+        if (!this.initialized) return [];
+        return this.query(`SELECT * FROM crm_pipeline_stages ORDER BY position ASC`);
+    }
+
+    public savePipelineStage(stage: { id?: number; name: string; color: string; position: number }): number {
+        if (!this.initialized) return 0;
+        const now = Date.now();
+        if (stage.id) {
+            this.run(
+                `UPDATE crm_pipeline_stages SET name = ?, color = ?, position = ? WHERE id = ?`,
+                [stage.name, stage.color, stage.position, stage.id]
+            );
+            this.save();
+            return stage.id;
+        } else {
+            const id = this.runInsert(
+                `INSERT INTO crm_pipeline_stages (name, color, position, created_at) VALUES (?, ?, ?, ?)`,
+                [stage.name, stage.color, stage.position, now]
+            );
+            this.save();
+            return id;
+        }
+    }
+
+    public deletePipelineStage(id: number): void {
+        if (!this.initialized) return;
+        this.transaction(() => {
+            this.run(`DELETE FROM crm_pipeline_stages WHERE id = ?`, [id]);
+            this.run(`UPDATE contacts SET pipeline_stage_id = NULL WHERE pipeline_stage_id = ?`, [id]);
+        });
+        this.save();
+    }
+
+    public updateContactPipelineStage(ownerZaloId: string, contactId: string, stageId: number | null): void {
+        if (!this.initialized) return;
+        this.run(
+            `UPDATE contacts SET pipeline_stage_id = ? WHERE owner_zalo_id = ? AND contact_id = ?`,
+            [stageId, ownerZaloId, contactId]
+        );
+        this.save();
+    }
+
+    public updateContactAiInsights(ownerZaloId: string, contactId: string, sentiment: string | null, intent: string | null): void {
+        if (!this.initialized) return;
+        this.run(
+            `UPDATE contacts SET ai_sentiment = ?, ai_intent = ? WHERE owner_zalo_id = ? AND contact_id = ?`,
+            [sentiment, intent, ownerZaloId, contactId]
+        );
+        this.save();
     }
 }
 

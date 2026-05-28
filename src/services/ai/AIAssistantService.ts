@@ -782,6 +782,166 @@ VÍ DỤ ĐẦU RA ĐÚNG:
       return { success: false, models: [], error: `Không thể tải danh sách model (${status || 'timeout'}): ${msg}` };
     }
   }
+
+  /**
+   * Analyze contact sentiment and intent based on the 20 most recent messages.
+   */
+  public async analyzeContact(ownerZaloId: string, contactId: string): Promise<{ sentiment: string; intent: string }> {
+    const db = DatabaseService.getInstance();
+    // Get 20 most recent messages
+    const messages = db.getMessages(ownerZaloId, contactId, 20, 0);
+    if (!messages || messages.length === 0) {
+      return { sentiment: 'Trung lập', intent: 'Khác' };
+    }
+
+    // Sort chronologically (oldest to newest)
+    const messagesText = messages
+      .slice()
+      .reverse()
+      .map((m: any) => `${m.sender_id === ownerZaloId ? 'Người bán' : 'Khách hàng'}: ${m.content}`)
+      .join('\n');
+
+    const assistant = this.getDefaultAssistant();
+    if (!assistant) {
+      throw new Error('Chưa cấu hình trợ lý AI mặc định hoặc không có trợ lý nào được bật');
+    }
+
+    const systemPrompt = `Bạn là một AI chuyên phân tích tin nhắn hội thoại chăm sóc khách hàng.
+Hãy đọc lịch sử 20 tin nhắn gần nhất giữa người bán và khách hàng dưới đây, phân tích cảm xúc hiện tại của khách hàng (Sentiment) và ý định hiện tại của khách hàng (Intent).
+
+Cảm xúc (Sentiment) phải là một trong các giá trị sau: "Tích cực", "Tiêu cực", "Trung lập".
+Ý định (Intent) phải là một trong các giá trị sau: "Hỏi giá", "Mua hàng", "Khiếu nại", "Cần hỗ trợ", "Khác".
+
+Đầu ra BẮT BUỘC phải là một đối tượng JSON hợp lệ gồm 2 trường:
+{
+  "sentiment": "Tích cực" | "Tiêu cực" | "Trung lập",
+  "intent": "Hỏi giá" | "Mua hàng" | "Khiếu nại" | "Cần hỗ trợ" | "Khác"
+}
+KHÔNG giải thích gì thêm, chỉ trả về đúng chuỗi JSON.`;
+
+    const chatMessages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Lịch sử tin nhắn:\n${messagesText}` }
+    ];
+
+    const { result } = await this.callLLM(assistant, chatMessages, 300);
+    Logger.info(`[AIAssistant] analyzeContact LLM raw output: ${result}`);
+
+    let sentiment = 'Trung lập';
+    let intent = 'Khác';
+
+    try {
+      const jsonMatch = result.match(/{[\s\S]*}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.sentiment) sentiment = parsed.sentiment;
+        if (parsed.intent) intent = parsed.intent;
+      }
+    } catch (e: any) {
+      Logger.error(`[AIAssistant] Failed to parse sentiment/intent JSON: ${e.message}`);
+    }
+
+    // Save to DB
+    db.updateContactAiInsights(ownerZaloId, contactId, sentiment, intent);
+
+    return { sentiment, intent };
+  }
+
+  /**
+   * Summarize all crm notes for a contact using LLM
+   */
+  public async batchSummarizeContactNotes(ownerZaloId: string, contactId: string): Promise<string> {
+    const db = DatabaseService.getInstance();
+    const notes = db.getCRMNotes(ownerZaloId, contactId);
+    if (!notes || notes.length === 0) {
+      return 'Không có ghi chú nào để tóm tắt.';
+    }
+
+    const notesText = notes
+      .map((n: any, idx: number) => `Ghi chú ${idx + 1} (${new Date(n.created_at).toLocaleDateString('vi-VN')}): ${n.content}`)
+      .join('\n');
+
+    const assistant = this.getDefaultAssistant();
+    if (!assistant) {
+      throw new Error('Chưa cấu hình trợ lý AI mặc định hoặc không có trợ lý nào được bật');
+    }
+
+    const systemPrompt = `Bạn là trợ lý AI thông minh chuyên tóm tắt ghi chú CRM của khách hàng.
+Hãy đọc danh sách các ghi chú chăm sóc khách hàng bên dưới và tạo ra một bản tóm tắt ngắn gọn (dưới 150 từ), tổng hợp các thông tin chính về nhu cầu, lịch sử mua hàng, và trạng thái hiện tại của khách hàng này.
+Yêu cầu: Trả lời ngắn gọn, súc tích bằng tiếng Việt.`;
+
+    const chatMessages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Danh sách ghi chú:\n${notesText}` }
+    ];
+
+    const { result } = await this.callLLM(assistant, chatMessages, 500);
+    return result;
+  }
+
+  /**
+   * Suggest relevant local or Zalo labels for a contact based on recent chat history and notes
+   */
+  public async suggestSmartTags(ownerZaloId: string, contactId: string): Promise<string[]> {
+    const db = DatabaseService.getInstance();
+    // 1. Get recent messages
+    const messages = db.getMessages(ownerZaloId, contactId, 15, 0);
+    const messagesText = messages
+      ? messages.slice().reverse().map((m: any) => `${m.sender_id === ownerZaloId ? 'Người bán' : 'Khách hàng'}: ${m.content}`).join('\n')
+      : '';
+
+    // 2. Get recent notes
+    const notes = db.getCRMNotes(ownerZaloId, contactId);
+    const notesText = notes
+      ? notes.map((n: any) => n.content).join('\n')
+      : '';
+
+    // 3. Get existing local & Zalo labels for context
+    const zaloLabelsList = db.query(`SELECT DISTINCT name FROM local_labels WHERE owner_zalo_id = ?`, [ownerZaloId]);
+    const labelsPool = zaloLabelsList.map((l: any) => l.name || '').filter(Boolean);
+    
+    // Add default common labels in Vietnamese if pool is empty
+    if (labelsPool.length === 0) {
+      labelsPool.push('Khách tiềm năng', 'Đã mua hàng', 'VIP', 'Cần chăm sóc', 'Hỏi giá', 'Khiếu nại', 'Hẹn gọi lại');
+    }
+
+    const assistant = this.getDefaultAssistant();
+    if (!assistant) {
+      throw new Error('Chưa cấu hình trợ lý AI mặc định hoặc không có trợ lý nào được bật');
+    }
+
+    const systemPrompt = `Bạn là trợ lý AI chuyên đề xuất nhãn phân loại khách hàng.
+Dựa trên lịch sử hội thoại và ghi chú chăm sóc khách hàng dưới đây, hãy chọn ra đúng từ 1 đến 3 nhãn phân loại phù hợp nhất cho khách hàng này từ danh sách nhãn có sẵn bên dưới.
+Nếu không có nhãn nào trong danh sách thực sự phù hợp, bạn có thể tự đề xuất tối đa 2 nhãn mới cực kỳ ngắn gọn (chỉ 2-3 từ).
+
+Danh sách nhãn có sẵn:
+${labelsPool.map(l => `- ${l}`).join('\n')}
+
+Đầu ra BẮT BUỘC phải là đối tượng JSON chứa danh sách các nhãn đề xuất dạng:
+{
+  "tags": ["Tên nhãn 1", "Tên nhãn 2"]
+}
+KHÔNG giải thích gì thêm, chỉ trả về đúng chuỗi JSON.`;
+
+    const chatMessages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Lịch sử tin nhắn:\n${messagesText}\n\nGhi chú chăm sóc:\n${notesText}` }
+    ];
+
+    try {
+      const { result } = await this.callLLM(assistant, chatMessages, 300);
+      const jsonMatch = result.match(/{[\s\S]*}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(parsed.tags)) {
+          return parsed.tags.map((t: any) => String(t).trim()).filter(Boolean);
+        }
+      }
+    } catch (e: any) {
+      Logger.error(`[AIAssistant] suggestSmartTags parsing error: ${e.message}`);
+    }
+    return [];
+  }
 }
 
 export default AIAssistantService;

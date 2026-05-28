@@ -718,6 +718,23 @@ export function useZaloEvents() {
     return unsub;
   }, []);
 
+  // ── event:ai:contact-analyzed → update contact AI sentiment/intent ──────
+  useEffect(() => {
+    const unsub = ipc.on('ai:contact-analyzed', (data: any) => {
+      const { zaloId, contactId, sentiment, intent } = data;
+      if (!zaloId || !contactId) return;
+      const { updateContact } = useChatStore.getState();
+      if (updateContact) {
+        updateContact(zaloId, {
+          contact_id: contactId,
+          ai_sentiment: sentiment,
+          ai_intent: intent,
+        });
+      }
+    });
+    return unsub;
+  }, []);
+
   // ── Khi cửa sổ được focus lại → clear unread của thread đang active ──
   useEffect(() => {
     const handleFocus = () => {
@@ -866,7 +883,6 @@ export function useZaloEvents() {
       // Check if this message was sent by an employee (injected by EventBroadcaster)
       const empInfo = (message.data as any)?._employeeInfo;
       if (isSelf) {
-        console.log(`[useZaloEvents] 📩 isSelf message: msgId="${message.data?.msgId}", _employeeInfo=${empInfo ? JSON.stringify(empInfo) : 'NULL'}, threadId="${threadId}"`);
       }
 
       addMessage(zaloId, threadId, {
@@ -1033,7 +1049,6 @@ export function useZaloEvents() {
       if (!reaction) return;
 
       // Deep log để debug cấu trúc reaction
-      console.log('[useZaloEvents] 🎭 reaction raw:', JSON.stringify(reaction, null, 2));
 
       // Cấu trúc từ log: reaction.data chứa toàn bộ info
       const rData = reaction.data || {};
@@ -1050,7 +1065,6 @@ export function useZaloEvents() {
       const rawIcon = rData.content?.rIcon || reaction.content?.rIcon || reaction.rIcon || rData.rIcon || '';
       const emoji = reactionIconToEmoji(rawIcon);
 
-      console.log(`[useZaloEvents] 🎭 reaction: thread=${threadId} targetMsg=${targetMsgId} user=${userId} icon=${rawIcon} → ${emoji}`);
 
       if (threadId && targetMsgId) {
         updateMessageReaction(zaloId, threadId, targetMsgId, userId, emoji);
@@ -1394,7 +1408,6 @@ export function useZaloEvents() {
       const { zaloId, threadId, msgId, employee_id } = data;
       const employeeName: string = data.employee_name || '';
       const employeeAvatar: string = data.employee_avatar || '';
-      console.log(`[useZaloEvents] 📡 relay:messageSentByEmployee received: msgId="${msgId}", empId="${employee_id}", empName="${employeeName}", zaloId="${zaloId}", threadId="${threadId}"`);
       if (!zaloId || !threadId || !employee_id) return;
 
       // Cache employee name + avatar for display
@@ -1422,7 +1435,6 @@ export function useZaloEvents() {
             }
           }
         }
-        console.log(`[useZaloEvents] 📡 relay:messageSentByEmployee findIndex: idx=${idx}, totalMsgs=${msgs.length}, searching msgId="${msgId}"`);
         if (idx >= 0) {
           const updated = msgs.slice();
           updated[idx] = { ...updated[idx], handled_by_employee: employee_id } as any;

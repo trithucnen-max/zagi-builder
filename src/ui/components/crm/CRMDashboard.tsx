@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
+  FunnelChart, Funnel, LabelList,
 } from 'recharts';
 import { useCRMStore, ContactTypeFilter } from '@/store/crmStore';
 import { useAppStore, LabelData } from '@/store/appStore';
@@ -398,7 +399,9 @@ export default function CRMDashboard() {
     Promise.all([
       ipc.db?.getLocalLabels({ zaloId: activeAccountId }),
       ipc.db?.getLocalLabelThreads({ zaloId: activeAccountId }),
-    ]).then(([labelsRes, threadsRes]) => {
+      ipc.db?.getPipelineStages(),
+      ipc.crm?.getContacts({ zaloId: activeAccountId, opts: { limit: 1000, offset: 0 } })
+    ]).then(([labelsRes, threadsRes, stagesRes, contactsRes]) => {
       const lbls = (labelsRes?.labels || []).filter((l: any) => (l?.is_active ?? 1) === 1)
         .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.name || '').localeCompare(String(b.name || '')));
       setLocalLabels(lbls);
@@ -408,6 +411,13 @@ export default function CRMDashboard() {
         counts[lid] = (counts[lid] || 0) + 1;
       });
       setLocalLabelCounts(counts);
+
+      if (stagesRes?.success && stagesRes.stages) {
+        store.setPipelineStages(stagesRes.stages);
+      }
+      if (contactsRes?.success && contactsRes.contacts) {
+        store.setContacts(contactsRes.contacts, contactsRes.total);
+      }
     }).catch(() => {});
   }, [activeAccountId]);
 
@@ -448,6 +458,57 @@ export default function CRMDashboard() {
     'Thất bại': c.failed_count,
     'Phản hồi': c.replied_count,
   }));
+
+  const renderFunnelChart = () => {
+    const stages = store.pipelineStages || [];
+    const crmContacts = store.contacts || [];
+
+    const funnelData = stages
+      .map(stage => {
+        const count = crmContacts.filter(c => c.pipeline_stage_id === stage.id).length;
+        return {
+          value: count,
+          name: stage.name,
+          fill: stage.color || '#3b82f6',
+        };
+      })
+      .sort((a, b) => b.value - a.value);
+
+    const hasData = funnelData.some(d => d.value > 0);
+
+    if (!hasData) {
+      return (
+        <div className="flex flex-col items-center justify-center h-48 border border-dashed border-gray-700/50 rounded-xl bg-gray-900/10">
+          <span className="text-2xl mb-1">⏳</span>
+          <p className="text-xs text-gray-500">Chưa có liên hệ nào trong Phễu CRM</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="h-48 w-full mt-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <FunnelChart>
+            <Tooltip
+              contentStyle={{ backgroundColor: '#1f2937', borderColor: '#4b5563', borderRadius: '12px' }}
+              itemStyle={{ color: '#e5e7eb' }}
+            />
+            <Funnel
+              dataKey="value"
+              data={funnelData}
+              isAnimationActive
+            >
+              <LabelList position="right" fill="#9ca3af" stroke="none" dataKey="name" />
+              <LabelList position="center" fill="#fff" stroke="none" dataKey="value" />
+              {funnelData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.fill} />
+              ))}
+            </Funnel>
+          </FunnelChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
 
   return (
     <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -497,30 +558,39 @@ export default function CRMDashboard() {
         </div>
       </div>
 
-      {/* ── Row 2: Activity Stats ── */}
-      <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[14px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-            <span>💬</span> Hoạt động hội thoại
-          </h3>
-          <div className="flex bg-gray-700/60 rounded-lg p-0.5 gap-0.5">
-            {([
-              { key: 'day',    label: 'Theo ngày'  },
-              { key: 'week',   label: 'Theo tuần'  },
-              { key: 'month',  label: 'Theo tháng' },
-              { key: 'custom', label: 'Tuỳ chọn'  },
-            ] as const).map(({ key, label }) => (
-              <button key={key} onClick={() => setActivityPeriod(key)}
-                className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  activityPeriod === key ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'
-                }`}>
-                {label}
-              </button>
-            ))}
+      {/* ── Row 2: Activity Stats & Funnel Chart ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 bg-gray-800/50 border border-gray-700 rounded-2xl p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[14px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+              <span>💬</span> Hoạt động hội thoại
+            </h3>
+            <div className="flex bg-gray-700/60 rounded-lg p-0.5 gap-0.5">
+              {([
+                { key: 'day',    label: 'Theo ngày'  },
+                { key: 'week',   label: 'Theo tuần'  },
+                { key: 'month',  label: 'Theo tháng' },
+                { key: 'custom', label: 'Tuỳ chọn'  },
+              ] as const).map(({ key, label }) => (
+                <button key={key} onClick={() => setActivityPeriod(key)}
+                  className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                    activityPeriod === key ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {renderActivityContent()}
         </div>
 
-        {renderActivityContent()}
+        <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-4 flex flex-col">
+          <h3 className="text-[14px] font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <span>🌪️</span> Phễu chuyển đổi
+          </h3>
+          {renderFunnelChart()}
+        </div>
       </div>
 
       {/* ── Row 3: Labels (Local + Zalo tabs) ── */}

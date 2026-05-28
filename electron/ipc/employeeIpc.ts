@@ -7,6 +7,7 @@ import HttpConnectionManager from '../../src/services/http/HttpConnectionManager
 import HttpRelayService from '../../src/services/http/HttpRelayService';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
 import Logger from '../../src/utils/Logger';
+import { validateIpc, EmployeeCreateSchema, EmployeeLoginSchema, EmployeeUpdateSchema, EmployeeAssignAccountsSchema } from './ipcValidator';
 
 export function registerEmployeeIpc(): void {
     const svc = () => EmployeeService.getInstance();
@@ -35,11 +36,13 @@ export function registerEmployeeIpc(): void {
         }
     });
 
-    ipcMain.handle('employee:create', async (_e, params: {
+    ipcMain.handle('employee:create', async (_event, args: {
         username: string; password: string; display_name: string; avatar_url?: string; role?: 'boss' | 'employee';
     }) => {
+        const v = validateIpc(EmployeeCreateSchema, args);
+        if (!v.success) return v;
         try {
-            const result = await svc().createEmployee(params);
+            const result = await svc().createEmployee(v.data);
             if (result.employee) result.employee.password_hash = '' as any;
             return result;
         } catch (err: any) {
@@ -47,11 +50,13 @@ export function registerEmployeeIpc(): void {
         }
     });
 
-    ipcMain.handle('employee:update', async (_e, { employeeId, updates }: {
+    ipcMain.handle('employee:update', async (_event, args: {
         employeeId: string; updates: { display_name?: string; avatar_url?: string; password?: string; is_active?: number; role?: string; group_id?: string | null };
     }) => {
+        const v = validateIpc(EmployeeUpdateSchema, args);
+        if (!v.success) return v;
         try {
-            return svc().updateEmployee(employeeId, updates);
+            return svc().updateEmployee(v.data.employeeId, v.data.updates);
         } catch (err: any) {
             return { success: false, error: err.message };
         }
@@ -93,15 +98,17 @@ export function registerEmployeeIpc(): void {
 
     // ─── Account Access ──────────────────────────────────────────────
 
-    ipcMain.handle('employee:assignAccounts', async (_e, { employeeId, zaloIds }: {
+    ipcMain.handle('employee:assignAccounts', async (_event, args: {
         employeeId: string; zaloIds: string[];
     }) => {
+        const v = validateIpc(EmployeeAssignAccountsSchema, args);
+        if (!v.success) return v;
         try {
-            const result = svc().assignAccounts(employeeId, zaloIds);
-            Logger.log(`[employeeIpc] assignAccounts → employee=${employeeId} assigned=${zaloIds.length} success=${result.success} zaloIds=${JSON.stringify(zaloIds)}`);
+            const result = svc().assignAccounts(v.data.employeeId, v.data.zaloIds);
+            Logger.log(`[employeeIpc] assignAccounts → employee=${v.data.employeeId} assigned=${v.data.zaloIds.length} success=${result.success} zaloIds=${JSON.stringify(v.data.zaloIds)}`);
             if (result.success) {
-                HttpRelayService.getInstance().updateEmployeeRooms(employeeId, zaloIds);
-                HttpRelayService.getInstance().refreshEmployeeState(employeeId, 'accounts-assigned');
+                HttpRelayService.getInstance().updateEmployeeRooms(v.data.employeeId, v.data.zaloIds);
+                HttpRelayService.getInstance().refreshEmployeeState(v.data.employeeId, 'accounts-assigned');
             }
             return result;
         } catch (err: any) {
@@ -168,9 +175,11 @@ export function registerEmployeeIpc(): void {
 
     // ─── Auth (for employee login on employee machines) ──────────────
 
-    ipcMain.handle('employee:login', async (_e, { username, password }: { username: string; password: string }) => {
+    ipcMain.handle('employee:login', async (_event, args: { username: string; password: string }) => {
+        const v = validateIpc(EmployeeLoginSchema, args);
+        if (!v.success) return v;
         try {
-            const result = await svc().authenticate(username, password);
+            const result = await svc().authenticate(v.data.username, v.data.password);
             if (result.employee) result.employee.password_hash = '' as any;
             return result;
         } catch (err: any) {

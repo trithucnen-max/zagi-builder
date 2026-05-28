@@ -12,6 +12,7 @@ import MediaSection, { MediaDetailPanel, MediaTab } from './MediaSection';
 import { GroupActionSection } from './ConversationActions';
 import { syncZaloGroups, MemberPlaceholder } from '@/lib/zaloGroupUtils';
 import { getCapability, type Channel } from '../../../configs/channelConfig';
+import Logger from '../../../utils/Logger';
 
 type PanelView = 'info' | 'members' | 'manage' | 'media' | 'pending';
 
@@ -268,7 +269,6 @@ export default function GroupInfoPanel() {
 
     setLoading(true);
     try {
-      console.log('[GroupInfoPanel] fetchGroupInfo start, groupId=', threadId);
 
       // ── Step 1: getGroupInfo → name / avatar / member list ───────────────
       const res = await ipc.zalo?.getGroupInfo({ auth, groupId: threadId });
@@ -320,7 +320,6 @@ export default function GroupInfoPanel() {
       const memberIds: string[] = [...new Set(
         rawIds.map(id => String(id).replace(/_0$/, '').trim()).filter(id => /^\d+$/.test(id))
       )];
-      console.log('[GroupInfoPanel] memberIds:', memberIds.length, 'first3:', memberIds.slice(0, 3));
 
       // Build placeholders: empty displayName → forces full enrichment via syncZaloGroups
       const placeholders: MemberPlaceholder[] = memberIds.map(memberId => {
@@ -393,7 +392,7 @@ export default function GroupInfoPanel() {
       });
 
     } catch (e: any) {
-      console.error('[GroupInfoPanel] fetchGroupInfo error:', e?.message);
+      Logger.error('[GroupInfoPanel] fetchGroupInfo error:', e?.message);
       showNotification('Không thể tải thông tin nhóm', 'error');
     } finally {
       setLoading(false);

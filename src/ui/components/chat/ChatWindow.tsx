@@ -18,6 +18,7 @@ import { toLocalMediaUrl } from '@/lib/localMedia';
 import { formatPhone } from '@/utils/phoneUtils';
 import { PollDetailView as SharedPollDetailView } from './PollView';
 import { useEmployeeStore } from '@/store/employeeStore';
+import Logger from '../../../utils/Logger';
 
 const EMOJI_TO_REACTION: Record<string, string> = {
   '❤️': 'HEART', '👍': 'LIKE', '😄': 'HAHA', '😮': 'WOW', '😢': 'CRY', '😡': 'ANGRY',
@@ -852,7 +853,7 @@ export default function ChatWindow() {
         scrollAndHighlight(el2);
       }
     } catch (err) {
-      console.error('[handleScrollToMsg] Failed to load messages around target:', err);
+      Logger.error('[handleScrollToMsg] Failed to load messages around target:', err);
     }
   };
 
@@ -879,7 +880,7 @@ export default function ChatWindow() {
       if (el) el.scrollTop = el.scrollHeight;
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
-      console.error('[handleReturnToLatest]', e);
+      Logger.error('[handleReturnToLatest]', e);
     } finally {
       setLoadingLatest(false);
     }
@@ -1014,7 +1015,7 @@ export default function ChatWindow() {
         });
       }
     } catch (err) {
-      console.error('[openViewer] Failed to load full media gallery:', err);
+      Logger.error('[openViewer] Failed to load full media gallery:', err);
     }
   }, [activeAccountId, activeThreadId, buildImagesFromCurrentThread, buildImageEntry, dedupeViewerImages, findViewerIndex]);
 

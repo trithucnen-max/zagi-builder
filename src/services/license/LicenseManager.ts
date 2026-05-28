@@ -2,10 +2,38 @@ import { safeStorage, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
+import Logger from '../../utils/Logger';
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbzhNIEpifUJuwquObVZWfNPHFTrQEOuFkJ0mctF7XLn_XGOYSWryg4AI3f_Ik-xvGLMMg/exec';
-const API_SECRET = 'YOUR_SECRET_KEY_HERE_hanoi@123a';
+// ─── License API Configuration ────────────────────────────────────────────────
+// Endpoint và secret được đọc từ file config mã hóa khi khởi động.
+// Không bao giờ hardcode secret trong source code.
+const LICENSE_CONFIG = {
+  get apiUrl(): string {
+    return LicenseManager._runtimeConfig?.apiUrl
+      || process.env.LICENSE_API_URL
+      || 'https://script.google.com/macros/s/AKfycbzhNIEpifUJuwquObVZWfNPHFTrQEOuFkJ0mctF7XLn_XGOYSWryg4AI3f_Ik-xvGLMMg/exec';
+  },
+  get apiSecret(): string {
+    // Ưu tiên: runtime config (từ file mã hóa) > biến môi trường
+    return LicenseManager._runtimeConfig?.apiSecret
+      || process.env.LICENSE_API_SECRET
+      || '';
+  },
+};
+
 const CACHE_DAYS = 3;
+
+const PLAN_DETAILS: Record<string, { amount: number; durationName: string }> = {
+  'solo_6m': { amount: 2450000, durationName: 'Gói Solo 6 tháng' },
+  'solo_12m': { amount: 4450000, durationName: 'Gói Solo 12 tháng' },
+  'solo_lifetime': { amount: 7450000, durationName: 'Gói Solo Vĩnh viễn' },
+  'team_6m': { amount: 4900000, durationName: 'Gói Team 6 tháng' },
+  'team_12m': { amount: 8900000, durationName: 'Gói Team 12 tháng' },
+  'team_lifetime': { amount: 14900000, durationName: 'Gói Team Vĩnh viễn' },
+  '6m': { amount: 499000, durationName: 'Gói 6 tháng (cũ)' },
+  '12m': { amount: 799000, durationName: 'Gói 12 tháng (cũ)' },
+  'lifetime': { amount: 2000000, durationName: 'Gói Vĩnh viễn (cũ)' }
+};
 
 export interface LicenseInfo {
   email: string;
@@ -27,7 +55,14 @@ export interface RegisterParams {
   plan: string;
 }
 
-class LicenseManager {
+export class LicenseManager {
+  /** Runtime config được inject từ encrypted config file khi startup */
+  static _runtimeConfig: { apiUrl?: string; apiSecret?: string } | null = null;
+
+  /** Inject config từ encrypted source (gọi trong main process khi khởi động) */
+  static setRuntimeConfig(config: { apiUrl?: string; apiSecret?: string }): void {
+    LicenseManager._runtimeConfig = config;
+  }
   private getLicenseFile(): string {
     return path.join(app.getPath('userData'), 'license.dat');
   }
@@ -35,8 +70,8 @@ class LicenseManager {
   // === ĐĂNG KÝ LICENSE MỚI ===
   async register({ email, fullName, phone, plan }: RegisterParams): Promise<any> {
     try {
-      const response = await axios.post(API_URL, {
-        secret: API_SECRET,
+      const response = await axios.post(LICENSE_CONFIG.apiUrl, {
+        secret: LICENSE_CONFIG.apiSecret,
         action: 'register',
         email: email.trim().toLowerCase(),
         fullName: fullName || '',
@@ -48,6 +83,26 @@ class LicenseManager {
       });
       
       const result = response.data;
+      
+      // Override payment details and pricing for paid plans
+      if (result.success && result.pending) {
+        const details = PLAN_DETAILS[plan];
+        if (details) {
+          const newAmount = details.amount;
+          const transferContent = (result.paymentInfo && result.paymentInfo.transferContent)
+            || `ZAGI ${result.licenseKey || email.split('@')[0].toUpperCase()}`;
+          result.duration = details.durationName;
+          result.paymentInfo = {
+            bankName: 'Ngân hàng TMCP Kỹ thương Việt Nam (Techcombank) - CN Bờ Hồ',
+            accountNumber: '63666999',
+            accountName: 'CÔNG TY CỔ PHẦN BASAN',
+            companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, TP Hà Nội',
+            amount: newAmount,
+            transferContent: transferContent,
+            qrUrl: `https://img.vietqr.io/image/Techcombank-63666999-compact2.png?amount=${newAmount}&addInfo=${encodeURIComponent(transferContent)}&accountName=CONG%20TY%20CO%20PHAN%20BASAN`
+          };
+        }
+      }
       
       // Nếu là trial → auto activate luôn
       if (result.success && !result.pending && result.license) {
@@ -66,8 +121,8 @@ class LicenseManager {
   // === VERIFY (giữ nguyên + thêm licenseKey) ===
   async verifyEmail(email: string, licenseKey: string | null = null): Promise<any> {
     try {
-      const response = await axios.post(API_URL, {
-        secret: API_SECRET,
+      const response = await axios.post(LICENSE_CONFIG.apiUrl, {
+        secret: LICENSE_CONFIG.apiSecret,
         action: 'verify',
         email: email.trim().toLowerCase(),
         licenseKey: licenseKey
@@ -122,7 +177,7 @@ class LicenseManager {
         fs.writeFileSync(filePath, jsonStr);
       }
     } catch (err) {
-      console.error('Save error:', err);
+      Logger.error('Save error:', err);
     }
   }
   
@@ -218,7 +273,13 @@ class LicenseManager {
       'trial': 'Dùng thử', 
       '6m': 'Gói 6 tháng', 
       '12m': 'Gói 1 năm', 
-      'lifetime': 'Vĩnh viễn' 
+      'lifetime': 'Vĩnh viễn',
+      'solo_6m': 'Gói Solo 6 tháng',
+      'solo_12m': 'Gói Solo 12 tháng',
+      'solo_lifetime': 'Gói Solo Vĩnh viễn',
+      'team_6m': 'Gói Team 6 tháng',
+      'team_12m': 'Gói Team 12 tháng',
+      'team_lifetime': 'Gói Team Vĩnh viễn'
     };
     return plans[plan] || plan;
   }

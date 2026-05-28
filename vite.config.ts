@@ -48,8 +48,16 @@ function loadObfuscatorPlugin(): any[] {
           transformObjectKeys: false,  // tắt: dễ break React component props
         },
         // Chỉ obfuscate chunk code của mình, bỏ qua vendor (node_modules)
-        include: [/dist\/assets\/index-.*\.js$/],
-        exclude: [/dist\/assets\/vendor-.*\.js$/, /node_modules/],
+        include: [
+          /dist\/assets\/index-.*\.js$/,
+          /dist\/assets\/.*\.chunk-.*\.js$/,
+          /dist\/assets\/ChatPage-.*\.js$/,
+          /dist\/assets\/Settings-.*\.js$/,
+          /dist\/assets\/IntegrationPage-.*\.js$/,
+          /dist\/assets\/AnalyticsPage-.*\.js$/,
+          /dist\/assets\/Dashboard-.*\.js$/
+        ],
+        exclude: [/dist\/assets\/vendor-.*\.js$/, /dist\/assets\/core-.*\.js$/, /node_modules/],
       }),
     ];
   } catch {
@@ -99,9 +107,34 @@ const config: UserConfig = {
         main: resolve(__dirname, 'index.html'),
       },
       output: {
-        // Tách vendor chunk để obfuscator không xử lý node_modules
+        // Tách các chunk theo định nghĩa GĐ2
         manualChunks(id: string) {
-          if (id.includes('node_modules')) return 'vendor';
+          if (id.includes('node_modules')) {
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/react-router/') ||
+              id.includes('/react-router-dom/') ||
+              id.includes('/@remix-run/') ||
+              id.includes('/zustand/') ||
+              id.includes('/scheduler/') ||
+              id.includes('/react-is/') ||
+              id.includes('/use-sync-external-store/') ||
+              id.includes('/object-assign/')
+            ) {
+              return 'core';
+            }
+            return 'vendor';
+          }
+          if (id.includes('/src/ui/pages/CRMPage.tsx')) {
+            return 'crm.chunk';
+          }
+          if (id.includes('/src/ui/pages/WorkflowPage.tsx')) {
+            return 'workflow.chunk';
+          }
+          if (id.includes('/src/ui/features/erp/ErpPage.tsx')) {
+            return 'erp.chunk';
+          }
         },
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/index-[hash].js',

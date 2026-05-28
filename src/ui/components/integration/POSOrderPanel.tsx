@@ -7,6 +7,7 @@ import {
 } from './vnDivisions';
 import { adaptOrderForPlatform, type GenericOrderData } from './platformOrderAdapters';
 import { IS_DEV_BUILD } from '../../../configs/BuildConfig';
+import Logger from '../../../utils/Logger';
 
 /**
  * POSOrderPanel — Giao diện tạo đơn hàng POS đầy đủ
@@ -321,11 +322,7 @@ export default function POSOrderPanel({
       }
 
       if (DEV_DEBUG) {
-        console.groupCollapsed(`[POSOrderPanel] ${preferredAction} (${integrationType})`);
-        console.log('query:', query);
-        console.log('page:', searchPage);
-        console.log('res:', res);
-        console.groupEnd();
+        Logger.debug(`[POSOrderPanel] ${preferredAction} (${integrationType}) response received`);
       }
 
       const rawData = res?.data ?? res;
@@ -353,7 +350,7 @@ export default function POSOrderPanel({
       }
     } catch (e: any) {
       const msg = e?.message || 'Tra cuu san pham that bai';
-      if (DEV_DEBUG) console.error('[POSOrderPanel] lookupProduct error:', e);
+      if (DEV_DEBUG) Logger.error('[POSOrderPanel] lookupProduct error:', e);
       setSearchError(msg);
       setSearchResults([]);
       setSearchMeta(null);
@@ -491,16 +488,12 @@ export default function POSOrderPanel({
 
       const platformData = adaptOrderForPlatform(integrationType, generic);
       if (DEV_DEBUG) {
-        console.groupCollapsed(`[POSOrderPanel] createOrder (${integrationType})`);
-        console.log('payload:', platformData);
-        console.groupEnd();
+        Logger.debug(`[POSOrderPanel] createOrder (${integrationType}) payload prepared`);
       }
 
       const res = await onSubmitOrder(platformData);
       if (DEV_DEBUG) {
-        console.groupCollapsed(`[POSOrderPanel] createOrder response (${integrationType})`);
-        console.log('res:', res);
-        console.groupEnd();
+        Logger.debug(`[POSOrderPanel] createOrder response (${integrationType}):`, res?.success ? 'success' : 'failed');
       }
 
       if (res?.success) {

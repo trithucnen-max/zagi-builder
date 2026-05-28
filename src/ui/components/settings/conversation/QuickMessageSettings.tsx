@@ -7,6 +7,7 @@ import AccountSelectorDropdown, { AccountOption } from '../../common/AccountSele
 import { QuickMessage, LocalMediaFile, fetchZaloQuickMessages, invalidateZaloQuickMessageCache } from '../../chat/QuickMessageManager';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import PhoneDisplay from '@/components/common/PhoneDisplay';
+import Logger from '../../../../utils/Logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type QuickMsgSource = 'local' | 'zalo';
@@ -766,7 +767,7 @@ export default function QuickMessageSettings({ accounts, filterAccounts, searchT
     try {
       const res = await ipc.db?.getAllLocalQuickMessages();
       if (res?.success) setLocalMessages((res.items || []).map(mapDbRowToLocalQMItem));
-    } catch (err) { console.error(err); }
+    } catch (err) { Logger.error(err); }
   };
 
   const fetchZaloMsgs = async (zaloId: string) => {

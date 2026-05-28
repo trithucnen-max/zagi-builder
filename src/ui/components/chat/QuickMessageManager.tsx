@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore';
 import { callApi, extractApiError } from '@/utils/apiError';
 import { showConfirm } from '../common/ConfirmDialog';
 import { toLocalMediaUrl } from '@/lib/localMedia';
+import Logger from '../../../utils/Logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type LocalMediaFile = {
@@ -52,7 +53,7 @@ export async function fetchZaloQuickMessages(auth: any, accountId: string, force
   }
   const errMsg = extractApiError(res, 'Không thể lấy danh sách tin nhắn nhanh từ Zalo');
   if (zaloCache[accountId]?.data?.length) {
-    console.warn('[QuickMessage] Dùng cache cũ:', errMsg);
+    Logger.warn('[QuickMessage] Dùng cache cũ:', errMsg);
     return zaloCache[accountId].data;
   }
   throw new Error(errMsg);

@@ -7,6 +7,7 @@ import AccountSelectorDropdown, { AccountOption } from '../../common/AccountSele
 import AccountMultiDropdown from '../../common/AccountMultiDropdown';
 import { syncZaloLabelsToLocalDB } from '@/lib/labelUtils';
 import { LabelEmojiPicker, KeyboardShortcutInput } from '../../common/LabelEmojiPicker';
+import Logger from '../../../../utils/Logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LabelSource = 'local' | 'zalo';
@@ -851,7 +852,7 @@ export default function LabelSettings({ accounts, filterAccounts, searchText }: 
     try {
       const res = await ipc.db?.getLocalLabels({});
       if (res?.success) setLocalLabels(res.labels || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { Logger.error(err); }
   };
 
   const fetchZaloLabels = async (zaloId: string) => {

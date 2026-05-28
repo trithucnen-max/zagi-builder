@@ -53,4 +53,26 @@ describe('ZaloService - forwardMessage', () => {
         await expect(zaloService.forwardMessage(messageString, threadIds, ThreadType.User))
             .rejects.toThrow('Missing message content');
     });
+
+    it('should parse message with multiple attachments and call forwardMessage API with content', async () => {
+        const messageString = JSON.stringify({
+            data: {
+                content: 'Here are the documents',
+                attachments: [
+                    { id: 'att1', type: 'photo', url: 'http://example.com/1.jpg' },
+                    { id: 'att2', type: 'file', url: 'http://example.com/2.pdf' }
+                ]
+            }
+        });
+        const threadIds = ['thread456'];
+
+        const result = await zaloService.forwardMessage(messageString, threadIds, ThreadType.User);
+
+        expect(mockApi.forwardMessage).toHaveBeenCalledWith(
+            { message: 'Here are the documents' },
+            threadIds,
+            ThreadType.User
+        );
+        expect(result).toEqual({ success: true });
+    });
 });

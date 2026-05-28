@@ -364,10 +364,11 @@ function SortDropdown({ sortBy, sortDir, onChange }: {
 }
 
 /** Actions dropdown — replaces the old Export CSV button */
-function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones }: {
+function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportCSV, onImportPhones }: {
   total: number;
   exportingCSV: boolean;
   onExportCSV: () => void;
+  onImportCSV: () => void;
   onImportPhones?: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -396,7 +397,7 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones }: {
           <button
             onClick={() => { onExportCSV(); setOpen(false); }}
             disabled={total === 0 || exportingCSV}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left disabled:opacity-40">
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left disabled:opacity-40 font-medium">
             {exportingCSV ? (
               <svg className="animate-spin flex-shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
@@ -410,11 +411,22 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones }: {
             )}
             <span>{exportingCSV ? 'Đang xuất...' : `Xuất CSV (${total})`}</span>
           </button>
+          {/* Import CSV */}
+          <button
+            onClick={() => { onImportCSV(); setOpen(false); }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left font-medium">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-blue-400">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span>Nhập CSV</span>
+          </button>
           {/* Import phones */}
           {onImportPhones && (
             <button
               onClick={() => { onImportPhones(); setOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left">
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left font-medium">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-green-400">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
                 <line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
@@ -442,6 +454,104 @@ export default function CRMContactList({
   const [avatarPopup, setAvatarPopup] = useState<{ userId: string; x: number; y: number } | null>(null);
   const [selectingAllPages, setSelectingAllPages] = useState(false);
   const [exportingCSV, setExportingCSV] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportCSVFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const showNotification = useAppStore.getState().showNotification;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const text = evt.target?.result as string;
+      if (!text) return;
+      try {
+        const lines = text.split(/\r?\n/);
+        if (lines.length < 2) {
+          showNotification('File CSV rỗng hoặc lỗi định dạng', 'error');
+          return;
+        }
+
+        const contactsToImport: any[] = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const cols: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              cols.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          cols.push(current.trim());
+
+          if (cols.length >= 4) {
+            const displayName = cols[0];
+            const alias = cols[1];
+            const phone = cols[2];
+            const contactId = cols[3];
+            const typeLabel = cols[4] || 'user';
+            const isFriendLabel = cols[5] || 'Không';
+            const genderLabel = cols[6] || '';
+            const birthday = cols[7] || '';
+
+            if (contactId) {
+              contactsToImport.push({
+                contactId,
+                displayName: displayName || contactId,
+                alias: alias || '',
+                phone: phone || '',
+                contactType: typeLabel === 'Nhóm' ? 'group' : 'user',
+                isFriend: isFriendLabel === 'Có' ? 1 : 0,
+                gender: genderLabel === 'Nam' ? 0 : genderLabel === 'Nữ' ? 1 : null,
+                birthday: birthday || null,
+              });
+            }
+          }
+        }
+
+        if (contactsToImport.length === 0) {
+          showNotification('Không tìm thấy liên hệ hợp lệ nào trong file CSV', 'error');
+          return;
+        }
+
+        let importedCount = 0;
+        for (const c of contactsToImport) {
+          await ipc.db?.updateContactProfile({
+            zaloId: activeAccountId,
+            contactId: c.contactId,
+            displayName: c.displayName,
+            avatarUrl: '',
+            phone: c.phone,
+            contactType: c.contactType,
+            gender: c.gender,
+            birthday: c.birthday,
+          });
+          if (c.alias) {
+            await ipc.db?.setContactAlias({
+              zaloId: activeAccountId,
+              contactId: c.contactId,
+              alias: c.alias,
+            });
+          }
+          importedCount++;
+        }
+
+        showNotification(`Nhập thành công ${importedCount} liên hệ từ CSV!`, 'success');
+        onFilterChange({});
+      } catch (err: any) {
+        showNotification('Lỗi khi đọc file CSV: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+    e.target.value = '';
+  };
 
   const fmt = (ts: number) => {
     if (!ts) return '';
@@ -601,12 +711,20 @@ export default function CRMContactList({
 
         <div className="flex-1"></div>
 
-        {/* Actions dropdown (Export CSV + Import SĐT) */}
+        {/* Actions dropdown (Export CSV + Import CSV + Import SĐT) */}
         <ActionsDropdown
           total={total}
           exportingCSV={exportingCSV}
           onExportCSV={exportToCSV}
+          onImportCSV={() => fileInputRef.current?.click()}
           onImportPhones={onImportPhones}
+        />
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept=".csv"
+          onChange={handleImportCSVFile}
         />
       </div>
 

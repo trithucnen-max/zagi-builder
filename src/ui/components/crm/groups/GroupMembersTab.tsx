@@ -8,6 +8,7 @@ import GroupAvatar from '@/components/common/GroupAvatar';
 import CampaignCreateModal from '@/components/crm/campaigns/CampaignCreateModal';
 import AddToContactsModal from '@/components/crm/contacts/AddToContactsModal';
 import { syncZaloGroups, MemberPlaceholder, SyncGroupsProgress } from '@/lib/zaloGroupUtils';
+import Logger from '../../../../utils/Logger';
 
 interface ZaloGroup {
   contact_id: string;
@@ -139,6 +140,24 @@ export default function GroupMembersTab() {
   // ── Add to contacts modal state ─────────────────────────────────────────
   const [showAddToContacts, setShowAddToContacts] = useState(false);
 
+  // ── Link scan state ──────────────────────────────────────────────────
+  const [showLinkScanModal, setShowLinkScanModal] = useState(false);
+  const [linkScanInput, setLinkScanInput] = useState('');
+  const [linkScanLoading, setLinkScanLoading] = useState(false);
+  const [linkScanProgress, setLinkScanProgress] = useState<{ current: number; total: number } | null>(null);
+  const [linkScanError, setLinkScanError] = useState('');
+  const [linkScanResult, setLinkScanResult] = useState<{ groupId: string; name: string } | null>(null);
+  const linkScanStopRef = useRef(false);
+
+  // ── Pin Scheduler state ──────────────────────────────────────────
+  const [showPinScheduler, setShowPinScheduler] = useState(false);
+  const [pinMessage, setPinMessage] = useState('');
+  const [pinScheduleType, setPinScheduleType] = useState<'once' | 'daily' | 'weekly'>('daily');
+  const [pinScheduleTime, setPinScheduleTime] = useState('08:00');
+  const [pinScheduleWeekday, setPinScheduleWeekday] = useState('1');
+  const [isSavingPinSchedule, setIsSavingPinSchedule] = useState(false);
+  const [pinScheduleSaved, setPinScheduleSaved] = useState(false);
+
   // ── Groups 3-dot menu ─────────────────────────────────────────────────────
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const groupMenuRef = useRef<HTMLDivElement>(null);
@@ -151,14 +170,27 @@ export default function GroupMembersTab() {
     return () => document.removeEventListener('mousedown', handler);
   }, [showGroupMenu]);
 
-  // ── Link scan state ───────────────────────────────────────────────────────
-  const [showLinkScanModal, setShowLinkScanModal] = useState(false);
-  const [linkScanInput, setLinkScanInput] = useState('');
-  const [linkScanLoading, setLinkScanLoading] = useState(false);
-  const [linkScanProgress, setLinkScanProgress] = useState<{ current: number; total: number } | null>(null);
-  const [linkScanError, setLinkScanError] = useState('');
-  const [linkScanResult, setLinkScanResult] = useState<{ groupId: string; name: string } | null>(null);
-  const linkScanStopRef = useRef(false);
+  const handleSavePinSchedule = async () => {
+    if (!selectedGroupId || !activeAccountId) return;
+    setIsSavingPinSchedule(true);
+    try {
+      await ipc.db?.upsertPinSchedule({
+        zaloId: activeAccountId,
+        groupId: selectedGroupId,
+        message: pinMessage,
+        scheduleType: pinScheduleType,
+        scheduleTime: pinScheduleTime,
+        weekday: pinScheduleWeekday,
+      });
+      setPinScheduleSaved(true);
+      setTimeout(() => {
+        setShowPinScheduler(false);
+        setPinScheduleSaved(false);
+      }, 1500);
+    } finally {
+      setIsSavingPinSchedule(false);
+    }
+  };
 
   const selectedGroup = groups.find(g => g.contact_id === selectedGroupId) ?? null;
 
@@ -390,7 +422,7 @@ export default function GroupMembersTab() {
               if (contactSaves.length > 0) await Promise.all(contactSaves);
             }
           } catch (err) {
-            console.warn('[GroupMembersTab] scanGroupByLink getUserInfo batch error:', err);
+            Logger.warn('[GroupMembersTab] scanGroupByLink getUserInfo batch error:', err);
           }
           setLinkScanProgress({ current: Math.min(j + BATCH, memberIds.length), total: memberIds.length });
           if (!linkScanStopRef.current && j + BATCH < memberIds.length) await new Promise(r => setTimeout(r, 200));
@@ -557,10 +589,10 @@ export default function GroupMembersTab() {
             }
           });
         } else {
-          console.warn(`[AddUserToGroup] Failed for ${gId}:`, res?.error);
+          Logger.warn(`[AddUserToGroup] Failed for ${gId}:`, res?.error);
         }
       } catch (err) {
-        console.error(err);
+        Logger.error(err);
       }
 
       if (i < groupIdsArray.length - 1) {
@@ -605,10 +637,10 @@ export default function GroupMembersTab() {
         if (res?.success) {
           await ipc.db?.removeGroupMember({ zaloId: activeAccountId, groupId: gId, memberId: targetId });
         } else {
-          console.warn(`[RemoveUserFromGroup] Failed for ${gId}:`, res?.error);
+          Logger.warn(`[RemoveUserFromGroup] Failed for ${gId}:`, res?.error);
         }
       } catch (err) {
-        console.error(err);
+        Logger.error(err);
       }
 
       if (i < groupIdsArray.length - 1) {
@@ -803,6 +835,19 @@ export default function GroupMembersTab() {
                 {membersLoading ? SpinIcon : RefreshIcon}
                 {membersLoading ? 'Đang tải...' : 'Tải thông tin thành viên'}
               </button>
+              {/* Nút lên lịch thông báo — chỉ hiện khi là quản lý nhóm */}
+              {selectedGroupId && managedGroupIds.has(selectedGroupId) && (
+                <button
+                  onClick={() => { setPinMessage(''); setPinScheduleSaved(false); setShowPinScheduler(true); }}
+                  title="Lên lịch ghím thông báo cho nhóm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition-colors flex-shrink-0">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  Lên lịch thông báo
+                </button>
+              )}
+
               {/* Stop button shown only during getUserInfo fallback */}
               {manualLoadProgress !== null && (
                 <button onClick={() => { manualLoadStopRef.current = true; }}
@@ -1473,6 +1518,115 @@ export default function GroupMembersTab() {
             </div>
           );
         })()
+      )}
+
+      {/* ── Pin Scheduler Modal ─────────────────────────────────────────────── */}
+      {showPinScheduler && selectedGroup && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => { if (!isSavingPinSchedule) setShowPinScheduler(false); }}>
+          <div className="bg-gray-800 border border-gray-600 rounded-2xl w-[420px] shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-700 bg-gray-800/80">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white text-sm">Lên lịch thông báo nhóm</h3>
+                <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[280px]">{selectedGroup.display_name}</p>
+              </div>
+              <button onClick={() => setShowPinScheduler(false)}
+                className="ml-auto w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-700 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Message content */}
+              <div>
+                <label className="text-xs text-gray-400 font-medium mb-1.5 block">Nội dung thông báo</label>
+                <textarea
+                  value={pinMessage}
+                  onChange={e => setPinMessage(e.target.value)}
+                  placeholder="📢 Nhắc nhở: Họp nhóm vào thứ Hai tuần tới lúc 9h sáng. Anh/chị vui lòng tham gia đúng giờ!"
+                  rows={4}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
+                />
+              </div>
+
+              {/* Schedule type */}
+              <div>
+                <label className="text-xs text-gray-400 font-medium mb-1.5 block">Lặp lại</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[{v:'once',l:'🎯 Một lần'},{v:'daily',l:'📅 Mỗi ngày'},{v:'weekly',l:'🗓 Hàng tuần'}].map(t => (
+                    <button key={t.v} type="button" onClick={() => setPinScheduleType(t.v as any)}
+                      className={`py-2 rounded-xl border text-[11px] font-medium transition-colors ${
+                        pinScheduleType === t.v
+                          ? 'bg-amber-600/20 border-amber-500/60 text-amber-300'
+                          : 'bg-gray-700/50 border-gray-700 text-gray-400 hover:border-gray-600'
+                      }`}>
+                      {t.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Time + Weekday */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-xs text-gray-400 font-medium mb-1.5 block">Thời gian gửi</label>
+                  <input
+                    type="time"
+                    value={pinScheduleTime}
+                    onChange={e => setPinScheduleTime(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                {pinScheduleType === 'weekly' && (
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-400 font-medium mb-1.5 block">Ngày trong tuần</label>
+                    <select value={pinScheduleWeekday} onChange={e => setPinScheduleWeekday(e.target.value)}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                      {[{v:'1',l:'Thứ Hai'},{v:'2',l:'Thứ Ba'},{v:'3',l:'Thứ Tư'},{v:'4',l:'Thứ Năm'},{v:'5',l:'Thứ Sáu'},{v:'6',l:'Thứ Bảy'},{v:'0',l:'Chủ Nhật'}].map(d => (
+                        <option key={d.v} value={d.v}>{d.l}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Info banner */}
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5 text-[11px] text-amber-400/80 space-y-1">
+                <p>📌 Workflow sẽ tự động tạo để gửi tin nhắn nhắc nhở đến nhóm theo lịch.</p>
+                <p>💡 Tin nhắn sẽ được gửi như tin nhắn thường, không phải ghim thật trong Zalo.</p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setShowPinScheduler(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm transition-colors">
+                  Hủy
+                </button>
+                <button
+                  onClick={handleSavePinSchedule}
+                  disabled={!pinMessage.trim() || isSavingPinSchedule}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                  {isSavingPinSchedule ? (
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                  ) : pinScheduleSaved ? (
+                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>Đã lưu!</>
+                  ) : (
+                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Lên lịch</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

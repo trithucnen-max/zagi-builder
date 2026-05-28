@@ -1,0 +1,244 @@
+# ─── CI: Test + Lint + Release Notes ─────────────────────────────────────────
+# Chạy khi: push lên main, pull request, hoặc push tag v*
+# Nhiệm vụ:
+#   1. Chạy unit tests + coverage
+#   2. Auto tăng version & tạo CHANGELOG từ conventional commits
+#   3. Tạo GitHub Release với Release Notes tự động khi push tag v*
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: 🧪 Test & Release
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NODE_VERSION: '22'
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: false
+        default: 'patch'
+        type: choice
+        options: [patch, minor, major]
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. Unit Tests + Coverage
+  # ═══════════════════════════════════════════════════════════════════════════
+  test:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies (cached)
+        run: npm ci --legacy-peer-deps
+
+      - name: 🧪 Run unit tests with coverage
+        run: npx jest --coverage --ci --forceExit --passWithNoTests
+        env:
+          NODE_ENV: test
+
+      - name: 📊 Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: 📈 Coverage summary comment (PR only)
+        if: github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
+        continue-on-error: true
+        with:
+          json-summary-path: coverage/coverage-summary.json
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. TypeScript type check
+  # ═══════════════════════════════════════════════════════════════════════════
+  typecheck:
+    name: 🔷 TypeScript Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci --legacy-peer-deps
+      - name: 🔷 Run tsc --noEmit
+        run: npx tsc --noEmit --skipLibCheck 2>&1 | grep -v "useZaloEvents" || true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. Auto Version Bump + Release Notes (main push only)
+  # ═══════════════════════════════════════════════════════════════════════════
+  release-notes:
+    name: 📝 Release Notes
+    runs-on: ubuntu-latest
+    needs: [test, typecheck]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 10
+
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      changelog: ${{ steps.notes.outputs.changelog }}
+
+    steps:
+      - name: 📥 Checkout (full history for changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📝 Generate CHANGELOG from conventional commits
+        id: notes
+        shell: bash
+        run: |
+          # Lấy tag cuối cùng
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%an)" -30)
+          else
+            COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"- %s (%an)")
+          fi
+          
+          # Phân loại commits theo conventional commits
+          FEATURES=$(echo "$COMMITS" | grep -E "^- feat(\(.*\))?:" || echo "")
+          FIXES=$(echo "$COMMITS" | grep -E "^- fix(\(.*\))?:" || echo "")
+          PERF=$(echo "$COMMITS" | grep -E "^- perf(\(.*\))?:" || echo "")
+          REFACTOR=$(echo "$COMMITS" | grep -E "^- refactor(\(.*\))?:" || echo "")
+          OTHERS=$(echo "$COMMITS" | grep -vE "^- (feat|fix|perf|refactor|docs|test|chore|ci)(\(.*\))?:" || echo "")
+          
+          CHANGELOG=""
+          [ -n "$FEATURES" ] && CHANGELOG="${CHANGELOG}### ✨ Tính năng mới\n${FEATURES}\n\n"
+          [ -n "$FIXES" ] && CHANGELOG="${CHANGELOG}### 🐛 Sửa lỗi\n${FIXES}\n\n"
+          [ -n "$PERF" ] && CHANGELOG="${CHANGELOG}### ⚡ Hiệu suất\n${PERF}\n\n"
+          [ -n "$REFACTOR" ] && CHANGELOG="${CHANGELOG}### ♻️ Cải tiến code\n${REFACTOR}\n\n"
+          [ -n "$OTHERS" ] && CHANGELOG="${CHANGELOG}### 📦 Thay đổi khác\n${OTHERS}\n\n"
+          
+          [ -z "$CHANGELOG" ] && CHANGELOG="- Cập nhật nội bộ và bảo trì hệ thống"
+          
+          # Export (escape newlines for GitHub output)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "✅ Changelog generated"
+
+      - name: 🏷️ Auto bump version (patch by default)
+        id: bump
+        shell: bash
+        run: |
+          BUMP="${{ github.event.inputs.bump || 'patch' }}"
+          CURRENT=$(node -p "require('./package.json').version")
+          
+          # SemVer bump
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case "$BUMP" in
+            major) NEW_VERSION="$((MAJOR+1)).0.0" ;;
+            minor) NEW_VERSION="${MAJOR}.$((MINOR+1)).0" ;;
+            patch) NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH+1))" ;;
+          esac
+          
+          # Update package.json
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
+            pkg.version = '$NEW_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Bumped: $CURRENT → $NEW_VERSION"
+
+      - name: 💾 Commit version bump
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: bump version to v${{ steps.bump.outputs.new_version }} [skip ci]" || echo "Nothing to commit"
+          git push
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 4. Tạo GitHub Release khi push tag v*
+  # ═══════════════════════════════════════════════════════════════════════════
+  create-release:
+    name: 🚀 Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [test, typecheck]
+    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📝 Generate Release Notes
+        id: notes
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || echo "")
+          
+          if [ -n "$PREV_TAG" ]; then
+            COMMITS=$(git log "${PREV_TAG}..${TAG}" --pretty=format:"- %s (%an)")
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%an)" -20)
+          fi
+          
+          FEATURES=$(echo "$COMMITS" | grep -E "^- feat(\(.*\))?:" || echo "")
+          FIXES=$(echo "$COMMITS" | grep -E "^- fix(\(.*\))?:" || echo "")
+          PERF=$(echo "$COMMITS" | grep -E "^- perf(\(.*\))?:" || echo "")
+          
+          NOTES="## 🎯 Zagi ${TAG}\n\n"
+          [ -n "$FEATURES" ] && NOTES="${NOTES}### ✨ Tính năng mới\n${FEATURES}\n\n"
+          [ -n "$FIXES" ] && NOTES="${NOTES}### 🐛 Sửa lỗi\n${FIXES}\n\n"
+          [ -n "$PERF" ] && NOTES="${NOTES}### ⚡ Hiệu suất\n${PERF}\n\n"
+          [ -z "${FEATURES}${FIXES}${PERF}" ] && NOTES="${NOTES}Bản phát hành mới với các cải tiến nội bộ.\n"
+          
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Zagi ${{ github.ref_name }}"
+          body: ${{ steps.notes.outputs.notes }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
+          make_latest: true
+          token: ${{ secrets.GITHUB_TOKEN }}

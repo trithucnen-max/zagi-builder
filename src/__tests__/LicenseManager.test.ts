@@ -115,6 +115,72 @@ describe('LicenseManager', () => {
       expect(res.license).toEqual(mockLicense);
     });
 
+    it('should override payment details for paid plan (solo_6m)', async () => {
+      const mockResponse = {
+        data: {
+          success: true,
+          pending: true,
+          licenseKey: 'SOLO-6M-KEY',
+          paymentInfo: {
+            bankName: 'Old Bank',
+            accountNumber: '11111',
+            accountName: 'Old Owner',
+            amount: 500000,
+            transferContent: 'ZAGI SOLO-6M-KEY'
+          }
+        },
+      };
+      (axios.post as jest.Mock).mockResolvedValue(mockResponse);
+
+      const res = await licenseManager.register({
+        email: 'test@example.com',
+        fullName: 'Test User',
+        phone: '0901234567',
+        plan: 'solo_6m',
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.duration).toBe('Gói Solo 6 tháng');
+      expect(res.paymentInfo.bankName).toContain('Techcombank');
+      expect(res.paymentInfo.accountNumber).toBe('63666999');
+      expect(res.paymentInfo.accountName).toBe('CÔNG TY CỔ PHẦN BASAN');
+      expect(res.paymentInfo.amount).toBe(2450000);
+      expect(res.paymentInfo.companyAddress).toContain('FLC Garden City');
+      expect(res.paymentInfo.transferContent).toBe('ZAGI SOLO-6M-KEY');
+      expect(res.paymentInfo.qrUrl).toContain('amount=2450000');
+      expect(res.paymentInfo.qrUrl).toContain('addInfo=ZAGI%20SOLO-6M-KEY');
+    });
+
+    it('should override payment details for paid plan (team_lifetime)', async () => {
+      const mockResponse = {
+        data: {
+          success: true,
+          pending: true,
+          licenseKey: 'TEAM-LIFETIME-KEY',
+          paymentInfo: {
+            bankName: 'Old Bank',
+            accountNumber: '11111',
+            accountName: 'Old Owner',
+            amount: 500000,
+            transferContent: 'ZAGI TEAM-LIFETIME-KEY'
+          }
+        },
+      };
+      (axios.post as jest.Mock).mockResolvedValue(mockResponse);
+
+      const res = await licenseManager.register({
+        email: 'test@example.com',
+        fullName: 'Test User',
+        phone: '0901234567',
+        plan: 'team_lifetime',
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.duration).toBe('Gói Team Vĩnh viễn');
+      expect(res.paymentInfo.amount).toBe(14900000);
+      expect(res.paymentInfo.qrUrl).toContain('amount=14900000');
+    });
+
     it('should handle registration API error', async () => {
       (axios.post as jest.Mock).mockRejectedValue(new Error('Network Error'));
 
@@ -155,6 +221,189 @@ describe('LicenseManager', () => {
       expect(res.success).toBe(true);
       expect(res.offline).toBe(true);
       expect(res.license).toEqual(mockLicense);
+    });
+  });
+
+  describe('isCacheValid edge cases', () => {
+    it('should return false if cachedAt is missing', () => {
+      const badLicense = { ...mockLicense, cachedAt: undefined };
+      expect(licenseManager.isCacheValid(badLicense)).toBe(false);
+    });
+
+    it('should return true for lifetime plan even if expiry date is in the past', () => {
+      const lifetimePastExpiry = {
+        ...mockLicense,
+        isLifetime: true,
+        expiryDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // Expired expiryDate
+        cachedAt: new Date().toISOString(),
+      };
+      expect(licenseManager.isCacheValid(lifetimePastExpiry)).toBe(true);
+    });
+
+    it('should return false for regular plan if expiry date is in the past', () => {
+      const expiredRegular = {
+        ...mockLicense,
+        isLifetime: false,
+        expiryDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+        cachedAt: new Date().toISOString(),
+      };
+      expect(licenseManager.isCacheValid(expiredRegular)).toBe(false);
+    });
+  });
+
+  describe('getCurrentLicense', () => {
+    it('should set daysLeft to null and status to active for lifetime license', () => {
+      const lifetime = {
+        ...mockLicense,
+        isLifetime: true,
+        expiryDate: undefined,
+      };
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(Buffer.from(JSON.stringify(lifetime)));
+
+      const result = licenseManager.getCurrentLicense();
+      expect(result).not.toBeNull();
+      expect(result!.daysLeft).toBeNull();
+      expect(result!.status).toBe('active');
+    });
+
+    it('should calculate daysLeft correctly for regular active license', () => {
+      const tenDaysLater = new Date();
+      tenDaysLater.setDate(tenDaysLater.getDate() + 10);
+      const regular = {
+        ...mockLicense,
+        isLifetime: false,
+        expiryDate: tenDaysLater.toISOString(),
+      };
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(Buffer.from(JSON.stringify(regular)));
+
+      const result = licenseManager.getCurrentLicense();
+      expect(result).not.toBeNull();
+      expect(result!.daysLeft).toBe(10);
+      expect(result!.status).toBe('active');
+    });
+
+    it('should set status to expired if daysLeft is negative', () => {
+      const fiveDaysAgo = new Date();
+      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+      const expired = {
+        ...mockLicense,
+        isLifetime: false,
+        expiryDate: fiveDaysAgo.toISOString(),
+      };
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(Buffer.from(JSON.stringify(expired)));
+
+      const result = licenseManager.getCurrentLicense();
+      expect(result).not.toBeNull();
+      expect(result!.daysLeft).toBeLessThan(0);
+      expect(result!.status).toBe('expired');
+    });
+  });
+
+  describe('needsActivation', () => {
+    it('should return false in development mode (app.isPackaged = false)', () => {
+      // Temporarily change app.isPackaged
+      const originalIsPackaged = app.isPackaged;
+      (app as any).isPackaged = false;
+
+      const needsAct = licenseManager.needsActivation();
+      expect(needsAct).toBe(false);
+
+      // Restore
+      (app as any).isPackaged = originalIsPackaged;
+    });
+
+    it('should return true if no license is loaded', () => {
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      const needsAct = licenseManager.needsActivation();
+      expect(needsAct).toBe(true);
+    });
+
+    it('should return true if license status is expired', () => {
+      const fiveDaysAgo = new Date();
+      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+      const expired = {
+        ...mockLicense,
+        isLifetime: false,
+        expiryDate: fiveDaysAgo.toISOString(),
+      };
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(Buffer.from(JSON.stringify(expired)));
+
+      const needsAct = licenseManager.needsActivation();
+      expect(needsAct).toBe(true);
+    });
+
+    it('should trigger background verification and return false if license cache is invalid but license active', () => {
+      const oldCached = {
+        ...mockLicense,
+        isLifetime: false,
+        expiryDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+        cachedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago (max cache is 3)
+      };
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(Buffer.from(JSON.stringify(oldCached)));
+
+      const spyReVerify = jest.spyOn(licenseManager, 'reVerifyInBackground').mockImplementation(() => Promise.resolve());
+
+      const needsAct = licenseManager.needsActivation();
+      expect(needsAct).toBe(false);
+      expect(spyReVerify).toHaveBeenCalledWith(oldCached.email, oldCached.licenseKey);
+
+      spyReVerify.mockRestore();
+    });
+  });
+
+  describe('getDisplayMessage', () => {
+    it('should display lifetime message', () => {
+      const msg = licenseManager.getDisplayMessage({
+        ...mockLicense,
+        isLifetime: true,
+        daysLeft: null,
+      });
+      expect(msg).toBe('✨ Bản quyền Vĩnh viễn');
+    });
+
+    it('should display expired message if daysLeft is negative', () => {
+      const msg = licenseManager.getDisplayMessage({
+        ...mockLicense,
+        isLifetime: false,
+        daysLeft: -2,
+        plan: '6m',
+      });
+      expect(msg).toBe('❌ Gói 6 tháng - Đã hết hạn');
+    });
+
+    it('should display expires today message if daysLeft is 0', () => {
+      const msg = licenseManager.getDisplayMessage({
+        ...mockLicense,
+        isLifetime: false,
+        daysLeft: 0,
+        plan: '12m',
+      });
+      expect(msg).toBe('⚠️ Gói 1 năm - Hết hạn hôm nay');
+    });
+
+    it('should display warning message if daysLeft is 5 (<= 7)', () => {
+      const msg = licenseManager.getDisplayMessage({
+        ...mockLicense,
+        isLifetime: false,
+        daysLeft: 5,
+        plan: 'trial',
+      });
+      expect(msg).toBe('⚠️ Dùng thử - Còn 5 ngày');
+    });
+
+    it('should display active message if daysLeft is 10 (> 7)', () => {
+      const msg = licenseManager.getDisplayMessage({
+        ...mockLicense,
+        isLifetime: false,
+        daysLeft: 10,
+        plan: 'trial',
+      });
+      expect(msg).toBe('✅ Dùng thử - Còn 10 ngày');
     });
   });
 });

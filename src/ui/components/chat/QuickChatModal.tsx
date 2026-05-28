@@ -14,6 +14,7 @@ import { fetchQuickMessages, QuickMessage, LocalMediaFile } from './QuickMessage
 import { formatPhone } from '@/utils/phoneUtils';
 import ChatHistoryList from './ChatHistoryList';
 import SharedMessageContent from './SharedMessageContent';
+import Logger from '../../../utils/Logger';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const EMOJI_CATEGORIES = {
@@ -477,7 +478,7 @@ export default function QuickChatModal() {
                 type: target.threadType,
               });
             }
-          } catch (e: any) { console.error('[QuickChat] send video failed', e); }
+          } catch (e: any) { Logger.error('[QuickChat] send video failed', e); }
         }
 
         setPendingQMMedia(null);
@@ -519,7 +520,7 @@ export default function QuickChatModal() {
         markReplied(selectedZaloId, target.userId);
         await ipc.zalo?.sendMessage({ auth, threadId: target.userId, type: target.threadType, message: msgText });
       }
-    } catch (e) { console.error('[QuickChat]', e); }
+    } catch (e) { Logger.error('[QuickChat]', e); }
     finally { setSending(false); setTimeout(() => editorRef.current?.focus(), 40); }
   };
 

@@ -94,7 +94,16 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: 💾 Cache node_modules (Windows)
+        uses: actions/cache@v4
+        id: cache-modules-win
+        with:
+          path: node_modules
+          key: win-node22-${{ hashFiles('package-lock.json') }}
+          restore-keys: win-node22-
+
       - name: 📦 Install dependencies
+        if: steps.cache-modules-win.outputs.cache-hit != 'true'
         run: npm ci --legacy-peer-deps
 
       - name: 🏗️ Compile TypeScript (electron)
@@ -152,7 +161,16 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: 💾 Cache node_modules (macOS)
+        uses: actions/cache@v4
+        id: cache-modules-mac
+        with:
+          path: node_modules
+          key: mac-node22-${{ hashFiles('package-lock.json') }}
+          restore-keys: mac-node22-
+
       - name: 📦 Install dependencies
+        if: steps.cache-modules-mac.outputs.cache-hit != 'true'
         run: npm ci --legacy-peer-deps
 
       - name: 🏗️ Compile TypeScript (electron)

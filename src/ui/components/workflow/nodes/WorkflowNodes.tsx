@@ -71,15 +71,42 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
     setEdges(es => es.filter(e => e.source !== data.id && e.target !== data.id));
   };
 
+  const status = data.status; // 'running' | 'success' | 'error' | 'skipped'
+  let currentBorderColor = color;
+  let opacity = 1;
+  let statusIcon: React.ReactNode = null;
+  let pulseClass = '';
+
+  if (status === 'running') {
+    currentBorderColor = '#eab308'; // Amber
+    pulseClass = 'animate-pulse';
+    statusIcon = <span className="text-[11px] animate-spin">⏳</span>;
+  } else if (status === 'success') {
+    currentBorderColor = '#22c55e'; // Green
+    statusIcon = <span className="text-[11px]" title="Thành công">✅</span>;
+  } else if (status === 'error') {
+    currentBorderColor = '#ef4444'; // Red
+    statusIcon = <span className="text-[11px]" title={data.error || "Lỗi"}>❌</span>;
+  } else if (status === 'skipped') {
+    currentBorderColor = isLight ? '#d1d5db' : '#4b5563'; // Gray
+    opacity = 0.5;
+    statusIcon = <span className="text-[11px]" title="Bỏ qua">⏭️</span>;
+  }
+
   return (
-    <div className="rounded-lg border-2 shadow-lg min-w-[180px] max-w-[240px] group/node"
-      style={{ borderColor: color, background: isLight ? '#f8f7f4' : '#1e1e2e' }}>
+    <div className={`rounded-lg border-2 shadow-lg min-w-[180px] max-w-[240px] group/node transition-all duration-300 ${pulseClass}`}
+      style={{ 
+        borderColor: currentBorderColor, 
+        background: isLight ? '#f8f7f4' : '#1e1e2e',
+        opacity: opacity,
+      }}>
       <div className="px-3 py-2 rounded-t-md flex items-center gap-2"
         style={{ background: color + (isLight ? '30' : '22') }}>
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
         <span className={`text-xs font-semibold truncate flex-1 ${isLight ? 'text-gray-800' : 'text-white'}`}>
           {data.label || getNodeLabel(data.type)}
         </span>
+        {statusIcon && <div className="flex-shrink-0 flex items-center">{statusIcon}</div>}
         {/* Delete button — visible on hover */}
         <button
           onClick={handleDelete}
@@ -93,6 +120,11 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
       </div>
       {children && (
         <div className={`px-3 py-2 text-[11px] leading-tight ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>{children}</div>
+      )}
+      {status === 'error' && data.error && (
+        <div className="px-3 py-1.5 border-t border-red-500/20 text-[10px] text-red-400 bg-red-500/10 break-words rounded-b-md">
+          {data.error}
+        </div>
       )}
     </div>
   );

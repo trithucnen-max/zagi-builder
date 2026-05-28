@@ -65,6 +65,10 @@ export interface ContactItem {
   // Facebook-specific fields (nullable)
   fb_emoji?: string;
   fb_participant_count?: number;
+  // CRM / AI fields
+  pipeline_stage_id?: number | null;
+  ai_sentiment?: string | null;
+  ai_intent?: string | null;
 }
 
 interface ChatStore {
@@ -593,4 +597,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
   },
 }));
+
+// ─── Selector Hooks (Selector Pattern) ──────────────────────────────────────────
+export const useActiveThreadId = () => useChatStore((s) => s.activeThreadId);
+export const useActiveThreadType = () => useChatStore((s) => s.activeThreadType);
+export const useReplyTo = () => useChatStore((s) => s.replyTo);
+export const useDrafts = () => useChatStore((s) => s.drafts);
+export const useChannelFilter = () => useChatStore((s) => s.channelFilter);
+export const useContacts = () => useChatStore((s) => s.contacts);
+export const useMessages = () => useChatStore((s) => s.messages);
+export const useTypingUsers = () => useChatStore((s) => s.typingUsers);
+export const useSeenInfo = () => useChatStore((s) => s.seenInfo);
 

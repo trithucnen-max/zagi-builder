@@ -21,6 +21,7 @@ export const NODE_GROUPS: NodeGroup[] = [
       { type: 'trigger.schedule',      label: 'Chạy theo lịch hẹn',          desc: 'Tự động kích hoạt theo lịch (hàng ngày, hàng giờ...)' },
       { type: 'trigger.manual',        label: 'Chạy thủ công',               desc: 'Kích hoạt bằng tay từ giao diện, dùng để test workflow' },
       { type: 'trigger.payment',       label: 'Khi nhận thanh toán',         desc: 'Kích hoạt khi nhận webhook thanh toán từ Casso / SePay (VietQR)' },
+      { type: 'trigger.webhook',       label: 'Khi nhận Webhook API',        desc: 'Kích hoạt qua URL Webhook HTTP POST (/webhook/:workflowId)' },
     ],
   },
   {
@@ -227,6 +228,7 @@ export const DEFAULT_CONFIGS: Record<string, Record<string, any>> = {
   'notify.notion':   { apiKey: '', databaseId: '', properties: '{"Tên": {"title": [{"text": {"content": "{{ $trigger.fromName }}"}}]}}' },
   // Trigger: payment
   'trigger.payment': { integrationId: '', minAmount: 0, descContains: '' },
+  'trigger.webhook': { authSecret: '' },
   'kiotviet.lookupCustomer': { phone: '{{ $trigger.fromPhone }}' },
   'kiotviet.lookupOrder':    { phone: '{{ $trigger.fromPhone }}', orderId: '' },
   'kiotviet.lookupProduct':  { keyword: '{{ $trigger.content }}', limit: 10 },

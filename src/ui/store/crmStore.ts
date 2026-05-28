@@ -47,9 +47,20 @@ export interface CRMContact {
   gender?: number | null;
   /** DD/MM/YYYY format */
   birthday?: string | null;
+  pipeline_stage_id?: number | null;
+  ai_sentiment?: string | null;
+  ai_intent?: string | null;
 }
 
-export type CRMTabView = 'contacts' | 'campaigns' | 'history' | 'groups' | 'search' | 'requests';
+export interface PipelineStage {
+  id: number;
+  name: string;
+  color: string;
+  position: number;
+  created_at: number;
+}
+
+export type CRMTabView = 'contacts' | 'campaigns' | 'history' | 'groups' | 'search' | 'requests' | 'pipeline';
 
 export type ContactTypeFilter = 'friend' | 'group' | 'non_friend' | 'has_phone' | 'has_notes';
 
@@ -81,6 +92,8 @@ interface CRMStore {
   // Loading
   contactsLoading: boolean;
   campaignsLoading: boolean;
+  pipelineStages: PipelineStage[];
+  pipelineStagesLoading: boolean;
   // Queue status per account
   queueStatus: Record<string, { running: boolean; tokens: number; maxTokens: number; lastSentAt: number }>;
   groupCount: number;
@@ -97,10 +110,13 @@ interface CRMStore {
   setFilter: (f: Partial<Pick<CRMStore, 'searchText' | 'filterLabelIds' | 'filterLocalLabelIds' | 'filterContactTypes' | 'filterGender' | 'filterBirthday' | 'sortBy' | 'sortDir' | 'page'>>) => void;
   setContactsLoading: (v: boolean) => void;
   setCampaignsLoading: (v: boolean) => void;
+  setPipelineStages: (stages: PipelineStage[]) => void;
+  setPipelineStagesLoading: (v: boolean) => void;
   updateQueueStatus: (zaloId: string, status: any) => void;
   updateCampaignInList: (campaign: Partial<CRMCampaign> & { id: number }) => void;
   setGroupCount: (n: number) => void;
   setRequestCount: (n: number) => void;
+  reset: () => void;
 }
 
 export const useCRMStore = create<CRMStore>((set) => ({
@@ -123,6 +139,8 @@ export const useCRMStore = create<CRMStore>((set) => ({
   pageSize: 500,
   contactsLoading: false,
   campaignsLoading: false,
+  pipelineStages: [],
+  pipelineStagesLoading: false,
   queueStatus: {},
   groupCount: 0,
   requestCount: 0,
@@ -142,11 +160,38 @@ export const useCRMStore = create<CRMStore>((set) => ({
   setFilter: (f) => set((s) => ({ ...s, ...f, page: f.page ?? 0 })),
   setContactsLoading: (v) => set({ contactsLoading: v }),
   setCampaignsLoading: (v) => set({ campaignsLoading: v }),
+  setPipelineStages: (stages) => set({ pipelineStages: stages }),
+  setPipelineStagesLoading: (v) => set({ pipelineStagesLoading: v }),
   updateQueueStatus: (zaloId, status) => set((s) => ({ queueStatus: { ...s.queueStatus, [zaloId]: status } })),
   updateCampaignInList: (updated) => set((s) => ({
     campaigns: s.campaigns.map(c => c.id === updated.id ? { ...c, ...updated } : c),
   })),
   setGroupCount: (n) => set({ groupCount: n }),
   setRequestCount: (n) => set({ requestCount: n }),
+  reset: () => set({
+    tab: 'contacts',
+    contacts: [],
+    totalContacts: 0,
+    campaigns: [],
+    selectedContactIds: new Set(),
+    activeContactId: null,
+    activeCampaignId: null,
+    searchText: '',
+    filterLabelIds: [],
+    filterLocalLabelIds: [],
+    filterContactTypes: [],
+    filterGender: 'all',
+    filterBirthday: 'all',
+    sortBy: 'name',
+    sortDir: 'asc',
+    page: 0,
+    pageSize: 500,
+    contactsLoading: false,
+    campaignsLoading: false,
+    pipelineStages: [],
+    pipelineStagesLoading: false,
+    groupCount: 0,
+    requestCount: 0,
+  }),
 }));
 

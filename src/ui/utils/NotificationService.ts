@@ -1,3 +1,4 @@
+import Logger from '../../utils/Logger';
 /**
  * NotificationService — handles sound and desktop (OS) notifications
  */
@@ -33,7 +34,7 @@ export function playNotificationSound(volume = 0.5) {
       t += 0.16;
     }
   } catch (e) {
-    console.warn('[NotificationService] playSound error:', e);
+    Logger.warn('[NotificationService] playSound error:', e);
   }
 }
 
@@ -109,7 +110,7 @@ function processQueue() {
       setTimeout(processQueue, 300);
     }, 4000);
   } catch (e) {
-    console.warn('[NotificationService] showDesktopNotification error:', e);
+    Logger.warn('[NotificationService] showDesktopNotification error:', e);
     notifBusy = false;
     setTimeout(processQueue, 300);
   }

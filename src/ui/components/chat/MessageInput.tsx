@@ -17,6 +17,7 @@ import ReminderPanel from './ReminderPanel';
 import { matchesShortcut } from '../common/LabelEmojiPicker';
 import { getCapability } from '../../../configs/channelConfig';
 import * as channelIpc from '../../lib/channelIpc';
+import Logger from '../../../utils/Logger';
 
 interface LocalLabel {
   id: number;
@@ -734,7 +735,7 @@ export default function MessageInput() {
 
       return JSON.stringify(payload);
     } catch (e) {
-      console.error('[buildQuotePayload] Error:', e);
+      Logger.error('[buildQuotePayload] Error:', e);
       return null;
     }
   };
@@ -1506,7 +1507,6 @@ export default function MessageInput() {
           });
           if (saveRes?.success && saveRes?.filePath) {
             thumbPath = saveRes.filePath;
-            console.log('[sendVideo] Canvas thumbnail saved to:', thumbPath);
           }
         }
       }
@@ -1517,7 +1517,6 @@ export default function MessageInput() {
         const uploadRes = await ipc.zalo?.uploadVideoThumb?.({
           auth, thumbPath, threadId: activeThreadId, type: activeThreadType,
         });
-        console.log('[sendVideo] uploadVideoThumb response:', JSON.stringify(uploadRes));
         // uploadAttachment trả về { normalUrl, hdUrl, thumbUrl, photoId, ... } cho ảnh jpg
         const resp = uploadRes?.response;
         thumbUrl =
@@ -1529,7 +1528,7 @@ export default function MessageInput() {
           resp?.href ||
           '';
         if (!thumbUrl) {
-          console.warn('[sendVideo] Không lấy được URL thumbnail từ response:', JSON.stringify(uploadRes));
+          Logger.warn('[sendVideo] Không lấy được URL thumbnail từ response:', JSON.stringify(uploadRes));
         }
       }
 
@@ -1537,7 +1536,6 @@ export default function MessageInput() {
       const uploadVideoRes = await ipc.zalo?.uploadVideoFile?.({
         auth, videoPath, threadId: activeThreadId, type: activeThreadType,
       });
-      console.log('[sendVideo] uploadVideoFile response:', JSON.stringify(uploadVideoRes));
       const videoUrl: string = uploadVideoRes?.response?.fileUrl || '';
 
       if (!videoUrl) {

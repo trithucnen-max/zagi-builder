@@ -250,7 +250,7 @@ export function registerDatabaseIpc() {
                     const migrated = DatabaseService.getInstance().migrateAllAbsolutePathsToRelative();
                     if (migrated > 0) {
                         DatabaseService.getInstance().forceFlush();
-                        console.log(`[databaseIpc] useExisting: migrated ${migrated} messages to relative paths`);
+                    Logger.log(`[databaseIpc] useExisting: migrated ${migrated} messages to relative paths`);
                     }
                 } catch {}
 
@@ -291,7 +291,7 @@ export function registerDatabaseIpc() {
                     try { event.sender.send('db:copyProgress', { copied: mediaCopied, total: mediaTotal, done: true }); } catch {}
                 } catch (copyErr: any) {
                     mediaError = copyErr.message;
-                    console.error(`[databaseIpc] Media copy error: ${copyErr.message}`);
+                    Logger.error(`[databaseIpc] Media copy error: ${copyErr.message}`);
                 }
             }
 
@@ -317,7 +317,7 @@ export function registerDatabaseIpc() {
                 try {
                     pathsRewritten = DatabaseService.getInstance().rewriteLocalPaths(oldMediaDir, newMediaDir);
                 } catch (rewriteErr: any) {
-                    console.error(`[databaseIpc] rewriteLocalPaths error: ${rewriteErr.message}`);
+                    Logger.error(`[databaseIpc] rewriteLocalPaths error: ${rewriteErr.message}`);
                 }
             }
 
@@ -329,7 +329,7 @@ export function registerDatabaseIpc() {
             try {
                 pathsMigrated = DatabaseService.getInstance().migrateAllAbsolutePathsToRelative();
             } catch (migrateErr: any) {
-                console.error(`[databaseIpc] migrateAllAbsolutePathsToRelative error: ${migrateErr.message}`);
+                Logger.error(`[databaseIpc] migrateAllAbsolutePathsToRelative error: ${migrateErr.message}`);
             }
 
             if (pathsRewritten > 0 || pathsMigrated > 0) {
@@ -674,6 +674,18 @@ export function registerDatabaseIpc() {
         }
     });
 
+    ipcMain.handle('db:getCalendarEventsByContact', async (_event, { contactId }: { contactId: string }) => {
+        try {
+            const events = DatabaseService.getInstance().query(
+                `SELECT * FROM erp_calendar_events WHERE linked_contact_id = ? ORDER BY start_at DESC`,
+                [contactId]
+            );
+            return { success: true, events };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle('db:bringPinnedToTop', async (_event, { zaloId, threadId, msgId }: { zaloId: string; threadId: string; msgId: string }) => {
         try {
             DatabaseService.getInstance().bringPinnedToTop(zaloId, threadId, msgId);
@@ -974,5 +986,42 @@ export function registerDatabaseIpc() {
             DatabaseService.getInstance().setLocalPinnedConversation(zaloId, threadId, isPinned);
             return { success: true };
         } catch (error: any) { return { success: false, error: error.message }; }
+    });
+
+    // ─── CRM Pipeline Stages ───
+    ipcMain.handle('db:getPipelineStages', async () => {
+        try {
+            const stages = DatabaseService.getInstance().getPipelineStages();
+            return { success: true, stages };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:savePipelineStage', async (_event, { stage }: { stage: any }) => {
+        try {
+            const id = DatabaseService.getInstance().savePipelineStage(stage);
+            return { success: true, id };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:deletePipelineStage', async (_event, { id }: { id: number }) => {
+        try {
+            DatabaseService.getInstance().deletePipelineStage(id);
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:updateContactPipelineStage', async (_event, { ownerZaloId, contactId, stageId }: { ownerZaloId: string; contactId: string; stageId: number | null }) => {
+        try {
+            DatabaseService.getInstance().updateContactPipelineStage(ownerZaloId, contactId, stageId);
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
     });
 }

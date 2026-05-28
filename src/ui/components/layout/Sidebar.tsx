@@ -1,7 +1,8 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useAccountStore } from '@/store/accountStore';
+import { useViewStore } from '@/store/viewStore';
 import { useAppStore } from '@/store/appStore';
-import { useChatStore } from '@/store/chatStore';
+import { useChatStore, useActiveThreadId, useActiveThreadType, useContacts } from '@/store/chatStore';
 import { useEmployeeStore } from '@/store/employeeStore';
 import ChannelBadge from '../common/ChannelBadge';
 import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
@@ -43,9 +44,12 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
   const canErpAccess = canErp('erp.access');
   // Use visible (filtered) accounts for rendering
   const accounts = visibleAccounts;
-  const { view, setView, mergedInboxMode, mergedInboxAccounts, mergedInboxFilterAccount, setMergedInboxFilter, exitMergedInbox } = useAppStore();
-  const crmRequestUnseenByAccount = useAppStore(s => s.crmRequestUnseenByAccount);
-  const { contacts, activeThreadId, activeThreadType, saveAccountThread } = useChatStore();
+  const { view, setView, mergedInboxMode, mergedInboxAccounts, mergedInboxFilterAccount, setMergedInboxFilter, exitMergedInbox } = useViewStore();
+  const crmRequestUnseenByAccount = useViewStore(s => s.crmRequestUnseenByAccount);
+  const activeThreadId = useActiveThreadId();
+  const activeThreadType = useActiveThreadType();
+  const contacts = useContacts();
+  const saveAccountThread = useChatStore(s => s.saveAccountThread);
   const { othersConversations: allOthers } = useAppStore();
 
   const dragIndexRef = useRef<number | null>(null);
