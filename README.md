@@ -44,41 +44,41 @@
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.0.exe">
-<img src="https://img.shields.io/badge/🪟_Windows_10/11-v27.1.0-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows" />
+<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.1.exe">
+<img src="https://img.shields.io/badge/🪟_Windows_10/11-v27.1.1-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows" />
 </a>
 
-<big><strong>Zagi-Setup-27.1.0.exe</strong></big>
+<big><strong>Zagi-Setup-27.1.1.exe</strong></big>
 
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.0-arm64.dmg">
-<img src="https://img.shields.io/badge/🍎_macOS_M1+-v27.1.0-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon" />
+<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.1-arm64.dmg">
+<img src="https://img.shields.io/badge/🍎_macOS_M1+-v27.1.1-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon" />
 </a>
 
-<big><strong>Zagi-27.1.0-arm64.dmg</strong></big>
+<big><strong>Zagi-27.1.1-arm64.dmg</strong></big>
 
 </td>
 </tr>
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.0.AppImage">
-<img src="https://img.shields.io/badge/🐧_Ubuntu_Linux-v27.1.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Download Ubuntu" />
+<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.1.AppImage">
+<img src="https://img.shields.io/badge/🐧_Ubuntu_Linux-v27.1.1-e95420?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Download Ubuntu" />
 </a>
 
-<big><strong>Zagi-27.1.0.AppImage</strong></big><br>
+<big><strong>Zagi-27.1.1.AppImage</strong></big><br>
 <big>chạy mọi distro — <code>chmod +x</code> là dùng được</big>
 
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.0.dmg">
-<img src="https://img.shields.io/badge/🍎_macOS_Intel-v27.1.0-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Intel" />
+<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.1.dmg">
+<img src="https://img.shields.io/badge/🍎_macOS_Intel-v27.1.1-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Intel" />
 </a>
 
-<big><strong>Zagi-27.1.0.dmg</strong></big>
+<big><strong>Zagi-27.1.1.dmg</strong></big>
 
 </td>
 </tr>
@@ -536,8 +536,21 @@ Zagi ưu tiên kiến trúc chạy cục bộ trên máy người dùng:
 
 ## 📋 Changelog
 
+<details open>
+<summary><strong>v27.1.1</strong> — 2026-06-20 · <em>Phiên bản hiện tại</em></summary>
+
+### 🔧 Cải thiện hạ tầng CI/CD
+
+- 🔄 Migrate toàn bộ CI/CD sang repo `trithucnen-max/zagi-builder`
+- 🔑 Chuyển sang `GITHUB_TOKEN` built-in cho tất cả workflow publish
+- 📦 Thêm `latest-linux.yml` vào Ubuntu release artifacts
+- 🏷️ Cập nhật tất cả release names → "Zagi"
+- 📝 Cập nhật package.json: repository, author, homepage, maintainer
+
+</details>
+
 <details>
-<summary><strong>v27.1.0</strong> — 2026-06-20 · <em>Phiên bản hiện tại</em></summary>
+<summary><strong>v27.1.0</strong> — 2026-06-20</summary>
 
 ### 🚀 Nâng cấp nổi bật
 
