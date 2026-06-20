@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Kích hoạt Bản quyền Zagi</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    .card {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px; padding: 32px;
+      width: 100%; max-width: 460px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .logo { text-align: center; font-size: 42px; margin-bottom: 12px; }
+    h1 { text-align: center; color: #f8fafc; margin-bottom: 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 24px; font-size: 13px; }
+    label { display: block; color: #cbd5e1; margin-bottom: 6px; font-size: 12px; font-weight: 600; margin-top: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+    input {
+      width: 100%; padding: 11px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px; font-size: 14px;
+      color: #f8fafc;
+      transition: all 0.2s ease;
+    }
+    input::placeholder {
+      color: #64748b;
+    }
+    input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      background: rgba(15, 23, 42, 0.8);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    }
+    .btn {
+      width: 100%; padding: 13px; margin-top: 18px;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white; border: none; border-radius: 8px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+      transition: all 0.2s ease;
+    }
+    .btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+    }
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .btn:disabled {
+      background: rgba(255, 255, 255, 0.1);
+      color: #64748b;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: #3b82f6;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      margin-top: 10px;
+      box-shadow: none;
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(59, 130, 246, 0.1);
+      box-shadow: none;
+    }
+    .message {
+      margin-top: 14px; padding: 11px; border-radius: 8px; font-size: 13px; display: none;
+      border: 1px solid transparent;
+      animation: fadeIn 0.3s ease;
+    }
+    .message.error {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: #fca5a5; display: block;
+    }
+    .message.success {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7; display: block;
+    }
+    .message.info {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: rgba(59, 130, 246, 0.2);
+      color: #93c5fd; display: block;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+    .tab {
+      flex: 1; padding: 12px 10px; background: none; border: none; cursor: pointer;
+      font-size: 13px; color: #94a3b8; font-weight: 600; border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+    .tab:hover {
+      color: #f8fafc;
+    }
+    .tab.active {
+      color: #3b82f6; border-bottom-color: #3b82f6;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    
+    /* Plan cards */
+    .plan-grid { display: grid; gap: 10px; margin-top: 8px; }
+    .plan-card {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 10px; padding: 14px;
+      cursor: pointer; transition: all 0.2s ease; position: relative;
+    }
+    .plan-card:hover { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.02); }
+    .plan-card.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.08); }
+    .plan-card.popular::after {
+      content: 'PHỔ BIẾN'; position: absolute; top: -8px; right: 10px;
+      background: #f59e0b; color: #0f172a; font-size: 9px; padding: 2px 8px;
+      border-radius: 4px; font-weight: 700;
+    }
+    .plan-name { font-weight: 600; color: #f1f5f9; font-size: 14px; }
+    .plan-price { color: #3b82f6; font-size: 16px; font-weight: 700; margin-top: 3px; }
+    .plan-desc { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+
+    /* Price Tabs */
+    .price-tabs {
+      display: flex;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 12px;
+    }
+    .price-tab {
+      flex: 1;
+      padding: 8px 12px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .price-tab:hover {
+      color: #f8fafc;
+    }
+    .price-tab.active {
+      background: #3b82f6;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+    .plan-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      font-size: 9px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    
+    /* Payment info */
+    .payment-box {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px dashed rgba(59, 130, 246, 0.4);
+      border-radius: 10px;
+      padding: 16px; margin-top: 16px;
+    }
+    .payment-box h3 { font-size: 13px; color: #f8fafc; margin-bottom: 10px; font-weight: 600; }
+    .payment-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.02); }
+    .payment-row:last-of-type { border-bottom: none; }
+    .payment-row span:first-child { color: #94a3b8; }
+    .payment-row span:last-child { color: #e2e8f0; font-weight: 600; font-family: monospace; }
+    .qr-img { width: 180px; height: 180px; display: block; margin: 14px auto; border-radius: 8px; border: 4px solid rgba(255, 255, 255, 0.05); }
+    .copy-btn {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #3b82f6;
+      padding: 1px 6px; border-radius: 4px; cursor: pointer; font-size: 10px; margin-left: 6px;
+      transition: all 0.2s ease;
+    }
+    .copy-btn:hover {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    .license-key-box {
+      background: rgba(245, 158, 11, 0.05);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      padding: 12px;
+      border-radius: 8px; margin-top: 12px; text-align: center;
+    }
+    .license-key-box .label { font-size: 11px; color: #fbbf24; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; }
+    .license-key-box .key { font-family: monospace; font-size: 13px; color: #f8fafc; font-weight: 600; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🔐</div>
+    <h1>Quản lý Bản quyền</h1>
+    <p class="subtitle">Kích hoạt hoặc đăng ký license mới</p>
+    
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="activate">Kích hoạt</button>
+      <button class="tab" data-tab="register">Nhận key</button>
+    </div>
+    
+    <!-- TAB 1: ACTIVATE -->
+    <div class="panel active" id="panel-activate">
+      <label>Email đăng ký</label>
+      <input type="email" id="actEmail" placeholder="example@gmail.com">
+      
+      <label>License Key (tùy chọn)</label>
+      <input type="text" id="actKey" placeholder="TRIAL-XXXX-XXXX-XXXX-XXXX">
+      
+      <button class="btn" id="activateBtn">Kích hoạt</button>
+      <div id="actMessage" class="message"></div>
+    </div>
+    
+    <!-- TAB 2: REGISTER -->
+    <div class="panel" id="panel-register">
+      <label>Email <span style="color:#f87171">*</span></label>
+      <input type="email" id="regEmail" placeholder="example@gmail.com">
+      
+      <label>Họ và tên</label>
+      <input type="text" id="regName" placeholder="Nguyễn Văn A">
+      
+      <label>Số điện thoại</label>
+      <input type="tel" id="regPhone" placeholder="0901234567">
+      
+      <label>Chọn gói cước <span style="color:#f87171">*</span></label>
+      <div style="margin-top: 8px; margin-bottom: 12px;">
+        <div class="plan-card" data-plan="trial" style="border-style: dashed;">
+          <div class="plan-name">🎁 Dùng thử 14 ngày</div>
+          <div class="plan-price">Miễn phí</div>
+          <div class="plan-desc">Trải nghiệm đầy đủ tính năng Zagi</div>
+          <span class="plan-badge">FREE</span>
+        </div>
+      </div>
+      
+      <label style="margin-top: 14px;">Gói cước trả phí</label>
+      <div class="price-tabs">
+        <button type="button" class="price-tab active" data-type="solo">Gói Solo (1 Zalo)</button>
+        <button type="button" class="price-tab" data-type="team">Gói Team (Không giới hạn)</button>
+      </div>
+      
+      <div class="plan-grid">
+        <!-- Rendered dynamically -->
+      </div>
+      
+      <button class="btn" id="registerBtn">Nhận key bản quyền</button>
+      <div id="regMessage" class="message"></div>
+      <div id="paymentInfo" style="display:none"></div>
+    </div>
+  </div>
+
+  <script>
+    // === TABS ===
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+    
+    // === PLAN SELECTION & PRICING ===
+    let selectedPlan = null;
+    let plansData = {}; // Cache plans from server
+    
+    function attachPlanCardListeners() {
+      document.querySelectorAll('.plan-card').forEach(card => {
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedPlan = card.dataset.plan;
+        });
+      });
+    }
+
+    function formatCurrency(amount) {
+      if (amount === 0) return 'Miễn phí';
+      return amount.toLocaleString('vi-VN') + 'đ';
+    }
+
+    function renderPlans(type) {
+      const planGrid = document.querySelector('.plan-grid');
+      planGrid.innerHTML = '';
+      
+      Object.keys(plansData).forEach(key => {
+        const p = plansData[key];
+        if (p.type === type) {
+          const card = document.createElement('div');
+          card.className = 'plan-card' + (p.popular ? ' popular' : '');
+          card.dataset.plan = key;
+          
+          let prefixName = '📅 ';
+          if (p.name.includes('Vĩnh viễn') || p.name.includes('trọn đời')) prefixName = '💎 ';
+          else if (p.popular) prefixName = '⭐ ';
+
+          const shortName = p.name.replace('Gói Solo ', '').replace('Gói Team ', '');
+
+          card.innerHTML = `
+            <div class="plan-name">${prefixName}${shortName}</div>
+            <div class="plan-price">${formatCurrency(p.amount)}</div>
+            <div class="plan-desc">${p.desc || ''}</div>
+          `;
+          
+          if (selectedPlan === key) {
+            card.classList.add('selected');
+          }
+          planGrid.appendChild(card);
+        }
+      });
+      
+      attachPlanCardListeners();
+    }
+
+    const priceTabs = document.querySelectorAll('.price-tab');
+    
+    priceTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        priceTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        renderPlans(tab.dataset.type);
+        
+        // Cập nhật selectedPlan nếu có thay đổi tab
+        const selected = document.querySelector('.plan-card.selected');
+        if (selected && selected.dataset.plan !== 'trial') {
+          selectedPlan = selected.dataset.plan;
+        }
+      });
+    });
+
+    // Load plans on startup
+    window.addEventListener('DOMContentLoaded', async () => {
+      attachPlanCardListeners();
+      try {
+        const result = await window.licenseAPI.getPlans();
+        if (result && result.success && result.plans) {
+          plansData = result.plans;
+          renderPlans('solo');
+        }
+      } catch (err) {
+        console.error('Failed to load plans:', err);
+      }
+    });
+    
+    // === HELPERS ===
+    function showMsg(id, text, type) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = 'message ' + type;
+    }
+    
+    function formatVND(n) {
+      return n.toLocaleString('vi-VN') + 'đ';
+    }
+    
+    // === ACTIVATE ===
+    document.getElementById('activateBtn').addEventListener('click', async () => {
+      const email = document.getElementById('actEmail').value.trim();
+      const key = document.getElementById('actKey').value.trim();
+      const btn = document.getElementById('activateBtn');
+      
+      if (!email || !email.includes('@')) {
+        showMsg('actMessage', 'Vui lòng nhập email hợp lệ', 'error');
+        return;
+      }
+      
+      btn.disabled = true; btn.textContent = 'Đang kiểm tra...';
+      
+      try {
+        const result = await window.licenseAPI.verify(email, key || null);
+        if (result.success) {
+          showMsg('actMessage', `✓ Xin chào ${result.license.fullName || email}! Đang khởi động Zagi...`, 'success');
+        } else {
+          showMsg('actMessage', result.message, 'error');
+          btn.disabled = false; btn.textContent = 'Kích hoạt';
+        }
+      } catch (err) {
+        showMsg('actMessage', 'Lỗi: ' + err.message, 'error');
+        btn.disabled = false; btn.textContent = 'Kích hoạt';
+      }
+    });
+    
+    // === REGISTER ===
+    let isRegistered = false;
+    document.getElementById('registerBtn').addEventListener('click', async () => {
+      const email = document.getElementById('regEmail').value.trim();
+      const btn = document.getElementById('registerBtn');
+
+      if (isRegistered) {
+        // Chuyển sang tab activate, điền sẵn email + key
+        document.querySelector('[data-tab="activate"]').click();
+        document.getElementById('actEmail').value = email;
+        const keyEl = document.querySelector('.license-key-box .key');
+        if (keyEl) {
+          document.getElementById('actKey').value = keyEl.textContent.trim();
+        }
+        // Khôi phục nút về trạng thái đăng ký ban đầu
+        isRegistered = false;
+        btn.textContent = 'Nhận key bản quyền';
+        document.getElementById('paymentInfo').style.display = 'none';
+        document.getElementById('regEmail').value = '';
+        document.getElementById('regName').value = '';
+        document.getElementById('regPhone').value = '';
+        showMsg('regMessage', '', 'info');
+        document.getElementById('regMessage').style.display = 'none';
+        return;
+      }
+      
+      const fullName = document.getElementById('regName').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      
+      if (!email || !email.includes('@')) {
+        showMsg('regMessage', 'Vui lòng nhập email hợp lệ', 'error');
+        return;
+      }
+      if (!selectedPlan) {
+        showMsg('regMessage', 'Vui lòng chọn một gói cước', 'error');
+        return;
+      }
+      
+      btn.disabled = true; btn.textContent = 'Đang xử lý...';
+      document.getElementById('paymentInfo').style.display = 'none';
+      
+      try {
+        const result = await window.licenseAPI.register({ 
+          email, fullName, phone, plan: selectedPlan 
+        });
+        
+        if (result.success) {
+          if (result.pending) {
+            // === Gói trả phí: hiện thông tin thanh toán + key ===
+            showMsg('regMessage', '✓ Đã tạo license key thành công! Vui lòng thanh toán để kích hoạt.', 'success');
+            
+            const pInfo = result.paymentInfo;
+            const html = `
+              <div class="license-key-box">
+                <div class="label">Mã License Key của bạn</div>
+                <div class="key">${result.licenseKey}</div>
+              </div>
+              <div class="payment-box">
+                <h3>💳 Thông tin chuyển khoản thanh toán</h3>
+                <div class="payment-row"><span>Gói đăng ký:</span><span>${result.duration}</span></div>
+                <div class="payment-row"><span>Số tiền chuyển:</span><span style="color:#3b82f6">${formatVND(pInfo.amount)}</span></div>
+                <div class="payment-row"><span>Ngân hàng nhận:</span><span>${pInfo.bankName}</span></div>
+                <div class="payment-row"><span>Số tài khoản:</span><span>${pInfo.accountNumber} <button class="copy-btn" onclick="navigator.clipboard.writeText('${pInfo.accountNumber}')">Copy</button></span></div>
+                <div class="payment-row"><span>Chủ tài khoản:</span><span>${pInfo.accountName}</span></div>
+                <div class="payment-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                  <span>Địa chỉ công ty:</span>
+                  <span style="color:#cbd5e1; font-size:11px; font-family:inherit; text-align:left; line-height:1.4;">${pInfo.companyAddress || 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, TP Hà Nội'}</span>
+                </div>
+                <div class="payment-row"><span>Nội dung CK:</span><span style="color:#f59e0b">${pInfo.transferContent} <button class="copy-btn" onclick="navigator.clipboard.writeText('${pInfo.transferContent}')">Copy</button></span></div>
+                <img src="${pInfo.qrUrl}" class="qr-img" alt="Mã QR thanh toán">
+                <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:8px;line-height: 1.4;">
+                  Sau khi chuyển khoản, bộ phận hỗ trợ Zagi sẽ duyệt trong 24h.<br>
+                  Hệ thống sẽ gửi email thông báo kích hoạt đến bạn.
+                </p>
+              </div>
+            `;
+            const div = document.getElementById('paymentInfo');
+            div.innerHTML = html;
+            div.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'Đóng và đợi xác nhận';
+            isRegistered = true;
+          } else {
+            // === Trial: tự động kích hoạt luôn ===
+            showMsg('regMessage', `✓ Đăng ký dùng thử thành công! Key: ${result.license.licenseKey}`, 'success');
+            setTimeout(async () => {
+              await window.licenseAPI.activateAfterRegister(email, result.license.licenseKey);
+            }, 1500);
+          }
+        } else {
+          showMsg('regMessage', result.message, 'error');
+          btn.disabled = false; btn.textContent = 'Nhận key';
+        }
+      } catch (err) {
+        showMsg('regMessage', 'Lỗi: ' + err.message, 'error');
+        btn.disabled = false; btn.textContent = 'Nhận key';
+      }
+    });
+  </script>
+</body>
+</html>
