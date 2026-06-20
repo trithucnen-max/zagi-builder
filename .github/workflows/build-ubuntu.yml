@@ -103,20 +103,22 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          repository: babyvibe/deplao-builder
+          repository: trithucnen-max/zagi-builder
           tag_name: ${{ steps.get_tag.outputs.tag }}
-          name: "Deplao ${{ steps.get_tag.outputs.tag }}"
+          name: "Zagi ${{ steps.get_tag.outputs.tag }}"
           files: |
             dist-electron-build/*.AppImage
             dist-electron-build/*.deb
+            dist-electron-build/*.blockmap
+            dist-electron-build/latest-linux.yml
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
           make_latest: false
           fail_on_unmatched_files: false
 
-      # ─── File sau khi publish ──────────────────────────────────────────────
-      # Xem release tại: https://github.com/babyvibe/deplao-builder/releases
+      # ─── File sau khi publish ────────────────────────────────────────────────────────
+      # Xem release tại: https://github.com/trithucnen-max/zagi-builder/releases
       # Link tải cố định:
-      #   https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao-{version}.AppImage
-      #   https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao_{version}_amd64.deb
+      #   https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-{version}.AppImage
+      #   https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi_{version}_amd64.deb

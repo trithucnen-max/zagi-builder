@@ -12,8 +12,8 @@
 
 > A multi-account Zalo & Facebook desktop app with integrated CRM, ERP, POS, Workflow automation and AI Assistant — helping sales, customer care teams and marketing operate centrally on Zalo and Facebook in one single application.
 
-[![Version](https://img.shields.io/github/v/release/babyvibe/deplao-builder?label=version&color=22c55e)](https://github.com/babyvibe/deplao-builder/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/babyvibe/deplao-builder/total?color=22c55e&label=downloads)](https://github.com/babyvibe/deplao-builder/releases)
+[![Version](https://img.shields.io/github/v/release/trithucnen-max/zagi-builder?label=version&color=22c55e)](https://github.com/trithucnen-max/zagi-builder/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/trithucnen-max/zagi-builder/total?color=22c55e&label=downloads)](https://github.com/trithucnen-max/zagi-builder/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-3b82f6)](#-runtime-requirements)
 [![Electron](https://img.shields.io/badge/Electron-41-47848f?logo=electron&logoColor=white)](#)
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](#)
@@ -22,7 +22,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](#)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-MIT-22c55e)](#license)
-[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/babyvibe/deplao-builder/issues)
+[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/trithucnen-max/zagi-builder/issues)
 
 <p align="center">
   <a href="#-download">📥 Download</a> &nbsp;|&nbsp;
@@ -42,7 +42,7 @@
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Zagi-Setup-27.1.0.exe">
+<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.0.exe">
 <img src="https://img.shields.io/badge/🪟_Windows_10/11-v27.1.0-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows" />
 </a>
 
@@ -51,7 +51,7 @@
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Zagi-27.1.0-arm64.dmg">
+<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.0-arm64.dmg">
 <img src="https://img.shields.io/badge/🍎_macOS_M1+-v27.1.0-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon" />
 </a>
 
@@ -62,7 +62,7 @@
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Zagi-27.1.0.AppImage">
+<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.0.AppImage">
 <img src="https://img.shields.io/badge/🐧_Ubuntu_Linux-v27.1.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Download Ubuntu" />
 </a>
 
@@ -72,7 +72,7 @@
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Zagi-27.1.0.dmg">
+<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.0.dmg">
 <img src="https://img.shields.io/badge/🍎_macOS_Intel-v27.1.0-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Intel" />
 </a>
 
@@ -83,7 +83,7 @@
 </table>
 
 <p align="center">
-👉 <strong><a href="https://github.com/babyvibe/deplao-builder/releases">View all releases</a></strong>
+👉 <strong><a href="https://github.com/trithucnen-max/zagi-builder/releases">View all releases</a></strong>
 </p>
 
 <details>
@@ -629,13 +629,13 @@ First full-featured release:
 
 </details>
 
-👉 **[View all releases on GitHub](https://github.com/babyvibe/deplao-builder/releases)**
+👉 **[View all releases on GitHub](https://github.com/trithucnen-max/zagi-builder/releases)**
 
 ---
 
 ## 📣 Contact & support
 
-- Bug reports, feature requests, questions: 👉 [Open an issue](https://github.com/babyvibe/deplao-builder/issues)
+- Bug reports, feature requests, questions: 👉 [Open an issue](https://github.com/trithucnen-max/zagi-builder/issues)
 
 ## 🙏 Acknowledgements
 
