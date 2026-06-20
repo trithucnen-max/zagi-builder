@@ -10,6 +10,7 @@ import { useChatStore } from '@/store/chatStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import { parseStructuredResponse } from '../../../utils/aiUtils';
+import MarkdownText from '../common/MarkdownText';
 
 interface ChatMsg {
   role: 'user' | 'assistant';
@@ -182,13 +183,14 @@ export default function AIQuickPanel({ onClose }: { onClose: () => void }) {
     const zaloContext = getRawZaloChatContext();
     if (!zaloContext) return;
     setLoading(true);
-    const summaryPrompt = `Hãy tóm tắt cuộc hội thoại sau trong 3-5 dòng, nêu rõ: chủ đề chính, yêu cầu của khách, trạng thái hiện tại.\n\n${zaloContext}`;
+    const summaryPrompt = `Hãy tóm tắt cuộc hội thoại sau trong 3-5 điểm ngắn gọn, nêu rõ: chủ đề chính, yêu cầu của khách, trạng thái hiện tại.\n\n${zaloContext}`;
     const userMsg: ChatMsg = { role: 'user', content: '📑 Tóm tắt hội thoại' };
     setMessages(prev => [...prev, userMsg]);
     try {
       const res = await ipc.ai?.chat(activeId, [{ role: 'user', content: summaryPrompt }]);
       if (res?.success && res.result) {
-        setMessages(prev => [...prev, { role: 'assistant', content: res.result! }]);
+        const segments = parseStructuredResponse(res.result);
+        setMessages(prev => [...prev, { role: 'assistant', content: res.result!, segments: segments || undefined }]);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: `❌ ${res?.error || 'Không có phản hồi'}` }]);
       }
@@ -367,12 +369,16 @@ export default function AIQuickPanel({ onClose }: { onClose: () => void }) {
                         ))}
                       </div>
                     ) : seg.type === 'text' && seg.content ? (
-                      <div key={si} className="whitespace-pre-wrap break-words">{seg.content}</div>
+                      msg.role === 'assistant'
+                        ? <MarkdownText key={si} content={seg.content} />
+                        : <div key={si} className="whitespace-pre-wrap break-words text-xs leading-relaxed">{seg.content}</div>
                     ) : null
                   ))}
                 </div>
+              ) : msg.role === 'assistant' ? (
+                <MarkdownText content={msg.content} />
               ) : (
-                <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                <div className="whitespace-pre-wrap break-words text-xs leading-relaxed">{msg.content}</div>
               )}
               {msg.role === 'assistant' && !msg.content.startsWith('❌') && (
                 <div className="flex items-center gap-1.5 mt-2 pt-1.5 border-t border-gray-700/50">
