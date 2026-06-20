@@ -1,5 +1,6 @@
-# ─── Build Deplao cho Windows ────────────────────────────────────────────────
-# Trigger: push tag v* HOẶC chạy tay (workflow_dispatch)
+# ─── Build Windows (chạy tay riêng lẻ) ─────────────────────────────────────
+# Workflow này chỉ chạy tay (workflow_dispatch).
+# Khi push tag v* → dùng build-all.yml để tránh build trùng lặp.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Build Windows
@@ -26,10 +27,6 @@ on:
         required: false
         default: ''
         type: string
-
-  push:
-    tags:
-      - 'v*'
 
 # ─── SECRETS cần cấu hình ────────────────────────────────────────────────────
 #   GH_TOKEN — GitHub Personal Access Token (repo scope)

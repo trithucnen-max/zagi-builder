@@ -1,11 +1,11 @@
-# ─── Build Deplao cho macOS ─────────────────────────────────────────────────
+# ─── Build macOS (chạy tay riêng lẻ) ───────────────────────────────────────
 # Chạy trên macOS runner (GitHub Actions) vì:
 #   1. bytenode compile V8 bytecode PHẢI chạy trên target OS + arch
 #   2. ffmpeg-static download binary theo platform khi npm install
 #   3. electron-builder cần macOS để tạo .dmg
 #
-# Trigger: push tag v* HOẶC chạy tay (workflow_dispatch)
-# Chi phí: macOS runner = $0.08/phút (private repo). ~15 phút/build = ~$1.2/build
+# Workflow này chỉ chạy tay (workflow_dispatch).
+# Khi push tag v* → dùng build-all.yml để tránh build trùng lặp.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Build macOS
@@ -36,11 +36,6 @@ on:
         required: false
         default: ''
         type: string
-
-  # Tự động khi push tag
-  push:
-    tags:
-      - 'v*'
 
 # ─── SECRETS cần cấu hình trong GitHub repo Settings → Secrets ──────────────
 # Bắt buộc:

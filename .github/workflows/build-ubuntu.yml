@@ -1,8 +1,9 @@
-# ─── Build Deplao cho Ubuntu (Linux) ─────────────────────────────────────────
+# ─── Build Ubuntu/Linux (chạy tay riêng lẻ) ─────────────────────────────────
 # Chạy trên ubuntu-latest runner (GitHub Actions).
 # Sinh ra .AppImage + .deb cho x64.
 #
-# Trigger: push tag v* HOẶC chạy tay (workflow_dispatch)
+# Workflow này chỉ chạy tay (workflow_dispatch).
+# Khi push tag v* → dùng build-all.yml để tránh build trùng lặp.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Build Ubuntu
@@ -29,10 +30,6 @@ on:
         required: false
         default: ''
         type: string
-
-  push:
-    tags:
-      - 'v*'
 
 # ─── SECRETS cần cấu hình ────────────────────────────────────────────────────
 #   GH_TOKEN — GitHub Personal Access Token (repo scope)
