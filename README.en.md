@@ -1,248 +1,287 @@
-# Zagi
-*Website Introduction*:  https://zagi.app/
+<div align="center">
+
+# ⚡ Zagi
+
+**Multi-account Zalo & Facebook desktop app**  
+with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 <p>
-  <strong>🌐 Language:</strong>
-  &nbsp;🇻🇳 <a href="./README.md">Tiếng Việt</a>
-  &nbsp;|&nbsp;
-  🇬🇧 <strong>English</strong>
+  <a href="https://itngon.com/zagi/">🌐 itngon.com/zagi</a> &nbsp;|&nbsp;
+  <a href="./README.md">🇻🇳 Tiếng Việt</a> &nbsp;|&nbsp;
+  <strong>🇬🇧 English</strong>
 </p>
+
+[![Version](https://img.shields.io/github/v/release/trithucnen-max/zagi-builder?label=version&color=22c55e&style=flat-square)](https://github.com/trithucnen-max/zagi-builder/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/trithucnen-max/zagi-builder/total?color=22c55e&label=downloads&style=flat-square)](https://github.com/trithucnen-max/zagi-builder/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-3b82f6?style=flat-square)](#download)
+[![Electron](https://img.shields.io/badge/Electron-41-47848f?logo=electron&logoColor=white&style=flat-square)](#)
+[![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white&style=flat-square)](#)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white&style=flat-square)](#)
+[![SQLite](https://img.shields.io/badge/SQLite-local--first-003b57?logo=sqlite&logoColor=white&style=flat-square)](#)
+[![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](#license)
+
+<p>
+  <a href="#download">📥 Download</a> &nbsp;·&nbsp;
+  <a href="#features">✨ Features</a> &nbsp;·&nbsp;
+  <a href="#screenshots">📸 Screenshots</a> &nbsp;·&nbsp;
+  <a href="#changelog">📋 Changelog</a> &nbsp;·&nbsp;
+  <a href="#build-from-source">🛠️ Build</a> &nbsp;·&nbsp;
+  <a href="#security">🔒 Security</a>
+</p>
+
+</div>
 
 ---
 
-> A multi-account Zalo & Facebook desktop app with integrated CRM, ERP, POS, Workflow automation and AI Assistant — helping sales, customer care teams and marketing operate centrally on Zalo and Facebook in one single application.
-
-[![Version](https://img.shields.io/github/v/release/trithucnen-max/zagi-builder?label=version&color=22c55e)](https://github.com/trithucnen-max/zagi-builder/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/trithucnen-max/zagi-builder/total?color=22c55e&label=downloads)](https://github.com/trithucnen-max/zagi-builder/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-3b82f6)](#-runtime-requirements)
-[![Electron](https://img.shields.io/badge/Electron-41-47848f?logo=electron&logoColor=white)](#)
-[![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](#)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)](#)
-[![SQLite](https://img.shields.io/badge/SQLite-local--first-003b57?logo=sqlite&logoColor=white)](#)
-[![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](#)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](#)
-[![License](https://img.shields.io/badge/license-MIT-22c55e)](#license)
-[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/trithucnen-max/zagi-builder/issues)
-
-<p align="center">
-  <a href="#-download">📥 Download</a> &nbsp;|&nbsp;
-  <a href="#-tech-stack">🛠️ Tech Stack</a> &nbsp;|&nbsp;
-  <a href="#installation">📦 Install</a> &nbsp;|&nbsp;
-  <a href="#-core-feature-groups">✨ Features</a> &nbsp;|&nbsp;
-  <a href="#-security-data">🔒 Security</a> &nbsp;|&nbsp;
-  <a href="#-license">📝 MIT</a> &nbsp;|&nbsp;
-  <a href="#-contact-support">📞 Contact</a>
-</p>
+> 🚀 A single desktop app that lets sales, customer care, and marketing teams **centrally manage all Zalo & Facebook activity** — multi-account chat, CRM, campaigns, workflow automation, AI assistant, and internal reporting.
 
 ---
 
-## ⬇️ Download
+## 📥 Download
+
+> **Latest version: v27.1.2** — [View all versions](#changelog)
 
 <table>
 <tr>
-<td align="center" width="50%">
+<td align="center" width="25%">
 
-<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.1.exe">
-<img src="https://img.shields.io/badge/🪟_Windows_10/11-v27.1.1-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows" />
-</a>
+### 🪟 Windows
 
-<big><strong>Zagi-Setup-27.1.1.exe</strong></big>
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.2-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2.exe)
 
-</td>
-<td align="center" width="50%">
+**[Zagi-Setup-27.1.2.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2.exe)**
 
-<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.1-arm64.dmg">
-<img src="https://img.shields.io/badge/🍎_macOS_M1+-v27.1.1-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon" />
-</a>
-
-<big><strong>Zagi-27.1.1-arm64.dmg</strong></big>
+NSIS Installer · ~148 MB
 
 </td>
-</tr>
-<tr>
-<td align="center" width="50%">
+<td align="center" width="25%">
 
-<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.1.AppImage">
-<img src="https://img.shields.io/badge/🐧_Ubuntu_Linux-v27.1.1-e95420?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Download Ubuntu" />
-</a>
+### 🍎 macOS M1+
 
-<big><strong>Zagi-27.1.1.AppImage</strong></big><br>
-<big>works on any distro — <code>chmod +x</code> & run</big>
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.2-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2-arm64.dmg)
+
+**[Zagi-27.1.2-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2-arm64.dmg)**
+
+Apple Silicon · ~177 MB
 
 </td>
-<td align="center" width="50%">
+<td align="center" width="25%">
 
-<a href="https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.1.dmg">
-<img src="https://img.shields.io/badge/🍎_macOS_Intel-v27.1.1-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Intel" />
-</a>
+### 🍎 macOS Intel
 
-<big><strong>Zagi-27.1.1.dmg</strong></big>
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.2-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2.dmg)
+
+**[Zagi-27.1.2.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2.dmg)**
+
+Intel x64 · ~182 MB
+
+</td>
+<td align="center" width="25%">
+
+### 🐧 Linux
+
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.2-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2.AppImage)
+
+**[Zagi-27.1.2.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2.AppImage)**  
+**[zagi_27.1.2_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.2_amd64.deb)**
+
+AppImage + .deb · ~197 MB
 
 </td>
 </tr>
 </table>
 
 <p align="center">
-👉 <strong><a href="https://github.com/trithucnen-max/zagi-builder/releases">View all releases</a></strong>
+  👉 <strong><a href="https://github.com/trithucnen-max/zagi-builder/releases">View all releases →</a></strong>
 </p>
 
 <details>
-<summary>⚠️ Security warning on first launch (blocked by Windows / macOS / Linux)</summary>
+<summary>⚠️ Security warning on first launch (Windows / macOS / Linux)</summary>
 
 Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when opening the installer.
 
----
+### 🪟 Windows — "Windows protected your PC"
 
-### 🪟 Windows (.exe)
-
-Windows may show **"Windows protected your PC"**:
-
-👉 How to proceed:
 1. Click **More info**
 2. Click **Run anyway**
 
----
+### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
-### 🍎 macOS (.dmg)
+**Option 1:** Right-click the file → **Open** → **Open**
 
-macOS may show **"cannot be opened because it is from an unidentified developer"**
+**Option 2:** System Settings → Privacy & Security → **Open Anyway**
 
-👉 How to proceed:
-
-**Option 1:**
-- Right-click the file → **Open**
-- Click **Open** again
-
-**Option 2 (if still blocked):**
-1. Go to **System Settings → Privacy & Security**
-2. Scroll down to Security
-3. Click **Open Anyway**
-
----
-
-### 🐧 Ubuntu Linux (.AppImage)
-
-After downloading the `.AppImage` file:
+### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-*.AppImage
-./Zagi-*.AppImage
+chmod +x Zagi-27.1.2.AppImage
+./Zagi-27.1.2.AppImage
 ```
 
-> If you get "FUSE: fuse2 not available", install `libfuse2`:
-> ```bash
-> sudo apt install libfuse2
-> ```
-
-Or install the `.deb` package:
+If you get "FUSE not available":
 ```bash
-sudo dpkg -i Zagi_*_amd64.deb
+sudo apt install libfuse2
+```
+
+Or use `.deb`:
+```bash
+sudo dpkg -i zagi_27.1.2_amd64.deb
 ```
 
 </details>
 
+---
+
+## 📸 Screenshots
+
 <p align="center">
-  <img src="./assets/deplao-overview-map.svg" alt="Centralized desktop workspace for Zalo sales and customer care" width="960" />
+  <img src="./assets/deplao-overview-map.svg" alt="Zagi — App Overview" width="960" />
 </p>
+
+<table>
+  <tr>
+    <td><img src="./assets/dashboard.png" alt="Multi-account dashboard" width="320"/><br/><sub><strong>Multi-account dashboard</strong></sub></td>
+    <td><img src="./assets/chat.png" alt="Unified inbox with AI" width="320"/><br/><sub><strong>Unified inbox + AI</strong></sub></td>
+    <td><img src="./assets/crm.png" alt="CRM contact management" width="320"/><br/><sub><strong>CRM & contacts</strong></sub></td>
+  </tr>
+  <tr>
+    <td><img src="./assets/scan-members-group.png" alt="Scan Zalo group members" width="320"/><br/><sub><strong>Group member scanning</strong></sub></td>
+    <td><img src="./assets/campaign.png" alt="Mass messaging campaigns" width="320"/><br/><sub><strong>Mass messaging campaigns</strong></sub></td>
+    <td><img src="./assets/workflow.png" alt="Workflow automation" width="320"/><br/><sub><strong>Workflow automation</strong></sub></td>
+  </tr>
+  <tr>
+    <td><img src="./assets/detail-workflow.png" alt="Workflow node config" width="320"/><br/><sub><strong>Workflow node detail</strong></sub></td>
+    <td><img src="./assets/workflow-ai.png" alt="AI workflow creation" width="320"/><br/><sub><strong>AI workflow generation</strong></sub></td>
+    <td><img src="./assets/pos.png" alt="POS & shipping integration" width="320"/><br/><sub><strong>POS, shipping & payments</strong></sub></td>
+  </tr>
+  <tr>
+    <td><img src="./assets/report.jpg" alt="Reports & analytics" width="320"/><br/><sub><strong>Reports & analytics</strong></sub></td>
+    <td><img src="./assets/report-employee.png" alt="Employee performance" width="320"/><br/><sub><strong>Employee performance</strong></sub></td>
+    <td><img src="./assets/erp.png" alt="Internal ERP" width="320"/><br/><sub><strong>Internal ERP</strong></sub></td>
+  </tr>
+</table>
+
+---
+
+## ✨ Features
+
+### 1️⃣ Multi-account & Unified Inbox
+
+- Log in to multiple Zalo accounts via QR Code
+- Visual account management dashboard
+- Merge all accounts into a **single unified inbox**
+- Search by name, nickname, phone number
+- Quick filters: unread, unanswered, labels, conversation status
+- **Per-account proxy**: assign independent HTTP/HTTPS/SOCKS5 proxy per Zalo account
+
+### 2️⃣ Full-featured Chat
+
+- Send text, images, video, files
+- Emoji, stickers, reply, mention members
+- Polls, group notes, reminders, contact cards
+- Quick messages — save templates and trigger by keyword
+- Unlimited message pinning, media and attachment management
+
+### 3️⃣ CRM & Customer Care
+
+- Sync friends, group members and contact profiles
+- Store phone, gender, birthday, internal notes
+- Create and manage Zalo labels bi-directionally
+- Filter contacts by multiple criteria for targeted outreach
+- Campaigns: mass message, add friend, invite to group — real-time progress tracking
+
+### 4️⃣ Workflow Automation
+
+- No-code drag-and-drop workflow builder
+- AI generates nodes and workflows from plain-text commands
+- Triggers: message received, label applied, reaction, cron schedule, group events…
+- Actions: send message/image/file, find user, manage group, mute, forward, recall…
+- Integrations: logic, Google Sheets, AI, Telegram, Discord, Email, Notion, HTTP Request
+- Execution history for easy inspection and debugging
+
+### 5️⃣ Sales Integrations
+
+- POS: KiotViet, Haravan, Sapo, Nhanh.vn, Pancake POS
+- Shipping: GHN, GHTK
+- AI reply suggestions and in-chat Q&A
+- Combine into end-to-end sales and customer care pipelines
+
+### 6️⃣ Reports, ERP & Employee Management
+
+- Reports: messages, contacts, campaigns, workflows, AI, employees
+- Internal ERP: Tasks, Calendar, Notes
+- Boss ↔ employee model with relay server and module-level permissions
+- Track work performance per person and per time period
+
+### 7️⃣ 🤖 AI Assistant
+
+- Smart reply suggestions in Zalo and Facebook conversations
+- Real-time Q&A with AI directly in the chat window
+- **Conversation summary** — renders beautifully with bullet points and bold text (v27.1.2)
+- Create workflows using plain natural language — no drag-and-drop needed
+- Use AI action nodes in workflows to build 24/7 auto-reply chatbots
+- Multi-platform AI: OpenAI, Claude, Gemini, 9Router
+
+---
+
+## 🔒 Security
+
+Zagi prioritizes a **local-first** architecture:
+
+- All messages, contacts, CRM data, settings and media are stored on the user's machine
+- Login via QR Code — no Zalo password stored; cookies are encrypted on-device
+- Users can move the storage directory to another drive at any time
+- Ideal for teams that require strict data control
+
+---
 
 ## 🛠️ Tech Stack
 
-- **Core library:** zca-js — https://github.com/RFS-ADRENO/zca-js, fbchat-v2 (Facebook E2EE bridge Go)
-- **AI Gateway:** 9router
-- **Languages:** TypeScript, JavaScript, SQL, HTML, CSS
-- **Desktop:** Electron, React, Vite
-- **UI:** Tailwind CSS, PostCSS, React Router
-- **Local storage:** SQLite via `better-sqlite3`
-- **State & UI:** Zustand, React Flow, Recharts, Quill
-- **Backend services:** Node.js + Express
-- **Integrations & automation:** Axios, Google APIs / Sheets, node-cron, Discord.js, Telegram Bot API, OpenAI API, etc.
+| Category | Tech |
+|----------|------|
+| **Core** | zca-js, fbchat-v2 (Go E2EE bridge) |
+| **Desktop** | Electron 41, React 18, Vite 6 |
+| **UI** | Tailwind CSS, PostCSS, React Router, Recharts, React Flow |
+| **Languages** | TypeScript 5, JavaScript, SQL |
+| **Storage** | SQLite (better-sqlite3), electron-store |
+| **State** | Zustand |
+| **Backend** | Node.js + Express |
+| **AI Gateway** | 9Router, OpenAI API, Claude, Gemini |
+| **Integrations** | Axios, Google Sheets, Telegram Bot, Discord.js, node-cron |
 
 ---
 
-## 🗺️ Architecture & Flow Diagrams
+## 🗺️ Architecture
 
----
-
-### 1️⃣ Build Pipeline
+### Build Pipeline
 
 ```mermaid
 flowchart LR
     subgraph SRC["📁 Source Code"]
-        E("⚡ electron/\n*.ts")
-        S("🔧 services/\n*.ts")
-        R("🎨 src/ui/\n*.tsx")
+        E("⚡ electron/*.ts")
+        S("🔧 services/*.ts")
+        R("🎨 src/ui/*.tsx")
     end
-
     subgraph COMPILE["🔨 Compile"]
         TSC("tsc\ntsconfig.electron")
         VITE("vite build\n+ Tailwind CSS")
     end
-
     subgraph OUT["📦 Output"]
         DE("dist-electron/\nmain · services · ipc")
         D("dist/\nindex.html · assets")
     end
-
     subgraph PKG["🚀 Package"]
         EB(("electron\nbuilder"))
-        WIN("🪟 Windows\n.exe / dir")
-        MAC("🍎 macOS\n.dmg arm64")
+        WIN("🪟 Windows\n.exe")
+        MAC("🍎 macOS\n.dmg arm64 + intel")
         LIN("🐧 Linux\n.AppImage · .deb")
     end
-
     E & S --> TSC --> DE
     R --> VITE --> D
     DE & D --> EB --> WIN & MAC & LIN
 ```
 
----
-
-### 2️⃣ Runtime Architecture
-
-```mermaid
-mindmap
-  root((🖥️ Zagi))
-    ⚙️ Main Process
-      📡 IPC Handlers
-        login · zalo · crm
-        workflow · erp · sync
-        facebook · relay · file
-      🔧 Services
-        DatabaseService
-        WorkspaceManager
-        WorkflowEngine
-        CRMQueueService
-        HttpConnectionManager
-        FileStorageService
-        AIAssistantService
-    🎨 Renderer
-      ⚛️ React Pages
-        Dashboard
-        Chat & Inbox
-        CRM & Campaign
-        Workflow Editor
-        POS & Integrations
-        ERP · Settings
-      🗃️ Zustand State
-        accountStore
-        chatStore
-        workspaceStore
-        employeeStore
-    📱 Zalo Protocol
-      zca-js
-        QR Login
-        Cookie Session
-        WebSocket realtime
-    🌐 External APIs
-      OpenAI · Google Sheets
-      Telegram · Discord
-      KiotViet · Haravan · Sapo
-      GHN · GHTK
-```
-
----
-
-### 3️⃣ Boss ↔ Employee Model
+### Boss ↔ Employee Model
 
 ```mermaid
 flowchart TB
@@ -252,18 +291,15 @@ flowchart TB
         BSD[("🗄️ SQLite DB\n+ Media Files")]
         BRL("🔁 Relay Server\nExpress + WebSocket :9900")
     end
-
     subgraph NET["🌐 Network"]
         LAN("🏠 LAN\n192.168.x.x:9900")
-        WAN("🌍 Tunnel / VPN\nremote access")
+        WAN("🌍 Cloudflare Tunnel\nRemote access")
     end
-
-    subgraph EMP["💻 Employee Machine — Remote Workspace"]
+    subgraph EMP["💻 Employee Machine"]
         EA("📲 Zagi App\nEmployee Mode")
         EP("🔐 Permission Filter\nerp · crm · workflow · ...")
         EU("👁️ UI\nassigned accounts only")
     end
-
     BZ --> BSV
     BSV <--> BSD
     BSV --> BRL
@@ -274,289 +310,110 @@ flowchart TB
     EP -.->|forward request| BRL
 ```
 
-> Employees still have their **own workspace** (DB, media) on their machine. Since Zalo only allows one connection at a time, all Zalo requests are **relayed to the Boss** for processing based on the configured permissions.
+---
+
+## 💻 System Requirements
+
+| | Requirement |
+|---|---|
+| **Windows** | Windows 10/11 (64-bit) |
+| **macOS** | macOS 12+ (Apple Silicon or Intel) |
+| **Linux** | Ubuntu 20.04+ or equivalent |
+| **Internet** | Stable 24/7 connection for workflow & sync |
+| **RAM** | 4 GB+ recommended |
 
 ---
 
-### 4️⃣ Multi-account & Local Storage
-
-```mermaid
-flowchart LR
-    subgraph ACCS["👤 Accounts"]
-        Z1("Zalo #1\nzca-js")
-        Z2("Zalo #2\nzca-js")
-        ZN("Zalo #N\nzca-js")
-        FB("Facebook\nGraph API")
-    end
-
-    subgraph STORE["💾 Local Storage"]
-        DB[("🗄️ SQLite\nzagi-tool.db\nmessages · contacts\ncrm · workflow · erp")]
-        MED("📁 FileStorage\n~/media/\nimages · videos · files")
-        ES("🔑 electron-store\ncookies · tokens\nsettings")
-    end
-
-    subgraph WS["🗂️ Workspace Manager"]
-        WA("🏠 Local WS\nDefault")
-        WB("🌐 Remote WS\nBoss")
-        WC("⚙️ Custom WS\ncustom path")
-    end
-
-    Z1 & Z2 & ZN & FB -->|"messages · contacts"| DB
-    Z1 & Z2 & ZN & FB -->|"images · videos · files"| MED
-    ES -->|"cookie session"| Z1 & Z2 & ZN
-    DB & ES <-->|"path resolve\nswitch workspace"| WS
-    WA & WB & WC -.-|"each WS = own DB"| DB
-```
-
-> Each **Workspace** has its own independent DB + media folder.
-> You can move the data directory to another drive without losing any data.
-
----
-
-## Installation
+## 🛠️ Build from Source
 
 <details>
-<summary>🛠️ Build from source</summary>
+<summary>Build instructions</summary>
 
 ### Requirements
 
-- Windows 10/11, macOS (Apple Silicon), or Ubuntu 20.04+
-- Node.js 18+ recommended
+- Node.js 18+
 - npm 9+
 
 ### Install dependencies
 
-```powershell
+```bash
 npm install --legacy-peer-deps
 ```
 
-### Run in development mode
+### Run in development
 
-```powershell
+```bash
 npm run dev
 ```
 
-### Build production app
+### Build production
 
-```powershell
+```bash
 npm run production
 ```
 
-### Local data
-
-- App data uses local SQLite
-- Storage directory can be changed in `Settings`
-
 </details>
-
-## 🚀 What is Zagi?
-
-At a glance, Zagi is:
-
-- **Zalo operations hub** — multi-account, unified inbox, fast reply
-- **Customer management layer** — CRM, labels, interaction history, campaigns
-- **Automation layer** — workflow, AI (including campaign copywriting assistant), background triggers and actions
-- **Business integration layer** — POS, shipping, APIs and external tools
-- **Internal management layer** — reports, ERP, permissions, employee workspaces
-
-## ✨ Highlights
-
-- 👤 **Multi-account Zalo** — unlimited accounts, quick switching
-- 💬 **Unified inbox** — merged mode combines conversations from all accounts in one view
-- 👥 **CRM & Campaigns** — manage contacts, labels, internal notes, re-engage existing customers; scan hidden group members to find new leads
-- ⚙️ **Workflow automation** — drag-and-drop Trigger → Node → Action, or use AI to build flows — runs 24/7 without code
-- 🤖 **AI Assistant** — reply suggestions, in-chat AI, auto-classify and respond to customers around the clock. Built-in copywriting assistant for CRM campaign content.
-- 🔗 **External integrations** — POS, shipping, payments, Google Sheets, Telegram, Discord, Email, HTTP Request — usable in chat and workflow
-- 📈 **Reports & analytics** — track messages, contacts, labels, employees, campaigns, workflows, AI usage
-- 🗂️ **Internal ERP** — tasks, calendar, notes and team operations in the same system
-- 🧑‍💼 **Boss ↔ Employee workspace** — connect over **LAN or WAN** (Cloudflare Tunnel), granular permissions, per-employee performance tracking
-- 🔒 **Per-account proxy** — assign an independent HTTP/HTTPS/SOCKS5 proxy to each Zalo account before login
-- 🔐 **Local-first data** — all data stays on the user's machine
-
-### Screenshots
-
-Screens are ordered by typical usage flow: dashboard → chat → CRM → workflow → POS / reports / ERP.
-
-<table>
-  <tr>
-    <td>
-      <img src="./assets/dashboard.png" alt="Multi-account Zalo dashboard in Zagi" width="360" />
-      <br />
-      <sub><strong>Multi-account dashboard</strong></sub>
-    </td>
-    <td>
-      <img src="./assets/chat.png" alt="Unified chat inbox in Zagi" width="360" />
-      <br />
-      <sub><strong>Unified inbox with AI</strong></sub>
-    </td>
-    <td>
-      <img src="./assets/crm.png" alt="CRM and contact management in Zagi" width="360" />
-      <br />
-      <sub><strong>CRM & contacts</strong></sub>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <img src="./assets/scan-members-group.png" alt="Scan Zalo group members in Zagi" width="360" />
-      <br />
-      <sub><strong>Group member scanning</strong></sub>
-    </td>
-    <td>
-      <img src="./assets/campaign.png" alt="Mass messaging campaign in Zagi" width="360" />
-      <br />
-      <sub><strong>Mass messaging campaigns</strong></sub>
-    </td>
-    <td>
-      <img src="./assets/workflow.png" alt="Drag-and-drop workflow editor in Zagi" width="360" />
-      <br />
-      <sub><strong>Workflow editor</strong></sub>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <img src="./assets/detail-workflow.png" alt="Workflow node configuration in Zagi" width="360" />
-      <br />
-      <sub><strong>Workflow node detail</strong></sub>
-    </td>
-    <td>
-      <img src="./assets/workflow-ai.png" alt="AI-assisted workflow creation in Zagi" width="360" />
-      <br />
-      <sub><strong>AI workflow generation</strong></sub>
-    </td>
-    <td>
-      <img src="./assets/pos.png" alt="POS and sales integration in Zagi" width="360" />
-      <br />
-      <sub><strong>POS, shipping & payments</strong></sub>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <img src="./assets/report.jpg" alt="Reports and performance analytics in Zagi" width="360" />
-      <br />
-      <sub><strong>Reports & analytics</strong></sub>
-    </td>
-    <td>
-      <img src="./assets/report-employee.png" alt="Employee performance report in Zagi" width="360" />
-      <br />
-      <sub><strong>Employee reports</strong></sub>
-    </td>
-    <td>
-      <img src="./assets/erp.png" alt="Internal ERP and team operations in Zagi" width="360" />
-      <br />
-      <sub><strong>Internal ERP</strong></sub>
-    </td>
-  </tr>
-</table>
-
-## 🎯 Who is it for?
-
-- Online shops and sales teams closing deals via Zalo
-- SMEs that need multiple staff handling the inbox simultaneously
-- Marketing agencies or freelancers managing multiple client accounts
-- Spas, clinics, education, F&B — any business that needs recurring customer care
-- Teams wanting to combine chat, CRM, workflow, AI and ERP in one desktop app
-
-## 🧩 Core feature groups
-
-### 1) Multi-account & unified inbox
-- Log in to multiple Zalo accounts via QR Code
-- Visual account management dashboard
-- Merge accounts into a single unified inbox
-- Search by name, nickname, phone number
-- Quick filters: unread, unanswered, labels, conversation status
-- **Per-account proxy**: assign an independent HTTP/HTTPS/SOCKS5 proxy to each Zalo account before login — fully isolated IPs across accounts
-
-### 2) Full-featured chat
-- Send text, images, video, files
-- Emoji, stickers, reply, mention members
-- Polls, group notes, reminders, contact cards
-- Quick messages — save templates and trigger by keyword
-- Unlimited message pinning, media and attachment management
-
-### 3) CRM & customer care
-- Sync friends, group members and contact profiles
-- Store phone, gender, birthday, internal notes
-- Create and manage Zalo labels bi-directionally
-- Filter contacts by multiple criteria for targeted outreach
-- Create campaigns: mass message, add friend, invite to group — with real-time progress
-
-### 4) Workflow automation
-- No-code drag-and-drop workflow builder
-- AI assistant generates nodes and workflows from plain-text commands (see section 7)
-- Triggers: message received, label applied, reaction, cron schedule, group events…
-- Actions: send message/image/file, find user, manage group, mute, forward, recall…
-- Integrations: logic, Google Sheets, AI, Telegram, Discord, Email, Notion, HTTP Request
-- Execution history for easy inspection and debugging
-
-### 5) Sales integrations
-- POS: KiotViet, Haravan, Sapo, Nhanh.vn, Pancake POS
-- Shipping: GHN, GHTK
-- AI Assistant with reply suggestions and in-chat Q&A (see section 7)
-- Easy to combine into end-to-end sales and customer care pipelines
-
-### 6) Reports, ERP & employee management
-- Reports: messages, contacts, campaigns, workflows, AI, employees
-- Internal ERP: Tasks, Calendar, Notes
-- Boss ↔ employee model with relay server and module-level permissions
-- Track work performance per person and per time period
-
-### 7) 🤖 AI Assistant
-- Smart reply suggestions in Zalo and Facebook conversations
-- Real-time Q&A with AI directly in the chat window
-- Create workflows using plain natural language commands — no drag-and-drop needed
-- Use AI action nodes in workflows to build 24/7 auto-reply chatbots
-- Multi-platform AI support: OpenAI, Claude, Gemini and 9Router (local AI gateway)
-
-## 🔒 Security & data
-
-Zagi prioritizes a local-first architecture:
-
-- All messages, contacts, CRM data, settings and media are stored on the user's machine
-- Login via QR Code — no Zalo password stored; cookies are encrypted on-device
-- Users can move the storage directory to another drive at any time
-- Ideal for teams that require strict data control
-
-## 💻 Runtime requirements
-
-- Stable 24/7 internet connection for conversation sync and automation
-- Keep the app running continuously when using workflows or managing a team
 
 ---
 
 ## 📋 Changelog
 
+<details open>
+<summary><strong>v27.1.2</strong> — 2026-06-21 · <em>🟢 Current version</em></summary>
+
+### 🔧 Fixes & Improvements
+
+- 🤖 **AI Quick Panel**: proper markdown rendering — bold (`**text**`), bullet lists (`-`), numbered lists, `` `code` `` blocks, `#` headers now display beautifully instead of raw characters
+- 🔄 Updated website link → [itngon.com/zagi](https://itngon.com/zagi/)
+- 📦 Updated package metadata: repository, author, homepage
+- 🔑 Standardized CI/CD to `trithucnen-max/zagi-builder`
+
+</details>
+
 <details>
-<summary><strong>v27.1.1</strong> — 2026-06-20 · <em>Current version</em></summary>
+<summary><strong>v27.1.1</strong> — 2026-06-20</summary>
+
+### 🔧 CI/CD Infrastructure
+
+- 🔄 Migrated all CI/CD to `trithucnen-max/zagi-builder`
+- 🔑 Switched to built-in `GITHUB_TOKEN` for all workflows
+- 📝 Fixed duplicate build trigger — each platform builds only once per tag push
+
+</details>
+
+<details>
+<summary><strong>v27.1.0</strong> — 2026-06-20</summary>
 
 ### 🚀 Highlights
 
 - 🎨 Full CRM UI overhaul — contact list, filters and label management redesigned
-- ⚡ Optimized rendering performance for large contact lists (>10,000 contacts)
+- ⚡ Optimized rendering for large contact lists (>10,000 contacts)
 - 🤖 Improved AI Assistant — higher reply suggestion accuracy
 
 ### ✨ New features
 
 - **Enhanced CRM**: Multi-criteria contact filter with new sidebar UI
+- **CRM Pipeline**: Kanban board for sales pipeline management
+- **CRM Timeline**: View interaction history in a timeline view
 - **Bulk actions**: Select multiple contacts and perform batch operations
 - **Advanced export**: Export CRM data to properly-formatted Excel files
 
 ### ⚡ Improvements
 
-- 3x faster contact list loading vs. previous version
-- Better memory usage when running many accounts simultaneously
-- More responsive UI on smaller screens
+- 3x faster contact list loading
+- Better memory usage with multiple simultaneous accounts
+- License Manager integrated in app
 
 ### 🐛 Bug fixes
 
-- Fixed contact search returning no results when phone number contains spaces
-- Fixed labels not updating in real-time when changed from the chat screen
+- Fixed contact search returning no results when phone number has spaces
+- Fixed labels not updating in real-time from the chat screen
+- Fixed bulk label actions in CRM
 
 </details>
 
 <details>
 <summary><strong>v26.6.4</strong> — 2026-06-20</summary>
-
-### 🚀 Highlights
 
 - 👤 Auto-refresh Zalo avatar on startup
 - ✏️ Facebook E2EE supports viewing message edit history
@@ -571,9 +428,7 @@ Zagi prioritizes a local-first architecture:
 <details>
 <summary><strong>v26.6.3</strong> — 2026-06-17</summary>
 
-### 🚀 Highlights
-
-- 🐧 Ubuntu/Linux support (.AppImage + .deb) with automated CI/CD builds
+- 🐧 **Ubuntu/Linux** support (.AppImage + .deb) with automated CI/CD builds
 - 📡 More stable Facebook with auto-reconnect on disconnection
 - 🤖 Zalo & Facebook workflows can send messages to multiple conversations at once
 - 📹 Watch Facebook videos directly in chat
@@ -584,25 +439,17 @@ Zagi prioritizes a local-first architecture:
 <details>
 <summary><strong>v26.6.2</strong> — 2026-06-16</summary>
 
-### ✨ New features
-
 - 🔐 Facebook login with email/phone + password + 2FA (no manual cookie extraction)
 - 🔔 Per-account notification settings (sound and corner alerts)
 - 🤖 AI Assistant now supports OpenRouter
-
-### 🐛 Bug fixes
-
 - Fixed some free AI models on 9Router failing to connect
 - Fixed Zalo forward node not forwarding messages and images
 - Fixed deleted accounts still maintaining background connections
-- Fixed Sapo integration connection issue
 
 </details>
 
 <details>
 <summary><strong>v26.6.0</strong> — 2026-06-14</summary>
-
-### 🚀 Highlights
 
 - 🤖 Facebook Messenger E2EE integration (read/send end-to-end encrypted messages)
 - 📊 CRM Facebook data scanner (groups, fanpages, posts, members, comments)
@@ -617,6 +464,7 @@ Zagi prioritizes a local-first architecture:
 ### 🎉 Official Zagi launch
 
 First full-featured release:
+
 - Multi-account Zalo & unified inbox
 - CRM, Campaign, Workflow automation
 - AI Assistant (OpenAI, Claude, Gemini, 9Router)
@@ -629,20 +477,37 @@ First full-featured release:
 
 </details>
 
-👉 **[View all releases on GitHub](https://github.com/trithucnen-max/zagi-builder/releases)**
+<p align="center">
+  👉 <strong><a href="https://github.com/trithucnen-max/zagi-builder/releases">View all releases on GitHub →</a></strong>
+</p>
 
 ---
 
-## 📣 Contact & support
+## 🎯 Who is it for?
 
-- Bug reports, feature requests, questions: 👉 [Open an issue](https://github.com/trithucnen-max/zagi-builder/issues)
+| Audience | Why Zagi |
+|----------|----------|
+| Online shops & sales teams | Close deals on Zalo with multiple accounts in parallel |
+| SMEs needing shared inbox | Boss ↔ Employee model with granular permissions |
+| Marketing agencies | Centrally manage multiple client accounts |
+| Spas, clinics, F&B, education | Recurring customer care, re-engagement campaigns |
+| Teams wanting all-in-one | Chat + CRM + Workflow + AI + ERP in one desktop app |
+
+---
+
+## 📣 Contact & Support
+
+- 🐛 **Bug reports & feature requests**: [GitHub Issues](https://github.com/trithucnen-max/zagi-builder/issues)
+- 🌐 **Website**: [itngon.com/zagi](https://itngon.com/zagi/)
+
+---
 
 ## 🙏 Acknowledgements
 
-Zagi would like to thank the project:
-👉 https://github.com/RFS-ADRENO/zca-js
-👉 https://github.com/m008v/fbchat-v2
-Without the contributions and foundation from this project, Zagi would not have been possible.
+Zagi thanks these open-source projects:
+
+- 👉 [zca-js](https://github.com/RFS-ADRENO/zca-js) — Zalo JS library
+- 👉 [fbchat-v2](https://github.com/m008v/fbchat-v2) — Facebook E2EE bridge
 
 ---
 
@@ -652,3 +517,7 @@ This project is distributed under the **MIT License**.
 See the [LICENSE](LICENSE) file for details.
 
 ---
+
+<div align="center">
+  <sub>Made with ❤️ by the Zagi team · <a href="https://itngon.com/zagi/">itngon.com/zagi</a></sub>
+</div>
