@@ -106,8 +106,8 @@ jobs:
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
           name: "Zagi ${{ needs.resolve-tag.outputs.tag }}"
           files: |
-            dist-electron-build/*.exe
-            dist-electron-build/*.blockmap
+            dist-electron-build/Zagi-Setup-*-x64.exe
+            dist-electron-build/Zagi-Setup-*-x64.exe.blockmap
             dist-electron-build/latest.yml
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
@@ -157,8 +157,8 @@ jobs:
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
           name: "Zagi ${{ needs.resolve-tag.outputs.tag }}"
           files: |
-            dist-electron-build/*arm64*.exe
-            dist-electron-build/*arm64*.blockmap
+            dist-electron-build/Zagi-Setup-*-arm64.exe
+            dist-electron-build/Zagi-Setup-*-arm64.exe.blockmap
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false

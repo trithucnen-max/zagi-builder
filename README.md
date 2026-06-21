@@ -47,9 +47,9 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.2-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.2-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-x64.exe)
 
-**[Zagi-Setup-27.1.2.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2.exe)**
+**[Zagi-Setup-27.1.2-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-x64.exe)**
 
 NSIS Installer · ~148 MB
 
@@ -124,10 +124,10 @@ NSIS Installer ARM64 · ~148 MB · Tối ưu native cho Surface ARM
 Máy tính của bạn là loại gì?
 │
 ├─ 🖥️ PC desktop / Laptop thông thường (Dell, HP, Lenovo, Asus, Acer...)
-│   └─ → Tải: Zagi-Setup-27.1.2.exe  ✅
+│   └─ → Tải: Zagi-Setup-27.1.2-x64.exe  ✅
 │
 ├─ 💻 Surface Pro 7, Surface Laptop 1-4, Surface Go 1-2, Surface Book
-│   └─ → Tải: Zagi-Setup-27.1.2.exe  ✅  (chip Intel, bản x64 chạy ok)
+│   └─ → Tải: Zagi-Setup-27.1.2-x64.exe  ✅  (chip Intel, bản x64 chạy ok)
 │
 └─ 💻 Surface Pro X, Surface Pro 9 (5G), Surface Pro 10, Surface Pro 11,
        Surface Laptop 7 (chip Snapdragon / ARM64)
@@ -177,8 +177,8 @@ Bạn dùng distro nào?
 
 | Thiết bị | File cần tải | Ghi chú |
 |---|---|---|
-| PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.1.2.exe` | Phổ biến nhất |
-| Surface Pro 7 trở xuống | `Zagi-Setup-27.1.2.exe` | Chip Intel |
+| PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.1.2-x64.exe` | Phổ biến nhất |
+| Surface Pro 7 trở xuống | `Zagi-Setup-27.1.2-x64.exe` | Chip Intel |
 | Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi-Setup-27.1.2-arm64.exe` | 🆕 Chip ARM64 |
 | MacBook M1/M2/M3/M4 | `Zagi-27.1.2-arm64.dmg` | Apple Silicon |
 | MacBook/iMac Intel | `Zagi-27.1.2.dmg` | Intel x64 |

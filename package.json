@@ -149,7 +149,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "allowElevation": true,
-      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
       "perMachine": false
     },
     "mac": {
