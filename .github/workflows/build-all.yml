@@ -1,5 +1,5 @@
-# ─── Build Deplao — Windows + macOS cùng lúc ─────────────────────────────────
-# Workflow tổng hợp: trigger cả 2 job song song, publish lên cùng 1 Release tag
+# ─── Build Zagi — Windows x64 + Windows ARM64 (Surface) + macOS + Linux ─────────
+# Workflow tổng hợp: trigger tất cả job song song, publish lên cùng 1 Release tag
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Build All Platforms
@@ -66,7 +66,7 @@ jobs:
           echo "✅ Tag: ${TAG} | Publish: ${SHOULD_PUBLISH}"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Windows (x64)
+  # Windows (x64) — PC thường, laptop Intel/AMD
   # ═══════════════════════════════════════════════════════════════════════════
   build-windows:
     needs: resolve-tag
@@ -98,7 +98,7 @@ jobs:
       - name: 📦 Build Windows app (x64)
         run: npx electron-builder --win --x64 --publish never
 
-      - name: 🚀 Publish Windows → GitHub Releases
+      - name: 🚀 Publish Windows x64 → GitHub Releases
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
@@ -109,6 +109,56 @@ jobs:
             dist-electron-build/*.exe
             dist-electron-build/*.blockmap
             dist-electron-build/latest.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          make_latest: false
+          fail_on_unmatched_files: false
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Windows ARM64 — Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7
+  # (dùng chip Qualcomm Snapdragon / ARM64)
+  # ═══════════════════════════════════════════════════════════════════════════
+  build-windows-arm64:
+    needs: resolve-tag
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: 🏗️ Compile TypeScript (electron)
+        run: npx tsc -p tsconfig.electron.prod.json
+
+      - name: 🏗️ Build renderer (Vite)
+        run: npx vite build
+        env:
+          NODE_ENV: production
+          BUILD_TARGET: production
+
+      - name: 📦 Build Windows app (arm64 — Surface)
+        run: npx electron-builder --win --arm64 --publish never
+
+      - name: 🚀 Publish Windows ARM64 → GitHub Releases
+        if: needs.resolve-tag.outputs.should_publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: trithucnen-max/zagi-builder
+          tag_name: ${{ needs.resolve-tag.outputs.tag }}
+          name: "Zagi ${{ needs.resolve-tag.outputs.tag }}"
+          files: |
+            dist-electron-build/*arm64*.exe
+            dist-electron-build/*arm64*.blockmap
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false

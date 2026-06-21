@@ -89,6 +89,23 @@ AppImage + .deb · ~197 MB
 
 </td>
 </tr>
+<tr>
+<td align="center" colspan="4">
+
+### 💻 Surface (Windows ARM64)
+
+> For **Surface Pro X, Pro 9 5G, Pro 10, Pro 11, Laptop 7** (Qualcomm Snapdragon / ARM64 chip)
+> 
+> **Surface Pro 7 and older (Intel)** → use the Windows x64 build above.
+
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.2-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-arm64.exe)
+
+**[Zagi-Setup-27.1.2-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-arm64.exe)**
+
+NSIS Installer ARM64 · ~148 MB · Native performance on Surface ARM
+
+</td>
+</tr>
 </table>
 
 <p align="center">
@@ -100,10 +117,14 @@ AppImage + .deb · ~197 MB
 
 Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when opening the installer.
 
-### 🪟 Windows — "Windows protected your PC"
+### 🪟 Windows & Surface — "Windows protected your PC"
 
 1. Click **More info**
 2. Click **Run anyway**
+
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.2-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> 
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.2.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 

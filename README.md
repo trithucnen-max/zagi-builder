@@ -89,6 +89,23 @@ AppImage + .deb · ~197 MB
 
 </td>
 </tr>
+<tr>
+<td align="center" colspan="4">
+
+### 💻 Surface (Windows ARM64)
+
+> Dành cho **Surface Pro X, Pro 9 5G, Pro 10, Pro 11, Laptop 7** (chip Snapdragon / ARM64)
+> 
+> **Surface Pro 7 trở xuống (Intel)** → dùng bản Windows x64 phía trên.
+
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.2-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-arm64.exe)
+
+**[Zagi-Setup-27.1.2-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-arm64.exe)**
+
+NSIS Installer ARM64 · ~148 MB · Tối ưu native cho Surface ARM
+
+</td>
+</tr>
 </table>
 
 <p align="center">
@@ -100,10 +117,14 @@ AppImage + .deb · ~197 MB
 
 Zagi chưa ký code (chúng tôi là startup bootstrapped), nên hệ điều hành có thể hiện cảnh báo khi mở lần đầu.
 
-### 🪟 Windows — "Windows protected your PC"
+### 🪟 Windows & Surface — "Windows protected your PC"
 
 1. Nhấn **More info**
 2. Nhấn **Run anyway**
+
+> ⚠️ **Surface ARM64**: Nếu bạn dùng **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, hãy tải bản `Zagi-Setup-27.1.2-arm64.exe` để chạy native, cho hiệu năng tốt hơn và tiết kiệm pin hơn so với bản x64.
+> 
+> **Surface Pro 7 trở xuống (Intel x64)**: dùng bản `Zagi-Setup-27.1.2.exe` thông thường.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
