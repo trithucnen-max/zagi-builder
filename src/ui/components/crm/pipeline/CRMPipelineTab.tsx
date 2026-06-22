@@ -107,11 +107,17 @@ export default function CRMPipelineTab() {
         stageId,
       });
       if (res?.success) {
-        useCRMStore.getState().setContacts(
-          contacts.map(c => c.contact_id === contactId ? { ...c, pipeline_stage_id: stageId } : c),
-          useCRMStore.getState().totalContacts
+        // Dùng getState() để tránh stale closure — contacts có thể đã thay đổi
+        const currentState = useCRMStore.getState();
+        currentState.setContacts(
+          currentState.contacts.map(c =>
+            c.contact_id === contactId ? { ...c, pipeline_stage_id: stageId } : c
+          ),
+          currentState.totalContacts
         );
         showNotification('Đã cập nhật giai đoạn liên hệ', 'success');
+      } else {
+        showNotification('Lỗi: ' + (res?.error || 'Không thể cập nhật'), 'error');
       }
     } catch (e: any) {
       showNotification('Lỗi: ' + e.message, 'error');

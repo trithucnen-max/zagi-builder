@@ -26,11 +26,34 @@ export default function TopBar() {
   const [loadingOldMsgs, setLoadingOldMsgs] = useState(false);
   const [lockScreenEnabled, setLockScreenEnabled] = useState(false);
 
+  // Zalo safety guide dropdown
+  const [guideOpen, setGuideOpen] = useState(false);
+  const guideRef = useRef<HTMLDivElement>(null);
+  const activeAccount = useAccountStore((s) => s.accounts.find(a => a.zalo_id === s.activeAccountId));
+  const isBusiness = activeAccount?.is_business === 1;
+
   // More dropdown (guide + bug report + font size)
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   // Font size slider: local temp value, only applies on release
   const [fontTemp, setFontTemp] = useState(fontSizeScale);
+
+  // Sync fontTemp when fontSizeScale changes externally
+  useEffect(() => {
+    setFontTemp(fontSizeScale);
+  }, [fontSizeScale]);
+
+  // Đóng cẩm nang khi click ra ngoài
+  useEffect(() => {
+    if (!guideOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (guideRef.current && !guideRef.current.contains(e.target as Node)) {
+        setGuideOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [guideOpen]);
 
   // Update state
   const { status: updateStatus, updateInfo, platform, setDismissed } = useUpdateStore();
@@ -225,6 +248,87 @@ export default function TopBar() {
         className="flex items-center"
         style={{ WebkitAppRegion: 'no-drag' } as any}
       >
+        {/* Cẩm nang an toàn Zalo */}
+        <div className="relative mr-2" ref={guideRef}>
+          <button
+            onClick={() => setGuideOpen(v => !v)}
+            className={`h-7 px-2.5 rounded-lg flex items-center gap-1 text-[11px] font-semibold border transition-all cursor-pointer ${
+              guideOpen
+                ? 'bg-amber-600 border-amber-600 text-white'
+                : 'border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/5 bg-transparent'
+            }`}
+            title="Cẩm nang quy tắc gửi tin nhắn Zalo an toàn"
+          >
+            🛡️ Cẩm nang an toàn Zalo
+          </button>
+          
+          {guideOpen && (
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-[9999] p-4 text-left overflow-y-auto max-h-[80vh] flex flex-col gap-3.5 text-gray-800 dark:text-gray-200">
+              <div className="flex items-center justify-between border-b border-gray-150 dark:border-gray-700 pb-2">
+                <span className="text-[12px] font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1">
+                  🛡️ CẨM NANG AN TOÀN ZALO
+                </span>
+                <button
+                  onClick={() => setGuideOpen(false)}
+                  className="text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 text-sm font-semibold cursor-pointer"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="space-y-3.5 text-[11px] leading-relaxed">
+                {/* Section 1 */}
+                <div className="space-y-1">
+                  <p className="font-bold text-red-600 dark:text-red-400 flex items-center gap-1">
+                    🔴 1. Gửi tin cho người chưa kết bạn (Người lạ)
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1 text-gray-600 dark:text-gray-300">
+                    <li><strong>Hạn mức:</strong> Tài khoản cá nhân miễn phí được gửi tối đa <span className="font-semibold text-red-650 dark:text-red-400">40 người lạ/tháng</span>.</li>
+                    <li><strong>Tần suất:</strong> Gửi tối đa <span className="font-semibold text-amber-600 dark:text-amber-400">10 - 20 người/ngày</span>. Bắt buộc giãn cách <span className="font-semibold text-blue-600 dark:text-blue-400">3 - 5 phút</span> giữa mỗi tin.</li>
+                    <li><strong>Trạng thái:</strong> Nằm ở mục "Tin nhắn chờ người lạ". Sẽ thất bại nếu khách tắt nhận tin từ người lạ.</li>
+                  </ul>
+                </div>
+                
+                {/* Section 2 */}
+                <div className="space-y-1">
+                  <p className="font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
+                    🟢 2. Gửi tin cho khách hàng đã kết bạn
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1 text-gray-600 dark:text-gray-300">
+                    <li><strong>Cá nhân (1-1):</strong> Không giới hạn số lượng tin nhắn trong ngày.</li>
+                    <li><strong>Forward hàng loạt:</strong> Tối đa <span className="font-semibold text-blue-600 dark:text-blue-400">50 người/nhóm</span> mỗi lần chuyển tiếp.</li>
+                    <li><strong>Báo cáo xấu (Report):</strong> Tránh spam rác để không bị người dùng bấm báo cáo xấu dẫn tới khóa tài khoản.</li>
+                  </ul>
+                </div>
+                
+                {/* Section 3 */}
+                <div className="space-y-1 border-t border-gray-100 dark:border-gray-700 pt-2.5">
+                  <p className="font-bold text-amber-650 dark:text-amber-400 flex items-center gap-1">
+                    ⭐ 3. Nguyên tắc vàng bắt buộc
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1 text-gray-600 dark:text-gray-300">
+                    <li><strong>Cá nhân hóa:</strong> Thay đổi cấu trúc chào hỏi, chèn biến <code className="bg-gray-100 dark:bg-gray-750 px-1 py-0.5 rounded text-[10px]">{`{name}`}</code>, <code className="bg-gray-100 dark:bg-gray-750 px-1 py-0.5 rounded text-[10px]">{`{gender_greeting}`}</code> để lách lọc.</li>
+                    <li><strong>Kiểm soát link:</strong> Hạn chế tối đa gửi link lạ, link rút gọn ở tin đầu tiên cho người lạ. Chỉ gửi sau khi đã kết bạn.</li>
+                    <li><strong>Tài khoản Business:</strong> Giúp gỡ bỏ hạn mức 40 người lạ/tháng. Nên ưu tiên sử dụng để khai thác khách hàng mới.</li>
+                  </ul>
+                </div>
+
+                {/* Account status info */}
+                <div className="border-t border-gray-100 dark:border-gray-700 pt-2.5 flex items-center justify-between text-[10px] text-gray-500">
+                  <span>Trạng thái tài khoản hiện tại:</span>
+                  <span className={`px-2 py-0.5 rounded-full font-bold ${
+                    isBusiness 
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' 
+                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                  }`}>
+                    {isBusiness ? '💼 Business' : '👤 Cá nhân'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Tải tin nhắn cũ (toàn phiên đăng nhập) — ẩn với nhân viên */}
         {activeAccountId && empMode !== 'employee' && (
           <button

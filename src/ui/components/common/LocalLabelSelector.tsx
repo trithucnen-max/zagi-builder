@@ -59,7 +59,7 @@ export default function LocalLabelSelector({
       {/* Trigger box — shows selected badges */}
       <div
         onClick={() => setOpen(v => !v)}
-        className="min-h-[32px] flex flex-wrap gap-1 items-center bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 cursor-pointer hover:border-blue-500 transition-colors"
+        className="min-h-[32px] flex flex-wrap gap-1 items-center bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 cursor-pointer hover:border-blue-500 transition-colors"
       >
         {selected.length > 0
           ? selected.map(l => (
@@ -72,13 +72,13 @@ export default function LocalLabelSelector({
                 <span className="truncate max-w-[60px]">{l.name}</span>
               </span>
             ))
-          : <span className="text-xs text-gray-500">{placeholder}</span>}
+          : <span className="text-xs text-gray-500 dark:text-gray-400">{placeholder}</span>}
         <span className="ml-auto text-gray-500 text-xs">▾</span>
       </div>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
           {labels.length === 0 && (
             <p className="text-xs text-gray-500 p-3 text-center">{emptyText}</p>
           )}
@@ -90,14 +90,14 @@ export default function LocalLabelSelector({
                 key={label.id}
                 onClick={() => toggle(label.id)}
                 disabled={isToggling}
-                className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-700 transition-colors text-left ${
+                className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left ${
                   isToggling ? 'opacity-50' : ''
                 }`}
               >
                 {/* Checkbox */}
                 <span
                   className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center text-xs ${
-                    isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-500'
+                    isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-500'
                   }`}
                 >
                   {isSelected && '✓'}
@@ -108,7 +108,7 @@ export default function LocalLabelSelector({
                   style={{ backgroundColor: label.color || '#3b82f6' }}
                 />
                 {label.emoji && <span className="text-xs">{label.emoji}</span>}
-                <span className="text-sm text-white truncate">{label.name}</span>
+                <span className="text-sm text-gray-900 dark:text-white truncate">{label.name}</span>
                 {isToggling && (
                   <span className="ml-auto text-[10px] text-gray-500 animate-pulse">...</span>
                 )}

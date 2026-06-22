@@ -1056,6 +1056,12 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
+    ipcMain.handle('db:updateContactAIProfile', async (_event, { ownerZaloId, contactId, aiProfile }: { ownerZaloId: string; contactId: string; aiProfile: string | null }) => {
+        try {
+            return DatabaseService.getInstance().updateContactAIProfile({ ownerZaloId, contactId, aiProfile });
+        } catch (error: any) { return { success: false, error: error.message }; }
+    });
+
     ipcMain.handle('db:upsertPinSchedule', async (_event, params: any) => {
         try {
             return DatabaseService.getInstance().upsertPinSchedule(params);

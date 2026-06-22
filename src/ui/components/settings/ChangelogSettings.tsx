@@ -14,6 +14,69 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.1.3',
+    date: '06/2026',
+    type: 'patch',
+    highlights: [
+      '👥 Quản lý nhóm & Rời nhóm hàng loạt (Smart Group Management) — rời nhiều nhóm cùng lúc từ CRM/Quản lý nhóm',
+      '👑 Tự động chuyển quyền Trưởng nhóm — chuyển quyền Owner cho Phó nhóm hoặc thành viên khác trước khi rời đi để tránh mất kiểm soát nhóm',
+      '👋 AI tạm biệt lịch sự — tự động soạn tin nhắn tạm biệt bằng AI và gửi vào nhóm trước khi rời nhóm',
+      '🛡️ Cẩm nang an toàn Zalo — tích hợp cẩm nang nguyên tắc gửi tin lên Topbar phục vụ tra cứu nhanh',
+      '⚠️ Cảnh báo an toàn Chiến dịch — tự động hiển thị cảnh báo đỏ/vàng khi tạo chiến dịch nếu vi phạm các ngưỡng an toàn của Zalo',
+      '🎨 Đồng bộ giao diện CRM mới — thiết kế lại toàn bộ chi tiết liên hệ CRM và các tab phụ trợ sang tông đen/trắng thanh lịch',
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Tích hợp SmartGroupModal và BulkLeaveGroupModal để xử lý rời nhóm hàng loạt chuyên nghiệp',
+          'Thêm cơ chế tự động chuyển nhượng quyền Trưởng nhóm cho thành viên khác trước khi rời nhóm',
+          'Thêm tính năng gửi tin nhắn Tạm biệt trước khi rời nhóm, hỗ trợ soạn thảo bằng AI Assistant',
+          'Tích hợp Popover "Cẩm nang an toàn Zalo" trên TopBar hiển thị các nguyên tắc gửi tin và tự động nhận diện Zalo Business',
+          'Bổ sung các mức cảnh báo màu Đỏ/Vàng khi tạo chiến dịch gửi tin dựa trên các quy định an toàn (người lạ, bạn bè, link lạ, delay)',
+        ],
+      },
+      {
+        category: 'improved',
+        items: [
+          'Đồng bộ lại toàn bộ giao diện chi tiết CRM, pipeline Kanban và các bảng dữ liệu liên quan sang theme đen/trắng sang trọng',
+          'Tối ưu hóa các nút bấm, viền và độ tương phản chữ trong CRM để nổi bật thông số quan trọng',
+        ],
+      },
+    ],
+  },
+  {
+    version: '27.1.2',
+    date: '06/2026',
+    type: 'patch',
+    highlights: [
+      '💻 Bản cài đặt Windows ARM64 cho Surface — tối ưu hóa hiệu năng cho các dòng Surface chip ARM native',
+      '📝 Hướng dẫn chọn phiên bản chi tiết trên README — giúp người dùng dễ dàng chọn đúng file cài đặt theo hệ điều hành',
+      '🤖 Sửa lỗi AI Quick Panel hiển thị ký tự thô — render chuẩn markdown cho tin nhắn AI',
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Bổ sung bản cài đặt Zagi-Setup-27.1.2-arm64.exe chạy native cho các thiết bị Windows ARM64 (Surface Pro 9 5G, 10, 11, Laptop 7)',
+        ],
+      },
+      {
+        category: 'improved',
+        items: [
+          'Thêm bảng so sánh và sơ đồ chọn phiên bản chi tiết trong tài liệu hướng dẫn và README',
+          'Sửa tên artifact NSIS thêm biến kiến trúc ${arch} để tự phân biệt file build x64 và arm64',
+        ],
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Khắc phục lỗi hiển thị markdown thô trong AI Quick Panel, giờ đây hiển thị danh sách, tiêu đề, in đậm và code block trực quan',
+        ],
+      },
+    ],
+  },
+  {
     version: '27.1.0',
     date: '06/2026',
     type: 'major',

@@ -53,6 +53,7 @@ export interface CRMContact {
   pipeline_stage_id?: number | null;
   ai_sentiment?: string | null;
   ai_intent?: string | null;
+  ai_profile?: string | null;
 }
 
 export interface PipelineStage {

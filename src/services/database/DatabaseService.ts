@@ -439,6 +439,7 @@ class DatabaseService {
                 last_message TEXT DEFAULT '',
                 last_message_time INTEGER DEFAULT 0,
                 pipeline_stage_id INTEGER DEFAULT NULL,
+                ai_profile TEXT DEFAULT NULL,
                 UNIQUE(owner_zalo_id, contact_id)
             );
         `);
@@ -1821,6 +1822,11 @@ class DatabaseService {
             if (!names.includes('birthday')) {
                 db!.exec(`ALTER TABLE contacts ADD COLUMN birthday TEXT DEFAULT NULL`);
                 Logger.log('[DatabaseService] Migration: added birthday to contacts');
+                needSave = true;
+            }
+            if (!names.includes('ai_profile')) {
+                db!.exec(`ALTER TABLE contacts ADD COLUMN ai_profile TEXT DEFAULT NULL`);
+                Logger.log('[DatabaseService] Migration: added ai_profile to contacts');
                 needSave = true;
             }
             if (needSave) this.save();
@@ -3664,6 +3670,7 @@ class DatabaseService {
         try {
             this.runNoSave('DELETE FROM messages WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
             this.runNoSave('DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM page_group_member WHERE owner_zalo_id = ? AND group_id = ?', [ownerZaloId, contactId]);
             this.save();
             Logger.log(`[DatabaseService] Deleted conversation ${contactId} for ${ownerZaloId}`);
         } catch (err: any) {
@@ -4783,6 +4790,19 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] getCampaignContacts: ${err.message}`); return []; }
     }
 
+    /** Xóa một hoặc nhiều liên hệ khỏi danh sách chờ của chiến dịch (chỉ cho phép xóa pending) */
+    public removeCampaignContacts(campaignId: number, contactIds: string[]): void {
+        if (!this.initialized || !contactIds.length) return;
+        try {
+            const placeholders = contactIds.map(() => '?').join(',');
+            this.run(
+                `DELETE FROM crm_campaign_contacts WHERE campaign_id=? AND contact_id IN (${placeholders}) AND status='pending'`,
+                [campaignId, ...contactIds]
+            );
+            this.save();
+        } catch (err: any) { Logger.error(`[DB] removeCampaignContacts: ${err.message}`); }
+    }
+
     public updateCampaignContactStatus(id: number, status: CRMContactStatus, error?: string): void {
         if (!this.initialized) return;
         try {
@@ -4931,10 +4951,11 @@ class DatabaseService {
         contactTypes?: ('friend' | 'group' | 'non_friend')[];
         sortBy?: 'name' | 'last_message'; sortDir?: 'asc' | 'desc';
         limit?: number; offset?: number;
+        contactIds?: string[];
     } = {}): { contacts: any[]; total: number } {
         if (!this.initialized) return { contacts: [], total: 0 };
         try {
-            const { search, isFriendOnly, contactType = 'all', contactTypes, sortBy = 'name', sortDir = 'asc', limit = 50, offset = 0 } = opts;
+            const { search, tagIds, contactIds, isFriendOnly, contactType = 'all', contactTypes, sortBy = 'name', sortDir = 'asc', limit = 50, offset = 0 } = opts;
 
             let all: any[] = [];
 
@@ -4950,7 +4971,7 @@ class DatabaseService {
                     `SELECT contact_id, COALESCE(alias,'') as alias, COALESCE(display_name,'') as display_name,
                         COALESCE(avatar_url,'') as avatar, '' as phone,
                         0 as is_friend, COALESCE(last_message_time,0) as last_message_time, 'group' as contact_type,
-                        gender, birthday
+                        gender, birthday, pipeline_stage_id, ai_profile
                      FROM contacts WHERE owner_zalo_id=? AND contact_type='group'
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -4964,7 +4985,7 @@ class DatabaseService {
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -4979,7 +5000,7 @@ class DatabaseService {
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -4991,7 +5012,7 @@ class DatabaseService {
                         COALESCE(avatar_url,'') as avatar, COALESCE(phone,'') as phone,
                         is_friend, COALESCE(last_message_time,0) as last_message_time,
                         COALESCE(contact_type,'user') as contact_type,
-                        gender, birthday
+                        gender, birthday, pipeline_stage_id, ai_profile
                      FROM contacts WHERE owner_zalo_id=?
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -5017,6 +5038,33 @@ class DatabaseService {
                     // Default 'all' in CRM Contacts: exclude groups by default!
                     all = all.filter((c: any) => c.contact_type !== 'group');
                 }
+            }
+
+            // Apply local label (tagIds) filter
+            if (tagIds && tagIds.length > 0) {
+                const threadLabelsMap: Record<string, Set<number>> = {};
+                const labelRows = this.query<any>(
+                    `SELECT thread_id, label_id FROM local_label_threads WHERE owner_zalo_id=?`,
+                    [ownerZaloId]
+                );
+                for (const row of labelRows) {
+                    if (!threadLabelsMap[row.thread_id]) {
+                        threadLabelsMap[row.thread_id] = new Set();
+                    }
+                    threadLabelsMap[row.thread_id].add(Number(row.label_id));
+                }
+
+                all = all.filter(c => {
+                    const lIds = threadLabelsMap[c.contact_id];
+                    if (!lIds) return false;
+                    return tagIds.every(id => lIds.has(id));
+                });
+            }
+
+            // Apply contactIds filter (Zalo labels)
+            if (contactIds && contactIds.length > 0) {
+                const allowedIds = new Set(contactIds);
+                all = all.filter(c => allowedIds.has(c.contact_id));
             }
 
             // Apply search filter
@@ -7275,13 +7323,46 @@ class DatabaseService {
         return { success: true };
     }
 
+    private ensureContactRowExists(ownerZaloId: string, contactId: string): void {
+        const exists = this.queryOne<any>(
+            `SELECT 1 FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`,
+            [ownerZaloId, contactId]
+        );
+        if (!exists) {
+            const friend = this.queryOne<any>(
+                `SELECT display_name, avatar, phone FROM friends WHERE owner_zalo_id = ? AND user_id = ?`,
+                [ownerZaloId, contactId]
+            );
+            const displayName = friend?.display_name || '';
+            const avatarUrl = friend?.avatar || '';
+            const phone = friend?.phone || '';
+            this.run(`
+                INSERT INTO contacts (owner_zalo_id, contact_id, display_name, avatar_url, phone, is_friend, contact_type, unread_count)
+                VALUES (?, ?, ?, ?, ?, 1, 'user', 0)
+            `, [ownerZaloId, contactId, displayName, avatarUrl, phone]);
+        }
+    }
+
     public updateContactPipelineStage(params: { ownerZaloId: string; contactId: string; stageId: number | null }): { success: boolean } {
         const { ownerZaloId, contactId, stageId } = params;
+        this.ensureContactRowExists(ownerZaloId, contactId);
         this.run(`
             UPDATE contacts
             SET pipeline_stage_id = ?
             WHERE owner_zalo_id = ? AND contact_id = ?
         `, [stageId, ownerZaloId, contactId]);
+        this.save();
+        return { success: true };
+    }
+
+    public updateContactAIProfile(params: { ownerZaloId: string; contactId: string; aiProfile: string | null }): { success: boolean } {
+        const { ownerZaloId, contactId, aiProfile } = params;
+        this.ensureContactRowExists(ownerZaloId, contactId);
+        this.run(`
+            UPDATE contacts
+            SET ai_profile = ?
+            WHERE owner_zalo_id = ? AND contact_id = ?
+        `, [aiProfile, ownerZaloId, contactId]);
         this.save();
         return { success: true };
     }

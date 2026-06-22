@@ -137,7 +137,7 @@ function LivePreview({
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Xem trước</span>
         {!isFR && blocks.length > 1 && (
-          <span className="text-[10px] text-gray-500">
+          <span className="text-[10px] text-gray-555">
             {mode === 'random' ? '🎲 Random' : '📨 Tất cả'}
           </span>
         )}
@@ -151,7 +151,7 @@ function LivePreview({
               className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
                 i === activeIdx
                   ? 'bg-blue-600 text-white border-blue-500'
-                  : 'border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500'
+                  : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500'
               }`}>
               Nội dung {i + 1}
             </button>
@@ -160,21 +160,21 @@ function LivePreview({
       )}
 
       {/* Phone-style preview */}
-      <div className="flex-1 min-h-0 flex flex-col border border-gray-600 rounded-xl overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col border border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-gray-800">
         {/* Top bar */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-gray-700 border-b border-gray-600 flex-shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
           <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">Z</div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-gray-200 truncate">Nguyễn Văn A</p>
-            <p className="text-[9px] text-gray-500">Zalo</p>
+            <p className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate">Nguyễn Văn A</p>
+            <p className="text-[9px] text-gray-550 dark:text-gray-400">Zalo</p>
           </div>
         </div>
 
         {/* Chat area */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-800">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50 dark:bg-gray-900">
           {/* Timestamp */}
           <div className="flex justify-center">
-            <span className="text-[9px] text-gray-500 bg-gray-700 px-2 py-0.5 rounded-full">Hôm nay 12:00</span>
+            <span className="text-[9px] text-gray-600 dark:text-gray-500 bg-gray-200 dark:bg-gray-800 px-2 py-0.5 rounded-full">Hôm nay 12:00</span>
           </div>
 
           {(previewText || hasImages) ? (
@@ -202,7 +202,7 @@ function LivePreview({
                   </div>
                 )}
                 {/* Status tick */}
-                <span className="text-[9px] text-gray-500">✓✓ Đã gửi</span>
+                <span className="text-[9px] text-gray-600 dark:text-gray-500">✓✓ Đã gửi</span>
               </div>
             </div>
           ) : (
@@ -226,7 +226,7 @@ function LivePreview({
 
       {/* Mode explanation */}
       {!isFR && blocks.length > 1 && (
-        <div className="mt-2 px-2 text-[10px] text-gray-500 flex-shrink-0">
+        <div className="mt-2 px-2 text-[10px] text-gray-555 flex-shrink-0">
           {mode === 'random'
             ? `🎲 Mỗi người nhận ngẫu nhiên 1 trong ${blocks.length} nội dung`
             : `📨 Mỗi người nhận cả ${blocks.length} nội dung lần lượt`}
@@ -266,7 +266,7 @@ function GroupPicker({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <p className="text-[11px] text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-2.5 py-1.5 mb-2 flex-shrink-0">
+      <p className="text-[11px] text-yellow-600 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-2.5 py-1.5 mb-2 flex-shrink-0">
         ⚠️ Chỉ mời được bạn bè — Không mời được người lạ
       </p>
       {!zaloId ? (
@@ -279,19 +279,19 @@ function GroupPicker({
       ) : (
         <>
           {/* Search + select all */}
-          <div className="flex items-center gap-2 border border-gray-600 rounded-lg px-2.5 py-1.5 mb-2 flex-shrink-0">
+          <div className="flex items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 mb-2 flex-shrink-0 bg-white dark:bg-gray-900">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-500 flex-shrink-0">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Tìm nhóm..." className="flex-1 text-xs text-gray-200 bg-transparent focus:outline-none placeholder-gray-500" />
+              placeholder="Tìm nhóm..." className="flex-1 text-xs text-gray-950 dark:text-gray-200 bg-transparent focus:outline-none placeholder-gray-400 dark:placeholder-gray-500" />
             {(() => {
               const allSel = visible.length > 0 && visible.every(g => inviteGroupIds.includes(g.contact_id));
               return visible.length > 1 ? (
                 <button onClick={() => visible.forEach(g => {
                   if (allSel ? inviteGroupIds.includes(g.contact_id) : !inviteGroupIds.includes(g.contact_id))
                     onToggle(g.contact_id);
-                })} className="text-[10px] text-blue-400 hover:text-blue-300 flex-shrink-0">
+                })} className="text-[10px] text-blue-450 hover:text-blue-500 flex-shrink-0">
                   {allSel ? 'Bỏ tất cả' : 'Chọn tất cả'}
                 </button>
               ) : null;
@@ -299,18 +299,18 @@ function GroupPicker({
           </div>
 
           {inviteGroupIds.length > 0 && (
-            <p className="text-[11px] text-blue-400 mb-1.5 flex-shrink-0">✓ {inviteGroupIds.length} nhóm đã chọn</p>
+            <p className="text-[11px] text-blue-500 mb-1.5 flex-shrink-0">✓ {inviteGroupIds.length} nhóm đã chọn</p>
           )}
 
-          <div className="flex-1 min-h-0 overflow-y-auto border border-gray-600 rounded-lg divide-y divide-gray-700/50">
+          <div className="flex-1 min-h-0 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-lg divide-y divide-gray-200 dark:divide-gray-700/50 bg-white dark:bg-gray-800">
             {visible.map(g => {
               const checked = inviteGroupIds.includes(g.contact_id);
               return (
                 <label key={g.contact_id}
-                  className={`flex items-center gap-2 px-2.5 py-2 cursor-pointer transition-colors ${checked ? 'bg-blue-500/10' : 'hover:bg-gray-700/40'}`}>
+                  className={`flex items-center gap-2 px-2.5 py-2 cursor-pointer transition-colors ${checked ? 'bg-blue-50/50 dark:bg-blue-500/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700/40'}`}>
                   <div onClick={() => onToggle(g.contact_id)}
-                    className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                      checked ? 'bg-blue-500 border-blue-500' : 'border-gray-500 hover:border-blue-400'
+                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                      checked ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-500 hover:border-blue-400'
                     }`}>
                     {checked && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                   </div>
@@ -318,7 +318,7 @@ function GroupPicker({
                     ? <img src={g.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
                     : <div className="w-6 h-6 rounded-full bg-blue-700 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">{(g.display_name||'?').charAt(0).toUpperCase()}</div>
                   }
-                  <span className={`flex-1 text-xs truncate ${checked ? 'text-white font-medium' : 'text-gray-300'}`}>{g.display_name}</span>
+                  <span className={`flex-1 text-xs truncate ${checked ? 'text-blue-700 dark:text-white font-semibold' : 'text-gray-750 dark:text-gray-300'}`}>{g.display_name}</span>
                 </label>
               );
             })}
@@ -331,7 +331,7 @@ function GroupPicker({
             <summary className="text-[10px] text-gray-600 cursor-pointer hover:text-gray-500 select-none">📋 Mã lỗi thường gặp</summary>
             <div className="mt-1 flex flex-wrap gap-1">
               {Object.entries(INVITE_ERROR_LABELS).map(([c, l]) => (
-                <span key={c} className="text-[9px] text-gray-500 bg-gray-700 px-1.5 py-0.5 rounded">{c}: {l}</span>
+                <span key={c} className="text-[9px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-650">{c}: {l}</span>
               ))}
             </div>
           </details>
@@ -411,6 +411,8 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
     if (r?.filePaths?.length) onUpdate({ images: [...block.images, ...r.filePaths] });
   };
 
+  const hasLink = /https?:\/\/[^\s]+/i.test(block.text);
+
   return (
     <div className="flex flex-col gap-2 h-full min-h-0">
       {/* Variable chips & AI button */}
@@ -440,13 +442,13 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
 
       {/* Inline AI assist box */}
       {showAiInput && (
-        <div className="flex flex-col gap-1.5 p-2 bg-purple-950/20 border border-purple-500/20 rounded-xl flex-shrink-0">
+        <div className="flex flex-col gap-1.5 p-2 bg-purple-50 dark:bg-purple-950/20 border border-purple-500/20 rounded-xl flex-shrink-0">
           <div className="flex gap-2">
             <input
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               placeholder="Yêu cầu AI viết tin nhắn mẫu..."
-              className="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+              className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -481,15 +483,22 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
         value={block.text}
         onChange={e => onUpdate({ text: e.target.value })}
         placeholder={'Soạn nội dung tin nhắn...\nDùng {name} để chèn tên người nhận'}
-        className="flex-1 min-h-0 w-full bg-gray-800 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
+        className="flex-1 min-h-0 w-full bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
       />
+
+      {/* Warning on link */}
+      {hasLink && (
+        <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium px-1 leading-relaxed">
+          ⚠️ Cảnh báo: Tránh gửi đường link (liên kết) trong tin nhắn đầu cho người chưa kết bạn để hạn chế bị quét spam/khóa tài khoản.
+        </p>
+      )}
 
       {/* Images */}
       <div className="flex-shrink-0">
         {block.images.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-2">
             {block.images.map((p, i) => (
-              <div key={i} className="relative group/img w-14 h-14 rounded-lg overflow-hidden border border-gray-600 flex-shrink-0">
+              <div key={i} className="relative group/img w-14 h-14 rounded-lg overflow-hidden border border-gray-350 dark:border-gray-700 flex-shrink-0">
                 <img src={toLocalMediaUrl(p)} alt="" className="w-full h-full object-cover"
                   onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3'; }} />
                 <button type="button"
@@ -504,7 +513,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
           </div>
         )}
         <button type="button" onClick={pickImages}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-400 hover:text-blue-400 border border-dashed border-gray-600 hover:border-blue-500/50 rounded-lg transition-colors">
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-blue-600 border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500/50 rounded-lg transition-colors bg-white dark:bg-gray-800">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
             <polyline points="21 15 16 10 5 21"/>
@@ -542,6 +551,9 @@ export default function CampaignCreateModal({
   const hasMsg    = type === 'message' || (type === 'mixed' && mixedActions.includes('message'));
   const hasFR     = type === 'friend_request' || (type === 'mixed' && mixedActions.includes('friend_request'));
   const hasInvite = type === 'invite_to_group' || (type === 'mixed' && mixedActions.includes('invite_to_groups'));
+
+  const isStrangerTarget = type === 'friend_request' || (type === 'mixed' && mixedActions.includes('friend_request'));
+  const hasFRMsgLink = /https?:\/\/[^\s]+/i.test(friendReqMsg);
 
   // Clamp activeBlock when blocks change
   useEffect(() => {
@@ -629,20 +641,20 @@ export default function CampaignCreateModal({
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-[1060px] shadow-2xl flex flex-col"
+        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-[1060px] shadow-2xl flex flex-col text-gray-900 dark:text-gray-100"
         style={{ height: 'min(92vh, 42.5rem)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* ── Topbar ── */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-700 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-850">
           <div>
-            <h3 className="font-bold text-gray-100 text-[15px]">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 text-[15px]">
               {editMode ? '✏️ Chỉnh sửa chiến dịch' : '🚀 Tạo chiến dịch mới'}
             </h3>
             <p className="text-[11px] text-gray-500 mt-0.5">Cấu hình nội dung và phương thức gửi</p>
           </div>
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-100 hover:bg-gray-700 transition-colors">
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-750 transition-colors">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -653,25 +665,25 @@ export default function CampaignCreateModal({
         <div className="flex-1 min-h-0 flex overflow-hidden">
 
           {/* ── LEFT: Settings ── */}
-          <div className="w-52 flex-shrink-0 border-r border-gray-700 flex flex-col overflow-y-auto p-4 gap-5">
+          <div className="w-52 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto p-4 gap-5 bg-gray-50 dark:bg-gray-850">
             {/* Campaign name */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Tên chiến dịch *</label>
+              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Tên chiến dịch *</label>
               <input value={name} onChange={e => setName(e.target.value)}
                 placeholder="Nhập tên..."
-                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-2.5 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors" />
+                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-2 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors" />
             </div>
 
             {/* Type */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Loại *</label>
+              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Loại *</label>
               <div className="space-y-1">
                 {TYPE_OPTIONS.map(opt => (
                   <button key={opt.value} type="button" onClick={() => setType(opt.value)}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border text-left transition-colors ${
                       type === opt.value
-                        ? 'border-blue-500 bg-blue-500/10 text-gray-100'
-                        : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-gray-100 font-semibold'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
                     }`}>
                     <span className={`text-base leading-none ${type === opt.value ? '' : 'grayscale opacity-60'}`}>{opt.icon}</span>
                     <span className="text-xs font-medium">{opt.label}</span>
@@ -686,7 +698,7 @@ export default function CampaignCreateModal({
             {/* Mixed actions */}
             {type === 'mixed' && (
               <div>
-                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Hành động</label>
+                <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Hành động</label>
                 <div className="space-y-1">
                   {([
                     { action: 'message' as MixedAction,         icon: '💬', label: 'Tin nhắn' },
@@ -696,15 +708,15 @@ export default function CampaignCreateModal({
                     const checked = mixedActions.includes(action);
                     return (
                       <label key={action}
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${checked ? 'bg-blue-500/10' : 'hover:bg-gray-700/40'}`}>
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${checked ? 'bg-blue-50/30 dark:bg-blue-500/10' : 'hover:bg-gray-100 dark:hover:bg-gray-700/40'}`}>
                         <div onClick={() => toggleMixedAction(action)}
-                          className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                            checked ? 'bg-blue-500 border-blue-500' : 'border-gray-500 hover:border-blue-400'
+                          className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                            checked ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-500 hover:border-blue-400'
                           }`}>
                           {checked && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
                         <span className="text-base leading-none">{icon}</span>
-                        <span className="text-xs text-gray-300">{label}</span>
+                        <span className="text-xs text-gray-700 dark:text-gray-300">{label}</span>
                       </label>
                     );
                   })}
@@ -715,25 +727,30 @@ export default function CampaignCreateModal({
 
             {/* Delay */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">⏱ Delay</label>
+              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">⏱ Delay</label>
               <div className="grid grid-cols-2 gap-1">
                 {DELAY_OPTIONS.map(opt => (
                   <button key={opt.value} type="button" onClick={() => setDelay(opt.value)}
                     className={`py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
                       delay === opt.value
-                        ? 'border-blue-500 bg-blue-500/15 text-blue-300'
-                        : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-gray-300'
                     }`}>
                     {opt.label}
                   </button>
                 ))}
               </div>
               <p className="text-[10px] text-gray-600 mt-1">± 10s jitter ngẫu nhiên</p>
+              {isStrangerTarget && delay < 180 && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-1.5 leading-relaxed">
+                  ⚠️ Khuyến nghị: Nên giãn cách 3 - 5 phút (180s - 300s) khi gửi tin cho người lạ/kết bạn để tránh bị Zalo quét.
+                </p>
+              )}
             </div>
 
             {/* Daily Send Limit */}
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">📊 Giới hạn/ngày</label>
+              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">📊 Giới hạn/ngày</label>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <input
@@ -743,17 +760,17 @@ export default function CampaignCreateModal({
                     value={dailyLimit || ''}
                     onChange={e => setDailyLimit(Math.max(0, parseInt(e.target.value) || 0))}
                     placeholder="Không giới hạn"
-                    className="w-full bg-gray-900 border border-gray-600 rounded-lg px-2.5 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-2 text-xs text-gray-955 dark:text-gray-250 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                   />
                   <span className="text-[10px] text-gray-500 flex-shrink-0">liên hệ</span>
                 </div>
                 <div>
-                  <label className="text-[10px] text-gray-500 block mb-1">Giờ bắt đầu chạy</label>
+                  <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Giờ bắt đầu chạy</label>
                   <input
                     type="time"
                     value={dailyStartTime}
                     onChange={e => setDailyStartTime(e.target.value || '08:00')}
-                    className="w-full bg-gray-900 border border-gray-600 rounded-lg px-2.5 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-2 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
                   />
                   <p className="text-[10px] text-gray-600 mt-0.5">Nếu giờ này đã qua hôm nay, chiến dịch chạy ngay</p>
                 </div>
@@ -763,6 +780,17 @@ export default function CampaignCreateModal({
                   ? `Gửi tối đa ${dailyLimit}/ngày từ ${dailyStartTime}`
                   : 'Gửi không giới hạn (theo token bucket)'}
               </p>
+              {isStrangerTarget && (
+                dailyLimit === 0 ? (
+                  <p className="text-[10px] text-red-500 dark:text-red-400 font-semibold mt-1.5 leading-relaxed">
+                    ⚠️ Cảnh báo: Không nên để không giới hạn khi gửi kết bạn/người lạ. Hạn mức an toàn khuyên dùng: 10 - 20 người/ngày.
+                  </p>
+                ) : dailyLimit > 20 ? (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-1.5 leading-relaxed">
+                    ⚠️ Khuyến nghị: Chỉ nên gửi kết bạn tối đa 10 - 20 người/ngày để tránh bị Zalo khóa tài khoản.
+                  </p>
+                ) : null
+              )}
             </div>
 
             {/* Warning */}
@@ -775,9 +803,9 @@ export default function CampaignCreateModal({
           </div>
 
           {/* ── CENTER: Editor ── */}
-          <div className="flex-1 min-w-0 flex flex-col overflow-hidden border-r border-gray-700">
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             {/* Center topbar */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700 flex-shrink-0 min-h-[44px]">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 min-h-[44px] bg-gray-50 dark:bg-gray-850">
               {hasMsg && !hasInvite ? (
                 <>
                   {/* Block tabs */}
@@ -788,7 +816,7 @@ export default function CampaignCreateModal({
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 border ${
                           i === activeBlock
                             ? 'bg-blue-600 border-blue-500 text-white'
-                            : 'border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500'
+                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500'
                         }`}>
                         <span className="w-4 h-4 rounded-full bg-current/20 flex items-center justify-center text-[9px] font-bold leading-none">
                           {i + 1}
@@ -803,7 +831,7 @@ export default function CampaignCreateModal({
                     ))}
                     <button type="button" onClick={addBlock}
                       title="Thêm biến thể nội dung"
-                      className="flex-shrink-0 w-7 h-7 rounded-lg border border-dashed border-gray-600 text-gray-400 hover:text-blue-400 hover:border-blue-500/50 flex items-center justify-center transition-colors text-lg leading-none">
+                      className="flex-shrink-0 w-7 h-7 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:border-blue-500/50 flex items-center justify-center transition-colors text-lg leading-none bg-white dark:bg-gray-800">
                       +
                     </button>
                   </div>
@@ -819,7 +847,7 @@ export default function CampaignCreateModal({
                           className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
                             contentConfig.mode === opt.value
                               ? 'bg-blue-600 border-blue-500 text-white'
-                              : 'border-gray-600 text-gray-400 hover:text-gray-200'
+                              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                           }`}>
                           <span>{opt.icon}</span> {opt.label}
                         </button>
@@ -829,11 +857,11 @@ export default function CampaignCreateModal({
                 </>
               ) : hasFR && !hasMsg ? (
                 <>
-                  <span className="text-xs font-medium text-gray-300">🤝 Lời nhắn kết bạn</span>
+                  <span className="text-xs font-semibold text-gray-800 dark:text-gray-300">🤝 Lời nhắn kết bạn</span>
                   <div className="flex gap-1 flex-wrap">
                     {TEMPLATE_VARS.map(v => (
                       <button key={v.key} type="button" onClick={() => insertFRVar(v.key)}
-                        className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors"
+                        className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors font-medium"
                         title={`Chèn biến ${v.key}`}>
                         {v.label}
                       </button>
@@ -841,7 +869,7 @@ export default function CampaignCreateModal({
                   </div>
                 </>
               ) : hasInvite && !hasMsg ? (
-                <span className="text-xs font-medium text-gray-300">👥 Chọn nhóm để mời</span>
+                <span className="text-xs font-semibold text-gray-800 dark:text-gray-300">👥 Chọn nhóm để mời</span>
               ) : (
                 <span className="text-xs text-gray-500">Editor</span>
               )}
@@ -861,13 +889,13 @@ export default function CampaignCreateModal({
 
               {/* Friend request — inline in center when mixed */}
               {hasFR && hasMsg && (
-                <div className="flex-shrink-0 border-t border-gray-700 pt-3">
+                <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-medium text-gray-400">🤝 Lời nhắn kết bạn</span>
+                    <span className="text-[11px] font-semibold text-gray-650 dark:text-gray-400">🤝 Lời nhắn kết bạn</span>
                     <div className="flex gap-1 flex-wrap">
                       {TEMPLATE_VARS.map(v => (
                         <button key={v.key} type="button" onClick={() => insertFRVar(v.key)}
-                          className="text-[9px] px-1.5 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors"
+                          className="text-[9px] px-1.5 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors font-medium"
                           title={`Chèn biến ${v.key}`}>
                           {v.label}
                         </button>
@@ -876,7 +904,12 @@ export default function CampaignCreateModal({
                   </div>
                   <textarea ref={friendReqRef} value={friendReqMsg} onChange={e => setFriendReqMsg(e.target.value)}
                     rows={2} placeholder="Xin chào {name}, tôi muốn kết nối với bạn!"
-                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
+                  {hasFRMsgLink && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-1 leading-relaxed">
+                      ⚠️ Cảnh báo: Tránh gửi đường link (liên kết) kèm theo lời mời kết bạn.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -885,8 +918,13 @@ export default function CampaignCreateModal({
                 <div className="flex-1 min-h-0 flex flex-col gap-2">
                   <textarea ref={friendReqRef} value={friendReqMsg} onChange={e => setFriendReqMsg(e.target.value)}
                     placeholder="Xin chào {name}, tôi muốn kết nối với bạn!"
-                    className="flex-1 min-h-0 w-full bg-gray-800 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
-                  <p className="text-[10px] text-gray-600 text-right flex-shrink-0">{friendReqMsg.length}/200 ký tự</p>
+                    className="flex-1 min-h-0 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
+                  {hasFRMsgLink && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium px-1 leading-relaxed">
+                      ⚠️ Cảnh báo: Tránh gửi đường link (liên kết) kèm theo lời mời kết bạn.
+                    </p>
+                  )}
+                  <p className="text-[10px] text-gray-550 dark:text-gray-500 text-right flex-shrink-0">{friendReqMsg.length}/200 ký tự</p>
                 </div>
               )}
 
@@ -908,7 +946,7 @@ export default function CampaignCreateModal({
           </div>
 
           {/* ── RIGHT: Preview ── */}
-          <div className="w-60 flex-shrink-0 p-4 overflow-hidden flex flex-col">
+          <div className="w-60 flex-shrink-0 p-4 overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-855">
             <LivePreview
               blocks={contentConfig.blocks}
               activeIdx={activeBlock}
@@ -922,14 +960,14 @@ export default function CampaignCreateModal({
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex items-center gap-3 px-5 py-3 border-t border-gray-700 flex-shrink-0">
-          <div className="flex-1 text-[11px] text-gray-500">
+        <div className="flex items-center gap-3 px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+          <div className="flex-1 text-[11px] text-gray-550">
             {hasMsg && contentConfig.blocks.length > 1 && (
               <span>{contentConfig.blocks.length} biến thể · {contentConfig.mode === 'random' ? '🎲 random' : '📨 gửi tất cả'}</span>
             )}
           </div>
           <button onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600 transition-colors font-medium">
+            className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-transparent transition-colors font-medium">
             Hủy
           </button>
           <button onClick={handleSave} disabled={saving || !isValid()}

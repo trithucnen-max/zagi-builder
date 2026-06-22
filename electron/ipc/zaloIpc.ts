@@ -391,7 +391,7 @@ export function registerZaloIpc() {
         s.removeUserFromGroup(p.userId, p.groupId)
     );
 
-    wrap('zalo:leaveGroup', (s, p) => s.leaveGroup(p.groupId));
+    wrap('zalo:leaveGroup', (s, p) => s.leaveGroup(p.groupId, p.silent ?? false));
 
     wrap('zalo:changeGroupName', (s, p) =>
         s.changeGroupName(p.name, p.groupId)

@@ -138,6 +138,14 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
+    ipcMain.handle('crm:removeCampaignContacts', async (_e, { zaloId, campaignId, contactIds }: { zaloId: string; campaignId: number; contactIds: string[] }) => {
+        try {
+            DatabaseService.getInstance().removeCampaignContacts(campaignId, contactIds);
+            EventBroadcaster.emit('crm:campaignChanged', { action: 'contactsRemoved', ownerZaloId: zaloId, campaignId });
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
     ipcMain.handle('crm:getCampaignContacts', async (_e, { campaignId }: { campaignId: number }) => {
         try { return { success: true, contacts: DatabaseService.getInstance().getCampaignContacts(campaignId) }; }
         catch (e: any) { return { success: false, error: e.message }; }

@@ -25,6 +25,7 @@ interface BulkGroupManageModalProps {
   mode: 'add' | 'remove';
   initialContactIds: string[];
   activeAccountId: string | null;
+  groupFilter?: 'managed' | 'not_managed' | 'all';
   onSuccess?: () => void;
 }
 
@@ -58,6 +59,7 @@ export default function BulkGroupManageModal({
   mode,
   initialContactIds,
   activeAccountId,
+  groupFilter,
   onSuccess,
 }: BulkGroupManageModalProps) {
   const { showNotification } = useAppStore();
@@ -190,8 +192,10 @@ export default function BulkGroupManageModal({
   };
 
   const handleSelectAllGroups = () => {
+    const effectiveFilter = groupFilter || 'managed';
     const targetGroups = groups.filter(g => {
-      if (!managedGroupIds.has(g.contact_id)) return false;
+      if (effectiveFilter === 'managed' && !managedGroupIds.has(g.contact_id)) return false;
+      if (effectiveFilter === 'not_managed' && managedGroupIds.has(g.contact_id)) return false;
       if (mode === 'add') {
         // Only select groups where not ALL selected contacts have already joined
         const members = existingGroupMembers[g.contact_id] || new Set();
@@ -426,7 +430,9 @@ export default function BulkGroupManageModal({
   );
 
   const filteredGroups = groups.filter(g => {
-    if (!managedGroupIds.has(g.contact_id)) return false;
+    const effectiveFilter = groupFilter || 'managed';
+    if (effectiveFilter === 'managed' && !managedGroupIds.has(g.contact_id)) return false;
+    if (effectiveFilter === 'not_managed' && managedGroupIds.has(g.contact_id)) return false;
     
     const matchesSearch = !searchGroup.trim() ||
       g.display_name.toLowerCase().includes(searchGroup.toLowerCase()) ||

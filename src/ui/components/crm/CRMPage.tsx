@@ -21,6 +21,7 @@ import CRMRequestsTab from './search/CRMRequestsTab';
 import CRMPipelineTab from './pipeline/CRMPipelineTab';
 import AddToContactsModal from './contacts/AddToContactsModal';
 import BulkGroupManageModal from './modals/BulkGroupManageModal';
+import SmartGroupModal from './modals/SmartGroupModal';
 import AccountSelectorDropdown from '@/components/common/AccountSelectorDropdown';
 import { getCapability, type Channel } from '../../../configs/channelConfig';
 import ScanPanel from './scan/ScanPanel';
@@ -84,8 +85,7 @@ export default function CRMPage() {
   const [bulkLabelIds, setBulkLabelIds] = useState<number[]>([]);
   const [bulkLocalLabelIds, setBulkLocalLabelIds] = useState<number[]>([]);
   const [applyingBulkLabel, setApplyingBulkLabel] = useState(false);
-  const [showLeaveGroupConfirm, setShowLeaveGroupConfirm] = useState(false);
-  const [leavingGroups, setLeavingGroups] = useState(false);
+  const [showSmartGroupModal, setShowSmartGroupModal] = useState(false);
   const [addToCampaignModal, setAddToCampaignModal] = useState(false);
   const [selectedCampaignForAdd, setSelectedCampaignForAdd] = useState<number | null>(null);
   const [showCreateInAddModal, setShowCreateInAddModal] = useState(false);
@@ -134,10 +134,21 @@ export default function CRMPage() {
     store.setContactsLoading(true);
     // Strip client-only filters (has_phone, has_notes) before sending to backend
     const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes');
+
+    // Compute allowed contact IDs for selected Zalo labels
+    const selectedZaloLabelContactIds = store.filterLabelIds.length > 0
+      ? store.filterLabelIds.flatMap(labelId => {
+          const conversations = zaloLabels.find(l => l.id === labelId)?.conversations || [];
+          return conversations.map(cId => cId.startsWith('g') ? cId.slice(1) : cId);
+        })
+      : undefined;
+
     const res = await ipc.crm?.getContacts({
       zaloId: activeAccountId,
       opts: {
         search: store.searchText,
+        tagIds: store.filterLocalLabelIds.length > 0 ? store.filterLocalLabelIds : undefined,
+        contactIds: selectedZaloLabelContactIds,
         contactTypes: backendContactTypes.length > 0 ? backendContactTypes : undefined,
         contactType: backendContactTypes.length === 0 ? 'all' : undefined,
         sortBy: store.sortBy,
@@ -148,7 +159,17 @@ export default function CRMPage() {
     });
     store.setContactsLoading(false);
     if (res?.success) store.setContacts(res.contacts, res.total);
-  }, [activeAccountId, store.searchText, store.filterContactTypes, store.sortBy, store.sortDir, store.page]);
+  }, [
+    activeAccountId,
+    store.searchText,
+    store.filterContactTypes,
+    store.filterLabelIds,
+    store.filterLocalLabelIds,
+    zaloLabels,
+    store.sortBy,
+    store.sortDir,
+    store.page
+  ]);
 
   const loadCampaigns = useCallback(async () => {
     if (!activeAccountId) return;
@@ -192,7 +213,7 @@ export default function CRMPage() {
     if (disabledTabs[store.tab]) store.setTab('contacts');
     loadContacts(); loadCampaigns(); loadGroupCount(); loadRequestCount();
   }, [activeAccountId]);
-  useEffect(() => { loadContacts(); }, [store.searchText, store.filterContactTypes, store.sortBy, store.sortDir, store.page]);
+  useEffect(() => { loadContacts(); }, [store.searchText, store.filterContactTypes, store.filterLabelIds, store.filterLocalLabelIds, store.sortBy, store.sortDir, store.page]);
   useEffect(() => {
     if (activeAccountId && store.tab === 'requests') {
       clearCRMRequestUnseen(activeAccountId);
@@ -470,44 +491,9 @@ export default function CRMPage() {
     setApplyingBulkLabel(false);
   };
 
-  /** Bulk leave groups — rời tất cả nhóm được chọn */
-  const handleBulkLeaveGroup = () => setShowLeaveGroupConfirm(true);
+  /** Smart group management (admin actions / leave groups) */
+  const handleManageGroups = () => setShowSmartGroupModal(true);
 
-  const handleConfirmLeaveGroups = async () => {
-    if (!activeAccountId) return;
-    const acc = useAccountStore.getState().getActiveAccount();
-    if (!acc) return;
-    const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
-
-    setLeavingGroups(true);
-    const groupIds = store.contacts
-      .filter(c => store.selectedContactIds.has(c.contact_id) && c.contact_type === 'group')
-      .map(c => c.contact_id);
-
-    let ok = 0, fail = 0;
-    for (const groupId of groupIds) {
-      try {
-        const res = await ipc.zalo?.leaveGroup({ auth, groupId });
-        if (res?.success) ok++;
-        else fail++;
-      } catch {
-        fail++;
-      }
-      // polite delay
-      if (groupIds.indexOf(groupId) < groupIds.length - 1) {
-        await new Promise(r => setTimeout(r, 300));
-      }
-    }
-    setLeavingGroups(false);
-    setShowLeaveGroupConfirm(false);
-    store.clearSelection();
-    if (ok > 0) {
-      showNotification(`Đã rời ${ok} nhóm${fail > 0 ? `, thất bại ${fail}` : ''}`, fail > 0 ? 'info' : 'success');
-      await loadContacts();
-    } else {
-      showNotification(`Không thể rời nhóm (${fail} lỗi)`, 'error');
-    }
-  };
 
   /** Select ALL contacts across all pages (not just current page) */
   const handleSelectAllPages = useCallback(async () => {
@@ -559,29 +545,9 @@ export default function CRMPage() {
   const activeCampaign = store.campaigns.find(c => c.id === store.activeCampaignId) || null;
   const activeContact = store.contacts.find(c => c.contact_id === store.activeContactId) || null;
 
-  // Client-side filtering: Zalo labels, local labels, has_phone, has_notes
+  // Client-side filtering: has_phone, has_notes
   const filteredContacts = (() => {
     let result = store.contacts;
-
-    // Filter by Zalo labels
-    if (store.filterLabelIds.length > 0) {
-      result = result.filter(c => {
-        const isGroup = c.contact_type === 'group';
-        const labelThreadId = isGroup ? `g${c.contact_id}` : c.contact_id;
-        return store.filterLabelIds.every(labelId => {
-          const convs = zaloLabels.find(l => l.id === labelId)?.conversations;
-          return convs?.includes(c.contact_id) || convs?.includes(labelThreadId);
-        });
-      });
-    }
-
-    // Filter by local labels
-    if (store.filterLocalLabelIds.length > 0) {
-      result = result.filter(c => {
-        const threadLIds = localLabelThreadMap[c.contact_id] || [];
-        return store.filterLocalLabelIds.every(lid => threadLIds.includes(lid));
-      });
-    }
 
     // Client-side filter: has_phone
     if (store.filterContactTypes.includes('has_phone')) {
@@ -864,7 +830,7 @@ export default function CRMPage() {
         onAddToCampaign={handleBulkAddToCampaign}
         onBulkTagLocal={handleBulkTagLocal}
         onBulkTagZalo={handleBulkTagZalo}
-        onBulkLeaveGroup={handleBulkLeaveGroup}
+        onManageGroups={handleManageGroups}
         onBulkManageGroups={(mode) => setShowBulkGroupModal(mode)}
       />
 
@@ -1104,51 +1070,19 @@ export default function CRMPage() {
         />
       )}
 
-      {/* ── Confirm leave groups modal ── */}
-      {showLeaveGroupConfirm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
-          onClick={() => { if (!leavingGroups) setShowLeaveGroupConfirm(false); }}>
-          <div className="bg-gray-800 border border-gray-600 rounded-2xl w-[380px] p-6 shadow-2xl"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center flex-shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                  <polyline points="16 17 21 12 16 7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-white text-sm">Rời nhóm đã chọn</h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Hành động này không thể hoàn tác
-                </p>
-              </div>
-            </div>
-            <p className="text-xs text-gray-300 mb-5 leading-relaxed">
-              Bạn sắp rời <span className="text-red-300 font-semibold">
-                {store.contacts.filter(c => store.selectedContactIds.has(c.contact_id) && c.contact_type === 'group').length} nhóm
-              </span>. Sau khi rời, tài khoản sẽ không còn trong nhóm đó nữa.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowLeaveGroupConfirm(false)}
-                disabled={leavingGroups}
-                className="flex-1 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600 disabled:opacity-40 transition-colors">
-                Hủy
-              </button>
-              <button
-                onClick={handleConfirmLeaveGroups}
-                disabled={leavingGroups}
-                className="flex-1 py-2 rounded-xl bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5">
-                {leavingGroups
-                  ? <><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Đang rời...</>
-                  : 'Xác nhận rời nhóm'
-                }
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* ── Smart Group Management Modal ── */}
+      {showSmartGroupModal && (
+        <SmartGroupModal
+          selectedGroupIds={store.contacts
+            .filter(c => store.selectedContactIds.has(c.contact_id) && c.contact_type === 'group')
+            .map(c => c.contact_id)}
+          activeAccountId={activeAccountId || ''}
+          onClose={() => setShowSmartGroupModal(false)}
+          onSuccess={() => {
+            loadContacts();
+            store.clearSelection();
+          }}
+        />
       )}
     </div>
   );

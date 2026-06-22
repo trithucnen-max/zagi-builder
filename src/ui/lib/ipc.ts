@@ -226,6 +226,7 @@ declare global {
         savePipelineStage: (params: { stage: any }) => Promise<{ success: boolean; error?: string }>;
         deletePipelineStage: (params: { id: number }) => Promise<{ success: boolean; error?: string }>;
         updateContactPipelineStage: (params: { ownerZaloId: string; contactId: string; stageId: number | null }) => Promise<{ success: boolean; error?: string }>;
+        updateContactAIProfile: (params: { ownerZaloId: string; contactId: string; aiProfile: string | null }) => Promise<{ success: boolean; error?: string }>;
         upsertPinSchedule: (params: any) => Promise<any>;
       };
       crm: {
@@ -240,6 +241,7 @@ declare global {
         cloneCampaign: (params: { zaloId: string; campaignId: number; includeContacts: boolean; newName?: string }) => Promise<{ success: boolean; id: number; error?: string }>;
         updateCampaignStatus: (params: { campaignId: number; status: string }) => Promise<{ success: boolean }>;
         addCampaignContacts: (params: { zaloId: string; campaignId: number; contacts: any[] }) => Promise<{ success: boolean }>;
+        removeCampaignContacts: (params: { zaloId: string; campaignId: number; contactIds: string[] }) => Promise<{ success: boolean }>;
         getCampaignContacts: (params: { campaignId: number }) => Promise<{ success: boolean; contacts: any[] }>;
         getSendLog: (params: { zaloId: string; opts?: any }) => Promise<{ success: boolean; logs: any[] }>;
         getQueueStatus: (params: { zaloId: string }) => Promise<{ success: boolean; status: any }>;

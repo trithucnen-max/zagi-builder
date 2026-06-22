@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v27.1.2** — [View all versions](#changelog)
+> **Latest version: v27.1.3** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.2-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.3-x64.exe)
 
-**[Zagi-Setup-27.1.2-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-x64.exe)**
+**[Zagi-Setup-27.1.3-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.3-x64.exe)**
 
 NSIS Installer · ~148 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~148 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.2-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2-arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.3-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3-arm64.dmg)
 
-**[Zagi-27.1.2-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2-arm64.dmg)**
+**[Zagi-27.1.3-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3-arm64.dmg)**
 
 Apple Silicon · ~177 MB
 
@@ -69,9 +69,9 @@ Apple Silicon · ~177 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.2-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.3-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3.dmg)
 
-**[Zagi-27.1.2.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2.dmg)**
+**[Zagi-27.1.3.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3.dmg)**
 
 Intel x64 · ~182 MB
 
@@ -80,10 +80,10 @@ Intel x64 · ~182 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.2-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.3-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3.AppImage)
 
-**[Zagi-27.1.2.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.2.AppImage)**  
-**[zagi_27.1.2_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.2_amd64.deb)**
+**[Zagi-27.1.3.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3.AppImage)**  
+**[zagi_27.1.3_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.3_amd64.deb)**
 
 AppImage + .deb · ~197 MB
 
@@ -96,11 +96,11 @@ AppImage + .deb · ~197 MB
 
 > For **Surface Pro X, Pro 9 5G, Pro 10, Pro 11, Laptop 7** (Qualcomm Snapdragon / ARM64 chip)
 > 
-> **Surface Pro 7 and older (Intel)** → use the Windows x64 build above.
+> Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.2-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.3-arm64.exe)
 
-**[Zagi-Setup-27.1.2-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.2-arm64.exe)**
+**[Zagi-Setup-27.1.3-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.3-arm64.exe)**
 
 NSIS Installer ARM64 · ~148 MB · Native performance on Surface ARM
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.2-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.3-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.2.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.3-x64.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.1.2.AppImage
-./Zagi-27.1.2.AppImage
+chmod +x Zagi-27.1.3.AppImage
+./Zagi-27.1.3.AppImage
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i zagi_27.1.2_amd64.deb
+sudo dpkg -i zagi_27.1.3_amd64.deb
 ```
 
 </details>
@@ -209,7 +209,8 @@ sudo dpkg -i zagi_27.1.2_amd64.deb
 - Store phone, gender, birthday, internal notes
 - Create and manage Zalo labels bi-directionally
 - Filter contacts by multiple criteria for targeted outreach
-- Campaigns: mass message, add friend, invite to group — real-time progress tracking
+- Group Management & Bulk Leave (v27.1.3): Automatically leave multiple groups, auto-owner transfer before leaving to prevent losing group control, send AI farewell message
+- Campaigns: mass message, add friend, invite to group — smart safety warnings (Red/Yellow) & real-time progress tracking (v27.1.3)
 
 ### 4️⃣ Workflow Automation
 
@@ -380,14 +381,30 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.2</strong> — 2026-06-21 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.1.3</strong> — 2026-06-23 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights
+
+- 👥 **Smart Group Management & Bulk Leave**: Support leaving multiple groups automatically from the CRM / Group Management interface.
+- 👑 **Auto-owner Transfer**: Automatically transfer the Owner role to a Deputy or member before leaving if your account is currently the group Owner (prevents group abandonment).
+- 👋 **AI Farewell Message**: Auto-generate a polite farewell message using the AI Assistant and send it to groups before leaving them.
+- 🛡️ **Zalo Safety Handbook**: Quick-access popover on the Topbar detailing sending principles for stranger/friend chat limits, spintax tips, and automatic Zalo Business detection.
+- ⚠️ **Campaign Safety Warnings**: Interactive warnings (Red/Yellow) during campaign creation if the parameters violate safe messaging limits.
+- 🎨 **CRM UI Refresh**: Re-themed the CRM contact detail panel, pipeline stages Kanban board, and associated tables to a clean, highly legible black-on-white layout.
+
+</details>
+
+<details>
+<summary><strong>v27.1.2</strong> — 2026-06-21</summary>
 
 ### 🔧 Fixes & Improvements
 
-- 🤖 **AI Quick Panel**: proper markdown rendering — bold (`**text**`), bullet lists (`-`), numbered lists, `` `code` `` blocks, `#` headers now display beautifully instead of raw characters
+- 💻 **Windows ARM64 Support**: Added native Qualcomm Snapdragon/ARM64 installer (`Zagi-Setup-27.1.2-arm64.exe`) for Surface devices.
+- 📝 **Version Selection Guide**: Added visual diagrams in the README to help users select the correct build for their devices.
+- 🤖 **AI Quick Panel**: Proper markdown rendering — bold (`**text**`), bullet lists (`-`), numbered lists, `` `code` `` blocks, `#` headers now display beautifully instead of raw characters.
 - 🔄 Updated website link → [itngon.com/zagi](https://itngon.com/zagi/)
-- 📦 Updated package metadata: repository, author, homepage
-- 🔑 Standardized CI/CD to `trithucnen-max/zagi-builder`
+- 📦 Updated package metadata: repository, author, homepage.
+- 🔑 Standardized CI/CD to `trithucnen-max/zagi-builder`.
 
 </details>
 

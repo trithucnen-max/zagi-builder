@@ -489,25 +489,28 @@ function CrmPanel() {
       </Card>
 
       <Card>
-        <SectionTitle>👥 Quản lý thành viên nhóm Zalo</SectionTitle>
+        <SectionTitle>👥 Quản lý nhóm & Rời nhóm hàng loạt (Smart Group Management)</SectionTitle>
+        <Paragraph>
+          Hỗ trợ quản lý thành viên nhóm Zalo và thực hiện rời nhiều nhóm cùng lúc với cơ chế thông minh tránh rủi ro cho tài khoản và tránh mất quyền kiểm soát nhóm.
+        </Paragraph>
         <BulletList items={[
-          'Xem danh sách toàn bộ thành viên trong từng nhóm Zalo',
-          'Tìm kiếm thành viên theo tên trong nhóm',
-          'Chọn thành viên để thêm nhanh vào chiến dịch',
+          '<strong>Xem & Tìm kiếm thành viên:</strong> Xem danh sách toàn bộ thành viên trong từng nhóm Zalo, tìm kiếm theo tên, và thêm nhanh vào chiến dịch CRM.',
+          '<strong>Rời nhóm hàng loạt (Bulk Leave Group):</strong> Chọn nhiều nhóm cùng lúc từ giao diện Liên hệ CRM hoặc Quản lý nhóm và thực hiện rời nhóm tự động.',
+          '<strong>Tự động chuyển quyền trưởng nhóm:</strong> Nếu tài khoản của bạn đang làm Trưởng nhóm (Owner), hệ thống sẽ tự động chuyển quyền Trưởng nhóm sang Phó nhóm hoặc thành viên khác trước khi rời đi để tránh nhóm bị giải tán hoặc mất kiểm soát.',
+          '<strong>AI tạm biệt lịch sự (AI Farewell Message):</strong> Tự động soạn tin nhắn tạm biệt tinh tế bằng AI (hoặc tin mẫu tùy chỉnh) và gửi vào nhóm trước khi rời đi.',
         ]} />
         <div className="mt-3 space-y-2">
           <p className="text-white font-semibold text-xs">🔍 Quét thành viên nhóm nâng cao</p>
           <BulletList items={[
             '<strong class="text-gray-200">Quét thành viên nhóm ẩn:</strong> Với các nhóm lớn, Zalo chỉ trả về một phần thành viên trong danh sách thông thường. Tính năng quét nâng cao gửi thêm request để lấy toàn bộ thành viên thực tế — bao gồm cả những thành viên bị ẩn do giới hạn API.',
             '<strong class="text-gray-200">Quét nhóm chưa tham gia:</strong> Nhập Link nhóm Zalo (link mời) để quét danh sách thành viên của nhóm mà tài khoản <em>chưa là thành viên</em> — không cần tham gia nhóm vẫn lấy được danh sách.',
-            '<strong class="text-gray-200">Xuất danh sách:</strong> Sau khi quét xong, có thể thêm toàn bộ hoặc chọn lọc thành viên vào chiến dịch CRM hoặc danh sách gửi tin.',
           ]} />
           <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-lg px-3 py-2 mt-1">
-            <p className="text-yellow-300 text-[11px] font-semibold mb-1">⚠️ Lưu ý khi quét</p>
+            <p className="text-yellow-300 text-[11px] font-semibold mb-1">⚠️ Lưu ý khi rời nhóm & quét thành viên</p>
             <BulletList items={[
               'Quét nhóm lớn (hàng nghìn thành viên) mất nhiều thời gian — không đóng cửa sổ trong khi quét.',
-              'Quét nhóm chưa tham gia yêu cầu link mời còn hiệu lực và nhóm không đặt chế độ phê duyệt kín hoàn toàn.',
-              'Sử dụng ở mức độ hợp lý để tránh tài khoản Zalo bị giới hạn do gọi API quá nhiều.',
+              'Khi rời nhóm, đảm bảo đã cấu hình đúng người nhận quyền Trưởng nhóm nếu bạn là Trưởng nhóm hiện tại.',
+              'Tin nhắn tạm biệt gửi vào nhóm sẽ tuân theo thứ tự gửi và delay thích hợp để không bị đánh dấu Spam.',
             ]} />
           </div>
         </div>
@@ -537,7 +540,6 @@ function CrmPanel() {
           'Dùng để lưu: nhu cầu, lịch hẹn, lịch sử deal, thông tin hợp đồng',
         ]} />
       </Card>
-
 
       <Card>
         <SectionTitle>🎂 Chăm sóc khách hàng theo Giới tính & Ngày sinh & Tương tác cuối</SectionTitle>
@@ -598,6 +600,51 @@ function CrmPanel() {
           'Lọc chiến dịch theo trạng thái: Nháp · Đang chạy · Tạm dừng · Hoàn thành',
           'Log lịch sử gửi chi tiết cho từng liên hệ trong chiến dịch',
         ]} />
+      </Card>
+
+      <Card>
+        <SectionTitle>🛡️ Cẩm nang an toàn Zalo & Cảnh báo chiến dịch</SectionTitle>
+        <Paragraph>
+          Để đảm bảo quá trình chăm sóc khách hàng qua Zalo diễn ra an toàn, chuyên nghiệp và tránh bị hệ thống Zalo đánh dấu spam hoặc khóa tài khoản, bạn cần tuân thủ các nguyên tắc sau:
+        </Paragraph>
+        
+        <div className="space-y-3">
+          <div className="bg-gray-700/30 rounded-lg p-3 space-y-2">
+            <p className="text-white font-semibold text-xs flex items-center gap-1.5">
+              <span>👤</span> Đối với khách hàng CHƯA kết bạn (Người lạ)
+            </p>
+            <BulletList items={[
+              '<strong>Hạn mức:</strong> Zalo cá nhân miễn phí chỉ gửi tin nhắn cho tối đa 40 người lạ/tháng.',
+              '<strong>Tần suất:</strong> Chỉ nên gửi tối đa 10 - 20 người/ngày, không gửi liên tục và ồ ạt.',
+            ]} />
+          </div>
+
+          <div className="bg-gray-700/30 rounded-lg p-3 space-y-2">
+            <p className="text-white font-semibold text-xs flex items-center gap-1.5">
+              <span>🤝</span> Đối với khách hàng ĐẠT kết bạn (Bạn bè)
+            </p>
+            <BulletList items={[
+              '<strong>Hạn mức:</strong> Gửi tối đa 50 - 100 người/ngày để giữ tài khoản an toàn.',
+              '<strong>Tần suất:</strong> Delay tối thiểu 10 - 20 giây giữa mỗi tin nhắn.',
+            ]} />
+          </div>
+
+          <div className="bg-gray-700/30 rounded-lg p-3 space-y-2">
+            <p className="text-white font-semibold text-xs flex items-center gap-1.5">
+              <span>📝</span> Nội dung tin nhắn & Link liên kết
+            </p>
+            <BulletList items={[
+              '<strong>Trộn nội dung (Spintax):</strong> Sử dụng cú pháp {A|B|C} hoặc AI trợ lý để đa dạng hóa nội dung, tránh gửi trùng lặp 100%.',
+              '<strong>Link liên kết:</strong> Tránh chèn trực tiếp các link rác, link lạ, link chưa được kiểm duyệt để tránh bị hệ thống Zalo quét spam.',
+            ]} />
+          </div>
+
+          <div className="bg-blue-950/40 border border-blue-800/40 rounded-lg px-3 py-2">
+            <p className="text-blue-300 text-[11px] leading-relaxed">
+              💡 <strong>Hệ thống cảnh báo thông minh:</strong> Khi tạo chiến dịch CRM mới, hệ thống sẽ tự động phân tích tần suất gửi, số lượng gửi và nội dung tin nhắn để đưa ra các cảnh báo bằng màu sắc (<strong>Đỏ / Vàng</strong>) trực quan nếu vi phạm các quy tắc an toàn trên. Hãy chú ý các cảnh báo này để điều chỉnh tham số chiến dịch cho phù hợp.
+            </p>
+          </div>
+        </div>
       </Card>
     </div>
   );

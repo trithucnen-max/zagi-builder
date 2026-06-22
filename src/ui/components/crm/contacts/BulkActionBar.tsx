@@ -9,7 +9,7 @@ interface BulkActionBarProps {
   onAddToCampaign: () => void;
   onBulkTagLocal: () => void;
   onBulkTagZalo: () => void;
-  onBulkLeaveGroup?: () => void;
+  onManageGroups?: () => void;
   onBulkManageGroups?: (mode: 'add' | 'remove') => void;
 }
 
@@ -21,7 +21,7 @@ export default function BulkActionBar({
   onAddToCampaign,
   onBulkTagLocal,
   onBulkTagZalo,
-  onBulkLeaveGroup,
+  onManageGroups,
   onBulkManageGroups,
 }: BulkActionBarProps) {
   const [showMore, setShowMore] = useState(false);
@@ -125,19 +125,14 @@ export default function BulkActionBar({
               </>
             )}
 
-            {/* Rời nhóm — chỉ hiện khi có nhóm được chọn */}
-            {hasGroupSelected && onBulkLeaveGroup && (
+            {/* Quản lý nhóm — chỉ hiện khi có nhóm được chọn */}
+            {hasGroupSelected && onManageGroups && (
               <>
                 <div className="my-1 h-px bg-gray-700 mx-3" />
                 <button
-                  onClick={() => { setShowMore(false); onBulkLeaveGroup(); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors text-left">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                  </svg>
-                  Rời nhóm đã chọn
+                  onClick={() => { setShowMore(false); onManageGroups(); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 transition-colors text-left">
+                  🏠 Quản lý nhóm
                 </button>
               </>
             )}

@@ -236,6 +236,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     savePipelineStage: (params: any) => ipcRenderer.invoke('db:savePipelineStage', params),
     deletePipelineStage: (params: any) => ipcRenderer.invoke('db:deletePipelineStage', params),
     updateContactPipelineStage: (params: any) => ipcRenderer.invoke('db:updateContactPipelineStage', params),
+    updateContactAIProfile: (params: any) => ipcRenderer.invoke('db:updateContactAIProfile', params),
     upsertPinSchedule: (params: any) => ipcRenderer.invoke('db:upsertPinSchedule', params),
   },
 
@@ -252,6 +253,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     cloneCampaign: (params: any) => ipcRenderer.invoke('crm:cloneCampaign', params),
     updateCampaignStatus: (params: any) => ipcRenderer.invoke('crm:updateCampaignStatus', params),
     addCampaignContacts: (params: any) => ipcRenderer.invoke('crm:addCampaignContacts', params),
+    removeCampaignContacts: (params: any) => ipcRenderer.invoke('crm:removeCampaignContacts', params),
     getCampaignContacts: (params: any) => ipcRenderer.invoke('crm:getCampaignContacts', params),
     getSendLog: (params: any) => ipcRenderer.invoke('crm:getSendLog', params),
     getQueueStatus: (params: any) => ipcRenderer.invoke('crm:getQueueStatus', params),

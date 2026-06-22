@@ -304,6 +304,25 @@ async function _syncAllGroups(opts: SyncGroupsOptions): Promise<void> {
   const gridVerMap: Record<string, string> = res.response?.gridVerMap ?? {};
   const groupIds = Object.keys(gridVerMap);
   console.log(`[zaloGroupUtils] getAllGroups: ${groupIds.length} IDs`);
+
+  // Clean up groups we are no longer members of
+  try {
+    const contactsRes = await ipc.db?.getContacts(activeAccountId);
+    const allContacts: any[] = contactsRes?.contacts ?? contactsRes ?? [];
+    const localGroupContacts = allContacts.filter((c: any) => c.contact_type === 'group');
+
+    const apiGroupIdsSet = new Set(groupIds);
+
+    for (const localGroup of localGroupContacts) {
+      if (!apiGroupIdsSet.has(localGroup.contact_id)) {
+        console.log(`[zaloGroupUtils] Removing stale group ${localGroup.contact_id} (${localGroup.display_name})`);
+        await ipc.db?.deleteConversation({ zaloId: activeAccountId, contactId: localGroup.contact_id });
+      }
+    }
+  } catch (dbErr) {
+    console.warn('[zaloGroupUtils] Failed to clean up stale groups:', dbErr);
+  }
+
   if (groupIds.length === 0) return;
 
   // Load ALL existing members in one shot (no extra DB queries per group later)

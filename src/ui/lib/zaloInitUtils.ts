@@ -354,21 +354,8 @@ async function _syncLabels(
       }
     } catch { /* non-fatal — continue to local clone step */ }
 
-    // ── Step 1b: Zalo API labels → local_labels DB (merge mode) ───────────
-    let zaloToLocalCount = 0;
-    if (zaloLabelCount > 0) {
-      try {
-        zaloToLocalCount = await syncZaloLabelsToLocalDB({
-          zaloLabels: zaloLabelData,
-          activeZaloId: activeAccountId,
-          mode: 'merge',
-        });
-      } catch { /* non-fatal */ }
-    }
-
     const details: string[] = [];
     if (zaloLabelCount > 0) details.push(`${zaloLabelCount} nhãn Zalo`);
-    if (zaloToLocalCount > 0) details.push(`${zaloToLocalCount} nhãn → local DB`);
 
     onProgress({
       task: 'labels', status: 'done',

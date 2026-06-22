@@ -8,6 +8,7 @@ import GroupAvatar from '@/components/common/GroupAvatar';
 import CampaignCreateModal from '@/components/crm/campaigns/CampaignCreateModal';
 import AddToContactsModal from '@/components/crm/contacts/AddToContactsModal';
 import BulkGroupManageModal from '../modals/BulkGroupManageModal';
+import SmartGroupModal from '../modals/SmartGroupModal';
 import { syncZaloGroups, MemberPlaceholder, SyncGroupsProgress } from '@/lib/zaloGroupUtils';
 import Logger from '../../../../utils/Logger';
 
@@ -95,11 +96,27 @@ export default function GroupMembersTab() {
   const [searchMember, setSearchMember] = useState('');
 
   // ── Managed groups state ──────────────────────────────────────────────────
-  const [groupFilter, setGroupFilter] = useState<'all' | 'managed'>('all');
+  const [groupFilter, setGroupFilter] = useState<'managed' | 'not_managed'>('managed');
   const [managedGroupIds, setManagedGroupIds] = useState<Set<string>>(new Set());
 
   // ── Bulk Group management modal state ───────────────────────────────────
   const [showBulkGroupModal, setShowBulkGroupModal] = useState<'add' | 'remove' | null>(null);
+
+  // ── Selected groups state for SmartGroupModal ─────────────────────────────
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
+  const [showSmartGroupModal, setShowSmartGroupModal] = useState(false);
+
+  const toggleGroupSelected = (groupId: string) => {
+    setSelectedGroupIds(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
 
 
   // ── Progress state ────────────────────────────────────────────────────────
@@ -493,6 +510,7 @@ export default function GroupMembersTab() {
   useEffect(() => {
     setGroups([]); setMembers([]); setSelectedGroupId(null);
     setMembersLastFetched(0); setSelectedMemberIds(new Set());
+    setSelectedGroupIds(new Set());
     setManualLoadProgress(null);
     manualLoadStopRef.current = true;
     if (activeAccountId) loadGroupsFromDB();
@@ -515,6 +533,7 @@ export default function GroupMembersTab() {
   // ── Filtered lists ────────────────────────────────────────────────────────
   const filteredGroups = groups.filter(g => {
     if (groupFilter === 'managed' && !managedGroupIds.has(g.contact_id)) return false;
+    if (groupFilter === 'not_managed' && managedGroupIds.has(g.contact_id)) return false;
     return (
       !searchGroup.trim() ||
       g.display_name.toLowerCase().includes(searchGroup.toLowerCase()) ||
@@ -554,6 +573,25 @@ export default function GroupMembersTab() {
             </h3>
             <p className="text-[11px] text-gray-500 mt-0.5">Từ danh sách hội thoại</p>
           </div>
+          
+          {/* Nút Refresh nhanh */}
+          <button
+            onClick={fetchGroupsFromAPI}
+            disabled={groupsLoading}
+            title="Đồng bộ lại tất cả nhóm & quyền từ Zalo"
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-gray-300 transition-colors flex-shrink-0"
+          >
+            {groupsLoading ? (
+              <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.97"/>
+              </svg>
+            )}
+          </button>
+
           {/* 3-dot menu */}
           <div ref={groupMenuRef} className="relative flex-shrink-0">
             <button
@@ -593,26 +631,51 @@ export default function GroupMembersTab() {
             
             <div className="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700">
               <button
-                onClick={() => setGroupFilter('all')}
-                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'all' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-              >
-                Tất cả ({groups.length})
-              </button>
-              <button
                 onClick={() => setGroupFilter('managed')}
                 className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'managed' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
                 Tôi quản lý ({managedGroupIds.size})
               </button>
+              <button
+                onClick={() => setGroupFilter('not_managed')}
+                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'not_managed' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                Không quản lý ({groups.length - managedGroupIds.size})
+              </button>
             </div>
 
-            {groupFilter === 'managed' && managedGroupIds.size > 0 && (
+            {groups.length > 0 && (
               <button
                 onClick={() => setShowBulkGroupModal('add')}
                 className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1 shadow-sm"
               >
                 <span>➕ Thêm người vào nhóm</span>
               </button>
+            )}
+
+            {filteredGroups.length > 0 && (
+              <div className="flex items-center justify-between text-[10px] text-gray-500 px-0.5 mt-0.5">
+                <button
+                  onClick={() => {
+                    setSelectedGroupIds(prev => {
+                      const next = new Set(prev);
+                      filteredGroups.forEach(g => next.add(g.contact_id));
+                      return next;
+                    });
+                  }}
+                  className="hover:text-gray-300 transition-colors"
+                >
+                  Chọn các nhóm đang hiện ({filteredGroups.length})
+                </button>
+                {selectedGroupIds.size > 0 && (
+                  <button
+                    onClick={() => setSelectedGroupIds(new Set())}
+                    className="hover:text-red-400 transition-colors"
+                  >
+                    Bỏ chọn ({selectedGroupIds.size})
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -629,27 +692,72 @@ export default function GroupMembersTab() {
             </div>
           ) : (
             <div className="py-1">
-              {filteredGroups.map(group => (
-                  <button key={group.contact_id} onClick={() => setSelectedGroupId(group.contact_id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-700/50 transition-colors
-                    ${selectedGroupId === group.contact_id ? 'bg-blue-500/10 border-r-2 border-blue-500' : ''}`}>
-                  <GroupAvatar
-                    avatarUrl={group.avatar_url}
-                    groupInfo={activeAccountId ? (groupInfoCache[activeAccountId] || {})[group.contact_id] : undefined}
-                    name={group.display_name}
-                    size="sm"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate font-medium">{group.display_name}</p>
-                    <p className="text-[11px] text-gray-500 mt-0.5">
-                      {group.memberCount > 0 ? `${group.memberCount} thành viên` : 'Chưa có thành viên'}
-                    </p>
+              {filteredGroups.map(group => {
+                const isGroupChecked = selectedGroupIds.has(group.contact_id);
+                return (
+                  <div key={group.contact_id}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-700/50 transition-colors
+                      ${selectedGroupId === group.contact_id ? 'bg-blue-500/10 border-r-2 border-blue-500' : ''}`}>
+                    {/* Checkbox */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleGroupSelected(group.contact_id);
+                      }}
+                      className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border cursor-pointer transition-colors
+                        ${isGroupChecked ? 'bg-blue-500 border-blue-500' : 'border-gray-600 bg-gray-800 hover:border-gray-500'}`}
+                    >
+                      {isGroupChecked && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </div>
+                    {/* Group detail trigger */}
+                    <button
+                      onClick={() => setSelectedGroupId(group.contact_id)}
+                      className="flex-1 flex items-center gap-3 text-left min-w-0"
+                    >
+                      <GroupAvatar
+                        avatarUrl={group.avatar_url}
+                        groupInfo={activeAccountId ? (groupInfoCache[activeAccountId] || {})[group.contact_id] : undefined}
+                        name={group.display_name}
+                        size="sm"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white truncate font-medium">{group.display_name}</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          {group.memberCount > 0 ? `${group.memberCount} thành viên` : 'Chưa có thành viên'}
+                        </p>
+                      </div>
+                    </button>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
+
+        {/* Floating Action Bar */}
+        {selectedGroupIds.size > 0 && (
+          <div className="p-3 border-t border-gray-700 bg-gray-800/95 flex flex-col gap-2 flex-shrink-0">
+            <div className="flex items-center justify-between text-xs text-gray-400">
+              <span>Đã chọn: <strong className="text-blue-400">{selectedGroupIds.size}</strong> nhóm</span>
+              <button onClick={() => setSelectedGroupIds(new Set())} className="text-gray-500 hover:text-gray-300 transition-colors">Bỏ chọn</button>
+            </div>
+            <button
+              onClick={() => setShowSmartGroupModal(true)}
+              className="w-full py-2 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Rời các nhóm đã chọn
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Right: Members ────────────────────────────────────────────────── */}
@@ -695,6 +803,21 @@ export default function GroupMembersTab() {
                   Lên lịch thông báo
                 </button>
               )}
+              {/* Nút rời khỏi nhóm */}
+              <button
+                onClick={() => {
+                  setSelectedGroupIds(new Set([selectedGroup.contact_id]));
+                  setShowSmartGroupModal(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors flex-shrink-0"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Rời khỏi nhóm
+              </button>
 
               {/* Stop button shown only during getUserInfo fallback */}
               {manualLoadProgress !== null && (
@@ -817,7 +940,7 @@ export default function GroupMembersTab() {
                   className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs transition-colors">
                   Bỏ chọn
                 </button>
-                {selectedMemberIds.size >= 1 && (
+                {selectedMemberIds.size >= 1 && selectedGroupId && managedGroupIds.has(selectedGroupId) && (
                   <button onClick={() => setShowBulkGroupModal('remove')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -1167,6 +1290,7 @@ export default function GroupMembersTab() {
           mode={showBulkGroupModal}
           initialContactIds={showBulkGroupModal === 'remove' ? Array.from(selectedMemberIds) : []}
           activeAccountId={activeAccountId}
+          groupFilter={groupFilter}
           onClose={() => {
             setShowBulkGroupModal(null);
             setSelectedMemberIds(new Set());
@@ -1282,6 +1406,21 @@ export default function GroupMembersTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {showSmartGroupModal && (
+        <SmartGroupModal
+          selectedGroupIds={Array.from(selectedGroupIds)}
+          activeAccountId={activeAccountId}
+          onClose={() => {
+            setShowSmartGroupModal(false);
+            setSelectedGroupIds(new Set());
+          }}
+          onSuccess={() => {
+            handleBulkGroupSuccess();
+            setSelectedGroupIds(new Set());
+          }}
+        />
       )}
     </div>
   );
