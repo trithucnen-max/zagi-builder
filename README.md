@@ -452,7 +452,19 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.4</strong> — 2026-06-24 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v27.1.5</strong> — 2026-06-24 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật
+
+- 🔄 **Chuẩn hóa tự động cập nhật đa nền tảng (Auto-Update)**: Tự động nhận diện cấu trúc chip (Intel x64 vs Apple Silicon arm64) trên macOS để tải bộ cài phù hợp. Trên Windows/Surface, tự động tải chạy nền bằng `electron-updater` rồi tiến hành nâng cấp ngầm. Chỉ hiển thị một thông báo duy nhất trên Topbar và loại bỏ popup trùng lặp phía dưới.
+- 📅 **Tích hợp CRM vào Workflow & Âm lịch Việt Nam**: Hỗ trợ quy trình chăm sóc khách hàng tự động linh hoạt: gửi tin chúc mừng sinh nhật, gửi tin ngày mùng 1 âm lịch hàng tháng (lịch âm Việt Nam), gửi tin ngày lễ 20/10, 8/3, và gửi tin tự động theo trạng thái của phễu bán hàng (Pipeline Stage).
+- ✏️ **Cập nhật trực tiếp hồ sơ CRM**: Cho phép chỉnh sửa nhanh các trường thông tin Họ tên, Số điện thoại, Ngày sinh, Giới tính của khách hàng ngay trên thanh thông tin hội thoại (`ConversationInfo.tsx`) và lưu trực tiếp vào cơ sở dữ liệu SQLite cục bộ.
+- 🔗 **Hệ thống giới thiệu Affiliate/Referral**: Hỗ trợ nhập "Mã giới thiệu" khi đăng ký bản quyền (cả dùng thử hoặc mua), tự động lưu trữ tại cột L trên Google Sheets và gửi thông báo qua email Quản trị viên (không gửi về mail khách hàng).
+
+</details>
+
+<details>
+<summary><strong>v27.1.4</strong> — 2026-06-24</summary>
 
 ### 🚀 Nâng cấp nổi bật
 

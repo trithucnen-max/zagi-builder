@@ -381,7 +381,19 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.4</strong> — 2026-06-24 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.1.5</strong> — 2026-06-24 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights
+
+- 🔄 **Unified Multi-platform Auto-Update**: Auto-detect hardware architecture (Intel x64 vs Apple Silicon arm64) on macOS to pull the correct `.dmg` file. On Windows/Surface, download updates silently in the background with `electron-updater` and install them seamlessly. Show a single notification on the Topbar, hiding duplicate alerts.
+- 📅 **CRM Integration to Workflow & Vietnamese Lunar Calendar**: Automate customer care workflows flexibly: send birthday wishes, Vietnamese 1st lunar day blessings, public holiday greetings (Oct 20, Mar 8), and trigger events based on sales pipeline stages (Pipeline Stage).
+- ✏️ **Direct CRM Profile Editing**: Edit contact details (Name, Phone, Birthday, Gender) directly in the conversation info panel (`ConversationInfo.tsx`), instantly syncing to the local SQLite database.
+- 🔗 **Affiliate/Referral System**: Support entering a "Referral Code" during license registration (for both trials and paid packages), saving it under Column L in Google Sheets and emailing details to the Admin (excluded from client confirmation emails).
+
+</details>
+
+<details>
+<summary><strong>v27.1.4</strong> — 2026-06-24</summary>
 
 ### 🚀 Key Highlights
 
