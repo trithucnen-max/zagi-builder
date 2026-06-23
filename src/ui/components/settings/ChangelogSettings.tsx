@@ -18,28 +18,30 @@ const CHANGELOG: VersionEntry[] = [
     date: '06/2026',
     type: 'patch',
     highlights: [
-      '🔄 Tự động cập nhật & Tải file tương thích — Tự động nhận diện cấu trúc chip Apple Silicon/Intel của máy Mac để tải bản cài đặt tương thích, ẩn thông báo cập nhật trùng lặp dưới chân app.',
-      '🔗 Tích hợp Người giới thiệu (Affiliate/Referral) — Thêm trường "Mã giới thiệu" khi đăng ký bản quyền, tự động lưu trữ tại cột L trên Google Sheets và thông báo qua email Quản trị viên.',
-      '📅 Tích hợp CRM vào Workflow & Âm lịch Việt Nam — Tự động chuyển đổi âm lịch Việt Nam hỗ trợ gửi tin mùng 1, sinh nhật, ngày lễ (20/10, 8/3) hoặc theo bước Phễu bán hàng (Pipeline).',
-      '✏️ Chỉnh sửa hồ sơ CRM trực tiếp — Cho phép cập nhật Họ tên, SĐT, Ngày sinh, Giới tính của khách hàng ngay trên thanh thông tin hội thoại.'
+      '🔄 Chuẩn hóa tự động cập nhật đa nền tảng (Auto-Update) — Tự động nhận diện cấu trúc máy Mac (Apple Silicon arm64 / Intel x64) để tải file tương thích. Đối với Windows/Surface, tích hợp tải ngầm chạy nền thông qua electron-updater, tự động đóng và nâng cấp. Ẩn popup thông báo cập nhật trùng lặp phía dưới và chỉ giữ duy nhất một thông báo trên thanh TopBar.',
+      '📅 Tích hợp CRM vào Workflow & Âm lịch Việt Nam — Hỗ trợ quy trình chăm sóc khách hàng tự động linh hoạt: gửi tin chúc mừng sinh nhật, gửi tin ngày mùng 1 âm lịch hàng tháng (lịch âm Việt Nam), gửi tin ngày lễ 20/10, 8/3, và gửi tin tự động theo trạng thái của phễu bán hàng (Pipeline Stage).',
+      '✏️ Cập nhật trực tiếp hồ sơ CRM trên Khung Chat — Cho phép chỉnh sửa nhanh các trường thông tin Họ tên, Số điện thoại, Ngày sinh, Giới tính của khách hàng ngay trên thanh thông tin hội thoại (ConversationInfo) và lưu trực tiếp vào cơ sở dữ liệu SQLite cục bộ.',
+      '🔗 Hệ thống giới thiệu Affiliate/Referral — Hỗ trợ lưu trữ thông tin "Người giới thiệu" ở cột L của Google Sheets khi đăng ký dùng thử hoặc mua bản quyền, đồng thời gửi thông tin người giới thiệu về email thông báo của Quản trị viên.'
     ],
     changes: [
       {
         category: 'new',
         items: [
-          'Thêm trường nhập "Mã giới thiệu (nếu có)" vào giao diện đăng ký bản quyền (popup.html).',
-          'Tích hợp biến hệ thống $system.lunarDay vào Workflow để kiểm tra ngày âm lịch Việt Nam.',
-          'Hỗ trợ bộ lọc crm.getContacts trong Workflow Engine cho phép lọc theo ngày sinh (dương lịch), giới tính, trạng thái pipeline.',
-          'Hỗ trợ chế độ chỉnh sửa thông tin liên hệ trực tiếp trong ConversationInfo.tsx.'
+          'Tích hợp thuật toán chuyển đổi Dương lịch sang Âm lịch Việt Nam (lunarCalendar.ts) và đưa biến hệ thống $system.lunarDay vào ngữ cảnh của Workflow Engine.',
+          'Bổ sung bộ lọc CRM contacts trong Workflow Engine cho phép lấy liên hệ theo nhãn local, nhãn Zalo, giới tính, trạng thái phễu bán hàng (pipeline), và lọc ngày sinh (hỗ trợ cả định dạng DD/MM và DD/MM/YYYY).',
+          'Thêm giao diện chỉnh sửa thông tin khách hàng trực tiếp (Edit Mode) vào panel ConversationInfo.tsx với nút bấm biểu tượng bút chì.',
+          'Bổ sung trường nhập "Mã giới thiệu (nếu có)" vào giao diện popup.html khi đăng ký bản quyền và kết nối qua API.'
         ]
       },
       {
         category: 'improved',
         items: [
-          'Tự động phát hiện cấu trúc máy Mac (x64 / arm64) trên preload và tải file DMG phù hợp từ GitHub.',
-          'Nâng cấp nút tải cập nhật trên TopBar hỗ trợ tải tự động hoặc mở link download tương thích.',
-          'Ẩn giao diện thông báo cập nhật phía dưới để tránh trùng lặp thông báo.',
-          'Cập nhật website giới thiệu Zagi thành https://itngon.com/zagi và tích hợp lưu trữ mã giới thiệu vào cột L của file Google Script.'
+          'Nâng cấp cơ chế phát hiện cấu hình phần cứng: Preload lấy `process.arch` truyền sang Frontend nhận biết máy Mac dùng chip Intel (x64) hay Apple Silicon (arm64).',
+          'Nâng cấp nút tải trên TopBar: Trên Mac mở link tải file DMG tương thích chính xác, trên Windows tự động tải ngầm bằng electron-updater rồi cài đặt khi click, trên Linux mở link tải file .deb tương thích.',
+          'Tối ưu giao diện: Ẩn hoàn toàn modal thông báo cập nhật phía dưới để tránh trùng lặp thông báo trên TopBar.',
+          'Cập nhật cấu hình website giới thiệu chính thức của Zagi thành https://itngon.com/zagi trong toàn bộ email gửi đi.',
+          'Bổ sung cột "Người giới thiệu" vào cột L (cột 12, để trống cột K) trên trang tính Google Sheets khi gọi API đăng ký.',
+          'Cập nhật email thông báo Quản trị viên (sendNotificationEmail) để đính kèm thông tin Người giới thiệu của từng đơn đăng ký mới.'
         ]
       }
     ]
