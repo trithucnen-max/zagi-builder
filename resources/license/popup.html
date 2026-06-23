@@ -251,6 +251,9 @@
       <label>Số điện thoại</label>
       <input type="tel" id="regPhone" placeholder="0901234567">
       
+      <label>Mã giới thiệu (nếu có)</label>
+      <input type="text" id="regReferrer" placeholder="Nhập mã giới thiệu hoặc email">
+      
       <label>Chọn gói cước <span style="color:#f87171">*</span></label>
       <div style="margin-top: 8px; margin-bottom: 12px;">
         <div class="plan-card" data-plan="trial" style="border-style: dashed;">
@@ -436,6 +439,7 @@
       
       const fullName = document.getElementById('regName').value.trim();
       const phone = document.getElementById('regPhone').value.trim();
+      const referrer = document.getElementById('regReferrer').value.trim();
       
       if (!email || !email.includes('@')) {
         showMsg('regMessage', 'Vui lòng nhập email hợp lệ', 'error');
@@ -451,7 +455,7 @@
       
       try {
         const result = await window.licenseAPI.register({ 
-          email, fullName, phone, plan: selectedPlan 
+          email, fullName, phone, plan: selectedPlan, referrer 
         });
         
         if (result.success) {

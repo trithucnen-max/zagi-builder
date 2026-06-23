@@ -22,6 +22,7 @@ import {
 const NODE_GROUP_MAP: Record<string, ComponentType<NodeProps>> = {
   'trigger': TriggerNode,
   'zalo': ActionNode,
+  'crm': ActionNode,
   'logic': LogicNode,
   'data': DataNode,
   'output': OutputNode,

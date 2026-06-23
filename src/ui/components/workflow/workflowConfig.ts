@@ -179,11 +179,19 @@ export const NODE_GROUPS: NodeGroup[] = [
       { type: 'ghtk.getTracking',  label: 'GHTK: Tra cứu vận đơn',      desc: 'Lấy trạng thái vận đơn GHTK theo mã tracking' },
     ],
   },
+  {
+    label: 'Khách hàng & CRM',
+    color: 'bg-emerald-500',
+    items: [
+      { type: 'crm.getContacts', label: 'Truy vấn khách hàng CRM', desc: 'Lấy danh sách khách hàng từ CRM theo bộ lọc (sinh nhật, nhãn, phễu...)' },
+    ],
+  },
 ];
 
 const ALL_NODE_GROUPS: NodeGroup[] = NODE_GROUPS;
 
 export const DEFAULT_CONFIGS: Record<string, Record<string, any>> = {
+  'crm.getContacts': { birthdayToday: false, tagIds: [], localLabelIds: [], pipelineStageId: '', gender: '', channel: 'all', isFriend: 'all' },
   'trigger.message':       { threadType: 'all', keyword: '', keywordMode: 'contains_any', ignoreOwn: true, debounceSeconds: 0 },
   'trigger.friendRequest': {},
   'trigger.groupEvent':    { groupId: '', eventType: 'all' },

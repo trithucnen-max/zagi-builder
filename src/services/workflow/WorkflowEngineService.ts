@@ -13,6 +13,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { google } from 'googleapis';
 import { parseStructuredResponse, isValidStructuredResponse } from '../../utils/aiUtils';
+import { getLunarDate } from '../../utils/lunarCalendar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ export type NodeType =
   | 'trigger.message' | 'trigger.friendRequest' | 'trigger.groupEvent'
   | 'trigger.reaction' | 'trigger.undo' | 'trigger.schedule' | 'trigger.manual'
   | 'trigger.labelAssigned'
+  | 'crm.getContacts'
   | 'zalo.sendMessage' | 'zalo.sendImage' | 'zalo.sendFile' | 'zalo.sendVoice'
   | 'zalo.forwardMessage' | 'zalo.addReaction' | 'zalo.undoMessage'
   | 'zalo.sendTyping'
@@ -916,6 +918,85 @@ class WorkflowEngineService {
       case 'trigger.manual':
       case 'trigger.labelAssigned':
         return { ...ctx.trigger };
+
+      // ── CRM Actions ─────────────────────────────────────────────────────
+      case 'crm.getContacts': {
+        let sql = `
+          SELECT contact_id, display_name, avatar_url as avatar, phone, is_friend, contact_type, gender, birthday, pipeline_stage_id, channel
+          FROM contacts
+          WHERE 1=1
+        `;
+        const params: any[] = [];
+
+        if (cfg.channel && cfg.channel !== 'all') {
+          sql += ` AND channel = ?`;
+          params.push(cfg.channel);
+        }
+
+        if (cfg.gender !== undefined && cfg.gender !== null && cfg.gender !== '') {
+          sql += ` AND gender = ?`;
+          params.push(Number(cfg.gender));
+        }
+
+        if (cfg.pipelineStageId !== undefined && cfg.pipelineStageId !== null && cfg.pipelineStageId !== '') {
+          sql += ` AND pipeline_stage_id = ?`;
+          params.push(Number(cfg.pipelineStageId));
+        }
+
+        if (cfg.isFriend === 'friend') {
+          sql += ` AND is_friend = 1`;
+        } else if (cfg.isFriend === 'non_friend') {
+          sql += ` AND is_friend = 0`;
+        }
+
+        if (cfg.localLabelIds && Array.isArray(cfg.localLabelIds) && cfg.localLabelIds.length > 0) {
+          const placeholders = cfg.localLabelIds.map(() => '?').join(',');
+          sql += ` AND contact_id IN (
+            SELECT thread_id FROM local_label_threads 
+            WHERE label_id IN (${placeholders})
+          )`;
+          params.push(...cfg.localLabelIds);
+        }
+
+        if (cfg.tagIds && Array.isArray(cfg.tagIds) && cfg.tagIds.length > 0) {
+          const placeholders = cfg.tagIds.map(() => '?').join(',');
+          sql += ` AND contact_id IN (
+            SELECT contact_id FROM crm_contact_tags 
+            WHERE tag_id IN (${placeholders})
+          )`;
+          params.push(...cfg.tagIds);
+        }
+
+        // Execute query
+        let rows = DatabaseService.getInstance().query<any>(sql, params) || [];
+
+        // Apply birthday filter in JS if enabled
+        if (cfg.birthdayToday === true) {
+          const today = new Date();
+          // Convert date to UTC+7 offset for Vietnam timezone
+          const utc = today.getTime() + today.getTimezoneOffset() * 60000;
+          const vnTime = new Date(utc + 3600000 * 7);
+          const currentDay = vnTime.getDate();
+          const currentMonth = vnTime.getMonth() + 1;
+
+          rows = rows.filter((c: any) => {
+            if (!c.birthday) return false;
+            const parts = c.birthday.split('/');
+            if (parts.length >= 2) {
+              const d = parseInt(parts[0], 10);
+              const m = parseInt(parts[1], 10);
+              return d === currentDay && m === currentMonth;
+            }
+            return false;
+          });
+        }
+
+        Logger.info(`[WorkflowEngine] crm.getContacts: matched ${rows.length} contacts`);
+        return {
+          contacts: rows,
+          count: rows.length
+        };
+      }
 
       // ── Zalo Actions ─────────────────────────────────────────────────────
       case 'zalo.sendMessage': {
@@ -2456,6 +2537,18 @@ class WorkflowEngineService {
         if (expr === '$pageId')             return ctx.pageId ?? '';
         if (expr === '$date.now')           return new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
         if (expr === '$date.today')         return new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        if (expr === '$system.lunarDate') {
+          const lunar = getLunarDate(new Date());
+          return lunar ? `${lunar.day}/${lunar.month}/${lunar.year}` : '';
+        }
+        if (expr === '$system.lunarDay') {
+          const lunar = getLunarDate(new Date());
+          return lunar ? String(lunar.day) : '';
+        }
+        if (expr === '$system.lunarMonth') {
+          const lunar = getLunarDate(new Date());
+          return lunar ? String(lunar.month) : '';
+        }
         if (expr.startsWith('$node.')) {
           const rest = expr.slice(6);
           const dotIdx = rest.indexOf('.');

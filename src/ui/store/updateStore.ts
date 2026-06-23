@@ -37,6 +37,7 @@ interface UpdateStore {
   dismissed: boolean;            // user đang hoãn popup
   postponedUntil: number | null; // timestamp khi hết hoãn
   platform: string;              // 'darwin' | 'win32' | 'linux'
+  arch: string;                  // 'arm64' | 'x64' | 'ia32'
 
   setStatus: (status: UpdateStatus) => void;
   setUpdateInfo: (info: UpdateInfo | null) => void;
@@ -45,6 +46,7 @@ interface UpdateStore {
   setDismissed: (dismissed: boolean) => void;
   setPostponedUntil: (ts: number | null) => void;
   setPlatform: (platform: string) => void;
+  setArch: (arch: string) => void;
 
   /** Hoãn notification durationMs ms rồi tự hiện lại */
   postpone: (durationMs?: number) => void;
@@ -61,6 +63,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
   dismissed: false,
   postponedUntil: null,
   platform: (window as any).electronAPI?.platform || 'win32',
+  arch: (window as any).electronAPI?.arch || 'x64',
 
   setStatus: (status) => set({ status }),
   setUpdateInfo: (updateInfo) => set({ updateInfo }),
@@ -69,6 +72,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
   setDismissed: (dismissed) => set({ dismissed }),
   setPostponedUntil: (postponedUntil) => set({ postponedUntil }),
   setPlatform: (platform) => set({ platform }),
+  setArch: (arch) => set({ arch }),
 
   postpone: (durationMs = POSTPONE_MS) => {
     set({ dismissed: true, postponedUntil: Date.now() + durationMs });

@@ -8,7 +8,7 @@ import TemplateVarPopup from './TemplateVarPopup';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type FieldType = 'text' | 'textarea' | 'select' | 'number' | 'boolean' | 'json' | 'multiline' | 'cron' | 'html' | 'label-picker' | 'assistant-picker' | 'contact-picker' | 'file-picker';
+type FieldType = 'text' | 'textarea' | 'select' | 'number' | 'boolean' | 'json' | 'multiline' | 'cron' | 'html' | 'label-picker' | 'assistant-picker' | 'contact-picker' | 'file-picker' | 'pipeline-picker';
 
 interface SelectOption { value: string; label: string }
 
@@ -108,6 +108,47 @@ function cronToHuman(expr: string): string {
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const CONFIG_SCHEMA: Record<string, Field[]> = {
+  'crm.getContacts': [
+    {
+      key: 'birthdayToday', label: 'Sinh nhật hôm nay', type: 'boolean',
+      desc: 'Chỉ lấy các liên hệ có ngày sinh là hôm nay (tự động khớp ngày/tháng, không phân biệt định dạng DD/MM hay DD/MM/YYYY).',
+    },
+    {
+      key: 'channel', label: 'Kênh liên lạc', type: 'select',
+      options: [
+        { value: 'all', label: 'Tất cả các kênh' },
+        { value: 'zalo', label: 'Zalo' },
+        { value: 'facebook', label: 'Facebook' },
+      ],
+      desc: 'Lọc khách hàng theo kênh liên lạc.',
+    },
+    {
+      key: 'gender', label: 'Giới tính', type: 'select',
+      options: [
+        { value: '', label: 'Tất cả giới tính' },
+        { value: '1', label: 'Nam' },
+        { value: '2', label: 'Nữ' },
+      ],
+      desc: 'Lọc khách hàng theo giới tính.',
+    },
+    {
+      key: 'isFriend', label: 'Mối quan hệ', type: 'select',
+      options: [
+        { value: 'all', label: 'Tất cả' },
+        { value: 'friend', label: 'Đã kết bạn' },
+        { value: 'non_friend', label: 'Chưa kết bạn' },
+      ],
+      desc: 'Lọc theo trạng thái bạn bè.',
+    },
+    {
+      key: 'pipelineStageId', label: 'Bước phễu (Pipeline Stage)', type: 'pipeline-picker',
+      desc: 'Lọc khách hàng theo bước phễu bán hàng hiện tại.',
+    },
+    {
+      key: 'localLabelIds', label: 'Nhãn Local (Chọn nhiều)', type: 'label-picker', labelMode: 'multi',
+      desc: 'Lọc khách hàng được gán các nhãn local này.',
+    },
+  ],
   'trigger.message': [
     {
       key: 'threadType', label: 'Nguồn tin nhắn', type: 'select',
@@ -3727,7 +3768,7 @@ export default function NodeConfigPanel({ node, nodes, edges, onConfigChange, on
   const accountIds = accounts.map(a => a.zalo_id).sort().join(',');
 
   useEffect(() => {
-    if (node.type !== 'trigger.labelAssigned' && node.type !== 'zalo.assignLabel' && node.type !== 'zalo.removeLabel') {
+    if (node.type !== 'trigger.labelAssigned' && node.type !== 'zalo.assignLabel' && node.type !== 'zalo.removeLabel' && node.type !== 'crm.getContacts') {
       setLoadedLabelOptions([]);
       return;
     }
@@ -3832,6 +3873,26 @@ export default function NodeConfigPanel({ node, nodes, edges, onConfigChange, on
         }
       } catch { /* ignore */ }
       finally { if (!cancelled) setLoadingAssistants(false); }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [node.type]);
+
+  // ── Load CRM pipeline stages for pipeline-picker ─────────────────────────
+  const [pipelineStages, setPipelineStages] = useState<{ id: number; name: string }[]>([]);
+  useEffect(() => {
+    if (node.type !== 'crm.getContacts') {
+      setPipelineStages([]);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await ipc.db?.getPipelineStages();
+        if (!cancelled && res?.success) {
+          setPipelineStages(res.stages || []);
+        }
+      } catch { /* ignore */ }
     };
     load();
     return () => { cancelled = true; };
@@ -4075,6 +4136,22 @@ export default function NodeConfigPanel({ node, nodes, edges, onConfigChange, on
             fileType={field.fileType || 'file'}
             placeholder={field.placeholder}
           />
+        )}
+
+        {/* ── Pipeline Picker ───────────────────────────────────────────── */}
+        {field.type === 'pipeline-picker' && (
+          <select
+            value={config[field.key] ?? ''}
+            onChange={e => update(field.key, e.target.value)}
+            className={selectCls}
+          >
+            <option value="" className="bg-gray-800 text-white">-- Không chọn --</option>
+            {pipelineStages.map(stage => (
+              <option key={stage.id} value={String(stage.id)} className="bg-gray-800 text-white">
+                {stage.name}
+              </option>
+            ))}
+          </select>
         )}
 
         {/* ── Assistant Picker ─────────────────────────────────────────── */}

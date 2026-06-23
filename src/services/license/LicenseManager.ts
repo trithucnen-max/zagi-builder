@@ -60,6 +60,7 @@ export interface RegisterParams {
   fullName?: string;
   phone?: string;
   plan: string;
+  referrer?: string;
 }
 
 export class LicenseManager {
@@ -104,7 +105,7 @@ export class LicenseManager {
   }
 
   // === ĐĂNG KÝ LICENSE MỚI ===
-  async register({ email, fullName, phone, plan }: RegisterParams): Promise<any> {
+  async register({ email, fullName, phone, plan, referrer }: RegisterParams): Promise<any> {
     try {
       const result = await this.postWithRedirect(LICENSE_CONFIG.apiUrl, {
         secret: LICENSE_CONFIG.apiSecret,
@@ -112,7 +113,8 @@ export class LicenseManager {
         email: email.trim().toLowerCase(),
         fullName: fullName || '',
         phone: phone || '',
-        plan: plan
+        plan: plan,
+        referrer: referrer || ''
       }, 15000);
       
       // Nếu là trial → auto activate luôn

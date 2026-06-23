@@ -46,8 +46,11 @@ function UserConversationInfo() {
 
   const [isPinned, setIsPinned] = useState(false);
   const [isLocalPinned, setIsLocalPinned] = useState(false);
-  const [editingAlias, setEditingAlias] = useState(false);
-  const [aliasValue, setAliasValue] = useState('');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editAlias, setEditAlias] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editBirthday, setEditBirthday] = useState('');
+  const [editGender, setEditGender] = useState<number>(0);
   const [hovering, setHovering] = useState(false);
   const [muteDropdownOpen, setMuteDropdownOpen] = useState(false);
   const [muteDropdownPos, setMuteDropdownPos] = useState<{ top: number; left: number } | null>(null);
@@ -77,10 +80,10 @@ function UserConversationInfo() {
       .then((res: any) => setIsFriendDB(!!res?.isFriend))
       .catch(() => setIsFriendDB(!!(contact?.is_friend)));
   }, [activeAccountId, activeThreadId]);
-  // Init aliasValue từ alias (không phải display_name) khi thread thay đổi
+  // Reset editing mode when switching threads
   useEffect(() => {
-    setAliasValue(contact?.alias || '');
-  }, [activeThreadId, contact?.alias]);
+    setIsEditingProfile(false);
+  }, [activeThreadId]);
 
   const getAuth = () => {
     const acc = getActiveAccount();
@@ -264,33 +267,65 @@ function UserConversationInfo() {
     }
   };
 
-  const handleSaveAlias = async () => {
-    if (!channelCap.supportsAlias) return;
-    const auth = getAuth();
-    if (!auth || !activeThreadId) return;
+  const startEditingProfile = () => {
+    if (!contact) return;
+    setEditAlias(contact.alias || contact.display_name || '');
+    setEditPhone(contact.phone || '');
+    setEditBirthday(contact.birthday || '');
+    setEditGender(contact.gender ?? 0);
+    setIsEditingProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!activeAccountId || !contact) return;
     try {
-      const trimmed = aliasValue.trim();
-      const res = await ipc.zalo?.changeFriendAlias({ auth, alias: trimmed, friendId: activeThreadId });
-      if (res && !res.success && res.error) {
-        showNotification('Lỗi cập nhật biệt danh: ' + res.error, 'error');
-        return;
+      const trimmedAlias = editAlias.trim();
+      const oldAlias = contact.alias || '';
+      if (trimmedAlias !== oldAlias && channelCap.supportsAlias) {
+        const auth = getAuth();
+        if (auth && activeThreadId) {
+          try {
+            const res = await ipc.zalo?.changeFriendAlias({ auth, alias: trimmedAlias, friendId: activeThreadId });
+            if (res && !res.success && res.error) {
+              showNotification('Cảnh báo Zalo: ' + res.error, 'warning');
+            }
+          } catch (e: any) {
+            console.error('Error changing Zalo alias:', e);
+          }
+        }
       }
-      if (activeAccountId) {
-        // Lưu alias vào field riêng, KHÔNG overwrite display_name
-        useChatStore.getState().updateContact(activeAccountId, {
-          contact_id: activeThreadId,
-          alias: trimmed,
-        });
-        ipc.db?.setContactAlias({
+
+      await ipc.db?.updateContactProfile({
+        zaloId: activeAccountId,
+        contactId: contact.contact_id,
+        displayName: contact.display_name,
+        avatarUrl: contact.avatar_url,
+        phone: editPhone.trim(),
+        contactType: contact.contact_type,
+        gender: editGender,
+        birthday: editBirthday.trim()
+      });
+
+      if (trimmedAlias !== oldAlias) {
+        await ipc.db?.setContactAlias({
           zaloId: activeAccountId,
-          contactId: activeThreadId,
-          alias: trimmed,
+          contactId: contact.contact_id,
+          alias: trimmedAlias
         }).catch(() => {});
       }
-      showNotification('Đã cập nhật biệt danh', 'success');
-      setEditingAlias(false);
+
+      updateContact(activeAccountId, {
+        contact_id: contact.contact_id,
+        alias: trimmedAlias,
+        phone: editPhone.trim(),
+        gender: editGender,
+        birthday: editBirthday.trim()
+      });
+
+      showNotification('Đã cập nhật thông tin liên hệ', 'success');
+      setIsEditingProfile(false);
     } catch (e: any) {
-      showNotification('Lỗi: ' + e.message, 'error');
+      showNotification('Lỗi cập nhật: ' + e.message, 'error');
     }
   };
 
@@ -475,50 +510,108 @@ function UserConversationInfo() {
             {(displayName || 'U').charAt(0).toUpperCase()}
           </div>
         )}
-        {editingAlias ? (
-          <div className="flex items-center gap-2 mt-2 w-full px-2">
-            <input value={aliasValue} onChange={e => setAliasValue(e.target.value)}
-              className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500 text-center"
-              placeholder="Nhập biệt danh..." autoFocus
-              onKeyDown={e => { if (e.key === 'Enter') handleSaveAlias(); if (e.key === 'Escape') setEditingAlias(false); }} />
-            <button onClick={handleSaveAlias} className="px-2 py-1 bg-blue-600 rounded-lg text-xs text-white hover:bg-blue-700 flex-shrink-0">Lưu</button>
-            <button onClick={() => setEditingAlias(false)} className="px-2 py-1 bg-gray-700 rounded-lg text-xs text-gray-300 hover:bg-gray-600 flex-shrink-0">✕</button>
+        {isEditingProfile ? (
+          <div className="flex flex-col gap-2.5 w-full mt-2">
+            <div className="flex flex-col gap-0.5 w-full">
+              <label className="text-[10px] uppercase font-bold text-gray-400 self-start">Biệt danh / Tên</label>
+              <input
+                value={editAlias}
+                onChange={e => setEditAlias(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
+                placeholder="Tên gợi nhớ..."
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-0.5 w-full">
+              <label className="text-[10px] uppercase font-bold text-gray-400 self-start">Số điện thoại</label>
+              <input
+                value={editPhone}
+                onChange={e => setEditPhone(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
+                placeholder="Số điện thoại..."
+              />
+            </div>
+            <div className="flex flex-col gap-0.5 w-full">
+              <label className="text-[10px] uppercase font-bold text-gray-400 self-start">Ngày sinh (DD/MM hoặc DD/MM/YYYY)</label>
+              <input
+                value={editBirthday}
+                onChange={e => setEditBirthday(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
+                placeholder="VD: 16/07 hoặc 24/11/1994"
+              />
+            </div>
+            <div className="flex flex-col gap-0.5 w-full">
+              <label className="text-[10px] uppercase font-bold text-gray-400 self-start">Giới tính</label>
+              <select
+                value={editGender}
+                onChange={e => setEditGender(Number(e.target.value))}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value={0}>Chưa xác định</option>
+                <option value={1}>Nam</option>
+                <option value={2}>Nữ</option>
+              </select>
+            </div>
+            <div className="flex gap-2 justify-end mt-1.5 w-full">
+              <button
+                onClick={() => setIsEditingProfile(false)}
+                className="px-2.5 py-1 bg-gray-700 rounded-lg text-xs text-gray-300 hover:bg-gray-600 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-xs text-white transition-colors"
+              >
+                Lưu
+              </button>
+            </div>
           </div>
         ) : (
-          <div className={`group flex items-center gap-1.5 mt-1 ${channelCap.supportsAlias ? 'cursor-pointer' : ''}`}
-            onMouseEnter={() => channelCap.supportsAlias && setHovering(true)} onMouseLeave={() => setHovering(false)}
-            onClick={() => { if (!channelCap.supportsAlias) return; setAliasValue(contact?.alias || ''); setEditingAlias(true); }}>
-            <p className="text-white font-semibold text-base text-center">{displayName}</p>
-            {channelCap.supportsAlias && (
-              <button
-                title="Cập nhật thông tin + tên gợi nhớ"
-                onClick={(e) => { e.stopPropagation(); handleRefreshAlias(); }}
-                className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
-                disabled={aliasRefreshing}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                  className={aliasRefreshing ? 'animate-spin' : ''}>
-                  <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
-                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-                </svg>
-              </button>
+          <>
+            <div className="group flex items-center gap-1.5 mt-1 cursor-pointer"
+              onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}
+              onClick={startEditingProfile}>
+              <p className="text-white font-semibold text-base text-center">{displayName}</p>
+              {channelCap.supportsAlias && (
+                <button
+                  title="Cập nhật thông tin từ Zalo"
+                  onClick={(e) => { e.stopPropagation(); handleRefreshAlias(); }}
+                  className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                  disabled={aliasRefreshing}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    className={aliasRefreshing ? 'animate-spin' : ''}>
+                    <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                  </svg>
+                </button>
+              )}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                className={`text-gray-300 transition-opacity flex-shrink-0 ${hovering ? 'opacity-100' : 'opacity-0'}`}>
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </div>
+            {contact?.alias && contact?.display_name && contact.alias !== contact.display_name && (
+              <p className="text-gray-500 text-xs mt-0.5 text-center">({contact.display_name})</p>
             )}
-            {channelCap.supportsAlias && (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              className={`text-gray-300 transition-opacity flex-shrink-0 ${hovering ? 'opacity-100' : 'opacity-0'}`}>
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
+            {contact?.phone && (
+              <p className="text-gray-400 text-xs mt-0.5">
+                📞 <PhoneDisplay phone={contact.phone} className="text-gray-400 text-xs" />
+              </p>
             )}
-          </div>
-        )}
-        {contact?.alias && contact?.display_name && contact.alias !== contact.display_name && (
-          <p className="text-gray-500 text-xs mt-0.5 text-center">({contact.display_name})</p>
-        )}
-        {contact?.phone && (
-          <p className="text-gray-400 text-xs mt-0.5">
-            📞 <PhoneDisplay phone={contact.phone} className="text-gray-400 text-xs" />
-          </p>
+            {contact?.birthday && (
+              <p className="text-gray-400 text-xs mt-0.5">
+                🎂 {contact.birthday}
+              </p>
+            )}
+            {(contact?.gender === 1 || contact?.gender === 2) && (
+              <p className="text-gray-400 text-xs mt-0.5">
+                {contact.gender === 1 ? '👨 Nam' : '👩 Nữ'}
+              </p>
+            )}
+          </>
         )}
       </div>
 

@@ -4,6 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('electronAPI', {
   // ─── Platform info ──────────────────────────────────────────────
   platform: process.platform,  // 'darwin' | 'win32' | 'linux'
+  arch: process.arch,          // 'arm64' | 'x64' | 'ia32'
 
   // ─── Window Controls ─────────────────────────────────────────────
   window: {

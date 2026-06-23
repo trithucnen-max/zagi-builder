@@ -14,6 +14,37 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.1.5',
+    date: '06/2026',
+    type: 'patch',
+    highlights: [
+      '🔄 Tự động cập nhật & Tải file tương thích — Tự động nhận diện cấu trúc chip Apple Silicon/Intel của máy Mac để tải bản cài đặt tương thích, ẩn thông báo cập nhật trùng lặp dưới chân app.',
+      '🔗 Tích hợp Người giới thiệu (Affiliate/Referral) — Thêm trường "Mã giới thiệu" khi đăng ký bản quyền, tự động lưu trữ tại cột L trên Google Sheets và thông báo qua email Quản trị viên.',
+      '📅 Tích hợp CRM vào Workflow & Âm lịch Việt Nam — Tự động chuyển đổi âm lịch Việt Nam hỗ trợ gửi tin mùng 1, sinh nhật, ngày lễ (20/10, 8/3) hoặc theo bước Phễu bán hàng (Pipeline).',
+      '✏️ Chỉnh sửa hồ sơ CRM trực tiếp — Cho phép cập nhật Họ tên, SĐT, Ngày sinh, Giới tính của khách hàng ngay trên thanh thông tin hội thoại.'
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Thêm trường nhập "Mã giới thiệu (nếu có)" vào giao diện đăng ký bản quyền (popup.html).',
+          'Tích hợp biến hệ thống $system.lunarDay vào Workflow để kiểm tra ngày âm lịch Việt Nam.',
+          'Hỗ trợ bộ lọc crm.getContacts trong Workflow Engine cho phép lọc theo ngày sinh (dương lịch), giới tính, trạng thái pipeline.',
+          'Hỗ trợ chế độ chỉnh sửa thông tin liên hệ trực tiếp trong ConversationInfo.tsx.'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Tự động phát hiện cấu trúc máy Mac (x64 / arm64) trên preload và tải file DMG phù hợp từ GitHub.',
+          'Nâng cấp nút tải cập nhật trên TopBar hỗ trợ tải tự động hoặc mở link download tương thích.',
+          'Ẩn giao diện thông báo cập nhật phía dưới để tránh trùng lặp thông báo.',
+          'Cập nhật website giới thiệu Zagi thành https://itngon.com/zagi và tích hợp lưu trữ mã giới thiệu vào cột L của file Google Script.'
+        ]
+      }
+    ]
+  },
+  {
     version: '27.1.4',
     date: '06/2026',
     type: 'patch',

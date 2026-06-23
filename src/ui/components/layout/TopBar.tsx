@@ -200,17 +200,24 @@ export default function TopBar() {
 
   // Xử lý click nút update
   const handleUpdateClick = useCallback(() => {
+    if (!updateInfo) return;
     if (isMac) {
-      // macOS: mở dropdown chọn bản tải
-      setMacDropdownOpen(prev => !prev);
+      const arch = (window as any).electronAPI?.arch || 'x64';
+      const url = arch === 'arm64'
+        ? `https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/Zagi-${updateInfo.version}-arm64.dmg`
+        : `https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/Zagi-${updateInfo.version}.dmg`;
+      (window as any).electronAPI?.shell?.openExternal(url);
+    } else if (platform === 'linux') {
+      const url = `https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/zagi_${updateInfo.version}_amd64.deb`;
+      (window as any).electronAPI?.shell?.openExternal(url);
     } else {
-      // Windows: trigger auto-update download + hiện popup
+      // Windows: trigger auto-update download
       setDismissed(false);
-      if (updateStatus === 'error' || updateStatus === 'stalled') {
+      if (updateStatus === 'error' || updateStatus === 'stalled' || updateStatus === 'available') {
         (window as any).electronAPI?.update?.download();
       }
     }
-  }, [isMac, setDismissed, updateStatus]);
+  }, [isMac, platform, updateInfo, updateStatus, setDismissed]);
 
   return (
     <div
@@ -362,7 +369,7 @@ export default function TopBar() {
             <button
               onClick={handleUpdateClick}
               className="w-9 h-9 flex items-center justify-center text-orange-400 hover:bg-orange-500/20 hover:text-orange-300 transition-colors relative"
-              title={`Cập nhật v${updateInfo!.version} ${isMac ? '— Chọn bản tải' : '— Nhấn để cập nhật'}`}
+              title={`Cập nhật v${updateInfo!.version} — Nhấn để tải và cập nhật`}
             >
               {/* Arrow-down-circle icon */}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -372,50 +379,6 @@ export default function TopBar() {
               {/* Chấm đỏ nhỏ */}
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             </button>
-
-            {/* macOS dropdown: chọn bản tải */}
-            {isMac && macDropdownOpen && updateInfo && (
-              <div className="absolute right-0 top-full mt-1 w-56 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-[9999] overflow-hidden">
-                       <a
-                  href={`https://zagiapp.com/file/Zagi-${updateInfo.version}-arm64.dmg`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMacDropdownOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-200 hover:bg-blue-600/20 hover:text-white transition-colors no-underline"
-                >
-                  <span className="text-base">🍎</span>
-                  <div>
-                    <p className="text-xs font-semibold">Apple Silicon</p>
-                    <p className="text-[10px] text-gray-500">MacBook Chip M</p>
-                  </div>
-                </a>
-                <a
-                  href={`https://zagiapp.com/file/Zagi-${updateInfo.version}.dmg`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMacDropdownOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-200 hover:bg-blue-600/20 hover:text-white transition-colors no-underline"
-                >
-                  <span className="text-base">💻</span>
-                  <div>
-                    <p className="text-xs font-semibold">Intel Mac</p>
-                    <p className="text-[10px] text-gray-500">MacBook Chip Intel</p>
-                  </div>
-                </a>
-                {/* Thử cập nhật tự động */}
-                <button
-                  onClick={() => {
-                    setMacDropdownOpen(false);
-                    setDismissed(false);
-                    (window as any).electronAPI?.update?.download();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors border-t border-gray-700"
-                >
-                  <span className="text-base">🔄</span>
-                  <p className="text-xs">Thử cập nhật tự động</p>
-                </button>
-              </div>
-            )}
           </div>
         )}
 

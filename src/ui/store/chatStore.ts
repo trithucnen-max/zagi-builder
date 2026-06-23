@@ -68,6 +68,8 @@ export interface ContactItem {
   // Facebook-specific fields (nullable)
   fb_emoji?: string;
   fb_participant_count?: number;
+  gender?: number;
+  birthday?: string;
 }
 
 interface ChatStore {
