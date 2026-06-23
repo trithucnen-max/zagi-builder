@@ -730,6 +730,6 @@ contextBridge.exposeInMainWorld('licenseAPI', {
     ipcRenderer.invoke('license:isExpiringSoon'),
   recheck: () =>
     ipcRenderer.invoke('license:recheck'),
-  logout: () =>
-    ipcRenderer.invoke('license:logout'),
+  logout: (options?: { clearData?: boolean }) =>
+    ipcRenderer.invoke('license:logout', options),
 });

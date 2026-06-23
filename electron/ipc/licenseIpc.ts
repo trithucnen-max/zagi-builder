@@ -160,82 +160,89 @@ export function registerLicenseIpc(startAppCallback?: () => Promise<void>): void
   });
 
   // Đăng xuất bản quyền → xóa license.dat + database + cache + restart app
-  ipcMain.handle('license:logout', async () => {
-    try {
-      // 1. Đóng kết nối database trước khi xóa file
-      const DatabaseService = require('../../src/services/database/DatabaseService').default;
-      DatabaseService.getInstance().close();
-    } catch (dbErr: any) {
-      console.error('[LicenseIpc] Failed to close database on logout:', dbErr.message);
-    }
-
-    const userData = app.getPath('userData');
-
-    // Hàm xóa thư mục đệ quy an toàn (bỏ qua file bị khóa)
-    const deleteFolderRecursive = (dirPath: string, deleteSelf = true) => {
-      if (fs.existsSync(dirPath)) {
-        try {
-          fs.readdirSync(dirPath).forEach((file) => {
-            const curPath = path.join(dirPath, file);
-            if (fs.lstatSync(curPath).isDirectory()) {
-              deleteFolderRecursive(curPath, true);
-            } else {
-              try {
-                fs.unlinkSync(curPath);
-              } catch (_) {}
-            }
-          });
-          if (deleteSelf) {
-            fs.rmdirSync(dirPath);
-          }
-        } catch (_) {}
-      }
-    };
-
+  // Đăng xuất bản quyền → xóa license.dat + database + cache + restart app (nếu clearData = true)
+  ipcMain.handle('license:logout', async (_event, options?: { clearData?: boolean }) => {
+    const clearData = options?.clearData ?? false;
+    
     try {
       // Xóa license key file
       licenseManager.clearLicense();
+    } catch (licenseErr: any) {
+      console.error('[LicenseIpc] Failed to clear license key file:', licenseErr.message);
+    }
 
-      // Xóa các file cấu hình và database chính
-      const filesToDelete = [
-        'workspaces.json',
-        'zagi-config.json',
-        'zagi-config.json',
-        'zagi-tool.db',
-        'zagi-tool.db-wal',
-        'zagi-tool.db-shm',
-        'zagi-tool.db',
-        'zagi-tool.db-wal',
-        'zagi-tool.db-shm'
-      ];
+    if (clearData) {
+      try {
+        // 1. Đóng kết nối database trước khi xóa file
+        const DatabaseService = require('../../src/services/database/DatabaseService').default;
+        DatabaseService.getInstance().close();
+      } catch (dbErr: any) {
+        console.error('[LicenseIpc] Failed to close database on logout:', dbErr.message);
+      }
 
-      filesToDelete.forEach((fileName) => {
-        const filePath = path.join(userData, fileName);
-        if (fs.existsSync(filePath)) {
+      const userData = app.getPath('userData');
+
+      // Hàm xóa thư mục đệ quy an toàn (bỏ qua file bị khóa)
+      const deleteFolderRecursive = (dirPath: string, deleteSelf = true) => {
+        if (fs.existsSync(dirPath)) {
           try {
-            fs.unlinkSync(filePath);
+            fs.readdirSync(dirPath).forEach((file) => {
+              const curPath = path.join(dirPath, file);
+              if (fs.lstatSync(curPath).isDirectory()) {
+                deleteFolderRecursive(curPath, true);
+              } else {
+                try {
+                  fs.unlinkSync(curPath);
+                } catch (_) {}
+              }
+            });
+            if (deleteSelf) {
+              fs.rmdirSync(dirPath);
+            }
           } catch (_) {}
         }
-      });
+      };
 
-      // Xóa các thư mục workspace phụ (workspace-ws*)
-      fs.readdirSync(userData).forEach((file) => {
-        if (file.startsWith('workspace-')) {
-          const workspacePath = path.join(userData, file);
-          deleteFolderRecursive(workspacePath, true);
-        }
-      });
+      try {
+        // Xóa các file cấu hình và database chính
+        const filesToDelete = [
+          'workspaces.json',
+          'zagi-config.json',
+          'zagi-tool.db',
+          'zagi-tool.db-wal',
+          'zagi-tool.db-shm'
+        ];
 
-      // Xóa cache và session tài khoản của Facebook/Zalo
-      const cacheFolders = ['Local Storage', 'Session Storage', 'Network', 'Cache', 'Code Cache'];
-      cacheFolders.forEach((folder) => {
-        const folderPath = path.join(userData, folder);
-        deleteFolderRecursive(folderPath, false); // Xóa nội dung bên trong, giữ lại thư mục cha
-      });
+        filesToDelete.forEach((fileName) => {
+          const filePath = path.join(userData, fileName);
+          if (fs.existsSync(filePath)) {
+            try {
+              fs.unlinkSync(filePath);
+            } catch (_) {}
+          }
+        });
 
-      console.log('[LicenseIpc] All local databases, configurations, and cache files cleared on logout.');
-    } catch (cleanErr: any) {
-      console.error('[LicenseIpc] Cleanup error during logout:', cleanErr.message);
+        // Xóa các thư mục workspace phụ (workspace-ws*)
+        fs.readdirSync(userData).forEach((file) => {
+          if (file.startsWith('workspace-')) {
+            const workspacePath = path.join(userData, file);
+            deleteFolderRecursive(workspacePath, true);
+          }
+        });
+
+        // Xóa cache và session tài khoản của Facebook/Zalo
+        const cacheFolders = ['Local Storage', 'Session Storage', 'Network', 'Cache', 'Code Cache'];
+        cacheFolders.forEach((folder) => {
+          const folderPath = path.join(userData, folder);
+          deleteFolderRecursive(folderPath, false); // Xóa nội dung bên trong, giữ lại thư mục cha
+        });
+
+        console.log('[LicenseIpc] All local databases, configurations, and cache files cleared on logout.');
+      } catch (cleanErr: any) {
+        console.error('[LicenseIpc] Cleanup error during logout:', cleanErr.message);
+      }
+    } else {
+      console.log('[LicenseIpc] Logged out license. Kept database and cache session.');
     }
 
     app.relaunch();

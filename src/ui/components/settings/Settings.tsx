@@ -40,6 +40,7 @@ export default function Settings() {
   const [licenseInfo, setLicenseInfo] = useState<any>(null);
   const [loadingLicense, setLoadingLicense] = useState<boolean>(true);
   const [showKey, setShowKey] = useState<boolean>(false);
+  const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
 
   useEffect(() => {
     if (window.licenseAPI) {
@@ -54,19 +55,8 @@ export default function Settings() {
     }
   }, []);
 
-  const handleLogoutLicense = async () => {
-    const ok = await showConfirm({
-      title: 'Đăng xuất bản quyền?',
-      message: 'Ứng dụng sẽ xóa khóa kích hoạt, tất cả cơ sở dữ liệu cục bộ và bộ nhớ cache trên thiết bị này, sau đó khởi động lại.',
-      confirmText: 'Đăng xuất',
-      variant: 'danger',
-    });
-    if (!ok) return;
-    try {
-      await window.licenseAPI.logout();
-    } catch (err: any) {
-      showNotification('Không thể đăng xuất bản quyền: ' + err.message, 'error');
-    }
+  const handleLogoutLicense = () => {
+    setShowLogoutModal(true);
   };
 
   const maskKey = (key: string) => {
@@ -810,6 +800,57 @@ export default function Settings() {
                   ? `${copyProgress.toLocaleString()}${copyTotal > 0 ? ` / ${copyTotal.toLocaleString()}` : ''} files copied…`
                   : 'Đang xử lý...'
               ) : 'Hủy'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ── Modal chọn phương án đăng xuất bản quyền (Phương án A) ── */}
+    {showLogoutModal && (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4"
+        onClick={() => setShowLogoutModal(false)}>
+        <div className="bg-gray-800 border border-gray-600 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden p-6 space-y-4"
+          onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🔐</span>
+            <h3 className="text-base font-semibold text-white">Đăng xuất bản quyền</h3>
+          </div>
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Bạn muốn xử lý dữ liệu hiện tại (tin nhắn, tài khoản chat và CRM) như thế nào sau khi đăng xuất bản quyền?
+          </p>
+          <div className="space-y-2.5 pt-2">
+            <button
+              onClick={async () => {
+                setShowLogoutModal(false);
+                try {
+                  await window.licenseAPI.logout({ clearData: false });
+                } catch (err: any) {
+                  showNotification('Không thể đăng xuất bản quyền: ' + err.message, 'error');
+                }
+              }}
+              className="w-full py-2.5 px-4 bg-gray-700 hover:bg-gray-600/80 text-gray-200 font-semibold rounded-xl border border-gray-650 transition-colors text-xs text-center"
+            >
+              💾 Chỉ đăng xuất (Giữ lại dữ liệu)
+            </button>
+            <button
+              onClick={async () => {
+                setShowLogoutModal(false);
+                try {
+                  await window.licenseAPI.logout({ clearData: true });
+                } catch (err: any) {
+                  showNotification('Không thể đăng xuất bản quyền: ' + err.message, 'error');
+                }
+              }}
+              className="w-full py-2.5 px-4 bg-red-950/40 hover:bg-red-900/40 text-red-400 hover:text-red-300 font-semibold rounded-xl border border-red-500/30 transition-colors text-xs text-center"
+            >
+              🗑️ Đăng xuất & Xóa sạch dữ liệu (Cảnh báo nguy hiểm)
+            </button>
+            <button
+              onClick={() => setShowLogoutModal(false)}
+              className="w-full py-2 px-4 bg-transparent hover:bg-gray-750 text-gray-400 hover:text-gray-300 transition-colors text-[10px] text-center"
+            >
+              Hủy bỏ
             </button>
           </div>
         </div>
