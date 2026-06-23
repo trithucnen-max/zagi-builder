@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, protocol, net, Notification } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as cron from 'node-cron';
 import { autoUpdater } from 'electron-updater';
 import DatabaseService from '../src/services/database/DatabaseService';
 import { registerLoginIpc } from './ipc/loginIpc';
@@ -915,7 +916,31 @@ async function startupAfterLicenseCheck(): Promise<void> {
     }
   }, 5000);
 
-  // Check for updates
+  // ─── Media cleanup scheduler (tự động xoá media cũ) ─────────────────────
+  // Chạy mỗi ngày lúc 3:00 sáng, kiểm tra tất cả tài khoản có cấu hình auto-delete
+  const mediaCleanupJob = cron.schedule('0 3 * * *', async () => {
+    console.log('[MediaCleanup] Running daily scheduled cleanup...');
+    try {
+      const DatabaseService = require('../src/services/database/DatabaseService').default;
+      const FileStorageService = require('../src/services/file/FileStorageService').default;
+      const db = DatabaseService.getInstance();
+      const accounts = db.getAccounts();
+
+      for (const acc of accounts) {
+        const config = db.getMediaAutoDeleteConfig(acc.zalo_id);
+        if (config?.enabled && config.days > 0) {
+          const deleted = FileStorageService.cleanupOldMedia(acc.zalo_id, config.days);
+          if (deleted > 0) {
+            console.log(`[MediaCleanup] Cleaned ${deleted} dirs for ${acc.zalo_id}`);
+          }
+        }
+      }
+      console.log('[MediaCleanup] Daily cleanup completed');
+    } catch (err: any) {
+      console.error('[MediaCleanup] Error:', err.message);
+    }
+  });
+  console.log('[MediaCleanup] Scheduler initialized — runs daily at 3:00 AM');
   if (!isDev) {
     autoUpdater.autoDownload = true;          // tự tải nền — phù hợp app chạy 24/7
     autoUpdater.autoInstallOnAppQuit = true; // tự cài khi quit nếu đã tải xong

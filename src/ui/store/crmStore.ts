@@ -27,6 +27,7 @@ export interface CRMCampaign {
   delay_seconds: number;
   daily_send_limit: number;    // 0 = không giới hạn
   daily_start_time: string;    // "HH:MM" format
+  scheduled_start_at: number;
   created_at: number;
   updated_at: number;
   total_contacts: number;
@@ -54,6 +55,8 @@ export interface CRMContact {
   ai_sentiment?: string | null;
   ai_intent?: string | null;
   ai_profile?: string | null;
+  extra_data?: string | null;
+  fb_linked_id?: string | null;
 }
 
 export interface PipelineStage {
@@ -99,7 +102,7 @@ interface CRMStore {
   pipelineStages: PipelineStage[];
   pipelineStagesLoading: boolean;
   // Queue status per account
-  queueStatus: Record<string, { running: boolean; tokens: number; maxTokens: number; lastSentAt: number; dailyPaused?: boolean }>;
+  queueStatus: Record<string, { running: boolean; tokens: number; maxTokens: number; lastSentAt: number; dailyPaused?: boolean; type?: string }>;
   groupCount: number;
   requestCount: number;
 

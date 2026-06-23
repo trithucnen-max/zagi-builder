@@ -21,6 +21,7 @@ interface CampaignFormData {
   delay_seconds: number;
   daily_send_limit: number;
   daily_start_time: string;
+  scheduled_start_at?: number;
 }
 
 interface CampaignCreateModalProps {
@@ -540,6 +541,39 @@ export default function CampaignCreateModal({
   const [dailyStartTime, setDailyStartTime] = useState(initialData?.daily_start_time ?? '08:00');
   const friendReqRef = useRef<HTMLTextAreaElement>(null);
 
+  const [isScheduled, setIsScheduled] = useState(!!initialData?.scheduled_start_at && initialData.scheduled_start_at > 0);
+
+  const getInitialDateStr = () => {
+    if (initialData?.scheduled_start_at && initialData.scheduled_start_at > 0) {
+      const d = new Date(initialData.scheduled_start_at);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getInitialTimeStr = () => {
+    if (initialData?.scheduled_start_at && initialData.scheduled_start_at > 0) {
+      const d = new Date(initialData.scheduled_start_at);
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+    const d = new Date(Date.now() + 5 * 60 * 1000);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  };
+
+  const [schedDate, setSchedDate] = useState(getInitialDateStr());
+  const [schedTime, setSchedTime] = useState(getInitialTimeStr());
+
   const [contentConfig, setContentConfig] = useState<ContentConfig>(() =>
     parseContentConfig(initialData?.template_message)
   );
@@ -611,6 +645,17 @@ export default function CampaignCreateModal({
   const handleSave = async () => {
     if (!isValid()) return;
     setSaving(true);
+
+    let scheduledStartAt = 0;
+    if (isScheduled && schedDate && schedTime) {
+      const [year, month, day] = schedDate.split('-').map(Number);
+      const [hour, minute] = schedTime.split(':').map(Number);
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day) && !isNaN(hour) && !isNaN(minute)) {
+        const d = new Date(year, month - 1, day, hour, minute, 0);
+        scheduledStartAt = d.getTime();
+      }
+    }
+
     await onSave({
       name: name.trim(),
       template_message: hasMsg ? JSON.stringify(contentConfig) : '',
@@ -620,6 +665,7 @@ export default function CampaignCreateModal({
       delay_seconds: delay,
       daily_send_limit: dailyLimit,
       daily_start_time: dailyStartTime,
+      scheduled_start_at: scheduledStartAt,
     });
     setSaving(false);
     onClose();
@@ -632,6 +678,22 @@ export default function CampaignCreateModal({
     const e = ta.selectionEnd ?? friendReqMsg.length;
     setFriendReqMsg(friendReqMsg.slice(0, s) + v + friendReqMsg.slice(e));
     setTimeout(() => { ta.focus(); ta.setSelectionRange(s + v.length, s + v.length); }, 0);
+  };
+
+  const getScheduleMessage = () => {
+    if (!schedDate || !schedTime) return '';
+    const [year, month, day] = schedDate.split('-').map(Number);
+    const [hour, minute] = schedTime.split(':').map(Number);
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day) && !isNaN(hour) && !isNaN(minute)) {
+      const d = new Date(year, month - 1, day, hour, minute, 0);
+      const isPast = d.getTime() < Date.now();
+      if (isPast) {
+        return `⚠️ Giờ hẹn đã qua, chiến dịch sẽ tự động chạy bù ngay khi kích hoạt.`;
+      } else {
+        return `🗓 Chiến dịch sẽ tự động bắt đầu chạy vào ngày ${day}/${month}/${year} lúc ${schedTime}.`;
+      }
+    }
+    return '';
   };
 
   // Current block reference
@@ -790,6 +852,47 @@ export default function CampaignCreateModal({
                     ⚠️ Khuyến nghị: Chỉ nên gửi kết bạn tối đa 10 - 20 người/ngày để tránh bị Zalo khóa tài khoản.
                   </p>
                 ) : null
+              )}
+            </div>
+
+            {/* Precise Scheduling */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <label className="flex items-center gap-2 cursor-pointer mb-2">
+                <div onClick={() => setIsScheduled(!isScheduled)}
+                  className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                    isScheduled ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-500 hover:border-blue-400'
+                  }`}>
+                  {isScheduled && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </div>
+                <span className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider">🗓 Hẹn giờ chạy</span>
+              </label>
+
+              {isScheduled && (
+                <div className="space-y-2 pl-6 animate-fadeIn">
+                  <div>
+                    <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Ngày chạy</label>
+                    <input
+                      type="date"
+                      value={schedDate}
+                      onChange={e => setSchedDate(e.target.value)}
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Giờ chạy</label>
+                    <input
+                      type="time"
+                      value={schedTime}
+                      onChange={e => setSchedTime(e.target.value)}
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  {getScheduleMessage() && (
+                    <p className={`text-[10px] mt-1 leading-relaxed ${getScheduleMessage().startsWith('⚠️') ? 'text-amber-500 font-semibold' : 'text-cyan-500 dark:text-cyan-400'}`}>
+                      {getScheduleMessage()}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 

@@ -63,6 +63,10 @@ export interface FBListenerEvents {
   reaction: (data: { messageId: string; reaction: string; actorFbId: string; threadId: string }) => void;
   connectionStatus: (status: FBConnectionStatus) => void;
   error: (err: Error) => void;
+  /** Emitted when MQTT seqId is updated — FacebookService dùng để cache fallback */
+  seqId: (seqId: string) => void;
+  /** Emitted on ERROR_QUEUE_OVERFLOW — FacebookService dùng để ngăn tạo listener mới */
+  overflow: (seqId: string) => void;
 }
 
 export class FacebookMQTTListener extends EventEmitter {
@@ -235,7 +239,8 @@ export class FacebookMQTTListener extends EventEmitter {
       this.clearConnectTimeout();
       this.retryCount = 0;
       this.reconnectDelay = 3000;
-      this.overflowRetryCount = 0;
+      // KHÔNG reset overflowRetryCount ở đây — nó chỉ reset khi queue tạo thành công
+      // Reset ở đây khiến overflow loop vô hạn vì counter luôn về 0 trước khi publishQueue.
       this.lastPongTime = Date.now(); // Reset pong timer on connect (BUG #2 fix)
       this.emit('connectionStatus', 'connected' as FBConnectionStatus);
 
@@ -346,7 +351,7 @@ export class FacebookMQTTListener extends EventEmitter {
 
     const queue: any = {
       sync_api_version: 10,
-      max_deltas_able_to_process: 1000,
+      max_deltas_able_to_process: 500,
       delta_batch_size: 500,
       encoding: 'JSON',
       entity_fbid: this.dataFB.FacebookID,
@@ -356,7 +361,14 @@ export class FacebookMQTTListener extends EventEmitter {
     let topic: string;
     if (!this.syncToken) {
       topic = '/messenger_sync_create_queue';
-      queue.initial_titan_sequence_id = this.lastSeqId;
+      // Tránh ERROR_QUEUE_OVERFLOW: nếu đã có overflow trước đó, không gửi
+      // initial_titan_sequence_id để Facebook tự chọn starting point phù hợp.
+      // Nếu seqId=0 hoặc seq quá thấp, Facebook cố đồng bộ toàn bộ messages → overflow.
+      if (this.overflowRetryCount === 0 && this.lastSeqId !== '0') {
+        queue.initial_titan_sequence_id = this.lastSeqId;
+      } else {
+        Logger.log(`[FBMqtt:${this.accountId}] Omitting initial_titan_sequence_id (overflowRetryCount=${this.overflowRetryCount}, lastSeqId=${this.lastSeqId}) — letting Facebook choose starting point`);
+      }
       queue.device_params = null;
     } else {
       topic = '/messenger_sync_get_diffs';
@@ -385,6 +397,7 @@ export class FacebookMQTTListener extends EventEmitter {
     // Update last seq ID
     if (j.lastIssuedSeqId) {
       this.lastSeqId = String(j.lastIssuedSeqId);
+      this.emit('seqId', this.lastSeqId); // Emit seqId event
     }
 
     // Error codes
@@ -404,9 +417,10 @@ export class FacebookMQTTListener extends EventEmitter {
           this.client = null;
         }
         this.isConnecting = false;
+        this.emit('overflow', this.lastSeqId); // Notify FacebookService to prevent creating new listener
         this.overflowRetryCount = (this.overflowRetryCount || 0) + 1;
         if (this.overflowRetryCount > 3) {
-          Logger.error(`[FBMqtt:${this.accountId}] ERROR_QUEUE_OVERFLOW persists after ${this.overflowRetryCount} full reconnects — giving up. User must reconnect manually.`);
+          Logger.error(`[FBMqtt:${this.accountId}] ERROR_QUEUE_OVERFLOW persists after ${this.overflowRetryCount} full reconnects — giving up permanently. Bridge will handle MQTT traffic.`);
           this.overflowRetryCount = 0;
           this.emit('connectionStatus', 'error' as FBConnectionStatus);
           return;
@@ -614,12 +628,16 @@ export class FacebookMQTTListener extends EventEmitter {
           Logger.log(`[FBMqtt:${this.accountId}] [STICKER] parsed sticker: attId=${att.id || att.fbid} stickerId=${stickerId} url=${url?.slice(0,100)}`);
         } else if (typename === 'MessagePhoto' || typename === 'MessageAnimatedImage' || typename === 'MessageImage') {
           attachmentType = 'image';
-          url = blob?.large_preview?.uri || blob?.preview?.uri || blob?.thumbnail?.uri
+          // MessageAnimatedImage (GIF) typically has animated_image.uri or original_image.uri
+          // as the actual GIF URL, NOT in large_preview/preview/thumbnail (those are static previews)
+          url = blob?.animated_image?.uri || blob?.original_image?.uri
+             || blob?.large_preview?.uri || blob?.preview?.uri || blob?.thumbnail?.uri
              || sticker?.url || sticker?.preview_image?.uri || sticker?.image?.uri
              || att?.url || null;
         } else if (typename === 'MessageVideo') {
           attachmentType = 'video';
-          url = blob?.large_image?.uri || blob?.preview?.uri || null;
+          // playable_url la video that, large_image/preview chi la thumbnail
+          url = blob?.playable_url || blob?.browse_url || blob?.large_image?.uri || blob?.preview?.uri || null;
         } else if (typename === 'MessageAudio') {
           attachmentType = 'audio';
           url = blob?.playback_url || null;

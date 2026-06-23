@@ -653,6 +653,7 @@ class DatabaseService {
                 mixed_config TEXT NOT NULL DEFAULT '{}',
                 status TEXT NOT NULL DEFAULT 'draft',
                 delay_seconds INTEGER NOT NULL DEFAULT 60,
+                scheduled_start_at INTEGER DEFAULT 0,
                 created_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT 0
             );
@@ -662,6 +663,7 @@ class DatabaseService {
         try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN friend_request_message TEXT NOT NULL DEFAULT ''`); } catch {}
         try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN campaign_type TEXT NOT NULL DEFAULT 'message'`); } catch {}
         try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN mixed_config TEXT NOT NULL DEFAULT '{}'`); } catch {}
+        try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN scheduled_start_at INTEGER DEFAULT 0`); } catch {}
         try { this.exec(`ALTER TABLE crm_campaign_contacts ADD COLUMN phone TEXT NOT NULL DEFAULT ''`); } catch {}
 
         this.exec(`
@@ -1829,6 +1831,16 @@ class DatabaseService {
                 Logger.log('[DatabaseService] Migration: added ai_profile to contacts');
                 needSave = true;
             }
+            if (!names.includes('extra_data')) {
+                db!.exec(`ALTER TABLE contacts ADD COLUMN extra_data TEXT DEFAULT NULL`);
+                Logger.log('[DatabaseService] Migration: added extra_data to contacts');
+                needSave = true;
+            }
+            if (!names.includes('fb_linked_id')) {
+                db!.exec(`ALTER TABLE contacts ADD COLUMN fb_linked_id TEXT DEFAULT NULL`);
+                Logger.log('[DatabaseService] Migration: added fb_linked_id to contacts');
+                needSave = true;
+            }
             if (needSave) this.save();
         } catch (err: any) {
             Logger.warn(`[DatabaseService] contacts flags migration warning: ${err.message}`);
@@ -2202,17 +2214,28 @@ class DatabaseService {
             Logger.warn(`[DatabaseService] handled_by_employee migration: ${err.message}`);
         }
 
-        // Migration: add daily_send_limit + daily_start_time to crm_campaigns
+        // Migration: add daily_send_limit + daily_start_time + scheduled_start_at to crm_campaigns
         try {
             const campCols = this.query<any>(`PRAGMA table_info(crm_campaigns)`);
-            if (campCols.length > 0 && !campCols.some((c: any) => c.name === 'daily_send_limit')) {
-                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN daily_send_limit INTEGER NOT NULL DEFAULT 0`);
-                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN daily_start_time TEXT NOT NULL DEFAULT '08:00'`);
-                this.save();
-                Logger.log('[DatabaseService] Migration: added daily_send_limit + daily_start_time to crm_campaigns');
+            if (campCols.length > 0) {
+                let updated = false;
+                if (!campCols.some((c: any) => c.name === 'daily_send_limit')) {
+                    db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN daily_send_limit INTEGER NOT NULL DEFAULT 0`);
+                    db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN daily_start_time TEXT NOT NULL DEFAULT '08:00'`);
+                    updated = true;
+                    Logger.log('[DatabaseService] Migration: added daily_send_limit + daily_start_time to crm_campaigns');
+                }
+                if (!campCols.some((c: any) => c.name === 'scheduled_start_at')) {
+                    db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN scheduled_start_at INTEGER DEFAULT 0`);
+                    updated = true;
+                    Logger.log('[DatabaseService] Migration: added scheduled_start_at to crm_campaigns');
+                }
+                if (updated) {
+                    this.save();
+                }
             }
         } catch (err: any) {
-            Logger.warn(`[DatabaseService] daily_send_limit migration: ${err.message}`);
+            Logger.warn(`[DatabaseService] crm_campaigns columns migration: ${err.message}`);
         }
 
         // ── fb_threads.is_e2ee ──────────────────────────────────────────────
@@ -2290,6 +2313,107 @@ class DatabaseService {
 
     public deleteAccount(zaloId: string): void {
         this.run('UPDATE accounts SET is_active = 0 WHERE zalo_id = ?', [zaloId]);
+    }
+
+    /**
+     * Xoá HOÀN TOÀN tài khoản và tất cả dữ liệu liên quan (hard delete).
+     * Gọi disconnect trước đó để đảm bảo listener/connection được cleanup.
+     * Hỗ trợ cả Zalo và Facebook accounts.
+     */
+    public deleteAccountData(zaloId: string): void {
+        if (!this.initialized) return;
+        Logger.log(`[DatabaseService] Permanently deleting all data for account: ${zaloId}`);
+
+        // Kiểm tra nếu là FB account → cần xử lý FB-specific tables riêng
+        const account = this.queryOne<{ channel?: string }>('SELECT channel FROM accounts WHERE zalo_id = ?', [zaloId]);
+        const isFB = account?.channel === 'facebook';
+
+        if (isFB) {
+            // FB account: xoá dữ liệu FB-specific qua UUID từ fb_accounts
+            const fbAcc = this.queryOne<{ id: string }>('SELECT id FROM fb_accounts WHERE facebook_id = ?', [zaloId]);
+            if (fbAcc?.id) {
+                this.run('DELETE FROM fb_messages WHERE account_id = ?', [fbAcc.id]);
+                this.run('DELETE FROM fb_threads WHERE account_id = ?', [fbAcc.id]);
+                this.run('DELETE FROM fb_crm_contacts WHERE fb_account_id = ?', [fbAcc.id]);
+                this.run('DELETE FROM fb_accounts WHERE id = ?', [fbAcc.id]);
+            }
+        }
+
+        // Zalo tables (có owner_zalo_id column) — chạy an toàn, không ảnh hưởng nếu ko có row
+        this.run('DELETE FROM messages WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM contacts WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM friends WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM page_group_member WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM links WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM friend_requests WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM pinned_messages WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM local_quick_messages WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM local_label_threads WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM local_pinned_conversations WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM message_drafts WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM bank_cards WHERE owner_zalo_id = ?', [zaloId]);
+
+        // CRM tables
+        this.run('DELETE FROM crm_tags WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM crm_contact_tags WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM crm_notes WHERE owner_zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM crm_send_log WHERE owner_zalo_id = ?', [zaloId]);
+
+        // CRM campaigns (xoá campaign_contacts trước)
+        this.run(`DELETE FROM crm_campaign_contacts WHERE campaign_id IN (SELECT id FROM crm_campaigns WHERE owner_zalo_id = ?)`, [zaloId]);
+        this.run('DELETE FROM crm_campaigns WHERE owner_zalo_id = ?', [zaloId]);
+
+        // Workflows — page_ids là comma-separated list of account IDs
+        try {
+            const wfRows = this.query<{ id: string; page_ids: string }>('SELECT id, page_ids FROM workflows WHERE page_ids LIKE ?', [`%${zaloId}%`]);
+            for (const wf of wfRows) {
+                const ids = (wf.page_ids || '').split(',').filter(Boolean);
+                if (ids.length <= 1) {
+                    // Chỉ có account này → xoá cả workflow
+                    this.run('DELETE FROM workflow_run_logs WHERE workflow_id = ?', [wf.id]);
+                    this.run('DELETE FROM workflows WHERE id = ?', [wf.id]);
+                } else {
+                    // Nhiều account → chỉ gỡ account này khỏi page_ids
+                    const newIds = ids.filter(id => id !== zaloId).join(',');
+                    this.run('UPDATE workflows SET page_ids = ? WHERE id = ?', [newIds, wf.id]);
+                }
+            }
+        } catch { /* workflows table may not have page_ids column on very old DBs */ }
+
+        // Employee access (dùng zalo_id column)
+        this.run('DELETE FROM employee_account_access WHERE zalo_id = ?', [zaloId]);
+        this.run('DELETE FROM employee_message_log WHERE zalo_id = ?', [zaloId]);
+
+        // Notification settings + media auto-delete config
+        this.run("DELETE FROM app_settings WHERE key LIKE ?", [`notif_${zaloId}%`]);
+        this.run("DELETE FROM app_settings WHERE key = ?", [`media_auto_delete_${zaloId}`]);
+
+        // Cuối cùng: hard-delete account
+        this.run('DELETE FROM accounts WHERE zalo_id = ?', [zaloId]);
+
+        Logger.log(`[DatabaseService] Deleted all data for account: ${zaloId} (isFB=${isFB})`);
+    }
+
+    /**
+     * Lấy cấu hình tự động xoá media cho tài khoản
+     */
+    public getMediaAutoDeleteConfig(zaloId: string): { enabled: boolean; days: number } | null {
+        if (!this.initialized) return null;
+        const val = this.getSetting(`media_auto_delete_${zaloId}`);
+        if (!val) return null;
+        try {
+            return JSON.parse(val) as { enabled: boolean; days: number };
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Lưu cấu hình tự động xoá media cho tài khoản
+     */
+    public setMediaAutoDeleteConfig(zaloId: string, config: { enabled: boolean; days: number }): void {
+        if (!this.initialized) return;
+        this.setSetting(`media_auto_delete_${zaloId}`, JSON.stringify(config));
     }
 
     public updateAccountLastSeen(zaloId: string): void {
@@ -2823,6 +2947,49 @@ class DatabaseService {
             }
         } catch (err: any) {
             Logger.error(`[DatabaseService] updateContactProfile error: ${err.message}`);
+        }
+    }
+
+    /**
+     * Bulk-check which phone numbers already exist in contacts DB.
+     * Returns a Set of normalized phones that are duplicates.
+     */
+    public checkPhonesDuplicate(ownerZaloId: string, phones: string[]): string[] {
+        if (!this.initialized || !phones.length) return [];
+        try {
+            const normalized = phones.map(p => this.normalizeVietnamPhone(p)).filter(Boolean);
+            if (!normalized.length) return [];
+            const placeholders = normalized.map(() => '?').join(',');
+            const rows = this.query<{ phone: string }>(
+                `SELECT phone FROM contacts WHERE owner_zalo_id=? AND phone IN (${placeholders}) AND phone != ''`,
+                [ownerZaloId, ...normalized]
+            );
+            return rows.map(r => r.phone);
+        } catch (err: any) {
+            Logger.error(`[DatabaseService] checkPhonesDuplicate error: ${err.message}`);
+            return [];
+        }
+    }
+
+    /**
+     * Update (merge) extra_data JSON on a contact row.
+     * Merges with existing extra_data rather than overwriting.
+     */
+    public updateContactExtraData(ownerZaloId: string, contactId: string, extraData: Record<string, any>): void {
+        if (!this.initialized || !contactId) return;
+        try {
+            const existing = this.queryOne<{ extra_data: string | null }>(
+                `SELECT extra_data FROM contacts WHERE owner_zalo_id=? AND contact_id=?`,
+                [ownerZaloId, contactId]
+            );
+            const prev = existing?.extra_data ? JSON.parse(existing.extra_data) : {};
+            const merged = { ...prev, ...extraData };
+            this.run(
+                `UPDATE contacts SET extra_data=? WHERE owner_zalo_id=? AND contact_id=?`,
+                [JSON.stringify(merged), ownerZaloId, contactId]
+            );
+        } catch (err: any) {
+            Logger.error(`[DatabaseService] updateContactExtraData error: ${err.message}`);
         }
     }
 
@@ -3913,6 +4080,39 @@ class DatabaseService {
         Logger.log(`[DB] Upserted member ${member.memberId} role=${member.role} in group ${groupId}`);
     }
 
+    /**
+     * Merge-upsert group members — preserves existing non-empty avatar & displayName.
+     * Use this instead of saveGroupMembers when you want to keep avatar/name from previous sync.
+     *
+     * SQLite logic per row:
+     *  - display_name: keeps existing value if new value is '' (empty)
+     *  - avatar:       keeps existing value if new value is '' (empty)
+     *  - role:         always overwritten (0 is valid default)
+     */
+    public mergeGroupMembers(
+        ownerZaloId: string,
+        groupId: string,
+        members: Array<{ memberId: string; displayName: string; avatar: string; role: number }>
+    ): void {
+        if (!this.initialized) return;
+        const now = Date.now();
+        const stmt = db!.prepare(`
+            INSERT INTO page_group_member
+                (owner_zalo_id, group_id, member_id, display_name, avatar, role, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(owner_zalo_id, group_id, member_id) DO UPDATE SET
+                display_name = CASE WHEN excluded.display_name != '' THEN excluded.display_name ELSE display_name END,
+                avatar       = CASE WHEN excluded.avatar != ''       THEN excluded.avatar       ELSE avatar       END,
+                role         = excluded.role,
+                updated_at   = excluded.updated_at
+        `);
+        for (const m of members) {
+            stmt.run(ownerZaloId, groupId, m.memberId, m.displayName || '', m.avatar || '', m.role || 0, now);
+        }
+        this.save();
+        Logger.log(`[DB] Merged ${members.length} group members for group ${groupId}`);
+    }
+
     /** Remove a SINGLE group member from DB */
     public removeGroupMember(ownerZaloId: string, groupId: string, memberId: string): void {
         if (!this.initialized) return;
@@ -3932,10 +4132,14 @@ class DatabaseService {
     }> {
         if (!this.initialized) return [];
         return this.query<any>(
-            `SELECT member_id, display_name, avatar, role, updated_at
-             FROM page_group_member
-             WHERE owner_zalo_id = ? AND group_id = ?
-             ORDER BY role DESC`,
+            `SELECT pgm.member_id,
+                    COALESCE(NULLIF(pgm.display_name, ''), NULLIF(c.display_name, '')) AS display_name,
+                    COALESCE(NULLIF(pgm.avatar, ''), NULLIF(c.avatar_url, '')) AS avatar,
+                    pgm.role, pgm.updated_at
+             FROM page_group_member pgm
+             LEFT JOIN contacts c ON pgm.owner_zalo_id = c.owner_zalo_id AND pgm.member_id = c.contact_id
+             WHERE pgm.owner_zalo_id = ? AND pgm.group_id = ?
+             ORDER BY pgm.role DESC`,
             [ownerZaloId, groupId]
         );
     }
@@ -3951,10 +4155,14 @@ class DatabaseService {
     }> {
         if (!this.initialized) return [];
         return this.query<any>(
-            `SELECT group_id, member_id, display_name, avatar, role, updated_at
-             FROM page_group_member
-             WHERE owner_zalo_id = ?
-             ORDER BY group_id, role DESC`,
+            `SELECT pgm.group_id, pgm.member_id,
+                    COALESCE(NULLIF(pgm.display_name, ''), NULLIF(c.display_name, '')) AS display_name,
+                    COALESCE(NULLIF(pgm.avatar, ''), NULLIF(c.avatar_url, '')) AS avatar,
+                    pgm.role, pgm.updated_at
+             FROM page_group_member pgm
+             LEFT JOIN contacts c ON pgm.owner_zalo_id = c.owner_zalo_id AND pgm.member_id = c.contact_id
+             WHERE pgm.owner_zalo_id = ?
+             ORDER BY pgm.group_id, pgm.role DESC`,
             [ownerZaloId]
         );
     }
@@ -4695,16 +4903,17 @@ class DatabaseService {
             const mixedCfg = campaign.mixed_config || '{}';
             const dailyLimit = campaign.daily_send_limit ?? 0;
             const dailyStartTime = campaign.daily_start_time || '08:00';
+            const scheduledStartAt = campaign.scheduled_start_at ?? 0;
             if (campaign.id) {
                 this.run(
-                    `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, daily_send_limit=?, daily_start_time=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                    [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, campaign.delay_seconds || 60, dailyLimit, dailyStartTime, now, campaign.id, campaign.owner_zalo_id]
+                    `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                    [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, campaign.delay_seconds || 60, dailyLimit, dailyStartTime, scheduledStartAt, now, campaign.id, campaign.owner_zalo_id]
                 );
                 return campaign.id;
             } else {
                 return this.runInsert(
-                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, daily_send_limit, daily_start_time, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', campaign.delay_seconds || 60, dailyLimit, dailyStartTime, now, now]
+                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, daily_send_limit, daily_start_time, scheduled_start_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', campaign.delay_seconds || 60, dailyLimit, dailyStartTime, scheduledStartAt, now, now]
                 );
             }
         } catch (err: any) { Logger.error(`[DB] saveCRMCampaign: ${err.message}`); return 0; }
@@ -4736,6 +4945,7 @@ class DatabaseService {
                 id: 0,
                 name: (newName?.trim()) || ((orig.name || '') + ' (bản sao)'),
                 status: 'draft',
+                scheduled_start_at: 0,
                 owner_zalo_id: ownerZaloId,
             });
             if (!newId) { Logger.warn(`[DB] cloneCRMCampaign: saveCRMCampaign returned 0`); return 0; }
@@ -4971,7 +5181,7 @@ class DatabaseService {
                     `SELECT contact_id, COALESCE(alias,'') as alias, COALESCE(display_name,'') as display_name,
                         COALESCE(avatar_url,'') as avatar, '' as phone,
                         0 as is_friend, COALESCE(last_message_time,0) as last_message_time, 'group' as contact_type,
-                        gender, birthday, pipeline_stage_id, ai_profile
+                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id
                      FROM contacts WHERE owner_zalo_id=? AND contact_type='group'
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -4985,7 +5195,7 @@ class DatabaseService {
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -5000,7 +5210,7 @@ class DatabaseService {
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -5012,7 +5222,7 @@ class DatabaseService {
                         COALESCE(avatar_url,'') as avatar, COALESCE(phone,'') as phone,
                         is_friend, COALESCE(last_message_time,0) as last_message_time,
                         COALESCE(contact_type,'user') as contact_type,
-                        gender, birthday, pipeline_stage_id, ai_profile
+                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id
                      FROM contacts WHERE owner_zalo_id=?
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]

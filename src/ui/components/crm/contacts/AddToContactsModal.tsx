@@ -16,7 +16,6 @@ export interface ContactToAdd {
 }
 
 type InputMode = 'list' | 'phones';
-type TagTab = 'none' | 'local' | 'zalo';
 
 interface AddToContactsModalProps {
   /** Danh sách liên hệ cần thêm (từ group members, v.v.) — nếu null thì dùng mode nhập SĐT */
@@ -50,13 +49,9 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
   const stopRef = useRef(false);
 
   // ── Tag options ──────────────────────────────────────────────────────────
-  const [tagTab, setTagTab] = useState<TagTab>('none');
   const [selectedLocalLabelIds, setSelectedLocalLabelIds] = useState<number[]>([]);
   const [selectedZaloLabelIds, setSelectedZaloLabelIds] = useState<number[]>([]);
-
-  // ── Campaign tag ───────────────────────────────────────────
-  const [campaignTag, setCampaignTag] = useState('');
-  const [campaignSuggestions, setCampaignSuggestions] = useState<string[]>([]);
+  const [newLocalLabelName, setNewLocalLabelName] = useState('');
 
   // ── Labels data ──────────────────────────────────────────────────────────
   const [localLabels, setLocalLabels] = useState<LocalLabelItem[]>([]);
@@ -66,18 +61,12 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
   const [processing, setProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState<{ current: number; total: number } | null>(null);
 
-
-  // ── Load local labels + campaign suggestions ────────────────────────
+  // ── Load local labels ───────────────────────────────────────────────
   useEffect(() => {
     if (!accountId) return;
     ipc.db?.getLocalLabels({ zaloId: accountId }).then(res => {
       if (res?.labels) {
         setLocalLabels(res.labels);
-        // Extract campaign suggestions from existing labels named like campaigns
-        const suggestions = res.labels
-          .filter((l: any) => l.name?.startsWith('🎯 '))
-          .map((l: any) => l.name.replace('🎯 ', ''));
-        setCampaignSuggestions(suggestions);
       }
     }).catch(() => {});
   }, [accountId]);
@@ -191,30 +180,8 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
         });
       }
 
-      // 2. Assign campaign label if specified (auto-create if needed)
-      const campaignName = campaignTag.trim();
-      if (campaignName) {
-        const labelName = `🎯 ${campaignName}`;
-        // Find or create the campaign label
-        const existingLabel = localLabels.find(l => l.name === labelName);
-        let labelId: number | undefined = existingLabel?.id;
-        if (!labelId) {
-          // Create new label with target emoji and orange color
-          const createRes = await ipc.db?.upsertLocalLabel({
-            label: { id: 0, name: labelName, color: '#f97316', emoji: '🎯', pageIds: accountId }
-          });
-          labelId = createRes?.id;
-        }
-        if (labelId) {
-          for (const c of finalContacts) {
-            await ipc.db?.assignLocalLabelToThread({ zaloId: accountId, labelId, threadId: c.contactId });
-          }
-          window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId: accountId } }));
-        }
-      }
-
-      // 3. Assign local labels if selected
-      if (tagTab === 'local' && selectedLocalLabelIds.length > 0) {
+      // 2. Assign local labels if selected
+      if (selectedLocalLabelIds.length > 0) {
         for (const labelId of selectedLocalLabelIds) {
           for (const c of finalContacts) {
             await ipc.db?.assignLocalLabelToThread({ zaloId: accountId, labelId, threadId: c.contactId });
@@ -223,8 +190,8 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
         window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId: accountId } }));
       }
 
-      // 4. Assign Zalo labels if selected
-      if (tagTab === 'zalo' && selectedZaloLabelIds.length > 0) {
+      // 3. Assign Zalo labels if selected
+      if (selectedZaloLabelIds.length > 0) {
         try {
           const acc = getActiveAccount();
           if (acc) {
@@ -253,9 +220,7 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
         }
       }
 
-      // Note: Workflow events are emitted by backend (databaseIpc.ts and zaloIpc.ts) to avoid duplicates
-
-      showNotification(`Đã thêm ${finalContacts.length} liên hệ vào CRM${campaignName ? ` [đchiến dịch: ${campaignName}]` : ''}`, 'success');
+      showNotification(`Đã thêm ${finalContacts.length} liên hệ vào CRM`, 'success');
       onDone?.(finalContacts.length);
       onClose();
     } catch (err: any) {
@@ -264,43 +229,47 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
       setProcessing(false);
       setProcessProgress(null);
     }
-  }, [finalContacts, accountId, campaignTag, tagTab, selectedLocalLabelIds, selectedZaloLabelIds, zaloLabels, localLabels, getActiveAccount, showNotification, onClose, onDone]);
+  }, [finalContacts, accountId, selectedLocalLabelIds, selectedZaloLabelIds, zaloLabels, getActiveAccount, showNotification, onClose, onDone]);
 
   const phoneCount = parsePhones().length;
+  const isLabelSelected = selectedLocalLabelIds.length > 0 || selectedZaloLabelIds.length > 0;
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-gray-800 border border-gray-600 rounded-2xl w-[520px] max-h-[85vh] flex flex-col shadow-2xl"
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white border border-gray-200 rounded-2xl w-[520px] max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}>
 
         {/* ── Header ─────────────────────────────────────────────────────────── */}
-        <div className="px-6 pt-5 pb-3 border-b border-gray-700 flex-shrink-0">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-xl bg-green-500/15 border border-green-500/30 flex items-center justify-center flex-shrink-0">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5">
+        <div className="px-6 py-4 border-b border-gray-150 flex items-center justify-between flex-shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
                 <line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
               </svg>
             </div>
             <div>
-              <h3 className="font-semibold text-white text-sm">Thêm vào Liên hệ CRM</h3>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <h3 className="font-semibold text-gray-900 text-sm">Thêm vào Liên hệ CRM</h3>
+              <p className="text-xs text-gray-500 mt-0.5">
                 {inputMode === 'list'
                   ? `${finalContacts.length} liên hệ đã chọn`
                   : 'Nhập danh sách SĐT để tra cứu & thêm vào liên hệ'}
               </p>
             </div>
           </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-655 transition-colors p-1 cursor-pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
         </div>
 
         {/* ── Body ───────────────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-white">
 
           {/* ── Phone input mode ───────────────────────────────────────────── */}
           {inputMode === 'phones' && resolvedContacts.length === 0 && (
             <div>
-              <label className="text-xs text-gray-400 mb-1.5 block">
-                Nhập danh sách SĐT <span className="text-gray-600">(mỗi dòng 1 số, hoặc cách nhau bởi dấu phẩy)</span>
+              <label className="text-xs text-gray-700 font-semibold mb-1.5 block">
+                Nhập danh sách SĐT <span className="text-gray-450 font-normal">(mỗi dòng 1 số, hoặc cách nhau bởi dấu phẩy)</span>
               </label>
               <textarea
                 value={phoneInput}
@@ -308,32 +277,32 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
                 placeholder={"0901234567\n0912345678\n+84987654321"}
                 rows={6}
                 disabled={resolving}
-                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-green-500 disabled:opacity-60 resize-none font-mono"
+                className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-green-500 disabled:opacity-60 resize-none font-mono transition-colors"
               />
               {phoneInput.trim() && (
-                <p className="text-xs text-gray-500 mt-1.5">
-                  Phát hiện <span className="text-green-400 font-medium">{phoneCount}</span> SĐT hợp lệ
+                <p className="text-xs text-gray-500 mt-1.5 font-medium">
+                  Phát hiện <span className="text-green-600 font-semibold">{phoneCount}</span> SĐT hợp lệ
                 </p>
               )}
 
               {/* Resolve progress */}
               {resolveProgress && (
                 <div className="mt-3">
-                  <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5 font-medium">
                     <span className="flex items-center gap-1.5">
                       {SpinIcon}
-                      <span>Đang tra cứu: <span className="text-white font-medium">{resolveProgress.current}</span>/{resolveProgress.total}</span>
+                      <span>Đang tra cứu: <span className="text-gray-900 font-semibold">{resolveProgress.current}</span>/{resolveProgress.total}</span>
                     </span>
-                    <span className="text-green-400 font-medium">
+                    <span className="text-green-650 font-semibold">
                       {Math.round((resolveProgress.current / resolveProgress.total) * 100)}%
                     </span>
                   </div>
-                  <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full transition-all duration-200"
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full transition-all duration-205"
                       style={{ width: `${(resolveProgress.current / resolveProgress.total) * 100}%` }} />
                   </div>
                   <button onClick={() => { stopRef.current = true; }}
-                    className="mt-2 text-xs text-red-400 hover:text-red-300 transition-colors">
+                    className="mt-2 text-xs text-red-500 hover:text-red-700 transition-colors font-semibold cursor-pointer">
                     Dừng tra cứu
                   </button>
                 </div>
@@ -345,27 +314,27 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
           {inputMode === 'phones' && resolvedContacts.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-400">
-                  Tìm thấy <span className="text-green-400 font-medium">{resolvedContacts.length}</span> người dùng
+                <span className="text-xs text-gray-500">
+                  Tìm thấy <span className="text-green-600 font-semibold">{resolvedContacts.length}</span> người dùng
                 </span>
                 <button
                   onClick={() => { setResolvedContacts([]); }}
-                  className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                  className="text-xs text-blue-600 hover:text-blue-750 transition-colors font-semibold cursor-pointer">
                   ← Nhập lại
                 </button>
               </div>
-              <div className="max-h-48 overflow-y-auto border border-gray-700 rounded-xl divide-y divide-gray-700/50">
+              <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100 bg-white">
                 {resolvedContacts.map(c => (
                   <div key={c.contactId} className="flex items-center gap-2.5 px-3 py-2">
                     {c.avatar
                       ? <img src={c.avatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                       : <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{(c.displayName || '?').charAt(0).toUpperCase()}</div>}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">{c.displayName}</p>
-                      {c.phone && <p className="text-[11px] text-gray-500">{c.phone}</p>}
+                      <p className="text-sm text-gray-900 font-medium truncate">{c.displayName}</p>
+                      {c.phone && <p className="text-[11px] text-gray-450 font-mono">{c.phone}</p>}
                     </div>
                     <button onClick={() => removeResolved(c.contactId)}
-                      className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0 p-0.5">
+                      className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 p-0.5 cursor-pointer">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                       </svg>
@@ -379,21 +348,21 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
           {/* ── List mode: preview contacts ────────────────────────────────── */}
           {inputMode === 'list' && finalContacts.length > 0 && (
             <div>
-              <span className="text-xs text-gray-400 mb-1.5 block">Danh sách liên hệ</span>
-              <div className="max-h-40 overflow-y-auto border border-gray-700 rounded-xl divide-y divide-gray-700/50">
+              <span className="text-xs text-gray-700 font-semibold mb-1.5 block">Danh sách liên hệ</span>
+              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100 bg-white">
                 {finalContacts.slice(0, 50).map(c => (
                   <div key={c.contactId} className="flex items-center gap-2.5 px-3 py-2">
                     {c.avatar
                       ? <img src={c.avatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                       : <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{(c.displayName || '?').charAt(0).toUpperCase()}</div>}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">{c.displayName}</p>
-                      {c.phone && <p className="text-[11px] text-gray-500">{c.phone}</p>}
+                      <p className="text-sm text-gray-900 font-medium truncate">{c.displayName}</p>
+                      {c.phone && <p className="text-[11px] text-gray-450 font-mono">{c.phone}</p>}
                     </div>
                   </div>
                 ))}
                 {finalContacts.length > 50 && (
-                  <p className="text-xs text-gray-500 px-3 py-2 text-center">
+                  <p className="text-xs text-gray-400 px-3 py-2 text-center italic bg-gray-50">
                     ... và {finalContacts.length - 50} liên hệ khác
                   </p>
                 )}
@@ -401,161 +370,131 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
             </div>
           )}
 
-          {/* ── Campaign tag section ────────────────────────────────── */}
-          <div className="border border-orange-500/30 bg-orange-500/5 rounded-xl overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-orange-500/20 flex items-center gap-2">
-                <span className="text-orange-400 text-sm">🎯</span>
-                <p className="text-xs text-orange-300 font-medium">Chiến dịch <span className="text-gray-500">(tùy chọn — để phân nhóm liên hệ theo đợt)</span></p>
+          {/* ── Tag assignment section (Unified Checklist) ───────────────── */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+              <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <p className="text-xs text-gray-700 font-semibold">Gắn nhãn chiến dịch / phân loại <span className="text-red-500">* Bắt buộc</span></p>
+                {!isLabelSelected && <span className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded border border-red-100">Cần chọn nhãn</span>}
               </div>
-              <div className="px-3 py-3">
-                <input
-                  type="text"
-                  value={campaignTag}
-                  onChange={e => setCampaignTag(e.target.value)}
-                  placeholder="VD: Đợt kết bạn tháng 6, Khách hàng mới..."
-                  className="w-full bg-gray-700 border border-gray-600 focus:border-orange-400 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none transition-colors"
-                />
-                {campaignSuggestions.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <span className="text-[10px] text-gray-500">Gợi ý:</span>
-                    {campaignSuggestions.slice(0, 5).map(s => (
-                      <button key={s} onClick={() => setCampaignTag(s)}
-                        className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 hover:bg-orange-500/40 transition-colors border border-orange-500/30">
-                        {s}
-                      </button>
-                    ))}
+
+              <div className="p-4 space-y-4 bg-white">
+                {/* Quick create local label */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Tạo nhanh nhãn local mới (VD: Chiến dịch tháng 6)..."
+                    value={newLocalLabelName}
+                    onChange={e => setNewLocalLabelName(e.target.value)}
+                    className="flex-1 bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const name = newLocalLabelName.trim();
+                      if (!name) return;
+                      try {
+                        const createRes = await ipc.db?.upsertLocalLabel({
+                          label: { id: 0, name, color: '#f97316', emoji: '🎯', pageIds: accountId }
+                        });
+                        if (createRes?.success && createRes.id) {
+                          const newLabel = { id: createRes.id, name, color: '#f97316', emoji: '🎯', page_ids: accountId };
+                          setLocalLabels(prev => [newLabel, ...prev]);
+                          setSelectedLocalLabelIds(prev => [...prev, createRes.id]);
+                          setNewLocalLabelName('');
+                          showNotification('Đã tạo và chọn nhãn local mới', 'success');
+                        }
+                      } catch (err) {
+                        showNotification('Không thể tạo nhãn', 'error');
+                      }
+                    }}
+                    disabled={!newLocalLabelName.trim()}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold disabled:opacity-40 transition-colors cursor-pointer"
+                  >
+                    Tạo
+                  </button>
+                </div>
+
+                {/* Scrollable checklist of both Local and Zalo labels */}
+                <div className="max-h-52 overflow-y-auto border border-gray-200 rounded-lg p-2.5 bg-gray-50/50 space-y-4">
+                  {/* Local labels */}
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Nhãn Local (Chọn nhiều)</p>
+                    {localLabels.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic pl-1">Chưa có nhãn local nào</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {localLabels.map(label => {
+                          const isSelected = selectedLocalLabelIds.includes(label.id);
+                          return (
+                            <button key={label.id} type="button"
+                              onClick={() => setSelectedLocalLabelIds(prev =>
+                                isSelected ? prev.filter(x => x !== label.id) : [...prev, label.id]
+                              )}
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors text-left cursor-pointer bg-white border border-gray-100 shadow-sm">
+                              <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center text-[9px] ${
+                                isSelected ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'border-gray-300 bg-white'
+                              }`}>
+                                {isSelected && '✓'}
+                              </span>
+                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: label.color || '#f97316' }} />
+                              {label.emoji && <span className="text-xs">{label.emoji}</span>}
+                              <span className="text-xs text-gray-700 font-medium truncate">{label.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-                {campaignTag.trim() && (
-                  <p className="text-[11px] text-orange-400/80 mt-1.5">
-                    → Tự động tạo Nhãn Local "🎯 {campaignTag.trim()}" và gán cho tất cả liên hệ
-                  </p>
-                )}
-              </div>
-            </div>
 
-          {/* ── Tag assignment section ─────────────────────────────────────── */}
-          <div className="border border-gray-700 rounded-xl overflow-hidden">
-              <div className="px-4 py-2.5 bg-gray-750 border-b border-gray-700">
-                <p className="text-xs text-gray-300 font-medium">Gắn nhãn <span className="text-gray-500">(tuỳ chọn)</span></p>
-              </div>
-
-              {/* Tag mode tabs */}
-              <div className="px-3 pt-3 pb-2">
-                <div className="flex bg-gray-700/60 rounded-lg p-0.5 gap-0.5">
-                  <button onClick={() => setTagTab('none')}
-                    className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${tagTab === 'none' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
-                    ❌ Không gắn
-                  </button>
-                  <button onClick={() => setTagTab('local')}
-                    className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${tagTab === 'local' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
-                    💾 Nhãn Local
-                  </button>
-                  <button onClick={() => setTagTab('zalo')}
-                    className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${tagTab === 'zalo' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
-                    ☁️ Nhãn Zalo
-                  </button>
+                  {/* Zalo labels */}
+                  <div className="pt-2 border-t border-gray-200">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nhãn Zalo (Chọn tối đa 1)</p>
+                    {zaloLabels.length === 0 ? (
+                      <p className="text-xs text-gray-400 italic pl-1">Chưa có nhãn Zalo nào</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {zaloLabels.map(label => {
+                          const isSelected = selectedZaloLabelIds.includes(label.id);
+                          return (
+                            <button key={label.id} type="button"
+                              onClick={() => setSelectedZaloLabelIds(
+                                isSelected ? [] : [label.id]
+                              )}
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors text-left cursor-pointer bg-white border border-gray-100 shadow-sm">
+                              <span className={`w-3.5 h-3.5 rounded-full border flex-shrink-0 flex items-center justify-center text-[9px] ${
+                                isSelected ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'border-gray-300 bg-white'
+                              }`}>
+                                {isSelected && '●'}
+                              </span>
+                              <ZaloLabelBadge label={label} size="xs" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-
-              {/* Local labels list */}
-              {tagTab === 'local' && (
-                <div className="px-3 pb-3 max-h-36 overflow-y-auto">
-                  {localLabels.length === 0 ? (
-                    <p className="text-xs text-gray-500 py-2 text-center">Chưa có Nhãn Local nào</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {localLabels.map(label => {
-                        const isSelected = selectedLocalLabelIds.includes(label.id);
-                        return (
-                          <button key={label.id}
-                            onClick={() => setSelectedLocalLabelIds(prev =>
-                              isSelected ? prev.filter(x => x !== label.id) : [...prev, label.id]
-                            )}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-700 transition-colors text-left">
-                            <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center text-xs ${
-                              isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-500'
-                            }`}>
-                              {isSelected && '✓'}
-                            </span>
-                            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: label.color || '#3b82f6' }} />
-                            {label.emoji && <span className="text-xs">{label.emoji}</span>}
-                            <span className="text-sm text-white truncate">{label.name}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Zalo labels list */}
-              {tagTab === 'zalo' && (
-                <div className="px-3 pb-3 max-h-36 overflow-y-auto">
-                  <p className="text-[10px] text-gray-500 mb-1.5">Zalo chỉ cho phép 1 nhãn / hội thoại</p>
-                  {zaloLabels.length === 0 ? (
-                    <p className="text-xs text-gray-500 py-2 text-center">Chưa có nhãn Zalo nào</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {zaloLabels.map(label => {
-                        const isSelected = selectedZaloLabelIds.includes(label.id);
-                        return (
-                          <button key={label.id}
-                            onClick={() => setSelectedZaloLabelIds(
-                              isSelected ? [] : [label.id]
-                            )}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-700 transition-colors text-left">
-                            <span className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center text-xs ${
-                              isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-500'
-                            }`}>
-                              {isSelected && '●'}
-                            </span>
-                            <ZaloLabelBadge label={label} size="xs" />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
             </div>
-
-          {/* ── Processing progress ───────────────────────────────────────── */}
-          {processProgress && (
-            <div>
-              <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
-                <span className="flex items-center gap-1.5">
-                  {SpinIcon}
-                  <span>Đang thêm liên hệ: <span className="text-white font-medium">{processProgress.current}</span>/{processProgress.total}</span>
-                </span>
-                <span className="text-green-400 font-medium">
-                  {Math.round((processProgress.current / processProgress.total) * 100)}%
-                </span>
-              </div>
-              <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 rounded-full transition-all duration-200"
-                  style={{ width: `${(processProgress.current / processProgress.total) * 100}%` }} />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────────────── */}
-        <div className="px-6 py-4 border-t border-gray-700 flex gap-2 flex-shrink-0">
+        <div className="px-6 py-4 border-t border-gray-150 flex gap-2 flex-shrink-0 bg-gray-50">
           <button
+            type="button"
             onClick={onClose}
             disabled={processing}
-            className="flex-1 py-2.5 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600 disabled:opacity-40 transition-colors">
+            className="flex-1 py-2.5 rounded-xl bg-gray-205 text-gray-700 text-sm font-semibold hover:bg-gray-300 disabled:opacity-40 transition-colors cursor-pointer">
             Hủy
           </button>
 
           {/* Phone mode: "Tra cứu" button */}
           {inputMode === 'phones' && resolvedContacts.length === 0 && (
             <button
+              type="button"
               onClick={handleResolvePhones}
               disabled={resolving || phoneCount === 0}
-              className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+              className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-750 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
               {resolving ? <>{SpinIcon} Đang tra cứu...</> : `🔍 Tra cứu ${phoneCount > 0 ? phoneCount + ' SĐT' : ''}`}
             </button>
           )}
@@ -563,9 +502,10 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
           {/* Submit button */}
           {(inputMode === 'list' || resolvedContacts.length > 0) && (
             <button
+              type="button"
               onClick={handleSubmit}
-              disabled={processing || finalContacts.length === 0}
-              className="flex-1 py-2.5 rounded-xl bg-green-600 text-white text-sm hover:bg-green-700 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+              disabled={processing || finalContacts.length === 0 || !isLabelSelected}
+              className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-750 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
               {processing
                 ? <>{SpinIcon} Đang xử lý...</>
                 : <>
@@ -583,4 +523,3 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
     </div>
   );
 }
-

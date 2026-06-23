@@ -125,7 +125,11 @@ async function _fetchGroupMembersComplete(opts: _EnrichOpts): Promise<void> {
 
   const membersWithoutNames = memberIds.filter(id => !existingNameSet.has(id));
   if (membersWithoutNames.length === 0) {
-    console.log(`[zaloGroupUtils] Group ${groupId}: all ${memberIds.length} named → skip`);
+    // All current placeholders already have names, but there might be NEW members
+    // (just joined) not yet in DB. Merge the full memberIds list to insert them
+    // without overwriting existing avatar/displayName.
+    await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: placeholders });
+    console.log(`[zaloGroupUtils] Group ${groupId}: all ${memberIds.length} named → merged fresh list, skipping enrichment`);
     onProgress?.(memberIds.length, memberIds.length);
     return;
   }
@@ -135,7 +139,7 @@ async function _fetchGroupMembersComplete(opts: _EnrichOpts): Promise<void> {
 
   if (!skipGetGroupMembersInfo) {
     try {
-      const memberIdsForApi = memberIds.map(id => `${id}_0`);
+      const memberIdsForApi = membersWithoutNames.map(id => `${id}_0`);
       const res = await ipc.zalo?.getGroupMembersInfo({ auth, groupId, memberIds: memberIdsForApi });
       const profiles: Record<string, any> = res?.success
         ? (res.response?.profiles ?? res.response?.membersInfo ?? res.response?.data?.membersInfo ?? {})
@@ -153,7 +157,8 @@ async function _fetchGroupMembersComplete(opts: _EnrichOpts): Promise<void> {
           if (displayName) coveredByStep1.add(memberId);
         }
         if (updates.length > 0) {
-          await ipc.db?.saveGroupMembers({ zaloId: activeAccountId, groupId, members: updates });
+          // mergeGroupMembers: giữ lại avatar cũ nếu profile mới không có
+          await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: updates });
         }
       }
     } catch (err) {
@@ -195,7 +200,8 @@ async function _fetchGroupMembersComplete(opts: _EnrichOpts): Promise<void> {
           );
         }
         if (memberUpdates.length > 0) {
-          await ipc.db?.saveGroupMembers({ zaloId: activeAccountId, groupId, members: memberUpdates });
+          // mergeGroupMembers: giữ lại avatar cũ nếu getUserInfo không trả về
+          await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: memberUpdates });
         }
         if (contactSaves.length > 0) await Promise.all(contactSaves);
       }
@@ -230,12 +236,29 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
   } else {
     // getGroupInfo → member IDs + roles
     const infoRes = await ipc.zalo?.getGroupInfo({ auth, groupId });
-    const gridMap = infoRes?.response?.gridInfoMap ?? {};
+    console.log('[DEBUG getGroupInfo] success:', infoRes?.success, 'error:', infoRes?.error);
+    console.log('[DEBUG getGroupInfo] response keys:', Object.keys(infoRes?.response || {}));
+    console.log('[DEBUG getGroupInfo] full response:', JSON.stringify(infoRes?.response).substring(0, 500));
+    if (!infoRes?.success) {
+      console.warn('[zaloGroupUtils] getGroupInfo failed for:', groupId, infoRes?.error);
+      return;
+    }
+    // Support both response shapes: .gridInfoMap and .data.gridInfoMap
+    const gridMap: Record<string, any> =
+      infoRes.response?.gridInfoMap ?? infoRes.response?.data?.gridInfoMap ?? {};
+    console.log('[DEBUG getGroupInfo] gridMap keys:', Object.keys(gridMap));
+    console.log('[DEBUG getGroupInfo] groupId lookup:', groupId, 'found?', !!gridMap[groupId]);
     const gData: any = gridMap[groupId] ?? Object.values(gridMap)[0];
     if (!gData) {
       console.warn('[zaloGroupUtils] getGroupInfo returned no data for:', groupId);
+      console.log('[DEBUG getGroupInfo] gridMap full:', JSON.stringify(gridMap).substring(0, 500));
       return;
     }
+    console.log('[DEBUG getGroupInfo] gData keys:', Object.keys(gData));
+    const memVL = gData.memVerList;
+    console.log('[DEBUG getGroupInfo] memVerList type:', typeof memVL, 'isArray:', Array.isArray(memVL));
+    const memVLCount = Array.isArray(memVL) ? memVL.length : (memVL && typeof memVL === 'object' ? Object.keys(memVL).length : 0);
+    console.log('[DEBUG getGroupInfo] memVerList count:', memVLCount, '| memberIds count:', (gData.memberIds||[]).length);
 
     groupName = gData.name || groupId;
     const creatorId = (gData.creatorId || '').replace(/_0$/, '');
@@ -270,7 +293,9 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
     });
   }
 
-  await ipc.db?.saveGroupMembers({ zaloId: activeAccountId, groupId, members: placeholders });
+  // mergeGroupMembers: placeholder mới (displayName='') sẽ insert thành viên mới
+  // mà không xóa avatar/tên của thành viên cũ đã được enriched trước đó
+  await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: placeholders });
 
   // Phase 1 done: let UI show UIDs
   await onPhase1Done?.();
@@ -376,43 +401,68 @@ async function _syncAllGroups(opts: SyncGroupsOptions): Promise<void> {
       });
 
       const alreadyHasMembers = (existingCountMap[groupId] ?? 0) > 0;
+
+      // Parse fresh member IDs từ API response (dùng chung cho cả 2 nhánh)
+      const memVerEntries: string[] = Array.isArray(info.memVerList)
+        ? info.memVerList
+        : (info.memVerList && typeof info.memVerList === 'object' ? Object.keys(info.memVerList) : []);
+      const idsToSave =
+        rawMemberIds.length > 0 ? rawMemberIds :
+        currentMems.length > 0 ? currentMems.map((m: any) => String(m.id || '')) :
+        memVerEntries;
+
+      const adminSet = new Set([...adminIds, ...adminIds.map((a: string) => a.replace(/_0$/, ''))]);
+      const creatorSet = new Set([creatorId, creatorId.replace(/_0$/, '')]);
+
+      const freshMembers: MemberPlaceholder[] = idsToSave
+        .map((rawId: string) => {
+          const memberId = rawId.replace(/_0$/, '').trim();
+          if (!memberId || !/^\d+$/.test(memberId)) return null;
+          let role = 0;
+          if (creatorSet.has(memberId) || creatorSet.has(rawId)) role = 2;
+          else if (adminSet.has(memberId) || adminSet.has(rawId)) role = 1;
+          const known = memInfoMap[memberId];
+          return { memberId, displayName: known?.displayName || '', avatar: known?.avatar || '', role };
+        })
+        .filter((m): m is MemberPlaceholder => m !== null);
+
       if (alreadyHasMembers) {
-        // Check if group has UID-only members (getGroupMembersInfo previously failed)
         const existingMembers = groupMembersMap[groupId] ?? [];
-        const namedCount = existingMembers.filter(m => m.displayName?.trim()).length;
-        if (namedCount < existingMembers.length) {
-          uidOnlyExisting.push({ groupId, groupName: name, memberIds: existingMembers.map(m => m.memberId), placeholders: existingMembers, skipGetGroupMembersInfo: true });
+        const existingIds = new Set(existingMembers.map((m: MemberPlaceholder) => m.memberId));
+
+        // ── Bug #2 fix: Detect newly joined members not yet in DB ──────────
+        const newMembers = freshMembers.filter(m => !existingIds.has(m.memberId));
+        if (newMembers.length > 0) {
+          console.log(`[zaloGroupUtils] Group ${groupId}: ${newMembers.length} new member(s) detected → merge + enrich`);
+          await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: newMembers });
+          newlySaved.push({
+            groupId, groupName: name,
+            memberIds: newMembers.map(m => m.memberId),
+            placeholders: newMembers,
+            skipGetGroupMembersInfo: false,
+          });
         }
-        // else: all named → fully enriched, skip
+
+        // Re-enrich members that still have no display name
+        const namedCount = existingMembers.filter((m: MemberPlaceholder) => m.displayName?.trim()).length;
+        if (namedCount < existingMembers.length) {
+          uidOnlyExisting.push({
+            groupId, groupName: name,
+            memberIds: existingMembers.map((m: MemberPlaceholder) => m.memberId),
+            placeholders: existingMembers,
+            skipGetGroupMembersInfo: true,
+          });
+        }
       } else {
-        const memVerEntries: string[] = Array.isArray(info.memVerList)
-          ? info.memVerList
-          : (info.memVerList && typeof info.memVerList === 'object' ? Object.keys(info.memVerList) : []);
-        const idsToSave =
-          rawMemberIds.length > 0 ? rawMemberIds :
-          currentMems.length > 0 ? currentMems.map((m: any) => String(m.id || '')) :
-          memVerEntries;
-
-        if (idsToSave.length > 0) {
-          const adminSet = new Set([...adminIds, ...adminIds.map(a => a.replace(/_0$/, ''))]);
-          const creatorSet = new Set([creatorId, creatorId.replace(/_0$/, '')]);
-          const members: MemberPlaceholder[] = idsToSave
-            .map(rawId => {
-              const memberId = rawId.replace(/_0$/, '').trim();
-              if (!memberId || !/^\d+$/.test(memberId)) return null;
-              let role = 0;
-              if (creatorSet.has(memberId) || creatorSet.has(rawId)) role = 2;
-              else if (adminSet.has(memberId) || adminSet.has(rawId)) role = 1;
-              const known = memInfoMap[memberId];
-              return { memberId, displayName: known?.displayName || '', avatar: known?.avatar || '', role };
-            })
-            .filter((m): m is MemberPlaceholder => m !== null);
-
-          if (members.length > 0) {
-            await ipc.db?.saveGroupMembers({ zaloId: activeAccountId, groupId, members });
-            await ipc.db?.removeGroupMember({ zaloId: activeAccountId, groupId, memberId: '' });
-            newlySaved.push({ groupId, groupName: name, memberIds: members.map(m => m.memberId), placeholders: members, skipGetGroupMembersInfo: false });
-          }
+        if (freshMembers.length > 0) {
+          // mergeGroupMembers an toàn hơn saveGroupMembers: giữ avatar/tên nếu đã có
+          await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: freshMembers });
+          newlySaved.push({
+            groupId, groupName: name,
+            memberIds: freshMembers.map(m => m.memberId),
+            placeholders: freshMembers,
+            skipGetGroupMembersInfo: false,
+          });
         }
       }
     }

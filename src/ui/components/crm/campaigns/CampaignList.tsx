@@ -122,9 +122,16 @@ export default function CampaignList({ campaigns, loading, activeId, onSelect, o
                     </span>
                   </div>
                 </div>
-                <span className={`text-[11px] px-2 py-0.5 rounded-full flex-shrink-0 ${STATUS_STYLE[c.status]}`}>
-                  {STATUS_LABEL[c.status]}
-                </span>
+                {(() => {
+                  const isScheduled = c.status === 'active' && c.scheduled_start_at && c.scheduled_start_at > Date.now();
+                  const style = isScheduled ? 'bg-cyan-500/20 text-cyan-400' : STATUS_STYLE[c.status];
+                  const label = isScheduled ? '🗓 Đã lên lịch' : STATUS_LABEL[c.status];
+                  return (
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full flex-shrink-0 ${style}`}>
+                      {label}
+                    </span>
+                  );
+                })()}
               </div>
 
               {c.total_contacts > 0 && (

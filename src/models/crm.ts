@@ -27,6 +27,7 @@ export interface CRMCampaign {
     delay_seconds: number;
     daily_send_limit?: number;
     daily_start_time?: string;
+    scheduled_start_at?: number;
     created_at?: number;
     updated_at?: number;
     total_contacts?: number;

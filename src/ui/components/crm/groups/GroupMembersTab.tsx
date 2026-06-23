@@ -206,7 +206,7 @@ export default function GroupMembersTab() {
     const groupContacts = allContacts.filter((c: any) => c.contact_type === 'group');
 
     const allMembersRes = await ipc.db?.getAllGroupMembers({ zaloId: activeAccountId });
-    const memberRows = allMembersRes?.rows ?? [];
+    const memberRows: any[] = allMembersRes?.rows ?? [];
     const countMap: Record<string, number> = {};
     const managedIds = new Set<string>();
     for (const row of memberRows) {
@@ -345,19 +345,43 @@ export default function GroupMembersTab() {
     linkScanStopRef.current = false;
 
     try {
-      // ── Step 1: getGroupLinkInfo ─────────────────────────────────────────
-      const res = await ipc.zalo?.getGroupLinkInfo({ auth, link: linkScanInput.trim() });
-      if (!res?.success) {
-        setLinkScanError(res?.error || 'Không thể lấy thông tin nhóm. Kiểm tra lại đường dẫn.');
+      // ── Step 1: getGroupLinkInfo — phân trang đến khi hết (hasMoreMember = 0) ──
+      let groupId = '';
+      let name = '';
+      let avatar = '';
+      let creatorId = '';
+      let adminIds: string[] = [];
+      const currentMems: any[] = [];
+      let page = 1;
+
+      while (true) {
+        if (linkScanStopRef.current) break;
+        const res = await ipc.zalo?.getGroupLinkInfo({ auth, link: linkScanInput.trim(), memberPage: page });
+        if (!res?.success) {
+          setLinkScanError(res?.error || 'Không thể lấy thông tin nhóm. Kiểm tra lại đường dẫn.');
+          return;
+        }
+        const data = res.response;
+        if (page === 1) {
+          groupId   = data.groupId || '';
+          name      = data.name || data.groupId || '';
+          avatar    = data.fullAvt || data.avt || '';
+          creatorId = (data.creatorId || '').replace(/_0$/, '');
+          adminIds  = (data.adminIds || []).map((a: string) => a.replace(/_0$/, ''));
+        }
+        const pageMems: any[] = data.currentMems || [];
+        currentMems.push(...pageMems);
+
+        if (!data.hasMoreMember) break;
+        page++;
+        // polite delay between pages to avoid rate limit
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      if (!groupId) {
+        setLinkScanError('Không tìm thấy thông tin nhóm từ link này.');
         return;
       }
-      const data = res.response;
-      const groupId: string = data.groupId;
-      const name: string = data.name || groupId;
-      const avatar: string = data.fullAvt || data.avt || '';
-      const creatorId: string = (data.creatorId || '').replace(/_0$/, '');
-      const adminIds: string[] = (data.adminIds || []).map((a: string) => a.replace(/_0$/, ''));
-      const currentMems: any[] = data.currentMems || [];
 
       // ── Step 2: Save group contact to DB ─────────────────────────────────
       await ipc.db?.updateContactProfile({
@@ -370,14 +394,83 @@ export default function GroupMembersTab() {
       const memberIds: string[] = [];
       const memInfoMap: Record<string, { displayName: string; avatar: string; role: number }> = {};
 
-      for (const mem of currentMems) {
-        const memberId = String(mem.id || '').replace(/_0$/, '').trim();
-        if (!memberId || !/^\d+$/.test(memberId)) continue;
-        memberIds.push(memberId);
-        let role = 0;
-        if (memberId === creatorId) role = 2;
-        else if (adminSet.has(memberId)) role = 1;
-        memInfoMap[memberId] = { displayName: mem.dName || mem.zaloName || '', avatar: mem.avatar || mem.avatar_25 || '', role };
+      // ── [Option C] Fallback: nếu currentMems rỗng (nhóm bật lockViewMember),
+      //    thử getGroupInfo → memVerList. memVerList là cơ chế sync nội bộ Zalo,
+      //    KHÔNG bị ẩn bởi lockViewMember — trả về đủ UID khi tài khoản đã là thành viên.
+      let usedFallback = false;
+      if (currentMems.length === 0 && groupId) {
+        Logger.log('[GroupMembersTab] currentMems empty → trying getGroupInfo fallback for', groupId);
+        try {
+          const gRes = await ipc.zalo?.getGroupInfo({ auth, groupId });
+          if (gRes?.success) {
+            const gridMap: Record<string, any> =
+              gRes.response?.gridInfoMap ?? gRes.response?.data?.gridInfoMap ?? {};
+            const gData: any = gridMap[groupId] ?? Object.values(gridMap)[0];
+            if (gData) {
+              // Cập nhật lại adminIds/creatorId nếu getGroupInfo trả về đầy đủ hơn
+              const gCreatorId = (gData.creatorId || creatorId).replace(/_0$/, '');
+              const gAdminIds: string[] = (gData.adminIds || adminIds).map((a: string) => a.replace(/_0$/, ''));
+              adminIds = gAdminIds;
+              creatorId = gCreatorId;
+
+              // Ưu tiên: memberIds > currentMems > memVerList keys
+              const rawMemberIds: string[] = gData.memberIds || [];
+              const rawCurrentMems: any[] = gData.currentMems || [];
+              const memVerList = gData.memVerList;
+              const memVerEntries: string[] =
+                rawMemberIds.length > 0 ? rawMemberIds :
+                rawCurrentMems.length > 0 ? rawCurrentMems.map((m: any) => String(m.id || '')) :
+                (Array.isArray(memVerList) ? memVerList :
+                  (memVerList && typeof memVerList === 'object' ? Object.keys(memVerList) : []));
+
+              for (const rawId of memVerEntries) {
+                const memberId = rawId.replace(/_0$/, '').trim();
+                if (!memberId || !/^\d+$/.test(memberId)) continue;
+                memberIds.push(memberId);
+              }
+
+              if (memberIds.length > 0) {
+                usedFallback = true;
+                Logger.log(`[GroupMembersTab] getGroupInfo fallback: found ${memberIds.length} UIDs via memVerList`);
+              }
+            }
+          }
+        } catch (fbErr) {
+          Logger.warn('[GroupMembersTab] getGroupInfo fallback error:', fbErr);
+        }
+
+        if (!usedFallback) {
+          // getGroupInfo cũng không có data — tài khoản chưa join nhóm hoặc bị kick
+          setLinkScanError(
+            'Nhóm này đã bật khoá danh sách thành viên và tài khoản không phải thành viên của nhóm. ' +
+            'Hãy dùng tài khoản đã tham gia nhóm để quét.'
+          );
+          return;
+        }
+      }
+
+      // Build memInfoMap từ currentMems (nếu không dùng fallback)
+      if (!usedFallback) {
+        for (const mem of currentMems) {
+          const memberId = String(mem.id || '').replace(/_0$/, '').trim();
+          if (!memberId || !/^\d+$/.test(memberId)) continue;
+          memberIds.push(memberId);
+          let role = 0;
+          if (memberId === creatorId) role = 2;
+          else if (adminSet.has(memberId)) role = 1;
+          memInfoMap[memberId] = { displayName: mem.dName || mem.zaloName || '', avatar: mem.avatar || mem.avatar_25 || '', role };
+        }
+      }
+
+      // Gán role cho các uid lấy từ fallback (memVerList không có tên/avatar)
+      const finalAdminSet = new Set([creatorId, ...adminIds]);
+      for (const memberId of memberIds) {
+        if (!memInfoMap[memberId]) {
+          let role = 0;
+          if (memberId === creatorId) role = 2;
+          else if (finalAdminSet.has(memberId)) role = 1;
+          memInfoMap[memberId] = { displayName: '', avatar: '', role };
+        }
       }
 
       if (memberIds.length > 0) {
@@ -387,7 +480,8 @@ export default function GroupMembersTab() {
           avatar: memInfoMap[id]?.avatar || '',
           role: memInfoMap[id]?.role || 0,
         }));
-        await ipc.db?.saveGroupMembers({ zaloId: activeAccountId, groupId, members: initMembers });
+        // mergeGroupMembers: giữ lại avatar/tên nếu nhóm này đã từng được scan trước đó
+        await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: initMembers });
       }
 
       setLinkScanResult({ groupId, name });
@@ -422,7 +516,8 @@ export default function GroupMembersTab() {
                   }
                 }
               }
-              if (updates.length > 0) await ipc.db?.saveGroupMembers({ zaloId: activeAccountId, groupId, members: updates });
+              // mergeGroupMembers: giữ lại avatar cũ nếu batch getUserInfo không trả về
+              if (updates.length > 0) await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: updates });
               if (contactSaves.length > 0) await Promise.all(contactSaves);
             }
           } catch (err) {

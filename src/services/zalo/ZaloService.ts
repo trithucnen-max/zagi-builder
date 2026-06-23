@@ -1652,7 +1652,41 @@ export default class ZaloService {
         if (!this.api) throw new Error("API not initialized");
         try {
             const ids = memberIds && memberIds.length > 0 ? memberIds : [groupId];
-            return await (this.api as any).getGroupMembersInfo(ids);
+            
+            if (ids.length <= 50) {
+                return await (this.api as any).getGroupMembersInfo(ids);
+            }
+
+            Logger.log(`[ZaloService] getGroupMembersInfo: batching ${ids.length} member IDs in chunks of 50`);
+            const allProfiles: Record<string, any> = {};
+            const allUnchangeds: any[] = [];
+
+            for (let i = 0; i < ids.length; i += 50) {
+                const chunk = ids.slice(i, i + 50);
+                try {
+                    const res = await (this.api as any).getGroupMembersInfo(chunk);
+                    if (res?.profiles) {
+                        Object.assign(allProfiles, res.profiles);
+                    } else if (res?.membersInfo) {
+                        Object.assign(allProfiles, res.membersInfo);
+                    } else if (res?.data?.membersInfo) {
+                        Object.assign(allProfiles, res.data.membersInfo);
+                    }
+                    if (res?.unchangeds_profile) {
+                        allUnchangeds.push(...res.unchangeds_profile);
+                    }
+                } catch (chunkErr: any) {
+                    Logger.error(`[ZaloService] getGroupMembersInfo chunk failed for indices ${i} to ${i + chunk.length}: ${chunkErr.message}`);
+                }
+                if (i + 50 < ids.length) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
+
+            return {
+                profiles: allProfiles,
+                unchangeds_profile: allUnchangeds
+            };
         } catch (error) { throw error; }
     }
 

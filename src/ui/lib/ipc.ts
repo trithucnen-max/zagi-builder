@@ -32,7 +32,10 @@ declare global {
         disconnectAccount: (zaloId: string) => Promise<any>;
         disconnectAll: () => Promise<any>;
         getAccounts: () => Promise<any>;
-        removeAccount: (zaloId: string) => Promise<any>;
+        removeAccount: (zaloId: string, deleteData?: boolean) => Promise<any>;
+        getMediaAutoDelete: (zaloId: string) => Promise<any>;
+        setMediaAutoDelete: (zaloId: string, enabled: boolean, days: number) => Promise<any>;
+        runAllMediaCleanup: () => Promise<any>;
         checkHealth: (zaloIds: string | string[]) => Promise<{ success: boolean; results: Array<{ zaloId: string; healthy: boolean; readyState: number | null; reason?: string }>; error?: string }>;
         checkAndRefreshAvatar: (zaloId: string) => Promise<{ success: boolean; refreshed: boolean; avatar_url?: string; full_name?: string; reason?: string; error?: string }>;
         requestOldMessages: (zaloId: string) => Promise<{ success: boolean; error?: string }>;
@@ -164,6 +167,7 @@ declare global {
         getGroupMembers: (params: { zaloId: string; groupId: string }) => Promise<{ success: boolean; members: Array<{ member_id: string; display_name: string; avatar: string; role: number; updated_at: number }> }>;
         getAllGroupMembers: (params: { zaloId: string }) => Promise<{ success: boolean; rows: Array<{ group_id: string; member_id: string; display_name: string; avatar: string; role: number; updated_at: number }> }>;
         saveGroupMembers: (params: { zaloId: string; groupId: string; members: Array<{ memberId: string; displayName: string; avatar: string; role: number }> }) => Promise<{ success: boolean }>;
+        mergeGroupMembers: (params: { zaloId: string; groupId: string; members: Array<{ memberId: string; displayName: string; avatar: string; role: number }> }) => Promise<{ success: boolean }>;
         upsertGroupMember: (params: { zaloId: string; groupId: string; member: { memberId: string; displayName: string; avatar: string; role: number } }) => Promise<{ success: boolean }>;
         removeGroupMember: (params: { zaloId: string; groupId: string; memberId: string }) => Promise<{ success: boolean }>;
         saveStickers: (params: { stickers: any[] }) => Promise<{ success: boolean }>;
@@ -228,7 +232,14 @@ declare global {
         updateContactPipelineStage: (params: { ownerZaloId: string; contactId: string; stageId: number | null }) => Promise<{ success: boolean; error?: string }>;
         updateContactAIProfile: (params: { ownerZaloId: string; contactId: string; aiProfile: string | null }) => Promise<{ success: boolean; error?: string }>;
         upsertPinSchedule: (params: any) => Promise<any>;
+        // App Settings
+        getSetting: (params: { key: string }) => Promise<{ success: boolean; value: string | null; error?: string }>;
+        setSetting: (params: { key: string; value: string }) => Promise<{ success: boolean; error?: string }>;
+        // CRM Import
+        checkPhonesDuplicate: (params: { zaloId: string; phones: string[] }) => Promise<{ success: boolean; duplicates: string[]; error?: string }>;
+        updateContactExtraData: (params: { zaloId: string; contactId: string; extraData: Record<string, any> }) => Promise<{ success: boolean; error?: string }>;
       };
+
       crm: {
         getNotes: (params: { zaloId: string; contactId: string }) => Promise<{ success: boolean; notes: any[] }>;
         saveNote: (params: { zaloId: string; note: any }) => Promise<{ success: boolean; id: number }>;

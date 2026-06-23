@@ -40,6 +40,8 @@ interface CRMContactListProps {
   onPageChange: (page: number) => void;
   onMessage?: (contact: CRMContact) => void;
   onImportPhones?: () => void;
+  onImportData?: () => void;
+  onDeleteContact?: (contactId: string) => void;
 }
 
 /** Dropdown to pick labels for filtering — supports Local + Zalo tabs */
@@ -362,12 +364,12 @@ function SortDropdown({ sortBy, sortDir, onChange }: {
   );
 }
 
-/** Actions dropdown — replaces the old Export CSV button */
-function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones }: {
+function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onImportData }: {
   total: number;
   exportingCSV: boolean;
   onExportCSV: () => void;
   onImportPhones?: () => void;
+  onImportData?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -409,7 +411,7 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones }: {
             )}
             <span>{exportingCSV ? 'Đang xuất...' : `Xuất CSV (${total})`}</span>
           </button>
-          {/* Import phones */}
+          {/* Import phones (existing modal) */}
           {onImportPhones && (
             <button
               onClick={() => { onImportPhones(); setOpen(false); }}
@@ -419,6 +421,17 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones }: {
                 <line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
               </svg>
               <span>Thêm liên hệ theo SĐT</span>
+            </button>
+          )}
+          {/* Import CSV (new modal) */}
+          {onImportData && (
+            <button
+              onClick={() => { onImportData(); setOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-blue-400">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span>Import CSV khách hàng</span>
             </button>
           )}
         </div>
@@ -433,7 +446,8 @@ export default function CRMContactList({
   activeAccountId, localLabels, localLabelThreadMap,
   onSelectContact, onActivateContact, onSelectAll, onClearAll, onSelectAllPages,
   onExportAll,
-  onFilterChange, onPageChange, onMessage, onImportPhones,
+  onFilterChange, onPageChange, onMessage, onImportPhones, onImportData,
+  onDeleteContact,
 }: CRMContactListProps) {
   const totalPages = Math.ceil(total / pageSize);
   const groupInfoCache = useAppStore(s => s.groupInfoCache);
@@ -610,6 +624,7 @@ export default function CRMContactList({
           exportingCSV={exportingCSV}
           onExportCSV={exportToCSV}
           onImportPhones={onImportPhones}
+          onImportData={onImportData}
         />
       </div>
 
@@ -713,6 +728,27 @@ export default function CRMContactList({
                   </div>
                   {contact.alias && contact.alias !== contact.display_name &&
                     <p className="text-[11px] text-gray-500 truncate">{contact.display_name}</p>}
+                  {/* Facebook Link display */}
+                  {contact.extra_data && (() => {
+                    try {
+                      const extra = JSON.parse(contact.extra_data);
+                      if (extra.fb_name || extra.fb_link) {
+                        return (
+                          <div className="flex items-center gap-1 text-[11px] text-blue-400 mt-0.5" onClick={e => e.stopPropagation()}>
+                            <span className="text-[10px]">🌐</span>
+                            {extra.fb_link ? (
+                              <a href={extra.fb_link} target="_blank" rel="noopener noreferrer" className="hover:underline truncate max-w-[200px] font-medium">
+                                {extra.fb_name || 'Link Facebook'}
+                              </a>
+                            ) : (
+                              <span className="truncate max-w-[200px]">{extra.fb_name}</span>
+                            )}
+                          </div>
+                        );
+                      }
+                    } catch { }
+                    return null;
+                  })()}
                   {/* Labels (Local + Zalo) under name */}
                   {(() => {
                     const threadLIds = localLabelThreadMap?.[contact.contact_id] || [];
@@ -762,6 +798,16 @@ export default function CRMContactList({
                       className="p-1 rounded-md text-gray-600 hover:text-blue-400 hover:bg-blue-500/10 transition-colors opacity-0 group-hover:opacity-100">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                      </svg>
+                    </button>
+                  )}
+                  {onDeleteContact && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onDeleteContact(contact.contact_id); }}
+                      title="Xóa liên hệ"
+                      className="p-1 rounded-md text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                       </svg>
                     </button>
                   )}

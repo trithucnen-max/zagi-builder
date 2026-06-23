@@ -127,6 +127,15 @@ export default function ChatWindow() {
   // Track which edited messages the user has chosen to view edit history
   const [revealedEditIds, setRevealedEditIds] = useState<Set<string>>(new Set());
 
+  // ── Drag-to-select: giữ chuột kéo qua nhiều tin nhắn → auto chọn ───────────
+  const dragSelectRef = useRef<{
+    startMsgId: string | null;
+    startIdx: number;
+    hasActivated: boolean;
+  }>({ startMsgId: null, startIdx: -1, hasActivated: false });
+  const clickSuppressUntilRef = useRef(0);
+  const msgsRef = useRef<any[]>([]);
+
   // Listen for groupinfo events from GroupBoardPanel / GroupInfoPanel
   useEffect(() => {
     const handleCreateNote = () => setNoteModal({});
@@ -179,6 +188,7 @@ export default function ChatWindow() {
 
   const threadKey = activeAccountId && activeThreadId ? `${activeAccountId}_${activeThreadId}` : '';
   const msgs = threadKey ? (messages[threadKey] || []) : [];
+  msgsRef.current = msgs;
 
   const contactList = activeAccountId ? (contacts[activeAccountId] || []) : [];
 
@@ -424,6 +434,77 @@ export default function ChatWindow() {
     fbProbeDoneRef.current = true;
   }, [activeThreadId]);
 
+  // ─── Drag-to-select: pointer move/up (document level) ──────────────────────
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      const drag = dragSelectRef.current;
+      if (!drag.startMsgId) return;
+
+      // Tìm message element dưới cursor
+      const elements = document.elementsFromPoint(e.clientX, e.clientY);
+      let currentMsgId: string | null = null;
+      for (const el of elements) {
+        const msgEl = (el as HTMLElement).closest?.('[id^="msg-"]') as HTMLElement;
+        if (msgEl) {
+          currentMsgId = msgEl.id.replace('msg-', '');
+          break;
+        }
+      }
+      if (!currentMsgId) return;
+
+      const currentMsgs = msgsRef.current;
+      const startIdx = currentMsgs.findIndex((m: any) => m.msg_id === drag.startMsgId);
+      const endIdx = currentMsgs.findIndex((m: any) => m.msg_id === currentMsgId);
+      if (startIdx === -1 || endIdx === -1) return;
+
+      // Nếu chưa activate và đã kéo sang message khác → activate selection mode
+      if (!drag.hasActivated) {
+        if (currentMsgId === drag.startMsgId) return; // Chưa rời khỏi message gốc
+        drag.hasActivated = true;
+        setIsSelecting(true);
+        // Cancel text selection
+        document.getSelection()?.removeAllRanges();
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+      }
+
+      // Select tất cả messages trong range [startIdx, endIdx]
+      const minIdx = Math.min(startIdx, endIdx);
+      const maxIdx = Math.max(startIdx, endIdx);
+      const rangeIds = new Set(
+        currentMsgs.slice(minIdx, maxIdx + 1).map((m: any) => m.msg_id)
+      );
+      setSelectedMsgIds(rangeIds);
+    };
+
+    const handlePointerUp = () => {
+      const drag = dragSelectRef.current;
+      if (!drag.startMsgId) return;
+
+      if (drag.hasActivated) {
+        // Giữ selection mode active, suppress click tiếp theo
+        clickSuppressUntilRef.current = Date.now() + 150;
+        // Restore user-select
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+      }
+
+      drag.startMsgId = null;
+      drag.startIdx = -1;
+      drag.hasActivated = false;
+    };
+
+    document.addEventListener('pointermove', handlePointerMove, { capture: true });
+    document.addEventListener('pointerup', handlePointerUp, { capture: true });
+
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove, { capture: true });
+      document.removeEventListener('pointerup', handlePointerUp, { capture: true });
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+    };
+  }, []);
+
   // ─── Thread ready gate (đơn giản): set true ngay khi pinsReady = true ───────
   // pinsReady reset về false mỗi khi thread đổi (trong usePinnedData hook),
   // rồi fire true sau khi IPC getPinnedMessages hoàn thành (~50-100ms).
@@ -616,9 +697,9 @@ export default function ChatWindow() {
               role: uid === creatorId ? 1 : adminList.includes(uid) ? 2 : 0,
             }));
 
-            // Lưu vào DB
+            // mergeGroupMembers: placeholder rỗng (displayName='') không xóa avatar/tên đã được enriched trước
             if (rawMembers.length) {
-              ipc.db?.saveGroupMembers({ zaloId: accountId, groupId, members: rawMembers }).catch(() => {});
+              ipc.db?.mergeGroupMembers({ zaloId: accountId, groupId, members: rawMembers }).catch(() => {});
             }
             // Cập nhật tên/avatar nhóm nếu có
             if (name) {
@@ -1796,7 +1877,21 @@ export default function ChatWindow() {
           return (
             <div key={msg.msg_id + idx} id={`msg-${msg.msg_id}`}
               className={`flex flex-col mb-0.5 rounded-lg transition-colors ${isEcardMsg ? 'items-center' : isSent ? 'items-end' : 'items-start'} group/msg${isMsgSelected ? ' bg-blue-500/10 ring-1 ring-blue-500/40 rounded-lg' : ''}${isSelecting && !isEcardMsg ? ' cursor-pointer' : ''}`}
-              onClick={isSelecting && !isEcardMsg ? (e) => { e.stopPropagation(); toggleMsgSelect(); } : undefined}
+              onClick={isSelecting && !isEcardMsg ? (e) => {
+                // Skip click nếu vừa kết thúc drag-select (tránh toggle ngay sau drag)
+                if (Date.now() < clickSuppressUntilRef.current) return;
+                e.stopPropagation(); toggleMsgSelect();
+              } : undefined}
+              onPointerDown={!isSelecting && !isEcardMsg ? (e) => {
+                // Không intercept pointerdown trên interactive elements
+                const target = e.target as HTMLElement;
+                if (target.closest('a, button, img, video, audio, [role="button"], input, textarea, select')) return;
+                dragSelectRef.current = {
+                  startMsgId: msg.msg_id,
+                  startIdx: idx,
+                  hasActivated: false,
+                };
+              } : undefined}
             >
               {showTime && (
                 <div className="flex justify-center w-full my-2">
@@ -2055,6 +2150,11 @@ export default function ChatWindow() {
                           const lp = typeof msg.local_paths === 'string'
                             ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
                           videoPath = lp.file || lp.video || lp.main || '';
+                          // Facebook group videos store path as att_0, att_1, etc.
+                          if (!videoPath) {
+                            const attKey = Object.keys(lp).find(k => k.startsWith('att_'));
+                            if (attKey) videoPath = lp[attKey];
+                          }
                         } catch {}
                         if (!videoPath && msg.channel === 'facebook') {
                           try {

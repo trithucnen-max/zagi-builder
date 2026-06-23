@@ -65,6 +65,11 @@ export class FacebookService {
   private avatarRefreshDebounce = new Set<string>();
   /** Bridge instance ID — tăng mỗi lần startE2EEBridge, dùng để detect stale reconnect timers (BUG #6 fix) */
   private e2eeBridgeGen: number = 0;
+  private _mqttOverflowCount: number = 0;
+  private _lastGoodSeqId: string = '0';
+  private _e2eeHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private _e2eeHeartbeatFailCount: number = 0;
+  private _recentlySentMessageIds: Set<string> = new Set();
 
   private constructor(accountId: string, cookie: string, proxyId?: number | null) {
     this.accountId = accountId;
@@ -218,13 +223,16 @@ export class FacebookService {
 
       // 2. Fetch latest seqId via GraphQL to avoid ERROR_QUEUE_OVERFLOW
       // Sending seq=0 asks Facebook to sync ALL messages → overflow on accounts with many messages
-      let seqId = '0';
-      try {
-        const { getLastSeqId } = await import('./FacebookThreadManager');
-        seqId = await getLastSeqId(this.dataFB, this.httpsAgent);
-        Logger.log(`[FacebookService:${this.accountId}] Got lastSeqId=${seqId}`);
-      } catch (seqErr: any) {
-        Logger.warn(`[FacebookService:${this.accountId}] Failed to get lastSeqId, using 0: ${seqErr.message}`);
+      let seqId = this._lastGoodSeqId || '0';
+      if (seqId === '0') {
+        try {
+          const { getLastSeqId } = await import('./FacebookThreadManager');
+          seqId = await getLastSeqId(this.dataFB, this.httpsAgent);
+          Logger.log(`[FacebookService:${this.accountId}] Got lastSeqId=${seqId}`);
+          if (seqId && seqId !== '0') this._lastGoodSeqId = seqId;
+        } catch (seqErr: any) {
+          Logger.warn(`[FacebookService:${this.accountId}] Failed to get lastSeqId, using 0: ${seqErr.message}`);
+        }
       }
 
       // Load known E2EE threads from DB (persists across restarts)
@@ -337,6 +345,27 @@ export class FacebookService {
         Logger.warn(`[FacebookService:${this.accountId}] Listener error: ${err.message}`);
       });
 
+      // Cache seqId để dùng làm fallback cho lần connect sau (tránh overflow cycle)
+      this.listener.on('seqId', (newSeqId: string) => {
+        if (newSeqId && newSeqId !== '0') {
+          this._lastGoodSeqId = newSeqId;
+        }
+      });
+
+      // Track ERROR_QUEUE_OVERFLOW — nếu overflow persist + bridge alive,
+      // dừng hẳn MQTT listener vì bridge có MQTT riêng xử lý mọi traffic
+      this.listener.on('overflow', (_seqId: string) => {
+        this._mqttOverflowCount++;
+        Logger.warn(`[FacebookService:${this.accountId}] MQTT overflow #${this._mqttOverflowCount} — will skip MQTT reconnect if persistent`);
+        // Khi overflow > 2 lần và bridge đã connected → dừng MQTT listener hẳn
+        if (this._mqttOverflowCount > 2 && this.e2eeBridge?.isAlive()) {
+          Logger.warn(`[FacebookService:${this.accountId}] Persistent MQTT overflow + bridge alive → disabling MQTT listener, relying on bridge`);
+          if (this.listener) {
+            this.listener.disconnect();
+          }
+        }
+      });
+
       // Gắn health check callback — listener sẽ gọi định kỳ khi đang Phase 2 retry
       // để phát hiện cookie hết hạn và dừng retry đúng lúc
       const fbService = this;
@@ -421,6 +450,13 @@ export class FacebookService {
     const threadId = msg.replyToID && msg.replyToID !== '0' ? msg.replyToID : null;
     const ts = parseInt(msg.timestamp) || Date.now();
     const isSelf = this.dataFB?.FacebookID && msg.userID === this.dataFB.FacebookID ? 1 : 0;
+
+    // ── Self-echo dedup: skip messages we already saved+broadcast locally ──
+    if (isSelf && msg.messageID && this._recentlySentMessageIds.has(msg.messageID)) {
+      this._recentlySentMessageIds.delete(msg.messageID);
+      Logger.log(`[FacebookService:${this.accountId}] Self-echo dedup: skipped msgId=${msg.messageID} (already saved+broadcast locally)`);
+      return;
+    }
 
     Logger.log(`[FacebookService:${this.accountId}] handleIncomingMessage: msgId=${msg.messageID} threadId=${threadId} userID=${msg.userID} isSelf=${isSelf} body="${(msg.body || '').slice(0,50)}" hasAttachment=${!!msg.attachments?.attachmentType} isE2EE=${msg.isE2EE} fbId=${this.dataFB?.FacebookID}`);
     Logger.log(`[FacebookService:${this.accountId}] [DEBUG] handleIncomingMessage: attachmentType=${msg.attachments?.attachmentType || '(none)'} attachmentUrl=${msg.attachments?.url || '(none)'} allAttachments=${msg.allAttachments?.length || 0}`);
@@ -733,6 +769,20 @@ export class FacebookService {
     });
   }
 
+  /**
+   * Đánh dấu message ID đã được gửi local (đã save DB + broadcast).
+   * Dùng để ngăn self-echo từ bridge/MQTT tạo duplicate trong handleIncomingMessage.
+   * Tự động expire sau 60s.
+   */
+  public markMessageLocallySent(messageId: string): void {
+    if (!messageId) return;
+    this._recentlySentMessageIds.add(messageId);
+    setTimeout(() => {
+      this._recentlySentMessageIds.delete(messageId);
+    }, 60000);
+    Logger.log(`[FacebookService:${this.accountId}] Marked locally sent: ${messageId} (set size=${this._recentlySentMessageIds.size})`);
+  }
+
   // ─── E2EE Bridge Management ────────────────────────────────────────────────
 
   /**
@@ -760,7 +810,7 @@ export class FacebookService {
 
     try {
       // 1. Spawn Go bridge
-      this.e2eeBridge = new FacebookE2EEBridge(binaryPath);
+      this.e2eeBridge = FacebookE2EEBridge.create(binaryPath);
       this.e2eeBridge.spawn();
       const bridgeInstance = this.e2eeBridge;
       const bridgeGen = ++this.e2eeBridgeGen; // BUG #6 fix: track instance for stale timer detection
@@ -781,7 +831,7 @@ export class FacebookService {
       // 3. newClient + connect + connectE2EE
       await this.e2eeBridge.newClient({
         cookies,
-        logLevel: 'none',
+        logLevel: 'error',
         e2eeMemoryOnly: true,
       });
 
@@ -805,6 +855,7 @@ export class FacebookService {
       // BUG #6 fix: dùng bridgeGen để detect stale timer
       this.e2eeBridge.on('closed', (code: number | null) => {
         Logger.warn(`[FacebookService:${this.accountId}] E2EE bridge closed (code=${code}, gen=${bridgeGen})`);
+        this._clearE2EEHeartbeat();
         // Chỉ clear nếu bridge hiện tại vẫn là instance này
         if (this.e2eeBridge === bridgeInstance) {
           this.e2eeBridge = null;
@@ -827,8 +878,12 @@ export class FacebookService {
         Logger.error(`[FacebookService:${this.accountId}] E2EE bridge error: ${err.message}`);
       });
 
+      // 6. Start heartbeat to detect hung bridge process (BUG #8 fix)
+      this._startE2EEHeartbeat(bridgeInstance, bridgeGen, fbId);
+
     } catch (err: any) {
       Logger.error(`[FacebookService:${this.accountId}] E2EE bridge start failed: ${err.message}`);
+      this._clearE2EEHeartbeat();
       if (this.e2eeBridge) {
         this.e2eeBridge.close().catch(() => {});
         this.e2eeBridge = null;
@@ -836,16 +891,76 @@ export class FacebookService {
       this.e2eeSender = null;
       this.setE2EEStatus('error');
       // NON-FATAL: groups still work via MQTT
+      // Auto-retry sau 30s nếu service vẫn connected (BUG #10 fix)
+      if (this.isConnected() || this.status === 'connecting') {
+        Logger.log(`[FacebookService:${this.accountId}] E2EE bridge init failed — will retry in 30s`);
+        const currentGen = this.e2eeBridgeGen;
+        setTimeout(() => {
+          if ((this.isConnected() || this.status === 'connecting') && this.e2eeBridgeGen === currentGen) {
+            this.startE2EEBridge(fbId).catch(() => {});
+          }
+        }, 30000);
+      }
     }
   }
 
   private async stopE2EEBridge(): Promise<void> {
+    this._clearE2EEHeartbeat();
     if (this.e2eeBridge) {
       await this.e2eeBridge.close().catch(() => {});
       this.e2eeBridge = null;
     }
     this.e2eeSender = null;
     this.setE2EEStatus('disconnected');
+  }
+
+  /** Heartbeat: định kỳ kiểm tra bridge còn responsive không (BUG #8 fix) */
+  private _startE2EEHeartbeat(bridgeInstance: FacebookE2EEBridge, bridgeGen: number, fbId: string): void {
+    this._clearE2EEHeartbeat();
+    this._e2eeHeartbeatFailCount = 0;
+    this._e2eeHeartbeatTimer = setInterval(async () => {
+      // Chỉ check nếu bridge instance không thay đổi (tránh stale timer)
+      if (this.e2eeBridge !== bridgeInstance || this.e2eeBridgeGen !== bridgeGen) {
+        this._clearE2EEHeartbeat();
+        return;
+      }
+      try {
+        // Gọi isConnected với timeout 5s — nếu bridge treo, call() sẽ timeout
+        await Promise.race([
+          bridgeInstance.call('isConnected', {}, 5000),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('heartbeat_timeout')), 6000)),
+        ]);
+        this._e2eeHeartbeatFailCount = 0; // Reset on success
+      } catch {
+        this._e2eeHeartbeatFailCount++;
+        Logger.warn(`[FacebookService:${this.accountId}] E2EE heartbeat fail #${this._e2eeHeartbeatFailCount}`);
+        if (this._e2eeHeartbeatFailCount >= 2) {
+          Logger.error(`[FacebookService:${this.accountId}] E2EE bridge unresponsive — killing + respawning`);
+          this._clearE2EEHeartbeat();
+          if (this.e2eeBridge === bridgeInstance) {
+            // Kill hung process
+            bridgeInstance.close().catch(() => {});
+            this.e2eeBridge = null;
+          }
+          // Trigger reconnect
+          if (this.isConnected()) {
+            setTimeout(() => {
+              if (this.isConnected() && this.e2eeBridgeGen === bridgeGen && !this.e2eeBridge?.isAlive()) {
+                this.startE2EEBridge(fbId).catch(() => {});
+              }
+            }, 5000);
+          }
+        }
+      }
+    }, 30000); // Check mỗi 30s
+  }
+
+  private _clearE2EEHeartbeat(): void {
+    if (this._e2eeHeartbeatTimer) {
+      clearInterval(this._e2eeHeartbeatTimer);
+      this._e2eeHeartbeatTimer = null;
+    }
+    this._e2eeHeartbeatFailCount = 0;
   }
 
   /**
@@ -2031,8 +2146,37 @@ export class FacebookService {
    * Trả về true nếu sẵn sàng gửi, false nếu không thể gửi.
    */
   public async ensureConnected(): Promise<boolean> {
+    // ── BRIDGE PATH: Go bridge có MQTT nội bộ riêng → không phụ thuộc TypeScript MQTT ──
+    // Nếu bridge alive, luôn sẵn sàng gửi (group qua bridge MQTT, 1:1 qua bridge E2EE).
+    if (this.e2eeBridge?.isAlive()) {
+      if (this.status !== 'connected') this.setStatus('connected');
+      return true;
+    }
+
+    // ── OVERFLOW PATH: MQTT queue persistently overflow → không tạo listener mới ──
+    if (this._mqttOverflowCount > 2) {
+      Logger.warn(`[FacebookService:${this.accountId}] MQTT overflow persistent (${this._mqttOverflowCount}x) — using REST only`);
+      try {
+        const { initSession } = await import('./FacebookSession');
+        this.dataFB = await initSession(this.cookie, this.httpsAgent);
+        Logger.log(`[FacebookService:${this.accountId}] Session refreshed for overflow fallback`);
+        if (this.status !== 'connected') this.setStatus('connected');
+        return true;
+      } catch (err: any) {
+        Logger.warn(`[FacebookService:${this.accountId}] Session refresh failed: ${err.message}`);
+        return false;
+      }
+    }
+
     // Service says connected → verify listener thực sự alive
     if (this.status === 'connected' && this.isListenerActuallyConnected()) {
+      return true;
+    }
+
+    // ── Safety net: nếu listener thực sự alive (đang nhận MQTT) dù status sai ──
+    if (this.isListenerActuallyConnected()) {
+      Logger.warn(`[FacebookService:${this.accountId}] Listener alive but status=${this.status} — correcting to 'connected'`);
+      this.setStatus('connected');
       return true;
     }
 
@@ -2045,8 +2189,10 @@ export class FacebookService {
           this.listener.disconnect();
           this.listener = null;
         }
-        await this._doConnect();
-        return this.isListenerActuallyConnected();
+        // Reset _connectPromise để connect() có thể chạy lại
+        this._connectPromise = null;
+        await this.connect();
+        return await this.waitForStableConnection(30000);
       } catch (err: any) {
         Logger.error(`[FacebookService:${this.accountId}] ensureConnected reconnect failed: ${err.message}`);
         return false;
@@ -2058,7 +2204,7 @@ export class FacebookService {
       Logger.log(`[FacebookService:${this.accountId}] Not connected — attempting connect`);
       try {
         await this.connect();
-        return this.isListenerActuallyConnected();
+        return await this.waitForStableConnection(30000);
       } catch (err: any) {
         Logger.error(`[FacebookService:${this.accountId}] ensureConnected failed: ${err.message}`);
         return false;
@@ -2070,12 +2216,55 @@ export class FacebookService {
       Logger.log(`[FacebookService:${this.accountId}] Already connecting — waiting...`);
       if (this._connectPromise) {
         try {
-          await Promise.race([this._connectPromise, new Promise(r => setTimeout(r, 15000))]);
+          const waitPromise = this._connectPromise;
+          await Promise.race([waitPromise, new Promise(r => setTimeout(r, 15000))]);
         } catch {}
       }
-      return this.isListenerActuallyConnected();
+      return await this.waitForStableConnection(15000);
     }
 
+    return false;
+  }
+
+  /**
+   * Đợi MQTT listener thực sự connected với timeout.
+   */
+  private async waitForListenerReady(timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (this.isListenerActuallyConnected()) {
+        if (this.status !== 'connected') {
+          this.setStatus('connected');
+        }
+        return true;
+      }
+      await new Promise(r => setTimeout(r, 200));
+    }
+    return this.isListenerActuallyConnected();
+  }
+
+  /**
+   * Đợi MQTT listener connected + verify stability.
+   */
+  private async waitForStableConnection(timeoutMs: number): Promise<boolean> {
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const ready = await this.waitForListenerReady(timeoutMs);
+      if (!ready) return false;
+
+      // Stability window: đợi 1s để verify connection không bị overflow ngay
+      await new Promise(r => setTimeout(r, 1000));
+
+      if (this.isListenerActuallyConnected()) {
+        if (this.status !== 'connected') this.setStatus('connected');
+        Logger.log(`[FacebookService:${this.accountId}] Connection stable after ${attempt} attempt(s)`);
+        return true;
+      }
+
+      Logger.warn(`[FacebookService:${this.accountId}] Connection lost during stability check (attempt ${attempt}/${MAX_ATTEMPTS}) — retrying`);
+    }
+
+    Logger.warn(`[FacebookService:${this.accountId}] Connection unstable after ${MAX_ATTEMPTS} attempts — giving up`);
     return false;
   }
 

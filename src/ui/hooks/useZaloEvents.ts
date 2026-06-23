@@ -579,7 +579,8 @@ async function fetchGroupInfoAndMembers(zaloId: string, groupId: string, forceNo
         }).filter((m: any) => m.memberId);
 
         if (members.length > 0) {
-          await ipc.db?.saveGroupMembers({ zaloId, groupId, members }).catch(() => {});
+          // mergeGroupMembers: giữ lại avatar/tên hiện có nếu event push không kèm đủ data
+          await ipc.db?.mergeGroupMembers({ zaloId, groupId, members }).catch(() => {});
           // Update groupInfoCache
           const cached = useAppStore.getState().groupInfoCache?.[zaloId]?.[groupId];
           useAppStore.getState().setGroupInfo(zaloId, groupId, {

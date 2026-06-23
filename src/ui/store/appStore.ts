@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAccountStore } from '@/store/accountStore';
 
 type AppView = 'chat' | 'friends' | 'settings' | 'dashboard' | 'crm' | 'workflow' | 'integration' | 'analytics' | 'erp';
 export type AppTheme = 'dark' | 'light';
@@ -210,6 +211,14 @@ interface AppStore {
   clearCRMRequestUnseen: (zaloId: string) => void;
   hasCRMRequestUnseen: (zaloId: string) => boolean;
   hasAnyCRMRequestUnseen: () => boolean;
+
+  // ── Account switcher (Ctrl+Tab) ──────────────────────────────────────────
+  accountSwitcherOpen: boolean;
+  accountSwitcherIndex: number;
+  openAccountSwitcher: () => void;
+  closeAccountSwitcher: (select?: boolean) => void;
+  nextAccountSwitcher: () => void;
+  prevAccountSwitcher: () => void;
 }
 
 // ─── fontSizeScale persists in localStorage ─────────────────────────────────
@@ -356,6 +365,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   integrationPanelTarget: null,
   analyticsInitialTab: null as string | null,
   crmRequestUnseenByAccount: loadCRMRequestUnseen(),
+
+  // Account switcher state
+  accountSwitcherOpen: false,
+  accountSwitcherIndex: 0,
 
   openQuickChat: (opts) => set({
     quickChatOpen: true,
@@ -738,4 +751,51 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   hasCRMRequestUnseen: (zaloId) => !!get().crmRequestUnseenByAccount[zaloId],
   hasAnyCRMRequestUnseen: () => Object.values(get().crmRequestUnseenByAccount).some(Boolean),
+
+  // ── Account switcher (Ctrl+Tab) ──────────────────────────────────────────
+  openAccountSwitcher: () => set((s) => {
+    const accs = useAccountStore.getState().accounts;
+    const total = s.mergedInboxMode ? accs.length + 1 : accs.length;
+    if (s.accountSwitcherOpen) {
+      return { accountSwitcherIndex: (s.accountSwitcherIndex + 1) % total };
+    }
+    const activeId = useAccountStore.getState().activeAccountId;
+    let startIdx = accs.findIndex(a => a.zalo_id === activeId);
+    if (startIdx < 0) startIdx = 0;
+    if (s.mergedInboxMode) startIdx += 1;
+    return { accountSwitcherOpen: true, accountSwitcherIndex: startIdx };
+  }),
+  closeAccountSwitcher: (select) => set((s) => {
+    if (!s.accountSwitcherOpen) return {};
+    if (select) {
+      const accs = useAccountStore.getState().accounts;
+      const idx = s.accountSwitcherIndex;
+      if (s.mergedInboxMode) {
+        if (idx === 0) {
+          return { accountSwitcherOpen: false, accountSwitcherIndex: 0, mergedInboxFilterAccount: null };
+        }
+        const acc = accs[idx - 1];
+        if (acc) {
+          return { accountSwitcherOpen: false, accountSwitcherIndex: 0, mergedInboxFilterAccount: acc.zalo_id };
+        }
+      } else {
+        const acc = accs[idx];
+        const activeId = useAccountStore.getState().activeAccountId;
+        if (acc && acc.zalo_id !== activeId) {
+          useAccountStore.getState().setActiveAccount(acc.zalo_id);
+        }
+      }
+    }
+    return { accountSwitcherOpen: false, accountSwitcherIndex: 0 };
+  }),
+  nextAccountSwitcher: () => set((s) => {
+    const accs = useAccountStore.getState().accounts;
+    const total = s.mergedInboxMode ? accs.length + 1 : accs.length;
+    return { accountSwitcherIndex: (s.accountSwitcherIndex + 1) % total };
+  }),
+  prevAccountSwitcher: () => set((s) => {
+    const accs = useAccountStore.getState().accounts;
+    const total = s.mergedInboxMode ? accs.length + 1 : accs.length;
+    return { accountSwitcherIndex: (s.accountSwitcherIndex - 1 + total) % total };
+  }),
 }));

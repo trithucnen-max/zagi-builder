@@ -909,33 +909,124 @@ export default function MessageInput() {
     }
   }, [activeAccountId, activeThreadId, activeThreadType, loadLocalLabelsForThread, showNotification, threadLocalLabelIds, togglingLocalLabelId]);
 
-  // ─── Keyboard shortcuts for label toggle ─────────────────────────────────────
+  // ─── Pin/unpin conversation locally (Ctrl+P) ──────────────────────────────────
+  const handlePinConversation = useCallback(async () => {
+    if (!activeAccountId || !activeThreadId) return;
+    try {
+      const res = await ipc.db?.getLocalPinnedConversations({ zaloId: activeAccountId });
+      const pinnedThreadIds: string[] = res?.threadIds || [];
+      const isPinned = pinnedThreadIds.includes(activeThreadId);
+      await ipc.db?.setLocalPinnedConversation({ zaloId: activeAccountId, threadId: activeThreadId, isPinned: !isPinned });
+      showNotification(isPinned ? 'Đã bỏ ghim hội thoại' : 'Đã ghim hội thoại', 'success');
+      // Notify ConversationList to refresh pinned state
+      window.dispatchEvent(new CustomEvent('local-pin-changed', { detail: { zaloId: activeAccountId } }));
+    } catch {
+      showNotification('Không thể ghim hội thoại', 'error');
+    }
+  }, [activeAccountId, activeThreadId, showNotification]);
+
+  // ─── Keyboard shortcuts for chat page ─────────────────────────────────────────
   useEffect(() => {
     if (!activeAccountId || !activeThreadId) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Skip if user is typing in an input/textarea/contenteditable
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        // Still allow if it's a modifier key combination (Ctrl/Alt/Meta + key)
-        if (!e.ctrlKey && !e.altKey && !e.metaKey) return;
+      const isInInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      const hasMod = e.ctrlKey || e.altKey || e.metaKey;
+
+      // ── Tab: navigate to next/prev conversation (full handleSelect-like) ──
+      if (e.key === 'Tab' && !hasMod) {
+        e.preventDefault();
+        e.stopPropagation();
+        const store = useChatStore.getState();
+        const conList = store.contacts[activeAccountId || ''] || [];
+        if (conList.length === 0) return;
+        const activeTId = store.activeThreadId;
+        const sorted = [...conList].sort((a, b) => (b.last_message_time || 0) - (a.last_message_time || 0));
+        const currentIdx = activeTId ? sorted.findIndex(c => c.contact_id === activeTId) : -1;
+        let nextIdx: number;
+        if (currentIdx === -1) {
+          nextIdx = 0;
+        } else {
+          nextIdx = e.shiftKey ? currentIdx - 1 : currentIdx + 1;
+          if (nextIdx < 0) nextIdx = sorted.length - 1;
+          if (nextIdx >= sorted.length) nextIdx = 0;
+        }
+        if (nextIdx === currentIdx) return;
+        const next = sorted[nextIdx];
+        const zaloId = activeAccountId!;
+        const contactId = next.contact_id;
+        const threadType = next.contact_type === 'group' ? 1 : 0;
+
+        // Set active thread + clear unread
+        store.setActiveThread(contactId, threadType);
+        store.clearUnread(zaloId, contactId);
+        ipc.db?.markAsRead({ zaloId, contactId }).catch(() => {});
+
+        // Load latest 50 messages from DB so ChatWindow is not blank
+        ipc.db?.getMessages({ zaloId, threadId: contactId, limit: 50, offset: 0 }).then((res: any) => {
+          if (res?.messages?.length > 0) {
+            const msgs = [...res.messages].reverse();
+            useChatStore.getState().setMessages(zaloId, contactId, msgs);
+          }
+        }).catch(() => {});
+        return;
       }
 
-      // Check if any label has a shortcut that matches
+      // ── For non-modified keys when in input, skip (let label shortcuts handle) ──
+      if (isInInput && !e.ctrlKey && !e.metaKey) return;
+
+      // ── Ctrl+ / Cmd+ shortcuts only ──
+      if (!e.ctrlKey && !e.metaKey) return;
+
+      switch (e.key.toLowerCase()) {
+        case 'p': // Pin conversation locally
+          e.preventDefault();
+          e.stopPropagation();
+          handlePinConversation();
+          return;
+        case 'k': // Focus conversation search (sidebar)
+          e.preventDefault();
+          e.stopPropagation();
+          window.dispatchEvent(new CustomEvent('focus:conversationSearch'));
+          return;
+        case 'f': // Toggle message search in header
+          e.preventDefault();
+          e.stopPropagation();
+          useAppStore.getState().toggleSearch();
+          return;
+        case 'n': // Create internal note
+          e.preventDefault();
+          e.stopPropagation();
+          setShowCreateNote(true);
+          return;
+        case 's': // Toggle AI Quick Panel
+          e.preventDefault();
+          e.stopPropagation();
+          useAppStore.getState().toggleAIQuickPanel();
+          return;
+        case 'i': // Toggle conversation info panel
+          e.preventDefault();
+          e.stopPropagation();
+          useAppStore.getState().toggleConversationInfo();
+          return;
+        case 't': // Toggle local labels row
+          e.preventDefault();
+          e.stopPropagation();
+          toggleLocalLabels();
+          return;
+      }
+
+      // ── Label shortcuts (toggle local labels by assigned shortcut) ──
       for (const label of localLabels) {
         if (label.shortcut && matchesShortcut(e, label.shortcut)) {
           e.preventDefault();
           e.stopPropagation();
-
-          // Toggle this label
           const exists = threadLocalLabelIds.has(label.id);
           const action = exists ? 'Gỡ' : 'Gắn';
-
-          // Call toggle function
           handleToggleLocalLabel(label).then(() => {
             showNotification(`${action} nhãn "${label.emoji || ''} ${label.name}" thành công`, 'success');
           });
-
           return;
         }
       }
@@ -943,7 +1034,7 @@ export default function MessageInput() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeAccountId, activeThreadId, localLabels, threadLocalLabelIds, handleToggleLocalLabel, showNotification]);
+  }, [activeAccountId, activeThreadId, handlePinConversation, showNotification, localLabels, threadLocalLabelIds, handleToggleLocalLabel]);
 
   /** Trả về true nếu chuỗi là 1 URL thuần (không có khoảng trắng, bắt đầu bằng http/https) */
   const isUrlOnly = (s: string): boolean => {

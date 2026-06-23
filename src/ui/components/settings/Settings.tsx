@@ -14,6 +14,7 @@ import WorkspaceSettings from './WorkspaceSettings';
 import ProxySettings from './ProxySettings';
 import LockScreenSettings from './LockScreenSettings';
 import { loadSeenTabs, markTabSeen, SETTINGS_WATCHLIST, hasUnseenChangelog, markChangelogSeen } from '@/utils/settingsSeenTabs';
+import AccountSettings from './AccountSettings';
 
 type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'changelog' | 'appearance' | 'proxy' | 'security' | 'license';
 
@@ -463,37 +464,7 @@ export default function Settings() {
         )}
 
         {/* ── Accounts ── */}
-        {activeTab === 'accounts' && (() => {
-          return (
-            <>
-              <div className="flex items-center gap-3">
-                <h2 className="text-base font-semibold text-white">👤 Tài khoản đã đăng nhập</h2>
-              </div>
-              <Section>
-                <div className="space-y-2">
-                  {accounts.map((acc) => {
-                    return (
-                      <div key={acc.zalo_id} className="flex items-center gap-3 p-2.5 bg-gray-700 rounded-xl">
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${acc.isOnline ? 'bg-green-400' : 'bg-gray-500'}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-200 truncate font-medium">{acc.full_name || acc.zalo_id}</p>
-                          <p className="text-xs text-gray-500">{acc.zalo_id}</p>
-                        </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${acc.isOnline ? 'bg-green-900/50 text-green-400' : 'bg-gray-600 text-gray-400'}`}>
-                          {acc.isOnline ? 'Online' : 'Offline'}
-                        </span>
-                        <button onClick={() => handleRemoveAccount(acc.zalo_id)} className="text-red-400 hover:text-red-300 text-xs flex-shrink-0 ml-1">
-                          Xóa
-                        </button>
-                      </div>
-                    );
-                  })}
-                  {accounts.length === 0 && <p className="text-gray-500 text-sm">Chưa có tài khoản nào</p>}
-                </div>
-              </Section>
-            </>
-          );
-        })()}
+        {activeTab === 'accounts' && <AccountSettings />}
 
         {/* ── Storage ── */}
         {activeTab === 'storage' && (

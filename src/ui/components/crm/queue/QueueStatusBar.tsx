@@ -6,6 +6,7 @@ interface QueueStatus {
   maxTokens?: number;
   lastSentAt: number;
   dailyPaused?: boolean;
+  type?: string;
 }
 
 interface QueueStatusBarProps {
@@ -43,18 +44,27 @@ export default function QueueStatusBar({ status, maxTokens: maxTokensProp = 60 }
     return rem > 0 ? `${m}p${rem}s` : `${m} phút`;
   };
 
+  const isWaitingOrPaused = status?.dailyPaused || status?.type === 'waiting_for_scheduled_time' || status?.type === 'waiting_for_start_time' || status?.type === 'daily_limit_reached';
+
+  const getStatusMessage = () => {
+    if (status?.type === 'waiting_for_scheduled_time') return 'Chờ đến giờ hẹn chạy';
+    if (status?.type === 'waiting_for_start_time') return 'Chờ khung giờ chạy trong ngày';
+    if (status?.type === 'daily_limit_reached' || status?.dailyPaused) return 'Tạm dừng (đạt giới hạn/ngày)';
+    return 'Queue đang chạy';
+  };
+
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-gray-800/80 border-t border-gray-700 text-xs">
       {/* Pulse dot or daily paused indicator */}
-      {status?.dailyPaused ? (
+      {isWaitingOrPaused ? (
         <span className="flex items-center gap-1.5 text-yellow-400 flex-shrink-0">
           <span className="w-2 h-2 rounded-full bg-yellow-400" />
-          Tạm dừng (đạt giới hạn/ngày)
+          {getStatusMessage()}
         </span>
       ) : (
         <span className="flex items-center gap-1.5 text-green-400 flex-shrink-0">
           <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          Queue đang chạy
+          {getStatusMessage()}
         </span>
       )}
 

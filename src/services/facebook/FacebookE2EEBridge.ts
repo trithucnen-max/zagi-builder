@@ -99,10 +99,25 @@ export class FacebookE2EEBridge extends EventEmitter {
   private closed = false;
   private buffer = '';
 
-  constructor(binaryPath: string) {
-    super();
-    this.binaryPath = binaryPath;
+  // ─── Static helpers ────────────────────────────────────────────────────────
+  // Bridge Go struct expects threadId as int64, not string.
+  // Facebook thread IDs là số, parse sang number để JSON serialize đúng.
+  private static toIntThreadId(threadId: string): number {
+    const n = parseInt(String(threadId), 10);
+    return isNaN(n) ? (threadId as any) : n;
   }
+
+  // ─── Static Init ───────────────────────────────────────────────────────────
+  // TypeScript 5.9+ strict check: EventEmitter constructor(options?) conflicts
+  // với constructor(binaryPath). Dùng builder pattern để tránh.
+  static create(binaryPath: string): FacebookE2EEBridge {
+    const bridge = new FacebookE2EEBridge();
+    bridge.binaryPath = binaryPath;
+    return bridge;
+  }
+
+  // Private constructor — chỉ dùng qua create() để tránh TS 5.9 EventEmitter conflict
+  private constructor() { super(); }
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -110,9 +125,15 @@ export class FacebookE2EEBridge extends EventEmitter {
    * Khởi động Go bridge child process và reader loop.
    */
   public spawn(): void {
-    if (this.process) {
-      Logger.warn('[FBE2EEBridge] Already spawned');
+    // Cho phép spawn mới nếu process cũ đã bị kill hoặc null
+    if (this.process && !this.process.killed) {
+      Logger.warn('[FBE2EEBridge] Already spawned with alive process');
       return;
+    }
+    // Cleanup process cũ đã chết
+    if (this.process) {
+      this.process.removeAllListeners();
+      this.process = null;
     }
 
     Logger.log(`[FBE2EEBridge] Spawning: ${this.binaryPath}`);
@@ -135,9 +156,11 @@ export class FacebookE2EEBridge extends EventEmitter {
     //
     this.process.stdout?.on('data', (chunk: Buffer) => {
       this.buffer += chunk.toString('utf8');
-      // Cap buffer at 1MB to prevent memory leak on malformed output
-      if (this.buffer.length > 1024 * 1024) {
-        Logger.warn('[FBE2EEBridge] Buffer exceeded 1MB — resetting');
+      // Cap buffer at 50MB — đủ cho E2EE media download (FB limit ~25MB/file,
+      // base64 ~33MB + JSON overhead). Không để unlimited vì bridge lỗi có thể
+      // sinh output vô tận gây OOM.
+      if (this.buffer.length > 1024 * 1024 * 50) {
+        Logger.warn('[FBE2EEBridge] Buffer exceeded 50MB — resetting');
         this.buffer = '';
         return;
       }
@@ -517,7 +540,7 @@ export class FacebookE2EEBridge extends EventEmitter {
     replyToId?: string;
   }): Promise<{ messageId?: string; timestampMs?: number }> {
     return this.call('sendMessage', {
-      threadId: params.threadId,
+      threadId: FacebookE2EEBridge.toIntThreadId(params.threadId),
       text: params.text,
       replyToId: params.replyToId || '',
     });
@@ -532,7 +555,7 @@ export class FacebookE2EEBridge extends EventEmitter {
     emoji: string;
   }): Promise<any> {
     return this.call('sendReaction', {
-      threadId: params.threadId,
+      threadId: FacebookE2EEBridge.toIntThreadId(params.threadId),
       messageId: params.messageId,
       emoji: params.emoji,
     });
@@ -547,7 +570,7 @@ export class FacebookE2EEBridge extends EventEmitter {
     caption?: string;
   }): Promise<{ messageId?: string; timestampMs?: number }> {
     return this.call('sendImage', {
-      threadId: params.threadId,
+      threadId: FacebookE2EEBridge.toIntThreadId(params.threadId),
       imagePath: params.imagePath,
       caption: params.caption || '',
     });
@@ -562,7 +585,7 @@ export class FacebookE2EEBridge extends EventEmitter {
     fileName?: string;
   }): Promise<{ messageId?: string; timestampMs?: number }> {
     return this.call('sendFile', {
-      threadId: params.threadId,
+      threadId: FacebookE2EEBridge.toIntThreadId(params.threadId),
       filePath: params.filePath,
       fileName: params.fileName || '',
     });

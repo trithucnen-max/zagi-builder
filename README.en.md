@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v27.1.3** — [View all versions](#changelog)
+> **Latest version: v27.1.4** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.3-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.4-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.4-x64.exe)
 
-**[Zagi-Setup-27.1.3-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.3-x64.exe)**
+**[Zagi-Setup-27.1.4-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.4-x64.exe)**
 
 NSIS Installer · ~148 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~148 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.3-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3-arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.4-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.4-arm64.dmg)
 
-**[Zagi-27.1.3-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3-arm64.dmg)**
+**[Zagi-27.1.4-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.4-arm64.dmg)**
 
 Apple Silicon · ~177 MB
 
@@ -69,9 +69,9 @@ Apple Silicon · ~177 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.3-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.4-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.4.dmg)
 
-**[Zagi-27.1.3.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3.dmg)**
+**[Zagi-27.1.4.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.4.dmg)**
 
 Intel x64 · ~182 MB
 
@@ -80,10 +80,10 @@ Intel x64 · ~182 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.3-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.4-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.4.AppImage)
 
-**[Zagi-27.1.3.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.3.AppImage)**  
-**[zagi_27.1.3_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.3_amd64.deb)**
+**[Zagi-27.1.4.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.4.AppImage)**  
+**[zagi_27.1.4_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.4_amd64.deb)**
 
 AppImage + .deb · ~197 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~197 MB
 > 
 > Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.3-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.4-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.4-arm64.exe)
 
-**[Zagi-Setup-27.1.3-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.3-arm64.exe)**
+**[Zagi-Setup-27.1.4-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.4-arm64.exe)**
 
 NSIS Installer ARM64 · ~148 MB · Native performance on Surface ARM
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.3-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.4-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.3-x64.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.4-x64.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.1.3.AppImage
-./Zagi-27.1.3.AppImage
+chmod +x Zagi-27.1.4.AppImage
+./Zagi-27.1.4.AppImage
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i zagi_27.1.3_amd64.deb
+sudo dpkg -i zagi_27.1.4_amd64.deb
 ```
 
 </details>
@@ -381,7 +381,22 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.3</strong> — 2026-06-23 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.1.4</strong> — 2026-06-24 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights
+
+- 👥 **Locked Group Member Scan (View Member Locked)**: Support automatic fallback to sync group UIDs via `getGroupInfo` / `memVerList` when member list is locked (`lockViewMember = true` or `currentMems` is empty).
+- 📦 **Batched Member Details API Request**: Chunked Zalo `getGroupMembersInfo` calls into batches of 50 members to prevent HTTP 431 (Request Header Fields Too Large / URL Too Long) errors on groups with large member pools.
+- 🔗 **Database Contact Fallback**: Improved SQLite query for group members with a `LEFT JOIN` on the `contacts` table to resolve and display name and avatar instantly when they exist in local contact profiles (friends or active chat threads).
+- 🔄 **Smart Merge-upsert Member Storage**: Transitioned all member caching storage to use `mergeGroupMembers` which preserves existing displayName and avatar when updating group member lists.
+- 🏷️ **Initial Tag Selection for Phone Import**: Enable Zalo/Local label assignment and quick creation directly from the initial phone number input screen instead of keeping it hidden.
+- 🎨 **Unified Blue Action Buttons**: Synchronize the confirm import and add contact submit buttons to use the brand blue color theme (`bg-blue-600 hover:bg-blue-750`).
+- 🗑️ **Bulk Delete Moved to Floating Action Bar**: Relocated the bulk contact deletion option from the top-right "Actions" menu to the "Other" dropdown of the floating BulkActionBar at the bottom.
+
+</details>
+
+<details>
+<summary><strong>v27.1.3</strong> — 2026-06-23</summary>
 
 ### 🚀 Key Highlights
 

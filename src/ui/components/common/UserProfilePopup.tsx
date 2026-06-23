@@ -245,7 +245,7 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
                       } catch {}
                     }
                     ipc.db?.updateContactProfile({ zaloId: activeAccountId, contactId: g.groupId, displayName: groupName, avatarUrl: groupAvt, phone: '', contactType: 'group' }).catch(() => {});
-                    if (members.length) ipc.db?.saveGroupMembers({ zaloId: activeAccountId, groupId: g.groupId, members }).catch(() => {});
+                    if (members.length) ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId: g.groupId, members }).catch(() => {});
                     useAppStore.getState().setGroupInfo(activeAccountId, g.groupId, {
                       groupId: g.groupId, name: groupName, avatar: groupAvt,
                       memberCount: gi.totalMember || members.length,

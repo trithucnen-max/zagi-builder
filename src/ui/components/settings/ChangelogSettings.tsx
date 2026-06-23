@@ -14,6 +14,32 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.1.4',
+    date: '06/2026',
+    type: 'patch',
+    highlights: [
+      '🏷️ Chọn nhãn từ bước đầu khi nhập SĐT — Gán/tạo nhãn Local hoặc chọn nhãn Zalo ngay tại màn hình nhập SĐT đầu tiên.',
+      '🎨 Đồng bộ nút tác vụ sang màu xanh dương — Chuyển màu nút "Xác nhận Import" (CSV) và nút "Thêm liên hệ" (SĐT) sang màu xanh dương thương hiệu.',
+      '🗑️ Di chuyển nút Xóa liên hệ đã chọn — Rời nút xóa hàng loạt khỏi menu Thao tác bên phải vào dropdown Khác của thanh BulkActionBar nổi dưới màn hình.',
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Cho phép chọn nhãn local hoặc Zalo trực tiếp trong AddToContactsModal khi vừa mở lên (giao đoạn nhập SĐT).',
+          'Tích hợp tùy chọn Xóa liên hệ đã chọn vào danh sách tác vụ Khác trên thanh Bulk hành động nổi.',
+        ],
+      },
+      {
+        category: 'improved',
+        items: [
+          'Đồng bộ hóa màu nền và màu hover của nút Xác nhận Import và nút Thêm liên hệ theo tông màu Tra cứu (xanh dương chữ trắng).',
+          'Lược bỏ nút xóa hàng loạt ở menu Thao tác cũ để tối giản hóa UI và tập trung tính năng.',
+        ],
+      },
+    ],
+  },
+  {
     version: '27.1.3',
     date: '06/2026',
     type: 'patch',

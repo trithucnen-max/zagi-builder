@@ -459,7 +459,17 @@ export function registerDatabaseIpc() {
         }
     });
 
+    ipcMain.handle('db:mergeGroupMembers', async (_event, { zaloId, groupId, members }: { zaloId: string; groupId: string; members: any[] }) => {
+        try {
+            DatabaseService.getInstance().mergeGroupMembers(zaloId, groupId, members);
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle('db:upsertGroupMember', async (_event, { zaloId, groupId, member }: { zaloId: string; groupId: string; member: any }) => {
+
         try {
             DatabaseService.getInstance().upsertGroupMember(zaloId, groupId, member);
             return { success: true };
@@ -1067,4 +1077,43 @@ export function registerDatabaseIpc() {
             return DatabaseService.getInstance().upsertPinSchedule(params);
         } catch (error: any) { return { success: false, error: error.message }; }
     });
+
+    // ─── App Settings ─────────────────────────────────────────────────────────
+    ipcMain.handle('db:getSetting', async (_event, { key }: { key: string }) => {
+        try {
+            const value = DatabaseService.getInstance().getSetting(key);
+            return { success: true, value };
+        } catch (error: any) {
+            return { success: false, value: null, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:setSetting', async (_event, { key, value }: { key: string; value: string }) => {
+        try {
+            DatabaseService.getInstance().setSetting(key, value);
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    // ─── CRM Import ───────────────────────────────────────────────────────────
+    ipcMain.handle('db:checkPhonesDuplicate', async (_event, { zaloId, phones }: { zaloId: string; phones: string[] }) => {
+        try {
+            const duplicates = DatabaseService.getInstance().checkPhonesDuplicate(zaloId, phones);
+            return { success: true, duplicates };
+        } catch (error: any) {
+            return { success: false, duplicates: [], error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:updateContactExtraData', async (_event, { zaloId, contactId, extraData }: { zaloId: string; contactId: string; extraData: Record<string, any> }) => {
+        try {
+            DatabaseService.getInstance().updateContactExtraData(zaloId, contactId, extraData);
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
 }
+

@@ -135,18 +135,39 @@ class CRMQueueService {
         // ── Daily send limit check ──────────────────────────────────────
         const campaignData = db.getCRMCampaign(item.campaign_id);
 
+        // ── Precise Date-Time Scheduling ────────────────────────────────
+        if (campaignData && campaignData.scheduled_start_at > 0) {
+            if (Date.now() < campaignData.scheduled_start_at) {
+                Logger.log(`[CRMQueue] Campaign ${item.campaign_id}: waiting until scheduled time: ${new Date(campaignData.scheduled_start_at).toLocaleString()}`);
+                this.broadcastStatus(zaloId, 'waiting_for_scheduled_time');
+                return;
+            }
+        }
+
         // ── Daily start time (tách riêng, không phụ thuộc daily_send_limit) ──
         // Nếu daily_start_time đã qua hôm nay → chạy luôn
         // Nếu chưa đến → đợi
         if (campaignData && campaignData.daily_start_time) {
-            const now = new Date();
-            const [hh, mm] = campaignData.daily_start_time.split(':').map(Number);
-            if (!isNaN(hh) && !isNaN(mm)) {
-                const todayStartTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
-                if (now < todayStartTime) {
-                    Logger.log(`[CRMQueue] Campaign ${item.campaign_id}: before daily start time ${campaignData.daily_start_time}`);
-                    this.broadcastStatus(zaloId, 'waiting_for_start_time');
-                    return;
+            // Nếu có hẹn giờ và hôm nay là ngày bắt đầu hẹn giờ, bỏ qua check daily_start_time của ngày hôm nay
+            let skipDailyCheck = false;
+            if (campaignData.scheduled_start_at > 0) {
+                const startDayStr = new Date(campaignData.scheduled_start_at).toDateString();
+                const todayStr = new Date().toDateString();
+                if (startDayStr === todayStr) {
+                    skipDailyCheck = true;
+                }
+            }
+
+            if (!skipDailyCheck) {
+                const now = new Date();
+                const [hh, mm] = campaignData.daily_start_time.split(':').map(Number);
+                if (!isNaN(hh) && !isNaN(mm)) {
+                    const todayStartTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+                    if (now < todayStartTime) {
+                        Logger.log(`[CRMQueue] Campaign ${item.campaign_id}: before daily start time ${campaignData.daily_start_time}`);
+                        this.broadcastStatus(zaloId, 'waiting_for_start_time');
+                        return;
+                    }
                 }
             }
         }
@@ -579,7 +600,7 @@ class CRMQueueService {
     }
 
     private broadcastStatus(zaloId: string, type: string): void {
-        const isDailyPaused = type === 'daily_limit_reached' || type === 'waiting_for_start_time';
+        const isDailyPaused = type === 'daily_limit_reached' || type === 'waiting_for_start_time' || type === 'waiting_for_scheduled_time';
         EventBroadcaster.emit('crm:queueStatus', {
             zaloId, type,
             tokens: this.tokens.get(zaloId) ?? 0,

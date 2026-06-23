@@ -20,6 +20,8 @@ import CRMSearchTab from './search/CRMSearchTab';
 import CRMRequestsTab from './search/CRMRequestsTab';
 import CRMPipelineTab from './pipeline/CRMPipelineTab';
 import AddToContactsModal from './contacts/AddToContactsModal';
+import CRMImportModal from './contacts/CRMImportModal';
+
 import BulkGroupManageModal from './modals/BulkGroupManageModal';
 import SmartGroupModal from './modals/SmartGroupModal';
 import AccountSelectorDropdown from '@/components/common/AccountSelectorDropdown';
@@ -90,6 +92,8 @@ export default function CRMPage() {
   const [selectedCampaignForAdd, setSelectedCampaignForAdd] = useState<number | null>(null);
   const [showCreateInAddModal, setShowCreateInAddModal] = useState(false);
   const [showPhoneImport, setShowPhoneImport] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+
 
   // ── Campaign creation wizard state ──────────────────────────────────
   const [wizardActive, setWizardActive] = useState(false);
@@ -258,6 +262,7 @@ export default function CRMPage() {
         maxTokens: data.maxTokens ?? 60,
         lastSentAt: data.lastSentAt,
         dailyPaused: data.dailyPaused,
+        type: data.type,
       });
     });
     const unsubDone = ipc.on?.('crm:campaignDone', (data: any) => {
@@ -425,6 +430,22 @@ export default function CRMPage() {
   const handleBulkTagZalo = () => {
     setBulkLabelIds([]);
     setShowBulkZaloModal(true);
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(store.selectedContactIds);
+    if (ids.length === 0) return;
+    if (window.confirm(`Bạn có chắc chắn muốn xóa ${ids.length} liên hệ đã chọn? Toàn bộ lịch sử tin nhắn, nhãn và ghi chú sẽ bị xóa khỏi ứng dụng.`)) {
+      store.setContactsLoading(true);
+      let successCount = 0;
+      for (const contactId of ids) {
+        const res = await ipc.db?.deleteConversation({ zaloId: activeAccountId || '', contactId });
+        if (res?.success) successCount++;
+      }
+      store.clearSelection();
+      loadContacts();
+      showNotification(`Đã xóa thành công ${successCount}/${ids.length} liên hệ`, "success");
+    }
   };
 
   /** Bulk-assign Zalo labels to all selected contacts via Zalo API */
@@ -709,6 +730,18 @@ export default function CRMPage() {
                   onPageChange={p => store.setFilter({ page: p })}
                   onMessage={handleMessage}
                   onImportPhones={channelCap.supportsCRMPhoneImport ? () => setShowPhoneImport(true) : undefined}
+                  onImportData={channelCap.supportsCRMPhoneImport ? () => setShowImportModal(true) : undefined}
+                  onDeleteContact={async (contactId) => {
+                    if (window.confirm("Bạn có chắc chắn muốn xóa liên hệ này? Toàn bộ lịch sử tin nhắn, nhãn và ghi chú sẽ bị xóa khỏi ứng dụng.")) {
+                      const res = await ipc.db?.deleteConversation({ zaloId: activeAccountId || '', contactId });
+                      if (res?.success) {
+                        loadContacts();
+                        showNotification("Đã xóa liên hệ thành công", "success");
+                      } else {
+                        showNotification("Xóa liên hệ thất bại: " + (res?.error || 'Lỗi không xác định'), "error");
+                      }
+                    }
+                  }}
                 />
               </div>
               {activeContact && (
@@ -832,6 +865,7 @@ export default function CRMPage() {
         onBulkTagZalo={handleBulkTagZalo}
         onManageGroups={handleManageGroups}
         onBulkManageGroups={(mode) => setShowBulkGroupModal(mode)}
+        onDeleteSelected={handleDeleteSelected}
       />
 
       {/* ── Modals ── */}
@@ -1070,7 +1104,18 @@ export default function CRMPage() {
         />
       )}
 
-      {/* ── Smart Group Management Modal ── */}
+      {/* ── CSV Import modal (Import danh sách khách hàng) ── */}
+      {showImportModal && (
+        <CRMImportModal
+          onClose={() => setShowImportModal(false)}
+          onDone={() => {
+            setShowImportModal(false);
+            loadContacts();
+          }}
+        />
+      )}
+
+
       {showSmartGroupModal && (
         <SmartGroupModal
           selectedGroupIds={store.contacts
