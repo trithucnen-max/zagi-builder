@@ -2778,6 +2778,22 @@ class WorkflowEngineService {
         const idx = parseInt(key.slice(bracket + 1, -1));
         return acc[arrKey]?.[idx];
       }
+      
+      // Khắc phục lỗi gõ biến sai của người dùng (fallbacks cho thông tin khách hàng)
+      if (typeof acc === 'object') {
+        if (key === 'zaloId' || key === 'uid' || key === 'userId' || key === 'threadId') {
+          if (acc[key] !== undefined) return acc[key];
+          if (acc['contact_id'] !== undefined) return acc['contact_id'];
+          if (acc['userId'] !== undefined) return acc['userId'];
+        }
+        if (key === 'name' || key === 'displayName') {
+          if (acc[key] !== undefined) return acc[key];
+          if (acc['display_name'] !== undefined) return acc['display_name'];
+          if (acc['displayName'] !== undefined) return acc['displayName'];
+          if (acc['alias'] !== undefined) return acc['alias'];
+        }
+      }
+      
       return acc[key];
     }, obj);
   }
