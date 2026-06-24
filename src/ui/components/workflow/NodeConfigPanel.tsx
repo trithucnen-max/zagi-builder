@@ -312,6 +312,13 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       advanced: true,
     },
     {
+      key: 'threadId', label: 'ID người nhận (biến động / forEach)', type: 'text',
+      placeholder: '{{ $vars.contact.zaloId }}',
+      desc: '⚡ Dùng khi gửi trong vòng lặp forEach — nhập biến template. VD: {{ $vars.contact.zaloId }}. Trường này được ưu tiên hơn contact-picker phía trên khi có giá trị.',
+      templateVars: ['$vars.contact.zaloId', '$var.contact.zaloId', '$trigger.threadId'],
+      advanced: true,
+    },
+    {
       key: 'continueOnError', label: 'Tiếp tục workflow dù gửi thất bại', type: 'boolean',
       desc: 'Bật nếu muốn các bước sau vẫn chạy ngay cả khi tin nhắn này gửi lỗi.',
       advanced: true,
