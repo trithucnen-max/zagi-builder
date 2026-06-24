@@ -121,6 +121,7 @@ interface ExecutionContext {
   skippedNodes: Set<string>;
   /** Full node list — used by renderTemplate to match $node.Label.field by label name */
   _wfNodes: WorkflowNode[];
+  _wfEdges?: WorkflowEdge[];
   _wfName: string;
 }
 
@@ -626,6 +627,7 @@ class WorkflowEngineService {
       pageId: wf.pageIds[0] || wf.pageId || triggerData?.zaloId || '',
       skippedNodes: new Set(),
       _wfNodes: wf.nodes,
+      _wfEdges: wf.edges,
       _wfName: wf.name,
     };
 
@@ -647,12 +649,148 @@ class WorkflowEngineService {
 
       let renderedConfig: Record<string, any> = {};
       try {
-        renderedConfig = this.renderConfig(node.config, context);
+        renderedConfig = this.renderConfig(node.config, context, nodeId);
         if (node.type === 'zalo.sendMessage') {
           Logger.info(`[WorkflowEngine] sendMessage BEFORE: raw="${(node.config.message || '').substring(0, 300)}" → rendered="${(renderedConfig.message || '').substring(0, 300)}"`);
         }
-        const output = await this.executeNode(node, renderedConfig, context, wf);
-        context.nodes[nodeId] = { output };
+        
+        let output: Record<string, any> = {};
+        if (node.type === 'logic.forEach') {
+          output = await this.executeNode(node, renderedConfig, context, wf);
+          context.nodes[nodeId] = { output };
+
+          const items = output.items || [];
+          const itemVar = node.config.itemVariable || 'item';
+          const downstreamIds = this.getDownstreamNodes(nodeId, wf);
+          const loopOrder = order.filter(id => downstreamIds.has(id));
+
+          // Thêm các node hạ nguồn vào skippedNodes để vòng lặp cha bỏ qua chúng
+          for (const id of downstreamIds) {
+            context.skippedNodes.add(id);
+          }
+
+          Logger.info(`[WorkflowEngine] Entering forEach loop "${node.label}" with ${items.length} items. Downstream nodes: ${loopOrder.join(', ')}`);
+
+          // Chạy lặp qua từng phần tử
+          for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            context.variables[itemVar] = item;
+            context.variables['index'] = index;
+
+            // Khởi tạo tập hợp các node bị bỏ qua cho riêng lần lặp này
+            const iterationSkipped = new Set<string>();
+            for (const sk of context.skippedNodes) {
+              if (!downstreamIds.has(sk)) {
+                iterationSkipped.add(sk);
+              }
+            }
+
+            for (const childNodeId of loopOrder) {
+              const childNode = wf.nodes.find(n => n.id === childNodeId);
+              if (!childNode) continue;
+              const childT0 = Date.now();
+
+              if (iterationSkipped.has(childNodeId)) {
+                nodeResults.push({
+                  nodeId: childNodeId,
+                  nodeType: childNode.type,
+                  label: `${childNode.label} (Lần ${index + 1})`,
+                  status: 'skipped',
+                  input: {},
+                  output: { _skipped: true },
+                  durationMs: 0
+                });
+                this.markDownstreamSkipped(childNodeId, wf, iterationSkipped);
+                continue;
+              }
+
+              let childRenderedConfig: Record<string, any> = {};
+              try {
+                childRenderedConfig = this.renderConfig(childNode.config, context, childNodeId);
+                const childOutput = await this.executeNode(childNode, childRenderedConfig, context, wf);
+                context.nodes[childNodeId] = { output: childOutput };
+
+                if (childNode.type === 'logic.if') {
+                  const res = childOutput.result as boolean;
+                  for (const edge of wf.edges.filter(e => e.source === childNodeId)) {
+                    if (edge.sourceHandle === 'true' && !res) {
+                      iterationSkipped.add(edge.target);
+                      this.markDownstreamSkipped(edge.target, wf, iterationSkipped);
+                    }
+                    if (edge.sourceHandle === 'false' && res) {
+                      iterationSkipped.add(edge.target);
+                      this.markDownstreamSkipped(edge.target, wf, iterationSkipped);
+                    }
+                  }
+                }
+
+                if (childNode.type === 'logic.switch') {
+                  const matchedHandle = childOutput.matchedHandle as string;
+                  for (const edge of wf.edges.filter(e => e.source === childNodeId)) {
+                    if (edge.sourceHandle !== matchedHandle) {
+                      iterationSkipped.add(edge.target);
+                      this.markDownstreamSkipped(edge.target, wf, iterationSkipped);
+                    }
+                  }
+                }
+
+                nodeResults.push({
+                  nodeId: childNodeId,
+                  nodeType: childNode.type,
+                  label: `${childNode.label} (Lần ${index + 1})`,
+                  status: 'success',
+                  input: this.truncateData(childRenderedConfig),
+                  output: this.truncateData(childOutput),
+                  durationMs: Date.now() - childT0
+                });
+              } catch (childErr: any) {
+                if (childErr.message === '__STOP__') {
+                  nodeResults.push({
+                    nodeId: childNodeId,
+                    nodeType: childNode.type,
+                    label: `${childNode.label} (Lần ${index + 1})`,
+                    status: 'success',
+                    input: this.truncateData(childRenderedConfig),
+                    output: { stopped: true },
+                    durationMs: Date.now() - childT0
+                  });
+                  break;
+                }
+                const errorOutput: Record<string, any> = {};
+                errorOutput._errorType = 'execution_error';
+                if (childErr.response) {
+                  errorOutput._errorType = 'http_error';
+                  errorOutput._httpStatus = childErr.response.status;
+                  errorOutput._httpStatusText = childErr.response.statusText;
+                  errorOutput._responseData = this.truncateData(childErr.response.data);
+                  errorOutput._responseHeaders = childErr.response.headers;
+                } else if (childErr.request) {
+                  errorOutput._errorType = 'network_error';
+                  errorOutput._requestSummary = `${childErr.request.method || ''} ${childErr.request.url || ''}`;
+                }
+                if (childErr.code) errorOutput._errorCode = childErr.code;
+                if (childErr.message) errorOutput._errorMessage = childErr.message;
+                nodeResults.push({
+                  nodeId: childNodeId,
+                  nodeType: childNode.type,
+                  label: `${childNode.label} (Lần ${index + 1})`,
+                  status: 'error',
+                  input: this.truncateData(childRenderedConfig),
+                  output: this.truncateData(errorOutput),
+                  durationMs: Date.now() - childT0,
+                  error: childErr.message
+                });
+                if (!childNode.config.continueOnError) {
+                  throw childErr;
+                }
+              }
+            }
+          }
+        } else {
+          output = await this.executeNode(node, renderedConfig, context, wf);
+          context.nodes[nodeId] = { output };
+        }
+
         if (node.type === 'ai.generateText') {
           Logger.info(`[WorkflowEngine] AI chat output stored: keys=${output ? Object.keys(output).join(',') : 'null'}, result="${typeof output === 'object' && output ? (output.result || '').substring(0, 200) : String(output).substring(0, 200)}"`);
         }
@@ -735,6 +873,20 @@ class WorkflowEngineService {
         this.markDownstreamSkipped(edge.target, wf, skipped);
       }
     }
+  }
+
+  private getDownstreamNodes(nodeId: string, wf: Workflow): Set<string> {
+    const result = new Set<string>();
+    const traverse = (currentId: string) => {
+      for (const edge of wf.edges.filter(e => e.source === currentId)) {
+        if (!result.has(edge.target)) {
+          result.add(edge.target);
+          traverse(edge.target);
+        }
+      }
+    };
+    traverse(nodeId);
+    return result;
   }
 
   private flattenTriggerData(data: any, triggerType: string): Record<string, any> {
@@ -2519,21 +2671,43 @@ class WorkflowEngineService {
     if (triggerThreadId) return [triggerThreadId];
     return [];
   }
-
-  private renderConfig(config: Record<string, any>, ctx: ExecutionContext): Record<string, any> {
+  private renderConfig(config: Record<string, any>, ctx: ExecutionContext, currentNodeId?: string): Record<string, any> {
     const rendered: Record<string, any> = {};
     for (const [key, value] of Object.entries(config)) {
-      rendered[key] = typeof value === 'string' ? this.renderTemplate(value, ctx) : value;
+      rendered[key] = typeof value === 'string' ? this.renderTemplate(value, ctx, currentNodeId) : value;
     }
     return rendered;
   }
 
-  private renderTemplate(template: string, ctx: ExecutionContext): string {
+  private renderTemplate(template: string, ctx: ExecutionContext, currentNodeId?: string): string {
     return template.replace(/\{\{\s*([\s\S]*?)\s*\}\}/gu, (_, raw) => {
       try {
         const expr = raw.trim();
         if (expr.startsWith('$trigger.'))   return String(ctx.trigger?.[expr.slice(9)] ?? '');
-        if (expr.startsWith('$var.'))       return String(ctx.variables?.[expr.slice(5)] ?? '');
+        if (expr.startsWith('$var.'))       return String(this.getNestedValue(ctx.variables, expr.slice(5)) ?? '');
+        if (expr.startsWith('$vars.'))      return String(this.getNestedValue(ctx.variables, expr.slice(6)) ?? '');
+        if (expr.startsWith('$item.'))      return String(this.getNestedValue(ctx.variables, expr.slice(6)) ?? '');
+        
+        if (expr.startsWith('$prev.') && currentNodeId && ctx._wfEdges) {
+          const edge = ctx._wfEdges.find(e => e.target === currentNodeId);
+          if (edge) {
+            const prevNodeId = edge.source;
+            const field = expr.slice(6);
+            const ndata = ctx.nodes[prevNodeId];
+            if (ndata) {
+              if (field === 'output') {
+                const out = ndata.output;
+                return typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? JSON.stringify(out ?? ''));
+              }
+              let val = this.getNestedValue(ndata.output, field);
+              if (field === 'result' && (val === undefined || val === null || val === '')) {
+                val = ndata.output.contacts || ndata.output.result || ndata.output;
+              }
+              return typeof val === 'object' && val ? JSON.stringify(val) : String(val ?? '');
+            }
+          }
+        }
+
         if (expr === '$pageId')             return ctx.pageId ?? '';
         if (expr === '$date.now')           return new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
         if (expr === '$date.today')         return new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -2555,12 +2729,10 @@ class WorkflowEngineService {
           if (dotIdx === -1) return '';
           const nodeRef = rest.slice(0, dotIdx);
           const field = rest.slice(dotIdx + 1);
-          // Match by nodeId or by node label
           for (const [nid, ndata] of Object.entries(ctx.nodes)) {
             const nodeDef = ctx._wfNodes?.find(n => n.id === nid);
             const labelOrId = nodeDef?.label || nid;
             if (nid === nodeRef || labelOrId === nodeRef) {
-              // $node.X.output → return the whole output object (not getNestedValue on it)
               if (field === 'output') {
                 const out = ndata.output;
                 const val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? JSON.stringify(out ?? ''));
@@ -2572,7 +2744,6 @@ class WorkflowEngineService {
               return String(val ?? '');
             }
           }
-          // Fallback: match "n4" → 4th node by array order (legacy template IDs like n1,n2,n3...)
           const idxMatch = nodeRef.match(/^n(\d+)$/);
           if (idxMatch && ctx._wfNodes) {
             const targetIdx = parseInt(idxMatch[1]) - 1;
@@ -2598,7 +2769,6 @@ class WorkflowEngineService {
       return '';
     });
   }
-
   private getNestedValue(obj: any, path: string): any {
     return path.split('.').reduce((acc, key) => {
       if (acc === null || acc === undefined) return '';
