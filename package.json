@@ -1,6 +1,6 @@
 {
   "name": "zagi",
-  "version": "27.1.5",
+  "version": "27.1.6",
   "description": "Phần mềm desktop Zagi quản lý Zalo Đa tài khoản tích hợp CRM, ERP, POS, Workflow và AI Assistant giúp đội nhóm bán hàng, chăm sóc khách hàng và marketing trên Zalo vận hành tập trung trong một ứng dụng duy nhất.",
   "main": "dist-electron/electron/main.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "patch-icon": "node scripts/patch-electron-icon.js",
     "build:bridge-e2ee": "node scripts/build-bridge-e2ee.js",
     "predev": "npm run build:bridge-e2ee || echo 'WARN: E2EE bridge build failed, app will work without E2EE'",
-    "dev": "npm run build:electron && concurrently -n VITE,TSC,ELECTRON -c cyan,magenta,yellow \"vite\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"wait-on http://localhost:27799 && cross-env NODE_ENV=development electron dist-electron/electron/main.js\"",
+    "dev": "npm run build:electron && concurrently -n VITE,TSC,ELECTRON -c cyan,magenta,yellow \"vite --host 127.0.0.1\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"wait-on -d 1500 http://127.0.0.1:27799 && cross-env NODE_ENV=development electron dist-electron/electron/main.js\"",
     "build:electron": "tsc -p tsconfig.electron.json",
     "build:renderer": "vite build",
     "production": "npm run build:bridge-e2ee && tsc -p tsconfig.electron.prod.json && node scripts/strip-console.js && npm run build:renderer && electron-builder --publish never"

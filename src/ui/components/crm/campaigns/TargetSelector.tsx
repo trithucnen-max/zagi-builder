@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useAppStore } from '@/store/appStore';
 import type { LabelData } from '@/store/appStore';
 import ipc from '@/lib/ipc';
 import ZaloLabelBadge from '../tags/ZaloLabelBadge';
+import GroupAvatar from '@/components/common/GroupAvatar';
 import { formatPhone } from '@/utils/phoneUtils';
 
 export interface LocalLabelItem {
@@ -35,7 +37,8 @@ function normalizePhone(raw: string): string {
 
 
 export default function TargetSelector({ zaloId, allLabels, localLabels, localLabelThreadMap, existingContactIds, onConfirm, onClose, headerContent }: TargetSelectorProps) {
-  const [mode, setMode] = useState<SelectMode>('manual');
+  const [mode, setMode] = useState<SelectMode>('by_label');
+  const groupInfoCache = useAppStore(s => s.groupInfoCache);
   const [selectedZaloLabelIds, setSelectedZaloLabelIds] = useState<number[]>([]);
   const [selectedLocalLabelIds, setSelectedLocalLabelIds] = useState<number[]>([]);
   const [manualSelected, setManualSelected] = useState<Set<string>>(new Set());
@@ -92,11 +95,11 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
     return fetchedThreadMap;
   }, [localLabelThreadMap, fetchedThreadMap]);
 
-  // Load ALL contacts (no pagination limit)
+  // Load ALL contacts (no pagination limit, including friends, non-friends, and groups)
   useEffect(() => {
     if (!zaloId) return;
     setLoading(true);
-    ipc.crm?.getContacts({ zaloId, opts: { limit: 99999, offset: 0 } })
+    ipc.crm?.getContacts({ zaloId, opts: { limit: 99999, offset: 0, contactTypes: ['friend', 'group', 'non_friend'] } })
       .then(res => { if (res?.success) setAllContacts(res.contacts); })
       .finally(() => setLoading(false));
   }, [zaloId]);
@@ -260,7 +263,7 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
           return true;
         });
     }
-    if (mode === 'manual') return available.filter(c => manualSelected.has(c.contact_id));
+    if (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') return available.filter(c => manualSelected.has(c.contact_id));
     return filtered;
   }, [mode, available, manualSelected, filtered, phoneList, phoneResolved, uidList, uidResolved, existingContactIds]);
 
@@ -273,7 +276,21 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
   const toggleLocalLabel = (id: number) => {
     setSelectedLocalLabelIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
-  const selectAllFiltered = () => setManualSelected(new Set(filtered.map(c => c.contact_id)));
+  const allFilteredSelected = useMemo(() =>
+    filtered.length > 0 && filtered.every(c => manualSelected.has(c.contact_id)),
+    [filtered, manualSelected]
+  );
+  const selectAllFiltered = () => {
+    setManualSelected(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filtered.forEach(c => next.delete(c.contact_id));
+      } else {
+        filtered.forEach(c => next.add(c.contact_id));
+      }
+      return next;
+    });
+  };
 
   const removePhone = (phone: string) => {
     setPhoneList(prev => prev.filter(p => p !== phone));
@@ -366,7 +383,6 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
         {/* Mode selector */}
         <div className="flex gap-1 px-4 py-2.5 border-b border-gray-700 flex-shrink-0 overflow-x-auto">
           {([
-            { key: 'manual' as const, label: '☑ Thủ công' },
             { key: 'by_label' as const, label: '🏷️ Theo nhãn' },
             { key: 'by_phone' as const, label: '📞 Theo SĐT' },
             { key: 'by_uid' as const, label: '🔗 Theo UID' },
@@ -650,9 +666,9 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
                   placeholder="Tìm tên, SĐT, UID..."
                   className="w-full bg-gray-700 border border-gray-600 rounded-full pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
               </div>
-              {mode === 'manual' && (
+              {(mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') && (
                 <button onClick={selectAllFiltered} className="text-xs text-blue-400 hover:text-blue-300 flex-shrink-0">
-                  Chọn tất cả ({filtered.length})
+                  {allFilteredSelected ? 'Bỏ chọn tất cả' : `Chọn tất cả (${filtered.length})`}
                 </button>
               )}
             </div>
@@ -670,27 +686,36 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
               ) : (
                 filtered.map(c => {
                   const name = c.alias || c.display_name || c.contact_id;
-                  const isChecked = mode === 'manual' ? manualSelected.has(c.contact_id) : true;
+                  const isChecked = (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') ? manualSelected.has(c.contact_id) : true;
                   const contactLabels = allLabels.filter(l => l.conversations?.includes(c.contact_id));
                   const contactLocalLabelIds = effectiveThreadMap[c.contact_id] || [];
                   const contactLocalLabels = effectiveLocalLabels.filter(l => contactLocalLabelIds.includes(l.id));
                   return (
                     <label key={c.contact_id}
                       className={`flex items-center gap-2.5 px-4 py-2.5 border-b border-gray-700/50 transition-colors ${
-                        mode === 'manual' ? 'cursor-pointer hover:bg-gray-700/40' : 'cursor-default'
-                      } ${isChecked && mode !== 'manual' ? 'bg-blue-500/5' : ''}`}>
-                      {mode === 'manual'
+                        (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') ? 'cursor-pointer hover:bg-gray-700/40' : 'cursor-default'
+                      } ${isChecked && (mode !== 'manual' && mode !== 'friends_only' && mode !== 'groups_only') ? 'bg-blue-500/5' : ''}`}>
+                      {(mode === 'manual' || mode === 'friends_only' || mode === 'groups_only')
                         ? <input type="checkbox" checked={isChecked} onChange={() => toggleManual(c.contact_id)} className="accent-blue-500 flex-shrink-0" />
                         : <span className="w-4 h-4 rounded-full bg-blue-600/30 border border-blue-500/50 flex items-center justify-center flex-shrink-0">
                             <span className="text-blue-400 text-[9px]">✓</span>
                           </span>}
                       {/* Avatar */}
                       <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                        {c.avatar
-                          ? <img src={c.avatar} alt="" className="w-full h-full object-cover" />
-                          : <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                              {name.charAt(0).toUpperCase()}
-                            </div>}
+                        {c.contact_type === 'group' ? (
+                          <GroupAvatar
+                            avatarUrl={c.avatar}
+                            groupInfo={(groupInfoCache[zaloId] || {})[c.contact_id]}
+                            name={name}
+                            size="xs"
+                          />
+                        ) : c.avatar ? (
+                          <img src={c.avatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                            {name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">

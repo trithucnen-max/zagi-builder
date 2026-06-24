@@ -269,7 +269,7 @@ export function registerZaloIpc() {
             }
             Logger.info(`[zaloIpc] getGroupChatHistory: processed ${count}/${msgs.length} messages for group ${p.groupId}`);
         }
-        return { groupMsgsCount: msgs.length };
+        return { groupMsgsCount: msgs.length, groupMsgs: msgs };
     });
 
     // ─── Bạn bè ───────────────────────────────────────────────────────────
@@ -649,6 +649,10 @@ export function registerZaloIpc() {
 
     wrap('zalo:editNote', (s, p) =>
         s.editNote({ title: p.title, topicId: p.topicId, pinAct: p.pinAct }, p.groupId)
+    );
+
+    wrap('zalo:getListBoard', (s, p) =>
+        s.getListBoard(p.options, p.groupId)
     );
 
     // ─── Nhắc hẹn ─────────────────────────────────────────────────────────────

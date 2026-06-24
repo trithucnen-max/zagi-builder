@@ -269,15 +269,95 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
       ? gData.memVerList
       : (gData.memVerList && typeof gData.memVerList === 'object' ? Object.keys(gData.memVerList) : []);
 
-    const rawIds: string[] =
-      (gData.memberIds?.length > 0 ? gData.memberIds : null) ??
-      (gData.currentMems?.length > 0 ? gData.currentMems.map((m: any) => String(m.id || '')) : null) ??
-      (memVerEntries.length > 0 ? memVerEntries : null) ??
-      [];
+    const idsFromMemberIds = (gData.memberIds || []).map((id: any) => String(id).replace(/_0$/, '').trim());
+    const idsFromCurrentMems = (gData.currentMems || []).map((m: any) => String(m.id || '').replace(/_0$/, '').trim());
+    const idsFromMemVer = memVerEntries.map((id: any) => String(id).replace(/_0$/, '').trim());
 
-    memberIds = [...new Set(
-      rawIds.map(id => id.replace(/_0$/, '').trim()).filter(id => /^\d+$/.test(id))
-    )];
+    memberIds = [...new Set([...idsFromMemberIds, ...idsFromCurrentMems, ...idsFromMemVer])].filter(id => /^\d+$/.test(id));
+
+    const isLocked = gData.setting?.lockViewMember === 1 || gData.lockViewMember === 1 || gData.setting?.lockViewMember === true;
+    const totalMember = Number(gData.totalMember || 0);
+
+    // Nếu nhóm bị khóa danh sách hoặc số UID quét được nhỏ hơn tổng số thành viên thực tế
+    // -> Kích hoạt công nghệ Quét Bóng Thụ Động (Passive Shadow Scanning - PSS)
+    if (isLocked || (totalMember > 0 && memberIds.length < totalMember) || memberIds.length <= 5) {
+      console.log(`[zaloGroupUtils] Group ${groupId} is locked or incomplete (found ${memberIds.length}/${totalMember}) -> running Passive Shadow Scanning (PSS)...`);
+      const tempIds = new Set<string>(memberIds);
+
+      // 1. Quét lịch sử trò chuyện (100 tin nhắn gần nhất)
+      try {
+        const histRes = await ipc.zalo?.getGroupChatHistory({ auth, groupId, count: 100 });
+        const msgs = histRes?.response?.groupMsgs || [];
+        for (const msg of msgs) {
+          const senderId = msg.data?.uidFrom || msg.senderId;
+          if (senderId) {
+            const uid = String(senderId).replace(/_0$/, '').trim();
+            if (/^\d+$/.test(uid)) tempIds.add(uid);
+          }
+        }
+      } catch (e) {
+        console.warn('[zaloGroupUtils] getGroupChatHistory error:', e);
+      }
+
+      // 2. Quét bảng tin nhóm để tìm người viết bài, comment, reactions
+      try {
+        const boardRes = await ipc.zalo?.getListBoard({ auth, options: { page: 1, count: 50 }, groupId });
+        const items = boardRes?.response?.items || [];
+        const pollIds: string[] = [];
+        for (const item of items) {
+          const creatorId = item.data?.creatorId || item.data?.params?.senderUid;
+          if (creatorId) {
+            const uid = String(creatorId).replace(/_0$/, '').trim();
+            if (/^\d+$/.test(uid)) tempIds.add(uid);
+          }
+          // Comments
+          const comments = item.data?.comments || item.comments || [];
+          comments.forEach((c: any) => {
+            const cUid = c.creatorId || c.uid || c.userId;
+            if (cUid) {
+              const uid = String(cUid).replace(/_0$/, '').trim();
+              if (/^\d+$/.test(uid)) tempIds.add(uid);
+            }
+          });
+          // Reactions
+          const likes = item.data?.likes || item.likes || [];
+          likes.forEach((l: any) => {
+            const lUid = l.userId || l.uid;
+            if (lUid) {
+              const uid = String(lUid).replace(/_0$/, '').trim();
+              if (/^\d+$/.test(uid)) tempIds.add(uid);
+            }
+          });
+          // Lấy Poll ID nếu có (BoardType.Poll = 3)
+          const pId = item.data?.poll_id || (item.boardType === 3 ? item.data?.id : null);
+          if (pId) {
+            pollIds.push(String(pId));
+          }
+        }
+
+        // 3. Quét chi tiết các bình chọn (Poll)
+        for (const pollId of pollIds) {
+          try {
+            const pollRes = await ipc.zalo?.getPollDetail({ auth, pollId });
+            const pollData = pollRes?.response?.data || pollRes?.response || {};
+            const options = pollData.options || [];
+            for (const opt of options) {
+              const voters = opt.voters || opt.userIds || [];
+              for (const voter of voters) {
+                const uid = String(voter.userId || voter).replace(/_0$/, '').trim();
+                if (/^\d+$/.test(uid)) tempIds.add(uid);
+              }
+            }
+          } catch (e) {
+            console.warn('[zaloGroupUtils] getPollDetail error:', e);
+          }
+        }
+      } catch (e) {
+        console.warn('[zaloGroupUtils] getListBoard error:', e);
+      }
+
+      memberIds = [...tempIds];
+    }
 
     if (memberIds.length === 0) {
       console.warn('[zaloGroupUtils] No UIDs from getGroupInfo for:', groupId);
@@ -406,10 +486,11 @@ async function _syncAllGroups(opts: SyncGroupsOptions): Promise<void> {
       const memVerEntries: string[] = Array.isArray(info.memVerList)
         ? info.memVerList
         : (info.memVerList && typeof info.memVerList === 'object' ? Object.keys(info.memVerList) : []);
-      const idsToSave =
-        rawMemberIds.length > 0 ? rawMemberIds :
-        currentMems.length > 0 ? currentMems.map((m: any) => String(m.id || '')) :
-        memVerEntries;
+      const idsFromMemberIds = rawMemberIds.map((id: any) => String(id).replace(/_0$/, '').trim());
+      const idsFromCurrentMems = currentMems.map((m: any) => String(m.id || '').replace(/_0$/, '').trim());
+      const idsFromMemVer = memVerEntries.map((id: any) => String(id).replace(/_0$/, '').trim());
+
+      const idsToSave = [...new Set([...idsFromMemberIds, ...idsFromCurrentMems, ...idsFromMemVer])].filter(id => /^\d+$/.test(id));
 
       const adminSet = new Set([...adminIds, ...adminIds.map((a: string) => a.replace(/_0$/, ''))]);
       const creatorSet = new Set([creatorId, creatorId.replace(/_0$/, '')]);

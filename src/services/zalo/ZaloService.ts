@@ -1801,6 +1801,11 @@ export default class ZaloService {
         try { return await (this.api as any).editNote(options, groupId); } catch (error) { throw error; }
     }
 
+    public async getListBoard(options: any, groupId: string): Promise<any> {
+        if (!this.api) throw new Error("API not initialized");
+        try { return await (this.api as any).getListBoard(options, groupId); } catch (error) { throw error; }
+    }
+
     // ─── Phê duyệt thành viên nhóm ───────────────────────────────────────────
     public async reviewPendingMemberRequest(payload: any, groupId: string): Promise<any> {
         if (!this.api) throw new Error("API not initialized");

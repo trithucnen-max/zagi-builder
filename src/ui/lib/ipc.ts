@@ -112,6 +112,7 @@ declare global {
         removeUnreadMark: (params: any) => Promise<any>;
         createPoll: (params: any) => Promise<any>;
         getPollDetail: (params: any) => Promise<any>;
+        getListBoard: (params: any) => Promise<any>;
         lockPoll: (params: any) => Promise<any>;
         doVotePoll: (params: any) => Promise<any>;
         addPollOption: (params: any) => Promise<any>;
@@ -250,6 +251,8 @@ declare global {
         saveCampaign: (params: { zaloId: string; campaign: any }) => Promise<{ success: boolean; id: number }>;
         deleteCampaign: (params: { zaloId: string; campaignId: number }) => Promise<{ success: boolean }>;
         cloneCampaign: (params: { zaloId: string; campaignId: number; includeContacts: boolean; newName?: string }) => Promise<{ success: boolean; id: number; error?: string }>;
+        restartCampaign: (params: { zaloId: string; campaignId: number }) => Promise<{ success: boolean; error?: string }>;
+        retryFailedContacts: (params: { zaloId: string; campaignId: number }) => Promise<{ success: boolean; error?: string }>;
         updateCampaignStatus: (params: { campaignId: number; status: string }) => Promise<{ success: boolean }>;
         addCampaignContacts: (params: { zaloId: string; campaignId: number; contacts: any[] }) => Promise<{ success: boolean }>;
         removeCampaignContacts: (params: { zaloId: string; campaignId: number; contactIds: string[] }) => Promise<{ success: boolean }>;

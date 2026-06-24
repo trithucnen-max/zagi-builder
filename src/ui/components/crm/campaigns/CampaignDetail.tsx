@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import type { CRMCampaign } from '@/store/crmStore';
 import type { LabelData } from '@/store/appStore';
+import { showConfirm } from '@/components/common/ConfirmDialog';
 import ipc from '@/lib/ipc';
 import TargetSelector from './TargetSelector';
 import CampaignCreateModal from './CampaignCreateModal';
@@ -52,6 +53,11 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
 
+  // Reload when total contacts or sent count changes (e.g. from bulk actions or background queue)
+  useEffect(() => {
+    loadContacts();
+  }, [campaign.total_contacts, campaign.sent_count, loadContacts]);
+
   // Reset selection when campaign changes
   useEffect(() => { setSelectedIds(new Set()); }, [campaign.id]);
 
@@ -75,6 +81,71 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
     const toAdd = selected.map(c => ({ contactId: c.contact_id, displayName: c.alias || c.display_name, avatar: c.avatar, phone: c.phone || '' }));
     await onAddContacts(campaign.id, toAdd);
     await loadContacts();
+  };
+
+  // Thống kê chiến dịch gửi
+  const stats = useMemo(() => {
+    const total = contacts.length;
+    const sentCount = contacts.filter(c => c.status === 'sent').length;
+    const failedCount = contacts.filter(c => c.status === 'failed').length;
+    const pendingCount = contacts.filter(c => c.status === 'pending').length;
+    const sendingCount = contacts.filter(c => c.status === 'sending').length;
+
+    // Phân tích lý do lỗi phổ biến
+    const errorMap: Record<string, number> = {};
+    contacts.forEach(c => {
+      if (c.status === 'failed' && c.error) {
+        const err = c.error.trim();
+        errorMap[err] = (errorMap[err] || 0) + 1;
+      }
+    });
+    const failedReasons = Object.entries(errorMap)
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return { total, sentCount, failedCount, pendingCount, sendingCount, failedReasons };
+  }, [contacts]);
+
+  const handleRetryFailures = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const res = await ipc.crm?.retryFailedContacts({ zaloId, campaignId: campaign.id });
+      if (res?.success) {
+        await loadContacts();
+      } else {
+        console.error('[CampaignDetail] Retry failed contacts error:', res?.error);
+      }
+    } catch (err) {
+      console.error('[CampaignDetail] Retry failed contacts exception:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestartCampaign = async () => {
+    if (loading) return;
+    const ok = await showConfirm({
+      title: 'Chạy lại chiến dịch?',
+      message: `Bạn có chắc chắn muốn chạy lại toàn bộ chiến dịch này từ đầu? Tất cả trạng thái gửi và lịch sử gửi cũ của chiến dịch này sẽ được đặt lại.`,
+      variant: 'warning',
+      confirmText: 'Chạy lại',
+    });
+    if (!ok) return;
+
+    setLoading(true);
+    try {
+      const res = await ipc.crm?.restartCampaign({ zaloId, campaignId: campaign.id });
+      if (res?.success) {
+        await loadContacts();
+      } else {
+        console.error('[CampaignDetail] Restart campaign error:', res?.error);
+      }
+    } catch (err) {
+      console.error('[CampaignDetail] Restart campaign exception:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Only pending contacts can be selected & removed
@@ -202,6 +273,81 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
             <span className="text-[11px] text-emerald-400 font-medium tabular-nums">
               {campaign.sent_today_count ?? 0}/{campaign.daily_send_limit}
             </span>
+          </div>
+        )}
+
+        {/* Campaign summary report (Only show for active, paused, done) */}
+        {campaign.status !== 'draft' && stats.total > 0 && (
+          <div className="mt-3 p-3 bg-gray-900/50 border border-gray-700/60 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                📊 Báo cáo chiến dịch
+                {campaign.status === 'done' && (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">Hoàn thành</span>
+                )}
+                {campaign.status === 'active' && (
+                  <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 animate-pulse">Đang chạy</span>
+                )}
+                {campaign.status === 'paused' && (
+                  <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/30">Tạm dừng</span>
+                )}
+              </span>
+              
+              {/* Reset/Retry actions inside the report */}
+              <div className="flex gap-2">
+                {stats.failedCount > 0 && (campaign.status === 'done' || campaign.status === 'paused') && (
+                  <button
+                    onClick={handleRetryFailures}
+                    className="text-[10px] px-2 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-lg transition-colors flex items-center gap-1 font-medium"
+                    title="Gửi lại cho các liên hệ bị lỗi">
+                    🔄 Gửi bù lỗi ({stats.failedCount})
+                  </button>
+                )}
+                {campaign.status === 'done' && (
+                  <button
+                    onClick={handleRestartCampaign}
+                    className="text-[10px] px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 rounded-lg transition-colors flex items-center gap-1 font-medium"
+                    title="Gửi lại toàn bộ liên hệ từ đầu">
+                    🔁 Chạy lại
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Stat counts grid */}
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="p-1.5 bg-gray-800/40 rounded-lg border border-gray-700/40">
+                <p className="text-[9px] text-gray-500 font-medium">Tổng số</p>
+                <p className="text-xs font-semibold text-gray-200 mt-0.5">{stats.total}</p>
+              </div>
+              <div className="p-1.5 bg-emerald-950/20 rounded-lg border border-emerald-900/20">
+                <p className="text-[9px] text-emerald-500 font-medium">Thành công</p>
+                <p className="text-xs font-semibold text-emerald-400 mt-0.5">{stats.sentCount}</p>
+              </div>
+              <div className="p-1.5 bg-rose-950/20 rounded-lg border border-rose-900/20">
+                <p className="text-[9px] text-rose-500 font-medium">Thất bại</p>
+                <p className="text-xs font-semibold text-rose-400 mt-0.5">{stats.failedCount}</p>
+              </div>
+              <div className="p-1.5 bg-gray-800/40 rounded-lg border border-gray-700/40">
+                <p className="text-[9px] text-gray-500 font-medium">Đang chờ</p>
+                <p className="text-xs font-semibold text-gray-400 mt-0.5">{stats.pendingCount + stats.sendingCount}</p>
+              </div>
+            </div>
+
+            {/* Failures reasons summary */}
+            {stats.failedReasons.length > 0 && (
+              <div className="bg-gray-800/20 p-2 rounded-lg border border-gray-700/20">
+                <p className="text-[9px] text-rose-400 font-semibold uppercase tracking-wider mb-1">⚠️ Chi tiết lỗi gửi:</p>
+                <div className="space-y-1 max-h-[80px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                  {stats.failedReasons.map(({ reason, count }) => (
+                    <div key={reason} className="flex justify-between items-start text-[11px] text-gray-400 leading-normal gap-2">
+                      <span className="truncate flex-1">• {reason}</span>
+                      <span className="font-mono text-[9px] bg-rose-500/10 text-rose-400 border border-rose-500/20 px-1 rounded flex-shrink-0 font-medium">{count} lượt</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

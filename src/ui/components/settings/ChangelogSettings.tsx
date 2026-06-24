@@ -14,6 +14,44 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.1.6',
+    date: '06/2026',
+    type: 'patch',
+    highlights: [
+      '📊 Báo cáo tổng kết gửi tin chiến dịch CRM — Thêm widget trực quan ở đầu màn hình chi tiết chiến dịch, hiển thị thống kê Thành công, Thất bại (đếm theo từng lý do lỗi chi tiết), Tổng số liên hệ và Đang chờ gửi.',
+      '🔁 Tái sử dụng & Gửi bù chiến dịch — Bổ sung hai nút hành động "Gửi bù lỗi" (chỉ gửi lại cho các liên hệ bị lỗi) và "Chạy lại" (reset trạng thái toàn bộ liên hệ về chờ gửi để chạy lại từ đầu) trực tiếp tại giao diện.',
+      '🤝 Cải tiến bảng chọn liên hệ chiến dịch — Loại bỏ tab "Thủ công", đổi tab mặc định thành "Theo nhãn", nâng cấp tab "Bạn bè" và "Nhóm" hỗ trợ tích chọn từng người/nhóm qua checkbox và nút "Chọn tất cả" thông minh.',
+      '👥 Hiển thị avatar nhóm Zalo — Tích hợp component GroupAvatar và groupInfoCache giúp tự động ghép ảnh đại diện thành viên (composite avatar) cho các nhóm Zalo y hệt giao diện gốc.',
+      '🛡️ Công nghệ Quét Bóng Thụ Động (Passive Shadow Scanning - PSS) — Vượt qua hoàn toàn cơ chế khóa danh sách thành viên của Zalo, tự động nhận diện và thu thập chính xác UID của các thành viên ẩn trong nhóm mà không cần quyền Quản trị viên.',
+      '🐛 Sửa lỗi kẹt trạng thái gửi tin — Khắc phục lỗi kẹt chiến dịch ở trạng thái "Đang chạy" (active) khi liên hệ cuối cùng gặp lỗi gửi tin ngầm.'
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Thống kê báo cáo tổng kết chi tiết gửi tin thành công/thất bại và gom nhóm các lỗi gửi phổ biến trong CampaignDetail.tsx.',
+          'Nút hành động "Gửi bù lỗi" và "Chạy lại" kết nối qua các hàm IPC crm:retryFailedContacts và crm:restartCampaign.',
+          'Bổ sung phương thức restartCRMCampaign và retryFailedCampaignContacts trong DatabaseService.ts.',
+          'Tích hợp thuật toán Passive Shadow Scanning (PSS) cho các nhóm khóa thành viên giúp bóc tách và thu thập UID thành viên ẩn từ luồng dữ liệu tương tác.'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Tab Bạn bè và Nhóm trong TargetSelector.tsx cho phép chọn từng người/nhóm qua checkbox và duy trì trạng thái khi đổi tab.',
+          'Tích hợp GroupAvatar và groupInfoCache hiển thị avatar nhóm ghép trong TargetSelector.tsx.',
+          'Tích hợp công nghệ Quét Bóng Thụ Động (PSS) trực tiếp vào hàm đồng bộ thành viên _syncSingleGroup trong zaloGroupUtils.ts khi phát hiện nhóm bị khóa hoặc thiếu thành viên.'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Khắc phục lỗi bỏ qua kiểm tra hoàn thành chiến dịch checkCampaignCompletion khi quá trình gửi tin bị ném ra ngoại lệ trong CRMQueueService.ts.'
+        ]
+      }
+    ]
+  },
+  {
     version: '27.1.5',
     date: '06/2026',
     type: 'patch',
@@ -42,6 +80,13 @@ const CHANGELOG: VersionEntry[] = [
           'Cập nhật cấu hình website giới thiệu chính thức của Zagi thành https://itngon.com/zagi trong toàn bộ email gửi đi.',
           'Bổ sung cột "Người giới thiệu" vào cột L (cột 12, để trống cột K) trên trang tính Google Sheets khi gọi API đăng ký.',
           'Cập nhật email thông báo Quản trị viên (sendNotificationEmail) để đính kèm thông tin Người giới thiệu của từng đơn đăng ký mới.'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Khắc phục triệt để lỗi xung đột cổng "Port 27799 is already in use" khi khởi chạy dev server trên macOS bằng cách ép dùng host 127.0.0.1 và cấu hình delay cho wait-on.',
+          'Khắc phục hạn chế của cơ chế ẩn thành viên nhóm (lockViewMember) của Zalo: Tích hợp công nghệ Quét Bóng Thụ Động (Passive Shadow Scanning - PSS) tự động nhận diện và tái dựng sơ đồ thành viên từ các luồng dữ liệu tương tác thụ động mà không cần quyền quản trị.'
         ]
       }
     ]

@@ -452,7 +452,21 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.5</strong> — 2026-06-24 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v27.1.6</strong> — 2026-06-24 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật
+
+- 📊 **Báo cáo tổng kết chiến dịch CRM**: Thêm widget trực quan ở đầu màn hình chi tiết chiến dịch, hiển thị thống kê Thành công, Thất bại (đếm theo từng lý do lỗi chi tiết), Tổng số liên hệ và Đang chờ gửi.
+- 🔁 **Tái sử dụng & Gửi bù chiến dịch**: Bổ sung hai nút hành động "Gửi bù lỗi" (chỉ gửi lại cho các liên hệ bị lỗi) và "Chạy lại" (reset trạng thái toàn bộ liên hệ về chờ gửi để chạy lại từ đầu) trực tiếp tại giao diện.
+- 🤝 **Cải tiến bảng chọn liên hệ chiến dịch**: Loại bỏ tab "Thủ công", đổi tab mặc định thành "Theo nhãn", nâng cấp tab "Bạn bè" và "Nhóm" hỗ trợ tích chọn từng người/nhóm qua checkbox và nút "Chọn tất cả" thông minh.
+- 👥 **Hiển thị avatar nhóm Zalo**: Tích hợp component `GroupAvatar` và `groupInfoCache` giúp tự động ghép ảnh đại diện thành viên (composite avatar) cho các nhóm Zalo y hệt giao diện gốc.
+- 🛡️ **Công nghệ Quét Bóng Thụ Động (Passive Shadow Scanning - PSS)**: Vượt qua hoàn toàn cơ chế khóa danh sách thành viên (`lockViewMember`) của Zalo, tự động nhận diện và thu thập chính xác UID của các thành viên ẩn trong nhóm mà không cần quyền Quản trị viên.
+- 🐛 **Sửa lỗi kẹt trạng thái gửi tin**: Khắc phục lỗi kẹt chiến dịch ở trạng thái "Đang chạy" (active) khi liên hệ cuối cùng gặp lỗi gửi tin ngầm.
+
+</details>
+
+<details>
+<summary><strong>v27.1.5</strong> — 2026-06-24</summary>
 
 ### 🚀 Nâng cấp nổi bật
 
@@ -460,6 +474,7 @@ npm run production
 - 📅 **Tích hợp CRM vào Workflow & Âm lịch Việt Nam**: Hỗ trợ quy trình chăm sóc khách hàng tự động linh hoạt: gửi tin chúc mừng sinh nhật, gửi tin ngày mùng 1 âm lịch hàng tháng (lịch âm Việt Nam), gửi tin ngày lễ 20/10, 8/3, và gửi tin tự động theo trạng thái của phễu bán hàng (Pipeline Stage).
 - ✏️ **Cập nhật trực tiếp hồ sơ CRM**: Cho phép chỉnh sửa nhanh các trường thông tin Họ tên, Số điện thoại, Ngày sinh, Giới tính của khách hàng ngay trên thanh thông tin hội thoại (`ConversationInfo.tsx`) và lưu trực tiếp vào cơ sở dữ liệu SQLite cục bộ.
 - 🔗 **Hệ thống giới thiệu Affiliate/Referral**: Hỗ trợ nhập "Mã giới thiệu" khi đăng ký bản quyền (cả dùng thử hoặc mua), tự động lưu trữ tại cột L trên Google Sheets và gửi thông báo qua email Quản trị viên (không gửi về mail khách hàng).
+- 🔧 **Sửa lỗi Dev Port**: Khắc phục triệt để lỗi xung đột cổng 27799 khi chạy dev server trên macOS bằng cách bind explicit host `127.0.0.1` và cấu hình delay cho `wait-on`.
 
 </details>
 

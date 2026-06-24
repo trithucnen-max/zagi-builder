@@ -1,0 +1,7 @@
+Starting chat history test...
+Fetching chat history for group: 7331716041960632104...
+Failed: Request failed with status code 404
+Error stack: ZcaApiError: Request failed with status code 404
+    at resolveResponse (file:///Users/kimtrungduong/Downloads/deplao/node_modules/zca-js/dist/utils.js:616:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+Done.

@@ -4980,6 +4980,36 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] cloneCRMCampaign: ${err.message}`); return 0; }
     }
 
+    public restartCRMCampaign(campaignId: number): void {
+        if (!this.initialized) return;
+        try {
+            this.run(
+                `UPDATE crm_campaign_contacts SET status='pending', sent_at=0, retry_count=0, error='' WHERE campaign_id=?`,
+                [campaignId]
+            );
+            this.run(
+                `UPDATE crm_campaigns SET status='active', updated_at=? WHERE id=?`,
+                [Date.now(), campaignId]
+            );
+            this.save();
+        } catch (err: any) { Logger.error(`[DB] restartCRMCampaign: ${err.message}`); }
+    }
+
+    public retryFailedCampaignContacts(campaignId: number): void {
+        if (!this.initialized) return;
+        try {
+            this.run(
+                `UPDATE crm_campaign_contacts SET status='pending', sent_at=0, retry_count=0, error='' WHERE campaign_id=? AND status='failed'`,
+                [campaignId]
+            );
+            this.run(
+                `UPDATE crm_campaigns SET status='active', updated_at=? WHERE id=?`,
+                [Date.now(), campaignId]
+            );
+            this.save();
+        } catch (err: any) { Logger.error(`[DB] retryFailedCampaignContacts: ${err.message}`); }
+    }
+
     public addCampaignContacts(campaignId: number, ownerZaloId: string, contacts: Array<{ contactId: string; displayName?: string; avatar?: string; phone?: string }>): void {
         if (!this.initialized || !contacts.length) return;
         try {

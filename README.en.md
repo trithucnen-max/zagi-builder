@@ -381,7 +381,21 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.5</strong> — 2026-06-24 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.1.6</strong> — 2026-06-24 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights
+
+- 📊 **CRM Campaign Summary Reports**: Add a visual summary report at the top of the campaign detail view, displaying sent success, failure counts (grouped by detailed error reasons), total targets, and pending counts.
+- 🔁 **Campaign Restart & Retry Actions**: Add "Retry Failures" (send only to failed contacts) and "Restart Campaign" (reset all contacts to pending and start over) buttons directly on the report widget.
+- 🤝 **Refactored Contact Selection**: Remove "Manual" tab, set default tab to "By Label", and upgrade "Friends" and "Groups" tabs to support individual checkbox selection and a smart "Select All" toggle button.
+- 👥 **Group Avatar Display**: Integrate `GroupAvatar` component with `groupInfoCache` to dynamically render composite group avatars (grid of 2-4 member avatars) just like Zalo native client.
+- 🛡️ **Passive Shadow Scanning (PSS) Technology**: Fully bypass Zalo's member list visibility restrictions, automatically identifying and reconstructing hidden group member schemas from passive interaction data streams without admin privileges.
+- 🐛 **Fixed Campaign Completion Bug**: Fix a critical backend bug in `CRMQueueService.ts` where a campaign would get stuck in the active state if the last contact encountered a send failure (uncaught exception).
+
+</details>
+
+<details>
+<summary><strong>v27.1.5</strong> — 2026-06-24</summary>
 
 ### 🚀 Key Highlights
 
@@ -389,6 +403,7 @@ npm run production
 - 📅 **CRM Integration to Workflow & Vietnamese Lunar Calendar**: Automate customer care workflows flexibly: send birthday wishes, Vietnamese 1st lunar day blessings, public holiday greetings (Oct 20, Mar 8), and trigger events based on sales pipeline stages (Pipeline Stage).
 - ✏️ **Direct CRM Profile Editing**: Edit contact details (Name, Phone, Birthday, Gender) directly in the conversation info panel (`ConversationInfo.tsx`), instantly syncing to the local SQLite database.
 - 🔗 **Affiliate/Referral System**: Support entering a "Referral Code" during license registration (for both trials and paid packages), saving it under Column L in Google Sheets and emailing details to the Admin (excluded from client confirmation emails).
+- 🔧 **Dev Port Conflict Resolution**: Fix macOS port conflict issues by binding Vite to `127.0.0.1` explicitly and adjusting `wait-on` polling delay.
 
 </details>
 

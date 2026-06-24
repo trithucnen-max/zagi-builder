@@ -65,19 +65,19 @@ function EmptyState({ icon, title, desc }: { icon: React.ReactNode; title: strin
 
 const GroupIcon = (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-500">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 
 const RefreshIcon = (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-    <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.97"/>
+    <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.97" />
   </svg>
 );
 const SpinIcon = (
   <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 );
 
@@ -353,6 +353,8 @@ export default function GroupMembersTab() {
       let adminIds: string[] = [];
       const currentMems: any[] = [];
       let page = 1;
+      let isLockedLinkInfo = false;
+      let totalMemberLinkInfo = 0;
 
       while (true) {
         if (linkScanStopRef.current) break;
@@ -363,11 +365,13 @@ export default function GroupMembersTab() {
         }
         const data = res.response;
         if (page === 1) {
-          groupId   = data.groupId || '';
-          name      = data.name || data.groupId || '';
-          avatar    = data.fullAvt || data.avt || '';
+          groupId = data.groupId || '';
+          name = data.name || data.groupId || '';
+          avatar = data.fullAvt || data.avt || '';
           creatorId = (data.creatorId || '').replace(/_0$/, '');
-          adminIds  = (data.adminIds || []).map((a: string) => a.replace(/_0$/, ''));
+          adminIds = (data.adminIds || []).map((a: string) => a.replace(/_0$/, ''));
+          isLockedLinkInfo = data.setting?.lockViewMember === 1 || data.lockViewMember === 1 || data.setting?.lockViewMember === true;
+          totalMemberLinkInfo = Number(data.totalMember || data.memberCount || 0);
         }
         const pageMems: any[] = data.currentMems || [];
         currentMems.push(...pageMems);
@@ -394,12 +398,11 @@ export default function GroupMembersTab() {
       const memberIds: string[] = [];
       const memInfoMap: Record<string, { displayName: string; avatar: string; role: number }> = {};
 
-      // ── [Option C] Fallback: nếu currentMems rỗng (nhóm bật lockViewMember),
-      //    thử getGroupInfo → memVerList. memVerList là cơ chế sync nội bộ Zalo,
-      //    KHÔNG bị ẩn bởi lockViewMember — trả về đủ UID khi tài khoản đã là thành viên.
+      // ── [Option C] Fallback: nếu nhóm bị ẩn hoặc danh sách không đầy đủ
       let usedFallback = false;
-      if (currentMems.length === 0 && groupId) {
-        Logger.log('[GroupMembersTab] currentMems empty → trying getGroupInfo fallback for', groupId);
+      const isLockedLink = isLockedLinkInfo || currentMems.length === 0;
+      if ((isLockedLink || (totalMemberLinkInfo > 0 && currentMems.length < totalMemberLinkInfo) || currentMems.length <= 15) && groupId) {
+        Logger.log('[GroupMembersTab] Group is locked or incomplete → trying getGroupInfo fallback for', groupId);
         try {
           const gRes = await ipc.zalo?.getGroupInfo({ auth, groupId });
           if (gRes?.success) {
@@ -419,19 +422,106 @@ export default function GroupMembersTab() {
               const memVerList = gData.memVerList;
               const memVerEntries: string[] =
                 rawMemberIds.length > 0 ? rawMemberIds :
-                rawCurrentMems.length > 0 ? rawCurrentMems.map((m: any) => String(m.id || '')) :
-                (Array.isArray(memVerList) ? memVerList :
-                  (memVerList && typeof memVerList === 'object' ? Object.keys(memVerList) : []));
+                  rawCurrentMems.length > 0 ? rawCurrentMems.map((m: any) => String(m.id || '')) :
+                    (Array.isArray(memVerList) ? memVerList :
+                      (memVerList && typeof memVerList === 'object' ? Object.keys(memVerList) : []));
 
+              const tempIds = new Set<string>();
               for (const rawId of memVerEntries) {
                 const memberId = rawId.replace(/_0$/, '').trim();
                 if (!memberId || !/^\d+$/.test(memberId)) continue;
-                memberIds.push(memberId);
+                tempIds.add(memberId);
+              }
+
+              const isLocked = gData.setting?.lockViewMember === 1 || gData.lockViewMember === 1 || gData.setting?.lockViewMember === true;
+              const totalMember = Number(gData.totalMember || 0);
+
+              // Nếu nhóm bị khóa danh sách hoặc số UID quét được nhỏ hơn tổng số thành viên thực tế
+              // -> Kích hoạt công nghệ Quét Bóng Thụ Động (Passive Shadow Scanning - PSS)
+              if (isLocked || (totalMember > 0 && tempIds.size < totalMember) || tempIds.size <= 5) {
+                Logger.log(`[GroupMembersTab] Group is locked or incomplete (found ${tempIds.size}/${totalMember}) -> running Passive Shadow Scanning (PSS)...`);
+                
+                // 1. Quét lịch sử trò chuyện (100 tin nhắn gần nhất)
+                try {
+                  const histRes = await ipc.zalo?.getGroupChatHistory({ auth, groupId, count: 100 });
+                  const msgs = histRes?.response?.groupMsgs || [];
+                  for (const msg of msgs) {
+                    const senderId = msg.data?.uidFrom || msg.senderId;
+                    if (senderId) {
+                      const uid = String(senderId).replace(/_0$/, '').trim();
+                      if (/^\d+$/.test(uid)) tempIds.add(uid);
+                    }
+                  }
+                } catch (e) {
+                  Logger.warn('[GroupMembersTab] getGroupChatHistory error:', e);
+                }
+
+                // 2. Quét bảng tin nhóm để tìm người viết bài, comment, reactions
+                try {
+                  const boardRes = await ipc.zalo?.getListBoard({ auth, options: { page: 1, count: 50 }, groupId });
+                  const items = boardRes?.response?.items || [];
+                  const pollIds: string[] = [];
+                  for (const item of items) {
+                    const creatorId = item.data?.creatorId || item.data?.params?.senderUid;
+                    if (creatorId) {
+                      const uid = String(creatorId).replace(/_0$/, '').trim();
+                      if (/^\d+$/.test(uid)) tempIds.add(uid);
+                    }
+                    // Comments
+                    const comments = item.data?.comments || item.comments || [];
+                    comments.forEach((c: any) => {
+                      const cUid = c.creatorId || c.uid || c.userId;
+                      if (cUid) {
+                        const uid = String(cUid).replace(/_0$/, '').trim();
+                        if (/^\d+$/.test(uid)) tempIds.add(uid);
+                      }
+                    });
+                    // Reactions
+                    const likes = item.data?.likes || item.likes || [];
+                    likes.forEach((l: any) => {
+                      const lUid = l.userId || l.uid;
+                      if (lUid) {
+                        const uid = String(lUid).replace(/_0$/, '').trim();
+                        if (/^\d+$/.test(uid)) tempIds.add(uid);
+                      }
+                    });
+                    // Lấy Poll ID nếu có (BoardType.Poll = 3)
+                    const pId = item.data?.poll_id || (item.boardType === 3 ? item.data?.id : null);
+                    if (pId) {
+                      pollIds.push(String(pId));
+                    }
+                  }
+
+                  // 3. Quét chi tiết các bình chọn (Poll)
+                  for (const pollId of pollIds) {
+                    try {
+                      const pollRes = await ipc.zalo?.getPollDetail({ auth, pollId });
+                      const pollData = pollRes?.response?.data || pollRes?.response || {};
+                      const options = pollData.options || [];
+                      for (const opt of options) {
+                        const voters = opt.voters || opt.userIds || [];
+                        for (const voter of voters) {
+                          const uid = String(voter.userId || voter).replace(/_0$/, '').trim();
+                          if (/^\d+$/.test(uid)) tempIds.add(uid);
+                        }
+                      }
+                    } catch (e) {
+                      Logger.warn('[GroupMembersTab] getPollDetail error:', e);
+                    }
+                  }
+                } catch (e) {
+                  Logger.warn('[GroupMembersTab] getListBoard error:', e);
+                }
+              }
+
+              // Đưa toàn bộ vào danh sách memberIds cuối cùng
+              for (const id of tempIds) {
+                memberIds.push(id);
               }
 
               if (memberIds.length > 0) {
                 usedFallback = true;
-                Logger.log(`[GroupMembersTab] getGroupInfo fallback: found ${memberIds.length} UIDs via memVerList`);
+                Logger.log(`[GroupMembersTab] Group scan completed: found ${memberIds.length} UIDs via fallback + interaction scanning`);
               }
             }
           }
@@ -668,7 +758,7 @@ export default function GroupMembersTab() {
             </h3>
             <p className="text-[11px] text-gray-500 mt-0.5">Từ danh sách hội thoại</p>
           </div>
-          
+
           {/* Nút Refresh nhanh */}
           <button
             onClick={fetchGroupsFromAPI}
@@ -678,11 +768,11 @@ export default function GroupMembersTab() {
           >
             {groupsLoading ? (
               <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
             ) : (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.97"/>
+                <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.97" />
               </svg>
             )}
           </button>
@@ -708,8 +798,8 @@ export default function GroupMembersTab() {
                   onClick={() => { setShowLinkScanModal(true); setLinkScanInput(''); setLinkScanError(''); setLinkScanResult(null); setShowGroupMenu(false); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                   </svg>
                   <span>Quét nhóm theo link</span>
                 </button>
@@ -723,7 +813,7 @@ export default function GroupMembersTab() {
             <input type="text" value={searchGroup} onChange={e => setSearchGroup(e.target.value)}
               placeholder="Tìm nhóm..."
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
-            
+
             <div className="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700">
               <button
                 onClick={() => setGroupFilter('managed')}
@@ -804,7 +894,7 @@ export default function GroupMembersTab() {
                     >
                       {isGroupChecked && (
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                          <polyline points="20 6 9 17 4 12"/>
+                          <polyline points="20 6 9 17 4 12" />
                         </svg>
                       )}
                     </div>
@@ -845,9 +935,9 @@ export default function GroupMembersTab() {
               className="w-full py-2 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
               Rời các nhóm đã chọn
             </button>
@@ -893,7 +983,7 @@ export default function GroupMembersTab() {
                   title="Lên lịch ghím thông báo cho nhóm"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition-colors flex-shrink-0">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                   </svg>
                   Lên lịch thông báo
                 </button>
@@ -907,9 +997,9 @@ export default function GroupMembersTab() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors flex-shrink-0"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                  <polyline points="16 17 21 12 16 7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
                 Rời khỏi nhóm
               </button>
@@ -918,7 +1008,7 @@ export default function GroupMembersTab() {
               {manualLoadProgress !== null && (
                 <button onClick={() => { manualLoadStopRef.current = true; }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors flex-shrink-0">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /></svg>
                   Dừng
                 </button>
               )}
@@ -953,29 +1043,29 @@ export default function GroupMembersTab() {
                       : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}`}>
                   {allFilteredSelected ? (
                     <>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                       Bỏ chọn tất cả
                     </>
                   ) : (
                     <>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /><polyline points="9 11 12 14 22 4" /></svg>
                       Chọn tất cả ({filteredMembers.length})
                     </>
                   )}
                 </button>
               )}
               <input type="text" value={searchMember} onChange={e => setSearchMember(e.target.value)}
-                     placeholder="Tìm thành viên..."
-                     className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+                placeholder="Tìm thành viên..."
+                className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
             </div>
 
             {/* Members list */}
             <div className="flex-1 overflow-y-auto pb-16">
               {members.length === 0 ? (
                 <EmptyState
-                  icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
+                  icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
                   title="Chưa có dữ liệu thành viên"
-                  desc={<>Nhấn <span className="text-blue-400 font-medium">Tải thành viên</span> để đồng bộ từ Zalo về DB.<br/><span className="text-gray-600 text-[11px]">Lưu ý: cần tải nhóm từ API trước để có danh sách UID.</span></>}
+                  desc={<>Nhấn <span className="text-blue-400 font-medium">Tải thành viên</span> để đồng bộ từ Zalo về DB.<br /><span className="text-gray-600 text-[11px]">Lưu ý: cần tải nhóm từ API trước để có danh sách UID.</span></>}
                 />
               ) : filteredMembers.length === 0 ? (
                 <div className="flex items-center justify-center h-16 text-xs text-gray-500">Không tìm thấy thành viên</div>
@@ -993,7 +1083,7 @@ export default function GroupMembersTab() {
                           ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-600 bg-gray-800'}`}>
                           {isSelected && (
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                              <polyline points="20 6 9 17 4 12"/>
+                              <polyline points="20 6 9 17 4 12" />
                             </svg>
                           )}
                         </div>
@@ -1002,17 +1092,17 @@ export default function GroupMembersTab() {
                           {member.display_name
                             ? <p className="text-sm text-white truncate font-medium">{member.display_name}</p>
                             : <p className="text-sm text-gray-500 truncate italic">
-                                Chưa có tên —{' '}
-                                {member.phone
-                                  ? <PhoneDisplay phone={member.phone} className="text-gray-400" />
-                                  : member.member_id}
-                              </p>}
+                              Chưa có tên —{' '}
+                              {member.phone
+                                ? <PhoneDisplay phone={member.phone} className="text-gray-400" />
+                                : member.member_id}
+                            </p>}
                           <div className="text-[11px] text-gray-500 mt-0.5">
                             {member.phone
                               ? <>
-                                  <PhoneDisplay phone={member.phone} className="text-green-400" />
-                                  <div className="text-gray-600">{member.member_id}</div>
-                                </>
+                                <PhoneDisplay phone={member.phone} className="text-green-400" />
+                                <div className="text-gray-600">{member.member_id}</div>
+                              </>
                               : member.display_name ? member.member_id : null}
                           </div>
                         </div>
@@ -1030,7 +1120,7 @@ export default function GroupMembersTab() {
                 <span className="text-sm text-white font-medium">
                   Đã chọn <span className="text-blue-400">{selectedMemberIds.size}</span> thành viên
                 </span>
-                <div className="flex-1"/>
+                <div className="flex-1" />
                 <button onClick={clearSelection}
                   className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs transition-colors">
                   Bỏ chọn
@@ -1039,8 +1129,8 @@ export default function GroupMembersTab() {
                   <button onClick={() => setShowBulkGroupModal('remove')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
-                      <line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/>
+                      <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+                      <line x1="18" y1="9" x2="12" y2="15" /><line x1="12" y1="9" x2="18" y2="15" />
                     </svg>
                     Xóa khỏi các nhóm
                   </button>
@@ -1048,15 +1138,15 @@ export default function GroupMembersTab() {
                 <button onClick={openCampaignPicker}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                   </svg>
                   Thêm vào chiến dịch
                 </button>
                 <button onClick={() => setShowAddToContacts(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
-                    <line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" />
+                    <line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
                   </svg>
                   Thêm vào liên hệ
                 </button>
@@ -1078,7 +1168,7 @@ export default function GroupMembersTab() {
                 onClick={() => setShowCreateCampaign(true)}
                 className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 rounded-lg hover:bg-blue-500/10">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 Tạo mới
               </button>
@@ -1091,7 +1181,7 @@ export default function GroupMembersTab() {
               <div className="py-6 flex flex-col items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-400">
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                   </svg>
                 </div>
                 <div className="text-center">
@@ -1102,7 +1192,7 @@ export default function GroupMembersTab() {
                   onClick={() => setShowCreateCampaign(true)}
                   className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm transition-colors flex items-center justify-center gap-1.5">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                   Tạo chiến dịch mới
                 </button>
@@ -1186,8 +1276,8 @@ export default function GroupMembersTab() {
             <div className="flex items-center gap-3 mb-4">
               <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center flex-shrink-0">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                 </svg>
               </div>
               <div>
@@ -1404,7 +1494,7 @@ export default function GroupMembersTab() {
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-700 bg-gray-800/80">
               <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                 </svg>
               </div>
               <div>
@@ -1414,7 +1504,7 @@ export default function GroupMembersTab() {
               <button onClick={() => setShowPinScheduler(false)}
                 className="ml-auto w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-700 transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
@@ -1436,13 +1526,12 @@ export default function GroupMembersTab() {
               <div>
                 <label className="text-xs text-gray-400 font-medium mb-1.5 block">Lặp lại</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {[{v:'once',l:'🎯 Một lần'},{v:'daily',l:'📅 Mỗi ngày'},{v:'weekly',l:'🗓 Hàng tuần'}].map(t => (
+                  {[{ v: 'once', l: '🎯 Một lần' }, { v: 'daily', l: '📅 Mỗi ngày' }, { v: 'weekly', l: '🗓 Hàng tuần' }].map(t => (
                     <button key={t.v} type="button" onClick={() => setPinScheduleType(t.v as any)}
-                      className={`py-2 rounded-xl border text-[11px] font-medium transition-colors ${
-                        pinScheduleType === t.v
+                      className={`py-2 rounded-xl border text-[11px] font-medium transition-colors ${pinScheduleType === t.v
                           ? 'bg-amber-600/20 border-amber-500/60 text-amber-300'
                           : 'bg-gray-700/50 border-gray-700 text-gray-400 hover:border-gray-600'
-                      }`}>
+                        }`}>
                       {t.l}
                     </button>
                   ))}
@@ -1465,7 +1554,7 @@ export default function GroupMembersTab() {
                     <label className="text-xs text-gray-400 font-medium mb-1.5 block">Ngày trong tuần</label>
                     <select value={pinScheduleWeekday} onChange={e => setPinScheduleWeekday(e.target.value)}
                       className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
-                      {[{v:'1',l:'Thứ Hai'},{v:'2',l:'Thứ Ba'},{v:'3',l:'Thứ Tư'},{v:'4',l:'Thứ Năm'},{v:'5',l:'Thứ Sáu'},{v:'6',l:'Thứ Bảy'},{v:'0',l:'Chủ Nhật'}].map(d => (
+                      {[{ v: '1', l: 'Thứ Hai' }, { v: '2', l: 'Thứ Ba' }, { v: '3', l: 'Thứ Tư' }, { v: '4', l: 'Thứ Năm' }, { v: '5', l: 'Thứ Sáu' }, { v: '6', l: 'Thứ Bảy' }, { v: '0', l: 'Chủ Nhật' }].map(d => (
                         <option key={d.v} value={d.v}>{d.l}</option>
                       ))}
                     </select>
@@ -1490,11 +1579,11 @@ export default function GroupMembersTab() {
                   disabled={!pinMessage.trim() || isSavingPinSchedule}
                   className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2">
                   {isSavingPinSchedule ? (
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
                   ) : pinScheduleSaved ? (
-                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>Đã lưu!</>
+                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>Đã lưu!</>
                   ) : (
-                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Lên lịch</>
+                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>Lên lịch</>
                   )}
                 </button>
               </div>

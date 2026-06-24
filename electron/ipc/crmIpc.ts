@@ -111,6 +111,28 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
+    ipcMain.handle('crm:restartCampaign', async (_e, { zaloId, campaignId }: { zaloId: string; campaignId: number }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.restartCRMCampaign(campaignId);
+            CRMQueueService.getInstance().startForAccount(zaloId);
+            EventBroadcaster.emit('crm:campaignChanged', { action: 'status', ownerZaloId: zaloId, campaignId, status: 'active' });
+            proxyToBoss('crm:restartCampaign', { zaloId, campaignId });
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('crm:retryFailedContacts', async (_e, { zaloId, campaignId }: { zaloId: string; campaignId: number }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.retryFailedCampaignContacts(campaignId);
+            CRMQueueService.getInstance().startForAccount(zaloId);
+            EventBroadcaster.emit('crm:campaignChanged', { action: 'status', ownerZaloId: zaloId, campaignId, status: 'active' });
+            proxyToBoss('crm:retryFailedContacts', { zaloId, campaignId });
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
     ipcMain.handle('crm:updateCampaignStatus', async (_e, { campaignId, status }: { campaignId: number; status: string }) => {
         try {
             const db = DatabaseService.getInstance();

@@ -14,6 +14,7 @@ interface MessageContextMenuProps {
   onReply: (msg: any) => void;
   onForward: (msg: any) => void;
   onSelectMessages?: (msg: any) => void;
+  onAddToNotes?: (msg: any) => void;
   onUndo: (msg: any) => void;
   onDelete: (msg: any) => void;
   onDeleteFromDb?: (msg: any) => void;
@@ -83,7 +84,7 @@ function getDefaultFilename(msg: any): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function MessageContextMenu({
-  x, y, msg, isSent, isGroupAdmin, channelCap, onClose, onReply, onForward, onSelectMessages, onUndo, onDelete, onDeleteFromDb, onReact, onPin, showNotification,
+  x, y, msg, isSent, isGroupAdmin, channelCap, onClose, onReply, onForward, onSelectMessages, onAddToNotes, onUndo, onDelete, onDeleteFromDb, onReact, onPin, showNotification,
 }: MessageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -243,6 +244,9 @@ export default function MessageContextMenu({
       )}
       {onSelectMessages && (
         <MenuItem icon="☑" label="Chọn tin nhắn" onClick={() => { onSelectMessages(msg); onClose(); }} />
+      )}
+      {onAddToNotes && (
+        <MenuItem icon="📝" label="Thêm vào ghi chú CRM" onClick={() => { onAddToNotes(msg); onClose(); }} />
       )}
 
       {/* Sao chép text — cho tin nhắn text và link */}

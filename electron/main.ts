@@ -215,7 +215,7 @@ function createWindow() {
 
   // Load Vite dev server or built files
   if (isDev) {
-    mainWindow.loadURL('http://localhost:27799');
+    mainWindow.loadURL('http://127.0.0.1:27799');
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
@@ -257,7 +257,7 @@ function createWindow() {
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           if (isDev) {
-            mainWindow.loadURL('http://localhost:27799');
+            mainWindow.loadURL('http://127.0.0.1:27799');
           } else {
             mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
           }
@@ -286,7 +286,7 @@ function createWindow() {
     if (isDev) {
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL('http://localhost:27799');
+          mainWindow.loadURL('http://127.0.0.1:27799');
         }
       }, 2000);
     }

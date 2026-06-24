@@ -565,6 +565,7 @@ class CRMQueueService {
                 Logger.error(`[CRMQueue] ❌ Failed to save error log: ${logErr.message}`);
             }
             this.broadcastProgress(zaloId, item.campaign_id, effectiveContactId, 'failed', errMsg);
+            this.checkCampaignCompletion(item.campaign_id, zaloId);
         } finally {
             this.isProcessing.set(zaloId, false);
         }
