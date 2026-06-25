@@ -227,6 +227,8 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
   let memberIds: string[];
   let placeholders: MemberPlaceholder[];
   let groupName = groupId;
+  let groupAvatar = '';
+  let shouldSaveGroupProfile = false;
 
   if (prebuiltMemberIds && prebuiltPlaceholders && prebuiltMemberIds.length > 0) {
     // Caller already called getGroupInfo → skip duplicate API call
@@ -261,6 +263,8 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
     console.log('[DEBUG getGroupInfo] memVerList count:', memVLCount, '| memberIds count:', (gData.memberIds||[]).length);
 
     groupName = gData.name || groupId;
+    groupAvatar = gData.fullAvt || gData.avt || '';
+    shouldSaveGroupProfile = true;
     const creatorId = (gData.creatorId || '').replace(/_0$/, '');
     const adminIds: string[] = (gData.adminIds || []).map((a: string) => a.replace(/_0$/, ''));
     const adminSet = new Set([creatorId, ...adminIds]);
@@ -376,6 +380,17 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
   // mergeGroupMembers: placeholder mới (displayName='') sẽ insert thành viên mới
   // mà không xóa avatar/tên của thành viên cũ đã được enriched trước đó
   await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: placeholders });
+
+  if (shouldSaveGroupProfile) {
+    await ipc.db?.updateContactProfile({
+      zaloId: activeAccountId,
+      contactId: groupId,
+      displayName: groupName,
+      avatarUrl: groupAvatar,
+      phone: '',
+      contactType: 'group',
+    });
+  }
 
   // Phase 1 done: let UI show UIDs
   await onPhase1Done?.();

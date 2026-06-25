@@ -239,7 +239,7 @@ export default function WorkflowAIDialog({ currentNodes, currentEdges, channel, 
         {/* Header */}
         <div className={`px-5 py-4 border-b ${borderCard} flex items-center justify-between flex-shrink-0`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm">
               ✨
             </div>
             <div>

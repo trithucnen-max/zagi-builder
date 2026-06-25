@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
+import BrandLogo from '../common/BrandLogo';
 
 interface CatalogItem {
   type: string;
@@ -138,8 +139,8 @@ export default function IntegrationDetailPage({ catalogItem, saved, webhookPort,
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div className={`w-9 h-9 rounded-lg ${catalogItem.color} flex items-center justify-center text-lg`}>
-          {catalogItem.icon}
+        <div className={`w-9 h-9 rounded-lg ${catalogItem.color} flex items-center justify-center`}>
+          <BrandLogo type={catalogItem.type} className="w-5 h-5 text-white-important" />
         </div>
         <div>
           <h1 className="text-base font-semibold text-white">{catalogItem.name}</h1>

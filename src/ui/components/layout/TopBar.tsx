@@ -32,9 +32,7 @@ export default function TopBar() {
   const activeAccount = useAccountStore((s) => s.accounts.find(a => a.zalo_id === s.activeAccountId));
   const isBusiness = activeAccount?.is_business === 1;
 
-  // More dropdown (guide + bug report + font size)
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
+
   // Font size slider: local temp value, only applies on release
   const [fontTemp, setFontTemp] = useState(fontSizeScale);
 
@@ -96,22 +94,7 @@ export default function TopBar() {
     return () => document.removeEventListener('mousedown', handler);
   }, [bellOpen]);
 
-  // Đóng more dropdown khi click ra ngoài
-  useEffect(() => {
-    if (!moreOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
-        setMoreOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [moreOpen]);
 
-  // Sync fontTemp when fontSizeScale changes externally
-  useEffect(() => {
-    setFontTemp(fontSizeScale);
-  }, [fontSizeScale]);
 
   // Hiện nút update khi: có bản mới + (chưa tải xong HOẶC lỗi/treo)
   const showUpdateBtn = !!updateInfo && ['available', 'error', 'stalled', 'downloading'].includes(updateStatus);
@@ -464,9 +447,18 @@ export default function TopBar() {
 
         {/* Theme toggle */}
         <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          onClick={() => {
+            const nextTheme = theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark';
+            setTheme(nextTheme);
+          }}
           className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-          title={theme === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
+          title={
+            theme === 'dark'
+              ? 'Chuyển sang giao diện sáng'
+              : theme === 'light'
+              ? 'Chuyển sang giao diện hệ thống'
+              : 'Chuyển sang giao diện tối'
+          }
         >
           {theme === 'dark' ? (
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -480,6 +472,12 @@ export default function TopBar() {
               <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
               <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
             </svg>
+          ) : theme === 'light' ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
           ) : (
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -487,134 +485,88 @@ export default function TopBar() {
           )}
         </button>
 
-        {/* ── More dropdown (guide + bug report + font size) ── */}
-        <div className="relative" ref={moreRef}>
-          <button
-            onClick={() => setMoreOpen(v => !v)}
-            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-            title="Thêm (cỡ chữ, hướng dẫn, báo lỗi)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="1.5"/>
-              <circle cx="5" cy="12" r="1.5"/>
-              <circle cx="19" cy="12" r="1.5"/>
-            </svg>
-          </button>
-
-          {moreOpen && (
-            <div className="absolute right-0 top-full mt-1 w-64 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-[9999] overflow-hidden">
-              {/* Font size slider */}
-              <div className="px-4 py-3 border-b border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-400 font-medium">Cỡ chữ</span>
-                  <span className="text-xs text-gray-200 font-semibold min-w-[2.5rem] text-right">
-                    {scaleToPx(fontTemp)}px
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={FONT_SCALE_MIN}
-                  max={FONT_SCALE_MAX}
-                  step={FONT_SCALE_STEP}
-                  value={fontTemp}
-                  onChange={(e) => setFontTemp(Number(e.target.value))}
-                  onMouseUp={() => setFontSizeScale(fontTemp)}
-                  onTouchEnd={() => setFontSizeScale(fontTemp)}
-                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer
-                    bg-gray-600 accent-blue-500
-                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5
-                    [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500
-                    [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-gray-800
-                    [&::-webkit-slider-thumb]:shadow-md"
-                />
-                <div className="flex justify-between mt-1">
-                  <span className="text-[10px] text-gray-500">12px</span>
-                  <span className="text-[10px] text-gray-500">24px</span>
-                </div>
-              </div>
-
-              {/* Hướng dẫn sử dụng */}
-              <button
-                onClick={() => {
-                  setMoreOpen(false);
-                  window.dispatchEvent(new CustomEvent('nav:view', { detail: { view: 'settings' } }));
-                  setTimeout(() => window.dispatchEvent(new CustomEvent('nav:settings', { detail: { tab: 'introduction', subtab: 'overview' } })), 80);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-blue-400 transition-colors text-left"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                </svg>
-                <div>
-                  <p className="text-xs font-medium">Hướng dẫn sử dụng</p>
-                  <p className="text-[10px] text-gray-500">Tính năng & thao tác cơ bản</p>
-                </div>
-              </button>
-
-              {/* Báo lỗi */}
-              <button
-                onClick={() => {
-                  setMoreOpen(false);
-                  window.dispatchEvent(new CustomEvent('nav:view', { detail: { view: 'settings' } }));
-                  setTimeout(() => window.dispatchEvent(new CustomEvent('nav:settings', { detail: { tab: 'introduction', subtab: 'bugreport' } })), 80);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-red-400 transition-colors text-left border-t border-gray-700/50"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                  <path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
-                  <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6z"/>
-                  <path d="M12 20v-9M6.53 9C4.6 8.8 3 7.1 3 5M6 13H2M6 17H2M18 13h4M17.47 9c1.93-.2 3.53-1.9 3.53-4M18 17h4"/>
-                </svg>
-                <div>
-                  <p className="text-xs font-medium">Báo lỗi</p>
-                  <p className="text-[10px] text-gray-500">Gửi phản hồi & báo cáo lỗi</p>
-                </div>
-              </button>
-
-
-            </div>
-          )}
+        {/* Font size controller */}
+        <div className="flex items-center gap-1.5 px-2 py-1 h-7 bg-gray-800/50 border border-gray-700/50 rounded-lg mr-1 select-none">
+          <span className="text-[10px] text-gray-500 font-bold">A-</span>
+          <input
+            type="range"
+            min={FONT_SCALE_MIN}
+            max={FONT_SCALE_MAX}
+            step={FONT_SCALE_STEP}
+            value={fontTemp}
+            onChange={(e) => setFontTemp(Number(e.target.value))}
+            onMouseUp={() => setFontSizeScale(fontTemp)}
+            onTouchEnd={() => setFontSizeScale(fontTemp)}
+            className="w-16 h-1 rounded-full appearance-none cursor-pointer bg-gray-700 accent-blue-500 hover:bg-gray-600 transition-colors
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500
+              [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-gray-800
+              [&::-webkit-slider-thumb]:shadow-sm"
+            title={`Cỡ chữ: ${scaleToPx(fontTemp)}px`}
+          />
+          <span className="text-xs text-gray-400 font-bold">A+</span>
+          <span className="text-[10px] text-gray-400 font-medium min-w-[24px] text-right">
+            {scaleToPx(fontTemp)}px
+          </span>
         </div>
 
-        <button
-          onClick={() => ipc.window?.minimize()}
-          className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-          title="Thu nhỏ"
-        >
-          <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor">
-            <rect width="10" height="1" />
-          </svg>
-        </button>
+        {/* Hướng dẫn sử dụng */}
         <button
           onClick={() => {
-            ipc.window?.maximize();
-            setIsMaximized(!isMaximized);
+            window.dispatchEvent(new CustomEvent('nav:view', { detail: { view: 'settings' } }));
+            setTimeout(() => window.dispatchEvent(new CustomEvent('nav:settings', { detail: { tab: 'introduction', subtab: 'overview' } })), 80);
           }}
-          className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-          title={isMaximized ? 'Phục hồi' : 'Phóng to'}
+          className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-blue-400 transition-colors mr-1"
+          title="Hướng dẫn sử dụng"
         >
-          {isMaximized ? (
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
-              <rect x="2" y="0" width="8" height="8" />
-              <rect x="0" y="2" width="8" height="8" fill="none" />
-            </svg>
-          ) : (
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
-              <rect x="0" y="0" width="10" height="10" />
-            </svg>
-          )}
-        </button>
-        <button
-          onClick={() => ipc.window?.close()}
-          className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-red-600 hover:text-white transition-colors"
-          title="Đóng"
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
-            <line x1="0" y1="0" x2="10" y2="10" />
-            <line x1="10" y1="0" x2="0" y2="10" />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
           </svg>
         </button>
+
+        {!isMac && (
+          <>
+            <button
+              onClick={() => ipc.window?.minimize()}
+              className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+              title="Thu nhỏ"
+            >
+              <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor">
+                <rect width="10" height="1" />
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                ipc.window?.maximize();
+                setIsMaximized(!isMaximized);
+              }}
+              className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+              title={isMaximized ? 'Phục hồi' : 'Phóng to'}
+            >
+              {isMaximized ? (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
+                  <rect x="2" y="0" width="8" height="8" />
+                  <rect x="0" y="2" width="8" height="8" fill="none" />
+                </svg>
+              ) : (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
+                  <rect x="0" y="0" width="10" height="10" />
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={() => ipc.window?.close()}
+              className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-red-600 hover:text-white transition-colors"
+              title="Đóng"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
+                <line x1="0" y1="0" x2="10" y2="10" />
+                <line x1="10" y1="0" x2="0" y2="10" />
+              </svg>
+            </button>
+          </>
+        )}
       </div>
 
 

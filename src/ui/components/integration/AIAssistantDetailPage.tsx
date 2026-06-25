@@ -9,6 +9,7 @@ import { useAppStore } from '@/store/appStore';
 import {showConfirm} from "@/components/common/ConfirmDialog";
 import PromptWizardModal from './PromptWizardModal';
 import { parseStructuredResponse } from '../../../utils/aiUtils';
+import BrandLogo from '../common/BrandLogo';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -16,7 +17,7 @@ const PLATFORMS = [
   { value: 'openai',   label: 'OpenAI',         icon: '🤖', color: 'bg-green-600' },
   { value: 'gemini',   label: 'Google Gemini',   icon: '✨', color: 'bg-blue-600' },
   { value: 'claude',   label: 'Anthropic Claude',icon: '🟠', color: 'bg-amber-600' },
-  { value: 'deepseek', label: 'DeepSeek',        icon: '🔮', color: 'bg-purple-600' },
+  { value: 'deepseek', label: 'DeepSeek',        icon: '🔮', color: 'bg-sky-600' },
   { value: 'grok',     label: 'Grok (xAI)',      icon: '⚡', color: 'bg-orange-600' },
   { value: 'mistral',  label: 'Mistral AI',      icon: '🌀', color: 'bg-sky-600' },
   { value: '9router',  label: '9Router Proxy',   icon: '🔀', color: 'bg-cyan-600' },
@@ -580,8 +581,8 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div className={`w-9 h-9 rounded-lg ${currentPlatform.color} flex items-center justify-center text-lg`}>
-          {currentPlatform.icon}
+        <div className={`w-9 h-9 rounded-lg ${currentPlatform.color} flex items-center justify-center`}>
+          <BrandLogo type={platform} className="w-5 h-5 text-white-important" />
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-base font-semibold text-white truncate">
@@ -1058,8 +1059,10 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
           {/* Chat messages */}
           <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
             {chatMessages.length === 0 && savedId && (
-              <div className="text-center py-10">
-                <div className="text-3xl mb-2">{currentPlatform.icon}</div>
+              <div className="text-center py-10 flex flex-col items-center justify-center">
+                <div className={`w-12 h-12 rounded-xl ${currentPlatform.color} flex items-center justify-center mb-2 shadow-sm`}>
+                  <BrandLogo type={platform} className="w-6 h-6 text-white-important" />
+                </div>
                 <p className="text-xs text-gray-500">Gửi tin nhắn để test trợ lý AI</p>
               </div>
             )}

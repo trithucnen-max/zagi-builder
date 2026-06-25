@@ -1349,10 +1349,31 @@ class WorkflowEngineService {
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
         const continueOnError = cfg.continueOnError === true;
+
+        const sendMode = cfg.sendMode || 'single';
+        let attachments: string[] = [];
+        if (sendMode === 'single') {
+          if (cfg.filePath) attachments.push(cfg.filePath.trim());
+        } else {
+          const paths = (cfg.filePaths || '').split('\n').map((p: string) => p.trim()).filter(Boolean);
+          if (sendMode === 'random') {
+            if (paths.length > 0) {
+              const randomPath = paths[Math.floor(Math.random() * paths.length)];
+              attachments.push(randomPath);
+            }
+          } else {
+            attachments = paths;
+          }
+        }
+
+        if (attachments.length === 0) {
+          throw new Error("Danh sách đường dẫn ảnh gửi trống");
+        }
+
         let lastResult: any = { success: false, error: 'Không gửi được ảnh đến hội thoại nào' };
         for (const tid of targetThreadIds) {
           try {
-            const result = await api.sendMessage({ msg: cfg.message || '', attachments: [cfg.filePath] }, tid, threadType);
+            const result = await api.sendMessage({ msg: cfg.message || '', attachments }, tid, threadType, 'file');
             lastResult = result;
             Logger.log(`[WorkflowEngine] zalo.sendImage to ${tid}: success=true`);
           } catch (err: any) {
@@ -1373,10 +1394,23 @@ class WorkflowEngineService {
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
         const continueOnError = cfg.continueOnError === true;
+
+        const sendMode = cfg.sendMode || 'single';
+        let attachments: string[] = [];
+        if (sendMode === 'single') {
+          if (cfg.filePath) attachments.push(cfg.filePath.trim());
+        } else {
+          attachments = (cfg.filePaths || '').split('\n').map((p: string) => p.trim()).filter(Boolean);
+        }
+
+        if (attachments.length === 0) {
+          throw new Error("Danh sách đường dẫn file gửi trống");
+        }
+
         let lastResult: any = { success: false, error: 'Không gửi được file đến hội thoại nào' };
         for (const tid of targetThreadIds) {
           try {
-            const result = await api.sendMessage({ msg: '', attachments: [cfg.filePath] }, tid, threadType);
+            const result = await api.sendMessage({ msg: '', attachments }, tid, threadType, 'file');
             lastResult = result;
             Logger.log(`[WorkflowEngine] zalo.sendFile to ${tid}: success=true`);
           } catch (err: any) {

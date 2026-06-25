@@ -50,7 +50,6 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
 
   const dragIndexRef = useRef<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [showToolsGuide, setShowToolsGuide] = useState(false);
   const hasNewCRMRequests = Object.values(crmRequestUnseenByAccount || {}).some(Boolean);
 
   // Chấm đỏ trên nút Settings — tắt khi người dùng đã xem hết các tab quan trọng
@@ -83,7 +82,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
   };
 
   return (
-    <div className="flex flex-col w-16 bg-gray-900 border-r border-gray-700 h-full">
+    <div className="flex flex-col w-16 bg-sidebar border-r border-white/10 h-full">
       {/* Danh sách tài khoản — chế độ Gộp trang: hiện các avatar dùng làm bộ lọc */}
       {mergedInboxMode ? (
         <div className="flex-1 overflow-y-auto py-2 flex flex-col items-center gap-2">
@@ -105,7 +104,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ring-2 ${
               mergedInboxFilterAccount === null
                 ? 'bg-blue-600 text-white ring-blue-400'
-                : 'bg-gray-700 text-gray-400 hover:bg-gray-600 ring-transparent'
+                : 'bg-white/10 text-white hover:bg-white/20 ring-transparent'
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -279,7 +278,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
         <button
           onClick={onAddAccount}
           title="Thêm tài khoản"
-          className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors border-2 border-dashed border-gray-600"
+          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors border-2 border-dashed border-white/20 hover:border-white/40"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2Z" />
@@ -290,7 +289,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
       )} {/* end: !mergedInboxMode account list */}
 
       {/* Nav bottom */}
-      <div className="border-t border-gray-700 py-2 flex flex-col items-center gap-1">
+      <div className="border-t border-white/10 py-2 flex flex-col items-center gap-1">
         <NavBtn icon="dashboard"  label="Dashboard"   active={view === 'dashboard'}  onClick={() => setView('dashboard')} />
         {hasPerm('chat') && (
         <NavBtn icon="chat"       label="Chat"         active={view === 'chat'}       onClick={() => setView('chat')} />
@@ -307,7 +306,6 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
             ...(hasPerm('workflow') ? [{ icon: 'workflow' as const, label: 'Workflow (n8n)', active: view === 'workflow', onClick: () => setView('workflow') }] : []),
             ...(hasPerm('integration') ? [{ icon: 'integration' as const, label: 'Tích hợp', active: view === 'integration', onClick: () => setView('integration') }] : []),
           ]}
-          onGuide={() => setShowToolsGuide(true)}
         />
         )}
         {hasPerm('analytics') && (
@@ -321,9 +319,6 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
         )}
         <NavBtn icon="settings"   label="Cài đặt"      active={view === 'settings'}   onClick={() => setView('settings')} dot={hasNewSettings} />
       </div>
-
-      {/* Tools Guide Modal */}
-      {showToolsGuide && <ToolsGuideModal onClose={() => setShowToolsGuide(false)} />}
     </div>
   );
 }
@@ -404,7 +399,7 @@ function NavBtn({ icon, label, active, onClick, dot }: { icon: string; label: st
 
   return (
     <button onClick={onClick} title={label}
-      className={`relative w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${active ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+      className={`relative w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150 ${active ? 'bg-zalo-blue-dark text-white shadow-md' : 'text-white hover:bg-white/10'}`}>
       {icons[icon]}
       {dot && (
         <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-900 pointer-events-none" />
@@ -422,7 +417,7 @@ interface FlyoutItem {
   onClick: () => void;
 }
 
-function NavFlyout({ icon, label, active, items, onGuide }: { icon: string; label: string; active: boolean; items: FlyoutItem[]; onGuide?: () => void }) {
+function NavFlyout({ icon, label, active, items }: { icon: string; label: string; active: boolean; items: FlyoutItem[] }) {
   const [open, setOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -449,8 +444,8 @@ function NavFlyout({ icon, label, active, items, onGuide }: { icon: string; labe
       <button
         ref={btnRef}
         title={label}
-        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-          active ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150 ${
+          active ? 'bg-zalo-blue-dark text-white shadow-md' : 'text-white hover:bg-white/10'
         }`}
       >
         <NavIcon name={icon} />
@@ -484,19 +479,6 @@ function NavFlyout({ icon, label, active, items, onGuide }: { icon: string; labe
               )}
             </button>
           ))}
-          {/* Guide button */}
-          {onGuide && (
-            <>
-              <div className="border-t border-gray-700/60 my-1" />
-              <button
-                onClick={() => { onGuide(); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors"
-              >
-                <span className="w-5 h-5 flex items-center justify-center flex-shrink-0 text-sm">📖</span>
-                <span className="text-xs font-medium whitespace-nowrap">Hướng dẫn sử dụng</span>
-              </button>
-            </>
-          )}
         </div>
       )}
     </div>
@@ -595,449 +577,3 @@ function NavIcon({ name }: { name: string }) {
   }
 }
 
-
-// ─── Tools Guide Modal ────────────────────────────────────────────────────────
-
-const TOOLS_GUIDE = [
-  {
-    id: 'crm' as const,
-    icon: '📊', title: 'CRM — Quản lý khách hàng',
-    color: 'border-blue-500/40 bg-blue-900/10',
-    badgeColor: 'bg-blue-600/30 text-blue-300',
-    purpose: 'Quản lý toàn bộ danh sách liên hệ Zalo, phân loại khách hàng bằng nhãn, ghi chú nội bộ, và chạy chiến dịch nhắn tin hàng loạt — biến Zalo thành CRM chuyên nghiệp.',
-    sections: [
-      {
-        title: '👥 Quản lý liên hệ',
-        items: [
-          'Xem tất cả liên hệ theo tài khoản Zalo: bạn bè, nhóm, stranger (người lạ)',
-          'Bộ lọc nâng cao: theo nhãn, trạng thái (đã nhắn / chưa nhắn), loại liên hệ, thời gian',
-          'Xem thông tin chi tiết: avatar, tên, SĐT, nhãn, ghi chú, lịch sử tương tác',
-          'Dashboard tổng quan: thống kê số lượng liên hệ, tương tác, nhãn phân bố',
-        ],
-      },
-      {
-        title: '🏷️ Hệ thống nhãn kép',
-        items: [
-          'Nhãn Zalo (Zalo Label): đồng bộ 2 chiều với app Zalo trên điện thoại — gán từ Zagi, thấy trên Zalo và ngược lại',
-          'Nhãn Local: nhãn riêng của Zagi, tùy biến màu sắc + emoji, không giới hạn số lượng',
-          'Dùng nhãn làm điều kiện lọc trong chiến dịch (chỉ gửi cho khách có nhãn "VIP")',
-          'Dùng nhãn làm Trigger trong Workflow: khi gắn nhãn → tự động chạy luồng xử lý',
-        ],
-      },
-      {
-        title: '📝 Ghi chú nội bộ (Notes)',
-        items: [
-          'Thêm ghi chú riêng cho từng liên hệ — khách hàng không thấy được',
-          'Chỉnh sửa / xóa ghi chú bất kỳ lúc nào',
-          'Xem lại toàn bộ ghi chú theo dòng thời gian trong panel chi tiết',
-        ],
-      },
-      {
-        title: '📢 Chiến dịch nhắn tin hàng loạt',
-        items: [
-          'Tạo chiến dịch: chọn đối tượng theo nhãn / bộ lọc → soạn mẫu tin → gửi',
-          'Hỗ trợ biến động: chèn tên khách, SĐT, nhãn... vào nội dung tin nhắn tự động',
-          'Giới hạn tốc độ gửi tự động: tối đa 60 tin/giờ, delay giữa mỗi tin (tránh spam)',
-          'Theo dõi realtime: đã gửi / thất bại / phản hồi — dừng/tiếp tục chiến dịch mọi lúc',
-          'Lịch sử gửi chi tiết: xem từng tin đã gửi, trạng thái, thời gian',
-        ],
-      },
-    ],
-  },
-  {
-    id: 'workflow' as const,
-    icon: '⚙️', title: 'Workflow — Tự động hoá',
-    color: 'border-purple-500/40 bg-purple-900/10',
-    badgeColor: 'bg-purple-600/30 text-gray-300',
-    purpose: 'Tạo các luồng xử lý tự động bằng giao diện kéo-thả trực quan: nhận sự kiện → xử lý logic → thực hiện hành động. Không cần viết code, có sẵn 20+ mẫu workflow.',
-    sections: [
-      {
-        title: '⚡ Trigger — 8 loại sự kiện kích hoạt',
-        items: [
-          'Khi nhận tin nhắn: lọc theo từ khóa, loại hội thoại (cá nhân/nhóm), regex',
-          'Khi có lời mời kết bạn → tự động chấp nhận + gửi lời chào',
-          'Khi có sự kiện nhóm: thành viên vào/rời, đổi admin, đổi avatar nhóm',
-          'Khi có người react tin nhắn (like, heart, haha...)',
-          'Khi gắn/gỡ nhãn: liên kết CRM → Workflow liền mạch',
-          'Chạy theo lịch hẹn (cron): hàng ngày, hàng giờ, ngày cụ thể',
-          'Khi nhận thanh toán (webhook từ Casso/SePay)',
-          'Chạy thủ công: nút bấm test từ giao diện',
-        ],
-      },
-      {
-        title: '💬 Action — 15+ thao tác trên Zalo',
-        items: [
-          'Gửi tin nhắn văn bản (hỗ trợ biến động {{ tên }}, {{ sdt }}...)',
-          'Hiệu ứng "đang gõ..." + delay → tạo cảm giác tự nhiên như người thật',
-          'Gửi ảnh (từ file hoặc URL), gửi file đính kèm (PDF, Excel...)',
-          'Tìm user bằng SĐT, lấy thông tin người dùng (avatar, tên, giới tính)',
-          'Chấp nhận / Từ chối / Gửi lời mời kết bạn tự động',
-          'Quản lý nhóm: thêm/xóa thành viên, tạo bình chọn (poll)',
-          'Gắn/gỡ nhãn, thu hồi tin nhắn, chuyển tiếp tin nhắn, thả cảm xúc',
-        ],
-      },
-      {
-        title: '🧠 Logic & Dữ liệu',
-        items: [
-          'Rẽ nhánh IF/ELSE: kiểm tra điều kiện → chạy nhánh tương ứng',
-          'Switch: phân nhiều nhánh theo giá trị (VD: phân loại câu hỏi)',
-          'Lặp forEach: lặp qua danh sách rồi xử lý từng item',
-          'Lưu biến, dừng workflow nếu điều kiện đúng, chờ N giây',
-          'Ghép nội dung văn bản, chọn ngẫu nhiên, định dạng ngày giờ, đọc JSON',
-        ],
-      },
-      {
-        title: '🤖 AI & Tích hợp ngoài',
-        items: [
-          'AI tạo nội dung: ChatGPT, Gemini, Deepseek, Grok — chatbot thông minh',
-          'AI phân loại tin nhắn: tự nhận diện hỏi giá / khiếu nại / hỗ trợ kỹ thuật...',
-          'Google Sheets: ghi dữ liệu, đọc dữ liệu, cập nhật ô — biến Sheets thành database',
-          'Gửi thông báo Telegram, Discord, Email, ghi vào Notion Database',
-          'Gọi API/Webhook HTTP bên ngoài: kết nối bất kỳ hệ thống nào',
-        ],
-      },
-      {
-        title: '🏪 POS & Vận chuyển trong Workflow',
-        items: [
-          'KiotViet / Haravan / Sapo / Nhanh: tra cứu KH, đơn hàng, sản phẩm, tạo đơn',
-          'GHN / GHTK: tạo đơn vận chuyển, tra cứu vận đơn — ngay trong luồng tự động',
-          'Casso / SePay (VietQR): lấy lịch sử giao dịch, đối soát thanh toán',
-        ],
-      },
-    ],
-  },
-  {
-    id: 'integration' as const,
-    icon: '🔗', title: 'Tích hợp — Kết nối bên thứ 3',
-    color: 'border-green-500/40 bg-green-900/10',
-    badgeColor: 'bg-green-600/30 text-green-500',
-    purpose: 'Kết nối Zagi với hệ sinh thái bán hàng, thanh toán, vận chuyển Việt Nam. Tra cứu dữ liệu ngay trong khung chat, nhận webhook tự động, kết hợp Workflow để xử lý end-to-end.',
-    sections: [
-      {
-        title: '🛒 POS / Bán hàng (4 nền tảng)',
-        items: [
-          'KiotViet: tra cứu khách hàng, đơn hàng, sản phẩm, tạo đơn — phổ biến nhất VN',
-          'Haravan: nền tảng TMĐT, tra cứu đơn hàng online, khách hàng',
-          'Sapo: quản lý bán hàng đa kênh, tra cứu đơn/khách theo SĐT',
-          'Nhanh.vn: tra cứu đơn, sản phẩm, khách hàng, tạo đơn',
-          '→ Tất cả đều tra cứu trực tiếp từ khung chat bằng nút tắt hoặc shortcut',
-        ],
-      },
-      {
-        title: '💳 Thanh toán (2 nền tảng)',
-        items: [
-          'Casso: kết nối ngân hàng, nhận webhook khi có chuyển khoản mới — realtime',
-          'SePay (VietQR): tương tự Casso, hỗ trợ nhiều ngân hàng VN',
-          'Webhook tự nhận về app tại http://127.0.0.1:9888/webhook/{type}',
-          'Kết hợp Workflow trigger.payment → gửi tin cảm ơn + xác nhận đơn tự động',
-        ],
-      },
-      {
-        title: '🚚 Vận chuyển (2 nền tảng)',
-        items: [
-          'GHN Express: tạo đơn giao hàng, tra cứu mã vận đơn + trạng thái',
-          'GHTK: tạo đơn + tra cứu tracking — đối soát COD',
-        ],
-      },
-      {
-        title: '🌐 Tunnel — Mở kết nối ra internet',
-        items: [
-          'Bật thủ công khi cần: tạo URL công khai (https://xxx.loca.lt) trỏ về app',
-          'Cho phép bên ngoài (Casso, SePay, n8n cloud...) gửi webhook về Zagi',
-          'Không bật = webhook chỉ hoạt động trên localhost (cùng máy)',
-          'Tắt bất cứ lúc nào — không ảnh hưởng các tính năng khác',
-        ],
-      },
-      {
-        title: '⚡ Shortcut tra cứu nhanh',
-        items: [
-          'Ghim các nút tra cứu POS/vận chuyển ngay trên thanh công cụ chat',
-          'Bấm 1 lần → tra cứu đơn hàng / khách hàng theo SĐT người đang chat',
-          'Kết quả hiển thị ngay trong popup — không cần rời khung chat',
-        ],
-      },
-    ],
-  },
-];
-
-// ─── Combination scenarios ────────────────────────────────────────────────────
-
-const COMBO_SCENARIOS = [
-  {
-    icon: '💰',
-    title: 'Xác nhận thanh toán tự động',
-    tags: ['Tích hợp', 'Workflow'],
-    color: 'border-emerald-500/30',
-    flow: ['🔗 SePay/Casso nhận CK', '⚙️ Trigger payment', '📝 Ghép tin "Cảm ơn {tên}, đơn #{mã} đã nhận {số tiền}"', '💬 Gửi tin Zalo', '🏷️ Gắn nhãn "Đã TT"'],
-    desc: 'Khách chuyển khoản → Zagi nhận webhook từ ngân hàng → Workflow tự động gửi tin xác nhận + gắn nhãn CRM.',
-  },
-  {
-    icon: '🤖',
-    title: 'Chatbot AI tư vấn bán hàng',
-    tags: ['Workflow', 'AI'],
-    color: 'border-violet-500/30',
-    flow: ['💬 Khách nhắn hỏi', '🧠 AI phân loại (hỏi giá / CSKH / khiếu nại)', '🤖 ChatGPT trả lời theo ngữ cảnh', '⌨️ Typing + delay', '💬 Gửi phản hồi'],
-    desc: 'Khách nhắn tin → AI tự phân loại câu hỏi → ChatGPT sinh nội dung trả lời phù hợp → gửi tự động với hiệu ứng đang gõ.',
-  },
-  {
-    icon: '👋',
-    title: 'Chào mừng + phân loại khách mới',
-    tags: ['Workflow', 'CRM'],
-    color: 'border-blue-500/30',
-    flow: ['👤 Nhận lời mời KB', '✅ Auto chấp nhận', '💬 Gửi tin chào', '🏷️ Gắn nhãn "Khách mới"', '📊 Ghi Google Sheets'],
-    desc: 'Khi có người gửi kết bạn → auto accept → gửi lời chào + menu dịch vụ → gắn nhãn CRM → ghi thông tin vào Sheets.',
-  },
-  {
-    icon: '🛒',
-    title: 'Tra cứu đơn hàng ngay trong chat',
-    tags: ['Tích hợp', 'Workflow'],
-    color: 'border-orange-500/30',
-    flow: ['💬 Khách nhắn "đơn hàng"', '🔍 KiotViet tra SĐT', '📝 Ghép kết quả', '💬 Gửi thông tin đơn'],
-    desc: 'Khách hỏi về đơn hàng → Workflow tự tra cứu KiotViet/Haravan theo SĐT → gửi lại thông tin đơn chi tiết.',
-  },
-  {
-    icon: '📢',
-    title: 'Chiến dịch remarketing theo nhãn',
-    tags: ['CRM', 'Workflow'],
-    color: 'border-pink-500/30',
-    flow: ['📊 Lọc KH nhãn "Chưa mua"', '📢 Tạo chiến dịch', '📝 Soạn tin ưu đãi', '💬 Gửi hàng loạt (60 tin/h)', '📈 Theo dõi phản hồi'],
-    desc: 'Lọc danh sách khách có nhãn cụ thể → tạo chiến dịch với nội dung cá nhân hóa → gửi tự động + theo dõi kết quả.',
-  },
-  {
-    icon: '📦',
-    title: 'Đặt hàng + giao hàng tự động',
-    tags: ['Tích hợp', 'Workflow'],
-    color: 'border-cyan-500/30',
-    flow: ['💬 Khách nhắn "MUA"', '🛒 Tạo đơn KiotViet', '🚚 Tạo vận đơn GHN', '💬 Gửi mã tracking', '📊 Ghi Sheets'],
-    desc: 'Khách nhắn từ khóa → Workflow tạo đơn trên POS → tạo vận đơn GHN/GHTK → gửi mã tracking cho khách.',
-  },
-  {
-    icon: '🔔',
-    title: 'Thông báo đa kênh khi có đơn mới',
-    tags: ['Workflow', 'Tích hợp'],
-    color: 'border-amber-500/30',
-    flow: ['💰 Nhận thanh toán', '💬 Gửi tin Zalo cho KH', '📲 Thông báo Telegram cho admin', '📧 Email cho kế toán', '📝 Ghi Notion'],
-    desc: 'Một sự kiện → nhiều hành động: xác nhận cho khách trên Zalo + thông báo admin qua Telegram + ghi log vào Notion/Email.',
-  },
-  {
-    icon: '🏷️',
-    title: 'Tự động gắn nhãn theo nội dung chat',
-    tags: ['Workflow', 'AI', 'CRM'],
-    color: 'border-rose-500/30',
-    flow: ['💬 Khách nhắn tin', '🧠 AI phân loại nội dung', '🏷️ Gắn nhãn tương ứng', '📊 CRM cập nhật'],
-    desc: 'AI đọc tin nhắn → phân loại (hỏi giá / khiếu nại / khen / hỏi giao hàng) → tự động gắn nhãn CRM phù hợp.',
-  },
-];
-
-function ToolsGuideModal({ onClose }: { onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'crm' | 'workflow' | 'integration' | 'combo'>('overview');
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]" onClick={onClose}>
-      <div
-        className="bg-gray-800 rounded-2xl border border-gray-600 shadow-2xl w-full max-w-3xl mx-4 max-h-[88vh] flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-700/60 flex-shrink-0">
-          <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <span>📖</span> Hướng dẫn — Công cụ nâng cao
-            </h2>
-            <p className="text-[11px] text-gray-400 mt-0.5">Mô tả chi tiết tính năng và cách phối hợp các công cụ</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
-            ✕
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-700/60 px-2 flex-shrink-0 overflow-x-auto gap-0.5">
-          {([
-            { id: 'overview', label: '💡 Tổng quan' },
-            { id: 'crm', label: '📊 CRM' },
-            { id: 'workflow', label: '⚙️ Workflow' },
-            { id: 'integration', label: '🔗 Tích hợp' },
-            { id: 'combo', label: '🔄 Kết hợp' },
-          ] as const).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-2.5 text-[11px] font-medium whitespace-nowrap border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-400'
-                  : 'border-transparent text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-
-          {/* ── Overview Tab ── */}
-          {activeTab === 'overview' && (
-            <>
-              <div className="bg-gray-700/30 rounded-xl p-4 flex items-start gap-3">
-                <span className="text-2xl leading-none">💡</span>
-                <div className="space-y-2">
-                  <p className="text-gray-300 text-xs leading-relaxed">
-                    Ba công cụ <strong className="text-white">CRM</strong>, <strong className="text-white">Workflow</strong> và <strong className="text-white">Tích hợp</strong> phối
-                    hợp với nhau tạo thành hệ thống tự động hoá hoàn chỉnh:
-                  </p>
-                  <div className="flex items-center gap-2 text-[11px] flex-wrap">
-                    <span className="bg-green-900/40 text-white px-2.5 py-1 rounded-lg border border-green-700/40">🔗 Tích hợp nhận dữ liệu</span>
-                    <span className="text-gray-600">→</span>
-                    <span className="bg-purple-900/40 text-white px-2.5 py-1 rounded-lg border border-purple-700/40">⚙️ Workflow xử lý logic</span>
-                    <span className="text-gray-600">→</span>
-                    <span className="bg-blue-900/40 text-blue-300 px-2.5 py-1 rounded-lg border border-blue-700/40">📊 CRM quản lý KH</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Summary cards */}
-              {TOOLS_GUIDE.map((tool, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveTab(tool.id)}
-                  className={`w-full border rounded-xl p-4 text-left transition-colors hover:bg-gray-700/30 ${tool.color}`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">{tool.icon}</span>
-                    <h3 className="text-sm font-bold text-white">{tool.title}</h3>
-                    <span className="text-gray-600 ml-auto text-[10px]">Bấm để xem chi tiết →</span>
-                  </div>
-                  <p className="text-xs text-gray-400 leading-relaxed">{tool.purpose}</p>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {tool.sections.map((s, j) => (
-                      <span key={j} className={`text-[10px] px-2 py-0.5 rounded-full ${tool.badgeColor}`}>
-                        {s.title.split(' ').slice(1).join(' ')}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              ))}
-
-              {/* Combo preview */}
-              <button
-                onClick={() => setActiveTab('combo')}
-                className="w-full border border-amber-500/30 bg-amber-900/10 rounded-xl p-4 text-left hover:bg-amber-900/20 transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">🔄</span>
-                  <h3 className="text-sm font-bold text-white">{COMBO_SCENARIOS.length} kịch bản kết hợp thực tế</h3>
-                  <span className="text-gray-600 ml-auto text-[10px]">Bấm để xem →</span>
-                </div>
-                <p className="text-xs text-gray-400">Xem các ví dụ phối hợp CRM + Workflow + Tích hợp trong thực tế kinh doanh.</p>
-              </button>
-            </>
-          )}
-
-          {/* ── Tool Detail Tabs (CRM / Workflow / Integration) ── */}
-          {(activeTab === 'crm' || activeTab === 'workflow' || activeTab === 'integration') && (() => {
-            const tool = TOOLS_GUIDE.find(t => t.id === activeTab)!;
-            return (
-              <>
-                <div className={`border rounded-xl p-4 ${tool.color}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">{tool.icon}</span>
-                    <h3 className="text-sm font-bold text-white">{tool.title}</h3>
-                  </div>
-                  <p className="text-xs text-gray-300 leading-relaxed">{tool.purpose}</p>
-                </div>
-
-                {tool.sections.map((section, i) => (
-                  <div key={i} className="space-y-2">
-                    <h4 className="text-xs font-bold text-gray-300">{section.title}</h4>
-                    <ul className="space-y-1 pl-1">
-                      {section.items.map((item, j) => (
-                        <li key={j} className="flex items-start gap-2 text-xs text-gray-400">
-                          <span className="text-blue-400 mt-0.5 flex-shrink-0">•</span>
-                          <span className="leading-relaxed">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-
-                {/* Related combos */}
-                <div className="border-t border-gray-700/60 pt-4 mt-2">
-                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">🔄 Kịch bản kết hợp liên quan</p>
-                  <div className="space-y-2">
-                    {COMBO_SCENARIOS.filter(c =>
-                      (activeTab === 'crm' && c.tags.includes('CRM')) ||
-                      (activeTab === 'workflow' && c.tags.includes('Workflow')) ||
-                      (activeTab === 'integration' && c.tags.includes('Tích hợp'))
-                    ).slice(0, 3).map((combo, i) => (
-                      <div key={i} className={`border rounded-lg p-3 bg-gray-700/20 ${combo.color}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span>{combo.icon}</span>
-                          <span className="text-xs font-semibold text-white">{combo.title}</span>
-                          <div className="flex gap-1 ml-auto">
-                            {combo.tags.map(t => (
-                              <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-gray-600/50 text-gray-400">{t}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-[11px] text-gray-400 leading-relaxed">{combo.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-
-          {/* ── Combo Tab ── */}
-          {activeTab === 'combo' && (
-            <>
-              <div className="bg-gray-700/30 rounded-xl p-4">
-                <p className="text-xs text-gray-300 leading-relaxed">
-                  Sức mạnh thực sự nằm ở việc <strong className="text-white">kết hợp</strong> các công cụ. Dưới đây là {COMBO_SCENARIOS.length} kịch bản thực tế
-                  giúp bạn hình dung cách ứng dụng vào kinh doanh.
-                </p>
-              </div>
-
-              {COMBO_SCENARIOS.map((combo, i) => (
-                <div key={i} className={`border rounded-xl p-4 space-y-2.5 bg-gray-700/10 ${combo.color}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{combo.icon}</span>
-                    <h3 className="text-xs font-bold text-white">{combo.title}</h3>
-                    <div className="flex gap-1 ml-auto">
-                      {combo.tags.map(t => (
-                        <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-gray-600/50 text-gray-400">{t}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-gray-400 leading-relaxed">{combo.desc}</p>
-                  {/* Flow diagram */}
-                  <div className="flex items-center gap-1.5 text-[10px] flex-wrap pt-1">
-                    {combo.flow.map((step, j) => (
-                      <React.Fragment key={j}>
-                        {j > 0 && <span className="text-gray-600">→</span>}
-                        <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md border border-gray-700/60 whitespace-nowrap">{step}</span>
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-
-        </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3 border-t border-gray-700/60 flex-shrink-0 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
-          >
-            Đã hiểu
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

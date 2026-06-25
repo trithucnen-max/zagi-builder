@@ -670,7 +670,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
           </button>
           {/* AI Builder */}
           <button onClick={() => setShowAIDialog(true)} title="Dùng AI để tạo workflow tự động"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 border border-violet-500/50 text-white/90 text-xs font-medium rounded-xl transition-all shadow-sm shadow-violet-500/20">
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border border-blue-500/50 text-white/90 text-xs font-medium rounded-xl transition-all shadow-sm shadow-blue-500/20">
             ✨ AI
           </button>
 

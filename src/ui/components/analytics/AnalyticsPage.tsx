@@ -539,7 +539,7 @@ export default function AnalyticsPage() {
           {([['all', '👤👥 Tất cả'], ['user', '👤 Cá nhân'], ['group', '👥 Nhóm']] as [ContactType, string][]).map(([ct, label]) => (
             <button key={ct} onClick={() => setContactType(ct)}
               className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                contactType === ct ? 'bg-purple-600 text-white' : 'bg-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-700'
+                contactType === ct ? 'bg-blue-600 text-white' : 'bg-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-700'
               }`}>
               {label}
             </button>

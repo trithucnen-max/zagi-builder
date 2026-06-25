@@ -143,19 +143,19 @@ function LabelTabsFilter({
           <button
             onClick={() => setTab('local')}
             className={`relative flex items-center gap-1.5 py-2 pr-4 text-xs font-medium transition-colors ${
-              tab === 'local' ? 'text-purple-400' : 'text-gray-400 hover:text-gray-300'
+              tab === 'local' ? 'text-indigo-400' : 'text-gray-400 hover:text-gray-300'
             }`}
           >
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" className="text-purple-400 flex-shrink-0">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" className="text-indigo-400 flex-shrink-0">
               <circle cx="12" cy="12" r="10"/>
             </svg>
             Nhãn Local
             {selectedLocalCount > 0 && (
-              <span className="ml-1 bg-purple-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+              <span className="ml-1 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
                 {selectedLocalCount}
               </span>
             )}
-            {tab === 'local' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-400 rounded-t" />}
+            {tab === 'local' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-400 rounded-t" />}
           </button>
         )}
         {hasZalo && (

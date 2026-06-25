@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { useAccountStore } from '@/store/accountStore';
 
 type AppView = 'chat' | 'friends' | 'settings' | 'dashboard' | 'crm' | 'workflow' | 'integration' | 'analytics' | 'erp';
-export type AppTheme = 'dark' | 'light';
+export type AppTheme = 'dark' | 'light' | 'system';
 
 export interface GroupMember {
   userId: string;
@@ -242,9 +242,9 @@ const loadFontSizeScale = (): number => {
 const loadTheme = (): AppTheme => {
   try {
     const stored = localStorage.getItem('app_theme');
-    if (stored === 'light' || stored === 'dark') return stored;
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
   } catch {}
-  return 'light';
+  return 'system';
 };
 
 // ─── notifSettings persists in localStorage (not account-specific) ──────────
@@ -641,6 +641,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     try { localStorage.setItem(FONT_SCALE_KEY, String(scale)); } catch {}
     set({ fontSizeScale: scale });
     document.documentElement.style.fontSize = `${16 * scale}px`;
+    document.documentElement.style.setProperty('--zagi-font-scale', scale.toString());
   },
 
   // ─── Others folder ───────────────────────────────────────────────────

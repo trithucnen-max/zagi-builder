@@ -77,9 +77,12 @@ export default function WorkspaceSettings() {
                 {!showCreateForm && (
                     <button
                         onClick={() => setShowCreateForm(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white-important bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
                     >
-                        <span>➕</span> Thêm workspace
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Thêm workspace
                     </button>
                 )}
             </div>

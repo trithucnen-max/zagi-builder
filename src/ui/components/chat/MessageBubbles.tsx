@@ -400,9 +400,9 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
 
   if (!caption) return imgNode;
   return (
-    <div className={`flex flex-col rounded-2xl overflow-hidden ring-1 ring-black/[0.12] max-w-xs${isSelf ? ' rounded-br-sm' : ' rounded-bl-sm'}`}>
+    <div className={`flex flex-col overflow-hidden ring-1 ring-black/[0.12] max-w-xs ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
       {imgNode}
-      <div className={`px-3 py-2 text-sm break-words${isSelf ? ' bg-blue-600 text-white' : ' bg-gray-700 text-gray-200'}`}>
+      <div className={`px-3 py-2 text-sm break-words border-none rounded-t-none ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
         {convertZaloEmojis(caption)}
       </div>
     </div>
@@ -647,7 +647,7 @@ function VoiceBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
 
   return (
     <div className={`flex items-center gap-2.5 px-3 py-2 rounded-2xl min-w-[200px] max-w-[280px] ${
-      isSelf ? 'bg-blue-600' : 'bg-gray-700'
+      isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'
     }`}>
       <audio
         ref={audioRef}
@@ -661,13 +661,13 @@ function VoiceBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
       />
 
       {/* Play/Pause button */}
-      <button onClick={togglePlay} className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0 transition-colors">
+      <button onClick={togglePlay} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${isSelf ? 'audio-play-btn' : 'bg-white/20 hover:bg-white/30'}`}>
         {isPlaying ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+          <svg width="14" height="14" viewBox="0 0 24 24">
             <rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>
           </svg>
         ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+          <svg width="14" height="14" viewBox="0 0 24 24">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
         )}
@@ -684,20 +684,24 @@ function VoiceBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
               return (
                 <div
                   key={i}
-                  className={`rounded-full transition-colors duration-100 ${filled ? 'bg-white' : 'bg-white/30'}`}
+                  className={`rounded-full transition-colors duration-100 ${
+                    isSelf
+                      ? filled ? 'audio-waveform-filled' : 'audio-waveform-empty'
+                      : filled ? 'bg-white' : 'bg-white/30'
+                  }`}
                   style={{ width: '0.125rem', height: h * 1.5, minHeight: '0.1875rem' }}
                 />
               );
             })}
           </div>
         </div>
-        <span className="text-[10px] text-white/70 font-mono tabular-nums leading-none">
+        <span className={`text-[10px] font-mono tabular-nums leading-none ${isSelf ? 'audio-duration' : 'text-white/70'}`}>
           {isPlaying ? formatDur(currentTime) : formatDur(duration)}
         </span>
       </div>
 
       {/* Mic icon */}
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/50 flex-shrink-0">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`flex-shrink-0 ${isSelf ? 'audio-mic-icon' : 'text-white/50'}`}>
         <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
         <path d="M19 10v2a7 7 0 01-14 0v-2"/>
       </svg>
@@ -793,14 +797,14 @@ function FileBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
   const { icon, bg } = getIcon(fileExt);
 
   return (
-    <div className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl min-w-[200px] max-w-xs ${isSelf ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+    <div className={`flex items-center gap-3 px-3 py-2.5 min-w-[200px] max-w-xs ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
       <button onClick={handleOpen} disabled={opening || !canOpen}
         className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-[11px] ${bg} text-white ${canOpen ? 'hover:opacity-80 cursor-pointer' : 'opacity-60'} transition-opacity`}>
         {icon}
       </button>
       <button onClick={handleOpen} disabled={opening || !canOpen} className="flex-1 min-w-0 text-left">
-        <p className="text-sm font-medium truncate">{fileTitle}</p>
-        <p className={`text-xs mt-0.5 ${isSelf ? 'text-blue-200' : 'text-gray-400'}`}>
+        <p className="text-sm font-medium truncate bubble-title">{fileTitle}</p>
+        <p className="text-xs mt-0.5 bubble-subtext">
           {sizeText && <>{sizeText} · </>}
           {opening ? 'Đang mở...'
             : localFilePath ? '✓ Đã có trên máy'
@@ -810,7 +814,7 @@ function FileBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
         </p>
       </button>
       <button onClick={handleOpen} disabled={opening || !canOpen}
-        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-40 flex-shrink-0 ${isSelf ? 'text-blue-200 hover:text-white hover:bg-blue-500' : 'text-gray-400 hover:text-white hover:bg-gray-600'}`}>
+        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-40 flex-shrink-0 bubble-action-btn ${isSelf ? '' : 'text-gray-400 hover:text-white hover:bg-gray-600'}`}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
@@ -945,30 +949,30 @@ function LinkBubble({ parsed, isSelf }: { parsed: any; isSelf: boolean }) {
   const thumb = String(parsed.thumb || '');
 
   return (
-    <div className={`rounded-2xl min-w-[220px] max-w-xs overflow-hidden ${isSelf ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+    <div className={`min-w-[220px] max-w-xs overflow-hidden ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
       {/* Top area: selectable/copyable text — NOT clickable */}
       <div className="flex items-center gap-3 px-3 py-2.5 select-text cursor-text">
-        <div className={`w-11 h-11 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center ${isSelf ? 'bg-blue-500' : 'bg-gray-600'}`}>
+        <div className="w-11 h-11 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center bg-black/15">
           {thumb
             ? <img src={thumb} alt="" className="w-full h-full object-cover pointer-events-none" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={isSelf ? 'text-blue-200' : 'text-gray-400'}>
+            : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="bubble-subtext">
                 <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
                 <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
               </svg>
           }
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium leading-tight break-words">{title}</p>
-          {domain && <p className={`text-xs mt-0.5 truncate ${isSelf ? 'text-blue-200' : 'text-gray-400'}`}>{domain}</p>}
+          <p className="text-sm font-medium leading-tight break-words bubble-title">{title}</p>
+          {domain && <p className="text-xs mt-0.5 truncate bubble-subtext">{domain}</p>}
         </div>
       </div>
       {/* Bottom area: clickable link */}
       {href && (
         <button
           onClick={() => ipc.shell?.openExternal(href)}
-          className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs truncate border-t transition-colors ${
+          className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs truncate border-t transition-colors bubble-action-btn ${
             isSelf
-              ? 'border-blue-500/30 text-blue-200 hover:bg-blue-500/30'
+              ? ''
               : 'border-gray-600/50 text-blue-400 hover:bg-gray-600/40'
           }`}
           title={href}
@@ -1010,21 +1014,21 @@ function CallBubble({ parsed, isSelf }: { parsed: any; isSelf: boolean }) {
   }
 
   return (
-    <div className={`flex flex-col px-3 py-2.5 rounded-2xl min-w-[200px] max-w-xs ${isSelf ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+    <div className={`flex flex-col px-3 py-2.5 min-w-[200px] max-w-xs ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
       <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${isSelf ? 'bg-blue-500' : 'bg-gray-600'}`}>
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-black/15">
           {isVideo
             ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
               </svg>
-            : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.63 19.79 19.79 0 01.01 1a2 2 0 012-2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+            : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
               </svg>
           }
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold ${statusRed ? 'text-red-400' : isSelf ? 'text-white' : 'text-gray-200'}`}>{statusLabel}</p>
-          <p className={`text-xs mt-0.5 ${isSelf ? 'text-blue-200' : 'text-gray-400'}`}>{isVideo ? 'Cuộc gọi video' : 'Cuộc gọi thoại'}</p>
+          <p className={`text-sm font-semibold ${statusRed ? 'text-red-400' : isSelf ? 'bubble-title' : 'text-gray-200'}`}>{statusLabel}</p>
+          <p className="text-xs mt-0.5 bubble-subtext">{isVideo ? 'Cuộc gọi video' : 'Cuộc gọi thoại'}</p>
         </div>
       </div>
     </div>
@@ -1124,7 +1128,7 @@ function ContactCardBubble({ parsed, isSelf, onOpenProfile }: { parsed: any; isS
 
   return (
     <div
-      className={`rounded-2xl max-w-[340px] ${isSelf ? 'bg-blue-600/70 text-white' : 'bg-gray-700 text-gray-200'}`}
+      className={`max-w-[340px] ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}
     >
       <div className="flex items-center gap-3.5 px-4 py-3.5 select-text">
         {/* Avatar — click mở profile */}
@@ -1138,9 +1142,9 @@ function ContactCardBubble({ parsed, isSelf, onOpenProfile }: { parsed: any; isS
           }
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold truncate select-text cursor-text">{title || 'Danh thiếp'}</p>
-          {phone && <PhoneDisplay phone={phone} className={`text-sm ${isSelf ? 'text-blue-100' : 'text-gray-300'}`} />}
-          <p className={`text-xs mt-1 ${isSelf ? 'text-blue-200' : 'text-gray-500'}`}>Danh thiếp Zalo</p>
+          <p className="text-base font-semibold truncate select-text cursor-text bubble-title">{title || 'Danh thiếp'}</p>
+          {phone && <PhoneDisplay phone={phone} className={`text-sm card-phone ${isSelf ? '' : 'text-gray-300'}`} />}
+          <p className={`text-xs mt-1 card-type ${isSelf ? '' : 'text-gray-500'}`}>Danh thiếp Zalo</p>
         </div>
         {qrCodeUrl && (
           <div className="w-12 h-12 flex-shrink-0">
@@ -1151,11 +1155,11 @@ function ContactCardBubble({ parsed, isSelf, onOpenProfile }: { parsed: any; isS
       </div>
 
       {resolvedUserId && (
-        <div className={`px-4 pb-3.5 ${isSelf ? 'bg-blue-700/40' : 'bg-gray-800/50'} border-t ${isSelf ? 'border-blue-400/25' : 'border-gray-600/70'}`}>
+        <div className={`px-4 pb-3.5 card-footer border-t ${isSelf ? '' : 'bg-gray-800/50 border-gray-600/70'}`}>
           <button
             onClick={handleOpenQuickChat}
-            className={`mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-              isSelf ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+            className={`mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors card-btn-primary ${
+              isSelf ? '' : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
             title="Gửi tin nhắn"
           >
@@ -1169,11 +1173,11 @@ function ContactCardBubble({ parsed, isSelf, onOpenProfile }: { parsed: any; isS
             <button
               onClick={handleAddFriend}
               disabled={sendingReq}
-              className={`mt-1.5 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-dashed ${
+              className={`mt-1.5 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-dashed card-btn-secondary ${
                 sendingReq
                   ? 'opacity-50 cursor-not-allowed'
                   : 'hover:bg-white/10'
-              } ${isSelf ? 'border-blue-400/30 text-blue-200' : 'border-gray-500/40 text-gray-300'}`}
+              } ${isSelf ? '' : 'border-gray-500/40 text-gray-300'}`}
               title="Gửi lời mời kết bạn"
             >
               {sendingReq ? (
@@ -1538,9 +1542,7 @@ export function MessageBubble({ msg, isSelf, senderName, onManage, onView, onOpe
 
   const mt = msg.msg_type || '';
   const mc = msg.content || '';
-  const cls = isSelf
-    ? 'bg-blue-600 text-white rounded-br-sm'
-    : 'bg-gray-700 text-gray-200 rounded-bl-sm';
+  const cls = isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver';
 
   // ── Recalled ──
   const isRecalled = msg.is_recalled === 1 || msg.status === 'recalled' || mt === 'recalled';
@@ -1695,7 +1697,7 @@ export function MessageBubble({ msg, isSelf, senderName, onManage, onView, onOpe
             {editHistoryEntries.length > 0 && (
               <button
                 onClick={() => setShowEditHistory(p => !p)}
-                className="ml-1.5 text-[10px] font-medium text-blue-300/70 hover:text-blue-300 transition-colors underline underline-offset-2 select-none pointer-events-auto"
+                className="ml-1.5 text-[10px] font-medium edit-history-btn transition-colors underline underline-offset-2 select-none pointer-events-auto"
               >
                 {showEditHistory ? 'Ẩn' : 'Xem nội dung cũ'}
               </button>
@@ -1708,7 +1710,7 @@ export function MessageBubble({ msg, isSelf, senderName, onManage, onView, onOpe
           {editHistoryEntries.map((entry, i) => (
             <div
               key={i}
-              className={`px-3 py-1.5 rounded-lg text-xs opacity-60 ${isSelf ? 'bg-blue-700/30 mr-8' : 'bg-gray-600/30 ml-8'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs opacity-60 chat-bubble-history-entry ${isSelf ? 'mr-8' : 'bg-gray-600/30 ml-8'}`}
             >
               <div className="text-[10px] opacity-50 mb-0.5">
                 {new Date(entry.editedAt).toLocaleString('vi-VN')}

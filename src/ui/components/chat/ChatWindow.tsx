@@ -1753,10 +1753,10 @@ export default function ChatWindow() {
               </div>
             );
           }
-
-          const showTime = !prevMsg ||
-            (msg.timestamp - prevMsg.timestamp > 30 * 60 * 1000) ||
-            prevMsg.sender_id !== msg.sender_id;
+          const isNewDay = !prevMsg || new Date(msg.timestamp).toDateString() !== new Date(prevMsg.timestamp).toDateString();
+          const isLongTimeGap = prevMsg && (msg.timestamp - prevMsg.timestamp > 15 * 60 * 1000);
+          const showCenterTimeSeparator = isNewDay;
+          const showBubbleHeader = !prevMsg || prevMsg.sender_id !== msg.sender_id || isLongTimeGap;
 
           const isLastInRun = !nextMsg || nextMsg.sender_id !== msg.sender_id;
 
@@ -1780,9 +1780,17 @@ export default function ChatWindow() {
 
             return (
               <div key={msg.msg_id + idx} id={`msg-${msg.msg_id}`} className={`flex flex-col mb-0.5 ${isSent ? 'items-end' : 'items-start'}`}>
-                {showTime && (
+                {showCenterTimeSeparator && (
                   <div className="flex justify-center w-full my-2">
-                    <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">{formatMsgTime(msg.timestamp)}</span>
+                    <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">{formatCenterDate(msg.timestamp)}</span>
+                  </div>
+                )}
+                {showBubbleHeader && (
+                  <div className={`flex items-center gap-1.5 mb-1 px-1 text-[10px] text-gray-500 ${isSent ? 'justify-end' : ''}`}>
+                    {!isSent && msg.thread_type === 1 && displayName && displayName !== msg.sender_id && (
+                      <span className="text-xs font-semibold text-gray-400">{displayName}</span>
+                    )}
+                    <span>{formatBubbleTime(msg.timestamp)}</span>
                   </div>
                 )}
                 <div className={`flex items-end gap-2 ${isSent ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -1899,11 +1907,19 @@ export default function ChatWindow() {
                 };
               } : undefined}
             >
-              {showTime && (
+              {showCenterTimeSeparator && (
                 <div className="flex justify-center w-full my-2">
                   <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
-                    {formatMsgTime(msg.timestamp)}
+                    {formatCenterDate(msg.timestamp)}
                   </span>
+                </div>
+              )}
+              {showBubbleHeader && !isEcardMsg && (
+                <div className={`flex items-center gap-1.5 mb-1 px-1 text-[10px] text-gray-500 ${isSent ? 'justify-end' : ''}`}>
+                  {!isSent && msg.thread_type === 1 && displayName && displayName !== msg.sender_id && (
+                    <span className="text-xs font-semibold text-gray-400">{displayName}</span>
+                  )}
+                  <span>{formatBubbleTime(msg.timestamp)}</span>
                 </div>
               )}
 
@@ -1994,14 +2010,11 @@ export default function ChatWindow() {
                   })()}
 
                   <div className={`flex flex-col ${isEcardMsg ? 'w-full items-center' : isSent ? 'items-end' : 'items-start'} relative min-w-0${hasReactions && !isGroupedStickerFirst ? ' mb-3' : ''}`}>
-                    {/* Sender name in group chats */}
-                    {!isSent && !isEcardMsg && msg.thread_type === 1 && showTime && displayName && displayName !== msg.sender_id && (
-                      <p className="text-xs text-gray-400 mb-0.5 px-1 truncate max-w-full">{displayName}</p>
-                    )}
+
                     <div className={`rounded-2xl text-sm break-words min-w-0 overflow-hidden ${
                       isMediaMsg || isGroupMedia || isFileMsg || isCardMsg || isEcardMsg || isStickerMsg || isBankCardMsg ? '' : isSent
-                        ? 'px-3 py-2 bg-blue-600 text-white rounded-br-sm'
-                        : 'px-3 py-2 bg-gray-700 text-gray-200 rounded-bl-sm'
+                        ? 'px-3 py-2 chat-bubble-sender rounded-br-sm'
+                        : 'px-3 py-2 chat-bubble-receiver rounded-bl-sm'
                     }`}>
                     {/* Quote preview — supports both pre-built quote_data and reply_to_id fallback */}
                     {(msg.quote_data || msg.reply_to_id) && (() => {
@@ -2094,10 +2107,10 @@ export default function ChatWindow() {
 
                         return (
                           <div
-                            className={`border-l-2 ${isSent ? 'border-blue-300 bg-blue-500/20' : 'border-gray-400 bg-gray-600/50'} rounded pl-2 pr-1 py-1 mb-1 text-xs opacity-90 cursor-pointer hover:opacity-100 overflow-hidden min-w-0 max-w-full`}
+                            className={`border-l-2 quote-container rounded pl-2 pr-1 py-1 mb-1 text-xs opacity-90 cursor-pointer hover:opacity-100 overflow-hidden min-w-0 max-w-full ${isSent ? '' : 'border-gray-400 bg-gray-600/50'}`}
                             onClick={() => q.msgId && handleScrollToMsg(String(q.msgId))}
                           >
-                            {q.fromD && <p className={`font-semibold truncate ${isSent ? 'text-blue-100' : 'text-gray-200'}`}>{q.fromD}</p>}
+                            {q.fromD && <p className={`font-semibold truncate quote-sender ${isSent ? '' : 'text-gray-200'}`}>{q.fromD}</p>}
                             {isQuotedSticker ? (
                               <QuotedStickerPreview content={quotedStickerContent} />
                             ) : finalImgUrl ? (
@@ -2115,7 +2128,7 @@ export default function ChatWindow() {
                               />
                             ) : null}
                             <p
-                              className="opacity-80 line-clamp-2 break-words whitespace-pre-wrap"
+                              className="opacity-80 line-clamp-2 break-words whitespace-pre-wrap quote-text"
                               style={(finalImgUrl || isQuotedSticker) ? { display: 'none' } : undefined}
                             >
                               {quoteDisplayText}
@@ -2222,7 +2235,7 @@ export default function ChatWindow() {
                                         else next.add(msg.msg_id);
                                         return next;
                                       })}
-                                      className="ml-1 text-[10px] font-medium text-blue-300/70 hover:text-blue-300 transition-colors underline underline-offset-2 select-none pointer-events-auto"
+                                      className="ml-1 text-[10px] font-medium edit-history-btn transition-colors underline underline-offset-2 select-none pointer-events-auto"
                                     >
                                       {revealedEditIds.has(msg.msg_id) ? 'Ẩn' : 'Xem nội dung cũ'}
                                     </button>
@@ -2240,7 +2253,7 @@ export default function ChatWindow() {
                                   {parsed.map((entry: any, i: number) => (
                                     <div
                                       key={i}
-                                      className={`px-3 py-1.5 rounded-lg text-xs opacity-60 ${isSent ? 'bg-blue-700/30 mr-8' : 'bg-gray-600/30 ml-8'}`}
+                                      className={`px-3 py-1.5 rounded-lg text-xs opacity-60 chat-bubble-history-entry ${isSent ? 'mr-8' : 'bg-gray-600/30 ml-8'}`}
                                     >
                                       <div className="text-[10px] opacity-50 mb-0.5">
                                         {new Date(entry.editedAt).toLocaleString('vi-VN')}
@@ -2831,24 +2844,24 @@ function PollBubble({ msg, isSent, activeAccountId, threadId }: { msg: any; isSe
   }, [expanded]);
 
   return (
-    <div className={`rounded-2xl overflow-hidden min-w-[260px] max-w-sm ${isSent ? 'bg-blue-600' : 'bg-gray-700'}`}>
+    <div className={`rounded-2xl overflow-hidden min-w-[260px] max-w-sm ${isSent ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
       {/* Header */}
       <div className="flex items-center gap-2.5 px-3 pt-3 pb-2">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isSent ? 'bg-blue-500' : 'bg-[#2a2f42]'}`}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={isSent ? 'text-blue-100' : 'text-purple-400'}>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bubble-icon-bg ${isSent ? '' : 'bg-[#2a2f42]'}`}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={isSent ? 'bubble-icon' : 'text-purple-400'}>
             <rect x="3" y="3" width="18" height="18" rx="2"/>
             <line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/><line x1="8" y1="17" x2="11" y2="17"/>
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-[11px] font-bold uppercase tracking-widest mb-0.5 ${isSent ? 'text-blue-200' : 'text-purple-400'}`}>BÌNH CHỌN</p>
-          <p className={`text-sm font-semibold leading-tight ${isSent ? 'text-white' : 'text-gray-100'}`}>{question || 'Cuộc bình chọn'}</p>
+          <p className={`text-[11px] font-bold uppercase tracking-widest mb-0.5 bubble-label ${isSent ? '' : 'text-purple-400'}`}>BÌNH CHỌN</p>
+          <p className={`text-sm font-semibold leading-tight bubble-title ${isSent ? '' : 'text-gray-100'}`}>{question || 'Cuộc bình chọn'}</p>
         </div>
       </div>
 
       {/* Voter info */}
       {voterName && (
-        <div className={`px-3 pb-2 text-xs ${isSent ? 'text-blue-200' : 'text-gray-400'}`}>
+        <div className={`px-3 pb-2 text-xs bubble-subtext`}>
           {voterName} đã bình chọn
         </div>
       )}
@@ -2856,8 +2869,8 @@ function PollBubble({ msg, isSent, activeAccountId, threadId }: { msg: any; isSe
       {/* Expand/collapse toggle */}
       <button
         onClick={() => setExpanded(v => !v)}
-        className={`w-full px-3 py-2 text-xs font-semibold flex items-center justify-between border-t transition-colors ${
-          isSent ? 'border-blue-500 text-blue-100 hover:bg-blue-700' : 'border-gray-600 text-gray-300 hover:bg-gray-600'
+        className={`w-full px-3 py-2 text-xs font-semibold flex items-center justify-between border-t transition-colors bubble-action-btn ${
+          isSent ? '' : 'border-gray-600 text-gray-300 hover:bg-gray-600'
         }`}
       >
         <span>{expanded ? 'Thu gọn' : 'Xem bình chọn'}</span>
@@ -2885,7 +2898,7 @@ function PollBubble({ msg, isSent, activeAccountId, threadId }: { msg: any; isSe
         />
       )}
       {expanded && !loading && !pollDetail && (
-        <p className={`px-3 py-2 text-xs ${isSent ? 'text-blue-200' : 'text-gray-500'}`}>Không thể tải chi tiết</p>
+        <p className={`px-3 py-2 text-xs bubble-subtext`}>Không thể tải chi tiết</p>
       )}
     </div>
   );
@@ -3784,7 +3797,7 @@ function MediaBubble({ msg, onView, isSent, allContacts, groupMembersList, onMen
   return (
     <div className={`flex flex-col rounded-2xl overflow-hidden ring-1 ring-black/[0.12]${isSent ? ' rounded-br-sm' : ' rounded-bl-sm'}`}>
       {imgNode}
-      <div className={`px-3 py-2 text-sm break-words${isSent ? ' bg-blue-600 text-white' : ' bg-gray-700 text-gray-200'}`}>
+      <div className={`px-3 py-2 text-sm break-words ${isSent ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
         <TextWithMentions
           text={caption}
           allContacts={allContacts}
@@ -4052,7 +4065,7 @@ function VoiceBubble({ msg, isSent }: { msg: any; isSent: boolean }) {
 
   return (
     <div className={`flex items-center gap-2.5 px-3 py-2 rounded-2xl min-w-[200px] max-w-[280px] ${
-      isSent ? 'bg-blue-600' : 'bg-gray-700'
+      isSent ? 'chat-bubble-sender' : 'chat-bubble-receiver'
     }`}>
       <audio
         ref={audioRef}
@@ -4066,13 +4079,13 @@ function VoiceBubble({ msg, isSent }: { msg: any; isSent: boolean }) {
       />
 
       {/* Play/Pause button */}
-      <button onClick={togglePlay} className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0 transition-colors">
+      <button onClick={togglePlay} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${isSent ? 'audio-play-btn' : 'bg-white/20 hover:bg-white/30'}`}>
         {isPlaying ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+          <svg width="14" height="14" viewBox="0 0 24 24">
             <rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>
           </svg>
         ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+          <svg width="14" height="14" viewBox="0 0 24 24">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
         )}
@@ -4088,20 +4101,24 @@ function VoiceBubble({ msg, isSent }: { msg: any; isSent: boolean }) {
               return (
                 <div
                   key={i}
-                  className={`rounded-full transition-colors duration-100 ${filled ? 'bg-white' : 'bg-white/30'}`}
+                  className={`rounded-full transition-colors duration-100 ${
+                    isSent
+                      ? filled ? 'audio-waveform-filled' : 'audio-waveform-empty'
+                      : filled ? 'bg-white' : 'bg-white/30'
+                  }`}
                   style={{ width: '0.125rem', height: h * 1.5, minHeight: '0.1875rem' }}
                 />
               );
             })}
           </div>
         </div>
-        <span className="text-[10px] text-white/70 font-mono tabular-nums leading-none">
+        <span className={`text-[10px] font-mono tabular-nums leading-none ${isSent ? 'audio-duration' : 'text-white/70'}`}>
           {isPlaying ? formatDur(currentTime) : formatDur(duration)}
         </span>
       </div>
 
       {/* Mic icon */}
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/50 flex-shrink-0">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`flex-shrink-0 ${isSent ? 'audio-mic-icon' : 'text-white/50'}`}>
         <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
         <path d="M19 10v2a7 7 0 01-14 0v-2"/>
       </svg>
@@ -4543,6 +4560,29 @@ function formatMsgTime(timestamp: number): string {
     month: '2-digit',
   });
 }
+
+function formatCenterDate(timestamp: number): string {
+  const d = new Date(timestamp);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  if (isToday) return 'Hôm nay';
+  
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return 'Hôm qua';
+
+  return d.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
+
+function formatBubbleTime(timestamp: number): string {
+  const d = new Date(timestamp);
+  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
 
 /** Parse reactions ra full ReactionData (có users) để check current user và hiển thị popup */
 function parseReactionsFull(raw: any): { total: number; emoji: Record<string, { total: number; users: Record<string, number> }> } {
@@ -5047,18 +5087,18 @@ function CallBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
   }
 
   return (
-    <div className={`flex flex-col px-3 py-2.5 rounded-2xl min-w-[200px] max-w-xs ${isSent ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+    <div className={`flex flex-col px-3 py-2.5 min-w-[200px] max-w-xs ${isSent ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
       <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${isSent ? 'bg-blue-500' : 'bg-gray-600'}`}>
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-black/15">
           {isVideo ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.63 19.79 19.79 0 01.01 1a2 2 0 012-2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold ${statusRed ? 'text-red-400' : isSent ? 'text-white' : 'text-gray-200'}`}>{statusLabel}</p>
-          <p className={`text-xs mt-0.5 ${isSent ? 'text-blue-200' : 'text-gray-400'}`}>{callTypeLabel}</p>
+          <p className={`text-sm font-semibold ${statusRed ? 'text-red-400' : isSent ? 'bubble-title' : 'text-gray-200'}`}>{statusLabel}</p>
+          <p className={`text-xs mt-0.5 bubble-subtext`}>{callTypeLabel}</p>
         </div>
       </div>
     </div>
@@ -5171,7 +5211,7 @@ function ContactCardBubble({ parsed, isSent, onOpenProfile }: { parsed: any; isS
 
   return (
     <div
-      className={`rounded-2xl max-w-[340px] ${isSent ? 'bg-blue-600/70 text-white' : 'bg-gray-700 text-gray-200'}`}
+      className={`rounded-2xl max-w-[340px] ${isSent ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}
     >
       <div className="flex items-center gap-3.5 px-4 py-3.5 select-text">
         {/* Avatar — click mở profile */}
@@ -5186,9 +5226,9 @@ function ContactCardBubble({ parsed, isSent, onOpenProfile }: { parsed: any; isS
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold truncate select-text cursor-text">{title || 'Danh thiếp'}</p>
-          {phone && <PhoneDisplay phone={phone} className={`text-sm ${isSent ? 'text-blue-100' : 'text-gray-300'}`} />}
-          <p className={`text-xs mt-1 ${isSent ? 'text-blue-200' : 'text-gray-500'}`}>Danh thiếp Zalo</p>
+          <p className="text-base font-semibold truncate select-text cursor-text bubble-title">{title || 'Danh thiếp'}</p>
+          {phone && <PhoneDisplay phone={phone} className={`text-sm card-phone ${isSent ? '' : 'text-gray-300'}`} />}
+          <p className={`text-xs mt-1 card-type ${isSent ? '' : 'text-gray-500'}`}>Danh thiếp Zalo</p>
         </div>
         {qrCodeUrl && (
           <div className="w-12 h-12 flex-shrink-0">
@@ -5198,12 +5238,12 @@ function ContactCardBubble({ parsed, isSent, onOpenProfile }: { parsed: any; isS
       </div>
 
       {resolvedUserId && (
-        <div className={`px-4 pb-3.5 ${isSent ? 'bg-blue-700/40' : 'bg-gray-800/50'} border-t ${isSent ? 'border-blue-400/25' : 'border-gray-600/70'}`}>
+        <div className={`px-4 pb-3.5 card-footer border-t ${isSent ? '' : 'bg-gray-800/50 border-gray-600/70'}`}>
           <button
             onClick={handleOpenCardChat}
-            className={`mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+            className={`mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors card-btn-primary ${
               isSent
-                ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                ? ''
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
             title="Gửi tin nhắn"
@@ -5218,11 +5258,11 @@ function ContactCardBubble({ parsed, isSent, onOpenProfile }: { parsed: any; isS
             <button
               onClick={handleAddFriend}
               disabled={sendingReq}
-              className={`mt-1.5 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-dashed ${
+              className={`mt-1.5 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-dashed card-btn-secondary ${
                 sendingReq
                   ? 'opacity-50 cursor-not-allowed'
                   : 'hover:bg-white/10'
-              } ${isSent ? 'border-blue-400/30 text-blue-200' : 'border-gray-500/40 text-gray-300'}`}
+              } ${isSent ? '' : 'border-gray-500/40 text-gray-300'}`}
               title="Gửi lời mời kết bạn"
             >
               {sendingReq ? (

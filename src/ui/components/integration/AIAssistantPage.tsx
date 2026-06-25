@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import ipc from '@/lib/ipc';
 import AIAssistantDetailPage from './AIAssistantDetailPage';
 import AccountAssignmentPopup from '@/components/chat/AccountAssignmentPopup';
+import BrandLogo from '../common/BrandLogo';
 
 const PLATFORM_META: Record<string, { label: string; color: string; icon: string }> = {
   openai:   { label: 'OpenAI',   color: 'bg-green-600',   icon: '🤖' },
   gemini:   { label: 'Gemini',   color: 'bg-blue-600',    icon: '✨' },
   claude:   { label: 'Claude',   color: 'bg-amber-600',   icon: '🟠' },
-  deepseek: { label: 'DeepSeek', color: 'bg-purple-600',  icon: '🔮' },
+  deepseek: { label: 'DeepSeek', color: 'bg-sky-600',     icon: '🔮' },
   grok:     { label: 'Grok',     color: 'bg-orange-600',  icon: '⚡' },
 };
 
@@ -55,11 +56,16 @@ export default function AIAssistantPage() {
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <h1 className="text-lg font-semibold text-white">🤖 Trợ lý AI</h1>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Tạo và quản lý trợ lý AI — tùy chỉnh prompt, nạp dữ liệu sản phẩm, file kiến thức
-            </p>
+          <div className="flex-1 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+              <BrandLogo type="ai" className="w-4.5 h-4.5 text-white-important" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-white">Trợ lý AI</h1>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Tạo và quản lý trợ lý AI — tùy chỉnh prompt, nạp dữ liệu sản phẩm, file kiến thức
+              </p>
+            </div>
           </div>
           <button onClick={() => setShowAccountPopup(true)}
             className="px-3 py-2 text-sm rounded-lg transition-colors border text-gray-400 hover:text-white border-gray-600 hover:border-gray-500">
@@ -103,8 +109,8 @@ export default function AIAssistantPage() {
                   className="text-left p-5 rounded-xl border border-gray-700 hover:border-blue-500 bg-gray-800 hover:bg-gray-750 transition-all group"
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`w-11 h-11 rounded-xl ${meta.color} flex items-center justify-center text-xl flex-shrink-0`}>
-                      {meta.icon}
+                    <div className={`w-11 h-11 rounded-xl ${meta.color} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                      <BrandLogo type={a.platform} className="w-6 h-6 text-white-important" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">

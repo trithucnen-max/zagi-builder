@@ -416,6 +416,11 @@ export default function GroupMembersTab() {
               adminIds = gAdminIds;
               creatorId = gCreatorId;
 
+              // Cập nhật lại tên và ảnh đại diện nếu có thông tin mới
+              if (gData.name) name = gData.name;
+              const gAvatar = gData.fullAvt || gData.avt || '';
+              if (gAvatar) avatar = gAvatar;
+
               // Ưu tiên: memberIds > currentMems > memVerList keys
               const rawMemberIds: string[] = gData.memberIds || [];
               const rawCurrentMems: any[] = gData.currentMems || [];
@@ -573,6 +578,16 @@ export default function GroupMembersTab() {
         // mergeGroupMembers: giữ lại avatar/tên nếu nhóm này đã từng được scan trước đó
         await ipc.db?.mergeGroupMembers({ zaloId: activeAccountId, groupId, members: initMembers });
       }
+
+      // Cập nhật lại thông tin nhóm vào contacts DB (đặc biệt hữu ích khi fallback quét được tên/ảnh thực tế của nhóm bị ẩn)
+      await ipc.db?.updateContactProfile({
+        zaloId: activeAccountId,
+        contactId: groupId,
+        displayName: name,
+        avatarUrl: avatar,
+        phone: '',
+        contactType: 'group',
+      });
 
       setLinkScanResult({ groupId, name });
 

@@ -345,6 +345,34 @@ export default function Settings() {
                         <span className={`text-xs font-medium ${theme === 'light' ? 'text-blue-400' : 'text-gray-400'}`}>☀️ Sáng</span>
                       </div>
                     </button>
+
+                    {/* System theme option */}
+                    <button
+                      onClick={() => setTheme('system')}
+                      className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                        theme === 'system'
+                          ? 'border-blue-500 bg-blue-600/10'
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="w-full h-14 rounded-lg bg-gradient-to-r from-gray-900 to-stone-100 border border-gray-700 flex items-end p-1.5 gap-1 overflow-hidden relative">
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800/40 backdrop-blur-[1px]">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {theme === 'system' && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-blue-400">
+                            <path d="M20 6L9 17l-5-5" stroke="currentColor" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                        <span className={`text-xs font-medium ${theme === 'system' ? 'text-blue-400' : 'text-gray-400'}`}>💻 Hệ thống</span>
+                      </div>
+                    </button>
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 leading-relaxed">
@@ -516,7 +544,7 @@ export default function Settings() {
                 </p>
                 <div className="flex gap-2">
                   <button onClick={handleChangeStorageFolder} disabled={changingStorage}
-                    className="btn-primary text-white text-sm flex-1 disabled:opacity-50">
+                    className="btn-primary text-white-important text-sm flex-1 disabled:opacity-50">
                     {changingStorage
                       ? copyProgress > 0
                         ? `📁 ${copyProgress.toLocaleString()}${copyTotal > 0 ? ` / ${copyTotal.toLocaleString()}` : ''} files…`
@@ -673,7 +701,7 @@ export default function Settings() {
                       </div>
                       <button 
                         onClick={handleLogoutLicense}
-                        className="px-3 py-1.5 bg-red-950/40 hover:bg-red-900/40 text-red-400 hover:text-red-300 text-xs font-medium rounded-lg transition-colors border border-red-500/30 flex-shrink-0"
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
                       >
                         Đăng xuất
                       </button>

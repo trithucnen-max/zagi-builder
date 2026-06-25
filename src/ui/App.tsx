@@ -22,7 +22,7 @@ import ErpPage from './features/erp/ErpPage';
 import AccountInitPanel from './components/common/AccountInitPanel';
 import AccountSwitcherOverlay from './components/common/AccountSwitcherOverlay';
 import { UpdateNotification } from './components/common/UpdateNotification';
-import { useAppStore } from './store/appStore';
+import { useAppStore, AppTheme } from './store/appStore';
 import { useAccountStore } from './store/accountStore';
 import { useChatStore } from './store/chatStore';
 import { useCRMStore } from './store/crmStore';
@@ -123,12 +123,44 @@ export default function App() {
 
   // ─── Sync theme to <html> element ────────────────────────────────────────
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    const applyTheme = (currentTheme: AppTheme) => {
+      let resolvedTheme = currentTheme;
+      if (currentTheme === 'system') {
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        resolvedTheme = systemPrefersDark ? 'dark' : 'light';
+      }
+      document.documentElement.dataset.theme = resolvedTheme;
+    };
+
+    applyTheme(theme);
+
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = (e: MediaQueryListEvent) => {
+        document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
+      };
+      
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', listener);
+      } else {
+        mediaQuery.addListener(listener);
+      }
+      
+      return () => {
+        if (mediaQuery.removeEventListener) {
+          mediaQuery.removeEventListener('change', listener);
+        } else {
+          mediaQuery.removeListener(listener);
+        }
+      };
+    }
   }, [theme]);
 
   // ─── Sync font size scale to <html> element ──────────────────────────────
   useEffect(() => {
     document.documentElement.style.fontSize = `${16 * fontSizeScale}px`;
+    document.documentElement.style.setProperty('--zagi-font-scale', fontSizeScale.toString());
+    document.documentElement.style.zoom = '';
   }, [fontSizeScale]);
 
   // ─── Lock screen: check status on mount ─────────────────────────────────

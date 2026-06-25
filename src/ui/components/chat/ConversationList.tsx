@@ -1812,7 +1812,7 @@ export default function ConversationList() {
 
       {/* Merged inbox: cần chọn tài khoản để tìm SĐT trên Zalo */}
       {phoneSearchPendingPhone && !phoneSearching && !phoneResult && (
-        <div className="border-b border-gray-700 bg-gray-900 px-3 py-2">
+        <div className="border-b border-gray-700 bg-gray-850 px-3 py-2">
           <p className="text-xs text-yellow-400 mb-2 flex items-center gap-1">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             Chọn tài khoản để tìm <span className="text-white font-medium">{phoneSearchPendingPhone}</span>:
@@ -1910,7 +1910,7 @@ export default function ConversationList() {
           const ownerAcc = mergedInboxMode ? allAccountsList.find(a => a.zalo_id === contact.owner_zalo_id) : null;
           return (
             <div key={`${contact.owner_zalo_id}_${contact.contact_id}`}
-              className={`relative w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-700 transition-colors cursor-pointer ${threadLocalLabelsArr.length > 0 ? 'min-h-[72px]' : 'max-h-[80px] min-h-[80px]'} ${activeThreadId === contact.contact_id && activeAccountId === contact.owner_zalo_id ? 'bg-gray-700' : ''}`}
+              className={`relative w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer conversation-item ${threadLocalLabelsArr.length > 0 ? 'min-h-[72px]' : 'max-h-[80px] min-h-[80px]'} ${activeThreadId === contact.contact_id && activeAccountId === contact.owner_zalo_id ? 'conversation-item-active' : ''}`}
               onClick={() => { if (mergedInboxMode) { handleMergedClick(contact); } else { handleSelect(contact.contact_id, threadType); setFilterDropdownOpen(false); } }}
               onMouseEnter={() => setHoveredId(`${contact.owner_zalo_id}_${contact.contact_id}`)}
               onMouseLeave={() => setHoveredId(null)}>

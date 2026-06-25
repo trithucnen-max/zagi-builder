@@ -381,18 +381,22 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.7</strong> — 2026-06-25 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.1.7</strong> — 2026-06-26 · <em>🟢 Current version</em></summary>
 
 ### 🚀 Key Highlights
 
+- 🖼️ **Workflow Multi-Image Selector & Random Sending**: Overhauled the configuration UI for sending images in Workflows (`zalo.sendImage`). Added support for picking multiple local image files via dialog, entering manual URLs, displaying a thumbnail preview grid with quick deletion buttons, and selecting a toggle checkbox to send exactly one random image or send them all as a batch.
+- 🎨 **Standardized Brand Logos & Categories**: Converted brand integration panels (KiotViet, Haravan, Sapo, Nhanh.vn, Pancake, Casso, SePay, GHN, GHTK) and AI assistants to display white SVG icons on solid, brand-colored square backgrounds. DeepSeek is mapped to a sky-blue background (`bg-sky-600`) to strictly comply with the system-wide Purple Ban.
+- 📖 **Built-in User Guide Tab**: Relocated the user guide modal from the sidebar to the **Settings → About → User Guide** panel with 5 organized horizontal sub-tabs, enriched with details about locked group scanning, sending multiple images/files, and POS integrations.
+- 🧪 **Visual Debugger & Sandbox Simulator**: Added a "Run Sandbox" button to safely run and test workflows (no real Zalo messages sent, no real sheets written). Colorizes Canvas Edges according to execution status (green = success, red = error, gray = skipped). Enables viewing Input/Output of each Node via an info ℹ️ icon.
+- 🔍 **Global CSS Zoom Engine & Button Standardization**: Added a CSS variable-based zoom handler to scale both rem elements and hardcoded Tailwind pixels cleanly without breaking the viewport height. Standardized colored buttons to always display white text/SVG icons (using `.text-white-important` in Light Mode). Exposes font zoom slider and User Guide button on the Topbar.
 - 🍎 **macOS Code Signing & Notarization**: Integrated Apple Developer ID Code Signing and Notarization automatically on GitHub Actions CI/CD. Configuration of Hardened Runtime and Entitlements plists bypasses macOS Gatekeeper warnings and enables background Auto-Updates.
 - 📝 **Smart Variable Auto-complete**: Support drop-down autocomplete list showing up automatically when users type the "{" character in node fields. Allows navigating and selecting variables ($trigger, $node.output) with arrow keys and Enter.
-- 🧪 **Visual Debugger & Sandbox Simulator**: Add a "Run Sandbox" button to safely run and test workflows (no real Zalo messages sent, no real sheets written). Colorizes Canvas Edges according to execution status (green = success, red = error, gray = skipped). Enables viewing Input/Output of each Node via an info ℹ️ icon.
-- 🏷️ **Smart Label Picker & Multi-Target Actions**: Redesigned Zalo label selection popup, added local label quick creation form, and added multi-select support for recipient actions (forward, recall, mute, typing, poll, group join/leave). The engine automatically processes multi-recipient lists sequentially.
-- 🇻🇳 **Node Localization & Variable Decorator**: English/Vietnamese localization for node summaries and logic operators. Variables are decorated as highlighted, theme-aware inline pills. Follows the Purple Ban rules.
+- 👥 **Zalo Group Metadata Synchronization**: Dynamically updates actual group names and composite avatars in the SQLite `contacts` database when scanning a group via link (even if members are hidden by using fallback `getGroupInfo`) and syncing individual groups, fixing raw ID display issues.
+- ⏰ **Adjusted Message Timestamps & Flat SVG Icons**: Moved message sent time to be rendered right above chat bubbles (aligned left for recipients, right for senders). Replaced 3D emojis on group sidebar panels with flat, responsive SVG icons that dynamically update color according to the theme state.
 - 🏠 **Real Estate Template Category**: Introduced a new "Real Estate" category in the Template Store with 8 pre-designed specialized workflows (VIP birthday, lunar 1st day group blessings, lunar 15th day group blessings, payment reminders, handover feedback...).
 - 🪄 **AI Assistant Writing Integration**: Added a "🪄 AI Assistant" writing tray to configuration fields and chat input bars. Connects to `ipc.ai?.chat` to write text and insert it into active fields. Adheres to Purple Ban UI style guidelines (blue/indigo colors).
-- 🐛 **Kanban Pipeline Column Fix**: Solved a SQL error `NOT NULL constraint failed: crm_pipeline_stages.created_at` when creating new pipeline stages on Windows by applying automatic database migrations and assigning timestamp defaults.
+- 🐛 **Kanban Pipeline Column Fix & Preserve Files**: Solved a SQL error `NOT NULL constraint failed: crm_pipeline_stages.created_at` when creating new pipeline stages on Windows. Disabled automated deletion of source files after sending them successfully via Zalo.
 
 </details>
 

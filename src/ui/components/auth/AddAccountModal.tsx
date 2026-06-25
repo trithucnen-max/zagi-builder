@@ -1122,7 +1122,7 @@ function SecretKeyGuidePopup({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            className="px-5 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white-important transition-colors"
           >
             ✅ Đã hiểu
           </button>

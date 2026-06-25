@@ -383,9 +383,11 @@ export function registerZaloIpc() {
         s.createGroup({ name: p.name, members: p.members || p.memberIds, avatarPath: p.avatarPath })
     );
 
-    wrap('zalo:addUserToGroup', (s, p) =>
-        s.addUserToGroup(p.userId, p.groupId)
-    );
+    wrap('zalo:addUserToGroup', (s, p) => {
+        if (!p.userId) throw new Error('Thiếu userId');
+        if (!p.groupId) throw new Error('Thiếu groupId');
+        return s.addUserToGroup(p.userId, p.groupId);
+    });
 
     wrap('zalo:removeUserFromGroup', (s, p) =>
         s.removeUserFromGroup(p.userId, p.groupId)
@@ -433,9 +435,15 @@ export function registerZaloIpc() {
         s.getGroupBlockedMember(p.groupId)
     );
 
-    wrap('zalo:inviteUserToGroups', (s, p) =>
-        s.inviteUserToGroups(p.userId, p.groupIds)
-    );
+    wrap('zalo:inviteUserToGroups', (s, p) => {
+        if (!p.userId) throw new Error('Thiếu userId');
+        let ids = p.groupIds;
+        if (typeof ids === 'string') {
+            try { ids = JSON.parse(ids); } catch {}
+        }
+        if (!Array.isArray(ids) || ids.length === 0) throw new Error('Thiếu hoặc sai định dạng groupIds');
+        return s.inviteUserToGroups(p.userId, ids);
+    });
 
     wrap('zalo:updateGroupSettings', (s, p) => {
         // Pre-seed the EventBroadcaster settings cache with the PREVIOUS (before-toggle) settings

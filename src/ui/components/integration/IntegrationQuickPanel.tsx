@@ -10,6 +10,7 @@ import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import POSOrderPanel from './POSOrderPanel';
 import { IS_DEV_BUILD } from "../../../configs/BuildConfig";
+import BrandLogo from '../common/BrandLogo';
 
 // ─── Pin icon emoji list ─────────────────────────────────────────────────────
 const PIN_EMOJIS = [
@@ -1359,7 +1360,9 @@ export default function IntegrationQuickPanel({ onClose, contextPhone, contextNa
             <div className="mt-6 flex flex-wrap gap-2 justify-center">
               {Object.entries(TYPE_META).map(([type, meta]) => (
                 <span key={type} className="flex items-center gap-1 px-2.5 py-1 bg-gray-800 rounded-lg text-xs text-gray-400 border border-gray-700/50">
-                  <span className={`w-5 h-5 rounded ${meta.color} flex items-center justify-center text-[10px]`}>{meta.icon}</span>
+                  <span className={`w-5 h-5 rounded ${meta.color} flex items-center justify-center`}>
+                    <BrandLogo type={type} className="w-3 h-3 text-white-important" />
+                  </span>
                   {meta.name}
                 </span>
               ))}
@@ -1368,7 +1371,7 @@ export default function IntegrationQuickPanel({ onClose, contextPhone, contextNa
         ) : (
           /* ── Main layout — sidebar ẩn khi đã chọn action ──── */
           <div className="flex-1 flex min-h-0 overflow-hidden">
-
+ 
             {/* Left sidebar — icon-only compact list (ẩn khi đã chọn action) */}
             {showSidebar && (
               <div className="w-12 flex-shrink-0 border-r border-gray-700/60 bg-gray-900/80 flex flex-col items-center py-2 gap-1">
@@ -1380,13 +1383,13 @@ export default function IntegrationQuickPanel({ onClose, contextPhone, contextNa
                       <button
                         onClick={() => setSelectedIntegration(intg)}
                         title={intg.name}
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${meta.color} shadow-sm
                           ${isActive
-                            ? `${meta.color} ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900`
-                            : `${meta.color} opacity-60 hover:opacity-100`
+                            ? 'ring-2 ring-blue-400 ring-offset-1 ring-offset-gray-900'
+                            : 'opacity-70 hover:opacity-100'
                           }`}
                       >
-                        {meta.icon}
+                        <BrandLogo type={intg.type} className="w-5 h-5 text-white-important" />
                       </button>
                       {/* Green connected dot */}
                       <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-gray-900 block" />

@@ -392,6 +392,11 @@ export default class ZaloService {
         }
 
         for (const fileUrl of attachments) {
+            if (!fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
+                // Nếu là đường dẫn tệp cục bộ, sử dụng trực tiếp không tải xuống
+                downloadedFiles.push(fileUrl);
+                continue;
+            }
             try {
                 let filePath = '';
                 const u = new URL(fileUrl);
@@ -457,25 +462,8 @@ export default class ZaloService {
      * xóa cả folder tạm với trường hợp gửi file
      */
     private async deleteTemporaryFiles(filePaths: string[]): Promise<void> {
-        const baseFolder = path.join(__dirname, "..", "..", "data", "image_message");
-        for (const filePath of filePaths) {
-            try {
-                await fs.promises.unlink(filePath);
-
-                const folderPath = path.dirname(filePath);
-                const relative = path.relative(baseFolder, folderPath);
-
-                if (relative === "") {
-                    // file nằm trực tiếp trong image_message -> chỉ xoá file
-                } else if (!relative.startsWith("..") && !path.isAbsolute(relative)) {
-                    // folderPath là con của baseFolder -> xoá luôn folder
-                    await fs.promises.rmdir(folderPath, {recursive: true});
-                }
-
-            } catch (error) {
-                // console.error(`Error deleting temporary file ${filePath}:`, error);
-            }
-        }
+        // Không cho phép xóa file sau khi gửi theo yêu cầu người dùng
+        return;
     }
 
     /**

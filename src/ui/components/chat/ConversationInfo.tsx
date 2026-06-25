@@ -620,7 +620,11 @@ function UserConversationInfo() {
         {/* Mute with time picker dropdown */}
         <div className="relative" ref={muteRef}>
           <UserActionBtn
-            icon={isMuted ? '🔔' : '🔕'}
+            icon={isMuted ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0" /><path d="M18.63 13A17.89 17.89 0 0 1 18 8" /><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" /><path d="M18 8a6 6 0 0 0-9.33-5" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+            )}
             label={isMuted ? 'Bật thông báo' : 'Tắt thông báo'}
             onClick={isMuted ? handleUnmute : () => {
               if (muteRef.current) {
@@ -649,15 +653,41 @@ function UserConversationInfo() {
           )}
         </div>
         {channelCap.supportsPinConversation && (
-          <UserActionBtn icon={isPinned ? '📌' : '📍'} label={isPinned ? 'Bỏ ghim' : 'Ghim hội thoại'} onClick={handleTogglePin} active={isPinned} />
+          <UserActionBtn
+            icon={isPinned ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22" /><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.78-3.55A2 2 0 0 1 15 9.2V5H9v4.2c0 .45-.15.88-.44 1.24l-2.78 3.55A2 2 0 0 0 5 15.24z" fill="currentColor" /></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="17" x2="12" y2="22" /><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.78-3.55A2 2 0 0 1 15 9.2V5H9v4.2c0 .45-.15.88-.44 1.24l-2.78 3.55A2 2 0 0 0 5 15.24z" /></svg>
+            )}
+            label={isPinned ? 'Bỏ ghim' : 'Ghim hội thoại'}
+            onClick={handleTogglePin}
+            active={isPinned}
+          />
         )}
         {!channelCap.supportsPinConversation && (
-          <UserActionBtn icon={isLocalPinned ? '🔖' : '📎'} label={isLocalPinned ? 'Bỏ ghim app' : 'Ghim trong app'} onClick={handleTogglePin} active={isLocalPinned} />
+          <UserActionBtn
+            icon={isLocalPinned ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" fill="currentColor" /></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+            )}
+            label={isLocalPinned ? 'Bỏ ghim app' : 'Ghim trong app'}
+            onClick={handleTogglePin}
+            active={isLocalPinned}
+          />
         )}
         {channelCap.supportsCreateGroup && (
-          <UserActionBtn icon="👥" label="Tạo nhóm" onClick={() => setCreateGroupOpen(true)} />
+          <UserActionBtn
+            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
+            label="Tạo nhóm"
+            onClick={() => setCreateGroupOpen(true)}
+          />
         )}
-        <UserActionBtn icon="✏️" label="Sửa thông tin" onClick={startEditingProfile} />
+        <UserActionBtn
+          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>}
+          label="Sửa thông tin"
+          onClick={startEditingProfile}
+        />
       </div>
 
 
@@ -696,14 +726,18 @@ function UserConversationInfo() {
   );
 }
 
-function UserActionBtn({ icon, label, onClick, active }: { icon: string; label: string; onClick: () => void; active?: boolean }) {
+function UserActionBtn({ icon, label, onClick, active }: { icon: React.ReactNode; label: string; onClick: () => void; active?: boolean }) {
   return (
     <button onClick={onClick}
-      className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl hover:bg-gray-700 transition-colors text-center"
+      className="flex flex-col items-center gap-1 py-1.5 px-0.5 rounded-xl hover:bg-gray-700/40 transition-colors text-center w-16"
       title={label}
     >
-      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-lg ${active ? 'bg-blue-600' : 'bg-gray-700'}`}>{icon}</div>
-      <span className={`text-[9px] leading-tight ${active ? 'text-blue-400' : 'text-gray-400'}`}>{label}</span>
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+        active ? 'bg-blue-600 text-white-important' : 'bg-gray-700 text-gray-400'
+      }`}>
+        {icon}
+      </div>
+      <span className={`text-[9px] leading-tight transition-colors ${active ? 'text-blue-500 font-semibold' : 'text-gray-400'}`}>{label}</span>
     </button>
   );
 }

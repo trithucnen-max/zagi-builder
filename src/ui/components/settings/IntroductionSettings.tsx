@@ -4,6 +4,7 @@ import qrCodeImg from '../../../assets/donate/qr.png';
 
 type FeatureId =
   | 'overview'
+  | 'userguide'
   | 'dashboard'
   | 'multiAccount'
   | 'messaging'
@@ -29,6 +30,7 @@ interface Feature {
 
 const FEATURES: Feature[] = [
   { id: 'overview',     icon: '🏠', label: 'Tổng quan' },
+  { id: 'userguide',    icon: '📖', label: 'Hướng dẫn sử dụng' },
   { id: 'dashboard',    icon: '📊', label: 'Dashboard' },
   { id: 'multiAccount', icon: '👤', label: 'Đa tài khoản' },
   { id: 'messaging',    icon: '💬', label: 'Quản lý tin nhắn' },
@@ -1946,8 +1948,370 @@ function ContactPanel() {
   );
 }
 
+// ─── Enriched User Guide ──────────────────────────────────────────────────────
+
+const ENRICHED_TOOLS_GUIDE = [
+  {
+    id: 'crm' as const,
+    icon: '📊', title: 'CRM — Quản lý khách hàng',
+    color: 'border-blue-500/40 bg-blue-900/10',
+    badgeColor: 'bg-blue-600/30 text-blue-300',
+    purpose: 'Quản lý toàn bộ danh sách liên hệ Zalo, phân loại khách hàng bằng nhãn, ghi chú nội bộ, và chạy chiến dịch nhắn tin hàng loạt — biến Zalo thành CRM chuyên nghiệp.',
+    sections: [
+      {
+        title: '👥 Quản lý liên hệ & Nhóm',
+        items: [
+          'Xem tất cả liên hệ theo tài khoản Zalo: bạn bè, nhóm, stranger (người lạ)',
+          'Đồng bộ thông tin nhóm Zalo: Tự động cập nhật tên thật và composite avatar nhóm khi quét bằng link hoặc đồng bộ thủ công vào danh sách CRM và Chiến dịch.',
+          'Bộ lọc nâng cao: theo nhãn, trạng thái (đã nhắn / chưa nhắn), loại liên hệ, thời gian',
+          'Xem thông tin chi tiết: avatar, tên, SĐT, nhãn, ghi chú, lịch sử tương tác',
+          'Dashboard tổng quan: thống kê số lượng liên hệ, tương tác, nhãn phân bố',
+        ],
+      },
+      {
+        title: '🔒 Quét thành viên Nhóm khóa (lockViewMember)',
+        items: [
+          'Hỗ trợ quét thành viên thông minh: Đối với các nhóm lớn bật tính năng khóa xem thành viên, Zalo chỉ trả về 8 quản trị viên. Zagi tự động kích hoạt Trình quét Tương tác để quét lịch sử tin nhắn, người thả cảm xúc, người gửi bình chọn nhằm khôi phục danh sách thành viên thực tế.',
+          'Bảo mật và an toàn cho tài khoản: Quá trình quét được tối ưu hóa tốc độ và phân chia luồng gửi request thông minh để tránh bị Zalo chặn hoặc khóa tài khoản.',
+        ],
+      },
+      {
+        title: '🏷️ Hệ thống nhãn kép',
+        items: [
+          'Nhãn Zalo (Zalo Label): đồng bộ 2 chiều với app Zalo trên điện thoại — gán từ Zagi, thấy trên Zalo và ngược lại',
+          'Nhãn Local: nhãn riêng của Zagi, tùy biến màu sắc + emoji, không giới hạn số lượng',
+          'Dùng nhãn làm điều kiện lọc trong chiến dịch (chỉ gửi cho khách có nhãn "VIP")',
+          'Dùng nhãn làm Trigger trong Workflow: khi gắn nhãn → tự động chạy luồng xử lý',
+        ],
+      },
+      {
+        title: '📝 Ghi chú nội bộ (Notes) & Chiến dịch',
+        items: [
+          'Thêm ghi chú riêng cho từng liên hệ — khách hàng không thấy được',
+          'Tạo chiến dịch nhắn tin hàng loạt: chọn đối tượng theo nhãn / bộ lọc → soạn mẫu tin → gửi',
+          'Hỗ trợ chèn biến động cá nhân hóa (tên khách, SĐT, nhãn...) vào nội dung tin nhắn',
+          'Giới hạn tốc độ gửi tự động: tối đa 60 tin/giờ, delay giữa mỗi tin (tránh spam)',
+          'Theo dõi realtime: đã gửi / thất bại / phản hồi — dừng/tiếp tục chiến dịch mọi lúc',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'workflow' as const,
+    icon: '⚙️', title: 'Workflow — Tự động hoá',
+    color: 'border-indigo-500/40 bg-indigo-900/10',
+    badgeColor: 'bg-indigo-600/30 text-indigo-300',
+    purpose: 'Tạo các luồng xử lý tự động bằng giao diện kéo-thả trực quan: nhận sự kiện → xử lý logic → thực hiện hành động. Không cần viết code, có sẵn 20+ mẫu workflow.',
+    sections: [
+      {
+        title: '⚡ Trigger — 8 loại sự kiện kích hoạt',
+        items: [
+          'Khi nhận tin nhắn: lọc theo từ khóa, loại hội thoại (cá nhân/nhóm), regex',
+          'Khi có lời mời kết bạn → tự động chấp nhận + gửi lời chào',
+          'Khi có sự kiện nhóm: thành viên vào/rời, đổi admin, đổi avatar nhóm',
+          'Khi có người react tin nhắn (like, heart, haha...)',
+          'Khi gắn/gỡ nhãn: liên kết CRM → Workflow liền mạch',
+          'Chạy theo lịch hẹn (cron): hàng ngày, hàng giờ, ngày cụ thể',
+          'Khi nhận thanh toán (webhook từ Casso/SePay)',
+          'Chạy thủ công: nút bấm test từ giao diện',
+        ],
+      },
+      {
+        title: '💬 Action — 15+ thao tác trên Zalo & Tối ưu Gửi ảnh/file',
+        items: [
+          'Gửi tin nhắn văn bản (hỗ trợ biến động {{ tên }}, {{ sdt }}...)',
+          'Hiệu ứng "đang gõ..." + delay → tạo cảm giác tự nhiên như người thật',
+          'Gửi nhiều ảnh cùng lúc: Hỗ trợ chọn nhiều tệp ảnh cùng lúc từ máy tính hoặc nhập link trực tiếp, sắp xếp và quản lý trực quan bằng lưới preview có nút xóa.',
+          '🎲 Gửi ngẫu nhiên 1 ảnh: Bật checkbox "Gửi ngẫu nhiên 1 ảnh trong danh sách" để hệ thống tự động chọn ngẫu nhiên 1 ảnh để gửi, hữu ích khi cần xoay tua ảnh quảng cáo.',
+          'Gửi nhiều file đính kèm cùng lúc (PDF, Excel, Word...) thay vì gửi từng file riêng lẻ.',
+          'Quản lý nhóm: thêm/xóa thành viên, tạo bình chọn (poll)',
+          'Gắn/gỡ nhãn, thu hồi tin nhắn, chuyển tiếp tin nhắn, thả cảm xúc',
+        ],
+      },
+      {
+        title: '🧠 Logic & Dữ liệu',
+        items: [
+          'Rẽ nhánh IF/ELSE: kiểm tra điều kiện → chạy nhánh tương ứng',
+          'Switch: phân nhiều nhánh theo giá trị (VD: phân loại câu hỏi)',
+          'Lặp forEach: lặp qua danh sách rồi xử lý từng item',
+          'Lưu biến, dừng workflow nếu điều kiện đúng, chờ N giây',
+          'Ghép nội dung văn bản, chọn ngẫu nhiên, định dạng ngày giờ, đọc JSON',
+        ],
+      },
+      {
+        title: '🤖 AI & Tích hợp ngoài',
+        items: [
+          'AI tạo nội dung: ChatGPT, Gemini, Deepseek, Grok — chatbot thông minh',
+          'AI phân loại tin nhắn: tự nhận diện hỏi giá / khiếu nại / hỗ trợ kỹ thuật...',
+          'Google Sheets: ghi dữ liệu, đọc dữ liệu, cập nhật ô — biến Sheets thành database',
+          'Gửi thông báo Telegram, Discord, Email, ghi vào Notion Database',
+          'Gọi API/Webhook HTTP bên ngoài: kết nối bất kỳ hệ thống nào',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'integration' as const,
+    icon: '🔗', title: 'Tích hợp — Kết nối bên thứ 3',
+    color: 'border-green-500/40 bg-green-900/10',
+    badgeColor: 'bg-green-600/30 text-green-500',
+    purpose: 'Kết nối Zagi với hệ sinh thái bán hàng, thanh toán, vận chuyển Việt Nam. Tra cứu dữ liệu ngay trong khung chat, nhận webhook tự động, kết hợp Workflow để xử lý end-to-end.',
+    sections: [
+      {
+        title: '🛒 POS / Bán hàng (4 nền tảng) & Logo thương hiệu cao cấp',
+        items: [
+          'KiotViet: tra cứu khách hàng, đơn hàng, sản phẩm, tạo đơn — phổ biến nhất VN',
+          'Haravan: nền tảng TMĐT, tra cứu đơn hàng online, khách hàng',
+          'Sapo: quản lý bán hàng đa kênh, tra cứu đơn/khách theo SĐT',
+          'Pancake POS: tra cứu khách hàng, đơn hàng, sản phẩm và tạo đơn nhanh',
+          '💎 Logo thương hiệu trực quan: Toàn bộ logo của các đối tác tích hợp (KiotViet, Haravan, Sapo, Pancake POS, Nhanh.vn, v.v.) được thiết kế tối giản dạng SVG và hiển thị trên nền màu trắng sang trọng, giúp phân biệt nhanh chóng các kênh.',
+        ],
+      },
+      {
+        title: '💳 Thanh toán & Vận chuyển',
+        items: [
+          'Casso: kết nối ngân hàng, nhận webhook khi có chuyển khoản mới — tự động đối soát thanh toán bằng VietQR.',
+          'SePay (VietQR): hỗ trợ tích hợp webhook nhận tiền ngân hàng thời gian thực.',
+          'GHN Express & GHTK: tạo đơn vận chuyển trực tiếp từ chat hoặc workflow, tra cứu trạng thái vận đơn và COD.',
+        ],
+      },
+      {
+        title: '🌐 Tunnel — Mở kết nối ra internet',
+        items: [
+          'Bật tunnel Cloudflare trực tiếp trên Zagi để tạo URL công khai (https://xxx.trycloudflare.com) trỏ về máy.',
+          'Nhận webhook từ các cổng thanh toán (Casso/SePay) hoặc công cụ cloud mà không cần mở cổng modem mạng (NAT port).',
+        ],
+      },
+    ],
+  },
+];
+
+const ENRICHED_COMBO_SCENARIOS = [
+  {
+    icon: '💰',
+    title: 'Xác nhận thanh toán tự động',
+    tags: ['Tích hợp', 'Workflow'],
+    color: 'border-emerald-500/30',
+    flow: ['🔗 SePay/Casso nhận CK', '⚙️ Trigger payment', '📝 Ghép tin "Cảm ơn {tên}, đơn #{mã} đã nhận {số tiền}"', '💬 Gửi tin Zalo', '🏷️ Gắn nhãn "Đã TT"'],
+    desc: 'Khách chuyển khoản → Zagi nhận webhook từ ngân hàng → Workflow tự động gửi tin xác nhận + gắn nhãn CRM.',
+  },
+  {
+    icon: '🤖',
+    title: 'Chatbot AI tư vấn bán hàng',
+    tags: ['Workflow', 'AI'],
+    color: 'border-violet-500/30',
+    flow: ['💬 Khách nhắn hỏi', '🧠 AI phân loại (hỏi giá / CSKH / khiếu nại)', '🤖 ChatGPT trả lời theo ngữ cảnh', '⌨️ Typing + delay', '💬 Gửi phản hồi'],
+    desc: 'Khách nhắn tin → AI tự phân loại câu hỏi → ChatGPT sinh nội dung trả lời phù hợp → gửi tự động với hiệu ứng đang gõ.',
+  },
+  {
+    icon: '👋',
+    title: 'Chào mừng + phân loại khách mới',
+    tags: ['Workflow', 'CRM'],
+    color: 'border-blue-500/30',
+    flow: ['👤 Nhận lời mời KB', '✅ Auto chấp nhận', '💬 Gửi tin chào', '🏷️ Gắn nhãn "Khách mới"', '📊 Ghi Google Sheets'],
+    desc: 'Khi có người gửi kết bạn → auto accept → gửi lời chào + menu dịch vụ → gắn nhãn CRM → ghi thông tin vào Sheets.',
+  },
+  {
+    icon: '🛒',
+    title: 'Tra cứu đơn hàng ngay trong chat',
+    tags: ['Tích hợp', 'Workflow'],
+    color: 'border-orange-500/30',
+    flow: ['💬 Khách nhắn "đơn hàng"', '🔍 KiotViet tra SĐT', '📝 Ghép kết quả', '💬 Gửi thông tin đơn'],
+    desc: 'Khách hỏi về đơn hàng → Workflow tự tra cứu KiotViet/Haravan theo SĐT → gửi lại thông tin đơn chi tiết.',
+  },
+];
+
+function UserGuidePanel() {
+  const [activeTab, setActiveTab] = useState<'overview' | 'crm' | 'workflow' | 'integration' | 'combo'>('overview');
+
+  return (
+    <div className="space-y-4">
+      {/* Tabs */}
+      <div className="flex border-b border-gray-700/60 pb-1 flex-shrink-0 overflow-x-auto gap-0.5">
+        {([
+          { id: 'overview', label: '💡 Tổng quan' },
+          { id: 'crm', label: '📊 CRM & Nhóm' },
+          { id: 'workflow', label: '⚙️ Workflow' },
+          { id: 'integration', label: '🔗 Tích hợp' },
+          { id: 'combo', label: '🔄 Kết hợp' },
+        ] as const).map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-3 py-2 text-[11px] font-semibold whitespace-nowrap rounded-lg transition-colors ${
+              activeTab === tab.id
+                ? 'bg-blue-600/20 text-blue-400'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="space-y-4 pt-1">
+
+        {/* ── Overview Tab ── */}
+        {activeTab === 'overview' && (
+          <>
+            <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-4 flex items-start gap-3">
+              <span className="text-2xl leading-none">💡</span>
+              <div className="space-y-2">
+                <p className="text-gray-300 text-xs leading-relaxed">
+                  Ba công cụ <strong className="text-white">CRM</strong>, <strong className="text-white">Workflow</strong> và <strong className="text-white">Tích hợp</strong> phối
+                  hợp với nhau tạo thành hệ thống tự động hoá hoàn chỉnh:
+                </p>
+                <div className="flex items-center gap-2 text-[11px] flex-wrap">
+                  <span className="bg-green-950/40 text-white px-2.5 py-1 rounded-lg border border-green-700/40">🔗 Tích hợp nhận dữ liệu</span>
+                  <span className="text-gray-600">→</span>
+                  <span className="bg-indigo-950/40 text-indigo-200 px-2.5 py-1 rounded-lg border border-indigo-700/40">⚙️ Workflow xử lý logic</span>
+                  <span className="text-gray-600">→</span>
+                  <span className="bg-blue-950/40 text-blue-300 px-2.5 py-1 rounded-lg border border-blue-700/40">📊 CRM quản lý KH</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Summary cards */}
+            {ENRICHED_TOOLS_GUIDE.map((tool, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setActiveTab(tool.id)}
+                className={`w-full border rounded-xl p-4 text-left transition-colors hover:bg-gray-800/40 ${tool.color}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">{tool.icon}</span>
+                  <h3 className="text-sm font-bold text-white">{tool.title}</h3>
+                  <span className="text-gray-500 ml-auto text-[10px]">Xem chi tiết →</span>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">{tool.purpose}</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {tool.sections.map((s, j) => (
+                    <span key={j} className={`text-[10px] px-2 py-0.5 rounded-full ${tool.badgeColor}`}>
+                      {s.title.split(' ').slice(1).join(' ')}
+                    </span>
+                  ))}
+                </div>
+              </button>
+            ))}
+
+            {/* Combo preview */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('combo')}
+              className="w-full border border-amber-500/30 bg-amber-900/10 rounded-xl p-4 text-left hover:bg-amber-900/20 transition-colors"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">🔄</span>
+                <h3 className="text-sm font-bold text-white">{ENRICHED_COMBO_SCENARIOS.length} kịch bản kết hợp thực tế</h3>
+                <span className="text-gray-500 ml-auto text-[10px]">Xem kịch bản →</span>
+              </div>
+              <p className="text-xs text-gray-400">Xem các ví dụ phối hợp CRM + Workflow + Tích hợp trong thực tế kinh doanh.</p>
+            </button>
+          </>
+        )}
+
+        {/* ── Tool Detail Tabs (CRM / Workflow / Integration) ── */}
+        {(activeTab === 'crm' || activeTab === 'workflow' || activeTab === 'integration') && (() => {
+          const tool = ENRICHED_TOOLS_GUIDE.find(t => t.id === activeTab)!;
+          return (
+            <>
+              <div className={`border rounded-xl p-4 ${tool.color}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">{tool.icon}</span>
+                  <h3 className="text-sm font-bold text-white">{tool.title}</h3>
+                </div>
+                <p className="text-xs text-gray-300 leading-relaxed">{tool.purpose}</p>
+              </div>
+
+              {tool.sections.map((section, i) => (
+                <div key={i} className="space-y-2 bg-gray-800/20 border border-gray-700/30 rounded-xl p-4">
+                  <h4 className="text-xs font-bold text-white mb-2">{section.title}</h4>
+                  <ul className="space-y-2 pl-1">
+                    {section.items.map((item, j) => (
+                      <li key={j} className="flex items-start gap-2 text-xs text-gray-400">
+                        <span className="text-blue-500 mt-0.5 flex-shrink-0">•</span>
+                        <span className="leading-relaxed">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+
+              {/* Related combos */}
+              <div className="border-t border-gray-700/60 pt-4 mt-2">
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">🔄 Kịch bản kết hợp liên quan</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {ENRICHED_COMBO_SCENARIOS.filter(c =>
+                    (activeTab === 'crm' && c.tags.includes('CRM')) ||
+                    (activeTab === 'workflow' && c.tags.includes('Workflow')) ||
+                    (activeTab === 'integration' && c.tags.includes('Tích hợp'))
+                  ).map((combo, i) => (
+                    <div key={i} className={`border rounded-xl p-3 bg-gray-800/40 ${combo.color}`}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span>{combo.icon}</span>
+                        <span className="text-xs font-semibold text-white">{combo.title}</span>
+                        <div className="flex gap-1 ml-auto">
+                          {combo.tags.map(t => (
+                            <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed">{combo.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          );
+        })()}
+
+        {/* ── Combo Tab ── */}
+        {activeTab === 'combo' && (
+          <>
+            <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-4">
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Sức mạnh thực sự nằm ở việc <strong className="text-white">kết hợp</strong> các công cụ. Dưới đây là các kịch bản thực tế
+                giúp bạn hình dung cách ứng dụng Zagi vào kinh doanh tự động hóa.
+              </p>
+            </div>
+
+            {ENRICHED_COMBO_SCENARIOS.map((combo, i) => (
+              <div key={i} className={`border rounded-xl p-4 space-y-2.5 bg-gray-800/40 ${combo.color}`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{combo.icon}</span>
+                  <h3 className="text-xs font-bold text-white">{combo.title}</h3>
+                  <div className="flex gap-1 ml-auto">
+                    {combo.tags.map(t => (
+                      <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-gray-750 text-gray-400">{t}</span>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed">{combo.desc}</p>
+                {/* Flow diagram */}
+                <div className="flex items-center gap-1.5 text-[10px] flex-wrap pt-1">
+                  {combo.flow.map((step, j) => (
+                    <React.Fragment key={j}>
+                      {j > 0 && <span className="text-gray-600">→</span>}
+                      <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md border border-gray-700/60 whitespace-nowrap">{step}</span>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 const PANEL_MAP = {
   overview:     OverviewPanel,
+  userguide:    UserGuidePanel,
   dashboard:    DashboardPanel,
   multiAccount: MultiAccountPanel,
   messaging:    MessagingPanel,

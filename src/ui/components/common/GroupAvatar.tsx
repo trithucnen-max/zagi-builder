@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
 import type { CachedGroupInfo } from '@/store/appStore';
 
+// Helper function to hash displayName to a stable background color (Zalo-like variation)
+function getAvatarBg(name: string) {
+  const bgs = ['bg-[#0068ff]', 'bg-[#0a3064]', 'bg-emerald-600', 'bg-amber-600', 'bg-sky-600', 'bg-teal-600'];
+  let sum = 0;
+  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
+  return bgs[sum % bgs.length];
+}
+
 // ─── MemberCell: render 1 ô trong composite grid ─────────────────────────────
 function MemberCell({ member, className }: { member: { avatar: string; displayName: string }; className?: string }) {
+  const bgClass = getAvatarBg(member.displayName || '?');
   return (
     <div className={`overflow-hidden${className ? ' ' + className : ''}`}>
       {member.avatar ? (
         <img src={member.avatar} alt="" className="w-full h-full object-cover"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
       ) : (
-        <div className="w-full h-full bg-purple-600 flex items-center justify-center text-white font-bold"
+        <div className={`w-full h-full ${bgClass} flex items-center justify-center text-white font-bold`}
           style={{ fontSize: 'clamp(6px, 35%, 12px)' }}>
           {(member.displayName || '?').charAt(0).toUpperCase()}
         </div>
@@ -97,9 +106,16 @@ export default function GroupAvatar({ avatarUrl, groupInfo, name, size = 'md', c
     return <img src={avatarUrl} alt="" className={`${cls} rounded-full object-cover flex-shrink-0`} onError={() => setImgError(true)} />;
   }
 
-  // 2. Composite avatar từ members cache
-  const members = (groupInfo?.members || [])
-    .filter(m => m.avatar && m.userId && m.userId !== 'undefined')
+  // 2. Composite avatar từ members cache (Ưu tiên người có avatar, tự động lấp đầy bằng initials của các thành viên khác)
+  const sortedMembers = [...(groupInfo?.members || [])]
+    .filter(m => m.userId && m.userId !== 'undefined')
+    .sort((a, b) => {
+      if (a.avatar && !b.avatar) return -1;
+      if (!a.avatar && b.avatar) return 1;
+      return 0;
+    });
+
+  const members = sortedMembers
     .slice(0, 4)
     .map(m => ({ avatar: m.avatar, displayName: m.displayName || m.userId }));
 
@@ -109,8 +125,9 @@ export default function GroupAvatar({ avatarUrl, groupInfo, name, size = 'md', c
   if (members.length === 1) return <Grid1 members={members} sizeClass={cls} />;
 
   // 3. Fallback: chữ cái đầu
+  const fallbackBg = getAvatarBg(name || 'G');
   return (
-    <div className={`${cls} rounded-full bg-purple-600 flex items-center justify-center text-white ${fallbackText} font-bold flex-shrink-0`}>
+    <div className={`${cls} rounded-full ${fallbackBg} flex items-center justify-center text-white ${fallbackText} font-bold flex-shrink-0`}>
       {(name || 'G').charAt(0).toUpperCase()}
     </div>
   );

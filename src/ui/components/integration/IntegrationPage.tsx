@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import ipc from '@/lib/ipc';
 import IntegrationDetailPage from './IntegrationDetailPage';
 import AIAssistantPage from './AIAssistantPage';
+import BrandLogo from '../common/BrandLogo';
 
 // ─── Catalog definition ───────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ const AI_PLATFORMS: { key: string; label: string; icon: string; color: string; d
   { key: 'openai',   label: 'OpenAI',   icon: '🤖', color: 'bg-green-600',   desc: 'GPT-4o, GPT-4.1, o3, o4-mini' },
   { key: 'gemini',   label: 'Gemini',   icon: '✨', color: 'bg-blue-600',    desc: 'Gemini 2.0 Flash, 2.5 Pro' },
   { key: 'claude',   label: 'Claude',   icon: '🟠', color: 'bg-amber-600',   desc: 'Sonnet 4.6, Opus 4.8, Haiku 4.5' },
-  { key: 'deepseek', label: 'DeepSeek', icon: '🔮', color: 'bg-purple-600',  desc: 'DeepSeek V3, R1' },
+  { key: 'deepseek', label: 'DeepSeek', icon: '🔮', color: 'bg-sky-600',  desc: 'DeepSeek V3, R1' },
   { key: 'grok',     label: 'Grok',     icon: '⚡', color: 'bg-orange-600',  desc: 'Grok 3, Grok 3 Mini' },
   { key: 'openrouter', label: 'OpenRouter', icon: '🔀', color: 'bg-indigo-600', desc: 'Gateway nhiều model qua một API key' },
 ];
@@ -46,7 +47,7 @@ const AI_PLATFORM_META: Record<string, { label: string; color: string; icon: str
   openai:   { label: 'OpenAI',   color: 'bg-green-600',   icon: '🤖' },
   gemini:   { label: 'Gemini',   color: 'bg-blue-600',    icon: '✨' },
   claude:   { label: 'Claude',   color: 'bg-amber-600',   icon: '🟠' },
-  deepseek: { label: 'DeepSeek', color: 'bg-purple-600',  icon: '🔮' },
+  deepseek: { label: 'DeepSeek', color: 'bg-sky-600',     icon: '🔮' },
   grok:     { label: 'Grok',     color: 'bg-orange-600',  icon: '⚡' },
   openrouter: { label: 'OpenRouter', color: 'bg-indigo-600', icon: '🔀' },
 };
@@ -271,8 +272,8 @@ function AISection({ onNavigateAi }: { onNavigateAi: () => void }) {
                 className="text-left p-4 rounded-xl border border-gray-700 hover:border-blue-500 bg-gray-800 hover:bg-gray-750 transition-all group"
               >
                 <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-lg ${meta.color} flex items-center justify-center text-lg flex-shrink-0`}>
-                    {meta.icon}
+                  <div className={`w-10 h-10 rounded-lg ${meta.color} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                    <BrandLogo type={a.platform} className="w-5 h-5 text-white-important" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -305,8 +306,8 @@ function AISection({ onNavigateAi }: { onNavigateAi: () => void }) {
               className="p-4 rounded-xl border border-gray-700 hover:border-blue-500 bg-gray-800/60 hover:bg-gray-750 transition-all group text-left"
             >
               <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 rounded-lg ${platform.color} flex items-center justify-center text-xl flex-shrink-0`}>
-                  {platform.icon}
+                <div className={`w-10 h-10 rounded-lg ${platform.color} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                  <BrandLogo type={platform.key} className="w-5 h-5 text-white-important" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-white text-sm mb-1">{platform.label}</div>
@@ -452,8 +453,8 @@ function IntegrationSection({ sectionKey, catalog, savedList, onSelect }: {
     <div id={`section-${sectionKey}`} className="scroll-mt-20">
       {/* Section header */}
       <div className="flex items-center gap-3 mb-4">
-        <div className={`w-8 h-8 rounded-lg ${meta.color} flex items-center justify-center text-base`}>
-          {meta.icon}
+        <div className={`w-8 h-8 rounded-lg ${meta.color} flex items-center justify-center`}>
+          <BrandLogo type={sectionKey} className="w-4.5 h-4.5 text-white-important" />
         </div>
         <div>
           <h2 className="text-sm font-semibold text-white">{meta.label}</h2>
@@ -476,8 +477,8 @@ function IntegrationSection({ sectionKey, catalog, savedList, onSelect }: {
               className="text-left p-4 rounded-xl border border-gray-700 hover:border-blue-500 bg-gray-800 hover:bg-gray-750 transition-all group"
             >
               <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 rounded-lg ${item.color} flex items-center justify-center text-xl flex-shrink-0`}>
-                  {item.icon}
+                <div className={`w-10 h-10 rounded-lg ${item.color} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                  <BrandLogo type={item.type} className="w-5 h-5 text-white-important" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">

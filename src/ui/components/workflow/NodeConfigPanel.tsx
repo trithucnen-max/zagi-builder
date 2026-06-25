@@ -350,9 +350,25 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'zalo.sendImage': [
     {
-      key: 'filePath', label: 'Ảnh cần gửi', type: 'file-picker', fileType: 'image',
+      key: 'sendMode', label: 'Chế độ gửi ảnh', type: 'select',
+      desc: 'Chọn gửi một ảnh, nhiều ảnh hoặc ngẫu nhiên một ảnh.',
+      options: [
+        { value: 'single', label: '🖼️ Gửi 1 ảnh' },
+        { value: 'multiple', label: '🖼️🖼️ Gửi nhiều ảnh cùng lúc' },
+        { value: 'random', label: '🎲 Gửi ngẫu nhiên 1 ảnh' },
+      ],
+    },
+    {
+      key: 'filePath', label: 'Đường dẫn ảnh', type: 'file-picker', fileType: 'image',
       placeholder: 'C:\\Images\\banner.jpg  hoặc  https://example.com/img.png',
       desc: 'Chọn ảnh từ máy tính hoặc nhập link URL ảnh trực tiếp (https://...).',
+      hideWhenKey: 'sendMode', hideWhenValue: 'multiple,random',
+    },
+    {
+      key: 'filePaths', label: 'Danh sách ảnh (mỗi ảnh 1 dòng)', type: 'multiline',
+      placeholder: 'C:\\Images\\banner1.jpg\nC:\\Images\\banner2.jpg\nhttps://example.com/img3.png',
+      desc: 'Nhập danh sách đường dẫn ảnh hoặc link URL, mỗi tệp trên một dòng.',
+      hideWhenKey: 'sendMode', hideWhenValue: 'single',
     },
     {
       key: 'message', label: 'Chú thích ảnh (tuỳ chọn)', type: 'text',
@@ -383,9 +399,24 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'zalo.sendFile': [
     {
-      key: 'filePath', label: 'File cần gửi', type: 'file-picker', fileType: 'file',
+      key: 'sendMode', label: 'Chế độ gửi file', type: 'select',
+      desc: 'Chọn gửi một file hoặc nhiều file cùng lúc.',
+      options: [
+        { value: 'single', label: '📁 Gửi 1 file' },
+        { value: 'multiple', label: '📁📁 Gửi nhiều file cùng lúc' },
+      ],
+    },
+    {
+      key: 'filePath', label: 'Đường dẫn file', type: 'file-picker', fileType: 'file',
       placeholder: 'C:\\Documents\\BangGia.pdf',
       desc: 'Chọn file từ máy tính để gửi.',
+      hideWhenKey: 'sendMode', hideWhenValue: 'multiple',
+    },
+    {
+      key: 'filePaths', label: 'Danh sách file (mỗi file 1 dòng)', type: 'multiline',
+      placeholder: 'C:\\Documents\\BangGia1.pdf\nC:\\Documents\\BangGia2.xlsx',
+      desc: 'Nhập danh sách đường dẫn file, mỗi tệp trên một dòng.',
+      hideWhenKey: 'sendMode', hideWhenValue: 'single',
     },
     {
       key: 'threadIds', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',
@@ -2190,7 +2221,7 @@ function AccountAvatar({ account, size = 'sm' }: { account: { avatar_url?: strin
   // Fallback: initials
   const initials = (account.full_name || account.display_name || account.zalo_id).slice(0, 2).toUpperCase();
   return (
-    <div className={`${sizeClass} rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium flex-shrink-0 ring-1 ring-gray-600`}>
+    <div className={`${sizeClass} rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-medium flex-shrink-0 ring-1 ring-gray-600`}>
       {initials}
     </div>
   );
@@ -3031,7 +3062,7 @@ function ContactPickerModal({
           isLight ? 'bg-gray-50 border-gray-200' : 'bg-gray-800/50 border-gray-700'
         }`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
               <span className="text-xl">{contactType === 'group' ? '👥' : contactType === 'user' ? '👤' : '📇'}</span>
             </div>
             <div>
@@ -3087,7 +3118,7 @@ function ContactPickerModal({
                     {acc.avatar_url ? (
                       <img src={acc.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0">
                         {(acc.full_name || acc.zalo_id).slice(0, 2).toUpperCase()}
                       </div>
                     )}
@@ -3180,8 +3211,8 @@ function ContactPickerModal({
                   className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-all border-b-2 ${
                     filterTab === 'group'
                       ? isLight
-                        ? 'border-purple-500 text-purple-600 bg-purple-50/50'
-                        : 'border-purple-500 text-purple-400 bg-purple-500/5'
+                        ? 'border-indigo-500 text-indigo-600 bg-indigo-50/50'
+                        : 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
                       : isLight
                         ? 'border-transparent text-gray-500 hover:text-gray-700'
                         : 'border-transparent text-gray-500 hover:text-gray-300'
@@ -3191,7 +3222,7 @@ function ContactPickerModal({
                   <span>Nhóm</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                     filterTab === 'group'
-                      ? isLight ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'
+                      ? isLight ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-500/20 text-indigo-400'
                       : isLight ? 'bg-gray-200 text-gray-500' : 'bg-gray-700 text-gray-500'
                   }`}>{groupCount}</span>
                 </button>
@@ -3288,14 +3319,14 @@ function ContactPickerModal({
                           }}
                         />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                           {(contact.name || 'U').charAt(0).toUpperCase()}
                         </div>
                       )}
                       {/* Hidden fallback for user avatar error */}
                       {contact.type === 'user' && contact.avatar && (
                         <div
-                          className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                          className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
                           style={{ display: 'none' }}
                         >
                           {(contact.name || 'U').charAt(0).toUpperCase()}
@@ -3312,7 +3343,7 @@ function ContactPickerModal({
                         <div className={`text-[11px] flex items-center gap-2 ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>
                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
                             contact.type === 'group'
-                              ? isLight ? 'bg-purple-100 text-purple-700' : 'bg-purple-500/20 text-purple-400'
+                              ? isLight ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-500/20 text-indigo-400'
                               : isLight ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-400'
                           }`}>
                             {contact.type === 'group' ? '👥 Nhóm' : '👤 Cá nhân'}
@@ -3707,6 +3738,206 @@ function FilePickerField({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Multi Image Selector Component ──────────────────────────────────────────
+
+function MultiImageSelector({
+  config,
+  onChange,
+}: {
+  config: Record<string, any>;
+  onChange: (updates: Record<string, any>) => void;
+}) {
+  const theme = useAppStore(s => s.theme);
+  const isLight = theme === 'light';
+  
+  // Extract paths from config.filePaths or config.filePath
+  const filePathsStr = config.filePaths || '';
+  const filePathStr = config.filePath || '';
+  
+  // Current list of image paths/URLs
+  const currentPaths = React.useMemo(() => {
+    const list = filePathsStr.split('\n').map((p: string) => p.trim()).filter(Boolean);
+    if (list.length === 0 && filePathStr) {
+      list.push(filePathStr.trim());
+    }
+    return list;
+  }, [filePathsStr, filePathStr]);
+
+  const sendMode = config.sendMode || 'single';
+  const isRandom = sendMode === 'random';
+
+  const updatePathsList = (newList: string[], newRandomVal?: boolean) => {
+    const randomVal = newRandomVal !== undefined ? newRandomVal : isRandom;
+    const pathsStr = newList.join('\n');
+    const firstPath = newList[0] || '';
+    
+    let mode = 'single';
+    if (randomVal) {
+      mode = 'random';
+    } else if (newList.length > 1) {
+      mode = 'multiple';
+    } else if (newList.length === 1) {
+      mode = 'single';
+    }
+    
+    onChange({
+      sendMode: mode,
+      filePath: firstPath,
+      filePaths: pathsStr,
+    });
+  };
+
+  const handleSelectFiles = async () => {
+    try {
+      const filters = [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] }];
+      const result = await ipc.file?.openDialog({ filters, multiSelect: true });
+      if (result?.success && !result.canceled && result.filePaths?.length) {
+        const added = result.filePaths.filter((p: string) => !currentPaths.includes(p));
+        updatePathsList([...currentPaths, ...added]);
+      }
+    } catch (err) {
+      console.warn('[MultiImageSelector] Error selecting files:', err);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const next = [...currentPaths];
+    next.splice(index, 1);
+    updatePathsList(next);
+  };
+
+  const [urlInput, setUrlInput] = React.useState('');
+  const handleAddUrl = () => {
+    const val = urlInput.trim();
+    if (val && !currentPaths.includes(val)) {
+      updatePathsList([...currentPaths, val]);
+      setUrlInput('');
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* List of images */}
+      {currentPaths.length > 0 ? (
+        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+          {currentPaths.map((p, idx) => {
+            const isUrl = p.startsWith('http://') || p.startsWith('https://');
+            const imgSrc = isUrl ? p : `file://${p}`;
+            const fileName = p.split('\\').pop()?.split('/').pop() || p;
+            return (
+              <div key={idx} className={`relative group border rounded-xl overflow-hidden aspect-video ${isLight ? 'border-gray-200 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
+                <img
+                  src={imgSrc}
+                  alt={`Preview ${idx + 1}`}
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    // Hide image element if it fails to load
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center p-2 text-center select-none bg-black/40 text-[10px] text-white opacity-85 group-hover:opacity-100 transition-opacity">
+                  <span className="truncate w-full font-mono text-[9px]">
+                    {fileName}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(idx)}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-lg transition-colors z-10"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={`border border-dashed rounded-xl py-6 px-4 text-center ${isLight ? 'border-gray-200 bg-gray-50 text-gray-400' : 'border-gray-700 bg-gray-800/10 text-gray-500'}`}>
+          <div className="text-xl mb-1">🖼️</div>
+          <p className="text-[11px]">Chưa có ảnh nào được chọn</p>
+        </div>
+      )}
+
+      {/* Buttons */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleSelectFiles}
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            isLight
+              ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'
+              : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
+          }`}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          Chọn ảnh từ máy
+        </button>
+      </div>
+
+      {/* Input URL manually */}
+      <div className="flex gap-1.5 items-center">
+        <input
+          type="text"
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+          placeholder="Hoặc nhập link URL ảnh trực tiếp..."
+          className={`flex-1 px-2.5 py-1.5 text-[11px] rounded-lg border focus:outline-none focus:ring-2 ${
+            isLight
+              ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-blue-500/30'
+              : 'bg-gray-900/50 border-gray-600 text-white placeholder-gray-500 focus:ring-blue-500/30'
+          }`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleAddUrl();
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleAddUrl}
+          disabled={!urlInput.trim()}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            urlInput.trim()
+              ? isLight
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+              : 'bg-gray-500/10 text-gray-500 cursor-not-allowed border border-transparent'
+          }`}
+        >
+          Thêm
+        </button>
+      </div>
+
+      {/* Checkbox for random image selection */}
+      <div className="flex items-center gap-2 py-1">
+        <input
+          type="checkbox"
+          id="send-random-image-checkbox"
+          checked={isRandom}
+          onChange={(e) => {
+            updatePathsList(currentPaths, e.target.checked);
+          }}
+          className={`rounded border focus:ring-blue-500 ${isLight ? 'border-gray-300 text-blue-600' : 'border-gray-600 text-blue-600 bg-gray-900/50'}`}
+        />
+        <label
+          htmlFor="send-random-image-checkbox"
+          className="text-xs text-gray-300 font-medium cursor-pointer select-none"
+        >
+          🎲 Gửi ngẫu nhiên 1 ảnh trong danh sách
+        </label>
+      </div>
     </div>
   );
 }
@@ -4180,12 +4411,37 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
   const appendVar = (key: string, v: string) => update(key, (config[key] ?? '') + v);
 
   const renderField = (field: Field) => {
+    // Custom Interceptor for zalo.sendImage
+    if (node.type === 'zalo.sendImage') {
+      if (field.key === 'sendMode' || field.key === 'filePaths') {
+        return null;
+      }
+      if (field.key === 'filePath') {
+        return (
+          <div key="custom-multi-image" className="space-y-1.5">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-gray-300">Danh sách ảnh gửi</label>
+            </div>
+            <MultiImageSelector
+              config={config}
+              onChange={(updates) => {
+                const next = { ...config, ...updates };
+                setConfig(next);
+                onConfigChange(next);
+              }}
+            />
+          </div>
+        );
+      }
+    }
+
     // ── hideWhen: skip rendering if condition matches ──────────────────────
     if (field.hideWhenKey && field.hideWhenValue) {
       const cur = config[field.hideWhenKey] || '';
       // Nếu chưa có giá trị (old workflow), dùng default = 'assistant'
       const effective = field.hideWhenKey === 'aiConfigMode' && !cur ? 'assistant' : cur;
-      if (effective === field.hideWhenValue) return null;
+      const hideValues = field.hideWhenValue.split(',').map(s => s.trim());
+      if (hideValues.includes(String(effective))) return null;
     }
 
     const isBool = field.type === 'boolean';
