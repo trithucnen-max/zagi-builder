@@ -61,6 +61,8 @@ jobs:
   build-mac-arm64:
     runs-on: macos-14  # Apple Silicon (M1) runner
     timeout-minutes: 30
+    env:
+      CSC_LINK: ${{ secrets.CSC_LINK }}
 
     steps:
       - name: 📥 Checkout code
@@ -112,10 +114,10 @@ jobs:
           echo "✅ Tag: $(grep '^tag=' $GITHUB_OUTPUT | cut -d= -f2)"
 
       - name: 🔑 Import Apple Certificate
-        if: ${{ secrets.CSC_LINK != '' }}
+        if: ${{ env.CSC_LINK != '' }}
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-file-base64: ${{ secrets.CSC_LINK }}
+          p12-file-base64: ${{ env.CSC_LINK }}
           p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
 
       - name: 📦 Build macOS app (arm64)
