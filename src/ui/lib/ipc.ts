@@ -363,7 +363,7 @@ declare global {
         save: (workflow: any) => Promise<{ success: boolean; id?: string; error?: string }>;
         delete: (id: string) => Promise<{ success: boolean; error?: string }>;
         toggle: (id: string, enabled: boolean) => Promise<{ success: boolean; error?: string }>;
-        runManual: (id: string, triggerData?: any) => Promise<{ success: boolean; log?: any; error?: string }>;
+        runManual: (id: string, triggerData?: any, isSandbox?: boolean) => Promise<{ success: boolean; log?: any; error?: string }>;
         getLogs: (id: string, limit?: number) => Promise<{ success: boolean; logs: any[]; error?: string }>;
         deleteLogs: (id: string) => Promise<{ success: boolean; error?: string }>;
         clone: (id: string, targetZaloId: string) => Promise<{ success: boolean; newId?: string; error?: string }>;

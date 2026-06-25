@@ -4,6 +4,7 @@ import { useAppStore } from '@/store/appStore';
 
 interface Props {
   workflowId: string;
+  onSelectLog?: (log: any) => void;
 }
 
 /** Format a value for display — truncate long strings, beautify JSON */
@@ -98,7 +99,7 @@ function NodeResultDetail({ nr, isLight }: { nr: any; isLight: boolean }) {
   );
 }
 
-export default function RunHistoryPanel({ workflowId }: Props) {
+export default function RunHistoryPanel({ workflowId, onSelectLog }: Props) {
   const [logs, setLogs] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -216,9 +217,19 @@ export default function RunHistoryPanel({ workflowId }: Props) {
               </button>
               {expanded.has(log.id) && (
                 <div className="px-6 pb-2 space-y-0.5">
-                  {log.errorMessage && (
-                    <p className="text-red-500 text-[11px] mb-1">⚠ {log.errorMessage}</p>
-                  )}
+                  <div className="flex justify-between items-center mb-1 flex-wrap gap-2">
+                    {log.errorMessage && (
+                      <p className="text-red-500 text-[11px]">⚠ {log.errorMessage}</p>
+                    )}
+                    {onSelectLog && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSelectLog(log); }}
+                        className="ml-auto text-[10px] bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-lg border border-blue-500/20 transition-colors"
+                      >
+                        🔍 Debug trực quan trên sơ đồ
+                      </button>
+                    )}
+                  </div>
                   {(log.nodeResults || []).map((nr: any) => (
                     <NodeResultDetail key={nr.nodeId} nr={nr} isLight={isLight} />
                   ))}

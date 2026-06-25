@@ -433,8 +433,8 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
           onClick={() => setShowAiInput(v => !v)}
           className={`flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-semibold transition-colors border ${
             showAiInput
-              ? 'bg-purple-600 border-purple-500 text-white'
-              : 'border-purple-500/30 text-purple-400 hover:bg-purple-500/15'
+              ? 'bg-blue-600 border-blue-500 text-white'
+              : 'border-blue-500/30 text-blue-400 hover:bg-blue-500/15'
           }`}
         >
           🪄 Trợ lý AI
@@ -443,13 +443,13 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
 
       {/* Inline AI assist box */}
       {showAiInput && (
-        <div className="flex flex-col gap-1.5 p-2 bg-purple-50 dark:bg-purple-950/20 border border-purple-500/20 rounded-xl flex-shrink-0">
+        <div className="flex flex-col gap-1.5 p-2 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-500/20 rounded-xl flex-shrink-0">
           <div className="flex gap-2">
             <input
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               placeholder="Yêu cầu AI viết tin nhắn mẫu..."
-              className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+              className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -461,7 +461,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
               type="button"
               disabled={aiGenerating || !prompt.trim()}
               onClick={() => getAiGeneratedText(prompt.trim())}
-              className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
             >
               {aiGenerating && (
                 <svg className="animate-spin w-3 h-3 text-white" viewBox="0 0 24 24" fill="none">
@@ -472,7 +472,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
               {aiGenerating ? 'Đang viết...' : 'Viết mẫu'}
             </button>
           </div>
-          <p className="text-[9px] text-purple-400/70">
+          <p className="text-[9px] text-blue-400/70">
             💡 AI sẽ tự động chèn các biến xưng hô như `{'{gender_greeting}'}` và `{'{name}'}` vào nội dung.
           </p>
         </div>

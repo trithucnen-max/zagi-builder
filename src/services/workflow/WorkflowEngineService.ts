@@ -123,6 +123,7 @@ interface ExecutionContext {
   _wfNodes: WorkflowNode[];
   _wfEdges?: WorkflowEdge[];
   _wfName: string;
+  isSandbox?: boolean;
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -454,8 +455,14 @@ class WorkflowEngineService {
         if (String(cfg.threadType) === '0' && isGroup) return false;
         if (String(cfg.threadType) === '1' && !isGroup) return false;
       }
-      if (cfg.fromId && (msgData.uidFrom || (msg as any).uidFrom || data.fromId) !== cfg.fromId) return false;
-      if (cfg.groupId && ((msg as any).threadId || data.threadId) !== cfg.groupId) return false;
+      if (cfg.fromId) {
+        const uid = String(msgData.uidFrom || (msg as any).uidFrom || data.fromId || '');
+        if (!this.matchFilterId(uid, cfg.fromId)) return false;
+      }
+      if (cfg.groupId) {
+        const gid = String((msg as any).threadId || data.threadId || '');
+        if (!this.matchFilterId(gid, cfg.groupId)) return false;
+      }
       if (cfg.ignoreOwn !== false) {
         if ((msg as any).isSelf || data.isSelf) return false;
       }
@@ -476,7 +483,10 @@ class WorkflowEngineService {
     }
 
     if (triggerNode.type === 'trigger.groupEvent') {
-      if (cfg.groupId && data.groupId !== cfg.groupId) return false;
+      if (cfg.groupId) {
+        const gid = String(data.groupId || '');
+        if (!this.matchFilterId(gid, cfg.groupId)) return false;
+      }
       if (cfg.eventType && cfg.eventType !== 'all' && data.eventType !== cfg.eventType) return false;
     }
 
@@ -541,11 +551,14 @@ class WorkflowEngineService {
       }
       // Filter by sender (fromId)
       if (cfg.fromId) {
-        const senderId = data.fromId || (data.message || {}).userID || '';
-        if (senderId !== cfg.fromId) return false;
+        const senderId = String(data.fromId || (data.message || {}).userID || '');
+        if (!this.matchFilterId(senderId, cfg.fromId)) return false;
       }
       // Filter by group (groupId)
-      if (cfg.groupId && data.threadId !== cfg.groupId) return false;
+      if (cfg.groupId) {
+        const gid = String(data.threadId || '');
+        if (!this.matchFilterId(gid, cfg.groupId)) return false;
+      }
       // Ignore own messages (default true)
       if (cfg.ignoreOwn !== false) {
         const msg = data.message || {};
@@ -607,7 +620,8 @@ class WorkflowEngineService {
   public async executeWorkflow(
     wf: Workflow,
     triggerData: any,
-    triggeredBy: string = 'manual'
+    triggeredBy: string = 'manual',
+    isSandbox: boolean = false
   ): Promise<WorkflowRunLog> {
     if (!this.isRunnableWorkflow(wf)) {
       throw new Error('Workflow không hỗ trợ chạy (channel unknown)');
@@ -629,6 +643,7 @@ class WorkflowEngineService {
       _wfNodes: wf.nodes,
       _wfEdges: wf.edges,
       _wfName: wf.name,
+      isSandbox,
     };
 
     const order = this.topologicalSort(wf);
@@ -1050,6 +1065,84 @@ class WorkflowEngineService {
     return { ...data };
   }
 
+  private executeSandboxNode(
+    node: WorkflowNode,
+    cfg: Record<string, any>,
+    ctx: ExecutionContext
+  ): Record<string, any> | null {
+    if (!ctx.isSandbox) return null;
+
+    const type = node.type;
+    
+    // Zalo Actions
+    if (type === 'zalo.sendMessage') {
+      return { msgId: `mock_zalo_msg_${Date.now()}`, success: true, _sandbox: true };
+    }
+    if (type === 'zalo.sendTyping') {
+      return { success: true, delayMs: 100, _sandbox: true };
+    }
+    if (type === 'zalo.sendImage' || type === 'zalo.sendFile' || type === 'zalo.sendVoice') {
+      return { msgId: `mock_zalo_media_${Date.now()}`, success: true, _sandbox: true };
+    }
+    if (type === 'zalo.forwardMessage') {
+      return { success: true, _sandbox: true };
+    }
+    if (type === 'zalo.undoMessage') {
+      return { success: true, _sandbox: true };
+    }
+    if (type === 'zalo.addReaction') {
+      return { success: true, _sandbox: true };
+    }
+    if (type === 'zalo.acceptFriendRequest' || type === 'zalo.rejectFriendRequest' || type === 'zalo.sendFriendRequest') {
+      return { success: true, _sandbox: true };
+    }
+    if (type === 'zalo.addToGroup' || type === 'zalo.removeFromGroup' || type === 'zalo.createPoll' || type === 'zalo.setMute') {
+      return { success: true, _sandbox: true };
+    }
+    if (type === 'zalo.assignLabel' || type === 'zalo.removeLabel') {
+      return { success: true, _sandbox: true };
+    }
+
+    // Facebook Actions
+    if (type.startsWith('fb.action.')) {
+      return { success: true, messageId: `mock_fb_msg_${Date.now()}`, _sandbox: true };
+    }
+
+    // Google Sheets Actions
+    if (type === 'sheets.appendRow' || type === 'sheets.updateCell') {
+      return { success: true, updatedCells: 1, _sandbox: true };
+    }
+    if (type === 'sheets.readValues') {
+      return { success: true, values: [['Dòng mẫu 1', 'Dữ liệu mẫu 2'], ['Dòng mẫu 2', 'Dữ liệu mẫu 3']], _sandbox: true };
+    }
+
+    // Notifications
+    if (type.startsWith('notify.')) {
+      return { success: true, messageId: `mock_notify_${Date.now()}`, _sandbox: true };
+    }
+
+    // HTTP Output
+    if (type === 'output.httpRequest') {
+      return { success: true, status: 200, data: { status: 'success', message: 'Sandbox mock response' }, _sandbox: true };
+    }
+
+    // POS / CRM / Shipping
+    if (type.startsWith('kiotviet.') || type.startsWith('haravan.') || type.startsWith('sapo.') || type.startsWith('nhanh.') || type.startsWith('pancake.')) {
+      if (type.endsWith('.createOrder')) {
+        return { success: true, orderId: `mock_order_${Date.now()}`, code: `MOCK-ORD-${Date.now()}`, _sandbox: true };
+      }
+      return { success: true, result: { id: `mock_id`, name: 'Khách Hàng Giả Lập' }, _sandbox: true };
+    }
+    if (type.startsWith('ghn.') || type.startsWith('ghtk.')) {
+      if (type.endsWith('.createOrder')) {
+        return { success: true, orderCode: `MOCK-SHIP-${Date.now()}`, label: 'MOCK-SHIP-LABEL', _sandbox: true };
+      }
+      return { success: true, status: 'delivering', tracking: [], _sandbox: true };
+    }
+
+    return null;
+  }
+
   // ─── Node Executor ────────────────────────────────────────────────────────
 
   private async executeNode(
@@ -1058,6 +1151,11 @@ class WorkflowEngineService {
     ctx: ExecutionContext,
     _wf: Workflow
   ): Promise<Record<string, any>> {
+    const sandboxResult = this.executeSandboxNode(node, cfg, ctx);
+    if (sandboxResult !== null) {
+      return sandboxResult;
+    }
+
     switch (node.type) {
 
       // ── Trigger nodes (just pass-through — already matched) ──────────────
@@ -1233,10 +1331,13 @@ class WorkflowEngineService {
         const api = this.getApi(ctx.pageId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const destType   = threadType === 0 ? 3 : undefined; // DestType.User=3
-        try {
-          await api.sendTypingEvent(cfg.threadId, threadType, destType);
-        } catch (e: any) {
-          Logger.warn(`[WorkflowEngine] sendTypingEvent warning: ${e.message}`);
+        const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
+        for (const threadId of threadIds) {
+          try {
+            await api.sendTypingEvent(threadId, threadType, destType);
+          } catch (e: any) {
+            Logger.warn(`[WorkflowEngine] sendTypingEvent warning for ${threadId}: ${e.message}`);
+          }
         }
         const delayMs = Number(cfg.delaySeconds || 3) * 1000;
         await new Promise(r => setTimeout(r, Math.min(delayMs, 30_000)));
@@ -1325,27 +1426,55 @@ class WorkflowEngineService {
 
       case 'zalo.addToGroup': {
         const api = this.getApi(ctx.pageId);
-        await api.addUserToGroup({ groupId: cfg.groupId, members: [cfg.userId] } as any);
+        const groupIds = this.resolveTargetIds(cfg, 'groupId', ctx);
+        for (const groupId of groupIds) {
+          try {
+            await api.addUserToGroup({ groupId, members: [cfg.userId] } as any);
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] addToGroup error for group ${groupId}: ${err.message}`);
+          }
+        }
         return { success: true };
       }
 
       case 'zalo.removeFromGroup': {
         const api = this.getApi(ctx.pageId);
-        await api.removeUserFromGroup({ groupId: cfg.groupId, members: [cfg.userId] } as any);
+        const groupIds = this.resolveTargetIds(cfg, 'groupId', ctx);
+        for (const groupId of groupIds) {
+          try {
+            await api.removeUserFromGroup({ groupId, members: [cfg.userId] } as any);
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] removeFromGroup error for group ${groupId}: ${err.message}`);
+          }
+        }
         return { success: true };
       }
 
       case 'zalo.undoMessage': {
         const api = this.getApi(ctx.pageId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
-        await api.undo({ msgId: cfg.msgId, threadId: cfg.threadId, threadType } as any);
+        const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
+        for (const threadId of threadIds) {
+          try {
+            await api.undo({ msgId: cfg.msgId, threadId, threadType } as any);
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] undoMessage error for ${threadId}: ${err.message}`);
+          }
+        }
         return { success: true };
       }
 
       case 'zalo.setMute': {
         const api = this.getApi(ctx.pageId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
-        await api.setMute(cfg.threadId, threadType, cfg.duration ?? 0, cfg.action === 'mute' ? 1 : 0);
+        const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
+        for (const threadId of threadIds) {
+          try {
+            await api.setMute(threadId, threadType, cfg.duration ?? 0, cfg.action === 'mute' ? 1 : 0);
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] setMute error for ${threadId}: ${err.message}`);
+          }
+        }
         return { success: true };
       }
 
@@ -1362,8 +1491,8 @@ class WorkflowEngineService {
       case 'zalo.forwardMessage': {
         const api = this.getApi(ctx.pageId);
         const threadType = Number(cfg.toThreadType ?? 0);
-        const threadId = cfg.toThreadId;
-        if (!threadId) throw new Error('[zalo.forwardMessage] toThreadId required');
+        const threadIds = this.resolveTargetIds(cfg, 'toThreadId', ctx);
+        if (threadIds.length === 0) throw new Error('[zalo.forwardMessage] toThreadId / toThreadIds required');
 
         const message = cfg.message || ctx.trigger?.content || '';
         const msgId = cfg.msgId || ctx.trigger?.msgId || '';
@@ -1389,14 +1518,20 @@ class WorkflowEngineService {
 
         // Ưu tiên gửi media (ảnh/file/video) trước — giống sendOneForward
         const mediaPath = localPaths.file || localPaths.video || localPaths.main || localPaths.hd || '';
-        if (mediaPath) {
-          // Gửi media + text (caption) trong 1 lần
-          await api.sendMessage({ msg: message, attachments: [mediaPath] }, threadId, threadType);
-        } else if (message) {
-          // Chỉ có text
-          await api.sendMessage({ msg: message, attachments: [] }, threadId, threadType);
-        } else {
-          throw new Error('[zalo.forwardMessage] Missing message content');
+        for (const threadId of threadIds) {
+          try {
+            if (mediaPath) {
+              // Gửi media + text (caption) trong 1 lần
+              await api.sendMessage({ msg: message, attachments: [mediaPath] }, threadId, threadType);
+            } else if (message) {
+              // Chỉ có text
+              await api.sendMessage({ msg: message, attachments: [] }, threadId, threadType);
+            } else {
+              throw new Error('[zalo.forwardMessage] Missing message content');
+            }
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] forwardMessage error for ${threadId}: ${err.message}`);
+          }
         }
 
         return { success: true, msgId };
@@ -1405,13 +1540,20 @@ class WorkflowEngineService {
       case 'zalo.createPoll': {
         const api = this.getApi(ctx.pageId);
         const options = String(cfg.options || '').split('\n').map((s: string) => s.trim()).filter(Boolean);
-        await api.createPoll({
-          groupId: cfg.groupId,
-          question: cfg.question,
-          options,
-          allowMultiVote: !!cfg.allowMultiple,
-          expiredTime: Number(cfg.expireTime ?? 0),
-        } as any);
+        const groupIds = this.resolveTargetIds(cfg, 'groupId', ctx);
+        for (const groupId of groupIds) {
+          try {
+            await api.createPoll({
+              groupId,
+              question: cfg.question,
+              options,
+              allowMultiVote: !!cfg.allowMultiple,
+              expiredTime: Number(cfg.expireTime ?? 0),
+            } as any);
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] createPoll error for group ${groupId}: ${err.message}`);
+          }
+        }
         return { success: true };
       }
 
@@ -1422,73 +1564,113 @@ class WorkflowEngineService {
       }
 
       case 'zalo.assignLabel': {
+        const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
+
         // Giải mã labelIds: mảng "source:id" (new) hoặc fallback về labelId/labelSource cũ
         const rawIds: string[] = Array.isArray(cfg.labelIds) && cfg.labelIds.length > 0
           ? cfg.labelIds
           : (cfg.labelId ? [`${cfg.labelSource || 'local'}:${cfg.labelId}`] : []);
 
-        if (cfg.labelSource === 'local') {
-          const localIds = rawIds
-            .filter(v => typeof v === 'string' && v.startsWith('local:'))
-            .map(v => Number(v.split(':')[1]))
-            .filter(Boolean);
+        const localIds = rawIds
+          .filter(v => typeof v === 'string' && v.startsWith('local:'))
+          .map(v => Number(v.split(':')[1]))
+          .filter(Boolean);
+
+        const zaloEntries = rawIds.filter(v => typeof v === 'string' && v.startsWith('zalo:'));
+
+        for (const threadId of threadIds) {
+          // Gán nhãn Local
           for (const labelId of localIds) {
-            DatabaseService.getInstance().assignLocalLabelToThread(ctx.pageId, labelId, cfg.threadId);
+            DatabaseService.getInstance().assignLocalLabelToThread(ctx.pageId, labelId, threadId);
           }
-          return { success: true, source: 'local', labelIds: localIds, threadId: cfg.threadId };
-        } else {
-          // Zalo: chỉ gắn 1 nhãn / hội thoại
-          const api = this.getApi(ctx.pageId);
-          const zaloEntry = rawIds.find(v => typeof v === 'string' && v.startsWith('zalo:')) || rawIds[0] || '';
-          const zaloRawId = typeof zaloEntry === 'string' && zaloEntry.includes(':')
-            ? zaloEntry.split(':')[1]
-            : String(zaloEntry || cfg.labelId || '');
-          const labelsRes = await (api as any).getLabels();
-          const labelData = labelsRes?.labelData || labelsRes?.data?.labelData || [];
-          const version = labelsRes?.version || labelsRes?.data?.version || 0;
-          const label = labelData.find((l: any) => String(l.id) === String(zaloRawId));
-          if (label) {
-            const existingMembers = label.memberIds || [];
-            if (!existingMembers.includes(cfg.threadId)) {
-              label.memberIds = [...existingMembers, cfg.threadId];
+
+          // Gán nhãn Zalo
+          if (zaloEntries.length > 0) {
+            try {
+              const api = this.getApi(ctx.pageId);
+              const labelsRes = await (api as any).getLabels();
+              const labelData = labelsRes?.labelData || labelsRes?.data?.labelData || [];
+              const version = labelsRes?.version || labelsRes?.data?.version || 0;
+
+              let modified = false;
+              for (const zaloEntry of zaloEntries) {
+                const parts = zaloEntry.split(':');
+                const zaloRawId = parts.length > 2 ? parts[2] : parts[1];
+                const label = labelData.find((l: any) => String(l.id) === String(zaloRawId));
+                if (label) {
+                  const existingMembers = label.memberIds || [];
+                  if (!existingMembers.includes(threadId)) {
+                    label.memberIds = [...existingMembers, threadId];
+                    modified = true;
+                  }
+                }
+              }
+
+              if (modified) {
+                await (api as any).updateLabels({ labelData, version });
+              }
+            } catch (err: any) {
+              Logger.warn(`[WorkflowEngine] Zalo assignLabel error for ${threadId}: ${err.message}`);
             }
-            await (api as any).updateLabels({ labelData, version });
           }
-          return { success: true, source: 'zalo', labelId: zaloRawId, threadId: cfg.threadId };
         }
+
+        return { success: true };
       }
 
       case 'zalo.removeLabel': {
+        const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
+
+        // Giải mã labelIds: mảng "source:id" (new) hoặc fallback về labelId/labelSource cũ
         const rawIds: string[] = Array.isArray(cfg.labelIds) && cfg.labelIds.length > 0
           ? cfg.labelIds
           : (cfg.labelId ? [`${cfg.labelSource || 'local'}:${cfg.labelId}`] : []);
 
-        if (cfg.labelSource === 'local') {
-          const localIds = rawIds
-            .filter(v => typeof v === 'string' && v.startsWith('local:'))
-            .map(v => Number(v.split(':')[1]))
-            .filter(Boolean);
+        const localIds = rawIds
+          .filter(v => typeof v === 'string' && v.startsWith('local:'))
+          .map(v => Number(v.split(':')[1]))
+          .filter(Boolean);
+
+        const zaloEntries = rawIds.filter(v => typeof v === 'string' && v.startsWith('zalo:'));
+
+        for (const threadId of threadIds) {
+          // Gỡ nhãn Local
           for (const labelId of localIds) {
-            DatabaseService.getInstance().removeLocalLabelFromThread(ctx.pageId, labelId, cfg.threadId);
+            DatabaseService.getInstance().removeLocalLabelFromThread(ctx.pageId, labelId, threadId);
           }
-          return { success: true, source: 'local', labelIds: localIds, threadId: cfg.threadId };
-        } else {
-          // Zalo: gỡ 1 nhãn / hội thoại
-          const api = this.getApi(ctx.pageId);
-          const zaloEntry = rawIds.find(v => typeof v === 'string' && v.startsWith('zalo:')) || rawIds[0] || '';
-          const zaloRawId = typeof zaloEntry === 'string' && zaloEntry.includes(':')
-            ? zaloEntry.split(':')[1]
-            : String(zaloEntry || cfg.labelId || '');
-          const labelsRes = await (api as any).getLabels();
-          const labelData = labelsRes?.labelData || labelsRes?.data?.labelData || [];
-          const version = labelsRes?.version || labelsRes?.data?.version || 0;
-          const label = labelData.find((l: any) => String(l.id) === String(zaloRawId));
-          if (label) {
-            label.memberIds = (label.memberIds || []).filter((id: string) => id !== cfg.threadId);
-            await (api as any).updateLabels({ labelData, version });
+
+          // Gỡ nhãn Zalo
+          if (zaloEntries.length > 0) {
+            try {
+              const api = this.getApi(ctx.pageId);
+              const labelsRes = await (api as any).getLabels();
+              const labelData = labelsRes?.labelData || labelsRes?.data?.labelData || [];
+              const version = labelsRes?.version || labelsRes?.data?.version || 0;
+
+              let modified = false;
+              for (const zaloEntry of zaloEntries) {
+                const parts = zaloEntry.split(':');
+                const zaloRawId = parts.length > 2 ? parts[2] : parts[1];
+                const label = labelData.find((l: any) => String(l.id) === String(zaloRawId));
+                if (label) {
+                  const existingMembers = label.memberIds || [];
+                  if (existingMembers.includes(threadId)) {
+                    label.memberIds = existingMembers.filter((id: string) => id !== threadId);
+                    modified = true;
+                  }
+                }
+              }
+
+              if (modified) {
+                await (api as any).updateLabels({ labelData, version });
+              }
+            } catch (err: any) {
+              Logger.warn(`[WorkflowEngine] Zalo removeLabel error for ${threadId}: ${err.message}`);
+            }
           }
-          return { success: true, source: 'zalo', labelId: zaloRawId, threadId: cfg.threadId };
         }
+
+        return { success: true };
       }
 
       // ── Logic Nodes ──────────────────────────────────────────────────────
@@ -2671,6 +2853,22 @@ class WorkflowEngineService {
     if (triggerThreadId) return [triggerThreadId];
     return [];
   }
+
+  /** Resolve target IDs từ cfg, hỗ trợ cả dạng mảng JSON đa chọn và dạng đơn lẻ cũ/biến động */
+  private resolveTargetIds(cfg: Record<string, any>, key: string, ctx: ExecutionContext): string[] {
+    const pluralKey = key.endsWith('Id') ? key.slice(0, -2) + 'Ids' : key + 's';
+    if (cfg[pluralKey]) {
+      try {
+        const parsed = JSON.parse(cfg[pluralKey]);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.map(String);
+      } catch {}
+    }
+    if (cfg[key]) return [String(cfg[key])];
+    if (key === 'threadId' || key === 'toThreadId') {
+      if (ctx.trigger?.threadId) return [String(ctx.trigger.threadId)];
+    }
+    return [];
+  }
   private renderConfig(config: Record<string, any>, ctx: ExecutionContext, currentNodeId?: string): Record<string, any> {
     const rendered: Record<string, any> = {};
     for (const [key, value] of Object.entries(config)) {
@@ -2768,6 +2966,22 @@ class WorkflowEngineService {
       } catch {}
       return '';
     });
+  }
+  private matchFilterId(id: string, filterVal: any): boolean {
+    if (!filterVal) return true;
+    if (typeof filterVal === 'string') {
+      try {
+        const parsed = JSON.parse(filterVal);
+        if (Array.isArray(parsed)) {
+          return parsed.map(String).includes(id);
+        }
+      } catch {}
+      return id === filterVal;
+    }
+    if (Array.isArray(filterVal)) {
+      return filterVal.map(String).includes(id);
+    }
+    return id === String(filterVal);
   }
   private getNestedValue(obj: any, path: string): any {
     return path.split('.').reduce((acc, key) => {

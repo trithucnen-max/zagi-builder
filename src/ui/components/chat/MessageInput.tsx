@@ -170,6 +170,46 @@ export default function MessageInput() {
   const inlineStickerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inlineStickerLastKwRef = useRef<string>('');
 
+  const [showAiInput, setShowAiInput] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+
+  const handleAiDraft = async (promptText: string) => {
+    if (!promptText.trim()) return;
+    setAiGenerating(true);
+    try {
+      const listRes = await ipc.ai?.listAssistants();
+      const assistants = listRes?.assistants || [];
+      const assistantId = assistants.find((a: any) => a.enabled !== false)?.id || 'default';
+      
+      const systemMessage = `Bạn là một trợ lý AI chuyên nghiệp giúp viết tin nhắn chat cho khách hàng.
+Nhiệm vụ của bạn là viết một tin nhắn tự nhiên, thân thiện, thuyết phục dựa trên yêu cầu của người dùng.
+Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhập hay kết luận nào ngoài nội dung tin nhắn sẽ gửi đi.`;
+
+      const response = await ipc.ai?.chat(assistantId, [
+        { role: 'system', content: systemMessage },
+        { role: 'user', content: promptText }
+      ]);
+      
+      if (response?.success && response?.result) {
+        setText(response.result);
+        if (textareaRef.current) {
+          textareaRef.current.innerText = response.result;
+          prevTextRef.current = response.result;
+          textareaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        setShowAiInput(false);
+        setAiPrompt('');
+      } else {
+        alert(response?.error || 'Không thể tạo tin nhắn. Vui lòng kiểm tra lại cấu hình AI Assistant trong phần Cài đặt.');
+      }
+    } catch (e: any) {
+      alert(`Lỗi AI: ${e.message}`);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   // ─── Contact card suggestion (SĐT 0xx detection) ────────────────────────────
   const [contactCardSuggestion, setContactCardSuggestion] = useState<ContactCardSuggestion | null>(null);
   const [contactCardLoading, setContactCardLoading] = useState(false);
@@ -3132,14 +3172,14 @@ export default function MessageInput() {
             </span>
           </ToolbarBtn>
           {showAiMenu && (
-            <div className="absolute bottom-full left-0 mb-2 w-64 overflow-hidden rounded-2xl border border-purple-500/20 bg-gray-800/95 shadow-2xl shadow-black/40 backdrop-blur z-50">
-              <div className="border-b border-purple-500/10 bg-gradient-to-r from-purple-500/10 via-transparent to-transparent px-3 py-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-purple-500">Gợi ý AI</p>
+            <div className="absolute bottom-full left-0 mb-2 w-64 overflow-hidden rounded-2xl border border-blue-500/20 bg-gray-800/95 shadow-2xl shadow-black/40 backdrop-blur z-50">
+              <div className="border-b border-blue-500/10 bg-gradient-to-r from-blue-500/10 via-transparent to-transparent px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-400">Gợi ý AI</p>
                 <p className="mt-0.5 text-[11px] text-gray-400">Tuỳ chỉnh nhanh cho hội thoại hiện tại</p>
               </div>
               <button
                 onClick={() => { setAiSuggestionsEnabled(!aiSuggestionsEnabled); setShowAiMenu(false); }}
-                className="w-full text-left px-3 py-2.5 hover:bg-purple-500/10 flex items-center gap-2.5 transition-colors"
+                className="w-full text-left px-3 py-2.5 hover:bg-blue-500/10 flex items-center gap-2.5 transition-colors"
               >
                 <span className={`w-4 h-4 rounded-md border ${aiSuggestionsEnabled ? 'bg-blue-500 border-blue-500 shadow-sm shadow-blue-900/40' : 'border-gray-500 bg-gray-800'} flex items-center justify-center flex-shrink-0`}>
                   {aiSuggestionsEnabled && <span className="text-white-important text-[8px]">✓</span>}
@@ -3151,7 +3191,7 @@ export default function MessageInput() {
                   <div className="mx-3 border-t border-gray-700/80" />
                   <button
                     onClick={() => { toggleAiDisableForThread(activeAccountId, activeThreadId); setShowAiMenu(false); }}
-                    className="w-full text-left px-3 py-2.5 hover:bg-purple-500/10 flex items-center gap-2.5 transition-colors"
+                    className="w-full text-left px-3 py-2.5 hover:bg-blue-500/10 flex items-center gap-2.5 transition-colors"
                   >
                     <span className={`w-4 h-4 rounded-md border ${isAiSuggestDisabled(activeAccountId, activeThreadId) && !useAppStore.getState().aiSuggestDisabledAccounts[activeAccountId] ? 'bg-red-500 border-red-500 shadow-sm shadow-red-900/40' : 'border-gray-500 bg-gray-800'} flex items-center justify-center flex-shrink-0`}>
                       {isAiSuggestDisabled(activeAccountId, activeThreadId) && !useAppStore.getState().aiSuggestDisabledAccounts[activeAccountId] && <span className="text-white-important text-[8px]">✓</span>}
@@ -3163,7 +3203,7 @@ export default function MessageInput() {
               {activeAccountId && (
                 <button
                   onClick={() => { toggleAiDisableForAccount(activeAccountId); setShowAiMenu(false); }}
-                  className="w-full text-left px-3 py-2.5 hover:bg-purple-500/10 flex items-center gap-2.5 transition-colors"
+                  className="w-full text-left px-3 py-2.5 hover:bg-blue-500/10 flex items-center gap-2.5 transition-colors"
                 >
                   <span className={`w-4 h-4 rounded-md border ${useAppStore.getState().aiSuggestDisabledAccounts[activeAccountId] ? 'bg-red-500 border-red-500 shadow-sm shadow-red-900/40' : 'border-gray-500 bg-gray-800'} flex items-center justify-center flex-shrink-0`}>
                     {useAppStore.getState().aiSuggestDisabledAccounts[activeAccountId] && <span className="text-white-important text-[8px]">✓</span>}
@@ -3334,6 +3374,40 @@ export default function MessageInput() {
         />
       )}
 
+      {/* AI Assist prompt drawer */}
+      {showAiInput && (
+        <div className="flex flex-col gap-1.5 p-2 bg-blue-950/20 border-t border-gray-700/50 flex-shrink-0">
+          <div className="flex gap-2">
+            <input
+              value={aiPrompt}
+              onChange={e => setAiPrompt(e.target.value)}
+              placeholder="Yêu cầu AI viết tin nhắn chat..."
+              className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (aiPrompt.trim() && !aiGenerating) handleAiDraft(aiPrompt.trim());
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={aiGenerating || !aiPrompt.trim()}
+              onClick={() => handleAiDraft(aiPrompt.trim())}
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
+            >
+              {aiGenerating && (
+                <svg className="animate-spin w-3 h-3 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              )}
+              {aiGenerating ? 'Đang viết...' : 'Viết mẫu'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Input row ── */}
       <div className="relative flex items-end gap-2 px-3 py-2">
         {/* Quick message dropdown — show whenever / is typed at start */}
@@ -3421,6 +3495,18 @@ export default function MessageInput() {
             style={{ minHeight: '2rem', maxHeight: '8rem', wordBreak: 'break-word', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}
             spellCheck={false}
           />
+        </div>
+
+        {/* AI Assist button — kế bên Emoji */}
+        <div className="relative flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowAiInput(v => !v)}
+            title="Trợ lý AI soạn thảo"
+            className={`w-9 h-9 rounded-lg flex items-center justify-center text-xl transition-colors ${showAiInput ? 'bg-blue-600 text-white border border-blue-500' : 'hover:bg-gray-700 text-gray-400'}`}
+          >
+            🪄
+          </button>
         </div>
 
         {/* Emoji button — cạnh nút like/gửi */}
@@ -4432,7 +4518,7 @@ function MoreMenuDropdown({ isGroup, onCreatePoll, onCreateNote, onCreateReminde
     ),
     label: 'Tích hợp nhanh',
     sublabel: 'Tra cứu đơn, sản phẩm, vận chuyển...',
-    color: 'text-purple-400',
+    color: 'text-blue-400',
     onClick: onOpenIntegration,
   };
 

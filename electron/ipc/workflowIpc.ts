@@ -148,12 +148,12 @@ export function registerWorkflowIpc(): void {
     });
 
     // ─── Run manual ───────────────────────────────────────────────────────────
-    ipcMain.handle('workflow:runManual', async (_e, { id, triggerData }: { id: string; triggerData?: any }) => {
+    ipcMain.handle('workflow:runManual', async (_e, { id, triggerData, isSandbox }: { id: string; triggerData?: any; isSandbox?: boolean }) => {
         try {
             const row = DatabaseService.getInstance().getWorkflowById(id);
             if (!row) return { success: false, error: 'Not found' };
             const wf = rowToWorkflow(row);
-            const log = await WorkflowEngineService.getInstance().executeWorkflow({ ...wf, enabled: true }, triggerData || {}, 'manual');
+            const log = await WorkflowEngineService.getInstance().executeWorkflow({ ...wf, enabled: true }, triggerData || {}, 'manual', !!isSandbox);
             return { success: true, log };
         } catch (e: any) {
             return { success: false, error: e.message };

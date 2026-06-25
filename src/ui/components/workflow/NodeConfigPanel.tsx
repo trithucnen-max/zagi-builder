@@ -5,6 +5,8 @@ import { useAppStore } from '@/store/appStore';
 import { getNodeLabel } from './workflowConfig';
 import GroupAvatar from '@/components/common/GroupAvatar';
 import TemplateVarPopup from './TemplateVarPopup';
+import { SmartInput, SmartTextarea } from './SmartInput';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -184,15 +186,17 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       desc: 'Ngược lại — chỉ chạy với tin nhắn từ chính tài khoản này.',
     },
     {
-      key: 'fromId', label: 'Chỉ nhận từ người dùng cụ thể', type: 'contact-picker', contactType: 'user',
+      key: 'fromId', label: 'Nhận từ người dùng', type: 'contact-picker', contactType: 'user',
+      contactMode: 'multi',
       placeholder: 'Để trống = tất cả mọi người',
-      desc: 'Chọn một người cụ thể. Để trống = nhận từ tất cả.',
+      desc: 'Chọn một hoặc nhiều người để lắng nghe. Để trống = nhận từ tất cả.',
       advanced: true,
     },
     {
-      key: 'groupId', label: 'Chỉ nhận từ nhóm cụ thể', type: 'contact-picker', contactType: 'group',
+      key: 'groupId', label: 'Nhận từ nhóm', type: 'contact-picker', contactType: 'group',
+      contactMode: 'multi',
       placeholder: 'Để trống = tất cả các nhóm',
-      desc: 'Chọn một nhóm cụ thể. Để trống = nhận từ tất cả nhóm.',
+      desc: 'Chọn một hoặc nhiều nhóm để lắng nghe. Để trống = nhận từ tất cả nhóm.',
       advanced: true,
     },
     {
@@ -218,9 +222,10 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       ],
     },
     {
-      key: 'groupId', label: 'Chỉ theo dõi nhóm cụ thể', type: 'contact-picker', contactType: 'group',
+      key: 'groupId', label: 'Theo dõi nhóm', type: 'contact-picker', contactType: 'group',
+      contactMode: 'multi',
       placeholder: 'Để trống = theo dõi tất cả nhóm',
-      desc: 'Chọn một nhóm để chỉ lắng nghe sự kiện từ nhóm đó.',
+      desc: 'Chọn một hoặc nhiều nhóm để chỉ lắng nghe sự kiện từ nhóm đó.',
       advanced: true,
     },
   ],
@@ -253,15 +258,6 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
         { value: 'any',      label: '🔄 Cả khi gán và khi gỡ nhãn' },
         { value: 'assigned', label: '🏷️ Chỉ khi nhãn được gán vào' },
         { value: 'removed',  label: '🗑️ Chỉ khi nhãn bị gỡ ra' },
-      ],
-    },
-    {
-      key: 'labelSource', label: 'Nguồn nhãn', type: 'select',
-      desc: 'Lọc theo loại Nhãn Local hay nhãn Zalo.',
-      options: [
-        { value: 'any',   label: '🔄 Cả Local và Zalo' },
-        { value: 'local', label: '🏷️ Chỉ Nhãn Local' },
-        { value: 'zalo',  label: '🏷️ Chỉ nhãn Zalo' },
       ],
     },
     {
@@ -326,9 +322,10 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'zalo.sendTyping': [
     {
-      key: 'threadId', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',
+      key: 'threadIds', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
       placeholder: '{{ $trigger.threadId }}',
-      desc: 'ID hội thoại cần gửi sự kiện "đang gõ". Giữ mặc định để tự động nhận từ trigger.',
+      desc: 'Chọn một hoặc nhiều hội thoại cần gửi sự kiện "đang gõ". Giữ mặc định để tự động nhận từ trigger.',
       templateVars: ['$trigger.threadId'],
     },
     {
@@ -465,9 +462,10 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       templateVars: ['$trigger.userId', '$trigger.fromId'],
     },
     {
-      key: 'groupId', label: 'Vào nhóm (Group ID)', type: 'contact-picker', contactType: 'group',
+      key: 'groupIds', label: 'Vào nhóm (Group ID)', type: 'contact-picker', contactType: 'group',
+      contactMode: 'multi',
       placeholder: 'ID nhóm Zalo',
-      desc: 'ID nhóm Zalo đích. Xem Group ID trong phần thông tin nhóm.',
+      desc: 'Chọn một hoặc nhiều nhóm để thêm thành viên.',
     },
   ],
   'zalo.removeFromGroup': [
@@ -478,9 +476,10 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       templateVars: ['$trigger.userId'],
     },
     {
-      key: 'groupId', label: 'Khỏi nhóm (Group ID)', type: 'contact-picker', contactType: 'group',
+      key: 'groupIds', label: 'Khỏi nhóm (Group ID)', type: 'contact-picker', contactType: 'group',
+      contactMode: 'multi',
       placeholder: 'ID nhóm Zalo',
-      desc: 'ID của nhóm Zalo cần xóa thành viên.',
+      desc: 'Chọn một hoặc nhiều nhóm để xóa thành viên.',
     },
   ],
   'zalo.setMute': [
@@ -498,9 +497,10 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       hint: '3600 = 1 giờ  •  86400 = 1 ngày  •  0 = mãi mãi',
     },
     {
-      key: 'threadId', label: 'ID hội thoại', type: 'contact-picker', contactType: 'all',
+      key: 'threadIds', label: 'ID hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
       placeholder: '{{ $trigger.threadId }}',
-      desc: 'ID hội thoại cần tắt thông báo.', templateVars: ['$trigger.threadId'], advanced: true,
+      desc: 'Chọn một hoặc nhiều hội thoại cần tắt thông báo.', templateVars: ['$trigger.threadId'], advanced: true,
     },
     {
       key: 'threadType', label: 'Loại hội thoại', type: 'select',
@@ -526,9 +526,10 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       advanced: true,
     },
     {
-      key: 'toThreadId', label: 'Chuyển đến hội thoại', type: 'contact-picker', contactType: 'all',
+      key: 'toThreadIds', label: 'Chuyển đến hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
       placeholder: 'ID hội thoại đích',
-      desc: 'ID hội thoại nơi tin nhắn sẽ được chuyển đến.',
+      desc: 'Chọn một hoặc nhiều hội thoại nơi tin nhắn sẽ được chuyển đến.',
     },
     {
       key: 'toThreadType', label: 'Loại hội thoại đích', type: 'select',
@@ -544,9 +545,10 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       templateVars: ['$trigger.msgId'],
     },
     {
-      key: 'threadId', label: 'Thuộc hội thoại', type: 'contact-picker', contactType: 'all',
+      key: 'threadIds', label: 'Thuộc hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
       placeholder: '{{ $trigger.threadId }}',
-      desc: 'ID hội thoại chứa tin nhắn cần thu hồi.', templateVars: ['$trigger.threadId'], advanced: true,
+      desc: 'Chọn một hoặc nhiều hội thoại chứa tin nhắn cần thu hồi.', templateVars: ['$trigger.threadId'], advanced: true,
     },
     {
       key: 'threadType', label: 'Loại hội thoại', type: 'select',
@@ -570,8 +572,9 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       desc: 'Bật để thành viên có thể tick nhiều lựa chọn cùng lúc.',
     },
     {
-      key: 'groupId', label: 'Đăng trong nhóm (Group ID)', type: 'contact-picker', contactType: 'group',
-      placeholder: 'ID nhóm Zalo', desc: 'ID nhóm nơi poll sẽ được tạo.', advanced: true,
+      key: 'groupIds', label: 'Đăng trong nhóm (Group ID)', type: 'contact-picker', contactType: 'group',
+      contactMode: 'multi',
+      placeholder: 'ID nhóm Zalo', desc: 'Chọn một hoặc nhiều nhóm để tạo poll.', advanced: true,
     },
     {
       key: 'expireTime', label: 'Thời gian kết thúc (giây)', type: 'number',
@@ -611,42 +614,28 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'zalo.assignLabel': [
     {
-      key: 'labelSource', label: 'Loại nhãn', type: 'select',
-      desc: 'Chọn Nhãn Local (quản lý trong CRM) hoặc nhãn Zalo (đồng bộ với ứng dụng Zalo).',
-      options: [
-        { value: 'local', label: '🏷️ Nhãn Local (quản lý trong app)' },
-        { value: 'zalo',  label: '🏷️ Nhãn Zalo (đồng bộ Zalo)' },
-      ],
+      key: 'labelIds', label: 'Chọn nhãn cần gắn', type: 'label-picker', labelMode: 'multi',
+      desc: 'Chọn một hoặc nhiều nhãn để gắn (hỗ trợ cả nhãn Local và Zalo).',
     },
     {
-      key: 'labelIds', label: 'Chọn nhãn cần gắn', type: 'label-picker', labelMode: 'dynamic',
-      desc: 'Nhãn Zalo: chỉ được gắn 1 nhãn mỗi hội thoại. Nhãn Local: có thể chọn nhiều nhãn cùng lúc.',
-    },
-    {
-      key: 'threadId', label: 'Gắn nhãn cho hội thoại', type: 'contact-picker', contactType: 'all',
+      key: 'threadIds', label: 'Gắn nhãn cho hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
       placeholder: '{{ $trigger.threadId }}',
-      desc: 'ID hội thoại cần gắn nhãn. Giữ mặc định để gắn cho hội thoại đang xử lý.',
+      desc: 'Chọn một hoặc nhiều hội thoại cần gắn nhãn. Giữ mặc định để gắn cho hội thoại đang xử lý.',
       templateVars: ['$trigger.threadId'],
       advanced: true,
     },
   ],
   'zalo.removeLabel': [
     {
-      key: 'labelSource', label: 'Loại nhãn', type: 'select',
-      desc: 'Chọn loại nhãn cần gỡ.',
-      options: [
-        { value: 'local', label: '🏷️ Nhãn Local (quản lý trong app)' },
-        { value: 'zalo',  label: '🏷️ Nhãn Zalo (đồng bộ Zalo)' },
-      ],
+      key: 'labelIds', label: 'Chọn nhãn cần gỡ', type: 'label-picker', labelMode: 'multi',
+      desc: 'Chọn một hoặc nhiều nhãn cần gỡ (hỗ trợ cả nhãn Local và Zalo).',
     },
     {
-      key: 'labelIds', label: 'Chọn nhãn cần gỡ', type: 'label-picker', labelMode: 'dynamic',
-      desc: 'Nhãn Zalo: chỉ gỡ 1 nhãn mỗi lần. Nhãn Local: có thể gỡ nhiều nhãn cùng lúc.',
-    },
-    {
-      key: 'threadId', label: 'Gỡ nhãn khỏi hội thoại', type: 'contact-picker', contactType: 'all',
+      key: 'threadIds', label: 'Gỡ nhãn khỏi hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
       placeholder: '{{ $trigger.threadId }}',
-      desc: 'ID hội thoại cần gỡ nhãn.',
+      desc: 'Chọn một hoặc nhiều hội thoại cần gỡ nhãn.',
       templateVars: ['$trigger.threadId'],
       advanced: true,
     },
@@ -1645,15 +1634,17 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       desc: 'Ngược lại — chỉ chạy với tin nhắn từ chính tài khoản này.',
     },
     {
-      key: 'fromId', label: 'Chỉ nhận từ người dùng cụ thể', type: 'contact-picker', contactType: 'user',
+      key: 'fromId', label: 'Nhận từ người dùng', type: 'contact-picker', contactType: 'user',
+      contactMode: 'multi',
       placeholder: 'Để trống = tất cả mọi người',
-      desc: 'Chọn một người cụ thể để lắng nghe. Để trống = nhận từ tất cả.',
+      desc: 'Chọn một hoặc nhiều người để lắng nghe. Để trống = nhận từ tất cả.',
       advanced: true,
     },
     {
-      key: 'groupId', label: 'Chỉ nhận từ nhóm cụ thể', type: 'contact-picker', contactType: 'group',
+      key: 'groupId', label: 'Nhận từ nhóm', type: 'contact-picker', contactType: 'group',
+      contactMode: 'multi',
       placeholder: 'Để trống = tất cả các nhóm',
-      desc: 'Chọn một nhóm cụ thể để lắng nghe. Để trống = nhận từ tất cả nhóm.',
+      desc: 'Chọn một hoặc nhiều nhóm để lắng nghe. Để trống = nhận từ tất cả nhóm.',
       advanced: true,
     },
     {
@@ -2231,6 +2222,7 @@ function LabelPickerModal({
   onChange,
   mode,
   accounts,
+  onNewLabelCreated,
 }: {
   open: boolean;
   onClose: () => void;
@@ -2239,9 +2231,58 @@ function LabelPickerModal({
   onChange: (v: string[]) => void;
   mode: 'single' | 'multi';
   accounts: { zalo_id: string; full_name: string; display_name?: string; phone?: string; avatar_url: string }[];
+  onNewLabelCreated?: (newLabel: LoadedLabelOption) => void;
 }) {
   const [activeTab, setActiveTab] = React.useState<'local' | 'zalo'>('local');
   const [selectedAccountId, setSelectedAccountId] = React.useState<string>('all');
+  const [newLocalLabelName, setNewLocalLabelName] = React.useState('');
+  const [newLocalLabelColor, setNewLocalLabelColor] = React.useState('#14b8a6');
+  const [newLocalLabelEmoji, setNewLocalLabelEmoji] = React.useState('🏷️');
+  const [creating, setCreating] = React.useState(false);
+
+  const handleCreateLocalLabel = async () => {
+    const name = newLocalLabelName.trim();
+    if (!name) return;
+    setCreating(true);
+    try {
+      let pageIds = '';
+      if (selectedAccountId === 'all') {
+        pageIds = accounts.map(a => a.zalo_id).join(',');
+      } else {
+        pageIds = selectedAccountId;
+      }
+
+      const createRes = await ipc.db?.upsertLocalLabel({
+        label: {
+          id: 0,
+          name,
+          color: newLocalLabelColor,
+          textColor: '#ffffff',
+          emoji: newLocalLabelEmoji,
+          pageIds,
+        }
+      });
+
+      if (createRes?.success && createRes.id) {
+        const newLabel: LoadedLabelOption = {
+          value: `local:${createRes.id}`,
+          label: `${newLocalLabelEmoji} ${name} (Local)`,
+          source: 'local',
+          color: newLocalLabelColor,
+          textColor: '#ffffff',
+          emoji: newLocalLabelEmoji,
+          name,
+          pageIds: pageIds.split(','),
+        };
+        onNewLabelCreated?.(newLabel);
+        setNewLocalLabelName('');
+      }
+    } catch (err) {
+      console.error('Failed to create local label:', err);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const localOpts = options.filter(o => o.source === 'local');
   const zaloOpts = options.filter(o => o.source === 'zalo');
@@ -2338,7 +2379,7 @@ function LabelPickerModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 bg-gray-800/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-purple-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center">
               <span className="text-xl">🏷️</span>
             </div>
             <div>
@@ -2400,7 +2441,7 @@ function LabelPickerModal({
                     onClick={() => setSelectedAccountId(acc.zalo_id)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all ${
                       isActive
-                        ? 'bg-purple-500/20 border border-purple-500/40 text-purple-300'
+                        ? 'bg-teal-500/20 border border-teal-500/40 text-teal-300'
                         : 'hover:bg-gray-700/50 text-gray-400 hover:text-gray-300 border border-transparent'
                     }`}
                   >
@@ -2416,7 +2457,7 @@ function LabelPickerModal({
                       </div>
                     </div>
                     {isActive && (
-                      <div className="w-2 h-2 rounded-full bg-purple-400" />
+                      <div className="w-2 h-2 rounded-full bg-teal-400" />
                     )}
                   </button>
                 );
@@ -2458,7 +2499,7 @@ function LabelPickerModal({
                 onClick={() => setActiveTab('zalo')}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 ${
                   activeTab === 'zalo'
-                    ? 'border-purple-500 text-purple-400 bg-purple-500/5'
+                    ? 'border-blue-500 text-blue-400 bg-blue-500/5'
                     : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-700/30'
                 }`}
               >
@@ -2466,13 +2507,50 @@ function LabelPickerModal({
                 <span>Nhãn Zalo</span>
                 {zaloOpts.length > 0 && (
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    activeTab === 'zalo' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700 text-gray-500'
+                    activeTab === 'zalo' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-500'
                   }`}>
                     {zaloOpts.length}
                   </span>
                 )}
               </button>
             </div>
+
+            {/* Quick create local label (only visible when activeTab === 'local') */}
+            {activeTab === 'local' && (
+              <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/30 flex gap-2 items-center flex-shrink-0">
+                <input
+                  type="text"
+                  placeholder="Tên nhãn local mới..."
+                  value={newLocalLabelName}
+                  onChange={e => setNewLocalLabelName(e.target.value)}
+                  className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-teal-500"
+                />
+                <select
+                  value={newLocalLabelEmoji}
+                  onChange={e => setNewLocalLabelEmoji(e.target.value)}
+                  className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-teal-500 cursor-pointer"
+                >
+                  {['🏷️', '🎯', '🔥', '⭐', '📢', '💡', '✅', '❌', '⚠️'].map(em => (
+                    <option key={em} value={em}>{em}</option>
+                  ))}
+                </select>
+                <input
+                  type="color"
+                  value={newLocalLabelColor}
+                  onChange={e => setNewLocalLabelColor(e.target.value)}
+                  className="w-8 h-8 rounded border border-gray-700 bg-transparent p-0.5 cursor-pointer flex-shrink-0"
+                  title="Chọn màu nhãn"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateLocalLabel}
+                  disabled={creating || !newLocalLabelName.trim()}
+                  className="px-3 py-1 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-700 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-all flex-shrink-0"
+                >
+                  {creating ? 'Đang tạo...' : 'Tạo mới'}
+                </button>
+              </div>
+            )}
 
             {/* Labels List - Single column */}
             <div className="flex-1 overflow-y-auto p-3">
@@ -2594,7 +2672,7 @@ function LabelPickerModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-white bg-gradient-to-r from-teal-500 to-purple-600 hover:from-teal-400 hover:to-purple-500 rounded-lg transition-all shadow-lg"
+              className="px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors shadow-lg"
             >
               Xác nhận
             </button>
@@ -2613,12 +2691,14 @@ function LabelPickerField({
   options,
   loading,
   mode,
+  onNewLabelCreated,
 }: {
   value: string[];
   onChange: (v: string[]) => void;
   options: LoadedLabelOption[];
   loading: boolean;
   mode: 'single' | 'multi';
+  onNewLabelCreated?: (newLabel: LoadedLabelOption) => void;
 }) {
   const { accounts } = useAccountStore();
   const selected = Array.isArray(value) ? value : [];
@@ -2638,16 +2718,6 @@ function LabelPickerField({
           <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
         </svg>
         Đang tải danh sách nhãn…
-      </div>
-    );
-  }
-
-  if (options.length === 0) {
-    return (
-      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-4 text-center">
-        <div className="text-xl mb-2">🏷️</div>
-        <p className="text-yellow-400 text-xs font-medium">Chưa có nhãn nào</p>
-        <p className="text-yellow-400/70 text-[11px] mt-1">Vào <b>CRM → Quản lý nhãn</b> để tạo nhãn trước.</p>
       </div>
     );
   }
@@ -2745,6 +2815,7 @@ function LabelPickerField({
         onChange={onChange}
         mode={mode}
         accounts={accounts}
+        onNewLabelCreated={onNewLabelCreated}
       />
 
       {/* ── Footer hint ── */}
@@ -3371,23 +3442,69 @@ function ContactPickerField({
     }
   };
 
+  // Preload contacts from database to resolve UIDs to friendly display names
+  const [resolvedNames, setResolvedNames] = React.useState<Record<string, { name: string; type: 'user' | 'group' }>>({});
+
+  React.useEffect(() => {
+    let active = true;
+    const loadNames = async () => {
+      const namesMap: Record<string, { name: string; type: 'user' | 'group' }> = {};
+      for (const acc of accounts) {
+        try {
+          const contactsRes = await ipc.db?.getContacts(acc.zalo_id);
+          const contactsList = contactsRes?.contacts || [];
+          contactsList.forEach((c: any) => {
+            if (c.contact_id) {
+              const name = c.alias || c.display_name || c.zalo_name || (c.contact_type === 'group' ? `Nhóm ${c.contact_id}` : `User ${c.contact_id}`);
+              namesMap[c.contact_id] = {
+                name,
+                type: c.contact_type === 'group' ? 'group' : 'user'
+              };
+            }
+          });
+        } catch (err) {
+          console.warn('[ContactPickerField] Error preloading contacts for resolution:', err);
+        }
+      }
+      if (active) {
+        setResolvedNames(namesMap);
+      }
+    };
+
+    if (accounts && accounts.length > 0) {
+      loadNames();
+    }
+    return () => { active = false; };
+  }, [accounts]);
+
   return (
     <div className={`border rounded-xl overflow-hidden ${isLight ? 'border-gray-200 bg-white' : 'border-gray-700 bg-gray-800/30'}`}>
       {/* Current value display */}
       <div className="flex items-center gap-2 p-2">
         <div className="flex-1 flex flex-wrap gap-1 min-h-[32px] items-center">
           {selectedIds.length > 0 ? (
-            selectedIds.map(id => (
-              <span key={id} className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full font-medium ${
-                isLight ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
-              }`}>
-                {id}
-                {contactMode === 'multi' && (
-                  <button type="button" onClick={() => handleChange(selectedIds.filter(x => x !== id))}
-                    className="hover:text-white transition-colors">&times;</button>
-                )}
-              </span>
-            ))
+            selectedIds.map(id => {
+              const resolved = resolvedNames[id];
+              const isVar = id.startsWith('{{') && id.endsWith('}}');
+              const displayLabel = resolved ? resolved.name : id;
+              const typeIcon = isVar ? '⚡' : (resolved?.type === 'group' || id.includes('_') ? '👥' : '👤');
+              return (
+                <span key={id} className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-full font-medium shadow-sm transition-all border ${
+                  isVar 
+                    ? (isLight ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-orange-500/20 text-orange-300 border-orange-500/30')
+                    : (resolved?.type === 'group' || id.includes('_')
+                      ? (isLight ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30')
+                      : (isLight ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-blue-500/20 text-blue-300 border-blue-500/30'))
+                }`}>
+                  <span className="text-[10px]">{typeIcon}</span>
+                  <span className="truncate max-w-[140px]">{displayLabel}</span>
+                  {contactMode === 'multi' && (
+                    <button type="button" onClick={() => handleChange(selectedIds.filter(x => x !== id))}
+                      className="ml-1 hover:scale-110 transition-transform font-bold">&times;</button>
+                  )}
+                </span>
+              );
+            })
           ) : (
             <span className={`text-xs ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
               {placeholder || 'Nhập ID hoặc chọn từ danh bạ'}
@@ -3761,6 +3878,41 @@ export default function NodeConfigPanel({ node, nodes, edges, onConfigChange, on
   const resizeStartXRef  = useRef(0);
   const resizeStartWRef  = useRef(320);
 
+  const [showAiInput, setShowAiInput] = useState<Record<string, boolean>>({});
+  const [aiPrompts, setAiPrompts] = useState<Record<string, string>>({});
+  const [aiGenerating, setAiGenerating] = useState<Record<string, boolean>>({});
+
+  const handleAiDraft = async (fieldKey: string, promptText: string) => {
+    if (!promptText.trim()) return;
+    setAiGenerating(prev => ({ ...prev, [fieldKey]: true }));
+    try {
+      const listRes = await ipc.ai?.listAssistants();
+      const assistants = listRes?.assistants || [];
+      const assistantId = assistants.find((a: any) => a.enabled !== false)?.id || 'default';
+      
+      const systemMessage = `Bạn là một trợ lý AI chuyên nghiệp giúp viết nội dung cho các kịch bản tự động hóa (workflow) trong phần mềm Zagi.
+Nhiệm vụ của bạn là viết một đoạn văn bản (tin nhắn, nội dung email, prompt, v.v.) tự nhiên, lôi cuốn, chuyên nghiệp dựa trên yêu cầu của người dùng.
+Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhập hay kết luận nào ngoài nội dung văn bản sẽ sử dụng.`;
+
+      const response = await ipc.ai?.chat(assistantId, [
+        { role: 'system', content: systemMessage },
+        { role: 'user', content: promptText }
+      ]);
+      
+      if (response?.success && response?.result) {
+        update(fieldKey, response.result);
+        setShowAiInput(prev => ({ ...prev, [fieldKey]: false }));
+        setAiPrompts(prev => ({ ...prev, [fieldKey]: '' }));
+      } else {
+        alert(response?.error || 'Không thể tạo nội dung. Vui lòng kiểm tra lại cấu hình AI Assistant trong phần Cài đặt.');
+      }
+    } catch (e: any) {
+      alert(`Lỗi AI: ${e.message}`);
+    } finally {
+      setAiGenerating(prev => ({ ...prev, [fieldKey]: false }));
+    }
+  };
+
   const allFields   = CONFIG_SCHEMA[node.type] || [];
   const basicFields = allFields.filter(f => !f.advanced);
   const advFields   = allFields.filter(f =>  f.advanced);
@@ -4039,25 +4191,91 @@ export default function NodeConfigPanel({ node, nodes, edges, onConfigChange, on
     const isBool = field.type === 'boolean';
     return (
       <div key={field.key} className={isBool ? 'bg-gray-800/40 border border-gray-700/50 rounded-xl px-3 py-2.5' : ''}>
-        {!isBool && <label className={labelCls}>{field.label}</label>}
+        {!isBool && (
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-semibold text-gray-300">{field.label}</label>
+            {(field.type === 'textarea' || field.type === 'multiline') && (
+              <button
+                type="button"
+                onClick={() => setShowAiInput(prev => ({ ...prev, [field.key]: !prev[field.key] }))}
+                className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors border ${
+                  showAiInput[field.key]
+                    ? 'bg-blue-600 border-blue-500 text-white'
+                    : 'border-blue-500/30 text-blue-400 hover:bg-blue-500/15'
+                }`}
+              >
+                🪄 Trợ lý AI
+              </button>
+            )}
+          </div>
+        )}
 
         {field.type === 'text' && (
-          <input value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
-            placeholder={field.placeholder} className={inputCls} />
+          field.templateVars?.length ? (
+            <SmartInput value={config[field.key] ?? ''} onChange={v => update(field.key, v)}
+              placeholder={field.placeholder} className={inputCls}
+              nodeType={node?.type} allNodes={nodes} currentId={node?.id} />
+          ) : (
+            <input value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
+              placeholder={field.placeholder} className={inputCls} />
+          )
         )}
         {(field.type === 'textarea' || field.type === 'multiline') && (
-          field.htmlToggle && config[field.htmlToggle] ? (
-            <HtmlEditorField
-              value={config[field.key] ?? ''}
-              onChange={v => update(field.key, v)}
-              placeholder={field.placeholder}
-              templateVars={field.templateVars}
-            />
-          ) : (
-            <textarea value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
-              placeholder={field.placeholder} rows={field.type === 'multiline' ? 5 : 3}
-              className={`${inputCls} resize-none`} />
-          )
+          <>
+            {field.htmlToggle && config[field.htmlToggle] ? (
+              <HtmlEditorField
+                value={config[field.key] ?? ''}
+                onChange={v => update(field.key, v)}
+                placeholder={field.placeholder}
+                templateVars={field.templateVars}
+              />
+            ) : (
+              field.templateVars?.length ? (
+                <SmartTextarea value={config[field.key] ?? ''} onChange={v => update(field.key, v)}
+                  placeholder={field.placeholder} rows={field.type === 'multiline' ? 5 : 3}
+                  className={`${inputCls} resize-none`}
+                  nodeType={node?.type} allNodes={nodes} currentId={node?.id} />
+              ) : (
+                <textarea value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
+                  placeholder={field.placeholder} rows={field.type === 'multiline' ? 5 : 3}
+                  className={`${inputCls} resize-none`} />
+              )
+            )}
+            {showAiInput[field.key] && (
+              <div className="mt-1.5 flex flex-col gap-1.5 p-2 bg-blue-950/20 border border-blue-500/20 rounded-lg">
+                <div className="flex gap-2">
+                  <input
+                    value={aiPrompts[field.key] ?? ''}
+                    onChange={e => setAiPrompts(prev => ({ ...prev, [field.key]: e.target.value }))}
+                    placeholder="Yêu cầu AI soạn thảo..."
+                    className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2 py-1 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if ((aiPrompts[field.key] ?? '').trim() && !aiGenerating[field.key]) {
+                          handleAiDraft(field.key, (aiPrompts[field.key] ?? '').trim());
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={aiGenerating[field.key] || !(aiPrompts[field.key] ?? '').trim()}
+                    onClick={() => handleAiDraft(field.key, (aiPrompts[field.key] ?? '').trim())}
+                    className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    {aiGenerating[field.key] && (
+                      <svg className="animate-spin w-3 h-3 text-white" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    )}
+                    {aiGenerating[field.key] ? 'Đang viết...' : 'Viết'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
         {field.type === 'select' && (() => {
           let opts = field.options ?? [];
@@ -4120,6 +4338,13 @@ export default function NodeConfigPanel({ node, nodes, edges, onConfigChange, on
               options={loadedLabelOptions}
               loading={loadingLabelOptions}
               mode={pickerMode}
+              onNewLabelCreated={(newLabel) => {
+                setLoadedLabelOptions(prev => [newLabel, ...prev]);
+                const currentVal = Array.isArray(config[field.key]) ? config[field.key] : [];
+                if (!currentVal.includes(newLabel.value)) {
+                  update(field.key, [...currentVal, newLabel.value]);
+                }
+              }}
             />
           );
         })()}
@@ -4130,6 +4355,7 @@ export default function NodeConfigPanel({ node, nodes, edges, onConfigChange, on
             value={config[field.key] ?? ''}
             onChange={v => update(field.key, v)}
             contactType={field.contactType || 'all'}
+            contactMode={field.contactMode || (field.key === 'threadIds' ? 'multi' : 'single')}
             placeholder={field.placeholder}
             templateVars={field.templateVars}
           />

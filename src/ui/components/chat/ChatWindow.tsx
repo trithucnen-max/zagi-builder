@@ -2375,7 +2375,7 @@ export default function ChatWindow() {
             </button>
             <button onClick={() => {
               const selectedMsgs = msgs.filter(m => selectedMsgIds.has(m.msg_id));
-              const sortedMsgs = [...selectedMsgs].sort((a, b) => Number(a.ts || 0) - Number(b.ts || 0));
+              const sortedMsgs = [...selectedMsgs].sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
               const texts = sortedMsgs.map(m => extractMsgText(m)).filter(Boolean);
               if (texts.length > 0) {
                 setNoteModalData({ initialText: texts.join('\n'), contactId: activeThreadId || '' });
@@ -2694,7 +2694,7 @@ export default function ChatWindow() {
               showNotification('Đã lưu ghi chú CRM thành công', 'success');
               setNoteModalData(null);
             } else {
-              showNotification('Không thể lưu ghi chú: ' + (res?.error || 'Lỗi DB'), 'error');
+              showNotification('Không thể lưu ghi chú: ' + ((res as any)?.error || 'Lỗi DB'), 'error');
             }
           }}
         />

@@ -312,7 +312,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       save: (workflow: any) => ipcRenderer.invoke('workflow:save', { workflow }),
       delete: (id: string) => ipcRenderer.invoke('workflow:delete', { id }),
       toggle: (id: string, enabled: boolean) => ipcRenderer.invoke('workflow:toggle', { id, enabled }),
-      runManual: (id: string, triggerData?: any) => ipcRenderer.invoke('workflow:runManual', { id, triggerData }),
+      runManual: (id: string, triggerData?: any, isSandbox?: boolean) => ipcRenderer.invoke('workflow:runManual', { id, triggerData, isSandbox }),
       getLogs: (id: string, limit?: number) => ipcRenderer.invoke('workflow:getLogs', { id, limit }),
       deleteLogs: (id: string) => ipcRenderer.invoke('workflow:deleteLogs', { id }),
       clone: (id: string, targetZaloId: string) => ipcRenderer.invoke('workflow:clone', { id, targetZaloId }),

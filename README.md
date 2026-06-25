@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v27.1.5** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v27.1.7** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.5-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.5-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-x64.exe)
 
-**[Zagi-Setup-27.1.5-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.5-x64.exe)**
+**[Zagi-Setup-27.1.7-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-x64.exe)**
 
 NSIS Installer · ~148 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~148 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.5-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5-arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.7-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64.dmg)
 
-**[Zagi-27.1.5-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5-arm64.dmg)**
+**[Zagi-27.1.7-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64.dmg)**
 
 Apple Silicon · ~177 MB
 
@@ -69,9 +69,9 @@ Apple Silicon · ~177 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.5-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.7-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.dmg)
 
-**[Zagi-27.1.5.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5.dmg)**
+**[Zagi-27.1.7.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.dmg)**
 
 Intel x64 · ~182 MB
 
@@ -80,10 +80,10 @@ Intel x64 · ~182 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.5-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.7-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.AppImage)
 
-**[Zagi-27.1.5.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5.AppImage)**  
-**[zagi_27.1.5_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.5_amd64.deb)**
+**[Zagi-27.1.7.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.AppImage)**  
+**[zagi_27.1.7_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.7_amd64.deb)**
 
 AppImage + .deb · ~197 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~197 MB
 > 
 > **Surface Pro 7 trở xuống (Intel)** → dùng bản Windows x64 phía trên.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.5-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.5-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-arm64.exe)
 
-**[Zagi-Setup-27.1.5-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.5-arm64.exe)**
+**[Zagi-Setup-27.1.7-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-arm64.exe)**
 
 NSIS Installer ARM64 · ~148 MB · Tối ưu native cho Surface ARM
 
@@ -124,14 +124,14 @@ NSIS Installer ARM64 · ~148 MB · Tối ưu native cho Surface ARM
 Máy tính của bạn là loại gì?
 │
 ├─ 🖥️ PC desktop / Laptop thông thường (Dell, HP, Lenovo, Asus, Acer...)
-│   └─ → Tải: Zagi-Setup-27.1.5-x64.exe  ✅
+│   └─ → Tải: Zagi-Setup-27.1.7-x64.exe  ✅
 │
 ├─ 💻 Surface Pro 7, Surface Laptop 1-4, Surface Go 1-2, Surface Book
-│   └─ → Tải: Zagi-Setup-27.1.5-x64.exe  ✅  (chip Intel, bản x64 chạy ok)
+│   └─ → Tải: Zagi-Setup-27.1.7-x64.exe  ✅  (chip Intel, bản x64 chạy ok)
 │
 └─ 💻 Surface Pro X, Surface Pro 9 (5G), Surface Pro 10, Surface Pro 11,
        Surface Laptop 7 (chip Snapdragon / ARM64)
-    └─ → Tải: Zagi-Setup-27.1.5-arm64.exe  ✅ (bản native ARM64)
+    └─ → Tải: Zagi-Setup-27.1.7-arm64.exe  ✅ (bản native ARM64)
 ```
 
 > 💡 **Cách kiểm tra chip máy Surface:** Vào `Settings → System → About`, xem mục **Processor**:
@@ -146,10 +146,10 @@ Máy tính của bạn là loại gì?
 Mac của bạn là loại gì?
 │
 ├─ 🍎 MacBook Air/Pro M1, M2, M3, M4 (2020 trở về sau)
-│   └─ → Tải: Zagi-27.1.5-arm64.dmg  ✅
+│   └─ → Tải: Zagi-27.1.7-arm64.dmg  ✅
 │
 └─ 🍎 MacBook, iMac, Mac mini chip Intel (2019 trở về trước)
-    └─ → Tải: Zagi-27.1.5.dmg  ✅
+    └─ → Tải: Zagi-27.1.7.dmg  ✅
 ```
 
 > 💡 **Cách kiểm tra:** Click logo Apple → **About This Mac** → xem mục **Chip** hoặc **Processor**:
@@ -164,11 +164,11 @@ Mac của bạn là loại gì?
 Bạn dùng distro nào?
 │
 ├─ Ubuntu, Mint, PopOS, Zorin, ElementaryOS... → Tải .deb  ✅
-│   sudo dpkg -i zagi_27.1.5_amd64.deb
+│   sudo dpkg -i zagi_27.1.7_amd64.deb
 │
 └─ Fedora, Arch, openSUSE hoặc bất kỳ distro nào
     → Tải .AppImage  ✅
-    chmod +x Zagi-27.1.5.AppImage && ./Zagi-27.1.5.AppImage
+    chmod +x Zagi-27.1.7.AppImage && ./Zagi-27.1.7.AppImage
 ```
 
 ---
@@ -177,37 +177,35 @@ Bạn dùng distro nào?
 
 | Thiết bị | File cần tải | Ghi chú |
 |---|---|---|
-| PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.1.5-x64.exe` | Phổ biến nhất |
-| Surface Pro 7 trở xuống | `Zagi-Setup-27.1.5-x64.exe` | Chip Intel |
-| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi-Setup-27.1.5-arm64.exe` | 🆕 Chip ARM64 |
-| MacBook M1/M2/M3/M4 | `Zagi-27.1.5-arm64.dmg` | Apple Silicon |
-| MacBook/iMac Intel | `Zagi-27.1.5.dmg` | Intel x64 |
-| Ubuntu/Debian Linux | `zagi_27.1.5_amd64.deb` | Cài như package |
-| Fedora/Arch/Linux khác | `Zagi-27.1.5.AppImage` | Chạy mọi distro |
+| PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.1.7-x64.exe` | Phổ biến nhất |
+| Surface Pro 7 trở xuống | `Zagi-Setup-27.1.7-x64.exe` | Chip Intel |
+| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi-Setup-27.1.7-arm64.exe` | 🆕 Chip ARM64 |
+| MacBook M1/M2/M3/M4 | `Zagi-27.1.7-arm64.dmg` | Apple Silicon |
+| MacBook/iMac Intel | `Zagi-27.1.7.dmg` | Intel x64 |
+| Ubuntu/Debian Linux | `zagi_27.1.7_amd64.deb` | Cài như package |
+| Fedora/Arch/Linux khác | `Zagi-27.1.7.AppImage` | Chạy mọi distro |
 
 ---
 
 <details>
 <summary>⚠️ Cảnh báo bảo mật khi cài lần đầu (Windows / macOS / Linux)</summary>
 
-Zagi chưa ký code (chúng tôi là startup bootstrapped), nên hệ điều hành có thể hiện cảnh báo khi mở lần đầu.
+Zagi đã hỗ trợ **Ký số & Xác thực bảo mật (Code Signing & Notarization)** chính thức của Apple kể từ phiên bản v27.1.7 giúp vượt qua cảnh báo Gatekeeper trên macOS. Tuy nhiên, trên Windows ứng dụng chưa ký chứng chỉ EV (vì chúng tôi là dự án bootstrapped độc lập), nên Windows Defender SmartScreen có thể hiện cảnh báo khi cài đặt lần đầu.
 
 ### 🪟 Windows & Surface — "Windows protected your PC"
 
-1. Nhấn **More info**
-2. Nhấn **Run anyway**
+1. Nhấn **More info** (Thông tin thêm)
+2. Nhấn **Run anyway** (Vẫn chạy)
 
-### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
-
-**Cách 1:** Chuột phải vào file → **Open** → **Open**
-
-**Cách 2:** System Settings → Privacy & Security → **Open Anyway**
+### 🍎 macOS (Từ bản v27.1.7 trở đi)
+* Ứng dụng đã được ký số bằng chứng chỉ nhà phát triển của Apple và chạy qua khâu Notarization an toàn.
+* Bạn chỉ cần tải file `.dmg` về, kéo vào thư mục `Applications` và nhấp đúp để chạy bình thường như các phần mềm chính thức khác của Apple mà không gặp bất kỳ lỗi Gatekeeper nào.
 
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.1.5.AppImage
-./Zagi-27.1.5.AppImage
+chmod +x Zagi-27.1.7.AppImage
+./Zagi-27.1.7.AppImage
 ```
 
 Nếu lỗi "FUSE not available":
@@ -217,7 +215,7 @@ sudo apt install libfuse2
 
 Hoặc dùng `.deb`:
 ```bash
-sudo dpkg -i zagi_27.1.5_amd64.deb
+sudo dpkg -i zagi_27.1.7_amd64.deb
 ```
 
 </details>
@@ -452,7 +450,23 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.6</strong> — 2026-06-24 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v27.1.7</strong> — 2026-06-25 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật
+
+- 🍎 **Ký số & Xác thực macOS tự động (macOS Code Signing & Notarization)**: Tích hợp cơ chế ký số bảo mật (Developer ID Application) và notarize tự động của Apple trên GitHub Actions CI/CD. Cấu hình chế độ Hardened Runtime kèm tệp Entitlements cho phép ứng dụng vượt qua Gatekeeper và hỗ trợ cập nhật ngầm ổn định trên macOS.
+- 📝 **Tự động gợi ý Biến thông minh (Smart Variable Auto-complete)**: Hỗ trợ trình gợi ý thả xuống (Dropdown) trực quan hiển thị ngay khi người dùng gõ ký tự "{" tại các ô cấu hình. Cho phép dùng phím điều hướng và Enter để chèn nhanh các biến hệ thống (`$trigger`, `$date`) và biến node (`$node.[Tên_Node].output`) thay vì copy-paste thủ công.
+- 🧪 **Trình gỡ lỗi trực quan & Giả lập Sandbox (Visual Debugger & Sandbox)**: Bổ sung nút "Chạy Sandbox" cho phép chạy thử nghiệm workflow giả lập hoàn toàn an toàn (không gửi tin nhắn thật, không ghi sheets thật). Hiển thị trực quan trạng thái chạy (Xanh = Success, Đỏ = Error, Xám mờ = Skipped) và đường đi của luồng dữ liệu (Edge) trên Canvas React Flow. Cho phép click vào icon ℹ️ trên từng Node để kiểm tra nhanh cấu trúc dữ liệu Input/Output thực tế.
+- 🏷️ **Trình quản lý Nhãn & Đa chọn đích nhận (Smart Label Picker & Multi-Target)**: Cải tiến Popup chọn nhãn, loại bỏ tùy chọn nguồn nhãn thừa, hỗ trợ tạo nhanh nhãn local trực tiếp từ Popup. Mở rộng cấu hình đa chọn (multi-select) liên hệ/nhóm cho các hành động Zalo (chuyển tiếp, thu hồi, tắt thông báo, đang gõ, tạo poll, thêm/xóa khỏi nhóm). Động cơ Workflow hỗ trợ tự động xử lý lặp để gửi tin/hành động đến nhiều đích đồng thời.
+- 🇻🇳 **Việt hóa & Trang trí biến dạng Pill (Node Localization & Variable Decorator)**: Bản dịch tiếng Việt trực quan cho toàn bộ các mô tả node và toán tử logic. Các biến động như `{{ $trigger.content }}` được tự động định dạng thành thẻ pill bo góc tròn nền mờ và chữ đậm chuyên nghiệp, tự động tương thích Light/Dark theme. Tuân thủ quy tắc Purple Ban.
+- 🏠 **Kho Mẫu Bất động sản chuyên sâu (Real Estate Templates Category)**: Bổ sung danh mục chuyên biệt "Bất động sản" hiển thị trực quan trên giao diện Store cùng 8 kịch bản được thiết kế sẵn (chúc sinh nhật VIP, chúc mùng 1/ngày rằm âm lịch, nhắc tiến độ nộp tiền, khảo sát bàn giao, báo cáo thị trường định kỳ...).
+- 🪄 **Trợ lý AI Soạn thảo (AI Assistant Writing Integration)**: Tích hợp nút và khay soạn thảo nội dung bằng AI ("🪄 Trợ lý AI") cho các trường textarea/multiline trong trình cấu hình node của Workflow và khung chat hội thoại Zalo/Facebook. Hỗ trợ gọi API qua `ipc.ai?.chat` để viết tin nhắn nhanh chóng và tự động điền vào khung soạn thảo. Đồng thời, cải tiến giao diện tạo chiến dịch CRM bằng cách loại bỏ các màu tím (Purple Ban) và chuyển sang tông màu xanh dương/xanh chàm chuyên nghiệp.
+- 🐛 **Sửa lỗi cột Pipeline**: Khắc phục lỗi `NOT NULL constraint failed: crm_pipeline_stages.created_at` khi thêm mới cột trạng thái trong bảng Pipeline CRM bằng cách tự động chạy Migration bổ sung cột `created_at`/`updated_at` và gán giá trị timestamp mặc định.
+
+</details>
+
+<details>
+<summary><strong>v27.1.6</strong> — 2026-06-24</summary>
 
 ### 🚀 Nâng cấp nổi bật
 

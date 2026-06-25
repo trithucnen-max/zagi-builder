@@ -38,7 +38,8 @@ export type TemplateCategory =
   | 'thong-bao'      // Thông báo & Tích hợp
   | 'ai'             // AI & Thông minh
   | 'nang-cao'       // Nâng cao
-  | 'tich-hop';      // Tích hợp POS & Thanh toán
+  | 'tich-hop'       // Tích hợp POS & Thanh toán
+  | 'bat-dong-san';  // Bất động sản
 
 export const TEMPLATE_CATEGORIES: { key: TemplateCategory; label: string; icon: string; color: string }[] = [
   { key: 'ban-hang',   label: 'Bán hàng & CSKH',           icon: '🛒', color: 'bg-blue-500' },
@@ -48,6 +49,7 @@ export const TEMPLATE_CATEGORIES: { key: TemplateCategory; label: string; icon: 
   { key: 'ai',         label: 'AI & Thông minh',             icon: '🤖', color: 'bg-violet-500' },
   { key: 'nang-cao',   label: 'Nâng cao',                    icon: '⚙️', color: 'bg-rose-500' },
   { key: 'tich-hop',   label: 'Tích hợp POS & Thanh toán',  icon: '🔌', color: 'bg-teal-600' },
+  { key: 'bat-dong-san', label: 'Bất động sản',             icon: '🏠', color: 'bg-emerald-600' },
 ];
 
 // ── Helper: generate fresh IDs when installing ─────────────────────────────────

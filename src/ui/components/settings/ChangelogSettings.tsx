@@ -14,6 +14,56 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.1.7',
+    date: '06/2026',
+    type: 'patch',
+    highlights: [
+      '🍎 Ký số & Xác thực macOS tự động (macOS Code Signing & Notarization) — Tích hợp cơ chế ký số bảo mật (Developer ID Application) và notarize tự động của Apple trên GitHub Actions CI/CD. Cấu hình chế độ Hardened Runtime kèm tệp Entitlements cho phép ứng dụng vượt qua Gatekeeper và hỗ trợ cập nhật ngầm ổn định trên macOS.',
+      '📝 Tự động gợi ý Biến thông minh (Smart Variable Auto-complete) — Hỗ trợ trình gợi ý thả xuống (Dropdown) trực quan hiển thị ngay khi người dùng gõ ký tự "{" tại các ô cấu hình. Cho phép dùng phím điều hướng và Enter để chèn nhanh các biến hệ thống ($trigger, $date) và biến node ($node.[Tên_Node].output) thay vì copy-paste thủ công.',
+      '🧪 Trình gỡ lỗi trực quan & Giả lập Sandbox (Visual Debugger & Sandbox) — Bổ sung nút "Chạy Sandbox" cho phép chạy thử nghiệm workflow giả lập hoàn toàn an toàn (không gửi tin nhắn thật, không ghi sheets thật). Hiển thị trực quan trạng thái chạy (Xanh = Success, Đỏ = Error, Xám mờ = Skipped) và đường đi của luồng dữ liệu (Edge) trên Canvas React Flow. Cho phép click vào icon ℹ️ trên từng Node để kiểm tra nhanh cấu trúc dữ liệu Input/Output thực tế.',
+      '🏷️ Trình quản lý Nhãn & Đa chọn đích nhận (Smart Label Picker & Multi-Target) — Cải tiến Popup chọn nhãn, loại bỏ tùy chọn nguồn nhãn thừa, hỗ trợ tạo nhanh nhãn local trực tiếp từ Popup. Mở rộng cấu hình đa chọn (multi-select) liên hệ/nhóm cho các hành động Zalo (chuyển tiếp, thu hồi, tắt thông báo, đang gõ, tạo poll, thêm/xóa khỏi nhóm). Động cơ Workflow hỗ trợ tự động xử lý lặp để gửi tin/hành động đến nhiều đích đồng thời.',
+      '🇻🇳 Việt hóa & Trang trí biến dạng Pill (Node Localization & Variable Decorator) — Bản dịch tiếng Việt trực quan cho toàn bộ các mô tả node và toán tử logic. Các biến động như {{ $trigger.content }} được tự động định dạng thành thẻ pill bo góc tròn nền mờ và chữ đậm chuyên nghiệp, tự động tương thích Light/Dark theme. Tuân thủ quy tắc Purple Ban.',
+      '🏠 Kho Mẫu Bất động sản chuyên sâu (Real Estate Templates Category) — Bổ sung danh mục chuyên biệt "Bất động sản" hiển thị trực quan trên giao diện Store cùng 8 kịch bản được thiết kế sẵn (chúc sinh nhật VIP, chúc mùng 1/ngày rằm âm lịch, nhắc tiến độ nộp tiền, khảo sát bàn giao, báo cáo thị trường định kỳ...).',
+      '🪄 Trợ lý AI Soạn thảo (AI Assistant Writing Integration) — Tích hợp nút và khay soạn thảo nội dung bằng AI ("🪄 Trợ lý AI") cho các trường textarea/multiline trong trình cấu hình node của Workflow và khung chat hội thoại Zalo/Facebook. Hỗ trợ gọi API qua ipc.ai?.chat để viết tin nhắn nhanh chóng và tự động điền vào khung soạn thảo. Đồng thời, cải tiến giao diện tạo chiến dịch CRM bằng cách loại bỏ các màu tím (Purple Ban) và chuyển sang tông màu xanh dương/xanh chàm chuyên nghiệp.'
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Tích hợp component SmartInput và SmartTextarea tự động bắt ký tự "{" để gợi ý biến và thay thế đúng vị trí con trỏ.',
+          'Bổ sung logic dryRun (sandbox) vào WorkflowEngineService.ts cho phép chạy workflow mô phỏng an toàn.',
+          'Nút hành động "Chạy Sandbox" trên thanh công cụ và nút "Debug trực quan trên sơ đồ" trong chi tiết lịch sử chạy.',
+          'Hiển thị overlay trạng thái viền xanh/đỏ/xám kèm nút ℹ️ xem nhanh Input/Output/Lỗi trên node React Flow.',
+          'Tạo mới file realEstateTemplates.ts định nghĩa 8 mẫu kịch bản chuyên dụng phục vụ ngành Bất động sản.',
+          'Bổ sung danh mục Bất động sản với biểu tượng 🏠 và màu bg-emerald-600 vào cửa hàng mẫu.',
+          'Tích hợp form tạo nhanh nhãn local và callback onNewLabelCreated trong LabelPickerModal.',
+          'Tích hợp nút và khay nhập prompt "🪄 Trợ lý AI" gọi ipc.ai?.chat cho các ô nhập liệu dạng textarea và multiline trong NodeConfigPanel.tsx.',
+          'Thêm nút "🪄" kế bên nút Emoji tại khung chat MessageInput.tsx mở khay AI soạn thảo trực tiếp chèn tin nhắn chat.',
+          'Tạo mới tệp entitlements.mac.plist và entitlements.mac.inherit.plist cấu hình bảo mật Hardened Runtime cho macOS.'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Cấu hình chuyển tiếp tự động các secrets ký số và tài khoản Apple Developer sang electron-builder trong các workflow build-macos.yml và build-all.yml.',
+          'Loại bỏ thao tác copy-paste biến thủ công qua Clipboard khi bấm nút "Chèn biến động".',
+          'Tô màu đường nối (Edges) trên canvas động theo luồng chạy (xanh lá = thành công, đỏ = lỗi, xám = skipped).',
+          'Chuyển đổi kiểu dữ liệu trả về của các hàm get***Summary sang React.ReactNode để hiển thị rich JSX trực tiếp trên Node.',
+          'Refactor các API Zalo trong WorkflowEngineService.ts sang cơ chế lặp xử lý đa chọn threadIds/groupIds.',
+          'Hỗ trợ gán/gỡ nhãn song song cả Local và Zalo nhãn tuân theo tiền tố nhãn.',
+          'Thay đổi màu text mặc định của TriggerNode sang tông xanh chàm (indigo) tuân thủ quy tắc Purple Ban.',
+          'Khử hoàn toàn các màu tím (Purple Ban) trong giao diện Trợ lý AI tại CampaignCreateModal.tsx và MessageInput.tsx, chuyển sang tông màu xanh dương/xanh chàm.'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Khắc phục lỗi "NOT NULL constraint failed: crm_pipeline_stages.created_at" khi thêm mới cột trạng thái trong bảng Pipeline CRM bằng cách tự động chạy Migration bổ sung cột created_at/updated_at và gán giá trị timestamp mặc định.'
+        ]
+      }
+    ]
+  },
+  {
     version: '27.1.6',
     date: '06/2026',
     type: 'patch',

@@ -929,7 +929,9 @@ class DatabaseService {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 color TEXT DEFAULT '#3B82F6',
-                position INTEGER DEFAULT 0
+                position INTEGER DEFAULT 0,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
             );
         `);
 
@@ -1377,6 +1379,21 @@ class DatabaseService {
                 db!.exec(`ALTER TABLE contacts ADD COLUMN pipeline_stage_id INTEGER DEFAULT NULL`);
                 this.save();
                 Logger.log('[DatabaseService] Migration: added pipeline_stage_id column to contacts');
+            }
+
+            // Add created_at and updated_at columns to crm_pipeline_stages if missing
+            const stageCols = this.query<any>(`PRAGMA table_info(crm_pipeline_stages)`);
+            const hasCreatedAt = stageCols.some((c: any) => c.name === 'created_at');
+            if (!hasCreatedAt) {
+                db!.exec(`ALTER TABLE crm_pipeline_stages ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added created_at column to crm_pipeline_stages');
+            }
+            const hasUpdatedAt = stageCols.some((c: any) => c.name === 'updated_at');
+            if (!hasUpdatedAt) {
+                db!.exec(`ALTER TABLE crm_pipeline_stages ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added updated_at column to crm_pipeline_stages');
             }
 
             // Đếm trước để log
@@ -7537,17 +7554,18 @@ class DatabaseService {
 
     public savePipelineStage(params: { stage: any }): { success: boolean } {
         const { stage } = params;
+        const now = Math.floor(Date.now() / 1000);
         if (stage.id) {
             this.run(`
                 UPDATE crm_pipeline_stages
-                SET name = ?, color = ?, position = ?
+                SET name = ?, color = ?, position = ?, updated_at = ?
                 WHERE id = ?
-            `, [stage.name, stage.color, stage.position, stage.id]);
+            `, [stage.name, stage.color, stage.position, now, stage.id]);
         } else {
             this.run(`
-                INSERT INTO crm_pipeline_stages (name, color, position)
-                VALUES (?, ?, ?)
-            `, [stage.name, stage.color, stage.position]);
+                INSERT INTO crm_pipeline_stages (name, color, position, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+            `, [stage.name, stage.color, stage.position, now, now]);
         }
         this.save();
         return { success: true };

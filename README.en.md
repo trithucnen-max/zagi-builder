@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v27.1.5** — [View all versions](#changelog)
+> **Latest version: v27.1.7** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.5-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.5-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-x64.exe)
 
-**[Zagi-Setup-27.1.5-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.5-x64.exe)**
+**[Zagi-Setup-27.1.7-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-x64.exe)**
 
 NSIS Installer · ~148 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~148 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.5-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5-arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.7-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64.dmg)
 
-**[Zagi-27.1.5-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5-arm64.dmg)**
+**[Zagi-27.1.7-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64.dmg)**
 
 Apple Silicon · ~177 MB
 
@@ -69,9 +69,9 @@ Apple Silicon · ~177 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.5-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.7-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.dmg)
 
-**[Zagi-27.1.5.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5.dmg)**
+**[Zagi-27.1.7.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.dmg)**
 
 Intel x64 · ~182 MB
 
@@ -80,10 +80,10 @@ Intel x64 · ~182 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.5-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.7-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.AppImage)
 
-**[Zagi-27.1.5.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.5.AppImage)**  
-**[zagi_27.1.5_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.5_amd64.deb)**
+**[Zagi-27.1.7.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.AppImage)**  
+**[zagi_27.1.7_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.7_amd64.deb)**
 
 AppImage + .deb · ~197 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~197 MB
 > 
 > Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.5-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.5-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-arm64.exe)
 
-**[Zagi-Setup-27.1.5-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.5-arm64.exe)**
+**[Zagi-Setup-27.1.7-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-arm64.exe)**
 
 NSIS Installer ARM64 · ~148 MB · Native performance on Surface ARM
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.5-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.7-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.5-x64.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.7-x64.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.1.5.AppImage
-./Zagi-27.1.5.AppImage
+chmod +x Zagi-27.1.7.AppImage
+./Zagi-27.1.7.AppImage
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i zagi_27.1.5_amd64.deb
+sudo dpkg -i zagi_27.1.7_amd64.deb
 ```
 
 </details>
@@ -381,7 +381,23 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.6</strong> — 2026-06-24 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.1.7</strong> — 2026-06-25 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights
+
+- 🍎 **macOS Code Signing & Notarization**: Integrated Apple Developer ID Code Signing and Notarization automatically on GitHub Actions CI/CD. Configuration of Hardened Runtime and Entitlements plists bypasses macOS Gatekeeper warnings and enables background Auto-Updates.
+- 📝 **Smart Variable Auto-complete**: Support drop-down autocomplete list showing up automatically when users type the "{" character in node fields. Allows navigating and selecting variables ($trigger, $node.output) with arrow keys and Enter.
+- 🧪 **Visual Debugger & Sandbox Simulator**: Add a "Run Sandbox" button to safely run and test workflows (no real Zalo messages sent, no real sheets written). Colorizes Canvas Edges according to execution status (green = success, red = error, gray = skipped). Enables viewing Input/Output of each Node via an info ℹ️ icon.
+- 🏷️ **Smart Label Picker & Multi-Target Actions**: Redesigned Zalo label selection popup, added local label quick creation form, and added multi-select support for recipient actions (forward, recall, mute, typing, poll, group join/leave). The engine automatically processes multi-recipient lists sequentially.
+- 🇻🇳 **Node Localization & Variable Decorator**: English/Vietnamese localization for node summaries and logic operators. Variables are decorated as highlighted, theme-aware inline pills. Follows the Purple Ban rules.
+- 🏠 **Real Estate Template Category**: Introduced a new "Real Estate" category in the Template Store with 8 pre-designed specialized workflows (VIP birthday, lunar 1st day group blessings, lunar 15th day group blessings, payment reminders, handover feedback...).
+- 🪄 **AI Assistant Writing Integration**: Added a "🪄 AI Assistant" writing tray to configuration fields and chat input bars. Connects to `ipc.ai?.chat` to write text and insert it into active fields. Adheres to Purple Ban UI style guidelines (blue/indigo colors).
+- 🐛 **Kanban Pipeline Column Fix**: Solved a SQL error `NOT NULL constraint failed: crm_pipeline_stages.created_at` when creating new pipeline stages on Windows by applying automatic database migrations and assigning timestamp defaults.
+
+</details>
+
+<details>
+<summary><strong>v27.1.6</strong> — 2026-06-24</summary>
 
 ### 🚀 Key Highlights
 

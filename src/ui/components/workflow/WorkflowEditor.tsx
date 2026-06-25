@@ -243,6 +243,8 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
+  const [activeDebugLog, setActiveDebugLog] = useState<any | null>(null);
+  const [runAsSandbox, setRunAsSandbox] = useState(false);
   const [workflowMeta, setWorkflowMeta] = useState({
     name: '', description: '', enabled: true, channel: 'zalo' as Channel,
     pageIds: [] as string[],   // new: multi-page
@@ -263,12 +265,21 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
     }).catch(() => {});
   }, []);
 
-  const toRFNode = useCallback((n: any) => ({
-    id: n.id,
-    type: nodeTypeGroup(n.type),
-    position: n.position || { x: 100, y: 100 },
-    data: { ...n, type: n.type, label: n.label || getNodeLabel(n.type), config: n.config || {} },
-  }), []);
+  const toRFNode = useCallback((n: any, debugLog?: any) => {
+    const debugResult = debugLog?.nodeResults?.find((r: any) => r.nodeId === n.id);
+    return {
+      id: n.id,
+      type: nodeTypeGroup(n.type),
+      position: n.position || { x: 100, y: 100 },
+      data: {
+        ...n,
+        type: n.type,
+        label: n.label || getNodeLabel(n.type),
+        config: n.config || {},
+        debugResult,
+      },
+    };
+  }, []);
 
   // Load workflow
   useEffect(() => {
@@ -291,6 +302,42 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
       })));
     });
   }, [workflowId, toRFNode]);
+
+  // Update node debug results and edge colors on canvas when activeDebugLog changes
+  useEffect(() => {
+    setNodes(ns => ns.map(n => {
+      const result = activeDebugLog?.nodeResults?.find((r: any) => r.nodeId === n.id);
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          debugResult: result,
+        }
+      };
+    }));
+
+    setEdges(es => es.map(e => {
+      if (!activeDebugLog) {
+        return { ...e, style: { stroke: '#4b5563' } };
+      }
+      const sourceResult = activeDebugLog.nodeResults?.find((r: any) => r.nodeId === e.source);
+      const targetResult = activeDebugLog.nodeResults?.find((r: any) => r.nodeId === e.target);
+      
+      let strokeColor = '#4b5563'; // default dark gray
+      if (sourceResult?.status === 'success' && targetResult?.status === 'success') {
+        strokeColor = '#22c55e'; // green path
+      } else if (targetResult?.status === 'skipped') {
+        strokeColor = '#374151'; // skipped dark path
+      } else if (sourceResult?.status === 'error' || targetResult?.status === 'error') {
+        strokeColor = '#ef4444'; // red error path
+      }
+
+      return {
+        ...e,
+        style: { stroke: strokeColor }
+      };
+    }));
+  }, [activeDebugLog, setNodes, setEdges]);
 
   const onConnect = useCallback((params: Connection | Edge) => {
     setEdges(es => addEdge({
@@ -354,13 +401,18 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
     }
   };
 
-  const handleRun = async (triggerData?: any) => {
+  const handleRun = async (triggerData?: any, isSandbox?: boolean) => {
     setRunning(true);
     try {
       // Save first, then run
       await ipc.workflow?.save(buildWorkflow());
-      const res = await ipc.workflow?.runManual(workflowId, triggerData);
-      if (res?.success) showNotification(`Chạy thành công — ${res.log?.status}`, 'success');
+      const res = await ipc.workflow?.runManual(workflowId, triggerData, isSandbox);
+      if (res?.success) {
+        showNotification(isSandbox ? 'Chạy giả lập Sandbox thành công!' : `Chạy thành công — ${res.log?.status}`, 'success');
+        if (res.log) {
+          setActiveDebugLog(res.log);
+        }
+      }
       else showNotification(res?.error || 'Lỗi chạy workflow', 'error');
     } finally {
       setRunning(false);
@@ -377,10 +429,20 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
   });
 
   const handleRunClick = () => {
+    setRunAsSandbox(false);
     if (hasSendNodes || triggerType === 'trigger.friendRequest') {
       setShowTestRunModal(true);
     } else {
-      handleRun();
+      handleRun(undefined, false);
+    }
+  };
+
+  const handleSandboxClick = () => {
+    setRunAsSandbox(true);
+    if (hasSendNodes || triggerType === 'trigger.friendRequest') {
+      setShowTestRunModal(true);
+    } else {
+      handleRun(undefined, true);
     }
   };
 
@@ -630,9 +692,17 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
 
           <div className="w-px h-4 bg-gray-700" />
 
+          <button onClick={handleSandboxClick} disabled={running}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-colors"
+            title="Chạy mô phỏng toàn bộ luồng mà không gửi tin nhắn/API thật">
+            {running && runAsSandbox ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <span className="text-[10px]">🧪</span>}
+            Chạy Sandbox
+          </button>
+
           <button onClick={handleRunClick} disabled={running}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-colors">
-            {running ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            {running && !runAsSandbox ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               : <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>}
             Chạy thử
           </button>
@@ -679,7 +749,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
               Click liên kết → nhấn ✕ hoặc <kbd className="bg-gray-800 border border-gray-700 rounded px-1">Del</kbd> để xóa
             </div>
           </div>
-          <RunHistoryPanel workflowId={workflowId} />
+          <RunHistoryPanel workflowId={workflowId} onSelectLog={setActiveDebugLog} />
         </div>
 
         {selectedNode && (
@@ -700,7 +770,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
           accounts={accounts}
           workflowPageIds={workflowMeta.pageIds}
           triggerType={triggerType}
-          onRun={(triggerData) => handleRun(triggerData)}
+          onRun={(triggerData) => handleRun(triggerData, runAsSandbox)}
           onClose={() => setShowTestRunModal(false)}
         />
       )}

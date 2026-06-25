@@ -10,6 +10,7 @@ import {
   TemplateCategory,
 } from './templates/workflowTemplates';
 import { INTEGRATION_TEMPLATES } from './templates/integrationTemplates';
+import { REAL_ESTATE_TEMPLATES } from './templates/realEstateTemplates';
 import { nodeTypeGroup, getNodeLabel, GROUP_COLORS } from './workflowConfig';
 import { TriggerNode, ActionNode, LogicNode, DataNode, OutputNode, IntegrationNode } from './nodes/WorkflowNodes';
 import ipc from '../../lib/ipc';
@@ -25,7 +26,7 @@ const nodeTypes = {
 };
 
 // Merge templates: giữ nguyên template cũ + thêm template tích hợp mới
-const ALL_TEMPLATES = [...WORKFLOW_TEMPLATES, ...INTEGRATION_TEMPLATES];
+const ALL_TEMPLATES = [...WORKFLOW_TEMPLATES, ...INTEGRATION_TEMPLATES, ...REAL_ESTATE_TEMPLATES];
 
 interface PageAccount {
   zalo_id: string;

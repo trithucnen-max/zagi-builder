@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { Handle, Position, NodeProps, useReactFlow, BaseEdge, EdgeLabelRenderer, getBezierPath, EdgeProps } from 'reactflow';
 import { GROUP_COLORS, getNodeLabel } from '../workflowConfig';
 import { useAppStore } from '@/store/appStore';
@@ -43,7 +43,7 @@ export const CustomDeletableEdge = memo((props: EdgeProps) => {
               selected
                 ? 'bg-red-500 border-2 border-red-400 text-white opacity-100 scale-110'
                 : isLight
-                  ? 'bg-white border border-gray-300 text-gray-400 opacity-0 hover:!opacity-100 hover:bg-red-500 hover:border-red-400 hover:text-white hover:scale-110'
+                  ? 'bg-white border-gray-100 text-gray-400 opacity-0 hover:!opacity-100 hover:bg-red-500 hover:border-red-400 hover:text-white hover:scale-110'
                   : 'bg-gray-800 border border-gray-600 text-gray-500 opacity-0 hover:!opacity-100 hover:bg-red-500 hover:border-red-400 hover:text-white hover:scale-110',
             ].join(' ')}
           >
@@ -64,6 +64,7 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
   const { setNodes, setEdges } = useReactFlow();
   const theme = useAppStore(s => s.theme);
   const isLight = theme === 'light';
+  const [showInspect, setShowInspect] = useState(false);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,28 +72,104 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
     setEdges(es => es.filter(e => e.source !== data.id && e.target !== data.id));
   };
 
+  const debug = data.debugResult;
+  const status = debug?.status;
+  const isSuccess = status === 'success';
+  const isError = status === 'error';
+  const isSkipped = status === 'skipped';
+
+  let borderColor = color;
+  if (debug) {
+    if (isSuccess) borderColor = '#22c55e';
+    else if (isError) borderColor = '#ef4444';
+    else if (isSkipped) borderColor = isLight ? '#d1d5db' : '#4b5563';
+  }
+
+  const badge = () => {
+    if (!debug) return null;
+    if (isSuccess) return <span className="text-[10px] text-green-500 font-bold" title={`Chạy thành công trong ${debug.durationMs}ms`}>✓ {debug.durationMs}ms</span>;
+    if (isError) return <span className="text-[10px] text-red-500 font-bold" title={debug.error || 'Lỗi thực thi'}>⚠ Lỗi</span>;
+    if (isSkipped) return <span className="text-[10px] text-gray-400" title="Bị bỏ qua">⏭️ Skipped</span>;
+    return null;
+  };
+
   return (
-    <div className="rounded-lg border-2 shadow-lg min-w-[180px] max-w-[240px] group/node"
-      style={{ borderColor: color, background: isLight ? '#f8f7f4' : '#1e1e2e' }}>
+    <div className={`rounded-lg border-2 shadow-lg min-w-[180px] max-w-[240px] group/node relative transition-all duration-200 ${isSkipped ? 'opacity-60 scale-95' : ''}`}
+      style={{ borderColor, background: isLight ? '#f8f7f4' : '#1e1e2e' }}>
       <div className="px-3 py-2 rounded-t-md flex items-center gap-2"
-        style={{ background: color + (isLight ? '30' : '22') }}>
-        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+        style={{ background: borderColor + (isLight ? '30' : '22') }}>
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: borderColor }} />
         <span className={`text-xs font-semibold truncate flex-1 ${isLight ? 'text-gray-800' : 'text-white'}`}>
           {data.label || getNodeLabel(data.type)}
         </span>
+        {badge()}
+        {/* Inspect button */}
+        {debug && (debug.input || debug.output || debug.error) && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowInspect(!showInspect); }}
+            className={`w-4 h-4 rounded flex items-center justify-center text-[10px] border transition-colors ${
+              showInspect
+                ? 'bg-blue-600 border-blue-500 text-white'
+                : isLight
+                  ? 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-600'
+                  : 'bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-300'
+            }`}
+            title="Xem chi tiết chạy thử"
+          >
+            ℹ️
+          </button>
+        )}
         {/* Delete button — visible on hover */}
-        <button
-          onClick={handleDelete}
-          className="w-4 h-4 rounded flex items-center justify-center opacity-0 group-hover/node:opacity-100 transition-opacity hover:bg-red-500/30 text-gray-500 hover:text-red-400 flex-shrink-0"
-          title="Xóa node"
-        >
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+        {!debug && (
+          <button
+            onClick={handleDelete}
+            className="w-4 h-4 rounded flex items-center justify-center opacity-0 group-hover/node:opacity-100 transition-opacity hover:bg-red-500/30 text-gray-500 hover:text-red-400 flex-shrink-0"
+            title="Xóa node"
+          >
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        )}
       </div>
       {children && (
         <div className={`px-3 py-2 text-[11px] leading-tight ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>{children}</div>
+      )}
+
+      {/* Floating inspect details card */}
+      {showInspect && debug && (
+        <div className={`absolute left-full top-0 ml-2 w-72 rounded-xl border shadow-2xl p-3 z-50 text-[10px] font-mono leading-relaxed ${
+          isLight ? 'bg-white border-gray-200 text-gray-800' : 'bg-gray-900 border-gray-700 text-gray-200'
+        }`}
+        onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-between items-center pb-1.5 border-b border-gray-700/50 mb-2">
+            <span className="font-bold text-xs">🔍 Chi tiết Node</span>
+            <button onClick={() => setShowInspect(false)} className="text-gray-500 hover:text-gray-300 font-bold">✕</button>
+          </div>
+          <div className="space-y-2 max-h-56 overflow-y-auto">
+            {debug.error && (
+              <div className="text-red-500 border-l-2 border-red-500 pl-1.5 font-semibold">
+                Lỗi: {debug.error}
+              </div>
+            )}
+            {debug.input && Object.keys(debug.input).length > 0 && (
+              <div>
+                <span className="text-blue-400 font-semibold block mb-0.5">📥 Input:</span>
+                <pre className="p-1.5 rounded bg-gray-800/40 border border-gray-700/30 max-h-24 overflow-auto whitespace-pre-wrap break-all">
+                  {JSON.stringify(debug.input, null, 2)}
+                </pre>
+              </div>
+            )}
+            {debug.output && Object.keys(debug.output).length > 0 && (
+              <div>
+                <span className="text-green-400 font-semibold block mb-0.5">📤 Output:</span>
+                <pre className="p-1.5 rounded bg-gray-800/40 border border-gray-700/30 max-h-24 overflow-auto whitespace-pre-wrap break-all border-none">
+                  {JSON.stringify(debug.output, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -104,7 +181,9 @@ export const TriggerNode = memo(({ data }: NodeProps) => {
   return (
     <div style={{ background: 'transparent' }}>
       <NodeBase data={data} color={color}>
-        <span className={isLight ? 'text-violet-600' : 'text-violet-300'}>⚡ {getTriggerSummary(data)}</span>
+        <div className={`text-[11px] leading-tight ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>
+          ⚡ {getTriggerSummary(data, isLight)}
+        </div>
       </NodeBase>
       <Handle type="source" position={Position.Bottom} id="default" style={{ background: color }} />
     </div>
@@ -119,7 +198,9 @@ export const ActionNode = memo(({ data }: NodeProps) => {
     <div style={{ background: 'transparent' }}>
       <Handle type="target" position={Position.Top} id="default" style={{ background: color }} />
       <NodeBase data={data} color={color}>
-        <span className={isLight ? 'text-blue-600' : 'text-blue-300'}>{getActionSummary(data)}</span>
+        <div className={`text-[11px] leading-tight ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>
+          {getActionSummary(data, isLight)}
+        </div>
       </NodeBase>
       <Handle type="source" position={Position.Bottom} id="default" style={{ background: color }} />
     </div>
@@ -136,7 +217,9 @@ export const LogicNode = memo(({ data }: NodeProps) => {
     <div style={{ background: 'transparent' }}>
       <Handle type="target" position={Position.Top} id="default" style={{ background: color }} />
       <NodeBase data={data} color={color}>
-        <span className={isLight ? 'text-amber-700' : 'text-amber-300'}>{getLogicSummary(data)}</span>
+        <div className={`text-[11px] leading-tight ${isLight ? 'text-amber-800' : 'text-amber-300'}`}>
+          {getLogicSummary(data, isLight)}
+        </div>
       </NodeBase>
       {isIf ? (
         <>
@@ -173,7 +256,9 @@ export const DataNode = memo(({ data }: NodeProps) => {
     <div style={{ background: 'transparent' }}>
       <Handle type="target" position={Position.Top} id="default" style={{ background: color }} />
       <NodeBase data={data} color={color}>
-        <span className={isLight ? 'text-teal-700' : 'text-teal-300'}>{getDataSummary(data)}</span>
+        <div className={`text-[11px] leading-tight ${isLight ? 'text-teal-800' : 'text-teal-300'}`}>
+          {getDataSummary(data, isLight)}
+        </div>
       </NodeBase>
       <Handle type="source" position={Position.Bottom} id="default" style={{ background: color }} />
     </div>
@@ -209,19 +294,19 @@ export const OutputNode = memo(({ data }: NodeProps) => {
       )}
     </div>
   ) : isLog ? (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 flex-wrap">
       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded leading-none flex-shrink-0
         ${cfg.level === 'error' ? 'bg-red-500/20 text-red-500 border border-red-500/30' :
           cfg.level === 'warn'  ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
           'bg-gray-500/20 text-gray-500 border border-gray-500/30'}`}>
         {(cfg.level || 'info').toUpperCase()}
       </span>
-      <span className={`${textClass} text-[11px] truncate`}>
-        {truncate(cfg.message, 26) || 'Nội dung log...'}
+      <span className={`${textClass} text-[11px] truncate flex-1`}>
+        {renderRichValue(truncate(cfg.message, 26) || 'Nội dung log...', isLight)}
       </span>
     </div>
   ) : (
-    <span className={textClass}>{getOutputSummary(data)}</span>
+    <div className={textClass}>{getOutputSummary(data, isLight)}</div>
   );
 
   return (
@@ -244,7 +329,9 @@ export const IntegrationNode = memo(({ data }: NodeProps) => {
     <div style={{ background: 'transparent' }}>
       <Handle type="target" position={Position.Top} id="default" style={{ background: color }} />
       <NodeBase data={data} color={color}>
-        <span className={isLight ? 'text-green-700' : 'text-green-300'}>{getIntegrationSummary(data)}</span>
+        <div className={`text-[11px] leading-tight ${isLight ? 'text-green-700' : 'text-green-300'}`}>
+          {getIntegrationSummary(data, isLight)}
+        </div>
       </NodeBase>
       <Handle type="source" position={Position.Bottom} id="default" style={{ background: color }} />
     </div>
@@ -253,106 +340,367 @@ export const IntegrationNode = memo(({ data }: NodeProps) => {
 IntegrationNode.displayName = 'IntegrationNode';
 
 // ─── Summary helpers ──────────────────────────────────────────────────────────
-function getTriggerSummary(data: any): string {
+
+const VARIABLE_MAP: Record<string, string> = {
+  '$trigger.content': 'Nội dung tin nhắn',
+  '$trigger.fromName': 'Tên người gửi',
+  '$trigger.fromPhone': 'SĐT người gửi',
+  '$trigger.threadId': 'ID hội thoại',
+  '$trigger.fromId': 'ID người gửi',
+  '$trigger.msgId': 'ID tin nhắn',
+  '$trigger.userId': 'User ID',
+  '$trigger.groupId': 'Group ID',
+  '$vars.contact.zaloId': 'Zalo ID contact',
+};
+
+const OPERATOR_MAP: Record<string, string> = {
+  'equals': 'bằng',
+  '=': 'bằng',
+  'not_equals': 'khác',
+  '!=': 'khác',
+  'contains': 'bao gồm',
+  'contains_any': 'bao gồm từ',
+  'contains_all': 'bao gồm tất cả từ',
+  'not_contains': 'không bao gồm',
+  'starts_with': 'bắt đầu bằng',
+  'ends_with': 'kết thúc bằng',
+  'empty': 'rỗng',
+  'not_empty': 'không rỗng',
+  'greater_than': 'lớn hơn',
+  'less_than': 'nhỏ hơn',
+};
+
+function renderRichValue(val: any, isLight: boolean): React.ReactNode {
+  if (val === undefined || val === null) return '';
+  const str = String(val);
+  
+  const parts = str.split(/(\{\{[\s\S]*?\}\})/gu);
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1 font-medium">
+      {parts.map((part, index) => {
+        if (part.startsWith('{{') && part.endsWith('}}')) {
+          const inner = part.slice(2, -2).trim();
+          const cleanVar = inner.replace(/^\$/, '');
+          const displayName = VARIABLE_MAP[inner] || VARIABLE_MAP[cleanVar] || inner;
+          return (
+            <span
+              key={index}
+              className={`inline-block px-1.5 py-0.5 rounded font-bold text-[10px] border leading-none ${
+                isLight 
+                  ? 'bg-gray-200/60 text-gray-800 border-gray-300' 
+                  : 'bg-gray-850 text-gray-200 border-gray-700'
+              }`}
+            >
+              {displayName}
+            </span>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </span>
+  );
+}
+
+function renderOperator(op: string, isLight: boolean): React.ReactNode {
+  const friendly = OPERATOR_MAP[op] || op;
+  return (
+    <span className={`mx-1 font-semibold ${isLight ? 'text-amber-600' : 'text-amber-400'}`}>
+      {friendly}
+    </span>
+  );
+}
+
+function getTriggerSummary(data: any, isLight: boolean): React.ReactNode {
   const cfg = data.config || {};
   switch (data.type) {
-    case 'trigger.message': return cfg.keyword ? `"${cfg.keyword}"` : 'Tất cả tin nhắn';
-    case 'trigger.friendRequest': return 'Lời mời kết bạn';
-    case 'trigger.groupEvent': return cfg.eventType !== 'all' ? cfg.eventType : 'Sự kiện nhóm';
+    case 'trigger.message':
+      return cfg.keyword ? (
+        <div className="flex flex-wrap items-center gap-1">
+          <span>Tin nhắn chứa:</span>
+          <span className="font-semibold">"{cfg.keyword}"</span>
+        </div>
+      ) : (
+        <span>Tất cả tin nhắn</span>
+      );
+    case 'trigger.friendRequest':
+      return <span>Lời mời kết bạn</span>;
+    case 'trigger.groupEvent':
+      return <span>Sự kiện nhóm: {cfg.eventType !== 'all' ? cfg.eventType : 'Tất cả'}</span>;
     case 'trigger.labelAssigned': {
-      const action = cfg.action === 'assigned' ? 'Gán' : cfg.action === 'removed' ? 'Gỡ' : 'Gán/gỡ';
+      const action = cfg.action === 'assigned' ? 'Gán nhãn' : cfg.action === 'removed' ? 'Gỡ nhãn' : 'Gán/gỡ nhãn';
       const count = Array.isArray(cfg.labelIds) && cfg.labelIds.length;
-      const labelPart = count ? ` ${count} nhãn` : ' nhãn bất kỳ';
-      return `${action}${labelPart}`;
+      const labelPart = count ? `${count} nhãn` : 'nhãn bất kỳ';
+      return (
+        <span>
+          {action}: <span className="font-semibold">{labelPart}</span>
+        </span>
+      );
     }
-    case 'trigger.schedule': return cfg.cronExpression || 'Cron';
-    case 'trigger.manual': return 'Chạy thủ công';
-    default: return '';
+    case 'trigger.schedule':
+      return <span>Lịch trình: <span className="font-mono text-xs">{cfg.cronExpression || 'Cron'}</span></span>;
+    case 'trigger.manual':
+      return <span>Chạy thủ công</span>;
+    default:
+      return '';
   }
 }
 
-function getActionSummary(data: any): string {
+function getActionSummary(data: any, isLight: boolean): React.ReactNode {
   const cfg = data.config || {};
   switch (data.type) {
-    case 'zalo.sendMessage':         return truncate(cfg.message, 30) || 'Gửi tin nhắn';
-    case 'zalo.sendTyping':          return `⌨️ Đang gõ… rồi chờ ${cfg.delaySeconds || 3}s`;
-    case 'zalo.sendImage':           return cfg.filePath ? `🖼 ${truncate(cfg.filePath, 26)}` : '🖼 Gửi ảnh';
-    case 'zalo.sendFile':            return cfg.filePath ? `📎 ${truncate(cfg.filePath, 26)}` : '📎 Gửi file';
-    case 'zalo.findUser':            return `🔍 ${cfg.phone || '...'}`;
-    case 'zalo.getUserInfo':         return `👤 ${cfg.userId || '{{ $trigger.fromId }}'}`;
-    case 'zalo.acceptFriendRequest': return '✅ Chấp nhận kết bạn';
-    case 'zalo.rejectFriendRequest': return '❌ Từ chối kết bạn';
-    case 'zalo.sendFriendRequest':   return `➕ Kết bạn ${cfg.userId || '...'}`;
-    case 'zalo.addToGroup':          return `👥➕ ${cfg.userId || '...'}`;
-    case 'zalo.removeFromGroup':     return `👥➖ ${cfg.userId || '...'}`;
-    case 'zalo.setMute':             return cfg.action === 'unmute' ? '🔔 Bật thông báo' : '🔕 Tắt thông báo';
-    case 'zalo.forwardMessage':      return `↪️ → ${cfg.toThreadId || '...'}`;
-    case 'zalo.undoMessage':         return '↩️ Thu hồi tin nhắn';
-    case 'zalo.createPoll':          return `📊 ${truncate(cfg.question, 24) || 'Tạo bình chọn'}`;
-    case 'zalo.getMessageHistory':   return `🕓 Lấy ${cfg.count || 20} tin nhắn`;
-    case 'zalo.addReaction':         return `😊 React tin nhắn`;
+    case 'zalo.sendMessage':
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-gray-500 font-medium">Gửi tin nhắn:</span>
+          {renderRichValue(truncate(cfg.message, 45), isLight)}
+        </div>
+      );
+    case 'zalo.sendTyping':
+      return <span>⌨️ Đang gõ… rồi chờ {cfg.delaySeconds || 3}s</span>;
+    case 'zalo.sendImage':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>🖼️ Gửi ảnh:</span>
+          {cfg.filePath ? renderRichValue(truncate(cfg.filePath, 24), isLight) : <span className="italic text-gray-500">Chưa chọn</span>}
+        </div>
+      );
+    case 'zalo.sendFile':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>📎 Gửi file:</span>
+          {cfg.filePath ? renderRichValue(truncate(cfg.filePath, 24), isLight) : <span className="italic text-gray-500">Chưa chọn</span>}
+        </div>
+      );
+    case 'zalo.findUser':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>🔍 Tìm SĐT:</span>
+          {cfg.phone ? renderRichValue(cfg.phone, isLight) : <span className="italic text-gray-500">...</span>}
+        </div>
+      );
+    case 'zalo.getUserInfo':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>👤 Lấy thông tin:</span>
+          {cfg.userId ? renderRichValue(cfg.userId, isLight) : <span className="italic text-gray-500">Người gửi</span>}
+        </div>
+      );
+    case 'zalo.acceptFriendRequest':
+      return <span>✅ Chấp nhận kết bạn</span>;
+    case 'zalo.rejectFriendRequest':
+      return <span>❌ Từ chối kết bạn</span>;
+    case 'zalo.sendFriendRequest':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>➕ Kết bạn:</span>
+          {cfg.userId ? renderRichValue(cfg.userId, isLight) : <span className="italic text-gray-500">...</span>}
+        </div>
+      );
+    case 'zalo.addToGroup':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>👥➕ Thêm vào nhóm:</span>
+          {cfg.userId ? renderRichValue(cfg.userId, isLight) : <span className="italic text-gray-500">Người gửi</span>}
+        </div>
+      );
+    case 'zalo.removeFromGroup':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>👥➖ Xóa khỏi nhóm:</span>
+          {cfg.userId ? renderRichValue(cfg.userId, isLight) : <span className="italic text-gray-500">...</span>}
+        </div>
+      );
+    case 'zalo.setMute':
+      return <span>{cfg.action === 'unmute' ? '🔔 Bật thông báo' : '🔕 Tắt thông báo'}</span>;
+    case 'zalo.forwardMessage':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>↪️ Chuyển tiếp đến:</span>
+          {cfg.toThreadId ? renderRichValue(cfg.toThreadId, isLight) : <span className="italic text-gray-500">...</span>}
+        </div>
+      );
+    case 'zalo.undoMessage':
+      return <span>↩️ Thu hồi tin nhắn</span>;
+    case 'zalo.createPoll':
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-gray-500 font-medium">📊 Tạo bình chọn:</span>
+          <span className="font-semibold truncate">{cfg.question || 'Chưa nhập câu hỏi'}</span>
+        </div>
+      );
+    case 'zalo.getMessageHistory':
+      return <span>🕓 Lấy {cfg.count || 20} tin nhắn</span>;
+    case 'zalo.addReaction':
+      return <span>😊 React tin nhắn</span>;
     case 'zalo.assignLabel': {
       const cnt = Array.isArray(cfg.labelIds) && cfg.labelIds.length;
-      return `🏷️ Gắn ${cnt ? `${cnt} nhãn` : 'nhãn'} (${cfg.labelSource === 'zalo' ? 'Zalo' : 'Local'})`;
+      return <span>🏷️ Gắn {cnt ? `${cnt} nhãn` : 'nhãn'}</span>;
     }
     case 'zalo.removeLabel': {
       const cnt = Array.isArray(cfg.labelIds) && cfg.labelIds.length;
-      return `🏷️ Gỡ ${cnt ? `${cnt} nhãn` : 'nhãn'} (${cfg.labelSource === 'zalo' ? 'Zalo' : 'Local'})`;
+      return <span>🏷️ Gỡ {cnt ? `${cnt} nhãn` : 'nhãn'}</span>;
     }
-    default: return '';
+    default:
+      return '';
   }
 }
 
-function getLogicSummary(data: any): string {
+function getLogicSummary(data: any, isLight: boolean): React.ReactNode {
   const cfg = data.config || {};
   switch (data.type) {
-    case 'logic.if': return `${cfg.left || '...'} ${cfg.operator || '='} ${cfg.right || '...'}`;
-    case 'logic.wait': return `Chờ ${cfg.delaySeconds || 1}s`;
-    case 'logic.setVariable': return cfg.name ? `${cfg.name} = ${cfg.value}` : 'Lưu biến';
-    case 'logic.stopIf': return `Dừng nếu: ${cfg.operator}`;
-    case 'logic.switch': return `Switch: ${cfg.value || '...'}`;
-    default: return '';
+    case 'logic.if':
+      return (
+        <div className="flex flex-wrap items-center gap-0.5">
+          {renderRichValue(cfg.left, isLight)}
+          {renderOperator(cfg.operator || '=', isLight)}
+          {renderRichValue(cfg.right, isLight)}
+        </div>
+      );
+    case 'logic.wait':
+      return <span>Chờ {cfg.delaySeconds || 1}s</span>;
+    case 'logic.setVariable':
+      return (
+        <div className="flex flex-wrap items-center gap-0.5">
+          <span className="font-semibold">{cfg.name || 'Biến'}</span>
+          <span className="mx-1 text-gray-500">=</span>
+          {renderRichValue(cfg.value, isLight)}
+        </div>
+      );
+    case 'logic.stopIf':
+      return (
+        <div className="flex flex-wrap items-center gap-0.5">
+          <span>Dừng nếu:</span>
+          {renderOperator(cfg.operator || '=', isLight)}
+        </div>
+      );
+    case 'logic.switch':
+      return (
+        <div className="flex flex-wrap items-center gap-0.5">
+          <span>Chọn theo:</span>
+          {renderRichValue(cfg.value, isLight)}
+        </div>
+      );
+    default:
+      return '';
   }
 }
 
-function getDataSummary(data: any): string {
+function getDataSummary(data: any, isLight: boolean): React.ReactNode {
   const cfg = data.config || {};
   switch (data.type) {
-    case 'data.textFormat': return truncate(cfg.template, 30) || 'Format text';
-    case 'data.randomPick': return 'Chọn ngẫu nhiên';
-    case 'data.dateFormat': return `Format: ${cfg.format || 'datetime'}`;
-    case 'data.jsonParse': return 'Parse JSON';
-    default: return '';
+    case 'data.textFormat':
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-gray-500 font-medium">Định dạng chữ:</span>
+          {renderRichValue(truncate(cfg.template, 30), isLight)}
+        </div>
+      );
+    case 'data.randomPick':
+      return <span>Chọn ngẫu nhiên</span>;
+    case 'data.dateFormat':
+      return <span>📅 Định dạng ngày: <span className="font-semibold">{cfg.format || 'datetime'}</span></span>;
+    case 'data.jsonParse':
+      return <span>Parse JSON</span>;
+    default:
+      return '';
   }
 }
 
-function getOutputSummary(data: any): string {
+function getOutputSummary(data: any, isLight: boolean): React.ReactNode {
   const cfg = data.config || {};
   switch (data.type) {
-    case 'output.httpRequest': return `${cfg.method || 'POST'} ${truncate(cfg.url, 25) || 'URL...'}`;
-    case 'output.log': return truncate(cfg.message, 30) || 'Log';
-    default: return '';
+    case 'output.httpRequest':
+      return (
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1">
+            <span className="font-bold text-blue-500">{cfg.method || 'POST'}</span>
+            <span className="truncate">{cfg.url || 'URL...'}</span>
+          </div>
+        </div>
+      );
+    case 'output.log':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>Log:</span>
+          {renderRichValue(truncate(cfg.message, 26), isLight)}
+        </div>
+      );
+    default:
+      return '';
   }
 }
 
-function getIntegrationSummary(data: any): string {
+function getIntegrationSummary(data: any, isLight: boolean): React.ReactNode {
   const cfg = data.config || {};
   switch (data.type) {
-    case 'sheets.appendRow':  return `📊 Ghi → ${truncate(cfg.sheetName || cfg.spreadsheetId, 22) || 'Sheet'}`;
-    case 'sheets.readValues': return `📊 Đọc ${truncate(cfg.range, 22) || 'range...'}`;
-    case 'sheets.updateCell': return `📊 Cập nhật ${cfg.range || '...'}`;
-    case 'ai.generateText':   {
+    case 'sheets.appendRow':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>📊 Ghi Sheets:</span>
+          {cfg.sheetName || cfg.spreadsheetId ? (
+            <span className="font-semibold truncate">{truncate(cfg.sheetName || cfg.spreadsheetId, 18)}</span>
+          ) : (
+            <span className="italic text-gray-500">Sheet</span>
+          )}
+        </div>
+      );
+    case 'sheets.readValues':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>📊 Đọc Sheets:</span>
+          {cfg.range ? <span className="font-semibold">{truncate(cfg.range, 18)}</span> : <span className="italic text-gray-500">range...</span>}
+        </div>
+      );
+    case 'sheets.updateCell':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>📊 Cập nhật ô:</span>
+          {cfg.range ? <span className="font-semibold">{cfg.range}</span> : <span className="italic text-gray-500">...</span>}
+        </div>
+      );
+    case 'ai.generateText': {
       const platformEmoji = cfg.platform === 'gemini' ? '💎' : cfg.platform === 'deepseek' ? '🔮' : cfg.platform === 'grok' ? '⚡' : '🤖';
-      return `${platformEmoji} ${truncate(cfg.prompt, 28) || 'AI sinh nội dung'}`;
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-gray-500 font-medium">{platformEmoji} AI tạo văn bản:</span>
+          {renderRichValue(truncate(cfg.prompt, 35), isLight)}
+        </div>
+      );
     }
-    case 'ai.classify':       {
+    case 'ai.classify': {
       const platformEmoji = cfg.platform === 'gemini' ? '💎' : cfg.platform === 'deepseek' ? '🔮' : cfg.platform === 'grok' ? '⚡' : '🏷';
-      return `${platformEmoji} Phân loại: ${truncate(cfg.categories, 20) || '...'}`;
-    }    case 'notify.telegram':   return `✈️ → ${truncate(cfg.chatId, 18) || 'Chat ID...'}`;
-    case 'notify.discord':    return `🎮 ${truncate(cfg.webhookUrl ? 'Discord webhook' : 'Chưa có webhook', 28)}`;
-    case 'notify.email':      return `📧 → ${truncate(cfg.to, 24) || 'Email...'}`;
-    case 'notify.notion':     return `📝 Notion ${truncate(cfg.databaseId, 16) || 'DB...'}`;
-    default: return '';
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-gray-500 font-medium">{platformEmoji} AI Phân loại:</span>
+          <span className="font-semibold truncate">{truncate(cfg.categories, 25) || '...'}</span>
+        </div>
+      );
+    }
+    case 'notify.telegram':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>✈️ Gửi Telegram:</span>
+          {cfg.chatId ? renderRichValue(cfg.chatId, isLight) : <span className="italic text-gray-500">Chat ID...</span>}
+        </div>
+      );
+    case 'notify.discord':
+      return <span>🎮 Gửi tin nhắn Discord</span>;
+    case 'notify.email':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>📧 Gửi Email:</span>
+          {cfg.to ? renderRichValue(cfg.to, isLight) : <span className="italic text-gray-500">Email...</span>}
+        </div>
+      );
+    case 'notify.notion':
+      return (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span>📝 Notion DB:</span>
+          {cfg.databaseId ? <span className="font-semibold truncate">{truncate(cfg.databaseId, 12)}</span> : <span className="italic text-gray-500">DB...</span>}
+        </div>
+      );
+    default:
+      return '';
   }
 }
 
