@@ -83,8 +83,17 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: 🟢 Setup Go 1.x
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: false
+
       - name: 📦 Install dependencies
         run: npm ci --legacy-peer-deps
+
+      - name: 🏗️ Build bridge E2EE (Go)
+        run: npm run build:bridge-e2ee
 
       - name: 🏗️ Compile TypeScript (electron)
         run: npx tsc -p tsconfig.electron.prod.json
@@ -134,8 +143,17 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: 🟢 Setup Go 1.x
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: false
+
       - name: 📦 Install dependencies
         run: npm ci --legacy-peer-deps
+
+      - name: 🏗️ Build bridge E2EE (Go)
+        run: npm run build:bridge-e2ee
 
       - name: 🏗️ Compile TypeScript (electron)
         run: npx tsc -p tsconfig.electron.prod.json
