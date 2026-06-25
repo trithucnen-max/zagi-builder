@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import ErpNotificationService from '../../src/services/erp/ErpNotificationService';
-import { withErpAuth, erpValidate } from './erpIpcMiddleware';
+import { withErpAuth } from './erpIpcMiddleware';
 
 export function registerErpNotificationIpc(): void {
   const svc = () => ErpNotificationService.getInstance();

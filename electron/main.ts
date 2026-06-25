@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, protocol, net, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, protocol, Notification } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as cron from 'node-cron';

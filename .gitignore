@@ -11,7 +11,7 @@ agents/
 .env.production
 *.log
 .DS_Store
-docs/
 .vscode/
 src/bridge-e2ee/build/
 *.exe~
+scratch/

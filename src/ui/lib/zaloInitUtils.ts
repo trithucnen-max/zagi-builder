@@ -22,7 +22,6 @@ import { useAppStore } from '@/store/appStore';
 import { useChatStore } from '@/store/chatStore';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import { syncZaloGroups, SyncGroupsProgress } from './zaloGroupUtils';
-import { syncZaloLabelsToLocalDB } from './labelUtils';
 import { extractUserProfile } from '../../utils/profileUtils';
 
 // ── Public types ──────────────────────────────────────────────────────────────
