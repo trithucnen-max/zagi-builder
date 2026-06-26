@@ -228,6 +228,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: 🛠️ Manually create DMG for Apple Silicon (arm64)
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ -d "dist-electron-build/mac-arm64/Zagi.app" ]; then
+            hdiutil create -fs HFS+ -srcfolder dist-electron-build/mac-arm64/Zagi.app -volname "Zagi" "dist-electron-build/Zagi-${VERSION}-arm64.dmg"
+          else
+            echo "ARM64 app folder not found, skipping"
+          fi
+
+      - name: 🛠️ Manually create DMG for Intel (x64)
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ -d "dist-electron-build/mac/Zagi.app" ]; then
+            hdiutil create -fs HFS+ -srcfolder dist-electron-build/mac/Zagi.app -volname "Zagi" "dist-electron-build/Zagi-${VERSION}.dmg"
+          else
+            echo "x64 app folder not found, skipping"
+          fi
+
       - name: 🚀 Publish macOS → GitHub Releases
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
@@ -237,6 +255,7 @@ jobs:
           name: "Zagi ${{ needs.resolve-tag.outputs.tag }}"
           files: |
             dist-electron-build/*.zip
+            dist-electron-build/*.dmg
             dist-electron-build/*.blockmap
             dist-electron-build/latest-mac.yml
           token: ${{ secrets.GITHUB_TOKEN }}
