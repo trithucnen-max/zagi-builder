@@ -58,22 +58,22 @@ NSIS Installer · ~148 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.7-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.7-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64-mac.zip)
 
-**[Zagi-27.1.7-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64.dmg)**
+**[Zagi-27.1.7-arm64-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64-mac.zip)**
 
-Apple Silicon · ~177 MB
+Apple Silicon · ~160 MB
 
 </td>
 <td align="center" width="25%">
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.7-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.7-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-mac.zip)
 
-**[Zagi-27.1.7.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.dmg)**
+**[Zagi-27.1.7-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-mac.zip)**
 
-Intel x64 · ~182 MB
+Intel x64 · ~165 MB
 
 </td>
 <td align="center" width="25%">
@@ -146,15 +146,15 @@ Máy tính của bạn là loại gì?
 Mac của bạn là loại gì?
 │
 ├─ 🍎 MacBook Air/Pro M1, M2, M3, M4 (2020 trở về sau)
-│   └─ → Tải: Zagi-27.1.7-arm64.dmg  ✅
+│   └─ → Tải: Zagi-27.1.7-arm64-mac.zip  ✅
 │
 └─ 🍎 MacBook, iMac, Mac mini chip Intel (2019 trở về trước)
-    └─ → Tải: Zagi-27.1.7.dmg  ✅
+    └─ → Tải: Zagi-27.1.7-mac.zip  ✅
 ```
 
 > 💡 **Cách kiểm tra:** Click logo Apple → **About This Mac** → xem mục **Chip** hoặc **Processor**:
-> - Có chữ `Apple M1/M2/M3/M4` → bản `-arm64.dmg`
-> - Có chữ `Intel` → bản `.dmg` thường
+> - Có chữ `Apple M1/M2/M3/M4` → bản `-arm64-mac.zip`
+> - Có chữ `Intel` → bản `-mac.zip`
 
 ---
 
@@ -180,8 +180,8 @@ Bạn dùng distro nào?
 | PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.1.7-x64.exe` | Phổ biến nhất |
 | Surface Pro 7 trở xuống | `Zagi-Setup-27.1.7-x64.exe` | Chip Intel |
 | Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi-Setup-27.1.7-arm64.exe` | 🆕 Chip ARM64 |
-| MacBook M1/M2/M3/M4 | `Zagi-27.1.7-arm64.dmg` | Apple Silicon |
-| MacBook/iMac Intel | `Zagi-27.1.7.dmg` | Intel x64 |
+| MacBook M1/M2/M3/M4 | `Zagi-27.1.7-arm64-mac.zip` | Apple Silicon |
+| MacBook/iMac Intel | `Zagi-27.1.7-mac.zip` | Intel x64 |
 | Ubuntu/Debian Linux | `zagi_27.1.7_amd64.deb` | Cài như package |
 | Fedora/Arch/Linux khác | `Zagi-27.1.7.AppImage` | Chạy mọi distro |
 
@@ -200,7 +200,7 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 ### 🍎 macOS
 * ⚠️ **Lưu ý:** Kể từ phiên bản v27.1.7, để phát hành nhanh chóng, bước ký số (Code Signing) tạm thời được bỏ qua. Khi chạy ứng dụng lần đầu, bạn sẽ gặp cảnh báo bảo mật từ Gatekeeper (*"Zagi is damaged and can't be opened"* hoặc *"unidentified developer"*).
 * **Cách mở ứng dụng (Vượt qua Gatekeeper):**
-  1. Kéo ứng dụng `Zagi` từ file `.dmg` vào thư mục `/Applications`.
+  1. Giải nén file `.zip` đã tải về để có ứng dụng `Zagi.app` và kéo nó vào thư mục `/Applications`.
   2. Click chuột phải (hoặc nhấn giữ phím `Control` và click) vào icon `Zagi` trong thư mục `Applications` -> chọn **Open** (Mở) -> chọn tiếp **Open** ở hộp thoại xác nhận.
   3. Hoặc mở Terminal lên và chạy lệnh sau để cấp quyền mở ứng dụng:
      ```bash
@@ -370,7 +370,7 @@ flowchart LR
     subgraph PKG["🚀 Package"]
         EB(("electron\nbuilder"))
         WIN("🪟 Windows\n.exe")
-        MAC("🍎 macOS\n.dmg arm64 + intel")
+        MAC("🍎 macOS\n.zip arm64 + intel")
         LIN("🐧 Linux\n.AppImage · .deb")
     end
     E & S --> TSC --> DE

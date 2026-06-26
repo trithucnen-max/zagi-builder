@@ -140,9 +140,9 @@ graph TD
 ### 4.2. Khả năng tương thích & Đóng gói (Cross-platform Deployment)
 *   **Đa hệ điều hành:**
     *   Windows: Đóng gói dạng NSIS Installer (`.exe`) hỗ trợ cả x64 và ARM64.
-    *   macOS: Đóng gói dạng `.dmg` hỗ trợ cả Apple Silicon (M1/M2/M3/M4) và Intel x64.
+    *   macOS: Đóng gói dạng `.zip` hỗ trợ cả Apple Silicon (M1/M2/M3/M4) và Intel x64.
     *   Linux: Hỗ trợ đóng gói dạng `.AppImage` và `.deb` cho các bản phân phối Ubuntu/Debian.
-*   **macOS Code Signing & Notarization:** Tích hợp khâu ký số bảo mật của Apple và chạy Notarize tự động trên GitHub Actions CI/CD. Điều này đảm bảo ứng dụng vượt qua cảnh báo Gatekeeper của macOS mà không cần người dùng cấp quyền thủ công trong System Settings.
+*   **Cài đặt macOS (Chạy không ký số):** Tạm thời bỏ qua khâu ký số tự động (Code Signing) và đóng gói dạng `.zip` để tránh lỗi build của runner macOS. Người dùng giải nén và mở ứng dụng thông qua nhấp chuột phải (Right-Click -> Open) để vượt qua Gatekeeper.
 
 ---
 

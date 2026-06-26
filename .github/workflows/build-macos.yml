@@ -125,7 +125,7 @@ jobs:
           tag_name: ${{ steps.get_tag.outputs.tag }}
           name: "Zagi ${{ steps.get_tag.outputs.tag }}"
           files: |
-            dist-electron-build/*.dmg
+            dist-electron-build/*.zip
             dist-electron-build/*.blockmap
             dist-electron-build/latest-mac.yml
           token: ${{ secrets.GITHUB_TOKEN }}

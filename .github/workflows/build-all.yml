@@ -236,7 +236,7 @@ jobs:
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
           name: "Zagi ${{ needs.resolve-tag.outputs.tag }}"
           files: |
-            dist-electron-build/*.dmg
+            dist-electron-build/*.zip
             dist-electron-build/*.blockmap
             dist-electron-build/latest-mac.yml
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -58,22 +58,22 @@ NSIS Installer · ~148 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.7-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.7-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64-mac.zip)
 
-**[Zagi-27.1.7-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64.dmg)**
+**[Zagi-27.1.7-arm64-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64-mac.zip)**
 
-Apple Silicon · ~177 MB
+Apple Silicon · ~160 MB
 
 </td>
 <td align="center" width="25%">
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.7-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.7-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-mac.zip)
 
-**[Zagi-27.1.7.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.dmg)**
+**[Zagi-27.1.7-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-mac.zip)**
 
-Intel x64 · ~182 MB
+Intel x64 · ~165 MB
 
 </td>
 <td align="center" width="25%">
@@ -295,7 +295,7 @@ flowchart LR
     subgraph PKG["🚀 Package"]
         EB(("electron\nbuilder"))
         WIN("🪟 Windows\n.exe")
-        MAC("🍎 macOS\n.dmg arm64 + intel")
+        MAC("🍎 macOS\n.zip arm64 + intel")
         LIN("🐧 Linux\n.AppImage · .deb")
     end
     E & S --> TSC --> DE
@@ -418,7 +418,7 @@ npm run production
 
 ### 🚀 Key Highlights
 
-- 🔄 **Unified Multi-platform Auto-Update**: Auto-detect hardware architecture (Intel x64 vs Apple Silicon arm64) on macOS to pull the correct `.dmg` file. On Windows/Surface, download updates silently in the background with `electron-updater` and install them seamlessly. Show a single notification on the Topbar, hiding duplicate alerts.
+- 🔄 **Unified Multi-platform Auto-Update**: Auto-detect hardware architecture (Intel x64 vs Apple Silicon arm64) on macOS to pull the correct `.zip` file. On Windows/Surface, download updates silently in the background with `electron-updater` and install them seamlessly. Show a single notification on the Topbar, hiding duplicate alerts.
 - 📅 **CRM Integration to Workflow & Vietnamese Lunar Calendar**: Automate customer care workflows flexibly: send birthday wishes, Vietnamese 1st lunar day blessings, public holiday greetings (Oct 20, Mar 8), and trigger events based on sales pipeline stages (Pipeline Stage).
 - ✏️ **Direct CRM Profile Editing**: Edit contact details (Name, Phone, Birthday, Gender) directly in the conversation info panel (`ConversationInfo.tsx`), instantly syncing to the local SQLite database.
 - 🔗 **Affiliate/Referral System**: Support entering a "Referral Code" during license registration (for both trials and paid packages), saving it under Column L in Google Sheets and emailing details to the Admin (excluded from client confirmation emails).
