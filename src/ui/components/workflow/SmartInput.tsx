@@ -21,7 +21,11 @@ interface SmartTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextA
 
 // ── Helpers to parse/serialize raw text and visual HTML chips ─────────────────
 
-const plainTextToHtml = (text: string, allAvailableVars: TemplateVarInfo[]): string => {
+const plainTextToHtml = (
+  text: string,
+  allAvailableVars: TemplateVarInfo[],
+  allNodes?: { id: string; label: string; type: string }[]
+): string => {
   if (!text) return '';
   
   const varMap = new Map<string, string>();
@@ -38,8 +42,29 @@ const plainTextToHtml = (text: string, allAvailableVars: TemplateVarInfo[]): str
   // Replace {{ $expression }} with visual chip span
   escaped = escaped.replace(/\{\{\s*([\s\S]*?)\s*\}\}/g, (match, expr) => {
     const key = expr.trim();
-    const label = varMap.get(key) || key;
-    return `<span class="font-bold bg-gray-200/80 dark:bg-gray-700/60 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded-md mx-0.5 inline-block text-xs align-middle border border-gray-300/50 dark:border-gray-600/30 select-all" contenteditable="false" data-var-key="${key}">${label}</span>`;
+    // Support filters by getting the base expression before '|'
+    const pipeIdx = key.indexOf('|');
+    const baseKey = pipeIdx !== -1 ? key.substring(0, pipeIdx).trim() : key;
+    const filterText = pipeIdx !== -1 ? ' | ' + key.substring(pipeIdx + 1).trim() : '';
+
+    let label = varMap.get(key) || varMap.get(baseKey);
+
+    if (!label && baseKey.startsWith('$node.')) {
+      const rest = baseKey.slice(6);
+      const dotIdx = rest.indexOf('.');
+      if (dotIdx !== -1) {
+        const nodeRef = rest.slice(0, dotIdx);
+        const field = rest.slice(dotIdx + 1);
+        const foundNode = allNodes?.find(n => n.id === nodeRef || n.label === nodeRef);
+        if (foundNode) {
+          label = `Output từ "${foundNode.label}"` + (field !== 'output' ? ` (${field})` : '');
+        }
+      }
+    }
+
+    const finalLabel = (label || baseKey) + filterText;
+
+    return `<span class="font-bold bg-gray-200/80 dark:bg-gray-700/60 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded-md mx-0.5 inline-block text-xs align-middle border border-gray-300/50 dark:border-gray-600/30 select-all" contenteditable="false" data-var-key="${key}">${finalLabel}</span>`;
   });
 
   return escaped.replace(/\n/g, '<br>');
@@ -219,9 +244,9 @@ const SmartRichEditor = ({
     if (!editorRef.current) return;
     const currentText = domToPlainText(editorRef.current);
     if (currentText !== value) {
-      editorRef.current.innerHTML = plainTextToHtml(value, allAvailableVars);
+      editorRef.current.innerHTML = plainTextToHtml(value, allAvailableVars, allNodes);
     }
-  }, [value, allAvailableVars]);
+  }, [value, allAvailableVars, allNodes]);
 
   // Close dropdown on outside click
   useEffect(() => {

@@ -1004,12 +1004,15 @@ class WorkflowEngineService {
       return {
         integrationId:   data.integrationId || '',
         integrationType: data.integrationType || '',
-        amount:          tx.amount || tx.in || 0,
-        description:     tx.description || tx.memo || tx.content || '',
+        amount:          tx.amount || tx.in || tx.amount_in || tx.amountIn || 0,
+        description:     tx.description || tx.memo || tx.content || tx.transaction_content || tx.transactionContent || '',
         bankName:        tx.bankName || tx.bank_name || '',
-        accountNumber:   tx.accountNumber || tx.bank_acc_id || '',
+        accountNumber:   tx.accountNumber || tx.bank_acc_id || tx.account_number || '',
         transactionId:   tx.id || tx.transaction_id || tx.tid || '',
-        transactionDate: tx.when || tx.transactionDate || tx.created_at || '',
+        transactionDate: tx.when || tx.transactionDate || tx.created_at || tx.transaction_date || '',
+        when:            tx.when || tx.transactionDate || tx.created_at || tx.transaction_date || '',
+        fromAccount:     tx.fromAccount || tx.from_account || tx.senderAccount || tx.sender_account || '',
+        toAccount:       tx.toAccount || tx.to_account || tx.accountNumber || tx.account_number || tx.bank_acc_id || '',
         raw:             tx,
       };
     }
@@ -2915,89 +2918,195 @@ class WorkflowEngineService {
     return template.replace(/\{\{\s*([\s\S]*?)\s*\}\}/gu, (_, raw) => {
       try {
         const expr = raw.trim();
-        if (expr.startsWith('$trigger.'))   return String(ctx.trigger?.[expr.slice(9)] ?? '');
-        if (expr.startsWith('$var.'))       return String(this.getNestedValue(ctx.variables, expr.slice(5)) ?? '');
-        if (expr.startsWith('$vars.'))      return String(this.getNestedValue(ctx.variables, expr.slice(6)) ?? '');
-        if (expr.startsWith('$item.'))      return String(this.getNestedValue(ctx.variables, expr.slice(6)) ?? '');
-        
-        if (expr.startsWith('$prev.') && currentNodeId && ctx._wfEdges) {
+        // Parse pipeline: split by '|' while ignoring pipes inside quotes
+        const parts: string[] = [];
+        let current = '';
+        let inQuote: string | null = null;
+        for (let i = 0; i < expr.length; i++) {
+          const char = expr[i];
+          if (char === '"' || char === "'") {
+            if (inQuote === char) {
+              inQuote = null;
+            } else if (inQuote === null) {
+              inQuote = char;
+            }
+          }
+          if (char === '|' && !inQuote) {
+            parts.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        parts.push(current.trim());
+
+        const baseExpr = parts[0];
+        let val: any = undefined;
+
+        // Resolve base expression
+        if (baseExpr.startsWith('$trigger.')) {
+          val = ctx.trigger?.[baseExpr.slice(9)];
+        } else if (baseExpr.startsWith('$var.')) {
+          val = this.getNestedValue(ctx.variables, baseExpr.slice(5));
+        } else if (baseExpr.startsWith('$vars.')) {
+          val = this.getNestedValue(ctx.variables, baseExpr.slice(6));
+        } else if (baseExpr.startsWith('$item.')) {
+          val = this.getNestedValue(ctx.variables, baseExpr.slice(6));
+        } else if (baseExpr.startsWith('$prev.') && currentNodeId && ctx._wfEdges) {
           const edge = ctx._wfEdges.find(e => e.target === currentNodeId);
           if (edge) {
             const prevNodeId = edge.source;
-            const field = expr.slice(6);
+            const field = baseExpr.slice(6);
             const ndata = ctx.nodes[prevNodeId];
             if (ndata) {
               if (field === 'output') {
                 const out = ndata.output;
-                return typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? JSON.stringify(out ?? ''));
+                val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? out);
+              } else {
+                val = this.getNestedValue(ndata.output, field);
+                if (field === 'result' && (val === undefined || val === null || val === '')) {
+                  val = ndata.output.contacts || ndata.output.result || ndata.output;
+                }
               }
-              let val = this.getNestedValue(ndata.output, field);
-              if (field === 'result' && (val === undefined || val === null || val === '')) {
-                val = ndata.output.contacts || ndata.output.result || ndata.output;
+            }
+          }
+        } else if (baseExpr === '$pageId') {
+          val = ctx.pageId ?? '';
+        } else if (baseExpr === '$date.now') {
+          val = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        } else if (baseExpr === '$date.today') {
+          val = new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        } else if (baseExpr === '$now') {
+          val = new Date();
+        } else if (baseExpr === '$system.lunarDate') {
+          const lunar = getLunarDate(new Date());
+          val = lunar ? `${lunar.day}/${lunar.month}/${lunar.year}` : '';
+        } else if (baseExpr === '$system.lunarDay') {
+          const lunar = getLunarDate(new Date());
+          val = lunar ? String(lunar.day) : '';
+        } else if (baseExpr === '$system.lunarMonth') {
+          const lunar = getLunarDate(new Date());
+          val = lunar ? String(lunar.month) : '';
+        } else if (baseExpr.startsWith('$node.')) {
+          const rest = baseExpr.slice(6);
+          const dotIdx = rest.indexOf('.');
+          if (dotIdx !== -1) {
+            const nodeRef = rest.slice(0, dotIdx);
+            const field = rest.slice(dotIdx + 1);
+            let matched = false;
+            for (const [nid, ndata] of Object.entries(ctx.nodes)) {
+              const nodeDef = ctx._wfNodes?.find(n => n.id === nid);
+              const labelOrId = nodeDef?.label || nid;
+              if (nid === nodeRef || labelOrId === nodeRef) {
+                matched = true;
+                if (field === 'output') {
+                  const out = ndata.output;
+                  val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? out);
+                } else {
+                  val = this.getNestedValue(ndata.output, field);
+                }
+                break;
               }
-              return typeof val === 'object' && val ? JSON.stringify(val) : String(val ?? '');
+            }
+            if (!matched) {
+              const idxMatch = nodeRef.match(/^n(\d+)$/);
+              if (idxMatch && ctx._wfNodes) {
+                const targetIdx = parseInt(idxMatch[1]) - 1;
+                if (targetIdx >= 0 && targetIdx < ctx._wfNodes.length) {
+                  const targetNodeId = ctx._wfNodes[targetIdx].id;
+                  const ndata = ctx.nodes[targetNodeId];
+                  if (ndata) {
+                    if (field === 'output') {
+                      const out = ndata.output;
+                      val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? out);
+                    } else {
+                      val = this.getNestedValue(ndata.output, field);
+                    }
+                  }
+                }
+              }
             }
           }
         }
 
-        if (expr === '$pageId')             return ctx.pageId ?? '';
-        if (expr === '$date.now')           return new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        if (expr === '$date.today')         return new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        if (expr === '$system.lunarDate') {
-          const lunar = getLunarDate(new Date());
-          return lunar ? `${lunar.day}/${lunar.month}/${lunar.year}` : '';
-        }
-        if (expr === '$system.lunarDay') {
-          const lunar = getLunarDate(new Date());
-          return lunar ? String(lunar.day) : '';
-        }
-        if (expr === '$system.lunarMonth') {
-          const lunar = getLunarDate(new Date());
-          return lunar ? String(lunar.month) : '';
-        }
-        if (expr.startsWith('$node.')) {
-          const rest = expr.slice(6);
-          const dotIdx = rest.indexOf('.');
-          if (dotIdx === -1) return '';
-          const nodeRef = rest.slice(0, dotIdx);
-          const field = rest.slice(dotIdx + 1);
-          for (const [nid, ndata] of Object.entries(ctx.nodes)) {
-            const nodeDef = ctx._wfNodes?.find(n => n.id === nid);
-            const labelOrId = nodeDef?.label || nid;
-            if (nid === nodeRef || labelOrId === nodeRef) {
-              if (field === 'output') {
-                const out = ndata.output;
-                const val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? JSON.stringify(out ?? ''));
-                Logger.info(`[WorkflowEngine] $node.${nodeRef}.output → matched by ${nid === nodeRef ? 'id' : 'label'}("${labelOrId}"), value="${String(val).substring(0, 200)}"`);
-                return String(val);
+        // Apply filters in sequence
+        for (let j = 1; j < parts.length; j++) {
+          const filterStr = parts[j];
+          if (filterStr === 'formatVND') {
+            const num = Number(val);
+            val = Number.isFinite(num) ? num.toLocaleString('vi-VN') + 'đ' : String(val ?? '');
+          } else if (filterStr === 'extractOrderCode') {
+            if (!val) {
+              val = '';
+            } else {
+              const match = String(val).match(/[A-Z0-9_-]{4,20}/i);
+              val = match ? match[0] : String(val);
+            }
+          } else if (filterStr.startsWith('map(')) {
+            const mapExpr = filterStr.slice(4, -1);
+            if (Array.isArray(val)) {
+              try {
+                const fn = new Function('_', `return (${mapExpr});`);
+                val = val.map(item => {
+                  try {
+                    return fn(item);
+                  } catch {
+                    return '';
+                  }
+                });
+              } catch (err) {
+                Logger.error(`[WorkflowEngine] Error compiling map expression: ${mapExpr}`, err);
+                val = [];
               }
-              const val = this.getNestedValue(ndata.output, field);
-              Logger.info(`[WorkflowEngine] $node.${nodeRef}.${field} → matched by ${nid === nodeRef ? 'id' : 'label'}("${labelOrId}"), value="${String(val ?? '').substring(0, 200)}"`);
-              return String(val ?? '');
+            } else {
+              val = [];
+            }
+          } else if (filterStr.startsWith('join(')) {
+            const sep = filterStr.slice(5, -1).replace(/['"]/g, '').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+            if (Array.isArray(val)) {
+              val = val.join(sep);
+            } else {
+              val = String(val ?? '');
+            }
+          } else if (filterStr.startsWith('sumBy(')) {
+            const field = filterStr.slice(6, -1).replace(/['"]/g, '');
+            if (Array.isArray(val)) {
+              val = val.reduce((sum, item) => sum + (Number(item?.[field]) || 0), 0);
+            } else {
+              val = 0;
+            }
+          } else if (filterStr.startsWith('maxBy(')) {
+            const field = filterStr.slice(6, -1).replace(/['"]/g, '');
+            if (Array.isArray(val)) {
+              val = val.reduce((max, item) => {
+                const itemVal = Number(item?.[field]) || 0;
+                return itemVal > max ? itemVal : max;
+              }, 0);
+            } else {
+              val = 0;
+            }
+          } else if (filterStr.startsWith('formatDate(')) {
+            const fmt = filterStr.slice(11, -1).replace(/['"]/g, '');
+            const date = new Date(val);
+            if (isNaN(date.getTime())) {
+              val = String(val ?? '');
+            } else {
+              const pad = (n: number) => String(n).padStart(2, '0');
+              val = fmt
+                .replace(/YYYY/g, String(date.getFullYear()))
+                .replace(/MM/g, pad(date.getMonth() + 1))
+                .replace(/DD/g, pad(date.getDate()))
+                .replace(/HH/g, pad(date.getHours()))
+                .replace(/mm/g, pad(date.getMinutes()))
+                .replace(/ss/g, pad(date.getSeconds()));
             }
           }
-          const idxMatch = nodeRef.match(/^n(\d+)$/);
-          if (idxMatch && ctx._wfNodes) {
-            const targetIdx = parseInt(idxMatch[1]) - 1;
-            if (targetIdx >= 0 && targetIdx < ctx._wfNodes.length) {
-              const targetNodeId = ctx._wfNodes[targetIdx].id;
-              const ndata = ctx.nodes[targetNodeId];
-              if (ndata) {
-                let val: any;
-                if (field === 'output') {
-                  const out = ndata.output;
-                  val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? JSON.stringify(out ?? ''));
-                } else {
-                  val = this.getNestedValue(ndata.output, field);
-                }
-                Logger.info(`[WorkflowEngine] $node.${nodeRef}.${field} → fallback n${targetIdx + 1} → node "${ctx._wfNodes[targetIdx].label}" (${targetNodeId}), value="${String(val ?? '').substring(0, 200)}"`);
-                return String(val ?? '');
-              }
-            }
-            Logger.warn(`[WorkflowEngine] $node.${nodeRef}.${field} → fallback n${targetIdx + 1} FAILED — no output for node at index ${targetIdx}. Available nodes: ${ctx._wfNodes.map((n, i) => `n${i+1}=${n.label}`).join(', ')}`);
-          }
         }
-      } catch {}
+
+        return val !== undefined && val !== null ? String(val) : '';
+      } catch (err) {
+        Logger.error(`[WorkflowEngine] Error rendering expression "${raw}":`, err);
+      }
       return '';
     });
   }

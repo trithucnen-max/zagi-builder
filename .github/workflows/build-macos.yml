@@ -60,10 +60,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   build-mac-arm64:
     runs-on: macos-14  # Apple Silicon (M1) runner
-    timeout-minutes: 30
-    env:
-      CSC_LINK: ${{ secrets.CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+    timeout-minutes: 90
 
     steps:
       - name: 📥 Checkout code
@@ -114,20 +111,11 @@ jobs:
           fi
           echo "✅ Tag: $(grep '^tag=' $GITHUB_OUTPUT | cut -d= -f2)"
 
-      - name: 🔑 Import Apple Certificate
-        if: ${{ env.CSC_LINK != '' }}
-        uses: apple-actions/import-codesign-certs@v3
-        with:
-          p12-file-base64: ${{ env.CSC_LINK }}
-          p12-password: ${{ env.CSC_KEY_PASSWORD }}
-
       - name: 📦 Build macOS app (arm64)
         run: npx electron-builder --mac --arm64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: 🚀 Publish .dmg lên deplao-builder
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish == 'true'

@@ -190,16 +190,22 @@ Bạn dùng distro nào?
 <details>
 <summary>⚠️ Cảnh báo bảo mật khi cài lần đầu (Windows / macOS / Linux)</summary>
 
-Zagi đã hỗ trợ **Ký số & Xác thực bảo mật (Code Signing & Notarization)** chính thức của Apple kể từ phiên bản v27.1.7 giúp vượt qua cảnh báo Gatekeeper trên macOS. Tuy nhiên, trên Windows ứng dụng chưa ký chứng chỉ EV (vì chúng tôi là dự án bootstrapped độc lập), nên Windows Defender SmartScreen có thể hiện cảnh báo khi cài đặt lần đầu.
+Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ ký số (Code Signing) chính thức của Apple/Microsoft. Vì vậy, hệ thống bảo mật (Gatekeeper trên macOS và SmartScreen trên Windows) sẽ hiển thị cảnh báo khi cài đặt lần đầu.
 
 ### 🪟 Windows & Surface — "Windows protected your PC"
 
 1. Nhấn **More info** (Thông tin thêm)
 2. Nhấn **Run anyway** (Vẫn chạy)
 
-### 🍎 macOS (Từ bản v27.1.7 trở đi)
-* Ứng dụng đã được ký số bằng chứng chỉ nhà phát triển của Apple và chạy qua khâu Notarization an toàn.
-* Bạn chỉ cần tải file `.dmg` về, kéo vào thư mục `Applications` và nhấp đúp để chạy bình thường như các phần mềm chính thức khác của Apple mà không gặp bất kỳ lỗi Gatekeeper nào.
+### 🍎 macOS
+* ⚠️ **Lưu ý:** Kể từ phiên bản v27.1.7, để phát hành nhanh chóng, bước ký số (Code Signing) tạm thời được bỏ qua. Khi chạy ứng dụng lần đầu, bạn sẽ gặp cảnh báo bảo mật từ Gatekeeper (*"Zagi is damaged and can't be opened"* hoặc *"unidentified developer"*).
+* **Cách mở ứng dụng (Vượt qua Gatekeeper):**
+  1. Kéo ứng dụng `Zagi` từ file `.dmg` vào thư mục `/Applications`.
+  2. Click chuột phải (hoặc nhấn giữ phím `Control` và click) vào icon `Zagi` trong thư mục `Applications` -> chọn **Open** (Mở) -> chọn tiếp **Open** ở hộp thoại xác nhận.
+  3. Hoặc mở Terminal lên và chạy lệnh sau để cấp quyền mở ứng dụng:
+     ```bash
+     xattr -cr /Applications/Zagi.app
+     ```
 
 ### 🐧 Linux (AppImage)
 
@@ -459,7 +465,6 @@ npm run production
 - 📖 **Tích hợp tài liệu Hướng dẫn sử dụng**: Di chuyển toàn bộ hướng dẫn sử dụng từ popup sidebar vào trang **Cài đặt → Giới thiệu → Hướng dẫn sử dụng** với 5 tab phân mục khoa học, bổ sung thông tin chi tiết về quét nhóm ẩn `lockViewMember` và gửi nhiều ảnh/file.
 - 🧪 **Trình gỡ lỗi trực quan & Giả lập Sandbox (Visual Debugger & Sandbox)**: Bổ sung nút "Chạy Sandbox" cho phép chạy thử nghiệm workflow giả lập hoàn toàn an sau (không gửi tin nhắn thật, không ghi sheets thật). Hiển thị trực quan trạng thái chạy (Xanh = Success, Đỏ = Error, Xám mờ = Skipped) và đường đi của luồng dữ liệu (Edge) trên Canvas React Flow. Cho phép click vào icon ℹ️ trên từng Node để kiểm tra nhanh cấu trúc dữ liệu Input/Output thực tế.
 - 🔍 **Nâng cấp Zoom toàn cục & Thống nhất nút bấm**: Phóng to/thu nhỏ cỡ chữ toàn diện bằng CSS Variable kết hợp ghi đè pixel cứng, tránh vỡ layout viewport (100vh) trên các màn hình khác nhau. Đồng bộ nút bấm có nền màu luôn hiển thị chữ trắng/icon trắng. Cập nhật màu nền trắng tinh `#ffffff` cho các cột danh sách chat và thông tin hội thoại ở Light Mode.
-- 🍎 **Ký số & Xác thực macOS tự động (macOS Code Signing & Notarization)**: Tích hợp cơ chế ký số bảo mật (Developer ID Application) và notarize tự động của Apple trên GitHub Actions CI/CD. Cấu hình chế độ Hardened Runtime kèm tệp Entitlements cho phép ứng dụng vượt qua Gatekeeper và hỗ trợ cập nhật ngầm ổn định trên macOS.
 - 📝 **Tự động gợi ý Biến thông minh (Smart Variable Auto-complete)**: Hỗ trợ trình gợi ý thả xuống (Dropdown) trực quan hiển thị ngay khi người dùng gõ ký tự "{" tại các ô cấu hình. Cho phép dùng phím điều hướng và Enter để chèn nhanh các biến hệ thống (`$trigger`, `$date`) và biến node (`$node.[Tên_Node].output`).
 - 👥 **Đồng bộ thông tin nhóm Zalo**: Cập nhật chính xác tên nhóm và avatar thực tế vào bảng `contacts` SQLite khi quét nhóm bằng link (kể cả nhóm ẩn thành viên nhờ quét dự phòng `getGroupInfo`) và đồng bộ nhóm đơn lẻ, giải quyết triệt để lỗi hiện ID thô.
 - ⏰ **Mốc hiển thị thời gian & Icon phẳng**: Di chuyển giờ phút gửi tin nhắn lên phía trên bong bóng chat và căn lề tương ứng. Thay thế các emoji 3D tại sidebar thông tin nhóm bằng các biểu tượng SVG phẳng đơn sắc tự động đổi màu dynamic.

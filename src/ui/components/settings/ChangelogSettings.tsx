@@ -18,7 +18,6 @@ const CHANGELOG: VersionEntry[] = [
     date: '06/2026',
     type: 'patch',
     highlights: [
-      '🍎 Ký số & Xác thực macOS tự động (macOS Code Signing & Notarization) — Tích hợp cơ chế ký số bảo mật (Developer ID Application) và notarize tự động của Apple trên GitHub Actions CI/CD. Cấu hình chế độ Hardened Runtime kèm tệp Entitlements cho phép ứng dụng vượt qua Gatekeeper và hỗ trợ cập nhật ngầm ổn định trên macOS.',
       '📝 Tự động gợi ý Biến thông minh (Smart Variable Auto-complete) — Hỗ trợ trình gợi ý thả xuống (Dropdown) trực quan hiển thị ngay khi người dùng gõ ký tự "{" tại các ô cấu hình. Cho phép dùng phím điều hướng và Enter để chèn nhanh các biến hệ thống ($trigger, $date) và biến node ($node.[Tên_Node].output) thay vì copy-paste thủ công.',
       '🧪 Trình gỡ lỗi trực quan & Giả lập Sandbox (Visual Debugger & Sandbox) — Bổ sung nút "Chạy Sandbox" cho phép chạy thử nghiệm workflow giả lập hoàn toàn an toàn (không gửi tin nhắn thật, không ghi sheets thật). Hiển thị trực quan trạng thái chạy (Xanh = Success, Đỏ = Error, Xám mờ = Skipped) và đường đi của luồng dữ liệu (Edge) trên Canvas React Flow. Cho phép click vào icon ℹ️ trên từng Node để kiểm tra nhanh cấu trúc dữ liệu Input/Output thực tế.',
       '🏷️ Trình quản lý Nhãn & Đa chọn đích nhận (Smart Label Picker & Multi-Target) — Cải tiến Popup chọn nhãn, loại bỏ tùy chọn nguồn nhãn thừa, hỗ trợ tạo nhanh nhãn local trực tiếp từ Popup. Mở rộng cấu hình đa chọn (multi-select) liên hệ/nhóm cho các hành động Zalo (chuyển tiếp, thu hồi, tắt thông báo, đang gõ, tạo poll, thêm/xóa khỏi nhóm). Động cơ Workflow hỗ trợ tự động xử lý lặp để gửi tin/hành động đến nhiều đích đồng thời.',
@@ -38,14 +37,12 @@ const CHANGELOG: VersionEntry[] = [
           'Bổ sung danh mục Bất động sản với biểu tượng 🏠 và màu bg-emerald-600 vào cửa hàng mẫu.',
           'Tích hợp form tạo nhanh nhãn local và callback onNewLabelCreated trong LabelPickerModal.',
           'Tích hợp nút và khay nhập prompt "🪄 Trợ lý AI" gọi ipc.ai?.chat cho các ô nhập liệu dạng textarea và multiline trong NodeConfigPanel.tsx.',
-          'Thêm nút "🪄" kế bên nút Emoji tại khung chat MessageInput.tsx mở khay AI soạn thảo trực tiếp chèn tin nhắn chat.',
-          'Tạo mới tệp entitlements.mac.plist và entitlements.mac.inherit.plist cấu hình bảo mật Hardened Runtime cho macOS.'
+          'Thêm nút "🪄" kế bên nút Emoji tại khung chat MessageInput.tsx mở khay AI soạn thảo trực tiếp chèn tin nhắn chat.'
         ]
       },
       {
         category: 'improved',
         items: [
-          'Cấu hình chuyển tiếp tự động các secrets ký số và tài khoản Apple Developer sang electron-builder trong các workflow build-macos.yml và build-all.yml.',
           'Loại bỏ thao tác copy-paste biến thủ công qua Clipboard khi bấm nút "Chèn biến động".',
           'Tô màu đường nối (Edges) trên canvas động theo luồng chạy (xanh lá = thành công, đỏ = lỗi, xám = skipped).',
           'Chuyển đổi kiểu dữ liệu trả về của các hàm get***Summary sang React.ReactNode để hiển thị rich JSX trực tiếp trên Node.',
