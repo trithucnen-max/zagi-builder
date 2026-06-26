@@ -239,20 +239,20 @@ jobs:
               
               # Create Applications folder symlink and copy instructions inside the DMG
               ln -s /Applications "$target_dir/Applications"
-              cat << 'EOF' > "$target_dir/HUONG_DAN_CAI_DAT_MACOS.txt"
-HƯỚNG DẪN CÀI ĐẶT TRÊN MACOS (CHO BẢN CHƯA KÝ SỐ)
-================================================
+              cat << 'EOF' | sed 's/^              //' > "$target_dir/HUONG_DAN_CAI_DAT_MACOS.txt"
+              HƯỚNG DẪN CÀI ĐẶT TRÊN MACOS (CHO BẢN CHƯA KÝ SỐ)
+              ================================================
 
-1. Kéo thả file "Zagi" vào thư mục "Applications" bên cạnh để cài đặt.
-2. Nếu mở ứng dụng báo lỗi "Zagi bị hỏng..." (App is damaged...):
-   - Mở ứng dụng Terminal trên máy Mac của bạn.
-   - Sao chép và dán dòng lệnh sau đây vào Terminal rồi nhấn Enter:
+              1. Kéo thả file "Zagi" vào thư mục "Applications" bên cạnh để cài đặt.
+              2. Nếu mở ứng dụng báo lỗi "Zagi bị hỏng..." (App is damaged...):
+                 - Mở ứng dụng Terminal trên máy Mac của bạn.
+                 - Sao chép và dán dòng lệnh sau đây vào Terminal rồi nhấn Enter:
 
-     sudo xattr -rd com.apple.quarantine /Applications/Zagi.app
+                   sudo xattr -rd com.apple.quarantine /Applications/Zagi.app
 
-   - Nhập mật khẩu máy Mac của bạn khi được yêu cầu (khi gõ mật khẩu sẽ không hiển thị ký tự, bạn cứ gõ đúng mật khẩu rồi nhấn Enter).
-3. Sau khi chạy lệnh trên, bạn có thể mở ứng dụng Zagi bình thường từ Launchpad hoặc thư mục Applications.
-EOF
+                 - Nhập mật khẩu máy Mac của bạn khi được yêu cầu (khi gõ mật khẩu sẽ không hiển thị ký tự, bạn cứ gõ đúng mật khẩu rồi nhấn Enter).
+              3. Sau khi chạy lệnh trên, bạn có thể mở ứng dụng Zagi bình thường từ Launchpad hoặc thư mục Applications.
+              EOF
 
               if [ "$folder_name" = "mac-arm64" ]; then
                 echo "Creating DMG for ARM64..."
