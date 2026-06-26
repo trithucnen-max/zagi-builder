@@ -148,6 +148,10 @@ jobs:
                 fs.writeFileSync(path.join(process.argv[1], "HUONG_DAN_CAI_DAT_MACOS.txt"), lines.join("\n"));
               ' "$target_dir"
 
+              # Force ad-hoc codesigning to prevent the "damaged" Gatekeeper error
+              echo "Applying deep ad-hoc signature to $app_path..."
+              codesign --force --deep --sign - "$app_path"
+
               if [ "$folder_name" = "mac-arm64" ]; then
                 echo "Creating DMG for ARM64..."
                 hdiutil create -fs HFS+ -srcfolder "$target_dir" -volname "Zagi" "dist-electron-build/Zagi-${VERSION}-arm64.dmg"
