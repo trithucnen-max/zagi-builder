@@ -84,7 +84,21 @@ function main() {
   // Use forward slashes in the output path to avoid shell escaping issues on Windows
   const escapedOutput = outputPath.replace(/\\/g, '/');
   console.log(`[build-bridge] 🔨 Building: ${BINARY_NAME}`);
-  run(`go build -ldflags="-s -w" -o "${escapedOutput}" .`);
+
+  if (process.platform === 'darwin') {
+    console.log('[build-bridge] 🔨 Building macOS universal binary...');
+    const x64Path = path.join(BUILD_DIR, BINARY_NAME + '-x64');
+    const arm64Path = path.join(BUILD_DIR, BINARY_NAME + '-arm64');
+    
+    run(`GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o "${x64Path.replace(/\\/g, '/')}" .`);
+    run(`GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o "${arm64Path.replace(/\\/g, '/')}" .`);
+    run(`lipo -create -output "${escapedOutput}" "${x64Path.replace(/\\/g, '/')}" "${arm64Path.replace(/\\/g, '/')}"`);
+    
+    fs.unlinkSync(x64Path);
+    fs.unlinkSync(arm64Path);
+  } else {
+    run(`go build -ldflags="-s -w" -o "${escapedOutput}" .`);
+  }
 
   const fileSize = fs.statSync(outputPath).size;
   console.log(`[build-bridge] ✅ Built: ${BINARY_NAME} (${(fileSize / 1024 / 1024).toFixed(1)} MB)`);
