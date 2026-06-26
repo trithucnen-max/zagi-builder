@@ -17,6 +17,26 @@ const fs    = require('fs');
 module.exports = async function afterPack(context) {
   const { electronPlatformName, appOutDir, packager } = context;
 
+  if (electronPlatformName === 'darwin') {
+    const { execSync } = require('child_process');
+    const productName = packager.appInfo.productName;
+    const appPath = path.join(appOutDir, `${productName}.app`);
+
+    if (!fs.existsSync(appPath)) {
+      console.warn(`[after-pack] Zagi.app not found at ${appPath}, skipping codesign`);
+      return;
+    }
+
+    try {
+      console.log(`[after-pack] Force applying deep ad-hoc signature to ${appPath}...`);
+      execSync(`codesign --force --deep --sign - "${appPath}"`);
+      console.log(`[after-pack] ✅ Deep ad-hoc signature applied successfully`);
+    } catch (err) {
+      console.error(`[after-pack] ❌ codesign failed:`, err.message);
+    }
+    return;
+  }
+
   if (electronPlatformName !== 'win32') return;
 
   // Path to the unpacked .exe
