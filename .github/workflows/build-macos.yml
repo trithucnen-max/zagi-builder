@@ -112,7 +112,7 @@ jobs:
           echo "✅ Tag: $(grep '^tag=' $GITHUB_OUTPUT | cut -d= -f2)"
 
       - name: 📦 Build macOS app (arm64)
-        run: npx electron-builder --mac --arm64 --publish never
+        run: npx electron-builder --mac zip --publish never
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
