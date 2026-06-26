@@ -237,10 +237,10 @@ jobs:
               echo "Found app at $app_path (folder: $folder_name)"
               if [ "$folder_name" = "mac-arm64" ]; then
                 echo "Creating DMG for ARM64..."
-                hdiutil create -fs HFS+ -srcfolder "$app_path" -volname "Zagi" "dist-electron-build/Zagi-${VERSION}-arm64.dmg"
+                hdiutil create -fs HFS+ -srcfolder "$(dirname "$app_path")" -volname "Zagi" "dist-electron-build/Zagi-${VERSION}-arm64.dmg"
               elif [ "$folder_name" = "mac" ] || [ "$folder_name" = "mac-x64" ]; then
                 echo "Creating DMG for x64..."
-                hdiutil create -fs HFS+ -srcfolder "$app_path" -volname "Zagi" "dist-electron-build/Zagi-${VERSION}.dmg"
+                hdiutil create -fs HFS+ -srcfolder "$(dirname "$app_path")" -volname "Zagi" "dist-electron-build/Zagi-${VERSION}.dmg"
               fi
             fi
           done
