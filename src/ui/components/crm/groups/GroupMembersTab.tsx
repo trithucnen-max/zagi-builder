@@ -697,7 +697,19 @@ export default function GroupMembersTab() {
           displayName: m.display_name || m.member_id,
           avatar: m.avatar || '',
         }));
-      await ipc.crm?.addCampaignContacts({ zaloId: activeAccountId, campaignId: pickedCampaignId, contacts });
+      const res = await ipc.crm?.addCampaignContacts({ zaloId: activeAccountId, campaignId: pickedCampaignId, contacts });
+      if (res?.success) {
+        if (res.limitExceeded) {
+          useAppStore.getState().showNotification(
+            `Chiến dịch chỉ cho tối đa 1000 người. Đã thêm ${res.addedCount} và loại bỏ ${res.discardedCount} người vượt quá.`,
+            'warning'
+          );
+        } else {
+          useAppStore.getState().showNotification(`Đã thêm ${res.addedCount || contacts.length} liên hệ vào chiến dịch`, 'success');
+        }
+      } else {
+        useAppStore.getState().showNotification((res as any)?.error || 'Không thể thêm liên hệ', 'error');
+      }
       setShowCampaignPicker(false);
       setSelectedMemberIds(new Set());
       setPickedCampaignId(null);

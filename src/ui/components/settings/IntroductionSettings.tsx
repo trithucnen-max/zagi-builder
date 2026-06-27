@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import ipc from '@/lib/ipc';
 import qrCodeImg from '../../../assets/donate/qr.png';
+import AppIcon, { IconType } from '@/components/common/AppIcon';
 
 type FeatureId =
   | 'overview'
   | 'userguide'
+  | 'safeguide'
   | 'dashboard'
   | 'multiAccount'
   | 'messaging'
@@ -24,29 +26,30 @@ type FeatureId =
 
 interface Feature {
   id: FeatureId;
-  icon: string;
+  icon: IconType;
   label: string;
 }
 
 const FEATURES: Feature[] = [
-  { id: 'overview',     icon: '🏠', label: 'Tổng quan' },
-  { id: 'userguide',    icon: '📖', label: 'Hướng dẫn sử dụng' },
-  { id: 'dashboard',    icon: '📊', label: 'Dashboard' },
-  { id: 'multiAccount', icon: '👤', label: 'Đa tài khoản' },
-  { id: 'messaging',    icon: '💬', label: 'Quản lý tin nhắn' },
-  { id: 'crm',          icon: '👥', label: 'CRM & Khách hàng' },
-  { id: 'workflow',     icon: '⚙️', label: 'Workflow tự động' },
-  { id: 'integration-pos', icon: '🛒', label: 'Tích hợp POS' },
-  { id: 'integration-payment', icon: '💳', label: 'Tích hợp thanh toán' },
-  { id: 'integration-shipping', icon: '📦', label: 'Tích hợp vận chuyển' },
-  { id: 'ai-assistant', icon: '🤖', label: 'Trợ lý AI' },
-  { id: 'analytics',    icon: '📈', label: 'Báo cáo & Phân tích' },
-  { id: 'erp',          icon: '🗂️', label: 'ERP quản trị nội bộ' },
-  { id: 'employees',    icon: '🧑‍💼', label: 'Cài đặt nhân viên & workspace' },
-  { id: 'security',     icon: '🔒', label: 'Bảo mật & Dữ liệu' },
-  { id: 'policy',       icon: '📜', label: 'Chính sách pháp lý' },
-  { id: 'bugreport',    icon: '🐛', label: 'Hướng dẫn báo lỗi' },
-  { id: 'contact',      icon: '📞', label: 'Liên hệ' },
+  { id: 'overview',     icon: 'home', label: 'Tổng quan' },
+  { id: 'userguide',    icon: 'book', label: 'Hướng dẫn sử dụng' },
+  { id: 'safeguide',    icon: 'shield_check', label: 'Cẩm nang an toàn' },
+  { id: 'dashboard',    icon: 'dashboard', label: 'Dashboard' },
+  { id: 'multiAccount', icon: 'accounts', label: 'Đa tài khoản' },
+  { id: 'messaging',    icon: 'chat', label: 'Quản lý tin nhắn' },
+  { id: 'crm',          icon: 'crm', label: 'CRM & Khách hàng' },
+  { id: 'workflow',     icon: 'tools', label: 'Workflow tự động' },
+  { id: 'integration-pos', icon: 'integration', label: 'Tích hợp POS' },
+  { id: 'integration-payment', icon: 'credit_card', label: 'Tích hợp thanh toán' },
+  { id: 'integration-shipping', icon: 'truck', label: 'Tích hợp vận chuyển' },
+  { id: 'ai-assistant', icon: 'ai', label: 'Trợ lý AI' },
+  { id: 'analytics',    icon: 'analytics', label: 'Báo cáo & Phân tích' },
+  { id: 'erp',          icon: 'erp', label: 'ERP quản trị nội bộ' },
+  { id: 'employees',    icon: 'employees', label: 'Cài đặt nhân viên & workspace' },
+  { id: 'security',     icon: 'shield_check', label: 'Bảo mật & Dữ liệu' },
+  { id: 'policy',       icon: 'document_check', label: 'Chính sách pháp lý' },
+  { id: 'bugreport',    icon: 'bug', label: 'Hướng dẫn báo lỗi' },
+  { id: 'contact',      icon: 'phone', label: 'Liên hệ' },
 ];
 
 function Badge({ text, color }: { text: string; color: string }) {
@@ -55,8 +58,109 @@ function Badge({ text, color }: { text: string; color: string }) {
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <p className="text-white font-semibold text-sm mb-2">{children}</p>;
+const EMOJI_MAP: Record<string, IconType> = {
+  '🏠': 'home',
+  '📖': 'book',
+  '📊': 'analytics',
+  '👤': 'accounts',
+  '💬': 'chat',
+  '👥': 'users',
+  '⚙️': 'tools',
+  '⚙': 'tools',
+  '🛒': 'integration',
+  '💳': 'credit_card',
+  '📦': 'truck',
+  '🤖': 'ai',
+  '📈': 'analytics',
+  '🗂️': 'erp',
+  '🧑‍💼': 'employees',
+  '🔒': 'security',
+  '🔑': 'security',
+  '📜': 'document_check',
+  '🐛': 'bug',
+  '📞': 'phone',
+  '💡': 'sparkles',
+  '🔗': 'integration',
+  '🔄': 'shuffle',
+  '🔀': 'shuffle',
+  '⚠️': 'bug',
+  '✏️': 'edit',
+  '⚡': 'zap',
+  '📌': 'layers',
+  '⏰': 'clock',
+  '📁': 'storage',
+  '✅': 'check',
+  '🗓️': 'calendar',
+  '📅': 'calendar',
+  '📝': 'file_text',
+  '🚀': 'sparkles',
+  '🛡️': 'shield_check',
+  '🟣': 'sparkles',
+  '🔵': 'zap',
+  '🟡': 'tools',
+  '🟢': 'check',
+  '🟠': 'layers',
+  '📋': 'file_text',
+  '🔧': 'tools',
+  '🔁': 'shuffle',
+  '🌐': 'proxy',
+  '🍰': 'sparkles',
+  '🎂': 'sparkles',
+  '☕': 'coffee',
+  '🍜': 'coffee',
+  '🥞': 'coffee',
+  '💰': 'credit_card',
+  '👋': 'user_plus',
+  '🔍': 'search',
+  '🏢': 'workspace',
+  '📣': 'sparkles',
+  '🎓': 'book',
+  '🏥': 'shield_check',
+  '🤝': 'users',
+  '💼': 'layers',
+  '📱': 'chat',
+  '🏪': 'integration',
+  '🏫': 'book',
+  '📤': 'download',
+  '📄': 'document_check',
+  'ℹ️': 'introduction',
+  'ℹ': 'introduction',
+  '❓': 'introduction',
+  '🧠': 'ai',
+  '⌨️': 'chat',
+  '⌨': 'chat',
+  '💎': 'sparkles',
+  '🎲': 'shuffle',
+  '✨': 'sparkles',
+};
+
+function cleanEmojiPrefix(str: string): { icon: IconType | null; cleanText: string } {
+  for (const [emoji, iconKey] of Object.entries(EMOJI_MAP)) {
+    if (str.startsWith(emoji)) {
+      return { icon: iconKey, cleanText: str.substring(emoji.length).trim() };
+    }
+  }
+  return { icon: null, cleanText: str };
+}
+
+function SectionTitle({ icon, children }: { icon?: IconType; children: React.ReactNode }) {
+  let resolvedIcon: IconType | undefined = icon;
+  let displayContent: React.ReactNode = children;
+
+  if (!resolvedIcon && typeof children === 'string') {
+    const cleaned = cleanEmojiPrefix(children);
+    if (cleaned.icon) {
+      resolvedIcon = cleaned.icon;
+      displayContent = cleaned.cleanText;
+    }
+  }
+
+  return (
+    <p className="text-white font-semibold text-sm mb-3 flex items-center gap-1.5">
+      {resolvedIcon && <AppIcon name={resolvedIcon} className="text-blue-500 flex-shrink-0" size={14} />}
+      <span>{displayContent}</span>
+    </p>
+  );
 }
 
 function Paragraph({ children }: { children: React.ReactNode }) {
@@ -66,12 +170,19 @@ function Paragraph({ children }: { children: React.ReactNode }) {
 function BulletList({ items }: { items: string[] }) {
   return (
     <ul className="space-y-1.5">
-      {items.map((item, i) => (
-        <li key={i} className="flex items-start gap-2 text-gray-400 text-xs">
-          <span className="text-blue-400 mt-0.5 flex-shrink-0">•</span>
-          <span dangerouslySetInnerHTML={{ __html: item }} />
-        </li>
-      ))}
+      {items.map((item, i) => {
+        const { icon, cleanText } = cleanEmojiPrefix(item);
+        return (
+          <li key={i} className="flex items-start gap-2 text-gray-400 text-xs">
+            {icon ? (
+              <AppIcon name={icon} className="text-blue-400 mt-0.5 flex-shrink-0" size={12} />
+            ) : (
+              <span className="text-blue-400 mt-0.5 flex-shrink-0">•</span>
+            )}
+            <span dangerouslySetInnerHTML={{ __html: cleanText }} />
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -108,7 +219,7 @@ function OverviewPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <span className="text-4xl leading-none">🤖</span>
+        <AppIcon name="ai" className="text-blue-500 flex-shrink-0" size={40} />
         <div>
           <h3 className="text-white font-bold text-base">Zagi</h3>
           <p className="text-gray-400 text-xs mt-0.5">Phần mềm desktop quản lý Zalo & Facebook cá nhân Đa tài khoản tích hợp CRM, ERP, POS, Workflow và AI Assistant giúp đội nhóm bán hàng, chăm sóc khách hàng và marketing trên Zalo và Facebook vận hành tập trung trong một ứng dụng duy nhất.</p>
@@ -119,22 +230,22 @@ function OverviewPanel() {
       </div>
 
       <Card>
-        <SectionTitle>🎯 Ứng dụng được xây dựng cho ai?</SectionTitle>
+        <SectionTitle icon="users">Ứng dụng được xây dựng cho ai?</SectionTitle>
         <div className="space-y-2">
           {([
-            ['🏢', 'Doanh nghiệp vừa và nhỏ (SME)', 'Quản lý nhiều tài khoản Zalo/Facebook cùng lúc, phân công nhân viên chăm sóc từng kênh, theo dõi hiệu suất qua báo cáo tập trung.'],
-            ['📣', 'Marketing Agency / Freelancer Marketing', 'Chạy chiến dịch gửi tin hàng loạt, quản lý danh sách khách hàng của nhiều client, tự động hóa nuture lead qua Zalo & Facebook.'],
-            ['🛒', 'Shop online / Kinh doanh thương mại điện tử', 'Nhận đơn, CSKH, gửi thông báo đơn hàng và tương tác với khách qua Zalo & Facebook — kết nối trực tiếp với POS, GHN, VNPay.'],
-            ['📞', 'Sales & Telesales', 'Quản lý pipeline khách hàng trên Zalo & Facebook, tự động gửi follow-up, lọc khách theo trạng thái chiến dịch và tương tác gần nhất.'],
-            ['🎓', 'Trung tâm đào tạo / Giáo dục', 'Gửi thông báo lịch học, nhắc học viên, chăm sóc phụ huynh hàng loạt, phân nhóm theo lớp/khóa học.'],
-            ['🏥', 'Phòng khám / Spa / Làm đẹp', 'Nhắc lịch hẹn tự động, gửi chăm sóc sau dịch vụ, chúc mừng sinh nhật khách hàng đúng ngày để tạo thiện cảm và kéo khách quay lại.'],
-            ['🍜', 'F&B / Nhà hàng / Quán ăn', 'Gửi ưu đãi theo ngày đặc biệt, xây dựng nhóm khách hàng thân thiết, kết nối POS để tự động hóa thông báo đơn hàng.'],
-            ['🤝', 'Team/Đội nhóm bán hàng nhiều người', 'Boss cấp tài khoản nhân viên, phân quyền từng người được xem/làm gì, theo dõi hiệu suất làm việc qua báo cáo nhân viên.'],
-            ['💼', 'Đại lý / Nhà phân phối', 'Quản lý mạng lưới đại lý qua Zalo, tự động cập nhật giá/sản phẩm mới, phân nhóm đại lý theo khu vực bằng nhãn và workflow.'],
-            ['📱', 'Content Creator / KOC / KOL', 'Quản lý tin nhắn từ follower, tự động trả lời câu hỏi thường gặp bằng AI, nuture audience thành khách hàng mua hàng.'],
-          ] as [string,string,string][]).map(([icon, title, desc], i) => (
+            ['workspace', 'Doanh nghiệp vừa và nhỏ (SME)', 'Quản lý nhiều tài khoản Zalo/Facebook cùng lúc, phân công nhân viên chăm sóc từng kênh, theo dõi hiệu suất qua báo cáo tập trung.'],
+            ['sparkles', 'Marketing Agency / Freelancer Marketing', 'Chạy chiến dịch gửi tin hàng loạt, quản lý danh sách khách hàng của nhiều client, tự động hóa nuture lead qua Zalo & Facebook.'],
+            ['integration', 'Shop online / Kinh doanh thương mại điện tử', 'Nhận đơn, CSKH, gửi thông báo đơn hàng và tương tác với khách qua Zalo & Facebook — kết nối trực tiếp với POS, GHN, VNPay.'],
+            ['phone', 'Sales & Telesales', 'Quản lý pipeline khách hàng trên Zalo & Facebook, tự động gửi follow-up, lọc khách theo trạng thái chiến dịch và tương tác gần nhất.'],
+            ['book', 'Trung tâm đào tạo / Giáo dục', 'Gửi thông báo lịch học, nhắc học viên, chăm sóc phụ huynh hàng loạt, phân nhóm theo lớp/khóa học.'],
+            ['shield_check', 'Phòng khám / Spa / Làm đẹp', 'Nhắc lịch hẹn tự động, gửi chăm sóc sau dịch vụ, chúc mừng sinh nhật khách hàng đúng ngày để tạo thiện cảm và kéo khách quay lại.'],
+            ['coffee', 'F&B / Nhà hàng / Quán ăn', 'Gửi ưu đãi theo ngày đặc biệt, xây dựng nhóm khách hàng thân thiết, kết nối POS để tự động hóa thông báo đơn hàng.'],
+            ['users', 'Team/Đội nhóm bán hàng nhiều người', 'Boss cấp tài khoản nhân viên, phân quyền từng người được xem/làm gì, theo dõi hiệu suất làm việc qua báo cáo nhân viên.'],
+            ['layers', 'Đại lý / Nhà phân phối', 'Quản lý mạng lưới đại lý qua Zalo, tự động cập nhật giá/sản phẩm mới, phân nhóm đại lý theo khu vực bằng nhãn và workflow.'],
+            ['chat', 'Content Creator / KOC / KOL', 'Quản lý tin nhắn từ follower, tự động trả lời câu hỏi thường gặp bằng AI, nuture audience thành khách hàng mua hàng.'],
+          ] as [IconType,string,string][]).map(([icon, title, desc], i) => (
             <div key={i} className="flex gap-2.5 bg-gray-700/30 rounded-lg p-2.5">
-              <span className="text-base flex-shrink-0 mt-0.5">{icon}</span>
+              <AppIcon name={icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
               <div>
                 <p className="text-gray-200 text-[11px] font-semibold">{title}</p>
                 <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{desc}</p>
@@ -145,21 +256,21 @@ function OverviewPanel() {
       </Card>
 
       <Card>
-        <SectionTitle>✨ Tính năng nổi bật</SectionTitle>
+        <SectionTitle icon="sparkles">Tính năng nổi bật</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { icon: '👤', text: 'Đa tài khoản Zalo & FB' },
-            { icon: '💬', text: 'Quản lý hội thoại tập trung' },
-            { icon: '👥', text: 'CRM khách hàng' },
-            { icon: '⚙️', text: 'Workflow tự động hoá' },
-            { icon: '🤖', text: 'Trợ lý AI' },
-            { icon: '🏪', text: 'Kết nối POS, thanh toán, vận chuyển' },
-            { icon: '🗂️', text: 'ERP quản trị nội bộ' },
-            { icon: '🧑‍💼', text: 'Cài đặt nhân viên & workspace' },
-            { icon: '📊', text: 'Báo cáo thống kê' },
+            { icon: 'accounts', text: 'Đa tài khoản Zalo & FB' },
+            { icon: 'chat', text: 'Quản lý hội thoại tập trung' },
+            { icon: 'crm', text: 'CRM khách hàng' },
+            { icon: 'tools', text: 'Workflow tự động hoá' },
+            { icon: 'ai', text: 'Trợ lý AI' },
+            { icon: 'integration', text: 'Kết nối POS, thanh toán, vận chuyển' },
+            { icon: 'erp', text: 'ERP quản trị nội bộ' },
+            { icon: 'employees', text: 'Cài đặt nhân viên & workspace' },
+            { icon: 'analytics', text: 'Báo cáo thống kê' },
           ].map((f, i) => (
             <div key={i} className="flex items-center gap-2 bg-gray-700/40 rounded-lg px-3 py-2">
-              <span className="text-sm">{f.icon}</span>
+              <AppIcon name={f.icon as IconType} className="text-blue-500 flex-shrink-0" size={14} />
               <span className="text-gray-300 text-xs">{f.text}</span>
             </div>
           ))}
@@ -167,7 +278,7 @@ function OverviewPanel() {
       </Card>
 
       <Card>
-        <SectionTitle>💡 Yêu cầu hệ thống</SectionTitle>
+        <SectionTitle icon="document_check">Yêu cầu hệ thống</SectionTitle>
         <BulletList items={[
           'Windows 10/11 (64-bit) hoặc MacOS — đề xuất chạy trên PC/máy chủ ổn định',
           'RAM tối thiểu: <strong class="text-gray-200">4 GB</strong> (đề xuất 8 GB trở lên)',
@@ -201,7 +312,7 @@ function MultiAccountPanel() {
       <Card>
         <SectionTitle>🔒 Proxy — Chọn proxy trước khi đăng nhập</SectionTitle>
         <div className="flex items-center gap-3 bg-blue-900/20 border border-blue-700/40 rounded-lg px-3 py-2 mb-2">
-          <span className="text-blue-400 text-sm flex-shrink-0">✨</span>
+          <AppIcon name="sparkles" className="text-blue-400 flex-shrink-0" size={14} />
           <p className="text-blue-300 text-xs font-medium">Mỗi tài khoản Zalo có thể dùng proxy riêng — không ảnh hưởng lẫn nhau</p>
         </div>
         <Paragraph>
@@ -220,7 +331,7 @@ function MultiAccountPanel() {
       <Card>
         <SectionTitle>🔀 Chế độ Gộp trang</SectionTitle>
         <div className="flex items-center gap-3 bg-blue-900/20 border border-blue-700/40 rounded-lg px-3 py-2 mb-2">
-          <span className="text-blue-400 text-sm flex-shrink-0">✨</span>
+          <AppIcon name="sparkles" className="text-blue-400 flex-shrink-0" size={14} />
           <p className="text-blue-300 text-xs font-medium">Tính năng độc quyền — quản lý nhiều Zalo chỉ trong một hộp thư duy nhất</p>
         </div>
         <Paragraph>
@@ -278,20 +389,23 @@ function MessagingPanel() {
         <SectionTitle>✏️ Soạn tin nhắn — Đầy đủ tính năng Zalo</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { icon: '📝', feat: 'Định dạng văn bản', desc: 'In đậm, in nghiêng, gạch chân, gạch ngang' },
-            { icon: '😊', feat: 'Emoji & Sticker', desc: 'Bộ emoji đầy đủ + sticker Zalo' },
-            { icon: '🖼', feat: 'Gửi ảnh & video', desc: 'Từ file hoặc dán từ clipboard' },
-            { icon: '📎', feat: 'Gửi file đính kèm', desc: 'Mọi định dạng file' },
-            { icon: '↩️', feat: 'Trả lời (Reply)', desc: 'Reply trực tiếp vào tin nhắn cụ thể' },
-            { icon: '@', feat: 'Tag thành viên', desc: 'Gõ @ để tag trong nhóm (gợi ý tự động)' },
-            { icon: '📊', feat: 'Tạo bình chọn', desc: 'Tạo poll trong nhóm Zalo' },
-            { icon: '📝', feat: 'Ghi chú nhóm', desc: 'Tạo & xem note được ghim trong nhóm' },
-            { icon: '⏰', feat: 'Nhắc nhở', desc: 'Đặt reminder ngay trong hội thoại' },
-            { icon: '📇', feat: 'Gửi danh thiếp', desc: 'Share thông tin liên hệ qua card' },
+            { icon: 'file_text' as IconType, feat: 'Định dạng văn bản', desc: 'In đậm, in nghiêng, gạch chân, gạch ngang' },
+            { icon: 'smile' as IconType, feat: 'Emoji & Sticker', desc: 'Bộ emoji đầy đủ + sticker Zalo' },
+            { icon: 'image' as IconType, feat: 'Gửi ảnh & video', desc: 'Từ file hoặc dán từ clipboard' },
+            { icon: 'paperclip' as IconType, feat: 'Gửi file đính kèm', desc: 'Mọi định dạng file' },
+            { icon: 'reply' as IconType, feat: 'Trả lời (Reply)', desc: 'Reply trực tiếp vào tin nhắn cụ thể' },
+            { icon: 'at_sign' as IconType, feat: 'Tag thành viên', desc: 'Gõ @ để tag trong nhóm (gợi ý tự động)' },
+            { icon: 'chart' as IconType, feat: 'Tạo bình chọn', desc: 'Tạo poll trong nhóm Zalo' },
+            { icon: 'edit' as IconType, feat: 'Ghi chú nhóm', desc: 'Tạo & xem note được ghim trong nhóm' },
+            { icon: 'clock' as IconType, feat: 'Nhắc nhở', desc: 'Đặt reminder ngay trong hội thoại' },
+            { icon: 'credit_card' as IconType, feat: 'Gửi danh thiếp', desc: 'Share thông tin liên hệ qua card' },
           ].map((f, i) => (
-            <div key={i} className="bg-gray-700/30 rounded-lg px-2.5 py-2">
-              <p className="text-gray-200 text-[11px] font-medium">{f.icon} {f.feat}</p>
-              <p className="text-gray-500 text-[11px] mt-0.5">{f.desc}</p>
+            <div key={i} className="bg-gray-700/30 rounded-lg px-2.5 py-2 flex items-start gap-2">
+              <AppIcon name={f.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
+              <div>
+                <p className="text-gray-200 text-[11px] font-medium">{f.feat}</p>
+                <p className="text-gray-500 text-[11px] mt-0.5">{f.desc}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -302,9 +416,9 @@ function MessagingPanel() {
         <Paragraph>
           Lưu sẵn các mẫu tin nhắn thường dùng, gõ <code style={{color:'#86efac',background:'#1f2937',padding:'0.0625rem 0.3125rem',borderRadius:'0.1875rem'}}>/từ_khóa</code> để gợi ý và gửi ngay — tiết kiệm thời gian soạn tin lặp lại mỗi ngày.
         </Paragraph>
-        <div className="flex items-center gap-3 bg-green-900/20 border border-green-700/40 rounded-lg px-3 py-2 mb-1">
-          <span className="text-green-400 text-sm flex-shrink-0">🏆</span>
-          <p className="text-green-300 text-xs"><strong>Không giới hạn</strong> số lượng mẫu tin — Zalo gốc chỉ cho lưu <strong>1 tin nhắn nhanh</strong></p>
+        <div className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-2 mb-1">
+          <AppIcon name="sparkles" className="text-amber-500 flex-shrink-0" size={14} />
+          <p className="text-gray-300 text-xs"><strong>Không giới hạn</strong> số lượng mẫu tin — Zalo gốc chỉ cho lưu <strong>1 tin nhắn nhanh</strong></p>
         </div>
         <BulletList items={[
           '<strong class="text-gray-200">2 chế độ:</strong> Tin nhắn nhanh đồng bộ từ Zalo (dùng được trên điện thoại) và Tin nhắn nhanh cục bộ chỉ trong app',
@@ -316,9 +430,9 @@ function MessagingPanel() {
 
       <Card>
         <SectionTitle>📌 Tin nhắn ghim & Ghi chú nhóm</SectionTitle>
-        <div className="flex items-center gap-3 bg-green-900/20 border border-green-700/40 rounded-lg px-3 py-2 mb-1">
-          <span className="text-green-400 text-sm flex-shrink-0">🏆</span>
-          <p className="text-green-300 text-xs"><strong>Ghim không giới hạn</strong> số tin nhắn — Zalo gốc chỉ cho ghim tối đa <strong>3 tin</strong> mỗi hội thoại</p>
+        <div className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-2 mb-1">
+          <AppIcon name="sparkles" className="text-amber-500 flex-shrink-0" size={14} />
+          <p className="text-gray-300 text-xs"><strong>Ghim không giới hạn</strong> số tin nhắn — Zalo gốc chỉ cho ghim tối đa <strong>3 tin</strong> mỗi hội thoại</p>
         </div>
         <BulletList items={[
           'Ghim bất kỳ tin nhắn nào lên thanh ghim ở đầu cửa sổ chat',
@@ -379,7 +493,7 @@ function MessagingPanel() {
       <Card>
         <SectionTitle>⚠️ Hạn chế cần lưu ý</SectionTitle>
         <div className="flex items-start gap-3 bg-yellow-900/20 border border-yellow-700/40 rounded-lg px-3 py-2.5">
-          <span className="text-yellow-400 text-sm flex-shrink-0 mt-0.5">⚠️</span>
+          <AppIcon name="alert_triangle" className="text-yellow-400 flex-shrink-0 mt-0.5" size={14} />
           <div className="space-y-1">
             <p className="text-yellow-300 text-xs font-semibold">Không hỗ trợ nghe & gọi (thoại / video call)</p>
             <p className="text-gray-400 text-xs leading-relaxed">
@@ -399,8 +513,8 @@ function ErpPanel() {
     <div className="space-y-4">
       <Card>
         <div className="flex items-start gap-3">
-          <span className="text-3xl leading-none">🗂️</span>
-          <div>
+          <AppIcon name="erp" className="text-blue-500 flex-shrink-0" size={40} />
+          <div className="flex-1">
             <SectionTitle>ERP quản trị nội bộ — giao việc, lịch, note, nhân sự</SectionTitle>
             <Paragraph>
               Module ERP giúp đội nhóm quản lý công việc nội bộ ngay trong Zagi: từ giao task, theo dõi deadline,
@@ -502,13 +616,19 @@ function CrmPanel() {
           '<strong>AI tạm biệt lịch sự (AI Farewell Message):</strong> Tự động soạn tin nhắn tạm biệt tinh tế bằng AI (hoặc tin mẫu tùy chỉnh) và gửi vào nhóm trước khi rời đi.',
         ]} />
         <div className="mt-3 space-y-2">
-          <p className="text-white font-semibold text-xs">🔍 Quét thành viên nhóm nâng cao</p>
+          <p className="text-white font-semibold text-xs flex items-center gap-1.5">
+            <AppIcon name="search" size={12} className="text-blue-500" />
+            Quét thành viên nhóm nâng cao
+          </p>
           <BulletList items={[
             '<strong class="text-gray-200">Quét thành viên nhóm ẩn:</strong> Với các nhóm lớn, Zalo chỉ trả về một phần thành viên trong danh sách thông thường. Tính năng quét nâng cao gửi thêm request để lấy toàn bộ thành viên thực tế — bao gồm cả những thành viên bị ẩn do giới hạn API.',
             '<strong class="text-gray-200">Quét nhóm chưa tham gia:</strong> Nhập Link nhóm Zalo (link mời) để quét danh sách thành viên của nhóm mà tài khoản <em>chưa là thành viên</em> — không cần tham gia nhóm vẫn lấy được danh sách.',
           ]} />
           <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-lg px-3 py-2 mt-1">
-            <p className="text-yellow-300 text-[11px] font-semibold mb-1">⚠️ Lưu ý khi rời nhóm & quét thành viên</p>
+            <p className="text-yellow-300 text-[11px] font-semibold mb-1 flex items-center gap-1.5">
+              <AppIcon name="alert_triangle" className="text-yellow-300" size={12} />
+              Lưu ý khi rời nhóm & quét thành viên
+            </p>
             <BulletList items={[
               'Quét nhóm lớn (hàng nghìn thành viên) mất nhiều thời gian — không đóng cửa sổ trong khi quét.',
               'Khi rời nhóm, đảm bảo đã cấu hình đúng người nhận quyền Trưởng nhóm nếu bạn là Trưởng nhóm hiện tại.',
@@ -550,16 +670,19 @@ function CrmPanel() {
           gửi đúng người, đúng thời điểm để tăng tỷ lệ phản hồi và giữ chân khách hàng cũ.
         </Paragraph>
         <div className="space-y-2">
-          <p className="text-xs text-gray-300 font-semibold">💡 Gợi ý chiến dịch chăm sóc:</p>
+          <p className="text-xs text-gray-300 font-semibold flex items-center gap-1.5">
+            <AppIcon name="sparkles" size={12} className="text-amber-400" />
+            Gợi ý chiến dịch chăm sóc:
+          </p>
           <div className="space-y-1.5">
             {([
-              ['🎂', 'Chúc mừng sinh nhật theo ngày', 'Lọc liên hệ có ngày sinh = hôm nay (hoặc trong tuần) → tạo campaign gửi lời chúc + ưu đãi cá nhân hoá. Tỷ lệ mở và phản hồi sinh nhật thường cao nhất trong năm.'],
-              ['📅', 'Chiến dịch theo tháng sinh', 'Mỗi đầu tháng, lọc toàn bộ khách sinh trong tháng → gửi ưu đãi tháng sinh. Ví dụ: "Tháng 5 — Tặng quà khách sinh nhật tháng 5"'],
-              ['♀️♂️', 'Ưu đãi theo giới tính', 'Ngày 8/3 → chiến dịch riêng cho khách nữ. Ngày 20/10 tương tự. Ngày 14/2, 22/12 → khách nam. Lọc theo giới tính và bắn chiến dịch chỉ định.'],
-              ['🔁', 'Kéo lại khách cũ đúng dịp', 'Kết hợp: khách cũ chưa nhắn tin lại > 30 ngày + sinh nhật trong tháng này → ưu tiên liên hệ lại nhóm này trước.'],
-            ] as [string,string,string][]).map(([icon, title, desc], i) => (
+              ['sparkles' as IconType, 'Chúc mừng sinh nhật theo ngày', 'Lọc liên hệ có ngày sinh = hôm nay (hoặc trong tuần) → tạo campaign gửi lời chúc + ưu đãi cá nhân hoá. Tỷ lệ mở và phản hồi sinh nhật thường cao nhất trong năm.'],
+              ['calendar' as IconType, 'Chiến dịch theo tháng sinh', 'Mỗi đầu tháng, lọc toàn bộ khách sinh trong tháng → gửi ưu đãi tháng sinh. Ví dụ: "Tháng 5 — Tặng quà khách sinh nhật tháng 5"'],
+              ['users' as IconType, 'Ưu đãi theo giới tính', 'Ngày 8/3 → chiến dịch riêng cho khách nữ. Ngày 20/10 tương tự. Ngày 14/2, 22/12 → khách nam. Lọc theo giới tính và bắn chiến dịch chỉ định.'],
+              ['sync' as IconType, 'Kéo lại khách cũ đúng dịp', 'Kết hợp: khách cũ chưa nhắn tin lại > 30 ngày + sinh nhật trong tháng này → ưu tiên liên hệ lại nhóm này trước.'],
+            ] as [IconType,string,string][]).map(([icon, title, desc], i) => (
                 <div key={i} className="flex gap-2.5 bg-gray-700/30 rounded-lg p-2.5">
-                  <span className="text-base flex-shrink-0 mt-0.5">{icon}</span>
+                  <AppIcon name={icon} className="text-blue-500 flex-shrink-0 mt-0.5" size={14} />
                   <div>
                     <p className="text-gray-200 text-[11px] font-semibold">{title}</p>
                     <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{desc}</p>
@@ -568,9 +691,10 @@ function CrmPanel() {
             ))}
           </div>
         </div>
-        <div className="mt-2 bg-blue-700/60 border border-blue-700/30 rounded-lg px-3 py-2">
+        <div className="mt-2 bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-2 flex items-start gap-1.5">
+          <AppIcon name="layers" className="text-blue-400 mt-0.5 flex-shrink-0" size={12} />
           <p className="text-gray-300 text-[11px] leading-relaxed">
-            📌 <strong>Cách dùng:</strong> CRM → Danh sách liên hệ → Bộ lọc → chọn <em>"Sinh nhật hôm nay / tuần này / tháng này"</em> hoặc <em>"Giới tính"</em>
+            <strong>Cách dùng:</strong> CRM → Danh sách liên hệ → Bộ lọc → chọn <em>"Sinh nhật hôm nay / tuần này / tháng này"</em> hoặc <em>"Giới tính"</em>
             → Chọn hết → Thêm vào chiến dịch → Soạn nội dung cá nhân hoá → Gửi.
           </p>
         </div>
@@ -584,14 +708,17 @@ function CrmPanel() {
         </Paragraph>
         <div className="grid grid-cols-2 gap-2 my-1">
           {[
-            { icon: '💬', type: 'Gửi tin nhắn', desc: 'Text, ảnh, file tới danh sách liên hệ' },
-            { icon: '🤝', type: 'Kết bạn', desc: 'Gửi lời mời kết bạn hàng loạt' },
-            { icon: '👥', type: 'Mời vào nhóm', desc: 'Thêm danh sách liên hệ vào nhóm Zalo' },
-            { icon: '🔀', type: 'Hỗn hợp', desc: 'Kết hợp nhiều loại hành động' },
+            { icon: 'conversation' as IconType, type: 'Gửi tin nhắn', desc: 'Text, ảnh, file tới danh sách liên hệ' },
+            { icon: 'user_plus' as IconType, type: 'Kết bạn', desc: 'Gửi lời mời kết bạn hàng loạt' },
+            { icon: 'users' as IconType, type: 'Mời vào nhóm', desc: 'Thêm danh sách liên hệ vào nhóm Zalo' },
+            { icon: 'shuffle' as IconType, type: 'Hỗn hợp', desc: 'Kết hợp nhiều loại hành động' },
           ].map((c, i) => (
-            <div key={i} className="bg-gray-700/40 rounded-lg p-2.5">
-              <p className="text-xs text-gray-200 font-semibold">{c.icon} {c.type}</p>
-              <p className="text-[11px] text-gray-500 mt-0.5">{c.desc}</p>
+            <div key={i} className="bg-gray-700/40 rounded-lg p-2.5 flex items-start gap-2">
+              <AppIcon name={c.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
+              <div>
+                <p className="text-xs text-gray-200 font-semibold">{c.type}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">{c.desc}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -613,7 +740,8 @@ function CrmPanel() {
         <div className="space-y-3">
           <div className="bg-gray-700/30 rounded-lg p-3 space-y-2">
             <p className="text-white font-semibold text-xs flex items-center gap-1.5">
-              <span>👤</span> Đối với khách hàng CHƯA kết bạn (Người lạ)
+              <AppIcon name="accounts" size={12} className="text-blue-500" />
+              Đối với khách hàng CHƯA kết bạn (Người lạ)
             </p>
             <BulletList items={[
               '<strong>Hạn mức:</strong> Zalo cá nhân miễn phí chỉ gửi tin nhắn cho tối đa 40 người lạ/tháng.',
@@ -623,7 +751,8 @@ function CrmPanel() {
 
           <div className="bg-gray-700/30 rounded-lg p-3 space-y-2">
             <p className="text-white font-semibold text-xs flex items-center gap-1.5">
-              <span>🤝</span> Đối với khách hàng ĐẠT kết bạn (Bạn bè)
+              <AppIcon name="users" size={12} className="text-blue-500" />
+              Đối với khách hàng ĐẠT kết bạn (Bạn bè)
             </p>
             <BulletList items={[
               '<strong>Hạn mức:</strong> Gửi tối đa 50 - 100 người/ngày để giữ tài khoản an toàn.',
@@ -633,7 +762,8 @@ function CrmPanel() {
 
           <div className="bg-gray-700/30 rounded-lg p-3 space-y-2">
             <p className="text-white font-semibold text-xs flex items-center gap-1.5">
-              <span>📝</span> Nội dung tin nhắn & Link liên kết
+              <AppIcon name="file_text" size={12} className="text-blue-500" />
+              Nội dung tin nhắn & Link liên kết
             </p>
             <BulletList items={[
               '<strong>Trộn nội dung (Spintax):</strong> Sử dụng cú pháp {A|B|C} hoặc AI trợ lý để đa dạng hóa nội dung, tránh gửi trùng lặp 100%.',
@@ -642,8 +772,9 @@ function CrmPanel() {
           </div>
 
           <div className="bg-blue-950/40 border border-blue-800/40 rounded-lg px-3 py-2">
-            <p className="text-blue-300 text-[11px] leading-relaxed">
-              💡 <strong>Hệ thống cảnh báo thông minh:</strong> Khi tạo chiến dịch CRM mới, hệ thống sẽ tự động phân tích tần suất gửi, số lượng gửi và nội dung tin nhắn để đưa ra các cảnh báo bằng màu sắc (<strong>Đỏ / Vàng</strong>) trực quan nếu vi phạm các quy tắc an toàn trên. Hãy chú ý các cảnh báo này để điều chỉnh tham số chiến dịch cho phù hợp.
+            <p className="text-blue-300 text-[11px] leading-relaxed flex items-start gap-1">
+              <AppIcon name="sparkles" size={12} className="text-blue-300 flex-shrink-0 mt-0.5" />
+              <span><strong>Hệ thống cảnh báo thông minh:</strong> Khi tạo chiến dịch CRM mới, hệ thống sẽ tự động phân tích tần suất gửi, số lượng gửi và nội dung tin nhắn để đưa ra các cảnh báo bằng màu sắc (<strong>Đỏ / Vàng</strong>) trực quan nếu vi phạm các quy tắc an toàn trên. Hãy chú ý các cảnh báo này để điều chỉnh tham số chiến dịch cho phù hợp.</span>
             </p>
           </div>
         </div>
@@ -686,27 +817,30 @@ function WorkflowPanel() {
         <SectionTitle>🔵 Zalo Actions — Hành động trực tiếp trên Zalo</SectionTitle>
         <div className="grid grid-cols-2 gap-1.5">
           {[
-            ['💬 Gửi tin nhắn', 'Text với biến động, template'],
-            ['⌨️ Gửi đang gõ + delay', 'Giả lập typing trước khi gửi'],
-            ['🖼 Gửi ảnh', 'Từ file cục bộ hoặc URL'],
-            ['📎 Gửi file', 'File đính kèm bất kỳ định dạng'],
-            ['🔍 Tìm user theo SĐT', 'Tra cứu Zalo UID từ số điện thoại'],
-            ['👤 Lấy thông tin user', 'Profile, tên, avatar của bất kỳ UID'],
-            ['✅ Chấp nhận kết bạn', 'Auto-accept friend request'],
-            ['❌ Từ chối kết bạn', 'Auto-reject friend request'],
-            ['➕ Gửi lời mời kết bạn', 'Gửi FR đến UID hoặc SĐT'],
-            ['👥 Thêm vào nhóm', 'Thêm UID vào nhóm Zalo'],
-            ['🚫 Xóa khỏi nhóm', 'Kick thành viên ra khỏi nhóm'],
-            ['🔇 Tắt thông báo', 'Mute/unmute một hội thoại'],
-            ['↩️ Chuyển tiếp tin', 'Forward tin nhắn sang hội thoại khác'],
-            ['↩ Thu hồi tin nhắn', 'Undo/unsend tin vừa gửi'],
-            ['📊 Tạo bình chọn', 'Tạo poll trong nhóm Zalo'],
-            ['📜 Lấy lịch sử chat', 'Đọc N tin nhắn gần nhất'],
-            ['😀 Thêm cảm xúc', 'React emoji vào tin nhắn'],
-          ].map(([action, desc], i) => (
-            <div key={i} className="bg-gray-700/30 rounded-lg px-2.5 py-1.5">
-              <p className="text-gray-200 text-[11px] font-medium">{action}</p>
-              <p className="text-gray-500 text-[11px]">{desc}</p>
+            { icon: 'conversation' as IconType, feat: 'Gửi tin nhắn', desc: 'Text với biến động, template' },
+            { icon: 'edit' as IconType, feat: 'Gửi đang gõ + delay', desc: 'Giả lập typing trước khi gửi' },
+            { icon: 'image' as IconType, feat: 'Gửi ảnh', desc: 'Từ file cục bộ hoặc URL' },
+            { icon: 'paperclip' as IconType, feat: 'Gửi file', desc: 'File đính kèm bất kỳ định dạng' },
+            { icon: 'search' as IconType, feat: 'Tìm user theo SĐT', desc: 'Tra cứu Zalo UID từ số điện thoại' },
+            { icon: 'accounts' as IconType, feat: 'Lấy thông tin user', desc: 'Profile, tên, avatar của bất kỳ UID' },
+            { icon: 'user_check' as IconType, feat: 'Chấp nhận kết bạn', desc: 'Auto-accept friend request' },
+            { icon: 'x' as IconType, feat: 'Từ chối kết bạn', desc: 'Auto-reject friend request' },
+            { icon: 'user_plus' as IconType, feat: 'Gửi lời mời kết bạn', desc: 'Gửi FR đến UID hoặc SĐT' },
+            { icon: 'users' as IconType, feat: 'Thêm vào nhóm', desc: 'Thêm UID vào nhóm Zalo' },
+            { icon: 'trash' as IconType, feat: 'Xóa khỏi nhóm', desc: 'Kick thành viên ra khỏi nhóm' },
+            { icon: 'bell_off' as IconType, feat: 'Tắt thông báo', desc: 'Mute/unmute một hội thoại' },
+            { icon: 'reply' as IconType, feat: 'Chuyển tiếp tin', desc: 'Forward tin nhắn sang hội thoại khác' },
+            { icon: 'trash' as IconType, feat: 'Thu hồi tin nhắn', desc: 'Undo/unsend tin vừa gửi' },
+            { icon: 'chart' as IconType, feat: 'Tạo bình chọn', desc: 'Tạo poll trong nhóm Zalo' },
+            { icon: 'history' as IconType, feat: 'Lấy lịch sử chat', desc: 'Đọc N tin nhắn gần nhất' },
+            { icon: 'smile' as IconType, feat: 'Thêm cảm xúc', desc: 'React emoji vào tin nhắn' },
+          ].map((f, i) => (
+            <div key={i} className="bg-gray-700/30 rounded-lg px-2.5 py-1.5 flex items-start gap-2">
+              <AppIcon name={f.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
+              <div>
+                <p className="text-gray-200 text-[11px] font-medium">{f.feat}</p>
+                <p className="text-gray-500 text-[11px]">{f.desc}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -775,9 +909,9 @@ function IntegrationPOSPanel() {
           ngay trong khung chat Zalo — không cần chuyển qua lại giữa các ứng dụng.
           Bạn cũng có thể tạo đơn hàng trực tiếp từ hội thoại hoặc tự động hoá qua Workflow.
         </Paragraph>
-        <div className="flex items-center gap-3 bg-blue-900/20 border border-blue-700/40 rounded-lg px-3 py-2">
-          <span className="text-blue-400 text-sm flex-shrink-0">💡</span>
-          <p className="text-blue-300 text-xs font-medium">Sau khi kết nối, các nút tra cứu nhanh sẽ xuất hiện trong Quick Panel bên phải khung chat.</p>
+        <div className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-2">
+          <AppIcon name="sparkles" className="text-amber-500 flex-shrink-0" size={14} />
+          <p className="text-gray-300 text-xs font-medium">Sau khi kết nối, các nút tra cứu nhanh sẽ xuất hiện trong Quick Panel bên phải khung chat.</p>
         </div>
       </Card>
 
@@ -785,15 +919,18 @@ function IntegrationPOSPanel() {
         <SectionTitle>📋 Các nền tảng POS hỗ trợ</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { icon: '🛒', name: 'KiotViet', desc: 'Tra cứu đơn hàng, khách hàng, sản phẩm. Tạo đơn hàng từ chat hoặc workflow.', setup: 'Cần Client ID, Client Secret, Retailer Name từ KiotViet Admin.' },
-            { icon: '🏪', name: 'Haravan', desc: 'Quản lý đơn hàng, kho, khách hàng TMĐT. Tra cứu theo SĐT ngay trong chat.', setup: 'Dùng API Token từ Haravan Custom App hoặc API Key legacy.' },
-            { icon: '🟢', name: 'Sapo', desc: 'Bán hàng đa kênh. Tra cứu đơn, khách hàng, sản phẩm Sapo.', setup: 'Cần API Key + Secret Key + Store Domain từ Sapo.' },
-            { icon: '⚡', name: 'Nhanh.vn', desc: 'Quản lý đơn hàng, kho, khách hàng đa kênh.', setup: 'Cần App ID, Business ID, Access Token v3.' },
-            { icon: '🥞', name: 'Pancake POS', desc: 'Quản lý đơn hàng, tra cứu và tạo đơn trong chat.', setup: 'Cần API Key và Shop ID từ Pancake.' },
+            { icon: 'integration' as IconType, name: 'KiotViet', desc: 'Tra cứu đơn hàng, khách hàng, sản phẩm. Tạo đơn hàng từ chat hoặc workflow.', setup: 'Cần Client ID, Client Secret, Retailer Name từ KiotViet Admin.' },
+            { icon: 'workspace' as IconType, name: 'Haravan', desc: 'Quản lý đơn hàng, kho, khách hàng TMĐT. Tra cứu theo SĐT ngay trong chat.', setup: 'Dùng API Token từ Haravan Custom App hoặc API Key legacy.' },
+            { icon: 'check' as IconType, name: 'Sapo', desc: 'Bán hàng đa kênh. Tra cứu đơn, khách hàng, sản phẩm Sapo.', setup: 'Cần API Key + Secret Key + Store Domain từ Sapo.' },
+            { icon: 'zap' as IconType, name: 'Nhanh.vn', desc: 'Quản lý đơn hàng, kho, khách hàng đa kênh.', setup: 'Cần App ID, Business ID, Access Token v3.' },
+            { icon: 'coffee' as IconType, name: 'Pancake POS', desc: 'Quản lý đơn hàng, tra cứu và tạo đơn trong chat.', setup: 'Cần API Key và Shop ID từ Pancake.' },
           ].map((p, i) => (
-            <div key={i} className="bg-gray-700/30 rounded-lg p-2.5">
-              <p className="text-gray-200 text-[11px] font-medium">{p.icon} {p.name}</p>
-              <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{p.desc}</p>
+            <div key={i} className="bg-gray-700/30 rounded-lg p-2.5 flex items-start gap-2">
+              <AppIcon name={p.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
+              <div>
+                <p className="text-gray-200 text-[11px] font-medium">{p.name}</p>
+                <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{p.desc}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -814,16 +951,19 @@ function IntegrationPOSPanel() {
         <SectionTitle>⚡ Tính năng sau khi kết nối POS</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { icon: '🔍', name: 'Tra cứu đơn hàng', desc: 'Nhập mã đơn hoặc SĐT khách → thông tin đơn hàng hiện ra ngay trong chat.' },
-            { icon: '👤', name: 'Tra cứu khách hàng', desc: 'Xem lịch sử mua hàng, tổng chi tiêu, công nợ của khách.' },
-            { icon: '📦', name: 'Tra cứu sản phẩm', desc: 'Tìm sản phẩm theo tên/mã — hiển thị giá, tồn kho, hình ảnh.' },
-            { icon: '➕', name: 'Tạo đơn hàng', desc: 'Tạo đơn hàng mới cho khách ngay trong hội thoại Zalo.' },
-            { icon: '⚙️', name: 'Tích hợp Workflow', desc: 'Workflow tự động tra cứu thông tin khi nhận tin nhắn từ khách.' },
-            { icon: '📊', name: 'Đồng bộ dữ liệu', desc: 'Dữ liệu đơn hàng, khách hàng đồng bộ realtime từ POS.' },
+            { icon: 'search' as IconType, name: 'Tra cứu đơn hàng', desc: 'Nhập mã đơn hoặc SĐT khách → thông tin đơn hàng hiện ra ngay trong chat.' },
+            { icon: 'accounts' as IconType, name: 'Tra cứu khách hàng', desc: 'Xem lịch sử mua hàng, tổng chi tiêu, công nợ của khách.' },
+            { icon: 'storage' as IconType, name: 'Tra cứu sản phẩm', desc: 'Tìm sản phẩm theo tên/mã — hiển thị giá, tồn kho, hình ảnh.' },
+            { icon: 'plus' as IconType, name: 'Tạo đơn hàng', desc: 'Tạo đơn hàng mới cho khách ngay trong hội thoại Zalo.' },
+            { icon: 'tools' as IconType, name: 'Tích hợp Workflow', desc: 'Workflow tự động tra cứu thông tin khi nhận tin nhắn từ khách.' },
+            { icon: 'sync' as IconType, name: 'Đồng bộ dữ liệu', desc: 'Dữ liệu đơn hàng, khách hàng đồng bộ realtime từ POS.' },
           ].map((f, i) => (
-            <div key={i} className="bg-gray-700/30 rounded-lg p-2.5">
-              <p className="text-gray-200 text-[11px] font-medium">{f.icon} {f.name}</p>
-              <p className="text-gray-500 text-[11px] mt-0.5">{f.desc}</p>
+            <div key={i} className="bg-gray-700/30 rounded-lg p-2.5 flex items-start gap-2">
+              <AppIcon name={f.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
+              <div>
+                <p className="text-gray-200 text-[11px] font-medium">{f.name}</p>
+                <p className="text-gray-500 text-[11px] mt-0.5">{f.desc}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -832,7 +972,10 @@ function IntegrationPOSPanel() {
       <Card>
         <SectionTitle>🔁 Ví dụ: Workflow với POS</SectionTitle>
         <div className="bg-gray-900/60 rounded-lg border border-gray-700/50 p-3 space-y-1.5">
-          <p className="text-gray-200 text-[11px] font-semibold">📌 Khi khách nhắn "Kiểm tra đơn hàng"</p>
+          <p className="text-gray-200 text-[11px] font-semibold flex items-center gap-1">
+            <AppIcon name="layers" size={10} className="text-blue-400" />
+            Khi khách nhắn "Kiểm tra đơn hàng"
+          </p>
           <BulletList items={[
             '<strong class="text-gray-200">Trigger:</strong> Tin nhắn mới chứa từ khóa "đơn hàng"',
             '<strong class="text-gray-200">Action 1:</strong> Tra cứu đơn hàng POS theo SĐT khách',
@@ -864,9 +1007,9 @@ function IntegrationPaymentPanel() {
           Kết hợp Workflow để tự động xác nhận đơn hàng, gửi tin cảm ơn và kích hoạt các bước chăm sóc tiếp theo —
           không cần ngồi kiểm tra sao kê thủ công.
         </Paragraph>
-        <div className="flex items-center gap-3 bg-blue-900/20 border border-blue-700/40 rounded-lg px-3 py-2">
-          <span className="text-blue-400 text-sm flex-shrink-0">💡</span>
-          <p className="text-blue-300 text-xs font-medium">Kết hợp Tunnel công khai để nhận webhook thanh toán từ bên ngoài mà không cần VPS.</p>
+        <div className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-2">
+          <AppIcon name="sparkles" className="text-amber-500 flex-shrink-0" size={14} />
+          <p className="text-gray-300 text-xs font-medium">Kết hợp Tunnel công khai để nhận webhook thanh toán từ bên ngoài mà không cần VPS.</p>
         </div>
       </Card>
 
@@ -874,12 +1017,12 @@ function IntegrationPaymentPanel() {
         <SectionTitle>📋 Các nền tảng thanh toán hỗ trợ</SectionTitle>
         <div className="space-y-2">
           {[
-            { icon: '💳', name: 'Casso', desc: 'Nền tảng tổng hợp giao dịch VietQR hàng đầu. Nhận webhook realtime khi có chuyển khoản vào bất kỳ ngân hàng nào.', setup: 'Casso API Key (lấy từ Casso Dashboard). Webhook Secret (tuỳ chọn).' },
-            { icon: '💰', name: 'SePay', desc: 'Giải pháp webhook thanh toán. Tự động phát hiện giao dịch chuyển khoản và gửi thông báo.', setup: 'SePay API Key + Webhook Secret Key.' },
+            { icon: 'credit_card' as IconType, name: 'Casso', desc: 'Nền tảng tổng hợp giao dịch VietQR hàng đầu. Nhận webhook realtime khi có chuyển khoản vào bất kỳ ngân hàng nào.', setup: 'Casso API Key (lấy từ Casso Dashboard). Webhook Secret (tuỳ chọn).' },
+            { icon: 'payment' as IconType, name: 'SePay', desc: 'Giải pháp webhook thanh toán. Tự động phát hiện giao dịch chuyển khoản và gửi thông báo.', setup: 'SePay API Key + Webhook Secret Key.' },
           ].map((p, i) => (
             <div key={i} className="bg-gray-700/30 rounded-lg p-3">
               <div className="flex items-start gap-3">
-                <span className="text-lg flex-shrink-0">{p.icon}</span>
+                <AppIcon name={p.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
                 <div>
                   <p className="text-gray-200 text-[11px] font-medium">{p.name}</p>
                   <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{p.desc}</p>
@@ -910,7 +1053,10 @@ function IntegrationPaymentPanel() {
       <Card>
         <SectionTitle>🔁 Ví dụ: Workflow với thanh toán</SectionTitle>
         <div className="bg-gray-900/60 rounded-lg border border-gray-700/50 p-3 space-y-1.5">
-          <p className="text-gray-200 text-[11px] font-semibold">📌 Khi nhận được chuyển khoản</p>
+          <p className="text-gray-200 text-[11px] font-semibold flex items-center gap-1">
+            <AppIcon name="layers" size={10} className="text-blue-400" />
+            Khi nhận được chuyển khoản
+          </p>
           <BulletList items={[
             '<strong class="text-gray-200">Trigger:</strong> Webhook thanh toán (Casso/SePay)',
             '<strong class="text-gray-200">Action 1:</strong> Tra cứu đơn hàng POS theo nội dung chuyển khoản',
@@ -958,9 +1104,9 @@ function IntegrationShippingPanel() {
           ngay trong hội thoại Zalo. Khi khách hỏi "đơn hàng tới đâu rồi?", Workflow tự động tra cứu và trả lời —
           không cần copy tracking ID qua các tab trình duyệt.
         </Paragraph>
-        <div className="flex items-center gap-3 bg-blue-900/20 border border-blue-700/40 rounded-lg px-3 py-2">
-          <span className="text-blue-400 text-sm flex-shrink-0">💡</span>
-          <p className="text-blue-300 text-xs font-medium">Tích hợp vận chuyển hoạt động tốt nhất khi kết hợp với POS để tự động tạo đơn giao sau khi xác nhận thanh toán.</p>
+        <div className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-2">
+          <AppIcon name="sparkles" className="text-amber-500 flex-shrink-0" size={14} />
+          <p className="text-gray-300 text-xs font-medium">Tích hợp vận chuyển hoạt động tốt nhất khi kết hợp với POS để tự động tạo đơn giao sau khi xác nhận thanh toán.</p>
         </div>
       </Card>
 
@@ -968,18 +1114,18 @@ function IntegrationShippingPanel() {
         <SectionTitle>📋 Các đơn vị vận chuyển hỗ trợ</SectionTitle>
         <div className="space-y-2">
           {[
-            { icon: '📦', name: 'GHN Express', desc: 'Giao Hàng Nhanh — tạo đơn, tra cứu vận đơn, tính phí giao hàng.', token: 'Token GHN + Shop ID', note: 'Hỗ trợ Sandbox để test thử trước khi dùng thật.' },
-            { icon: '🚚', name: 'GHTK', desc: 'Giao Hàng Tiết Kiệm — tạo đơn, tra cứu trạng thái giao hàng.', token: 'GHTK API Token', note: 'Phù hợp đơn hàng giá trị thấp, giao hàng tiết kiệm.' },
+            { icon: 'storage' as IconType, name: 'GHN Express', desc: 'Giao Hàng Nhanh — tạo đơn, tra cứu vận đơn, tính phí giao hàng.', token: 'Token GHN + Shop ID', note: 'Hỗ trợ Sandbox để test thử trước khi dùng thật.' },
+            { icon: 'truck' as IconType, name: 'GHTK', desc: 'Giao Hàng Tiết Kiệm — tạo đơn, tra cứu trạng thái giao hàng.', token: 'GHTK API Token', note: 'Phù hợp đơn hàng giá trị thấp, giao hàng tiết kiệm.' },
           ].map((p, i) => (
             <div key={i} className="bg-gray-700/30 rounded-lg p-3">
               <div className="flex items-start gap-3">
-                <span className="text-lg flex-shrink-0">{p.icon}</span>
+                <AppIcon name={p.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
                 <div>
                   <p className="text-gray-200 text-[11px] font-medium">{p.name}</p>
                   <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{p.desc}</p>
                   <div className="flex gap-2 mt-1.5 flex-wrap">
                     <span className="bg-gray-800/60 text-gray-400 text-[10px] px-2 py-0.5 rounded">{p.token}</span>
-                    <span className="bg-blue-900/30 text-blue-400 text-[10px] px-2 py-0.5 rounded">💡 {p.note}</span>
+                    <span className="bg-gray-800/60 border border-gray-750 text-gray-300 text-[10px] px-2 py-0.5 rounded flex items-center gap-1"><AppIcon name="sparkles" className="text-amber-500" size={10} /> {p.note}</span>
                   </div>
                 </div>
               </div>
@@ -1003,13 +1149,16 @@ function IntegrationShippingPanel() {
         <SectionTitle>⚡ Tính năng sau khi kết nối</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { icon: '📋', name: 'Tạo vận đơn', desc: 'Nhập thông tin giao hàng → tạo đơn ngay trong chat.' },
-            { icon: '🔍', name: 'Tra cứu vận đơn', desc: 'Nhập mã vận đơn → xem trạng thái, lịch trình giao hàng.' },
-            { icon: '💰', name: 'Tính phí giao hàng', desc: 'Tính trước phí vận chuyển dựa trên địa chỉ, trọng lượng.' },
-            { icon: '🔁', name: 'Workflow tự động', desc: 'Tự động tạo đơn vận chuyển sau khi xác nhận thanh toán.' },
+            { icon: 'file_text' as const, name: 'Tạo vận đơn', desc: 'Nhập thông tin giao hàng → tạo đơn ngay trong chat.' },
+            { icon: 'search' as const, name: 'Tra cứu vận đơn', desc: 'Nhập mã vận đơn → xem trạng thái, lịch trình giao hàng.' },
+            { icon: 'credit_card' as const, name: 'Tính phí giao hàng', desc: 'Tính trước phí vận chuyển dựa trên địa chỉ, trọng lượng.' },
+            { icon: 'shuffle' as const, name: 'Workflow tự động', desc: 'Tự động tạo đơn vận chuyển sau khi xác nhận thanh toán.' },
           ].map((f, i) => (
             <div key={i} className="bg-gray-700/30 rounded-lg p-2.5">
-              <p className="text-gray-200 text-[11px] font-medium">{f.icon} {f.name}</p>
+              <p className="text-gray-200 text-[11px] font-medium flex items-center gap-1.5">
+                <AppIcon name={f.icon} className="text-blue-500" size={12} />
+                {f.name}
+              </p>
               <p className="text-gray-500 text-[11px] mt-0.5">{f.desc}</p>
             </div>
           ))}
@@ -1019,7 +1168,10 @@ function IntegrationShippingPanel() {
       <Card>
         <SectionTitle>🔁 Ví dụ: Workflow vận chuyển</SectionTitle>
         <div className="bg-gray-900/60 rounded-lg border border-gray-700/50 p-3 space-y-1.5">
-          <p className="text-gray-200 text-[11px] font-semibold">📌 Khi khách hỏi "Đơn hàng tới đâu rồi?"</p>
+          <p className="text-gray-200 text-[11px] font-semibold flex items-center gap-1">
+            <AppIcon name="layers" size={10} className="text-blue-400" />
+            Khi khách hỏi "Đơn hàng tới đâu rồi?"
+          </p>
           <BulletList items={[
             '<strong class="text-gray-200">Trigger:</strong> Tin nhắn chứa "đơn hàng", "shipping", "giao hàng"',
             '<strong class="text-gray-200">Action 1:</strong> Tra cứu đơn hàng POS theo SĐT khách → lấy mã vận đơn',
@@ -1060,16 +1212,19 @@ function AIAssistantPanel() {
         <SectionTitle>📋 Tính năng Trợ lý AI</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { icon: '👤', name: 'Đa trợ lý', desc: 'Tạo nhiều trợ lý với prompt riêng — mỗi trợ lý phục vụ mục đích khác nhau.' },
-            { icon: '💬', name: 'Chat trong hội thoại', desc: 'Gán trợ lý vào hội thoại — AI tự động hỗ trợ khi có tin nhắn mới.' },
-            { icon: '⚙️', name: 'Workflow node AI', desc: 'Node AI trong Workflow: tạo nội dung, phân loại tin nhắn, tóm tắt hội thoại.' },
-            { icon: '📊', name: 'Báo cáo sử dụng', desc: 'Theo dõi token, request, chi phí ước tính theo từng trợ lý.' },
-            { icon: '🔌', name: 'Nhiều model', desc: 'GPT, Gemini, Claude, Deepseek, Claude — chọn model phù hợp.' },
-            { icon: '📝', name: 'Custom Prompt', desc: 'Viết prompt tùy chỉnh cho từng trợ lý — định hình phong cách trả lời.' },
+            { icon: 'accounts' as IconType, name: 'Đa trợ lý', desc: 'Tạo nhiều trợ lý với prompt riêng — mỗi trợ lý phục vụ mục đích khác nhau.' },
+            { icon: 'conversation' as IconType, name: 'Chat trong hội thoại', desc: 'Gán trợ lý vào hội thoại — AI tự động hỗ trợ khi có tin nhắn mới.' },
+            { icon: 'tools' as IconType, name: 'Workflow node AI', desc: 'Node AI trong Workflow: tạo nội dung, phân loại tin nhắn, tóm tắt hội thoại.' },
+            { icon: 'chart' as IconType, name: 'Báo cáo sử dụng', desc: 'Theo dõi token, request, chi phí ước tính theo từng trợ lý.' },
+            { icon: 'zap' as IconType, name: 'Nhiều model', desc: 'GPT, Gemini, Claude, Deepseek, Claude — chọn model phù hợp.' },
+            { icon: 'edit' as IconType, name: 'Custom Prompt', desc: 'Viết prompt tùy chỉnh cho từng trợ lý — định hình phong cách trả lời.' },
           ].map((f, i) => (
-            <div key={i} className="bg-gray-700/30 rounded-lg p-2.5">
-              <p className="text-gray-200 text-[11px] font-medium">{f.icon} {f.name}</p>
-              <p className="text-gray-500 text-[11px] mt-0.5">{f.desc}</p>
+            <div key={i} className="bg-gray-700/30 rounded-lg p-2.5 flex items-start gap-2">
+              <AppIcon name={f.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
+              <div>
+                <p className="text-gray-200 text-[11px] font-medium">{f.name}</p>
+                <p className="text-gray-500 text-[11px] mt-0.5">{f.desc}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -1086,10 +1241,9 @@ function AIAssistantPanel() {
         ]} />
       </Card>
 
-      {/* ─── 9Router section ───────────────────────────────────────────────── */}
       <div className="border-t border-gray-700/50 pt-4">
         <div className="flex items-start gap-3 mb-4">
-          <span className="text-3xl leading-none">🔄</span>
+          <AppIcon name="ai" className="text-blue-500 flex-shrink-0" size={40} />
           <div>
             <h3 className="text-white font-bold text-base">Tích hợp 9Router — Proxy AI giá rẻ & miễn phí</h3>
             <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">
@@ -1221,7 +1375,7 @@ function AIAssistantPanel() {
           {/* Issue #31 reference */}
           <div className="mt-3 bg-blue-900/20 border border-blue-700/40 rounded-lg px-3.5 py-2.5">
             <div className="flex items-start gap-2.5">
-              <span className="text-blue-400 text-sm flex-shrink-0 mt-0.5">💡</span>
+              <AppIcon name="sparkles" className="text-blue-400 flex-shrink-0 mt-0.5" size={14} />
               <div>
                 <p className="text-blue-300 text-[11px] font-semibold">Model tự động đồng bộ từ 9Router</p>
                 <p className="text-gray-400 text-[10px] leading-relaxed mt-0.5">
@@ -1271,18 +1425,21 @@ function AIAssistantPanel() {
           <SectionTitle>📋 Danh sách model 9Router thường dùng</SectionTitle>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { icon: '🟢', name: 'gpt-4o-mini', cost: 'Rẻ nhất', note: 'Chat cơ bản, CSKH' },
-              { icon: '🟡', name: 'gpt-4o', cost: 'Trung bình', note: 'Tư vấn bán hàng' },
-              { icon: '🟣', name: 'gpt-4o-chatgptselect', cost: 'Rẻ', note: 'Từ ChatGPT Plus' },
-              { icon: '🔴', name: 'claude-3-haiku', cost: 'Rẻ', note: 'Phân tích nhanh' },
-              { icon: '🔵', name: 'claude-3.5-sonnet', cost: 'Cao', note: 'Nghiệp vụ phức tạp' },
-              { icon: '🟤', name: 'gemini-2.0-flash', cost: 'Rất rẻ', note: 'Đa phương tiện' },
-              { icon: '⚪', name: 'deepseek-chat', cost: 'Rất rẻ', note: 'Code, logic' },
-              { icon: '🟠', name: 'qwen2.5-72b', cost: 'Rẻ', note: 'Tiếng Trung, đa năng' },
+              { color: 'bg-green-500', name: 'gpt-4o-mini', cost: 'Rẻ nhất', note: 'Chat cơ bản, CSKH' },
+              { color: 'bg-yellow-500', name: 'gpt-4o', cost: 'Trung bình', note: 'Tư vấn bán hàng' },
+              { color: 'bg-indigo-500', name: 'gpt-4o-chatgptselect', cost: 'Rẻ', note: 'Từ ChatGPT Plus' },
+              { color: 'bg-red-500', name: 'claude-3-haiku', cost: 'Rẻ', note: 'Phân tích nhanh' },
+              { color: 'bg-blue-500', name: 'claude-3.5-sonnet', cost: 'Cao', note: 'Nghiệp vụ phức tạp' },
+              { color: 'bg-amber-600', name: 'gemini-2.0-flash', cost: 'Rất rẻ', note: 'Đa phương tiện' },
+              { color: 'bg-gray-350', name: 'deepseek-chat', cost: 'Rất rẻ', note: 'Code, logic' },
+              { color: 'bg-orange-500', name: 'qwen2.5-72b', cost: 'Rẻ', note: 'Tiếng Trung, đa năng' },
             ].map((m, i) => (
               <div key={i} className="bg-gray-700/30 rounded-lg p-2.5">
                 <div className="flex items-center justify-between">
-                  <p className="text-gray-200 text-[11px] font-medium font-mono">{m.icon} {m.name}</p>
+                  <p className="text-gray-200 text-[11px] font-medium font-mono flex items-center">
+                    <span className={`w-2 h-2 rounded-full inline-block mr-1.5 ${m.color}`} />
+                    {m.name}
+                  </p>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
                     m.cost === 'Rất rẻ' || m.cost === 'Rẻ nhất' ? 'bg-green-900/40 text-green-400' :
                     m.cost === 'Cao' ? 'bg-red-900/40 text-red-400' : 'bg-yellow-900/40 text-yellow-400'
@@ -1336,7 +1493,7 @@ function AnalyticsPanel() {
           giúp bạn đánh giá hiệu quả kinh doanh, chăm sóc khách hàng và Tự động hoá.
         </Paragraph>
         <div className="flex items-center gap-3 bg-blue-900/20 border border-blue-700/40 rounded-lg px-3 py-2">
-          <span className="text-blue-400 text-sm flex-shrink-0">📊</span>
+          <AppIcon name="analytics" className="text-blue-400 flex-shrink-0" size={14} />
           <p className="text-blue-300 text-xs font-medium">Truy cập: Sidebar → Báo cáo — hoặc nhấn icon biểu đồ trên thanh điều hướng.</p>
         </div>
       </Card>
@@ -1357,17 +1514,20 @@ function AnalyticsPanel() {
         </Paragraph>
         <div className="grid grid-cols-2 gap-2 mt-1">
           {[
-            { icon: '💬', kpi: 'Tin nhắn hôm nay', desc: 'Gửi & nhận, so sánh hôm qua' },
-            { icon: '📨', kpi: 'Tổng tin nhắn', desc: 'Toàn kỳ, chia gửi/nhận' },
-            { icon: '👥', kpi: 'Liên hệ & Nhóm', desc: 'Tổng bạn bè, nhóm Zalo' },
-            { icon: '📢', kpi: 'Chiến dịch', desc: 'Tổng & đang chạy' },
-            { icon: '🤝', kpi: 'Lời mời kết bạn', desc: 'Gửi & nhận trong kỳ' },
-            { icon: '⚡', kpi: 'Workflow', desc: 'Số lần chạy & tỉ lệ thành công' },
-            { icon: '🤖', kpi: 'AI request', desc: 'Số request & token tiêu thụ' },
+            { icon: 'conversation' as IconType, kpi: 'Tin nhắn hôm nay', desc: 'Gửi & nhận, so sánh hôm qua' },
+            { icon: 'reply' as IconType, kpi: 'Tổng tin nhắn', desc: 'Toàn kỳ, chia gửi/nhận' },
+            { icon: 'users' as IconType, kpi: 'Liên hệ & Nhóm', desc: 'Tổng bạn bè, nhóm Zalo' },
+            { icon: 'sparkles' as IconType, kpi: 'Chiến dịch', desc: 'Tổng & đang chạy' },
+            { icon: 'users' as IconType, kpi: 'Lời mời kết bạn', desc: 'Gửi & nhận trong kỳ' },
+            { icon: 'zap' as IconType, kpi: 'Workflow', desc: 'Số lần chạy & tỉ lệ thành công' },
+            { icon: 'ai' as IconType, kpi: 'AI request', desc: 'Số request & token tiêu thụ' },
           ].map((k, i) => (
-            <div key={i} className="bg-gray-700/30 rounded-lg px-2.5 py-2">
-              <p className="text-gray-200 text-[11px] font-medium">{k.icon} {k.kpi}</p>
-              <p className="text-gray-500 text-[11px] mt-0.5">{k.desc}</p>
+            <div key={i} className="bg-gray-700/30 rounded-lg px-2.5 py-2 flex items-start gap-2">
+              <AppIcon name={k.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
+              <div>
+                <p className="text-gray-200 text-[11px] font-medium">{k.kpi}</p>
+                <p className="text-gray-500 text-[11px] mt-0.5">{k.desc}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -1440,13 +1600,16 @@ function AnalyticsPanel() {
         </Paragraph>
         <div className="grid grid-cols-2 gap-2 mt-1">
           {[
-            { icon: '💬', kpi: 'Tổng tin nhắn gửi', desc: 'Số tin nhắn thực tế mỗi nhân viên đã gửi' },
-            { icon: '🕐', kpi: 'Giờ online', desc: 'Tổng thời gian kết nối relay trong kỳ' },
-            { icon: '⚡', kpi: 'Thời gian phản hồi', desc: 'Trung bình từ lúc nhận đến khi trả lời' },
-            { icon: '🗣️', kpi: 'Hội thoại xử lý', desc: 'Số thread khác nhau đã nhắn tin' },
+            { icon: 'chat' as const, kpi: 'Tổng tin nhắn gửi', desc: 'Số tin nhắn thực tế mỗi nhân viên đã gửi' },
+            { icon: 'clock' as const, kpi: 'Giờ online', desc: 'Tổng thời gian kết nối relay trong kỳ' },
+            { icon: 'zap' as const, kpi: 'Thời gian phản hồi', desc: 'Trung bình từ lúc nhận đến khi trả lời' },
+            { icon: 'users' as const, kpi: 'Hội thoại xử lý', desc: 'Số thread khác nhau đã nhắn tin' },
           ].map((k, i) => (
             <div key={i} className="bg-gray-700/30 rounded-lg px-2.5 py-2">
-              <p className="text-gray-200 text-[11px] font-medium">{k.icon} {k.kpi}</p>
+              <p className="text-gray-200 text-[11px] font-medium flex items-center gap-1.5">
+                <AppIcon name={k.icon} className="text-blue-500" size={12} />
+                {k.kpi}
+              </p>
               <p className="text-gray-500 text-[11px] mt-0.5">{k.desc}</p>
             </div>
           ))}
@@ -1461,8 +1624,9 @@ function AnalyticsPanel() {
           '<strong class="text-gray-200">Bảng xếp hạng:</strong> Danh sách nhân viên sắp xếp theo tin nhắn hoặc giờ online — kèm badge màu sắc và avatar.',
         ]} />
         <div className="mt-2 bg-blue-900/20 border border-blue-700/30 rounded-lg px-3 py-2">
-          <p className="text-blue-300 text-[11px]">
-            💡 Dữ liệu được tính theo phiên kết nối relay thực tế — kể cả phiên kéo dài qua nhiều ngày đều được tính chính xác.
+          <p className="text-blue-300 text-[11px] flex items-start gap-1">
+            <AppIcon name="sparkles" size={12} className="text-blue-300 flex-shrink-0 mt-0.5" />
+            <span>Dữ liệu được tính theo phiên kết nối relay thực tế — kể cả phiên kéo dài qua nhiều ngày đều được tính chính xác.</span>
           </p>
         </div>
       </Card>
@@ -1559,13 +1723,16 @@ function SecurityPanel() {
         </Paragraph>
         <div className="grid grid-cols-2 gap-2 mt-2">
           {[
-            { label: 'Database (tin nhắn, danh bạ)', size: '~50–500 MB', icon: '🗃️' },
-            { label: 'Media (ảnh, video, file)', size: '1 GB – 50+ GB', icon: '🖼️' },
-            { label: 'Cài đặt & phiên đăng nhập', size: '< 1 MB', icon: '⚙️' },
-            { label: 'Log ứng dụng', size: '~10–50 MB', icon: '📋' },
+            { label: 'Database (tin nhắn, danh bạ)', size: '~50–500 MB', icon: 'storage' as const },
+            { label: 'Media (ảnh, video, file)', size: '1 GB – 50+ GB', icon: 'image' as const },
+            { label: 'Cài đặt & phiên đăng nhập', size: '< 1 MB', icon: 'tools' as const },
+            { label: 'Log ứng dụng', size: '~10–50 MB', icon: 'file_text' as const },
           ].map((item, i) => (
             <div key={i} className="bg-gray-700/30 rounded-lg px-2.5 py-2">
-              <p className="text-gray-200 text-[11px] font-medium">{item.icon} {item.label}</p>
+              <p className="text-gray-200 text-[11px] font-medium flex items-center gap-1.5">
+                <AppIcon name={item.icon} className="text-blue-500" size={12} />
+                {item.label}
+              </p>
               <p className="text-gray-500 text-[11px] mt-0.5">Ước tính: {item.size}</p>
             </div>
           ))}
@@ -1579,7 +1746,7 @@ function EmployeesPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <span className="text-4xl leading-none">🧑‍💼</span>
+        <AppIcon name="employees" className="text-blue-500 flex-shrink-0" size={40} />
         <div>
           <h3 className="text-white font-bold text-base">Cài đặt nhân viên & Workspace</h3>
           <p className="text-gray-400 text-xs mt-0.5">Cho phép nhiều nhân viên truy cập và xử lý tin nhắn từ máy riêng — có phân quyền chi tiết</p>
@@ -1671,15 +1838,15 @@ function EmployeesPanel() {
         </Paragraph>
         <div className="grid grid-cols-2 gap-1.5 mt-2">
           {[
-            { icon: '💬', mod: 'Chat', desc: 'Xem và gửi tin nhắn' },
-            { icon: '👥', mod: 'CRM', desc: 'Quản lý khách hàng, nhãn' },
-            { icon: '⚙️', mod: 'Workflow', desc: 'Xem và kích hoạt workflow' },
-            { icon: '🔗', mod: 'Tích hợp', desc: 'Dùng panel tích hợp' },
-            { icon: '📈', mod: 'Báo cáo', desc: 'Xem analytics, thống kê' },
-            { icon: '👤', mod: 'Bạn bè', desc: 'Xem danh sách liên hệ' },
+            { icon: 'conversation' as IconType, mod: 'Chat', desc: 'Xem và gửi tin nhắn' },
+            { icon: 'users' as IconType, mod: 'CRM', desc: 'Quản lý khách hàng, nhãn' },
+            { icon: 'tools' as IconType, mod: 'Workflow', desc: 'Xem và kích hoạt workflow' },
+            { icon: 'integration' as IconType, mod: 'Tích hợp', desc: 'Dùng panel tích hợp' },
+            { icon: 'chart' as IconType, mod: 'Báo cáo', desc: 'Xem analytics, thống kê' },
+            { icon: 'accounts' as IconType, mod: 'Bạn bè', desc: 'Xem danh sách liên hệ' },
           ].map((p, i) => (
             <div key={i} className="flex items-center gap-2 bg-gray-700/30 rounded-lg px-2.5 py-2">
-              <span className="text-sm">{p.icon}</span>
+              <AppIcon name={p.icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
               <div>
                 <p className="text-gray-200 text-[11px] font-medium">{p.mod}</p>
                 <p className="text-gray-500 text-[10px]">{p.desc}</p>
@@ -1687,9 +1854,10 @@ function EmployeesPanel() {
             </div>
           ))}
         </div>
-        <div className="mt-2 bg-blue-900/20 border border-blue-700/30 rounded-lg px-3 py-2">
-          <p className="text-blue-300 text-[11px]">
-            💡 Khi nhân viên không có quyền vào một trang, app tự động chuyển về <strong>Dashboard</strong> — không xảy ra lỗi hay lộ dữ liệu.
+        <div className="mt-2 bg-gray-800/60 border border-gray-700 rounded-lg px-3 py-2 flex items-start gap-1.5">
+          <AppIcon name="sparkles" className="text-amber-500 mt-0.5 flex-shrink-0" size={12} />
+          <p className="text-gray-300 text-[11px]">
+            Khi nhân viên không có quyền vào một trang, app tự động chuyển về <strong>Dashboard</strong> — không xảy ra lỗi hay lộ dữ liệu.
           </p>
         </div>
       </Card>
@@ -1795,7 +1963,7 @@ function BugReportPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <span className="text-3xl leading-none">🐛</span>
+        <AppIcon name="bug" className="text-blue-500 flex-shrink-0" size={40} />
         <div>
           <h3 className="text-white font-bold text-base">Báo lỗi & Hướng dẫn</h3>
           <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">
@@ -1864,9 +2032,10 @@ function BugReportPanel() {
             <strong className="text-gray-200">Môi trường:</strong> Zagi v27.1.0, Windows 11, Zalo cá nhân.
             Đã test 50 người (bình thường), 100 người (bình thường), 150 người (lỗi).
           </p>
-          <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-2 mt-2">
-            <p className="text-[11px] text-green-300">
-              ✅ Báo cáo này có: bước tái hiện chính xác, so sánh kết quả, thông tin môi trường đủ để xác định lỗi.
+          <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-2.5 mt-2 flex items-start gap-1.5">
+            <AppIcon name="check" className="text-green-400 mt-0.5 flex-shrink-0" size={12} />
+            <p className="text-[11px] text-gray-300">
+              Báo cáo này có: bước tái hiện chính xác, so sánh kết quả, thông tin môi trường đủ để xác định lỗi.
             </p>
           </div>
         </div>
@@ -1876,16 +2045,16 @@ function BugReportPanel() {
         <SectionTitle>🔍 Các loại lỗi thường gặp</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {[
-            { icon: '🔴', type: 'Lỗi crash / treo app', tips: 'Mô tả thao tác cuối trước khi crash. Chụp screenshot lỗi. Kiểm tra Console (Ctrl+Shift+I).' },
-            { icon: '🟡', type: 'Lỗi giao diện / hiển thị', tips: 'Screenshot so sánh hiện tại vs mong đợi. Ghi OS, độ phân giải màn hình.' },
-            { icon: '🔵', type: 'Lỗi kết nối / đồng bộ', tips: 'Ghi thời điểm lỗi. Kiểm tra mạng. Thử đăng nhập lại. Gửi screenshot trạng thái.' },
-            { icon: '🟣', type: 'Lỗi tích hợp bên thứ 3', tips: 'Ghi rõ tích hợp nào. Kiểm tra API key. Mô tả expected vs actual response.' },
-            { icon: '🟠', type: 'Lỗi Workflow không chạy', tips: 'Screenshot flow designer. Ghi trigger + action. Kiểm tra log "Chạy gần đây".' },
-            { icon: '⚪', type: 'Hiệu năng chậm / lag', tips: 'Ghi quy mô dữ liệu. Mô tả thao tác bị chậm. So sánh với phiên bản trước.' },
+            { dotColor: 'bg-red-500', type: 'Lỗi crash / treo app', tips: 'Mô tả thao tác cuối trước khi crash. Chụp screenshot lỗi. Kiểm tra Console (Ctrl+Shift+I).' },
+            { dotColor: 'bg-amber-500', type: 'Lỗi giao diện / hiển thị', tips: 'Screenshot so sánh hiện tại vs mong đợi. Ghi OS, độ phân giải màn hình.' },
+            { dotColor: 'bg-blue-500', type: 'Lỗi kết nối / đồng bộ', tips: 'Ghi thời điểm lỗi. Kiểm tra mạng. Thử đăng nhập lại. Gửi screenshot trạng thái.' },
+            { dotColor: 'bg-indigo-500', type: 'Lỗi tích hợp bên thứ 3', tips: 'Ghi rõ tích hợp nào. Kiểm tra API key. Mô tả expected vs actual response.' },
+            { dotColor: 'bg-orange-500', type: 'Lỗi Workflow không chạy', tips: 'Screenshot flow designer. Ghi trigger + action. Kiểm tra log "Chạy gần đây".' },
+            { dotColor: 'bg-gray-400', type: 'Hiệu năng chậm / lag', tips: 'Ghi quy mô dữ liệu. Mô tả thao tác bị chậm. So sánh với phiên bản trước.' },
           ].map((item, i) => (
             <div key={i} className="bg-gray-700/30 rounded-lg p-2.5 border border-gray-600/30">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-sm">{item.icon}</span>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`w-2 h-2 rounded-full ${item.dotColor} flex-shrink-0`} />
                 <p className="text-[11px] font-semibold text-white">{item.type}</p>
               </div>
               <p className="text-[11px] text-gray-400 leading-relaxed">{item.tips}</p>
@@ -1912,7 +2081,7 @@ function ContactPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <span className="text-3xl leading-none">📞</span>
+        <AppIcon name="phone" className="text-blue-500 mt-1 flex-shrink-0" size={30} />
         <div>
           <h3 className="text-white font-bold text-base">Liên hệ Zagi (Basan Corp)</h3>
           <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">
@@ -1953,9 +2122,9 @@ function ContactPanel() {
 const ENRICHED_TOOLS_GUIDE = [
   {
     id: 'crm' as const,
-    icon: '📊', title: 'CRM — Quản lý khách hàng',
-    color: 'border-blue-500/40 bg-blue-900/10',
-    badgeColor: 'bg-blue-600/30 text-blue-300',
+    icon: 'crm' as IconType, iconColor: 'text-blue-400', title: 'CRM — Quản lý khách hàng',
+    color: 'border-gray-700 bg-gray-800/30 hover:border-blue-500/40',
+    badgeColor: 'bg-gray-800/60 text-gray-300 border border-gray-700/60',
     purpose: 'Quản lý toàn bộ danh sách liên hệ Zalo, phân loại khách hàng bằng nhãn, ghi chú nội bộ, và chạy chiến dịch nhắn tin hàng loạt — biến Zalo thành CRM chuyên nghiệp.',
     sections: [
       {
@@ -1998,9 +2167,9 @@ const ENRICHED_TOOLS_GUIDE = [
   },
   {
     id: 'workflow' as const,
-    icon: '⚙️', title: 'Workflow — Tự động hoá',
-    color: 'border-indigo-500/40 bg-indigo-900/10',
-    badgeColor: 'bg-indigo-600/30 text-indigo-300',
+    icon: 'tools' as IconType, iconColor: 'text-indigo-400', title: 'Workflow — Tự động hoá',
+    color: 'border-gray-700 bg-gray-800/30 hover:border-indigo-500/40',
+    badgeColor: 'bg-gray-800/60 text-gray-300 border border-gray-700/60',
     purpose: 'Tạo các luồng xử lý tự động bằng giao diện kéo-thả trực quan: nhận sự kiện → xử lý logic → thực hiện hành động. Không cần viết code, có sẵn 20+ mẫu workflow.',
     sections: [
       {
@@ -2052,9 +2221,9 @@ const ENRICHED_TOOLS_GUIDE = [
   },
   {
     id: 'integration' as const,
-    icon: '🔗', title: 'Tích hợp — Kết nối bên thứ 3',
-    color: 'border-green-500/40 bg-green-900/10',
-    badgeColor: 'bg-green-600/30 text-green-500',
+    icon: 'integration' as IconType, iconColor: 'text-green-400', title: 'Tích hợp — Kết nối bên thứ 3',
+    color: 'border-gray-700 bg-gray-800/30 hover:border-green-500/40',
+    badgeColor: 'bg-gray-800/60 text-gray-300 border border-gray-700/60',
     purpose: 'Kết nối Zagi với hệ sinh thái bán hàng, thanh toán, vận chuyển Việt Nam. Tra cứu dữ liệu ngay trong khung chat, nhận webhook tự động, kết hợp Workflow để xử lý end-to-end.',
     sections: [
       {
@@ -2088,34 +2257,34 @@ const ENRICHED_TOOLS_GUIDE = [
 
 const ENRICHED_COMBO_SCENARIOS = [
   {
-    icon: '💰',
+    icon: 'credit_card' as IconType,
     title: 'Xác nhận thanh toán tự động',
     tags: ['Tích hợp', 'Workflow'],
-    color: 'border-emerald-500/30',
+    color: 'border-gray-700 bg-gray-800/30 hover:border-emerald-500/40',
     flow: ['🔗 SePay/Casso nhận CK', '⚙️ Trigger payment', '📝 Ghép tin "Cảm ơn {tên}, đơn #{mã} đã nhận {số tiền}"', '💬 Gửi tin Zalo', '🏷️ Gắn nhãn "Đã TT"'],
     desc: 'Khách chuyển khoản → Zagi nhận webhook từ ngân hàng → Workflow tự động gửi tin xác nhận + gắn nhãn CRM.',
   },
   {
-    icon: '🤖',
+    icon: 'ai' as IconType,
     title: 'Chatbot AI tư vấn bán hàng',
     tags: ['Workflow', 'AI'],
-    color: 'border-violet-500/30',
+    color: 'border-gray-700 bg-gray-800/30 hover:border-violet-500/40',
     flow: ['💬 Khách nhắn hỏi', '🧠 AI phân loại (hỏi giá / CSKH / khiếu nại)', '🤖 ChatGPT trả lời theo ngữ cảnh', '⌨️ Typing + delay', '💬 Gửi phản hồi'],
     desc: 'Khách nhắn tin → AI tự phân loại câu hỏi → ChatGPT sinh nội dung trả lời phù hợp → gửi tự động với hiệu ứng đang gõ.',
   },
   {
-    icon: '👋',
+    icon: 'user_plus' as IconType,
     title: 'Chào mừng + phân loại khách mới',
     tags: ['Workflow', 'CRM'],
-    color: 'border-blue-500/30',
+    color: 'border-gray-700 bg-gray-800/30 hover:border-blue-500/40',
     flow: ['👤 Nhận lời mời KB', '✅ Auto chấp nhận', '💬 Gửi tin chào', '🏷️ Gắn nhãn "Khách mới"', '📊 Ghi Google Sheets'],
     desc: 'Khi có người gửi kết bạn → auto accept → gửi lời chào + menu dịch vụ → gắn nhãn CRM → ghi thông tin vào Sheets.',
   },
   {
-    icon: '🛒',
+    icon: 'integration' as IconType,
     title: 'Tra cứu đơn hàng ngay trong chat',
     tags: ['Tích hợp', 'Workflow'],
-    color: 'border-orange-500/30',
+    color: 'border-gray-700 bg-gray-800/30 hover:border-orange-500/40',
     flow: ['💬 Khách nhắn "đơn hàng"', '🔍 KiotViet tra SĐT', '📝 Ghép kết quả', '💬 Gửi thông tin đơn'],
     desc: 'Khách hỏi về đơn hàng → Workflow tự tra cứu KiotViet/Haravan theo SĐT → gửi lại thông tin đơn chi tiết.',
   },
@@ -2129,25 +2298,29 @@ function UserGuidePanel() {
       {/* Tabs */}
       <div className="flex border-b border-gray-700/60 pb-1 flex-shrink-0 overflow-x-auto gap-0.5">
         {([
-          { id: 'overview', label: '💡 Tổng quan' },
-          { id: 'crm', label: '📊 CRM & Nhóm' },
-          { id: 'workflow', label: '⚙️ Workflow' },
-          { id: 'integration', label: '🔗 Tích hợp' },
-          { id: 'combo', label: '🔄 Kết hợp' },
-        ] as const).map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-2 text-[11px] font-semibold whitespace-nowrap rounded-lg transition-colors ${
-              activeTab === tab.id
-                ? 'bg-blue-600/20 text-blue-400'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+          { id: 'overview', icon: 'sparkles' as const, label: 'Tổng quan' },
+          { id: 'crm', icon: 'crm' as const, label: 'CRM & Nhóm' },
+          { id: 'workflow', icon: 'tools' as const, label: 'Workflow' },
+          { id: 'integration', icon: 'integration' as const, label: 'Tích hợp' },
+          { id: 'combo', icon: 'sync' as const, label: 'Kết hợp' },
+        ] as const).map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 py-2 text-[11px] font-semibold whitespace-nowrap rounded-lg transition-colors flex items-center gap-1.5 ${
+                isActive
+                  ? 'bg-blue-600/20 text-blue-400'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/40'
+              }`}
+            >
+              <AppIcon name={tab.icon} className={isActive ? 'text-blue-400' : 'text-gray-500'} size={12} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Content */}
@@ -2157,18 +2330,18 @@ function UserGuidePanel() {
         {activeTab === 'overview' && (
           <>
             <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-4 flex items-start gap-3">
-              <span className="text-2xl leading-none">💡</span>
+              <AppIcon name="sparkles" className="text-amber-400 mt-0.5 flex-shrink-0" size={18} />
               <div className="space-y-2">
                 <p className="text-gray-300 text-xs leading-relaxed">
                   Ba công cụ <strong className="text-white">CRM</strong>, <strong className="text-white">Workflow</strong> và <strong className="text-white">Tích hợp</strong> phối
                   hợp với nhau tạo thành hệ thống tự động hoá hoàn chỉnh:
                 </p>
                 <div className="flex items-center gap-2 text-[11px] flex-wrap">
-                  <span className="bg-green-950/40 text-white px-2.5 py-1 rounded-lg border border-green-700/40">🔗 Tích hợp nhận dữ liệu</span>
+                  <span className="bg-gray-800/60 border border-gray-700 text-gray-300 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><AppIcon name="integration" className="text-green-400" size={12} /> Tích hợp nhận dữ liệu</span>
                   <span className="text-gray-600">→</span>
-                  <span className="bg-indigo-950/40 text-indigo-200 px-2.5 py-1 rounded-lg border border-indigo-700/40">⚙️ Workflow xử lý logic</span>
+                  <span className="bg-gray-800/60 border border-gray-700 text-gray-300 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><AppIcon name="tools" className="text-indigo-400" size={12} /> Workflow xử lý logic</span>
                   <span className="text-gray-600">→</span>
-                  <span className="bg-blue-950/40 text-blue-300 px-2.5 py-1 rounded-lg border border-blue-700/40">📊 CRM quản lý KH</span>
+                  <span className="bg-gray-800/60 border border-gray-700 text-gray-300 px-2.5 py-1 rounded-lg flex items-center gap-1.5"><AppIcon name="crm" className="text-blue-400" size={12} /> CRM quản lý KH</span>
                 </div>
               </div>
             </div>
@@ -2182,7 +2355,7 @@ function UserGuidePanel() {
                 className={`w-full border rounded-xl p-4 text-left transition-colors hover:bg-gray-800/40 ${tool.color}`}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">{tool.icon}</span>
+                  <AppIcon name={tool.icon} className={(tool as any).iconColor || 'text-blue-400'} size={16} />
                   <h3 className="text-sm font-bold text-white">{tool.title}</h3>
                   <span className="text-gray-500 ml-auto text-[10px]">Xem chi tiết →</span>
                 </div>
@@ -2204,7 +2377,7 @@ function UserGuidePanel() {
               className="w-full border border-amber-500/30 bg-amber-900/10 rounded-xl p-4 text-left hover:bg-amber-900/20 transition-colors"
             >
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">🔄</span>
+                <AppIcon name="shuffle" className="text-amber-500" size={16} />
                 <h3 className="text-sm font-bold text-white">{ENRICHED_COMBO_SCENARIOS.length} kịch bản kết hợp thực tế</h3>
                 <span className="text-gray-500 ml-auto text-[10px]">Xem kịch bản →</span>
               </div>
@@ -2220,29 +2393,38 @@ function UserGuidePanel() {
             <>
               <div className={`border rounded-xl p-4 ${tool.color}`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-lg">{tool.icon}</span>
+                  <AppIcon name={tool.icon} className={(tool as any).iconColor || 'text-blue-400'} size={16} />
                   <h3 className="text-sm font-bold text-white">{tool.title}</h3>
                 </div>
                 <p className="text-xs text-gray-300 leading-relaxed">{tool.purpose}</p>
               </div>
 
-              {tool.sections.map((section, i) => (
-                <div key={i} className="space-y-2 bg-gray-800/20 border border-gray-700/30 rounded-xl p-4">
-                  <h4 className="text-xs font-bold text-white mb-2">{section.title}</h4>
-                  <ul className="space-y-2 pl-1">
-                    {section.items.map((item, j) => (
-                      <li key={j} className="flex items-start gap-2 text-xs text-gray-400">
-                        <span className="text-blue-500 mt-0.5 flex-shrink-0">•</span>
-                        <span className="leading-relaxed">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              {tool.sections.map((section, i) => {
+                const { icon, cleanText } = cleanEmojiPrefix(section.title);
+                return (
+                  <div key={i} className="space-y-2 bg-gray-800/20 border border-gray-700/30 rounded-xl p-4">
+                    <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                      {icon && <AppIcon name={icon} className="text-blue-500 flex-shrink-0" size={12} />}
+                      <span>{cleanText}</span>
+                    </h4>
+                    <ul className="space-y-2 pl-1">
+                      {section.items.map((item, j) => (
+                        <li key={j} className="flex items-start gap-2 text-xs text-gray-400">
+                          <span className="text-blue-500 mt-0.5 flex-shrink-0">•</span>
+                          <span className="leading-relaxed">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
 
               {/* Related combos */}
               <div className="border-t border-gray-700/60 pt-4 mt-2">
-                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">🔄 Kịch bản kết hợp liên quan</p>
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <AppIcon name="shuffle" className="text-gray-500" size={10} />
+                  Kịch bản kết hợp liên quan
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {ENRICHED_COMBO_SCENARIOS.filter(c =>
                     (activeTab === 'crm' && c.tags.includes('CRM')) ||
@@ -2251,7 +2433,7 @@ function UserGuidePanel() {
                   ).map((combo, i) => (
                     <div key={i} className={`border rounded-xl p-3 bg-gray-800/40 ${combo.color}`}>
                       <div className="flex items-center gap-2 mb-1.5">
-                        <span>{combo.icon}</span>
+                        <AppIcon name={combo.icon} className="text-blue-500" size={14} />
                         <span className="text-xs font-semibold text-white">{combo.title}</span>
                         <div className="flex gap-1 ml-auto">
                           {combo.tags.map(t => (
@@ -2281,7 +2463,7 @@ function UserGuidePanel() {
             {ENRICHED_COMBO_SCENARIOS.map((combo, i) => (
               <div key={i} className={`border rounded-xl p-4 space-y-2.5 bg-gray-800/40 ${combo.color}`}>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{combo.icon}</span>
+                  <AppIcon name={combo.icon} className="text-blue-500" size={16} />
                   <h3 className="text-xs font-bold text-white">{combo.title}</h3>
                   <div className="flex gap-1 ml-auto">
                     {combo.tags.map(t => (
@@ -2292,12 +2474,18 @@ function UserGuidePanel() {
                 <p className="text-[11px] text-gray-400 leading-relaxed">{combo.desc}</p>
                 {/* Flow diagram */}
                 <div className="flex items-center gap-1.5 text-[10px] flex-wrap pt-1">
-                  {combo.flow.map((step, j) => (
-                    <React.Fragment key={j}>
-                      {j > 0 && <span className="text-gray-600">→</span>}
-                      <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md border border-gray-700/60 whitespace-nowrap">{step}</span>
-                    </React.Fragment>
-                  ))}
+                  {combo.flow.map((step, j) => {
+                    const { icon: stepIcon, cleanText: stepText } = cleanEmojiPrefix(step);
+                    return (
+                      <React.Fragment key={j}>
+                        {j > 0 && <span className="text-gray-600">→</span>}
+                        <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md border border-gray-700/60 whitespace-nowrap flex items-center gap-1">
+                          {stepIcon && <AppIcon name={stepIcon} className="text-blue-400" size={10} />}
+                          <span>{stepText}</span>
+                        </span>
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -2309,9 +2497,63 @@ function UserGuidePanel() {
   );
 }
 
+function SafeGuidePanel() {
+  return (
+    <div className="space-y-4">
+      <Card>
+        <SectionTitle icon="shield_check">🛡️ Cẩm nang quy tắc gửi tin nhắn Zalo an toàn</SectionTitle>
+        <Paragraph>
+          Để đảm bảo quá trình chăm sóc khách hàng qua Zalo diễn ra an toàn, chuyên nghiệp và tránh bị hệ thống Zalo đánh dấu spam hoặc khóa tài khoản, bạn cần tuyệt đối tuân thủ các nguyên tắc vàng sau đây:
+        </Paragraph>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <div className="flex items-center gap-2 mb-2 text-red-500 font-bold">
+            <AppIcon name="alert_circle" className="text-red-500" size={16} />
+            <span>1. Gửi tin cho người chưa kết bạn (Người lạ)</span>
+          </div>
+          <BulletList items={[
+            '<strong>Hạn mức tối đa:</strong> Tài khoản cá nhân miễn phí chỉ được gửi tối đa <strong>40 người lạ/tháng</strong>.',
+            '<strong>Tần suất an toàn:</strong> Chỉ nên gửi từ <strong>10 - 20 người/ngày</strong>. Tránh gửi dồn dập.',
+            '<strong>Giãn cách (Delay):</strong> Bắt buộc cài đặt trì hoãn từ <strong>3 - 5 phút (180 - 300 giây)</strong> giữa mỗi lần gửi để không bị quét spam.',
+            '<strong>Trạng thái hiển thị:</strong> Tin nhắn gửi đi sẽ nằm trong phần "Tin nhắn chờ người lạ". Nếu khách hàng tắt tính năng nhận tin nhắn từ người lạ, tin nhắn sẽ báo lỗi gửi thất bại.',
+          ]} />
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-2 mb-2 text-green-500 font-bold">
+            <AppIcon name="users" className="text-green-500" size={16} />
+            <span>2. Gửi tin cho khách hàng đã kết bạn</span>
+          </div>
+          <BulletList items={[
+            '<strong>Hạn mức cá nhân (1-1):</strong> Zalo không giới hạn số lượng tin nhắn gửi hàng ngày cho bạn bè.',
+            '<strong>Khuyên dùng:</strong> Nên duy trì gửi từ <strong>50 - 100 người/ngày</strong> đối với tài khoản cá nhân để giữ tài khoản ở mức độ an toàn tối đa.',
+            '<strong>Chuyển tiếp (Forward) hàng loạt:</strong> Giới hạn tối đa <strong>50 người hoặc nhóm</strong> trong mỗi lần chuyển tiếp.',
+            '<strong>Báo cáo xấu (Report):</strong> Không spam tin nhắn rác hoặc quảng cáo phiền nhiễu. Nếu bị nhiều người dùng nhấn nút báo cáo xấu, tài khoản của bạn sẽ bị tạm khóa ngay lập tức.',
+          ]} />
+        </Card>
+      </div>
+
+      <Card>
+        <div className="flex items-center gap-2 mb-2 text-amber-500 font-bold">
+          <AppIcon name="sparkles" className="text-amber-500" size={16} />
+          <span>3. Nguyên tắc vàng bắt buộc khi chạy chiến dịch</span>
+        </div>
+        <BulletList items={[
+          '<strong>Cá nhân hóa nội dung (Spintax):</strong> Sử dụng cú pháp trộn nội dung <code>{Chào anh/chị|Hi|Xin chào}</code> kết hợp chèn các biến động như <code>{name}</code>, <code>{gender_greeting}</code> để nội dung mỗi tin nhắn gửi đi là khác nhau, tránh bộ lọc nhận diện spam của Zalo.',
+          '<strong>Kiểm soát liên kết (Link):</strong> Tuyệt đối hạn chế chèn link lạ, link rút gọn ở tin nhắn đầu tiên khi gửi cho người lạ. Chỉ nên gửi link sau khi đối phương đã phản hồi hoặc đồng ý kết bạn.',
+          '<strong>Nâng cấp Zalo Business:</strong> Nếu nhu cầu gửi tin cho người lạ lớn, bạn nên nâng cấp tài khoản lên gói <strong>Zalo Business</strong> để mở rộng hạn mức và gỡ bỏ giới hạn 40 người lạ/tháng.',
+        ]} />
+      </Card>
+    </div>
+  );
+}
+
 const PANEL_MAP = {
   overview:     OverviewPanel,
   userguide:    UserGuidePanel,
+  safeguide:    SafeGuidePanel,
   dashboard:    DashboardPanel,
   multiAccount: MultiAccountPanel,
   messaging:    MessagingPanel,
@@ -2361,25 +2603,31 @@ export default function IntroductionSettings({ initialSubtab }: IntroductionSett
 
   return (
     <div className="space-y-3">
-      <h2 className="text-base font-semibold text-white">📖 Giới thiệu & Hướng dẫn sử dụng</h2>
+      <h2 className="text-base font-semibold text-white flex items-center gap-2">
+        <AppIcon name="book" className="text-blue-500" size={16} />
+        Giới thiệu & Hướng dẫn sử dụng
+      </h2>
 
       <div className="flex gap-0 border border-gray-700 rounded-xl overflow-hidden" style={{ minHeight: '30rem' }}>
         {/* Left: Feature tabs */}
         <div className="w-44 flex-shrink-0 border-r border-gray-700 bg-gray-850 flex flex-col py-2 gap-0.5 overflow-y-auto">
-          {FEATURES.map(f => (
-            <button
-              key={f.id}
-              onClick={() => setActiveFeature(f.id)}
-              className={`flex items-center gap-2.5 w-full px-3 py-2.5 text-xs text-left transition-colors border-r-2 ${
-                activeFeature === f.id
-                  ? 'bg-blue-600/20 text-blue-400 border-blue-500'
-                  : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200 border-transparent'
-              }`}
-            >
-              <span className="text-sm leading-none flex-shrink-0">{f.icon}</span>
-              <span className="font-medium leading-tight">{f.label}</span>
-            </button>
-          ))}
+          {FEATURES.map(f => {
+            const isActive = activeFeature === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => setActiveFeature(f.id)}
+                className={`flex items-center gap-2.5 w-full px-3 py-2.5 text-xs text-left transition-colors border-r-2 ${
+                  isActive
+                    ? 'bg-blue-600/20 text-blue-400 border-blue-500'
+                    : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200 border-transparent'
+                }`}
+              >
+                <AppIcon name={f.icon} className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-gray-500'}`} size={14} />
+                <span className="font-medium leading-tight">{f.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Right: Content */}

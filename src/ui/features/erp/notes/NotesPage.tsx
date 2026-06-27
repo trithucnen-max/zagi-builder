@@ -3,6 +3,7 @@ import { useErpNoteStore } from '@/store/erp/erpNoteStore';
 import { ConfirmDialog, ErpModalCard, ErpOverlay, PromptDialog } from '../shared/ErpDialogs';
 import { MarkdownRenderer } from '../shared/ErpBadges';
 import NoteShareModal from './NoteShareModal';
+import AppIcon from '@/components/common/AppIcon';
 import NoteVersionHistory from './NoteVersionHistory';
 import ipc from '@/lib/ipc';
 
@@ -62,7 +63,7 @@ export default function NotesPage() {
             onClick={() => setActiveFolderId(undefined)}
             className={`w-full text-left px-3 py-2 text-xs transition-colors ${activeFolderId === undefined ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-300'}`}
           >
-            📝 Tất cả note
+            <span className="flex items-center gap-1"><AppIcon name="file_text" className="text-current" size={12} /> Tất cả note</span>
           </button>
           {folderTree.map(folder => (
             <FolderNode
@@ -111,7 +112,7 @@ export default function NotesPage() {
                 activeNoteId === note.id ? 'bg-blue-600/15 border-l-2 border-l-blue-500' : 'hover:bg-gray-700/30'
               }`}
             >
-              <p className="text-xs font-medium text-gray-200 truncate">{note.pinned ? '📌 ' : ''}{note.title}</p>
+              <p className="text-xs font-medium text-gray-200 truncate flex items-center gap-1">{note.pinned && <AppIcon name="pin" className="text-yellow-400" size={10} />}{note.title}</p>
               <p className="text-[10px] text-gray-500 mt-0.5 truncate">{note.content.slice(0, 50)}</p>
               <p className="text-[10px] text-gray-600 mt-0.5">
                 {new Date(note.updated_at).toLocaleDateString('vi-VN')}
@@ -120,7 +121,7 @@ export default function NotesPage() {
           ))}
           {notes.length === 0 && (
             <div className="flex flex-col items-center justify-center h-32 text-gray-600">
-              <span className="text-2xl mb-1">📝</span>
+              <AppIcon name="file_text" className="text-gray-600" size={24} />
               <p className="text-xs">Chưa có note nào</p>
             </div>
           )}
@@ -143,21 +144,21 @@ export default function NotesPage() {
                 className={`text-xs px-2 py-1 rounded ${preview ? 'bg-blue-600/30 text-blue-300' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700/50'}`}
                 title={preview ? 'Chuyển sang chỉnh sửa' : 'Xem preview markdown'}
               >
-                {preview ? '✏️ Sửa' : '👁 Preview'}
+                <span className="flex items-center gap-1">{preview ? <AppIcon name="edit" className="text-current" size={12} /> : <AppIcon name="eye" className="text-current" size={12} />}{preview ? 'Sửa' : 'Preview'}</span>
               </button>
               <button
                 onClick={() => setShowShare(true)}
                 className="text-gray-500 hover:text-blue-400 text-xs px-2 py-1 rounded hover:bg-gray-700/50"
                 title="Chia sẻ"
               >
-                🔗 Chia sẻ
+                <span className="flex items-center gap-1"><AppIcon name="share" className="text-current" size={12} /> Chia sẻ</span>
               </button>
               <button
                 onClick={() => setShowHistory(true)}
                 className="text-gray-500 hover:text-purple-400 text-xs px-2 py-1 rounded hover:bg-gray-700/50"
                 title="Lịch sử phiên bản"
               >
-                🕒 Lịch sử
+                <span className="flex items-center gap-1"><AppIcon name="clock" className="text-current" size={12} /> Lịch sử</span>
               </button>
               <button
                 onClick={() => setDeleteNoteTarget(activeNote.id)}

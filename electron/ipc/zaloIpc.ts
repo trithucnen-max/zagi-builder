@@ -247,7 +247,7 @@ export function registerZaloIpc() {
             result = await s.getGroupChatHistory(p.groupId, p.count ?? 500);
         } catch (apiErr: any) {
             Logger.warn(`[zaloIpc] getGroupChatHistory API error for group ${p.groupId}: ${apiErr.message}`);
-            return { groupMsgsCount: 0, error: apiErr.message };
+            throw apiErr;
         }
         Logger.info(`[zaloIpc] getGroupChatHistory raw result keys: ${Object.keys(result || {}).join(', ')}`);
         // zca-js trả về { groupMsgs: GroupMessage[] }

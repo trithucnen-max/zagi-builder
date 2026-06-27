@@ -58,7 +58,7 @@ export default function AIAssistantPage() {
         <div className="flex items-center gap-3">
           <div className="flex-1 flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-              <BrandLogo type="ai" className="w-4.5 h-4.5 text-white-important" />
+              <BrandLogo type="ai" className="w-5 h-5 text-white-important" />
             </div>
             <div>
               <h1 className="text-lg font-semibold text-white">Trợ lý AI</h1>

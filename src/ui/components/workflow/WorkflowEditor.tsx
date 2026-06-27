@@ -227,7 +227,7 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
             Hủy
           </button>
           <button onClick={handleRun} disabled={!selectedFriend || !selectedAccount}
-            className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
+            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             Chạy thử
           </button>
@@ -693,7 +693,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
           <div className="w-px h-4 bg-gray-700" />
 
           <button onClick={handleSandboxClick} disabled={running}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-colors"
             title="Chạy mô phỏng toàn bộ luồng mà không gửi tin nhắn/API thật">
             {running && runAsSandbox ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               : <span className="text-[10px]">🧪</span>}
@@ -701,13 +701,13 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
           </button>
 
           <button onClick={handleRunClick} disabled={running}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-colors">
             {running && !runAsSandbox ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               : <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>}
             Chạy thử
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-colors">
             {saving ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>}
             Lưu

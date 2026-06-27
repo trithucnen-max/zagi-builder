@@ -2,6 +2,7 @@ import React, { memo, useState } from 'react';
 import { Handle, Position, NodeProps, useReactFlow, BaseEdge, EdgeLabelRenderer, getBezierPath, EdgeProps } from 'reactflow';
 import { GROUP_COLORS, getNodeLabel } from '../workflowConfig';
 import { useAppStore } from '@/store/appStore';
+import AppIcon from '@/components/common/AppIcon';
 
 // ─── Custom deletable edge ────────────────────────────────────────────────────
 
@@ -64,12 +65,18 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
   const { setNodes, setEdges } = useReactFlow();
   const theme = useAppStore(s => s.theme);
   const isLight = theme === 'light';
+  const showNotification = useAppStore(s => s.showNotification);
   const [showInspect, setShowInspect] = useState(false);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     setNodes(ns => ns.filter(n => n.id !== data.id));
     setEdges(es => es.filter(e => e.source !== data.id && e.target !== data.id));
+  };
+
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    showNotification('Đã sao chép vào bộ nhớ tạm!', 'success');
   };
 
   const debug = data.debugResult;
@@ -143,27 +150,74 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
         }`}
         onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-between items-center pb-1.5 border-b border-gray-700/50 mb-2">
-            <span className="font-bold text-xs">🔍 Chi tiết Node</span>
-            <button onClick={() => setShowInspect(false)} className="text-gray-500 hover:text-gray-300 font-bold">✕</button>
+            <span className="font-bold text-xs flex items-center gap-1"><AppIcon name="search" className="text-current" size={12} /> Chi tiết Node</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const allData = {
+                    input: debug.input,
+                    output: debug.output,
+                    error: debug.error,
+                  };
+                  handleCopyText(JSON.stringify(allData, null, 2));
+                }}
+                className="text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-1"
+                title="Sao chép toàn bộ thông tin"
+              >
+                <AppIcon name="copy" size={10} />
+                <span>Copy all</span>
+              </button>
+              <button onClick={() => setShowInspect(false)} className="text-gray-500 hover:text-gray-300 font-bold">✕</button>
+            </div>
           </div>
-          <div className="space-y-2 max-h-56 overflow-y-auto">
+          <div className="space-y-2.5 max-h-56 overflow-y-auto">
             {debug.error && (
-              <div className="text-red-500 border-l-2 border-red-500 pl-1.5 font-semibold">
-                Lỗi: {debug.error}
+              <div className="space-y-1">
+                <span className="font-semibold block text-red-500 flex items-center justify-between">
+                  <span>❌ Lỗi:</span>
+                  <button
+                    onClick={() => handleCopyText(debug.error)}
+                    className="text-gray-500 hover:text-red-400 transition-colors"
+                    title="Sao chép lỗi"
+                  >
+                    <AppIcon name="copy" size={10} />
+                  </button>
+                </span>
+                <div className="text-red-500 border-l-2 border-red-500 pl-1.5 font-semibold select-all">
+                  {debug.error}
+                </div>
               </div>
             )}
             {debug.input && Object.keys(debug.input).length > 0 && (
-              <div>
-                <span className="text-blue-400 font-semibold block mb-0.5">📥 Input:</span>
-                <pre className="p-1.5 rounded bg-gray-800/40 border border-gray-700/30 max-h-24 overflow-auto whitespace-pre-wrap break-all">
+              <div className="space-y-1">
+                <span className={`font-semibold block flex items-center justify-between ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>
+                  <span className="flex items-center gap-1"><AppIcon name="download" className="text-current" size={10} /> Input:</span>
+                  <button
+                    onClick={() => handleCopyText(JSON.stringify(debug.input, null, 2))}
+                    className="text-gray-500 hover:text-blue-400 transition-colors"
+                    title="Sao chép Input"
+                  >
+                    <AppIcon name="copy" size={10} />
+                  </button>
+                </span>
+                <pre className={`p-1.5 rounded max-h-24 overflow-auto whitespace-pre-wrap break-all select-all ${isLight ? 'bg-gray-100 border border-gray-200 text-gray-800' : 'bg-gray-800/40 border border-gray-700/30 text-gray-200'}`}>
                   {JSON.stringify(debug.input, null, 2)}
                 </pre>
               </div>
             )}
             {debug.output && Object.keys(debug.output).length > 0 && (
-              <div>
-                <span className="text-green-400 font-semibold block mb-0.5">📤 Output:</span>
-                <pre className="p-1.5 rounded bg-gray-800/40 border border-gray-700/30 max-h-24 overflow-auto whitespace-pre-wrap break-all border-none">
+              <div className="space-y-1">
+                <span className={`font-semibold block flex items-center justify-between ${isLight ? 'text-green-600' : 'text-green-400'}`}>
+                  <span className="flex items-center gap-1"><AppIcon name="send" className="text-current" size={10} /> Output:</span>
+                  <button
+                    onClick={() => handleCopyText(JSON.stringify(debug.output, null, 2))}
+                    className="text-gray-500 hover:text-green-400 transition-colors"
+                    title="Sao chép Output"
+                  >
+                    <AppIcon name="copy" size={10} />
+                  </button>
+                </span>
+                <pre className={`p-1.5 rounded max-h-24 overflow-auto whitespace-pre-wrap break-all select-all border-none ${isLight ? 'bg-gray-100 text-gray-800' : 'bg-gray-800/40 text-gray-200'}`}>
                   {JSON.stringify(debug.output, null, 2)}
                 </pre>
               </div>
@@ -460,85 +514,85 @@ function getActionSummary(data: any, isLight: boolean): React.ReactNode {
     case 'zalo.sendImage':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>🖼️ Gửi ảnh:</span>
+          <span className="flex items-center gap-1"><AppIcon name="image" className="text-current" size={11} /> Gửi ảnh:</span>
           {cfg.filePath ? renderRichValue(truncate(cfg.filePath, 24), isLight) : <span className="italic text-gray-500">Chưa chọn</span>}
         </div>
       );
     case 'zalo.sendFile':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>📎 Gửi file:</span>
+          <span className="flex items-center gap-1"><AppIcon name="paperclip" className="text-current" size={11} /> Gửi file:</span>
           {cfg.filePath ? renderRichValue(truncate(cfg.filePath, 24), isLight) : <span className="italic text-gray-500">Chưa chọn</span>}
         </div>
       );
     case 'zalo.findUser':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>🔍 Tìm SĐT:</span>
+          <span className="flex items-center gap-1"><AppIcon name="search" className="text-current" size={11} /> Tìm SĐT:</span>
           {cfg.phone ? renderRichValue(cfg.phone, isLight) : <span className="italic text-gray-500">...</span>}
         </div>
       );
     case 'zalo.getUserInfo':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>👤 Lấy thông tin:</span>
+          <span className="flex items-center gap-1"><AppIcon name="users" className="text-current" size={11} /> Lấy thông tin:</span>
           {cfg.userId ? renderRichValue(cfg.userId, isLight) : <span className="italic text-gray-500">Người gửi</span>}
         </div>
       );
     case 'zalo.acceptFriendRequest':
-      return <span>✅ Chấp nhận kết bạn</span>;
+      return <span className="flex items-center gap-1"><AppIcon name="check" className="text-green-500" size={11} /> Chấp nhận kết bạn</span>;
     case 'zalo.rejectFriendRequest':
-      return <span>❌ Từ chối kết bạn</span>;
+      return <span className="flex items-center gap-1"><AppIcon name="x" className="text-red-500" size={11} /> Từ chối kết bạn</span>;
     case 'zalo.sendFriendRequest':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>➕ Kết bạn:</span>
+          <span className="flex items-center gap-1"><AppIcon name="user_plus" className="text-current" size={11} /> Kết bạn:</span>
           {cfg.userId ? renderRichValue(cfg.userId, isLight) : <span className="italic text-gray-500">...</span>}
         </div>
       );
     case 'zalo.addToGroup':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>👥➕ Thêm vào nhóm:</span>
+          <span className="flex items-center gap-1"><AppIcon name="users" className="text-current" size={11} /><AppIcon name="plus" className="text-current" size={9} /> Thêm vào nhóm:</span>
           {cfg.userId ? renderRichValue(cfg.userId, isLight) : <span className="italic text-gray-500">Người gửi</span>}
         </div>
       );
     case 'zalo.removeFromGroup':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>👥➖ Xóa khỏi nhóm:</span>
+          <span className="flex items-center gap-1"><AppIcon name="users" className="text-current" size={11} /><AppIcon name="x" className="text-red-400" size={9} /> Xóa khỏi nhóm:</span>
           {cfg.userId ? renderRichValue(cfg.userId, isLight) : <span className="italic text-gray-500">...</span>}
         </div>
       );
     case 'zalo.setMute':
-      return <span>{cfg.action === 'unmute' ? '🔔 Bật thông báo' : '🔕 Tắt thông báo'}</span>;
+      return <span className="flex items-center gap-1">{cfg.action === 'unmute' ? <AppIcon name="notifications" className="text-current" size={11} /> : <AppIcon name="bell_off" className="text-current" size={11} />}{cfg.action === 'unmute' ? 'Bật thông báo' : 'Tắt thông báo'}</span>;
     case 'zalo.forwardMessage':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>↪️ Chuyển tiếp đến:</span>
+          <span className="flex items-center gap-1"><AppIcon name="reply" className="text-current" size={11} /> Chuyển tiếp đến:</span>
           {cfg.toThreadId ? renderRichValue(cfg.toThreadId, isLight) : <span className="italic text-gray-500">...</span>}
         </div>
       );
     case 'zalo.undoMessage':
-      return <span>↩️ Thu hồi tin nhắn</span>;
+      return <span className="flex items-center gap-1"><AppIcon name="reply" className="text-current" size={11} /> Thu hồi tin nhắn</span>;
     case 'zalo.createPoll':
       return (
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-gray-500 font-medium">📊 Tạo bình chọn:</span>
+          <span className="text-[10px] text-gray-500 font-medium flex items-center gap-1"><AppIcon name="chart" className="text-current" size={10} /> Tạo bình chọn:</span>
           <span className="font-semibold truncate">{cfg.question || 'Chưa nhập câu hỏi'}</span>
         </div>
       );
     case 'zalo.getMessageHistory':
-      return <span>🕓 Lấy {cfg.count || 20} tin nhắn</span>;
+      return <span className="flex items-center gap-1"><AppIcon name="clock" className="text-current" size={11} /> Lấy {cfg.count || 20} tin nhắn</span>;
     case 'zalo.addReaction':
-      return <span>😊 React tin nhắn</span>;
+      return <span className="flex items-center gap-1"><AppIcon name="smile" className="text-current" size={11} /> React tin nhắn</span>;
     case 'zalo.assignLabel': {
       const cnt = Array.isArray(cfg.labelIds) && cfg.labelIds.length;
-      return <span>🏷️ Gắn {cnt ? `${cnt} nhãn` : 'nhãn'}</span>;
+      return <span className="flex items-center gap-1"><AppIcon name="labels" className="text-current" size={11} /> Gắn {cnt ? `${cnt} nhãn` : 'nhãn'}</span>;
     }
     case 'zalo.removeLabel': {
       const cnt = Array.isArray(cfg.labelIds) && cfg.labelIds.length;
-      return <span>🏷️ Gỡ {cnt ? `${cnt} nhãn` : 'nhãn'}</span>;
+      return <span className="flex items-center gap-1"><AppIcon name="labels" className="text-current" size={11} /> Gỡ {cnt ? `${cnt} nhãn` : 'nhãn'}</span>;
     }
     default:
       return '';
@@ -598,7 +652,7 @@ function getDataSummary(data: any, isLight: boolean): React.ReactNode {
     case 'data.randomPick':
       return <span>Chọn ngẫu nhiên</span>;
     case 'data.dateFormat':
-      return <span>📅 Định dạng ngày: <span className="font-semibold">{cfg.format || 'datetime'}</span></span>;
+      return <span className="flex items-center gap-1"><AppIcon name="calendar" className="text-current" size={11} /> Định dạng ngày: <span className="font-semibold">{cfg.format || 'datetime'}</span></span>;
     case 'data.jsonParse':
       return <span>Parse JSON</span>;
     default:
@@ -636,7 +690,7 @@ function getIntegrationSummary(data: any, isLight: boolean): React.ReactNode {
     case 'sheets.appendRow':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>📊 Ghi Sheets:</span>
+          <span className="flex items-center gap-1"><AppIcon name="chart" className="text-current" size={11} /> Ghi Sheets:</span>
           {cfg.sheetName || cfg.spreadsheetId ? (
             <span className="font-semibold truncate">{truncate(cfg.sheetName || cfg.spreadsheetId, 18)}</span>
           ) : (
@@ -647,31 +701,29 @@ function getIntegrationSummary(data: any, isLight: boolean): React.ReactNode {
     case 'sheets.readValues':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>📊 Đọc Sheets:</span>
+          <span className="flex items-center gap-1"><AppIcon name="chart" className="text-current" size={11} /> Đọc Sheets:</span>
           {cfg.range ? <span className="font-semibold">{truncate(cfg.range, 18)}</span> : <span className="italic text-gray-500">range...</span>}
         </div>
       );
     case 'sheets.updateCell':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>📊 Cập nhật ô:</span>
+          <span className="flex items-center gap-1"><AppIcon name="chart" className="text-current" size={11} /> Cập nhật ô:</span>
           {cfg.range ? <span className="font-semibold">{cfg.range}</span> : <span className="italic text-gray-500">...</span>}
         </div>
       );
     case 'ai.generateText': {
-      const platformEmoji = cfg.platform === 'gemini' ? '💎' : cfg.platform === 'deepseek' ? '🔮' : cfg.platform === 'grok' ? '⚡' : '🤖';
       return (
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-gray-500 font-medium">{platformEmoji} AI tạo văn bản:</span>
+          <span className="text-[10px] text-gray-500 font-medium flex items-center gap-1"><AppIcon name="ai" className="text-current" size={11} /> AI tạo văn bản:</span>
           {renderRichValue(truncate(cfg.prompt, 35), isLight)}
         </div>
       );
     }
     case 'ai.classify': {
-      const platformEmoji = cfg.platform === 'gemini' ? '💎' : cfg.platform === 'deepseek' ? '🔮' : cfg.platform === 'grok' ? '⚡' : '🏷';
       return (
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-gray-500 font-medium">{platformEmoji} AI Phân loại:</span>
+          <span className="text-[10px] text-gray-500 font-medium flex items-center gap-1"><AppIcon name="ai" className="text-current" size={11} /> AI Phân loại:</span>
           <span className="font-semibold truncate">{truncate(cfg.categories, 25) || '...'}</span>
         </div>
       );
@@ -679,23 +731,23 @@ function getIntegrationSummary(data: any, isLight: boolean): React.ReactNode {
     case 'notify.telegram':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>✈️ Gửi Telegram:</span>
+          <span className="flex items-center gap-1"><AppIcon name="send" className="text-current" size={11} /> Gửi Telegram:</span>
           {cfg.chatId ? renderRichValue(cfg.chatId, isLight) : <span className="italic text-gray-500">Chat ID...</span>}
         </div>
       );
     case 'notify.discord':
-      return <span>🎮 Gửi tin nhắn Discord</span>;
+      return <span className="flex items-center gap-1"><AppIcon name="chat" className="text-current" size={11} /> Gửi tin nhắn Discord</span>;
     case 'notify.email':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>📧 Gửi Email:</span>
+          <span className="flex items-center gap-1"><AppIcon name="at_sign" className="text-current" size={11} /> Gửi Email:</span>
           {cfg.to ? renderRichValue(cfg.to, isLight) : <span className="italic text-gray-500">Email...</span>}
         </div>
       );
     case 'notify.notion':
       return (
         <div className="flex items-center gap-1 flex-wrap">
-          <span>📝 Notion DB:</span>
+          <span className="flex items-center gap-1"><AppIcon name="file_text" className="text-current" size={11} /> Notion DB:</span>
           {cfg.databaseId ? <span className="font-semibold truncate">{truncate(cfg.databaseId, 12)}</span> : <span className="italic text-gray-500">DB...</span>}
         </div>
       );

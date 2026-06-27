@@ -2274,6 +2274,18 @@ function LabelPickerModal({
   const handleCreateLocalLabel = async () => {
     const name = newLocalLabelName.trim();
     if (!name) return;
+    const existing = options.find(o => o.source === 'local' && o.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      if (mode === 'single') {
+        onChange([existing.value]);
+      } else {
+        if (!selected.includes(existing.value)) {
+          onChange([...selected, existing.value]);
+        }
+      }
+      setNewLocalLabelName('');
+      return;
+    }
     setCreating(true);
     try {
       let pageIds = '';
@@ -3233,20 +3245,35 @@ function ContactPickerModal({
             <div className="flex-1 overflow-y-auto p-3">
               {/* Error message */}
               {error && (
-                <div className={`mb-3 px-3 py-2.5 rounded-lg flex items-start gap-2 ${
+                <div className={`mb-3 px-3 py-2.5 rounded-lg flex items-start justify-between gap-2 ${
                   isLight ? 'bg-amber-50 border border-amber-200' : 'bg-amber-500/10 border border-amber-500/30'
                 }`}>
-                  <svg className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isLight ? 'text-amber-500' : 'text-amber-400'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                  </svg>
-                  <div>
-                    <p className={`text-xs font-medium ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>
-                      {error}
-                    </p>
-                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-amber-600' : 'text-amber-400/70'}`}>
-                      Hãy chọn tài khoản khác hoặc nhập ID thủ công.
-                    </p>
+                  <div className="flex items-start gap-2">
+                    <svg className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isLight ? 'text-amber-500' : 'text-amber-400'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <div>
+                      <p className={`text-xs font-medium ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>
+                        {error}
+                      </p>
+                      <p className={`text-[10px] mt-0.5 ${isLight ? 'text-amber-600' : 'text-amber-400/70'}`}>
+                        Hãy chọn tài khoản khác hoặc nhập ID thủ công.
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(error);
+                      useAppStore.getState().showNotification('Đã sao chép chi tiết lỗi', 'success');
+                    }}
+                    className={`flex-shrink-0 px-2 py-1 text-[10px] rounded transition-colors ${
+                      isLight 
+                        ? 'bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300/40' 
+                        : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30'
+                    }`}
+                  >
+                    📋 Copy lỗi
+                  </button>
                 </div>
               )}
 

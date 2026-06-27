@@ -4,6 +4,8 @@ import AccountMultiDropdown from '../common/AccountMultiDropdown';
 import QuickMessageSettings from './conversation/QuickMessageSettings';
 import LabelSettings from './conversation/LabelSettings';
 
+import AppIcon from '../common/AppIcon';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type MainTab = 'quick_msg' | 'labels';
 
@@ -31,8 +33,8 @@ export default function ConversationSettings() {
         {/* Main tabs — pill style */}
         <div className="flex bg-gray-800 rounded-lg p-0.5 gap-0.5 my-2">
           {([
-            { id: 'quick_msg' as const, label: '⚡ Tin nhắn nhanh' },
-            { id: 'labels'    as const, label: '🏷️ Quản lý nhãn' },
+            { id: 'quick_msg' as const, label: 'Tin nhắn nhanh', icon: 'zap' as const },
+            { id: 'labels'    as const, label: 'Quản lý nhãn', icon: 'labels' as const },
           ]).map(tab => (
             <button
               key={tab.id}
@@ -42,7 +44,10 @@ export default function ConversationSettings() {
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
               }`}
-            >{tab.label}</button>
+            >
+              <AppIcon name={tab.icon} className="text-current" size={12} />
+              {tab.label}
+            </button>
           ))}
         </div>
 

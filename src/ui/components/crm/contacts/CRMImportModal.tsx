@@ -605,6 +605,15 @@ export default function CRMImportModal({ onClose, onDone }: CRMImportModalProps)
                       onClick={async () => {
                         const name = newLocalLabelName.trim();
                         if (!name) return;
+                        const existing = localLabels.find(l => l.name.toLowerCase() === name.toLowerCase());
+                        if (existing) {
+                          if (!selectedLocalLabelIds.includes(existing.id)) {
+                            setSelectedLocalLabelIds(prev => [...prev, existing.id]);
+                          }
+                          setNewLocalLabelName('');
+                          showNotification(`Đã tự động chọn nhãn "${existing.name}" sẵn có`, 'info');
+                          return;
+                        }
                         try {
                           const createRes = await ipc.db?.upsertLocalLabel({
                             label: { id: 0, name, color: '#f97316', emoji: '🎯', pageIds: zaloId }

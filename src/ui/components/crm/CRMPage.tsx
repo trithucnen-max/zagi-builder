@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { useCRMStore, CRMContact } from '@/store/crmStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore, LabelData } from '@/store/appStore';
@@ -21,6 +21,7 @@ import CRMRequestsTab from './search/CRMRequestsTab';
 import CRMPipelineTab from './pipeline/CRMPipelineTab';
 import AddToContactsModal from './contacts/AddToContactsModal';
 import CRMImportModal from './contacts/CRMImportModal';
+import AppIcon from '@/components/common/AppIcon';
 
 import BulkGroupManageModal from './modals/BulkGroupManageModal';
 import SmartGroupModal from './modals/SmartGroupModal';
@@ -29,6 +30,18 @@ import { getCapability, type Channel } from '../../../configs/channelConfig';
 import ScanPanel from './scan/ScanPanel';
 import ScanHistoryTab from './scan/ScanHistoryTab';
 import ScanStatsTab from './scan/ScanStatsTab';
+const TAB_ICONS: Record<string, any> = {
+  search: 'search',
+  contacts: 'users',
+  groups: 'users',
+  requests: 'user_plus',
+  pipeline: 'chart',
+  campaigns: 'sparkles',
+  history: 'file_text',
+  scan: 'zap',
+  scan_history: 'file_text',
+  scan_stats: 'chart',
+};
 
 
 // ── Wizard Step Indicator ────────────────────────────────────────────────
@@ -93,6 +106,7 @@ export default function CRMPage() {
   const [showCreateInAddModal, setShowCreateInAddModal] = useState(false);
   const [showPhoneImport, setShowPhoneImport] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const creatingCampaignRef = useRef(false);
 
 
   // ── Campaign creation wizard state ──────────────────────────────────
@@ -294,18 +308,23 @@ export default function CRMPage() {
 
   // ── Campaign actions ─────────────────────────────────────────────────────
   const handleCreateCampaign = async (data: any) => {
-    if (!activeAccountId) return;
-    const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
-    if (res?.success) {
-      await loadCampaigns();
-      store.setActiveCampaign(res.id);
-      showNotification('Đã tạo chiến dịch', 'success');
-      // Wizard flow: advance to step 2 (add contacts) after saving
-      if (wizardActive) {
-        setWizardCampaignId(res.id);
-        setShowCreateCampaign(false);
-        setWizardStep(2);
+    if (!activeAccountId || creatingCampaignRef.current) return;
+    creatingCampaignRef.current = true;
+    try {
+      const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
+      if (res?.success) {
+        await loadCampaigns();
+        store.setActiveCampaign(res.id);
+        showNotification('Đã tạo chiến dịch', 'success');
+        // Wizard flow: advance to step 2 (add contacts) after saving
+        if (wizardActive) {
+          setWizardCampaignId(res.id);
+          setShowCreateCampaign(false);
+          setWizardStep(2);
+        }
       }
+    } finally {
+      creatingCampaignRef.current = false;
     }
   };
 
@@ -342,9 +361,20 @@ export default function CRMPage() {
 
   const handleAddContactsToCampaign = async (campaignId: number, contacts: any[]) => {
     if (!activeAccountId) return;
-    await ipc.crm?.addCampaignContacts({ zaloId: activeAccountId, campaignId, contacts });
+    const res = await ipc.crm?.addCampaignContacts({ zaloId: activeAccountId, campaignId, contacts });
     await loadCampaigns();
-    showNotification(`Đã thêm ${contacts.length} liên hệ vào chiến dịch`, 'success');
+    if (res?.success) {
+      if (res.limitExceeded) {
+        showNotification(
+          `Chiến dịch chỉ cho tối đa 1000 người. Đã thêm ${res.addedCount} và loại bỏ ${res.discardedCount} người vượt quá.`,
+          'warning'
+        );
+      } else {
+        showNotification(`Đã thêm ${res.addedCount || contacts.length} liên hệ vào chiến dịch`, 'success');
+      }
+    } else {
+      showNotification('Lỗi: ' + (res?.error || 'Không thể thêm liên hệ'), 'error');
+    }
   };
 
   const handleUpdateCampaign = async (data: any) => {
@@ -367,12 +397,17 @@ export default function CRMPage() {
   };
 
   const handleCreateCampaignInAddModal = async (data: any) => {
-    if (!activeAccountId) return;
-    const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
-    if (res?.success) {
-      await loadCampaigns();
-      if (res.id) setSelectedCampaignForAdd(res.id);
-      showNotification('Đã tạo chiến dịch', 'success');
+    if (!activeAccountId || creatingCampaignRef.current) return;
+    creatingCampaignRef.current = true;
+    try {
+      const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
+      if (res?.success) {
+        await loadCampaigns();
+        if (res.id) setSelectedCampaignForAdd(res.id);
+        showNotification('Đã tạo chiến dịch', 'success');
+      }
+    } finally {
+      creatingCampaignRef.current = false;
     }
   };
 
@@ -413,13 +448,11 @@ export default function CRMPage() {
 
   // ── Bulk actions ─────────────────────────────────────────────────────────
   const handleBulkAddToCampaign = async () => {
-    if (store.campaigns.length === 0) {
-      showNotification('Hãy tạo chiến dịch trước', 'info');
-      store.setTab('campaigns');
-      return;
-    }
     setSelectedCampaignForAdd(null);
     setAddToCampaignModal(true);
+    if (store.campaigns.filter(c => c.status !== 'done').length === 0) {
+      setShowCreateInAddModal(true);
+    }
   };
 
   const handleBulkTagLocal = () => {
@@ -647,24 +680,29 @@ export default function CRMPage() {
           }).map(t => (
             <button key={t} onClick={() => store.setTab(t)}
               className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${store.tab === t ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
-              {t === 'search' ? '🔍 Tìm kiếm'
-                : t === 'contacts' ? `👤 Liên hệ${store.totalContacts ? ` (${store.totalContacts})` : ''}`
-                : t === 'groups' ? `👥 Nhóm${store.groupCount ? ` (${store.groupCount})` : ''}`
-                : t === 'requests' ? (
-                  <span className="relative inline-flex items-center gap-1.5">
-                    <span>{`📨 Lời mời${store.requestCount ? ` (${store.requestCount})` : ''}`}</span>
-                    {hasUnreadRequestDot && (
-                      <span className="w-2 h-2 bg-red-500 rounded-full border border-gray-900 flex-shrink-0" />
-                    )}
-                  </span>
-                )
-                : t === 'pipeline' ? '📊 Bảng Pipeline'
-                : t === 'campaigns' ? `📢 Chiến dịch${store.campaigns.length ? ` (${store.campaigns.length})` : ''}`
-                : t === 'history' ? '📋 Lịch sử'
-                : t === 'scan' ? '📡 Quét dữ liệu'
-                : t === 'scan_history' ? '📋 Lịch sử quét'
-                : t === 'scan_stats' ? '📊 Thống kê'
-                : t}
+              <span className="flex items-center gap-1.5">
+                <AppIcon
+                  name={TAB_ICONS[t] || 'zap'}
+                  className={store.tab === t ? 'text-white' : 'text-black dark:text-gray-400'}
+                  size={14}
+                />
+                <span>
+                  {t === 'search' ? 'Tìm kiếm'
+                    : t === 'contacts' ? `Liên hệ${store.totalContacts ? ` (${store.totalContacts})` : ''}`
+                    : t === 'groups' ? `Nhóm${store.groupCount ? ` (${store.groupCount})` : ''}`
+                    : t === 'requests' ? `Lời mời${store.requestCount ? ` (${store.requestCount})` : ''}`
+                    : t === 'pipeline' ? 'Bảng Pipeline'
+                    : t === 'campaigns' ? `Chiến dịch${store.campaigns.length ? ` (${store.campaigns.length})` : ''}`
+                    : t === 'history' ? 'Lịch sử'
+                    : t === 'scan' ? 'Quét dữ liệu'
+                    : t === 'scan_history' ? 'Lịch sử quét'
+                    : t === 'scan_stats' ? 'Thống kê'
+                    : t}
+                </span>
+                {t === 'requests' && hasUnreadRequestDot && (
+                  <span className="w-2 h-2 bg-red-500 rounded-full border border-gray-900 flex-shrink-0" />
+                )}
+              </span>
             </button>
           ))}
         </div>
@@ -672,10 +710,10 @@ export default function CRMPage() {
         {/* Navigate to Analytics / Reports */}
         <button
           onClick={() => navigateToAnalytics('overview')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
+          className="flex items-center justify-center p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
           title="Xem báo cáo & phân tích"
         >
-          📊
+          <AppIcon name="overview" className="text-black dark:text-gray-400" size={15} />
         </button>
         {/* Account selector */}
         <AccountSelectorDropdown

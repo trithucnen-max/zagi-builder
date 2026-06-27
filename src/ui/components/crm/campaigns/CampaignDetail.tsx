@@ -5,6 +5,7 @@ import { showConfirm } from '@/components/common/ConfirmDialog';
 import ipc from '@/lib/ipc';
 import TargetSelector from './TargetSelector';
 import CampaignCreateModal from './CampaignCreateModal';
+import AppIcon from '@/components/common/AppIcon';
 
 interface LocalLabelItem {
   id: number;
@@ -28,10 +29,6 @@ interface CampaignDetailProps {
 const STATUS_STYLE: Record<string, string> = {
   pending: 'text-gray-400', sending: 'text-blue-400 animate-pulse',
   sent: 'text-green-400', failed: 'text-red-400',
-};
-
-const STATUS_ICON: Record<string, string> = {
-  pending: '⏳', sending: '📤', sent: '✓', failed: '✕',
 };
 
 export default function CampaignDetail({ campaign, zaloId, allLabels, localLabels, localLabelThreadMap, onStatusChange, onAddContacts, onUpdate }: CampaignDetailProps) {
@@ -217,30 +214,64 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-white text-sm truncate">{campaign.name}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              ⏱ {campaign.delay_seconds}s delay · {campaign.total_contacts} liên hệ
-              {campaign.daily_send_limit > 0
-                ? <> · 📊 {campaign.daily_send_limit}/ngày từ {campaign.daily_start_time}</>
-                : <> · 🕐 Chạy từ {campaign.daily_start_time}</>}
+            <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <span className="flex items-center gap-0.5">
+                <AppIcon name="clock" className="text-gray-500" size={10} />
+                {campaign.delay_seconds}s delay
+              </span>
+              <span>·</span>
+              <span className="flex items-center gap-0.5">
+                <AppIcon name="users" className="text-gray-500" size={10} />
+                {campaign.total_contacts} liên hệ
+              </span>
+              {campaign.daily_send_limit > 0 ? (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-0.5">
+                    <AppIcon name="chart" className="text-gray-500" size={10} />
+                    {campaign.daily_send_limit}/ngày từ {campaign.daily_start_time}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-0.5">
+                    <AppIcon name="clock" className="text-gray-500" size={10} />
+                    Chạy từ {campaign.daily_start_time}
+                  </span>
+                </>
+              )}
             </p>
           </div>
           <div className="flex gap-1.5 flex-shrink-0">
             {/* Nút Sửa: chỉ hiện khi nháp hoặc tạm dừng */}
             {canEdit && onUpdate && (
               <button onClick={() => setShowEdit(true)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">✏️ Sửa</button>
+                className="text-xs px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors flex items-center gap-1 font-medium">
+                <AppIcon name="edit" className="text-gray-300" size={11} />
+                Sửa
+              </button>
             )}
             {campaign.status === 'draft' && (
               <button onClick={() => onStatusChange(campaign.id, 'active')}
-                className="text-xs px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white">▶ Bắt đầu</button>
+                className="text-xs px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center gap-1 font-medium">
+                <AppIcon name="play" className="text-white fill-white" size={10} />
+                Bắt đầu
+              </button>
             )}
             {campaign.status === 'active' && (
               <button onClick={() => onStatusChange(campaign.id, 'paused')}
-                className="text-xs px-3 py-1.5 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white">⏸ Tạm dừng</button>
+                className="text-xs px-3 py-1.5 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white flex items-center gap-1 font-medium">
+                <AppIcon name="pause" className="text-white fill-white" size={10} />
+                Tạm dừng
+              </button>
             )}
             {campaign.status === 'paused' && (
               <button onClick={() => onStatusChange(campaign.id, 'active')}
-                className="text-xs px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white">▶ Tiếp tục</button>
+                className="text-xs px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center gap-1 font-medium">
+                <AppIcon name="play" className="text-white fill-white" size={10} />
+                Tiếp tục
+              </button>
             )}
           </div>
         </div>
@@ -281,7 +312,8 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
           <div className="mt-3 p-3 bg-gray-900/50 border border-gray-700/60 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-                📊 Báo cáo chiến dịch
+                <AppIcon name="chart" className="text-blue-400" size={12} />
+                Báo cáo chiến dịch
                 {campaign.status === 'done' && (
                   <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">Hoàn thành</span>
                 )}
@@ -300,7 +332,8 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
                     onClick={handleRetryFailures}
                     className="text-[10px] px-2 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-lg transition-colors flex items-center gap-1 font-medium"
                     title="Gửi lại cho các liên hệ bị lỗi">
-                    🔄 Gửi bù lỗi ({stats.failedCount})
+                    <AppIcon name="sync" className="text-blue-400" size={10} />
+                    Gửi bù lỗi ({stats.failedCount})
                   </button>
                 )}
                 {campaign.status === 'done' && (
@@ -308,7 +341,8 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
                     onClick={handleRestartCampaign}
                     className="text-[10px] px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 rounded-lg transition-colors flex items-center gap-1 font-medium"
                     title="Gửi lại toàn bộ liên hệ từ đầu">
-                    🔁 Chạy lại
+                    <AppIcon name="sync" className="text-gray-300" size={10} />
+                    Chạy lại
                   </button>
                 )}
               </div>
@@ -337,7 +371,10 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
             {/* Failures reasons summary */}
             {stats.failedReasons.length > 0 && (
               <div className="bg-gray-800/20 p-2 rounded-lg border border-gray-700/20">
-                <p className="text-[9px] text-rose-400 font-semibold uppercase tracking-wider mb-1">⚠️ Chi tiết lỗi gửi:</p>
+                <p className="text-[9px] text-rose-400 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1">
+                  <AppIcon name="x" className="text-rose-500" size={10} />
+                  Chi tiết lỗi gửi:
+                </p>
                 <div className="space-y-1 max-h-[80px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                   {stats.failedReasons.map(({ reason, count }) => (
                     <div key={reason} className="flex justify-between items-start text-[11px] text-gray-400 leading-normal gap-2">
@@ -358,7 +395,10 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
             try { groupIds = JSON.parse(campaign.mixed_config || '{}').group_ids || []; } catch {}
             return (
               <>
-                <p className="text-[11px] text-gray-500 mb-1">👥 Nhóm đích:</p>
+                <p className="text-[11px] text-gray-500 mb-1 flex items-center gap-1">
+                  <AppIcon name="users" className="text-gray-500" size={12} />
+                  Nhóm đích:
+                </p>
                 {groupIds.length > 0
                   ? <p className="text-xs text-orange-300">{groupIds.length} nhóm đã chọn</p>
                   : <p className="text-xs text-gray-500 italic">Chưa cấu hình nhóm</p>}
@@ -416,7 +456,9 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
             >
               {removing ? (
                 <span className="inline-block w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" />
-              ) : '🗑'}
+              ) : (
+                <AppIcon name="trash" className="text-red-400" size={11} />
+              )}
               Xóa {selectedIds.size}
             </button>
           )}
@@ -465,8 +507,12 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
                   <p className="text-[11px] text-gray-600 font-mono truncate">{c.contact_id}</p>
                 )}
               </div>
-              <span className={`text-[11px] flex-shrink-0 ${STATUS_STYLE[c.status]}`}>
-                {STATUS_ICON[c.status] || '?'} {c.status}
+              <span className={`text-[11px] flex-shrink-0 flex items-center gap-1 font-medium ${STATUS_STYLE[c.status]}`}>
+                {c.status === 'pending' && <AppIcon name="clock" className="text-gray-400" size={10} />}
+                {c.status === 'sending' && <AppIcon name="send" className="text-blue-400 animate-pulse" size={10} />}
+                {c.status === 'sent' && <AppIcon name="check" className="text-green-400" size={11} />}
+                {c.status === 'failed' && <AppIcon name="x" className="text-red-400" size={10} />}
+                <span className="capitalize">{c.status}</span>
               </span>
               {c.sent_at > 0 && <span className="text-[11px] text-gray-600 flex-shrink-0">{fmt(c.sent_at)}</span>}
             </div>

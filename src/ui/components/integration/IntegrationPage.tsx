@@ -3,6 +3,7 @@ import ipc from '@/lib/ipc';
 import IntegrationDetailPage from './IntegrationDetailPage';
 import AIAssistantPage from './AIAssistantPage';
 import BrandLogo from '../common/BrandLogo';
+import AppIcon, { IconType } from '../common/AppIcon';
 
 // ─── Catalog definition ───────────────────────────────────────────────────────
 
@@ -19,12 +20,12 @@ interface CatalogItem {
 
 type TabKey = 'all' | 'pos' | 'payment' | 'shipping' | 'ai';
 
-const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'all',      label: 'Tất cả',            icon: '📌' },
-  { key: 'pos',      label: 'POS / Bán hàng',    icon: '🛒' },
-  { key: 'payment',  label: 'Thanh toán',        icon: '💳' },
-  { key: 'shipping', label: 'Vận chuyển',        icon: '📦' },
-  { key: 'ai',       label: 'Trợ lý AI',         icon: '🤖' },
+const TABS: { key: TabKey; label: string; icon: IconType }[] = [
+  { key: 'all',      label: 'Tất cả',            icon: 'all' },
+  { key: 'pos',      label: 'POS / Bán hàng',    icon: 'pos' },
+  { key: 'payment',  label: 'Thanh toán',        icon: 'payment' },
+  { key: 'shipping', label: 'Vận chuyển',        icon: 'shipping' },
+  { key: 'ai',       label: 'Trợ lý AI',         icon: 'ai' },
 ];
 
 const SECTION_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -194,23 +195,23 @@ function AISection({ onNavigateAi }: { onNavigateAi: () => void }) {
       {/* 🚀 9Router FREE Banner */}
       <div className="mb-4 bg-gray-900/60 border-l-4 border-l-blue-500 border border-gray-700/60 rounded-xl p-3.5">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center text-lg flex-shrink-0 border border-blue-500/30">
-            🚀
+          <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center flex-shrink-0 border border-blue-500/30">
+            <AppIcon name="rocket" className="text-blue-400" size={16} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-gray-300 text-xs font-semibold mb-1.5">
               Cài đặt <strong className="text-white">9Router</strong> để dùng AI <strong className="text-green-400">FREE</strong> cho:
             </p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
               {[
-                '💬 Gợi ý trả lời trong hội thoại',
-                '🤖 Hỏi đáp với AI trong hội thoại',
-                '⚡ Dùng AI tạo workflow bằng câu lệnh',
-                '🔄 Node AI trả lời — tạo chatbot 24/7',
-              ].map((text, i) => (
-                <p key={i} className="text-gray-300 text-[11px] flex items-center gap-1.5">
-                  <span className="text-blue-500/70">▸</span>
-                  {text}
+                { icon: 'messages', text: 'Gợi ý trả lời trong hội thoại' },
+                { icon: 'ai', text: 'Hỏi đáp với AI trong hội thoại' },
+                { icon: 'workflow', text: 'Dùng AI tạo workflow bằng câu lệnh' },
+                { icon: 'sync', text: 'Node AI trả lời — tạo chatbot 24/7' },
+              ].map((item, i) => (
+                <p key={i} className="text-gray-300 text-[11px] flex items-center gap-2">
+                  <AppIcon name={item.icon as any} className="text-blue-400 flex-shrink-0" size={12} />
+                  <span>{item.text}</span>
                 </p>
               ))}
             </div>
@@ -454,7 +455,7 @@ function IntegrationSection({ sectionKey, catalog, savedList, onSelect }: {
       {/* Section header */}
       <div className="flex items-center gap-3 mb-4">
         <div className={`w-8 h-8 rounded-lg ${meta.color} flex items-center justify-center`}>
-          <BrandLogo type={sectionKey} className="w-4.5 h-4.5 text-white-important" />
+          <BrandLogo type={sectionKey} className="w-5 h-5 text-white-important" />
         </div>
         <div>
           <h2 className="text-sm font-semibold text-white">{meta.label}</h2>
@@ -733,7 +734,7 @@ function TopBar({ activeTab, onTabChange, tunnelUrl, tunnelLoading, onTunnelTogg
                   : 'text-gray-400 border-transparent hover:text-gray-200 hover:border-gray-500'
               }`}
             >
-              <span>{tab.icon}</span>
+              <AppIcon name={tab.icon} className={activeTab === tab.key ? 'text-blue-400' : 'text-gray-400'} size={14} />
               <span>{tab.label}</span>
             </button>
           ))}

@@ -121,19 +121,6 @@ export default function BulkGroupManageModal({
         const friends = list.filter((c: any) => c.contact_type !== 'group');
         setAllContacts(friends);
         
-        // Setup initial contacts
-        if (initialContactIds && initialContactIds.length > 0) {
-          const matched = friends.filter((c: any) => initialContactIds.includes(c.contact_id));
-          // If some IDs are not in DB, create dummy contacts so we don't drop them
-          const matchedIds = matched.map((c: any) => c.contact_id);
-          const dummies = initialContactIds
-            .filter(id => !matchedIds.includes(id))
-            .map(id => ({ contact_id: id, display_name: id, avatar_url: '', phone: '' }));
-          setSelectedContacts([...matched, ...dummies]);
-        } else {
-          setSelectedContacts([]);
-        }
-        
         // 2. Get group memberships
         const membersRes = await ipc.db?.getAllGroupMembers({ zaloId: activeAccountId });
         const rows = membersRes?.rows ?? [];
@@ -150,6 +137,28 @@ export default function BulkGroupManageModal({
         }
         setExistingGroupMembers(memMap);
         setManagedGroupIds(managedIds);
+
+        // Setup initial contacts
+        if (initialContactIds && initialContactIds.length > 0) {
+          const matched = friends.filter((c: any) => initialContactIds.includes(c.contact_id));
+          // If some IDs are not in DB, create dummy contacts so we don't drop them,
+          // but look up in page_group_member rows first to preserve cached display name and avatar
+          const matchedIds = matched.map((c: any) => c.contact_id);
+          const dummies = initialContactIds
+            .filter(id => !matchedIds.includes(id))
+            .map(id => {
+              const cachedMember = rows.find((r: any) => r.member_id === id && (r.display_name || r.avatar));
+              return {
+                contact_id: id,
+                display_name: cachedMember?.display_name || id,
+                avatar_url: cachedMember?.avatar || '',
+                phone: '',
+              };
+            });
+          setSelectedContacts([...matched, ...dummies]);
+        } else {
+          setSelectedContacts([]);
+        }
         
         // 3. Map groups
         const groupContacts = list.filter((c: any) => c.contact_type === 'group');

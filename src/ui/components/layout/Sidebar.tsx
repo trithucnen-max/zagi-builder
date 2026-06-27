@@ -7,6 +7,8 @@ import ChannelBadge from '../common/ChannelBadge';
 import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
 import { hasUnseenSettingsTabs } from '@/utils/settingsSeenTabs';
 import { useErpPermissions } from '@/hooks/erp/useErpContext';
+import LicenseModal from '@/components/settings/LicenseModal';
+import AppIcon from '@/components/common/AppIcon';
 
 interface SidebarProps {
   onAddAccount: () => void;
@@ -21,6 +23,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
   const empPermissions = useEmployeeStore(s => s.permissions);
   const employees = useEmployeeStore(s => s.employees);
   const isSimulating = empMode !== 'employee' && !!previewEmployeeId;
+  const [licenseModalOpen, setLicenseModalOpen] = useState(false);
 
   const hasPerm = useCallback((module: string) => {
     if (module === 'dashboard') return true;
@@ -82,6 +85,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
   };
 
   return (
+    <>
     <div className="flex flex-col w-16 bg-sidebar border-r border-white/10 h-full">
       {/* Danh sách tài khoản — chế độ Gộp trang: hiện các avatar dùng làm bộ lọc */}
       {mergedInboxMode ? (
@@ -303,8 +307,8 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
           label="Công cụ"
           active={view === 'workflow' || view === 'integration'}
           items={[
-            ...(hasPerm('workflow') ? [{ icon: 'workflow' as const, label: 'Workflow (n8n)', active: view === 'workflow', onClick: () => setView('workflow') }] : []),
-            ...(hasPerm('integration') ? [{ icon: 'integration' as const, label: 'Tích hợp', active: view === 'integration', onClick: () => setView('integration') }] : []),
+            ...(hasPerm('workflow') ? [{ icon: 'workflow', label: 'Workflow (n8n)', active: view === 'workflow', onClick: () => setView('workflow') }] : []),
+            ...(hasPerm('integration') ? [{ icon: 'integration', label: 'Tích hợp', active: view === 'integration', onClick: () => setView('integration') }] : []),
           ]}
         />
         )}
@@ -317,90 +321,33 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
         {hasPerm('erp') && canErpAccess && (
         <NavBtn icon="erp"        label="Quản lý công việc"   active={view === 'erp'}        onClick={() => setView('erp')} />
         )}
+        {empMode !== 'employee' && (
+          <button
+            onClick={() => setLicenseModalOpen(true)}
+            title="Bản quyền"
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-white hover:bg-white/10 transition-all duration-150"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M12 7V11"/>
+              <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+            </svg>
+          </button>
+        )}
         <NavBtn icon="settings"   label="Cài đặt"      active={view === 'settings'}   onClick={() => setView('settings')} dot={hasNewSettings} />
       </div>
     </div>
+
+    {licenseModalOpen && <LicenseModal onClose={() => setLicenseModalOpen(false)} />}
+    </>
   );
 }
 
 function NavBtn({ icon, label, active, onClick, dot }: { icon: string; label: string; active: boolean; onClick: () => void; dot?: boolean }) {
-  const icons: Record<string, React.ReactNode> = {
-    dashboard: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
-    chat: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
-    friends: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-    crm: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" strokeWidth="1.8"
-           strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="3"/>
-        <path d="M7 14v3"/>
-        <path d="M12 10v7"/>
-        <path d="M17 7v10"/>
-      </svg>
-    ),
-    workflow: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" strokeWidth="1.8"
-           strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/>
-        <circle cx="12" cy="18" r="2"/>
-        <path d="M7 6h10M5 8v4a7 7 0 0 0 7 7M19 8v4a7 7 0 0 1-7 7"/>
-      </svg>
-    ),
-    integration: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" strokeWidth="1.8"
-           strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-      </svg>
-    ),
-    tools: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" strokeWidth="1.8"
-           strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-        <line x1="12" y1="12" x2="12" y2="12.01"/>
-      </svg>
-    ),
-    analytics: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 21H4.6c-.56 0-.84 0-1.054-.109a1 1 0 0 1-.437-.437C3 20.24 3 19.96 3 19.4V3"/>
-          <path d="M7 14l4-4 4 4 6-6"/>
-        </svg>
-    ),
-    settings: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </svg>
-    ),
-    erp: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-      </svg>
-    ),
-  };
-
   return (
     <button onClick={onClick} title={label}
       className={`relative w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150 ${active ? 'bg-zalo-blue-dark text-white shadow-md' : 'text-white hover:bg-white/10'}`}>
-      {icons[icon]}
+      <AppIcon name={icon as any} className="text-current" size={icon === 'settings' ? 18 : 16} />
       {dot && (
         <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-900 pointer-events-none" />
       )}
@@ -431,7 +378,6 @@ function NavFlyout({ icon, label, active, items }: { icon: string; label: string
     timeoutRef.current = setTimeout(() => setOpen(false), 200);
   }, []);
 
-  // Reuse the same icon lookup as NavBtn
   const btnRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -448,7 +394,7 @@ function NavFlyout({ icon, label, active, items }: { icon: string; label: string
           active ? 'bg-zalo-blue-dark text-white shadow-md' : 'text-white hover:bg-white/10'
         }`}
       >
-        <NavIcon name={icon} />
+        <AppIcon name={icon as any} className="text-current" size={16} />
       </button>
 
       {/* Flyout submenu — appears to the right */}
@@ -471,7 +417,7 @@ function NavFlyout({ icon, label, active, items }: { icon: string; label: string
               }`}
             >
               <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                <NavIcon name={item.icon} />
+                <AppIcon name={item.icon as any} className="text-current" size={16} />
               </span>
               <span className="text-xs font-medium whitespace-nowrap">{item.label}</span>
               {item.active && (
@@ -484,96 +430,3 @@ function NavFlyout({ icon, label, active, items }: { icon: string; label: string
     </div>
   );
 }
-
-// ─── Shared icon component ────────────────────────────────────────────────────
-
-function NavIcon({ name }: { name: string }) {
-  switch (name) {
-    case 'dashboard':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
-        </svg>
-      );
-    case 'chat':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      );
-    case 'friends':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      );
-    case 'crm':
-      return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" strokeWidth="1.8"
-           strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="3"/>
-        <path d="M7 14v3"/>
-        <path d="M12 10v7"/>
-        <path d="M17 7v10"/>
-      </svg>
-      );
-    case 'workflow':
-      return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" strokeWidth="1.8"
-           strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/>
-        <circle cx="12" cy="18" r="2"/>
-        <path d="M7 6h10M5 8v4a7 7 0 0 0 7 7M19 8v4a7 7 0 0 1-7 7"/>
-      </svg>
-      );
-    case 'integration':
-      return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" strokeWidth="1.8"
-           strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-      </svg>
-      );
-    case 'analytics':
-      return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 21H4.6c-.56 0-.84 0-1.054-.109a1 1 0 0 1-.437-.437C3 20.24 3 19.96 3 19.4V3"/>
-          <path d="M7 14l4-4 4 4 6-6"/>
-        </svg>
-      );
-    case 'facebook':
-      return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-        </svg>
-      );
-    case 'tools':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-          <line x1="12" y1="12" x2="12" y2="12.01"/>
-        </svg>
-      );
-    case 'erp':
-      return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-        </svg>
-      );
-    case 'settings':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </svg>
-      );
-    default:
-      return null;
-  }
-}
-

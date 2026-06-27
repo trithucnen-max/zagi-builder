@@ -152,11 +152,11 @@ export function registerCRMIpc(): void {
 
     ipcMain.handle('crm:addCampaignContacts', async (_e, { zaloId, campaignId, contacts }: { zaloId: string; campaignId: number; contacts: any[] }) => {
         try {
-            DatabaseService.getInstance().addCampaignContacts(campaignId, zaloId, contacts);
+            const res = DatabaseService.getInstance().addCampaignContacts(campaignId, zaloId, contacts);
             DatabaseService.getInstance().save();
             EventBroadcaster.emit('crm:campaignChanged', { action: 'contactsAdded', ownerZaloId: zaloId, campaignId });
             proxyToBoss('crm:addCampaignContacts', { zaloId, campaignId, contacts });
-            return { success: true };
+            return { success: true, ...res };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
@@ -181,6 +181,11 @@ export function registerCRMIpc(): void {
 
     ipcMain.handle('crm:getCampaignStats', async (_e, { zaloId, limit }: { zaloId: string; limit?: number }) => {
         try { return { success: true, stats: DatabaseService.getInstance().getTopCampaignStats(zaloId, limit || 10) }; }
+        catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('crm:getCampaignSafetyStats', async (_e, { zaloId }: { zaloId?: string }) => {
+        try { return { success: true, data: DatabaseService.getInstance().getCampaignSafetyStats(zaloId) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 

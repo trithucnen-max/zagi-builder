@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v27.1.7** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v27.1.8** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.8-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-x64.exe)
 
-**[Zagi-Setup-27.1.7-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-x64.exe)**
+**[Zagi-Setup-27.1.8-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-x64.exe)**
 
 NSIS Installer · ~148 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~148 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.7-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64-mac.zip)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.8-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-arm64-mac.zip)
 
-**[Zagi-27.1.7-arm64-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64-mac.zip)**
+**[Zagi-27.1.8-arm64-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-arm64-mac.zip)**
 
 Apple Silicon · ~160 MB
 
@@ -69,9 +69,9 @@ Apple Silicon · ~160 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.7-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-mac.zip)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.8-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-mac.zip)
 
-**[Zagi-27.1.7-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-mac.zip)**
+**[Zagi-27.1.8-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-mac.zip)**
 
 Intel x64 · ~165 MB
 
@@ -80,10 +80,10 @@ Intel x64 · ~165 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.7-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.8-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8.AppImage)
 
-**[Zagi-27.1.7.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.AppImage)**  
-**[zagi_27.1.7_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.7_amd64.deb)**
+**[Zagi-27.1.8.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8.AppImage)**  
+**[zagi_27.1.8_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.8_amd64.deb)**
 
 AppImage + .deb · ~197 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~197 MB
 > 
 > **Surface Pro 7 trở xuống (Intel)** → dùng bản Windows x64 phía trên.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.8-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-arm64.exe)
 
-**[Zagi-Setup-27.1.7-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-arm64.exe)**
+**[Zagi-Setup-27.1.8-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-arm64.exe)**
 
 NSIS Installer ARM64 · ~148 MB · Tối ưu native cho Surface ARM
 
@@ -124,14 +124,14 @@ NSIS Installer ARM64 · ~148 MB · Tối ưu native cho Surface ARM
 Máy tính của bạn là loại gì?
 │
 ├─ 🖥️ PC desktop / Laptop thông thường (Dell, HP, Lenovo, Asus, Acer...)
-│   └─ → Tải: Zagi-Setup-27.1.7-x64.exe  ✅
+│   └─ → Tải: Zagi-Setup-27.1.8-x64.exe  ✅
 │
 ├─ 💻 Surface Pro 7, Surface Laptop 1-4, Surface Go 1-2, Surface Book
-│   └─ → Tải: Zagi-Setup-27.1.7-x64.exe  ✅  (chip Intel, bản x64 chạy ok)
+│   └─ → Tải: Zagi-Setup-27.1.8-x64.exe  ✅  (chip Intel, bản x64 chạy ok)
 │
 └─ 💻 Surface Pro X, Surface Pro 9 (5G), Surface Pro 10, Surface Pro 11,
        Surface Laptop 7 (chip Snapdragon / ARM64)
-    └─ → Tải: Zagi-Setup-27.1.7-arm64.exe  ✅ (bản native ARM64)
+    └─ → Tải: Zagi-Setup-27.1.8-arm64.exe  ✅ (bản native ARM64)
 ```
 
 > 💡 **Cách kiểm tra chip máy Surface:** Vào `Settings → System → About`, xem mục **Processor**:
@@ -146,10 +146,10 @@ Máy tính của bạn là loại gì?
 Mac của bạn là loại gì?
 │
 ├─ 🍎 MacBook Air/Pro M1, M2, M3, M4 (2020 trở về sau)
-│   └─ → Tải: Zagi-27.1.7-arm64-mac.zip  ✅
+│   └─ → Tải: Zagi-27.1.8-arm64-mac.zip  ✅
 │
 └─ 🍎 MacBook, iMac, Mac mini chip Intel (2019 trở về trước)
-    └─ → Tải: Zagi-27.1.7-mac.zip  ✅
+    └─ → Tải: Zagi-27.1.8-mac.zip  ✅
 ```
 
 > 💡 **Cách kiểm tra:** Click logo Apple → **About This Mac** → xem mục **Chip** hoặc **Processor**:
@@ -164,11 +164,11 @@ Mac của bạn là loại gì?
 Bạn dùng distro nào?
 │
 ├─ Ubuntu, Mint, PopOS, Zorin, ElementaryOS... → Tải .deb  ✅
-│   sudo dpkg -i zagi_27.1.7_amd64.deb
+│   sudo dpkg -i zagi_27.1.8_amd64.deb
 │
 └─ Fedora, Arch, openSUSE hoặc bất kỳ distro nào
     → Tải .AppImage  ✅
-    chmod +x Zagi-27.1.7.AppImage && ./Zagi-27.1.7.AppImage
+    chmod +x Zagi-27.1.8.AppImage && ./Zagi-27.1.8.AppImage
 ```
 
 ---
@@ -177,13 +177,13 @@ Bạn dùng distro nào?
 
 | Thiết bị | File cần tải | Ghi chú |
 |---|---|---|
-| PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.1.7-x64.exe` | Phổ biến nhất |
-| Surface Pro 7 trở xuống | `Zagi-Setup-27.1.7-x64.exe` | Chip Intel |
-| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi-Setup-27.1.7-arm64.exe` | 🆕 Chip ARM64 |
-| MacBook M1/M2/M3/M4 | `Zagi-27.1.7-arm64-mac.zip` | Apple Silicon |
-| MacBook/iMac Intel | `Zagi-27.1.7-mac.zip` | Intel x64 |
-| Ubuntu/Debian Linux | `zagi_27.1.7_amd64.deb` | Cài như package |
-| Fedora/Arch/Linux khác | `Zagi-27.1.7.AppImage` | Chạy mọi distro |
+| PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.1.8-x64.exe` | Phổ biến nhất |
+| Surface Pro 7 trở xuống | `Zagi-Setup-27.1.8-x64.exe` | Chip Intel |
+| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi-Setup-27.1.8-arm64.exe` | 🆕 Chip ARM64 |
+| MacBook M1/M2/M3/M4 | `Zagi-27.1.8-arm64-mac.zip` | Apple Silicon |
+| MacBook/iMac Intel | `Zagi-27.1.8-mac.zip` | Intel x64 |
+| Ubuntu/Debian Linux | `zagi_27.1.8_amd64.deb` | Cài như package |
+| Fedora/Arch/Linux khác | `Zagi-27.1.8.AppImage` | Chạy mọi distro |
 
 ---
 
@@ -198,7 +198,7 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 2. Nhấn **Run anyway** (Vẫn chạy)
 
 ### 🍎 macOS
-* ⚠️ **Lưu ý:** Kể từ phiên bản v27.1.7, để phát hành nhanh chóng, bước ký số (Code Signing) tạm thời được bỏ qua. Khi chạy ứng dụng lần đầu, bạn sẽ gặp cảnh báo bảo mật từ Gatekeeper (*"Zagi is damaged and can't be opened"* hoặc *"unidentified developer"*).
+* ⚠️ **Lưu ý:** Kể từ phiên bản v27.1.8, để phát hành nhanh chóng, bước ký số (Code Signing) tạm thời được bỏ qua. Khi chạy ứng dụng lần đầu, bạn sẽ gặp cảnh báo bảo mật từ Gatekeeper (*"Zagi is damaged and can't be opened"* hoặc *"unidentified developer"*).
 * **Cách mở ứng dụng (Vượt qua Gatekeeper):**
   1. Giải nén file `.zip` đã tải về để có ứng dụng `Zagi.app` và kéo nó vào thư mục `/Applications`.
   2. Click chuột phải (hoặc nhấn giữ phím `Control` và click) vào icon `Zagi` trong thư mục `Applications` -> chọn **Open** (Mở) -> chọn tiếp **Open** ở hộp thoại xác nhận.
@@ -210,8 +210,8 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.1.7.AppImage
-./Zagi-27.1.7.AppImage
+chmod +x Zagi-27.1.8.AppImage
+./Zagi-27.1.8.AppImage
 ```
 
 Nếu lỗi "FUSE not available":
@@ -221,7 +221,7 @@ sudo apt install libfuse2
 
 Hoặc dùng `.deb`:
 ```bash
-sudo dpkg -i zagi_27.1.7_amd64.deb
+sudo dpkg -i zagi_27.1.8_amd64.deb
 ```
 
 </details>
@@ -456,7 +456,19 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.7</strong> — 2026-06-26 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v27.1.8</strong> — 2026-06-26 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật
+
+- 📊 **Giới hạn số lượng liên hệ Chiến dịch (1000 người)**: Tự động kiểm tra và chỉ thêm tối đa 1000 liên hệ cho mỗi chiến dịch. Khi số lượng liên hệ vượt quá giới hạn, phần dư thừa sẽ tự động được loại bỏ và hiển thị thông báo cảnh báo chi tiết (ví dụ: chiến dịch đang có 800 người, thêm nhóm 300 người sẽ chỉ nhận 200 người và loại bỏ 100 người).
+- 🔒 **Khóa phím tắt khi đang nhập liệu**: Tự động vô hiệu hóa toàn bộ các phím tắt custom (như Tab để chuyển tiêu điểm) khi người dùng đang gõ nội dung trong các trường nhập liệu (input, textarea, contenteditable) để tránh xung đột hành vi.
+- 🏷️ **Tự động chọn nhãn trùng tên**: Khi người dùng nhập trùng tên nhãn Local đã tồn tại (không phân biệt hoa thường), hệ thống sẽ tự động chọn nhãn cũ và hiển thị thông báo thay vì tạo nhãn trùng lặp. Áp dụng đồng bộ tại khung chat, bảng nhập danh bạ, import CSV/SĐT và cấu hình workflow.
+- 📋 **Sao chép chi tiết lỗi Workflow**: Bổ sung nút "📋 Copy lỗi" trực quan bên cạnh các khối thông báo lỗi tại danh sách lịch sử chạy workflow (chi tiết từng node và lỗi cấp run) và panel cấu hình, giúp nhanh chóng sao chép toàn bộ thông tin chi tiết lỗi (body response, stack trace) vào clipboard.
+
+</details>
+
+<details>
+<summary><strong>v27.1.7</strong> — 2026-06-26</summary>
 
 ### 🚀 Nâng cấp nổi bật
 

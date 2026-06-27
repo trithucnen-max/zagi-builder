@@ -158,6 +158,9 @@ export default function MessageInput() {
   const [localLabels, setLocalLabels] = useState<LocalLabel[]>([]);
   const [threadLocalLabelIds, setThreadLocalLabelIds] = useState<Set<number>>(new Set());
   const [togglingLocalLabelId, setTogglingLocalLabelId] = useState<number | null>(null);
+  const [isCreatingLabel, setIsCreatingLabel] = useState(false);
+  const [newLabelName, setNewLabelName] = useState('');
+  const newLabelInputRef = useRef<HTMLInputElement>(null);
   // Pinned shortcut: id of shortcut whose icon edit picker is open
   const [pinnedEditIconId, setPinnedEditIconId] = useState<string | null>(null);
   // Pinned shortcut: id of shortcut whose right-click context menu is open
@@ -949,6 +952,61 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
     }
   }, [activeAccountId, activeThreadId, activeThreadType, loadLocalLabelsForThread, showNotification, threadLocalLabelIds, togglingLocalLabelId]);
 
+  const handleCreateLocalLabelSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newLabelName.trim();
+    if (!name) return;
+
+    // Check for duplicate name case-insensitively
+    const existing = localLabels.find(l => l.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      // If it exists, auto-select it and clear input
+      if (!threadLocalLabelIds.has(existing.id)) {
+        await handleToggleLocalLabel(existing);
+      }
+      setIsCreatingLabel(false);
+      setNewLabelName('');
+      showNotification(`Đã tự động chọn nhãn "${existing.name}" sẵn có`, 'info');
+      return;
+    }
+
+    const premiumColors = [
+      '#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4',
+      '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#14b8a6'
+    ];
+    const randomColor = premiumColors[Math.floor(Math.random() * premiumColors.length)];
+
+    try {
+      const res = await ipc.db?.upsertLocalLabel({
+        label: {
+          name,
+          color: randomColor,
+          emoji: '🏷️',
+          pageIds: activeAccountId || '',
+          isActive: 1
+        }
+      });
+      if (res?.success && res.id) {
+        showNotification(`Đã tạo nhãn local "${name}"`, 'success');
+        setIsCreatingLabel(false);
+        setNewLabelName('');
+        await loadLocalLabelsForThread();
+        const newLabel = {
+          id: res.id,
+          name,
+          color: randomColor,
+          emoji: '🏷️',
+          sort_order: 0
+        };
+        await handleToggleLocalLabel(newLabel);
+      } else {
+        showNotification(res?.error || 'Không thể tạo nhãn', 'error');
+      }
+    } catch (err: any) {
+      showNotification('Lỗi: ' + (err.message || 'Không thể tạo nhãn'), 'error');
+    }
+  };
+
   // ─── Pin/unpin conversation locally (Ctrl+P) ──────────────────────────────────
   const handlePinConversation = useCallback(async () => {
     if (!activeAccountId || !activeThreadId) return;
@@ -972,6 +1030,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const isInInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      if (isInInput) return;
       const hasMod = e.ctrlKey || e.altKey || e.metaKey;
 
       // ── Tab: navigate to next/prev conversation (full handleSelect-like) ──
@@ -2800,44 +2859,81 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
       )}
 
       {/* Local label row — Pancake-style horizontal pills */}
-      {showLocalLabels && localLabels.length > 0 && (
+      {showLocalLabels && (
         <div className="flex items-start gap-1.5 px-3 py-2 border-b border-gray-700/50 transition-all">
           <div ref={labelRowRef} className="flex flex-wrap gap-1.5 flex-1 min-w-0 transition-all" style={{ maxHeight: localLabelExpanded ? 'none' : 56, overflow: localLabelExpanded ? 'visible' : 'hidden',}}>
             {localLabels.map(label => {
-            const active = threadLocalLabelIds.has(label.id);
-            const isToggling = togglingLocalLabelId === label.id;
-            return (
+              const active = threadLocalLabelIds.has(label.id);
+              const isToggling = togglingLocalLabelId === label.id;
+              return (
+                <button
+                  key={label.id}
+                  onClick={() => handleToggleLocalLabel(label)}
+                  disabled={isToggling}
+                  className={`inline-flex items-center gap-1 px-3 text-[12px] py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-150 border ${
+                    isToggling ? 'scale-95 opacity-60' : 'hover:scale-[1.03]'
+                  } ${active ? 'shadow-sm' : ''}`}
+                  style={active ? {
+                    backgroundColor: label.color || '#3b82f6',
+                    color: label.text_color || '#fff',
+                    borderColor: label.color,
+                  } : {
+                    backgroundColor: `${label.color || '#3b82f6'}85`,
+                    color: label.text_color || '#93c5fd',
+                    borderColor: `${label.color || '#3b82f6'}80`,
+                    opacity: 0.75,
+                  }}
+                  title={active ? `✓ ${label.name} — nhấn để gỡ` : `Gắn nhãn "${label.name}"`}
+                >
+                  {label.emoji ? (
+                    <span className="text-xs leading-none">{label.emoji}</span>
+                  ) : ''}
+                  <span className="leading-none">{label.name}</span>
+                  {active && (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="flex-shrink-0 ml-0.5 opacity-70">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Quick label creator form / button */}
+            {isCreatingLabel ? (
+              <form onSubmit={handleCreateLocalLabelSubmit} className="inline-flex items-center gap-1.5 bg-gray-700/50 pl-2 pr-1.5 py-0.5 rounded-full border border-gray-600">
+                <input
+                  ref={newLabelInputRef}
+                  type="text"
+                  value={newLabelName}
+                  onChange={e => setNewLabelName(e.target.value)}
+                  placeholder="Tên nhãn..."
+                  className="bg-transparent text-[11px] text-white focus:outline-none placeholder-gray-500 w-20"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="text-blue-400 hover:text-blue-300 text-[11px] font-medium px-1"
+                >
+                  Lưu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsCreatingLabel(false); setNewLabelName(''); }}
+                  className="text-gray-400 hover:text-gray-200 text-[10px] px-1"
+                >
+                  ✕
+                </button>
+              </form>
+            ) : (
               <button
-                key={label.id}
-                onClick={() => handleToggleLocalLabel(label)}
-                disabled={isToggling}
-                className={`inline-flex items-center gap-1 px-3 text-[12px] py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-150 border ${
-                  isToggling ? 'scale-95 opacity-60' : 'hover:scale-[1.03]'
-                } ${active ? 'shadow-sm' : ''}`}
-                style={active ? {
-                  backgroundColor: label.color || '#3b82f6',
-                  color: label.text_color || '#fff',
-                  borderColor: label.color,
-                } : {
-                  backgroundColor: `${label.color || '#3b82f6'}85`,
-                  color: label.text_color || '#93c5fd',
-                  borderColor: `${label.color || '#3b82f6'}80`,
-                  opacity: 0.75,
-                }}
-                title={active ? `✓ ${label.name} — nhấn để gỡ` : `Gắn nhãn "${label.name}"`}
+                type="button"
+                onClick={() => setIsCreatingLabel(true)}
+                className="inline-flex items-center gap-1 px-3 text-[11px] py-1 rounded-full border border-dashed border-gray-600 text-gray-400 hover:text-white hover:border-gray-400 transition-all font-medium whitespace-nowrap"
+                title="Tạo nhãn local mới nhanh"
               >
-                {label.emoji ? (
-                  <span className="text-xs leading-none">{label.emoji}</span>
-                ) : ''}
-                <span className="leading-none">{label.name}</span>
-                {active && (
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="flex-shrink-0 ml-0.5 opacity-70">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                )}
+                + Tạo nhãn
               </button>
-            );
-          })}
+            )}
           </div>
           {/* Right-side controls: expand/collapse arrow + close X */}
           <div className="flex items-center gap-1 flex-shrink-0 ml-1">

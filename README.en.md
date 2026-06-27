@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v27.1.7** — [View all versions](#changelog)
+> **Latest version: v27.1.8** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.8-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-x64.exe)
 
-**[Zagi-Setup-27.1.7-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-x64.exe)**
+**[Zagi-Setup-27.1.8-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-x64.exe)**
 
 NSIS Installer · ~148 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~148 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.7-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64-mac.zip)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.8-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-arm64-mac.zip)
 
-**[Zagi-27.1.7-arm64-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-arm64-mac.zip)**
+**[Zagi-27.1.8-arm64-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-arm64-mac.zip)**
 
 Apple Silicon · ~160 MB
 
@@ -69,9 +69,9 @@ Apple Silicon · ~160 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.7-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-mac.zip)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.8-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-mac.zip)
 
-**[Zagi-27.1.7-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7-mac.zip)**
+**[Zagi-27.1.8-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-mac.zip)**
 
 Intel x64 · ~165 MB
 
@@ -80,10 +80,10 @@ Intel x64 · ~165 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.7-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.8-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8.AppImage)
 
-**[Zagi-27.1.7.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.7.AppImage)**  
-**[zagi_27.1.7_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.7_amd64.deb)**
+**[Zagi-27.1.8.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8.AppImage)**  
+**[zagi_27.1.8_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.8_amd64.deb)**
 
 AppImage + .deb · ~197 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~197 MB
 > 
 > Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.8-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-arm64.exe)
 
-**[Zagi-Setup-27.1.7-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.7-arm64.exe)**
+**[Zagi-Setup-27.1.8-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-arm64.exe)**
 
 NSIS Installer ARM64 · ~148 MB · Native performance on Surface ARM
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.7-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.8-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.7-x64.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.8-x64.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.1.7.AppImage
-./Zagi-27.1.7.AppImage
+chmod +x Zagi-27.1.8.AppImage
+./Zagi-27.1.8.AppImage
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i zagi_27.1.7_amd64.deb
+sudo dpkg -i zagi_27.1.8_amd64.deb
 ```
 
 </details>
@@ -381,7 +381,19 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.7</strong> — 2026-06-26 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.1.8</strong> — 2026-06-26 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights
+
+- 📊 **Campaign 1000-Contact Limit**: Automatically enforces a maximum of 1000 contacts per campaign. If a newly added group/list exceeds this limit, excess contacts are discarded, and a warning notification showing the added and discarded count is displayed (e.g., if a campaign has 800 contacts, adding 300 more will only append 200, discarding the remaining 100).
+- 🔒 **Keyboard Shortcut Lock during Input Typing**: Automatically disables custom keyboard shortcuts (such as using Tab for layout navigation) while typing inside input fields, textareas, or contenteditable elements.
+- 🏷️ **Duplicate Label Auto-Selection**: Checks case-insensitively if a newly entered local label name already exists. If a duplicate is found, the system automatically selects the existing label, clears the input box, and displays an info message instead of creating a duplicate.
+- 📋 **Copy Workflow Error Details**: Added a "📋 Copy lỗi" (Copy Error) button next to workflow run-level error messages, individual node execution errors, and target picker alerts, allowing users to copy detailed error traces and response bodies to the clipboard.
+
+</details>
+
+<details>
+<summary><strong>v27.1.7</strong> — 2026-06-26</summary>
 
 ### 🚀 Key Highlights
 

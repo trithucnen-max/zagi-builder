@@ -126,7 +126,7 @@ class CRMQueueService {
         }
 
         const db = DatabaseService.getInstance();
-        const item = db.getNextPendingCampaignContact(zaloId);
+        const item = db.getNextPendingCampaignContactCooperative(zaloId);
         if (!item) {
             this.checkAndStopIfIdle(zaloId);
             return;
@@ -172,12 +172,12 @@ class CRMQueueService {
             }
         }
 
-        // ── Daily limit (chỉ áp dụng nếu có giới hạn) ───────────────────
+        // ── Daily limit (chỉ áp dụng nếu có giới hạn, kiểm tra riêng cho từng tài khoản Zalo) ───────────────────
         if (campaignData && campaignData.daily_send_limit && campaignData.daily_send_limit > 0) {
-            const dailyCount = db.getDailySentCountForCampaign(item.campaign_id);
+            const dailyCount = db.getDailySentCountForCampaign(item.campaign_id, zaloId);
             if (dailyCount >= campaignData.daily_send_limit) {
                 this.dailyPausedCampaigns.set(item.campaign_id, true);
-                Logger.log(`[CRMQueue] Campaign ${item.campaign_id} daily limit reached: ${dailyCount}/${campaignData.daily_send_limit}`);
+                Logger.log(`[CRMQueue] Campaign ${item.campaign_id} daily limit reached for account ${zaloId}: ${dailyCount}/${campaignData.daily_send_limit}`);
                 this.broadcastStatus(zaloId, 'daily_limit_reached');
                 return;
             }

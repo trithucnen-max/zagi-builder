@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import ipc from '../../lib/ipc';
 import { useAppStore } from '@/store/appStore';
+import AppIcon from '@/components/common/AppIcon';
 
 interface Props {
   workflowId: string;
@@ -58,7 +59,31 @@ function NodeResultDetail({ nr, isLight }: { nr: any; isLight: boolean }) {
           {/* Error details */}
           {nr.output?._errorType && (
             <div className="mb-2 border-l-2 border-red-500 pl-2">
-              <div className="text-red-500 font-semibold mb-0.5">❌ LỖI: {nr.output._errorType}</div>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="text-red-500 font-semibold">❌ LỖI: {nr.output._errorType}</div>
+                <button
+                  onClick={() => {
+                    const errorStr = [
+                      `Lỗi: ${nr.output._errorType || ''}`,
+                      nr.output._httpStatus ? `HTTP: ${nr.output._httpStatus} ${nr.output._httpStatusText || ''}` : '',
+                      nr.output._errorCode ? `Code: ${nr.output._errorCode}` : '',
+                      nr.output._errorMessage ? `Message: ${nr.output._errorMessage}` : '',
+                      nr.output._responseData ? `Response: ${typeof nr.output._responseData === 'object' ? JSON.stringify(nr.output._responseData, null, 2) : nr.output._responseData}` : '',
+                      nr.output._requestSummary ? `Request: ${nr.output._requestSummary}` : '',
+                      nr.output._stackTrace ? `Stack: ${nr.output._stackTrace}` : ''
+                    ].filter(Boolean).join('\n');
+                    navigator.clipboard.writeText(errorStr);
+                    useAppStore.getState().showNotification('Đã sao chép chi tiết lỗi vào clipboard', 'success');
+                  }}
+                  className={`px-1.5 py-0.5 text-[9px] rounded transition-colors ${
+                    isLight 
+                      ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300' 
+                      : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700'
+                  }`}
+                >
+                  <span className="flex items-center gap-0.5"><AppIcon name="copy" className="text-current" size={9} /> Copy lỗi</span>
+                </button>
+              </div>
               {nr.output._httpStatus && <div className={isLight ? 'text-gray-600' : 'text-gray-400'}>HTTP {nr.output._httpStatus} {nr.output._httpStatusText}</div>}
               {nr.output._errorCode && <div className={isLight ? 'text-gray-600' : 'text-gray-400'}>Code: {nr.output._errorCode}</div>}
               {nr.output._errorMessage && <div className="text-red-400">{nr.output._errorMessage}</div>}
@@ -81,7 +106,7 @@ function NodeResultDetail({ nr, isLight }: { nr: any; isLight: boolean }) {
           {/* Input (rendered config) */}
           {hasInput && (
             <details className="mb-1">
-              <summary className="cursor-pointer text-blue-500">📥 Đầu vào (input)</summary>
+              <summary className="cursor-pointer text-blue-500 flex items-center gap-1"><AppIcon name="download" className="text-current" size={10} /> Đầu vào (input)</summary>
               <pre className="mt-0.5 whitespace-pre-wrap break-all max-h-40 overflow-y-auto">{formatValue(nr.input)}</pre>
             </details>
           )}
@@ -89,7 +114,7 @@ function NodeResultDetail({ nr, isLight }: { nr: any; isLight: boolean }) {
           {/* Output (response data) */}
           {hasOutput && (
             <details>
-              <summary className="cursor-pointer text-green-500">📤 Đầu ra (output)</summary>
+              <summary className="cursor-pointer text-green-500 flex items-center gap-1"><AppIcon name="send" className="text-current" size={10} /> Đầu ra (output)</summary>
               <pre className="mt-0.5 whitespace-pre-wrap break-all max-h-40 overflow-y-auto">{formatValue(nr.output)}</pre>
             </details>
           )}
@@ -149,10 +174,10 @@ export default function RunHistoryPanel({ workflowId, onSelectLog }: Props) {
       >
         <div className="flex items-center gap-2">
           <span className={`transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`}>
-            {isCollapsed ? '▲' : '▼'}
+            <AppIcon name={isCollapsed ? 'plus' : 'check'} className={isLight ? 'text-gray-500' : 'text-gray-400'} size={10} />
           </span>
-          <span className={`text-xs font-semibold ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
-            📋 Lịch sử chạy
+          <span className={`text-xs font-semibold flex items-center gap-1 ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
+            <AppIcon name="history" className="text-current" size={12} /> Lịch sử chạy
           </span>
           {logs.length > 0 && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded ${
@@ -219,7 +244,23 @@ export default function RunHistoryPanel({ workflowId, onSelectLog }: Props) {
                 <div className="px-6 pb-2 space-y-0.5">
                   <div className="flex justify-between items-center mb-1 flex-wrap gap-2">
                     {log.errorMessage && (
-                      <p className="text-red-500 text-[11px]">⚠ {log.errorMessage}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-red-500 text-[11px]">⚠ {log.errorMessage}</p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(log.errorMessage);
+                            useAppStore.getState().showNotification('Đã sao chép lỗi', 'success');
+                          }}
+                          className={`px-1.5 py-0.5 text-[9px] rounded transition-colors ${
+                            isLight 
+                              ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300' 
+                              : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700'
+                          }`}
+                        >
+                          <span className="flex items-center gap-0.5"><AppIcon name="copy" className="text-current" size={9} /> Copy lỗi</span>
+                        </button>
+                      </div>
                     )}
                     {onSelectLog && (
                       <button

@@ -254,12 +254,13 @@ declare global {
         restartCampaign: (params: { zaloId: string; campaignId: number }) => Promise<{ success: boolean; error?: string }>;
         retryFailedContacts: (params: { zaloId: string; campaignId: number }) => Promise<{ success: boolean; error?: string }>;
         updateCampaignStatus: (params: { campaignId: number; status: string }) => Promise<{ success: boolean }>;
-        addCampaignContacts: (params: { zaloId: string; campaignId: number; contacts: any[] }) => Promise<{ success: boolean }>;
+        addCampaignContacts: (params: { zaloId: string; campaignId: number; contacts: any[] }) => Promise<{ success: boolean; addedCount?: number; discardedCount?: number; limitExceeded?: boolean; error?: string }>;
         removeCampaignContacts: (params: { zaloId: string; campaignId: number; contactIds: string[] }) => Promise<{ success: boolean }>;
         getCampaignContacts: (params: { campaignId: number }) => Promise<{ success: boolean; contacts: any[] }>;
         getSendLog: (params: { zaloId: string; opts?: any }) => Promise<{ success: boolean; logs: any[] }>;
         getQueueStatus: (params: { zaloId: string }) => Promise<{ success: boolean; status: any }>;
         getCampaignStats: (params: { zaloId: string; limit?: number }) => Promise<{ success: boolean; stats: any[] }>;
+        getCampaignSafetyStats: (params: { zaloId?: string }) => Promise<{ success: boolean; data: { sentStrangerMessages: number; sentStrangerInvites: number; campaignsOverTime: Array<{ date: string; count: number }> } }>;
         getActivityStats: (params: { zaloId: string; sinceTs: number; untilTs?: number; }) => Promise<{ success: boolean; conversationCount: number; messageCount: number; sentCount: number; receivedCount: number }>;
       };
       analytics: {

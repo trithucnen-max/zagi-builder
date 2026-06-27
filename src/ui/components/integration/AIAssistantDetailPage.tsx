@@ -10,19 +10,20 @@ import {showConfirm} from "@/components/common/ConfirmDialog";
 import PromptWizardModal from './PromptWizardModal';
 import { parseStructuredResponse } from '../../../utils/aiUtils';
 import BrandLogo from '../common/BrandLogo';
+import AppIcon, { IconType } from '../common/AppIcon';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PLATFORMS = [
-  { value: 'openai',   label: 'OpenAI',         icon: '🤖', color: 'bg-green-600' },
-  { value: 'gemini',   label: 'Google Gemini',   icon: '✨', color: 'bg-blue-600' },
-  { value: 'claude',   label: 'Anthropic Claude',icon: '🟠', color: 'bg-amber-600' },
-  { value: 'deepseek', label: 'DeepSeek',        icon: '🔮', color: 'bg-sky-600' },
-  { value: 'grok',     label: 'Grok (xAI)',      icon: '⚡', color: 'bg-orange-600' },
-  { value: 'mistral',  label: 'Mistral AI',      icon: '🌀', color: 'bg-sky-600' },
-  { value: '9router',  label: '9Router Proxy',   icon: '🔀', color: 'bg-cyan-600' },
-  { value: 'openrouter', label: 'OpenRouter',    icon: '🔀', color: 'bg-indigo-600' },
-] as const;
+const PLATFORMS: readonly { value: string; label: string; icon: IconType; color: string }[] = [
+  { value: 'openai',   label: 'OpenAI',         icon: 'openai', color: 'bg-green-600' },
+  { value: 'gemini',   label: 'Google Gemini',   icon: 'gemini', color: 'bg-blue-600' },
+  { value: 'claude',   label: 'Anthropic Claude',icon: 'claude', color: 'bg-amber-600' },
+  { value: 'deepseek', label: 'DeepSeek',        icon: 'deepseek', color: 'bg-sky-600' },
+  { value: 'grok',     label: 'Grok (xAI)',      icon: 'grok', color: 'bg-orange-600' },
+  { value: 'mistral',  label: 'Mistral AI',      icon: 'mistral', color: 'bg-sky-600' },
+  { value: '9router',  label: '9Router Proxy',   icon: '9router', color: 'bg-cyan-600' },
+  { value: 'openrouter', label: 'OpenRouter',    icon: 'openrouter', color: 'bg-indigo-600' },
+];
 
 const MODELS_BY_PLATFORM: Record<string, { value: string; label: string }[]> = {
   openai: [
@@ -241,6 +242,18 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
 
   // Prompt wizard
   const [showPromptWizard, setShowPromptWizard] = useState(false);
+  const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setPlatformDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // ─── Load existing assistant + POS integrations ──────────────────────────
 
@@ -639,14 +652,48 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"/>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div ref={dropdownRef} className="relative">
                   <label className="block text-xs text-gray-400 mb-1">Nền tảng AI</label>
-                  <select value={platform} onChange={e => setPlatform(e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
-                    {PLATFORMS.map(p => (
-                      <option key={p.value} value={p.value}>{p.icon} {p.label}</option>
-                    ))}
-                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setPlatformDropdownOpen(v => !v)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center justify-between focus:outline-none focus:border-blue-500"
+                  >
+                    <span className="flex items-center gap-2">
+                      <AppIcon name={currentPlatform.icon} className="text-blue-400" size={16} />
+                      <span>{currentPlatform.label}</span>
+                    </span>
+                    <svg
+                      width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      className={`text-gray-400 flex-shrink-0 transition-transform ${platformDropdownOpen ? 'rotate-180' : ''}`}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  {platformDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1.5 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden max-h-[220px] overflow-y-auto">
+                      {PLATFORMS.map(p => {
+                        const isActive = p.value === platform;
+                        return (
+                          <button
+                            key={p.value}
+                            type="button"
+                            onClick={() => {
+                              setPlatform(p.value);
+                              setPlatformDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-700 transition-colors text-left ${
+                              isActive ? 'bg-blue-500/10' : ''
+                            }`}
+                          >
+                            <AppIcon name={p.icon} className="text-blue-400" size={16} />
+                            <span className="text-xs font-semibold text-white flex-1">{p.label}</span>
+                            {isActive && <span className="text-blue-400 text-xs">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Model</label>

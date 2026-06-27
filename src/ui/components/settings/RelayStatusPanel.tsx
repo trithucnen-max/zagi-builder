@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import { useEmployeeStore } from '@/store/employeeStore';
+import AppIcon from '../common/AppIcon';
 
 export default function RelayStatusPanel() {
     const { showNotification } = useAppStore();
@@ -128,7 +129,10 @@ export default function RelayStatusPanel() {
     return (
         <div className="space-y-4">
             {/* ── Header ──────────────────────────────────── */}
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">🖧 Kết nối nhân viên từ xa</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+              <AppIcon name="workspace" size={12} className="text-current" />
+              Kết nối nhân viên từ xa
+            </p>
 
             {/* ── Two equal-level option cards ─────────────────────────── */}
             <div className="grid grid-cols-2 gap-3">
@@ -141,7 +145,7 @@ export default function RelayStatusPanel() {
                 }`}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                            <span className="text-base">🏠</span>
+                            <AppIcon name="home" size={14} className="text-current" />
                             <span className="text-xs font-semibold text-gray-200">Kết nối LAN</span>
                         </div>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
@@ -170,12 +174,17 @@ export default function RelayStatusPanel() {
                             className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded-lg text-xs text-gray-200 disabled:opacity-50"
                         />
                         {relayRunning ? (
-                            <button onClick={handleStop} className="flex-1 py-1 text-xs bg-red-600/80 hover:bg-red-600 text-white-important rounded-lg transition-colors">
-                                ⏹ Tắt
+                            <button onClick={handleStop} className="flex-1 py-1 text-xs bg-red-600/80 hover:bg-red-600 text-white-important rounded-lg transition-colors flex items-center justify-center gap-1">
+                                <AppIcon name="pause" size={12} className="text-current" /> Tắt
                             </button>
                         ) : (
-                            <button onClick={handleStart} disabled={starting} className="flex-1 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors disabled:opacity-50">
-                                {starting ? '⏳...' : '▶ Bật'}
+                            <button onClick={handleStart} disabled={starting} className="flex-1 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
+                                {starting ? '⏳...' : (
+                                  <>
+                                    <AppIcon name="play" size={12} className="text-current" />
+                                    Bật
+                                  </>
+                                )}
                             </button>
                         )}
                     </div>
@@ -197,8 +206,10 @@ export default function RelayStatusPanel() {
                                     <code className="flex-1 text-[10px] text-green-300 bg-gray-700 px-1.5 py-0.5 rounded font-mono truncate">{ip}:{relayPort}</code>
                                     <button
                                         onClick={() => { navigator.clipboard.writeText(`${ip}:${relayPort}`); showNotification('Đã copy', 'info'); }}
-                                        className="text-gray-600 hover:text-blue-400 flex-shrink-0" title="Copy"
-                                    >📋</button>
+                                        className="text-gray-600 hover:text-blue-400 flex-shrink-0 flex items-center justify-center" title="Copy"
+                                    >
+                                        <AppIcon name="copy" size={12} className="text-current" />
+                                    </button>
                                 </div>
                             ))}
                         </div>
@@ -215,7 +226,7 @@ export default function RelayStatusPanel() {
                 }`}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                            <span className="text-base">🌐</span>
+                            <AppIcon name="globe" size={14} className="text-current" />
                             <span className="text-xs font-semibold text-gray-200">Kết nối WAN</span>
                         </div>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
@@ -235,20 +246,31 @@ export default function RelayStatusPanel() {
 
                     {/* Toggle button */}
                     {!relayRunning ? (
-                        <div className="text-[10px] text-yellow-500/80 bg-yellow-500/8 border border-yellow-500/20 rounded-lg px-2.5 py-2 leading-relaxed">
-                            ⚠️ Cần bật <span className="text-yellow-300 font-medium">LAN server</span> trước khi sử dụng WAN Tunnel
+                        <div className="text-[10px] text-yellow-500/80 bg-yellow-500/8 border border-yellow-500/20 rounded-lg px-2.5 py-2 leading-relaxed flex items-center gap-1.5">
+                            <AppIcon name="alert_triangle" className="text-yellow-500" size={12} />
+                            <span>Cần bật <span className="text-yellow-300 font-medium">LAN server</span> trước khi sử dụng WAN Tunnel</span>
                         </div>
                     ) : (
                         <button
                             onClick={handleToggleTunnel}
                             disabled={tunnelLoading}
-                            className={`w-full py-1 text-xs rounded-lg transition-colors disabled:opacity-50 ${
+                            className={`w-full py-1 text-xs rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1 ${
                                 tunnelActive
                                     ? 'bg-red-600/80 hover:bg-red-600 text-white'
                                     : 'bg-blue-600 hover:bg-blue-500 text-white'
                             }`}
                         >
-                            {tunnelLoading ? '⏳ Đang xử lý...' : tunnelActive ? '⏹ Tắt tunnel' : '🚀 Bật tunnel'}
+                            {tunnelLoading ? '⏳ Đang xử lý...' : tunnelActive ? (
+                              <>
+                                <AppIcon name="pause" size={12} className="text-current" />
+                                Tắt tunnel
+                              </>
+                            ) : (
+                              <>
+                                <AppIcon name="zap" size={12} className="text-current" />
+                                Bật tunnel
+                              </>
+                            )}
                         </button>
                     )}
 
@@ -256,14 +278,16 @@ export default function RelayStatusPanel() {
                     {tunnelActive && tunnelUrl && (
                         <div className="space-y-1 pt-1 border-t border-gray-700/50">
                             <p className="text-[10px] text-gray-600">Địa chỉ kết nối:</p>
-                            <div className="flex items-center gap-1.5">
-                                <code className="flex-1 text-[10px] text-blue-300 bg-gray-700 px-1.5 py-0.5 rounded font-mono truncate">{tunnelUrl}</code>
-                                <button
-                                    onClick={() => { navigator.clipboard.writeText(tunnelUrl); showNotification('Đã copy tunnel URL', 'info'); }}
-                                    className="text-gray-600 hover:text-blue-400 flex-shrink-0" title="Copy"
-                                >📋</button>
-                            </div>
-                            <p className="text-[10px] text-yellow-500/70">⚠️ URL thay đổi mỗi lần bật lại</p>
+                             <div className="flex items-center gap-1.5">
+                                 <code className="flex-1 text-[10px] text-blue-300 bg-gray-700 px-1.5 py-0.5 rounded font-mono truncate">{tunnelUrl}</code>
+                                 <button
+                                     onClick={() => { navigator.clipboard.writeText(tunnelUrl); showNotification('Đã copy tunnel URL', 'info'); }}
+                                     className="text-gray-600 hover:text-blue-400 flex-shrink-0 flex items-center justify-center" title="Copy"
+                                 >
+                                     <AppIcon name="copy" size={12} className="text-current" />
+                                 </button>
+                             </div>
+                             <p className="text-[10px] text-yellow-500/70 flex items-center gap-1"><AppIcon name="alert_triangle" className="text-yellow-500" size={10} /> URL thay đổi mỗi lần bật lại</p>
                         </div>
                     )}
 
@@ -279,8 +303,9 @@ export default function RelayStatusPanel() {
             {/* ── Connected employees ─────────────────────────────────── */}
             {relayRunning && (
                 <div className="bg-gray-800 rounded-xl p-3.5 space-y-2">
-                    <p className="text-[11px] text-gray-400 font-medium">
-                        👥 Nhân viên đang online
+                    <p className="text-[11px] text-gray-400 font-medium flex items-center gap-1.5">
+                        <AppIcon name="employees" size={12} className="text-current" />
+                        Nhân viên đang online
                         <span className="ml-1.5 text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full">{connectedEmployees.length}</span>
                     </p>
                     {connectedEmployees.length === 0 ? (
@@ -311,7 +336,10 @@ export default function RelayStatusPanel() {
 
             {/* ── Notes ──────────────────────────────────────────────── */}
             <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-xl p-3 space-y-2">
-                <p className="text-[11px] font-semibold text-yellow-400">⚠️ Lưu ý quan trọng</p>
+                <p className="text-[11px] font-semibold text-yellow-400 flex items-center gap-1.5">
+                   <AppIcon name="alert_triangle" className="text-yellow-400" size={12} />
+                   Lưu ý quan trọng
+                 </p>
                 <ul className="text-[11px] text-gray-400 space-y-1.5 leading-relaxed">
                     <li><span className="text-gray-300 font-medium">Server tắt khi đóng app</span> — nhân viên bị ngắt kết nối, cần bật lại và đăng nhập lại sau mỗi lần restart.</li>
                     <li><span className="text-gray-300 font-medium">LAN — IP động</span>: Khuyến nghị đặt IP tĩnh để nhân viên không cần đổi địa chỉ sau mỗi lần restart.</li>

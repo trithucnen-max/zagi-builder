@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import { useEmployeeStore } from '@/store/employeeStore';
@@ -7,6 +7,7 @@ import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
 import AccountCard from './AccountCard';
 import MergedInboxModal from './MergedInboxModal';
 import EmployeeLoginModal from './EmployeeLoginModal';
+import AppIcon from '@/components/common/AppIcon';
 import ipc from '@/lib/ipc';
 
 const BUG_REPORT_URL = 'https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg';
@@ -28,6 +29,8 @@ export default function Dashboard() {
 
   const isRemoteWs = activeWs?.type === 'remote' || empMode === 'employee';
   const isEmployeeWorkspace = activeWs?.type === 'remote' && empMode === 'employee';
+
+
 
   const handleSyncFromBoss = async () => {
     if (syncing) return;

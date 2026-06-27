@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { CRMCampaign } from '@/store/crmStore';
 import { showConfirm } from '@/components/common/ConfirmDialog';
+import AppIcon from '@/components/common/AppIcon';
 
 interface CampaignListProps {
   campaigns: CRMCampaign[];
@@ -19,7 +20,6 @@ const STATUS_STYLE: Record<string, string> = {
   paused: 'bg-yellow-500/20 text-yellow-400',
   done: 'bg-blue-500/20 text-blue-400',
 };
-const STATUS_LABEL: Record<string, string> = { draft: 'Nháp', active: '▶ Đang chạy', paused: '⏸ Tạm dừng', done: '✓ Hoàn thành' };
 
 const PAGE_SIZE = 10;
 
@@ -54,10 +54,8 @@ export default function CampaignList({ campaigns, loading, activeId, onSelect, o
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
         <span className="text-sm font-semibold text-gray-200">{campaigns.length} chiến dịch</span>
         <button onClick={onCreate}
-          className="flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
+          className="flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
+          <AppIcon name="plus" className="text-white" size={12} />
           Tạo mới
         </button>
       </div>
@@ -74,14 +72,22 @@ export default function CampaignList({ campaigns, loading, activeId, onSelect, o
             className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
         </div>
         <div className="flex gap-1 flex-wrap">
-          {(['all', 'draft', 'active', 'paused', 'done'] as const).map(s => (
-            <button key={s} onClick={() => { setFilterStatus(s); resetPage(); }}
-              className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
-                filterStatus === s ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-600 text-gray-400 hover:border-gray-500'
-              }`}>
-              {s === 'all' ? 'Tất cả' : STATUS_LABEL[s]}
-            </button>
-          ))}
+          {(['all', 'draft', 'active', 'paused', 'done'] as const).map(s => {
+            const isActive = filterStatus === s;
+            return (
+              <button key={s} onClick={() => { setFilterStatus(s); resetPage(); }}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors flex items-center gap-1 ${
+                  isActive ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+                }`}>
+                {s === 'active' && <AppIcon name="play" className={isActive ? "text-white fill-white" : "text-gray-500 fill-gray-500"} size={8} />}
+                {s === 'paused' && <AppIcon name="pause" className={isActive ? "text-white fill-white" : "text-gray-500 fill-gray-500"} size={8} />}
+                {s === 'done' && <AppIcon name="check" className={isActive ? "text-white" : "text-gray-500"} size={10} />}
+                <span>
+                  {s === 'all' ? 'Tất cả' : s === 'draft' ? 'Nháp' : s === 'active' ? 'Đang chạy' : s === 'paused' ? 'Tạm dừng' : 'Hoàn thành'}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -108,27 +114,71 @@ export default function CampaignList({ campaigns, loading, activeId, onSelect, o
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     {/* Campaign type badge */}
                     {c.campaign_type === 'friend_request' && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">🤝 Kết bạn</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center gap-1">
+                        <AppIcon name="user_plus" className="text-current" size={9} />
+                        <span>Kết bạn</span>
+                      </span>
                     )}
                     {c.campaign_type === 'invite_to_group' && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">👥 Mời nhóm</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center gap-1">
+                        <AppIcon name="user_check" className="text-current" size={10} />
+                        <span>Mời nhóm</span>
+                      </span>
                     )}
                     {c.campaign_type === 'mixed' && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">🔀 Hỗn hợp</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center gap-1">
+                        <AppIcon name="shuffle" className="text-current" size={9} />
+                        <span>Hỗn hợp</span>
+                      </span>
                     )}
-                    <span className="text-[11px] text-gray-500">
-                      ⏱ {c.delay_seconds}s delay
-                      {c.created_at ? <> · 📅 {fmtDate(c.created_at)}</> : null}
+                    <span className="text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5">
+                      <span className="flex items-center gap-0.5">
+                        <AppIcon name="clock" className="text-gray-500" size={10} />
+                        {c.delay_seconds}s delay
+                      </span>
+                      {c.created_at ? (
+                        <span className="flex items-center gap-0.5">
+                          <span>·</span>
+                          <AppIcon name="calendar" className="text-gray-500" size={10} />
+                          {fmtDate(c.created_at)}
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                 </div>
                 {(() => {
                   const isScheduled = c.status === 'active' && c.scheduled_start_at && c.scheduled_start_at > Date.now();
-                  const style = isScheduled ? 'bg-cyan-500/20 text-cyan-400' : STATUS_STYLE[c.status];
-                  const label = isScheduled ? '🗓 Đã lên lịch' : STATUS_LABEL[c.status];
+                  const style = isScheduled ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : STATUS_STYLE[c.status] + ' border';
+                  let borderStyle = 'border-gray-600/30';
+                  if (c.status === 'active') borderStyle = 'border-green-500/30';
+                  else if (c.status === 'paused') borderStyle = 'border-yellow-500/30';
+                  else if (c.status === 'done') borderStyle = 'border-blue-500/30';
+
                   return (
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full flex-shrink-0 ${style}`}>
-                      {label}
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1 ${style} ${borderStyle}`}>
+                      {isScheduled ? (
+                        <>
+                          <AppIcon name="calendar" className="text-cyan-400" size={10} />
+                          <span>Đã lên lịch</span>
+                        </>
+                      ) : c.status === 'active' ? (
+                        <>
+                          <AppIcon name="play" className="text-green-400 fill-green-400" size={9} />
+                          <span>Đang chạy</span>
+                        </>
+                      ) : c.status === 'paused' ? (
+                        <>
+                          <AppIcon name="pause" className="text-yellow-400 fill-yellow-400" size={9} />
+                          <span>Tạm dừng</span>
+                        </>
+                      ) : c.status === 'done' ? (
+                        <>
+                          <AppIcon name="check" className="text-blue-400" size={10} />
+                          <span>Hoàn thành</span>
+                        </>
+                      ) : (
+                        <span>Nháp</span>
+                      )}
                     </span>
                   );
                 })()}
@@ -149,19 +199,30 @@ export default function CampaignList({ campaigns, loading, activeId, onSelect, o
               <div className="flex gap-1.5 mt-1.5" onClick={e => e.stopPropagation()}>
                 {c.status === 'draft' && (
                   <button onClick={() => onUpdateStatus(c.id, 'active')}
-                    className="flex-1 text-[11px] py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white">▶ Bắt đầu</button>
+                    className="flex-1 text-[11px] py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-1 font-medium">
+                    <AppIcon name="play" className="text-white fill-white" size={9} />
+                    Bắt đầu
+                  </button>
                 )}
                 {c.status === 'active' && (
                   <button onClick={() => onUpdateStatus(c.id, 'paused')}
-                    className="flex-1 text-[11px] py-1 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white">⏸ Tạm dừng</button>
+                    className="flex-1 text-[11px] py-1 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white flex items-center justify-center gap-1 font-medium">
+                    <AppIcon name="pause" className="text-white fill-white" size={9} />
+                    Tạm dừng
+                  </button>
                 )}
                 {c.status === 'paused' && (
                   <button onClick={() => onUpdateStatus(c.id, 'active')}
-                    className="flex-1 text-[11px] py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white">▶ Tiếp tục</button>
+                    className="flex-1 text-[11px] py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-1 font-medium">
+                    <AppIcon name="play" className="text-white fill-white" size={9} />
+                    Tiếp tục
+                  </button>
                 )}
                 <button onClick={() => onClone(c.id)}
                   title="Nhân bản chiến dịch"
-                  className="px-2 text-[11px] py-1 rounded-lg bg-gray-700 hover:bg-blue-700/50 text-gray-400 hover:text-blue-300 transition-colors">📋</button>
+                  className="px-2.5 text-[11px] py-1 rounded-lg bg-gray-750 border border-gray-700 hover:border-gray-600 hover:bg-blue-700/50 text-gray-400 hover:text-blue-300 transition-colors flex items-center justify-center">
+                  <AppIcon name="copy" className="text-current" size={12} />
+                </button>
                 <button
                   onClick={async () => {
                     const ok = await showConfirm({
@@ -172,7 +233,10 @@ export default function CampaignList({ campaigns, loading, activeId, onSelect, o
                     });
                     if (ok) onDelete(c.id);
                   }}
-                  className="px-2 text-[11px] py-1 rounded-lg bg-gray-700 hover:bg-red-700/50 text-gray-400 hover:text-red-300 transition-colors">🗑</button>
+                  className="px-2.5 text-[11px] py-1 rounded-lg bg-gray-750 border border-gray-700 hover:border-gray-600 hover:bg-red-700/50 text-gray-400 hover:text-red-300 transition-colors flex items-center justify-center"
+                >
+                  <AppIcon name="trash" className="text-current" size={12} />
+                </button>
               </div>
             </div>
           );

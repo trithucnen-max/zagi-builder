@@ -45,13 +45,20 @@ export default function AddToCampaignModal({
         contacts,
       });
 
-      if (res?.success || res === undefined || (res && !('success' in res))) { // handle flexible api returns
-        showNotification(`Đã thêm ${contacts.length} liên hệ vào chiến dịch`, 'success');
+      if (res?.success) {
+        if (res.limitExceeded) {
+          showNotification(
+            `Chiến dịch chỉ cho tối đa 1000 người. Đã thêm ${res.addedCount} và loại bỏ ${res.discardedCount} người vượt quá.`,
+            'warning'
+          );
+        } else {
+          showNotification(`Đã thêm ${res.addedCount || contacts.length} liên hệ vào chiến dịch`, 'success');
+        }
         store.clearSelection();
         onSuccess();
         onClose();
       } else {
-        throw new Error((res as any).error || 'Không thể thêm liên hệ');
+        throw new Error((res as any)?.error || 'Không thể thêm liên hệ');
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Không rõ';

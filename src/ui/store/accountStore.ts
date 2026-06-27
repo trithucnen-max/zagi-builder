@@ -50,9 +50,14 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
     const current = get().accounts;
     if (current === accounts) return;
     if (current.length === 0 && accounts.length === 0) return;
-    // Deep-ish compare: skip if same zalo_ids in same order AND key fields match
+    // If length differs → always update immediately (new account added or removed)
+    // Do NOT deep-compare in this case — it would block legitimate new-account updates
+    if (current.length !== accounts.length) {
+      set({ accounts });
+      return;
+    }
+    // Same length: deep-ish compare — skip only when ALL key fields are identical
     if (
-      current.length === accounts.length &&
       current.every((a, i) => {
         const b = accounts[i];
         return a.zalo_id === b?.zalo_id

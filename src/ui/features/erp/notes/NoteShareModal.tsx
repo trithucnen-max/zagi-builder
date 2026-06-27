@@ -3,6 +3,7 @@ import ipc from '@/lib/ipc';
 import { useErpEmployeeStore } from '@/store/erp/erpEmployeeStore';
 import type { ErpNote, NoteShareScope, NoteSharePermission } from '../../../../models/erp';
 import { EmployeeAvatar } from '../shared/ErpBadges';
+import AppIcon from '@/components/common/AppIcon';
 
 interface Props {
   note: ErpNote;
@@ -84,7 +85,10 @@ export default function NoteShareModal({ note, onClose, onSaved }: Props) {
                   : 'border-gray-600 text-gray-400 hover:bg-gray-700'
               }`}
             >
-              {s === 'private' ? '🔒 Riêng tư' : s === 'workspace' ? '🌐 Toàn workspace' : '👥 Tuỳ chọn'}
+              <span className="flex items-center justify-center gap-1">
+                {s === 'private' ? <AppIcon name="security" className="text-current" size={11} /> : s === 'workspace' ? <AppIcon name="globe" className="text-current" size={11} /> : <AppIcon name="users" className="text-current" size={11} />}
+                {s === 'private' ? 'Riêng tư' : s === 'workspace' ? 'Toàn workspace' : 'Tuỳ chọn'}
+              </span>
             </button>
           ))}
         </div>

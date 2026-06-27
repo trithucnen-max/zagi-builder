@@ -12,6 +12,7 @@ import { useErpNotificationStore } from '@/store/erp/erpNotificationStore';
 import { useErpEmployeeStore } from '@/store/erp/erpEmployeeStore';
 import { useCurrentEmployeeId, useErpPermissions } from '@/hooks/erp/useErpContext';
 import NotificationCenter from '@/features/erp/notifications/NotificationCenter';
+import AppIcon from '@/components/common/AppIcon';
 
 
 const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?';
@@ -21,17 +22,14 @@ const scaleToPx = (s: number) => Math.round(16 * s);
 
 export default function TopBar() {
   const [isMaximized, setIsMaximized] = useState(false);
-  const { theme, setTheme, showNotification, fontSizeScale, setFontSizeScale } = useAppStore();
+  const { theme, setTheme, showNotification, fontSizeScale, setFontSizeScale, setView } = useAppStore();
   const { activeAccountId } = useAccountStore();
   const [loadingOldMsgs, setLoadingOldMsgs] = useState(false);
   const [lockScreenEnabled, setLockScreenEnabled] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
-  // Zalo safety guide dropdown
-  const [guideOpen, setGuideOpen] = useState(false);
-  const guideRef = useRef<HTMLDivElement>(null);
   const activeAccount = useAccountStore((s) => s.accounts.find(a => a.zalo_id === s.activeAccountId));
   const isBusiness = activeAccount?.is_business === 1;
-
 
   // Font size slider: local temp value, only applies on release
   const [fontTemp, setFontTemp] = useState(fontSizeScale);
@@ -40,18 +38,6 @@ export default function TopBar() {
   useEffect(() => {
     setFontTemp(fontSizeScale);
   }, [fontSizeScale]);
-
-  // Đóng cẩm nang khi click ra ngoài
-  useEffect(() => {
-    if (!guideOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (guideRef.current && !guideRef.current.contains(e.target as Node)) {
-        setGuideOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [guideOpen]);
 
   // Update state
   const { status: updateStatus, updateInfo, platform, setDismissed } = useUpdateStore();
@@ -238,86 +224,7 @@ export default function TopBar() {
         className="flex items-center"
         style={{ WebkitAppRegion: 'no-drag' } as any}
       >
-        {/* Cẩm nang an toàn Zalo */}
-        <div className="relative mr-2" ref={guideRef}>
-          <button
-            onClick={() => setGuideOpen(v => !v)}
-            className={`h-7 px-2.5 rounded-lg flex items-center gap-1 text-[11px] font-semibold border transition-all cursor-pointer ${
-              guideOpen
-                ? 'bg-amber-600 border-amber-600 text-white'
-                : 'border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/5 bg-transparent'
-            }`}
-            title="Cẩm nang quy tắc gửi tin nhắn Zalo an toàn"
-          >
-            🛡️ Cẩm nang an toàn Zalo
-          </button>
-          
-          {guideOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-[9999] p-4 text-left overflow-y-auto max-h-[80vh] flex flex-col gap-3.5 text-gray-800 dark:text-gray-200">
-              <div className="flex items-center justify-between border-b border-gray-150 dark:border-gray-700 pb-2">
-                <span className="text-[12px] font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1">
-                  🛡️ CẨM NANG AN TOÀN ZALO
-                </span>
-                <button
-                  onClick={() => setGuideOpen(false)}
-                  className="text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 text-sm font-semibold cursor-pointer"
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div className="space-y-3.5 text-[11px] leading-relaxed">
-                {/* Section 1 */}
-                <div className="space-y-1">
-                  <p className="font-bold text-red-600 dark:text-red-400 flex items-center gap-1">
-                    🔴 1. Gửi tin cho người chưa kết bạn (Người lạ)
-                  </p>
-                  <ul className="list-disc pl-4 space-y-1 text-gray-600 dark:text-gray-300">
-                    <li><strong>Hạn mức:</strong> Tài khoản cá nhân miễn phí được gửi tối đa <span className="font-semibold text-red-650 dark:text-red-400">40 người lạ/tháng</span>.</li>
-                    <li><strong>Tần suất:</strong> Gửi tối đa <span className="font-semibold text-amber-600 dark:text-amber-400">10 - 20 người/ngày</span>. Bắt buộc giãn cách <span className="font-semibold text-blue-600 dark:text-blue-400">3 - 5 phút</span> giữa mỗi tin.</li>
-                    <li><strong>Trạng thái:</strong> Nằm ở mục "Tin nhắn chờ người lạ". Sẽ thất bại nếu khách tắt nhận tin từ người lạ.</li>
-                  </ul>
-                </div>
-                
-                {/* Section 2 */}
-                <div className="space-y-1">
-                  <p className="font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
-                    🟢 2. Gửi tin cho khách hàng đã kết bạn
-                  </p>
-                  <ul className="list-disc pl-4 space-y-1 text-gray-600 dark:text-gray-300">
-                    <li><strong>Cá nhân (1-1):</strong> Không giới hạn số lượng tin nhắn trong ngày.</li>
-                    <li><strong>Forward hàng loạt:</strong> Tối đa <span className="font-semibold text-blue-600 dark:text-blue-400">50 người/nhóm</span> mỗi lần chuyển tiếp.</li>
-                    <li><strong>Báo cáo xấu (Report):</strong> Tránh spam rác để không bị người dùng bấm báo cáo xấu dẫn tới khóa tài khoản.</li>
-                  </ul>
-                </div>
-                
-                {/* Section 3 */}
-                <div className="space-y-1 border-t border-gray-100 dark:border-gray-700 pt-2.5">
-                  <p className="font-bold text-amber-650 dark:text-amber-400 flex items-center gap-1">
-                    ⭐ 3. Nguyên tắc vàng bắt buộc
-                  </p>
-                  <ul className="list-disc pl-4 space-y-1 text-gray-600 dark:text-gray-300">
-                    <li><strong>Cá nhân hóa:</strong> Thay đổi cấu trúc chào hỏi, chèn biến <code className="bg-gray-100 dark:bg-gray-750 px-1 py-0.5 rounded text-[10px]">{`{name}`}</code>, <code className="bg-gray-100 dark:bg-gray-750 px-1 py-0.5 rounded text-[10px]">{`{gender_greeting}`}</code> để lách lọc.</li>
-                    <li><strong>Kiểm soát link:</strong> Hạn chế tối đa gửi link lạ, link rút gọn ở tin đầu tiên cho người lạ. Chỉ gửi sau khi đã kết bạn.</li>
-                    <li><strong>Tài khoản Business:</strong> Giúp gỡ bỏ hạn mức 40 người lạ/tháng. Nên ưu tiên sử dụng để khai thác khách hàng mới.</li>
-                  </ul>
-                </div>
 
-                {/* Account status info */}
-                <div className="border-t border-gray-100 dark:border-gray-700 pt-2.5 flex items-center justify-between text-[10px] text-gray-500">
-                  <span>Trạng thái tài khoản hiện tại:</span>
-                  <span className={`px-2 py-0.5 rounded-full font-bold ${
-                    isBusiness 
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' 
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                  }`}>
-                    {isBusiness ? '💼 Business' : '👤 Cá nhân'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Tải tin nhắn cũ (toàn phiên đăng nhập) — ẩn với nhân viên */}
         {activeAccountId && empMode !== 'employee' && (
@@ -431,19 +338,38 @@ export default function TopBar() {
 
 
 
-        {/* Lock screen button — only visible when lock screen is enabled */}
-        {lockScreenEnabled && (
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('lockScreen:lock'))}
-            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-amber-400 transition-colors"
-            title="Khoá ứng dụng (Ctrl+Shift+L)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-          </button>
-        )}
+        {/* Lock screen button — always visible */}
+        <button
+          onClick={async () => {
+            const status = await ipc.lockScreen?.status();
+            if (status?.success && status.enabled) {
+              window.dispatchEvent(new CustomEvent('lockScreen:lock'));
+            } else {
+              showNotification('Vui lòng thiết lập mật khẩu khóa màn hình trong Cài đặt trước.', 'info');
+              setView('settings');
+            }
+          }}
+          className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-amber-400 transition-colors"
+          title="Khoá ứng dụng (Ctrl+Shift+L)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </button>
+
+        {/* Shortcuts guide button */}
+        <button
+          onClick={() => setShortcutsOpen(true)}
+          className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-blue-400 transition-colors font-semibold"
+          title="Hướng dẫn phím tắt (?)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </button>
 
         {/* Theme toggle */}
         <button
@@ -569,7 +495,34 @@ export default function TopBar() {
         )}
       </div>
 
-
+      {/* Shortcuts Guide Modal */}
+      {shortcutsOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]" onClick={() => setShortcutsOpen(false)}>
+          <div className="bg-gray-800 border border-gray-600 rounded-2xl w-[420px] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
+              <h3 className="font-semibold text-white">Phím tắt ứng dụng</h3>
+              <button onClick={() => setShortcutsOpen(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <div className="p-5 space-y-4 text-sm text-gray-300">
+              <div className="flex items-center justify-between">
+                <span>Khóa màn hình</span>
+                <kbd className="px-2 py-1 bg-gray-750 border border-gray-600 rounded text-xs text-white font-mono">Ctrl + Shift + L</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Mở nhanh Chat</span>
+                <kbd className="px-2 py-1 bg-gray-750 border border-gray-600 rounded text-xs text-white font-mono">Ctrl + Shift + N</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Chuyển đổi tài khoản Zalo</span>
+                <kbd className="px-2 py-1 bg-gray-750 border border-gray-600 rounded text-xs text-white font-mono">Ctrl + Tab</kbd>
+              </div>
+            </div>
+            <div className="px-5 py-3.5 border-t border-gray-700 flex justify-end">
+              <button onClick={() => setShortcutsOpen(false)} className="px-4 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-xs font-semibold text-white transition-colors">Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

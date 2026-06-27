@@ -4,6 +4,7 @@ import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import { showConfirm } from '../common/ConfirmDialog';
 import { extractApiError } from '@/utils/apiError';
+import AppIcon from '../common/AppIcon';
 
 function Section({ children }: { children: React.ReactNode }) {
   return (
@@ -94,7 +95,10 @@ export default function AccountSettings() {
   return (
     <>
       <div className="flex items-center gap-3">
-        <h2 className="text-base font-semibold text-white">👤 Tài khoản đã đăng nhập</h2>
+        <h2 className="text-base font-semibold text-white flex items-center gap-1.5">
+          <AppIcon name="accounts" size={16} className="text-blue-500" />
+          Tài khoản đã đăng nhập
+        </h2>
       </div>
       <Section>
         <div className="space-y-2">
@@ -147,7 +151,7 @@ export default function AccountSettings() {
             {/* Header */}
             <div className="px-5 pt-5 pb-3 border-b border-gray-700">
               <div className="flex items-center gap-3 mb-1">
-                <span className="text-2xl">⚙️</span>
+                <AppIcon name="settings" size={24} className="text-gray-400" />
                 <h3 className="text-base font-semibold text-white">Cài đặt tài khoản</h3>
               </div>
               <p className="text-xs text-gray-400 mt-1">
@@ -159,7 +163,10 @@ export default function AccountSettings() {
             <div className="p-5 space-y-5">
               {/* Auto-delete media */}
               <div>
-                <p className="text-sm font-semibold text-gray-200 mb-3">📁 Tự động xoá media</p>
+                <p className="text-sm font-semibold text-gray-200 mb-3 flex items-center gap-1.5">
+                  <AppIcon name="storage" size={14} className="text-gray-400" />
+                  Tự động xoá media
+                </p>
                 {configLoaded ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -212,9 +219,14 @@ export default function AccountSettings() {
               <button
                 onClick={handleSaveMediaConfig}
                 disabled={savingMedia || !configLoaded}
-                className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors disabled:opacity-50"
+                className="flex-1 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                {savingMedia ? 'Đang lưu...' : '💾 Lưu & chạy ngay'}
+                {savingMedia ? 'Đang lưu...' : (
+                  <>
+                    <AppIcon name="check" size={14} className="text-current" />
+                    Lưu & chạy ngay
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -228,7 +240,7 @@ export default function AccountSettings() {
             {/* Header */}
             <div className="px-5 pt-5 pb-3 border-b border-gray-700">
               <div className="flex items-center gap-3 mb-1">
-                <span className="text-2xl">🗑️</span>
+                <AppIcon name="trash" size={24} className="text-red-400" />
                 <h3 className="text-base font-semibold text-white">Xoá tài khoản</h3>
               </div>
               <p className="text-xs text-gray-400 mt-1">
@@ -284,9 +296,14 @@ export default function AccountSettings() {
               </button>
               <button
                 onClick={() => handleDeleteAccount(deleteModalAcc)}
-                className={`flex-1 py-2 text-sm font-medium text-white rounded-xl transition-colors ${deleteWithData ? 'bg-red-600 hover:bg-red-500' : 'bg-orange-600 hover:bg-orange-500'}`}
+                className={`flex-1 py-2 text-sm font-medium text-white rounded-xl transition-colors flex items-center justify-center gap-1.5 ${deleteWithData ? 'bg-red-600 hover:bg-red-500' : 'bg-orange-600 hover:bg-orange-500'}`}
               >
-                {deleteWithData ? '🗑️ Xoá tất cả' : 'Xoá tài khoản'}
+                {deleteWithData ? (
+                  <>
+                    <AppIcon name="trash" size={14} className="text-current" />
+                    Xoá tất cả
+                  </>
+                ) : 'Xoá tài khoản'}
               </button>
             </div>
           </div>

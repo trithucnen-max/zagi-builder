@@ -164,11 +164,16 @@ class DatabaseService {
      */
     public async reinitialize(): Promise<void> {
         Logger.log('[DatabaseService] Reinitializing from new config...');
-        try { db?.close(); } catch {}
-        db = null;
+        const prevDb = db;
         this.initialized = false;
-        this.dbPath = '';
+        
         await this.initialize();
+        
+        if (prevDb && prevDb !== db) {
+            try {
+                prevDb.close();
+            } catch {}
+        }
         Logger.log(`[DatabaseService] Reinitialized at ${this.dbPath}`);
     }
 
@@ -209,6 +214,7 @@ class DatabaseService {
 
         const prevDbPath = this.dbPath;
         const prevDb = db;
+        let newDb: BetterSqlite3.Database | null = null;
 
         try {
             const dir = path.dirname(targetDbPath);
@@ -220,17 +226,9 @@ class DatabaseService {
             // Close cached secondary DB (if any) before switching
             closeCachedSecondaryDb();
 
-            // Close old DB
-            try {
-                prevDb?.close();
-            } catch (closeErr: any) {
-                Logger.warn(`[DatabaseService] Failed to close previous DB before switch: ${closeErr.message}`);
-            }
-            db = null;
-
             // Open the new DB (better-sqlite3 handles create-if-not-exists automatically)
             try {
-                db = this.openDb(targetDbPath);
+                newDb = this.openDb(targetDbPath);
                 Logger.log(`[DatabaseService] Opened DB: ${targetDbPath}`);
             } catch (loadErr: any) {
                 const msg = loadErr?.message || String(loadErr);
@@ -244,10 +242,21 @@ class DatabaseService {
                 }
                 // Delete corrupt file and retry
                 try { fs.unlinkSync(targetDbPath); } catch {}
-                db = this.openDb(targetDbPath);
+                newDb = this.openDb(targetDbPath);
                 Logger.log(`[DatabaseService] Created fresh DB after failed load: ${targetDbPath}`);
             }
 
+            // Close old DB only after the new connection has opened successfully
+            if (prevDb) {
+                try {
+                    prevDb.close();
+                } catch (closeErr: any) {
+                    Logger.warn(`[DatabaseService] Failed to close previous DB before switch: ${closeErr.message}`);
+                }
+            }
+
+            // Assign the new connection
+            db = newDb;
             this.dbPath = targetDbPath;
             this.createTables();
             this.migrate();
@@ -256,6 +265,9 @@ class DatabaseService {
 
             Logger.log(`[DatabaseService] Workspace DB ready at ${this.dbPath}`);
         } catch (err: any) {
+            if (newDb) {
+                try { newDb.close(); } catch {}
+            }
             const errMsg = err?.message || String(err);
             Logger.error(`[DatabaseService] switchToWorkspaceDb failed: ${errMsg}. Rolling back to ${prevDbPath}.`);
             this.dbPath = prevDbPath;
@@ -321,21 +333,37 @@ class DatabaseService {
     }
 
     public exec(sql: string): void {
-        db!.exec(sql);
+        if (!db) {
+            Logger.warn(`[DatabaseService] Exec aborted: database is not initialized. SQL: ${sql}`);
+            return;
+        }
+        db.exec(sql);
     }
 
     public run(sql: string, params: any[] = []): void {
-        db!.prepare(sql).run(...params);
+        if (!db) {
+            Logger.warn(`[DatabaseService] Run aborted: database is not initialized. SQL: ${sql}`);
+            return;
+        }
+        db.prepare(sql).run(...params);
     }
 
     /** Execute SQL without flushing to disk — same as run() now (WAL auto-writes) */
     private runNoSave(sql: string, params: any[] = []): void {
-        db!.prepare(sql).run(...params);
+        if (!db) {
+            Logger.warn(`[DatabaseService] RunNoSave aborted: database is not initialized. SQL: ${sql}`);
+            return;
+        }
+        db.prepare(sql).run(...params);
     }
 
     /** Run an INSERT and return the new rowid. */
     public runInsert(sql: string, params: any[] = []): number {
-        const result = db!.prepare(sql).run(...params);
+        if (!db) {
+            Logger.warn(`[DatabaseService] RunInsert aborted: database is not initialized. SQL: ${sql}`);
+            return 0;
+        }
+        const result = db.prepare(sql).run(...params);
         return Number(result.lastInsertRowid) || 0;
     }
 
@@ -344,12 +372,20 @@ class DatabaseService {
      * Uses better-sqlite3 native transaction → automatic ROLLBACK on throw.
      */
     public transaction<T>(fn: () => T): T {
-        return db!.transaction(fn)();
+        if (!db) {
+            Logger.warn(`[DatabaseService] Transaction aborted: database is not initialized.`);
+            throw new Error('Database is not initialized.');
+        }
+        return db.transaction(fn)();
     }
 
     public query<T>(sql: string, params: any[] = []): T[] {
+        if (!db) {
+            Logger.warn(`[DatabaseService] Query aborted: database is not initialized. SQL: ${sql}`);
+            return [];
+        }
         try {
-            return db!.prepare(sql).all(...params) as T[];
+            return db.prepare(sql).all(...params) as T[];
         } catch (err: any) {
             Logger.error(`[DatabaseService] Query error: ${err.message} | SQL: ${sql}`);
             return [];
@@ -357,8 +393,12 @@ class DatabaseService {
     }
 
     queryOne<T>(sql: string, params: any[] = []): T | undefined {
+        if (!db) {
+            Logger.warn(`[DatabaseService] QueryOne aborted: database is not initialized. SQL: ${sql}`);
+            return undefined;
+        }
         try {
-            return db!.prepare(sql).get(...params) as T | undefined;
+            return db.prepare(sql).get(...params) as T | undefined;
         } catch (err: any) {
             Logger.error(`[DatabaseService] QueryOne error: ${err.message} | SQL: ${sql}`);
             return undefined;
@@ -4088,11 +4128,16 @@ class DatabaseService {
         member: { memberId: string; displayName: string; avatar: string; role: number }
     ): void {
         if (!this.initialized) return;
-        db!.prepare(
-            `INSERT OR REPLACE INTO page_group_member
+        db!.prepare(`
+            INSERT INTO page_group_member
                 (owner_zalo_id, group_id, member_id, display_name, avatar, role, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`
-        ).run(ownerZaloId, groupId, member.memberId, member.displayName || '', member.avatar || '', member.role || 0, Date.now());
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(owner_zalo_id, group_id, member_id) DO UPDATE SET
+                display_name = CASE WHEN excluded.display_name != '' THEN excluded.display_name ELSE display_name END,
+                avatar       = CASE WHEN excluded.avatar != ''       THEN excluded.avatar       ELSE avatar       END,
+                role         = excluded.role,
+                updated_at   = excluded.updated_at
+        `).run(ownerZaloId, groupId, member.memberId, member.displayName || '', member.avatar || '', member.role || 0, Date.now());
         this.save();
         Logger.log(`[DB] Upserted member ${member.memberId} role=${member.role} in group ${groupId}`);
     }
@@ -5027,17 +5072,58 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] retryFailedCampaignContacts: ${err.message}`); }
     }
 
-    public addCampaignContacts(campaignId: number, ownerZaloId: string, contacts: Array<{ contactId: string; displayName?: string; avatar?: string; phone?: string }>): void {
-        if (!this.initialized || !contacts.length) return;
+    public addCampaignContacts(
+        campaignId: number,
+        ownerZaloId: string,
+        contacts: Array<{ contactId: string; displayName?: string; avatar?: string; phone?: string }>
+    ): { addedCount: number; discardedCount: number; limitExceeded: boolean } {
+        if (!this.initialized) {
+            return { addedCount: 0, discardedCount: contacts.length, limitExceeded: false };
+        }
+        if (!contacts.length) {
+            return { addedCount: 0, discardedCount: 0, limitExceeded: false };
+        }
+
+        let addedCount = 0;
+        let discardedCount = 0;
+        let limitExceeded = false;
+
         try {
+            const rows = this.query<{ contact_id: string }>(
+                `SELECT contact_id FROM crm_campaign_contacts WHERE campaign_id=?`,
+                [campaignId]
+            );
+            const existingIds = new Set<string>(rows.map(r => r.contact_id));
+
+            let availableSlots = 1000 - existingIds.size;
+
             const stmt = db!.prepare(
                 `INSERT OR IGNORE INTO crm_campaign_contacts (campaign_id, owner_zalo_id, contact_id, display_name, avatar, phone, status, sent_at, retry_count, error) VALUES (?,?,?,?,?,?,'pending',0,0,'')`
             );
+
             for (const c of contacts) {
+                if (existingIds.has(c.contactId)) {
+                    continue;
+                }
+
+                if (availableSlots <= 0) {
+                    limitExceeded = true;
+                    discardedCount++;
+                    continue;
+                }
+
                 stmt.run(campaignId, ownerZaloId, c.contactId, c.displayName || '', c.avatar || '', c.phone || '');
+                existingIds.add(c.contactId);
+                availableSlots--;
+                addedCount++;
             }
+
             this.save();
-        } catch (err: any) { Logger.error(`[DB] addCampaignContacts: ${err.message}`); }
+        } catch (err: any) {
+            Logger.error(`[DB] addCampaignContacts: ${err.message}`);
+        }
+
+        return { addedCount, discardedCount, limitExceeded };
     }
 
     public getCampaignContacts(campaignId: number): CRMCampaignContact[] {
@@ -5106,6 +5192,61 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] getNextPendingCampaignContact: ${err.message}`); return null; }
     }
 
+    /** Lấy item tiếp theo phối hợp giữa nhiều tài khoản (Round-Robin/Xen kẽ gửi) */
+    public getNextPendingCampaignContactCooperative(zaloId: string): CRMCampaignContact | null {
+        if (!this.initialized) return null;
+        try {
+            // 1. Lấy tất cả chiến dịch đang chạy (active)
+            const activeCampaigns = this.query<any>(
+                `SELECT id, daily_send_limit FROM crm_campaigns WHERE status='active'`, []
+            );
+
+            // 2. Lọc bỏ các chiến dịch mà zaloId này đã đạt giới hạn gửi tin trong ngày
+            const allowedCampaignIds: number[] = [];
+            for (const camp of activeCampaigns) {
+                if (camp.daily_send_limit > 0) {
+                    const sentToday = this.getDailySentCountForCampaign(camp.id, zaloId);
+                    if (sentToday >= camp.daily_send_limit) {
+                        continue; // Vượt quá giới hạn cho tài khoản này, bỏ qua
+                    }
+                }
+                allowedCampaignIds.push(camp.id);
+            }
+
+            if (allowedCampaignIds.length === 0) return null;
+
+            // 3. Truy vấn liên hệ pending đầu tiên trong số các chiến dịch được phép gửi
+            const placeholders = allowedCampaignIds.map(() => '?').join(',');
+            const rows = this.query<any>(
+                `SELECT cc.*, c.template_message, c.delay_seconds, c.campaign_type, c.friend_request_message, c.mixed_config, c.name as campaign_name, c.daily_send_limit, c.daily_start_time, c.scheduled_start_at,
+                    COALESCE(cont.phone, fr.phone, '') as phone,
+                    COALESCE(cont.contact_type, 'user') as contact_type,
+                    COALESCE(cont.alias, '') as alias,
+                    cont.gender,
+                    cont.birthday
+                 FROM crm_campaign_contacts cc
+                 JOIN crm_campaigns c ON c.id=cc.campaign_id
+                 LEFT JOIN contacts cont ON cont.owner_zalo_id=cc.owner_zalo_id AND cont.contact_id=cc.contact_id
+                 LEFT JOIN friends fr ON fr.owner_zalo_id=cc.owner_zalo_id AND fr.user_id=cc.contact_id
+                 WHERE cc.campaign_id IN (${placeholders}) AND cc.status='pending' AND cc.retry_count < 3
+                 ORDER BY cc.id LIMIT 1`,
+                [...allowedCampaignIds]
+            );
+
+            if (rows[0]) {
+                const contact = rows[0];
+                // Cập nhật owner_zalo_id của liên hệ này sang tài khoản đang xử lý để ghi log và chạy đúng kết nối
+                this.run(`UPDATE crm_campaign_contacts SET owner_zalo_id = ? WHERE id = ?`, [zaloId, contact.id]);
+                contact.owner_zalo_id = zaloId;
+                return contact;
+            }
+            return null;
+        } catch (err: any) {
+            Logger.error(`[DB] getNextPendingCampaignContactCooperative: ${err.message}`);
+            return null;
+        }
+    }
+
     /** Kiểm tra có campaign nào đang active không */
     public hasActiveCampaigns(ownerZaloId: string): boolean {
         if (!this.initialized) return false;
@@ -5131,16 +5272,19 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] getActiveCampaignOwners: ${err.message}`); return []; }
     }
 
-    /** Đếm số liên hệ đã gửi trong ngày hôm nay cho 1 campaign (dùng cho daily limit check) */
-    public getDailySentCountForCampaign(campaignId: number): number {
+    /** Đếm số liên hệ đã gửi trong ngày hôm nay cho 1 campaign của 1 account */
+    public getDailySentCountForCampaign(campaignId: number, ownerZaloId?: string): number {
         if (!this.initialized) return 0;
         try {
             const todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
-            const rows = this.query<any>(
-                `SELECT COUNT(*) as cnt FROM crm_campaign_contacts WHERE campaign_id=? AND status='sent' AND sent_at >= ?`,
-                [campaignId, todayStart.getTime()]
-            );
+            let q = `SELECT COUNT(*) as cnt FROM crm_campaign_contacts WHERE campaign_id=? AND status='sent' AND sent_at >= ?`;
+            const params: any[] = [campaignId, todayStart.getTime()];
+            if (ownerZaloId) {
+                q += ` AND owner_zalo_id=?`;
+                params.push(ownerZaloId);
+            }
+            const rows = this.query<any>(q, params);
             return rows[0]?.cnt ?? 0;
         } catch { return 0; }
     }
@@ -5199,6 +5343,74 @@ class DatabaseService {
                 LIMIT ?
             `, [ownerZaloId, limit]);
         } catch (err: any) { Logger.error(`[DB] getTopCampaignStats: ${err.message}`); return []; }
+    }
+
+    /** Get campaign safety statistics and daily counts */
+    public getCampaignSafetyStats(ownerZaloId?: string): {
+        sentStrangerMessages: number;
+        sentStrangerInvites: number;
+        campaignsOverTime: Array<{ date: string; count: number }>;
+    } {
+        if (!this.initialized) return { sentStrangerMessages: 0, sentStrangerInvites: 0, campaignsOverTime: [] };
+        try {
+            const hasOwner = !!ownerZaloId;
+            const params: any[] = [];
+            if (hasOwner) params.push(ownerZaloId);
+
+            const msgSql = `
+                SELECT COUNT(DISTINCT cc.id) as cnt
+                FROM crm_campaign_contacts cc
+                JOIN crm_campaigns c ON cc.campaign_id = c.id
+                WHERE cc.status = 'sent'
+                  AND c.campaign_type = 'message'
+                  ${hasOwner ? 'AND cc.owner_zalo_id = ?' : ''}
+                  AND NOT EXISTS (
+                      SELECT 1 FROM friends f WHERE f.owner_zalo_id = cc.owner_zalo_id AND f.user_id = cc.contact_id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM contacts co WHERE co.owner_zalo_id = cc.owner_zalo_id AND co.contact_id = cc.contact_id AND co.is_friend = 1
+                  )
+            `;
+
+            const inviteSql = `
+                SELECT COUNT(DISTINCT cc.id) as cnt
+                FROM crm_campaign_contacts cc
+                JOIN crm_campaigns c ON cc.campaign_id = c.id
+                WHERE cc.status = 'sent'
+                  AND c.campaign_type = 'friend_request'
+                  ${hasOwner ? 'AND cc.owner_zalo_id = ?' : ''}
+                  AND NOT EXISTS (
+                      SELECT 1 FROM friends f WHERE f.owner_zalo_id = cc.owner_zalo_id AND f.user_id = cc.contact_id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM contacts co WHERE co.owner_zalo_id = cc.owner_zalo_id AND co.contact_id = cc.contact_id AND co.is_friend = 1
+                  )
+            `;
+
+            const msgRow = this.queryOne<any>(msgSql, params);
+            const inviteRow = this.queryOne<any>(inviteSql, params);
+
+            // Group campaigns by creation date (last 30 days)
+            const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+            const timeParams = hasOwner ? [ownerZaloId, thirtyDaysAgo] : [thirtyDaysAgo];
+            const timeline = this.query<any>(`
+                SELECT strftime('%Y-%m-%d', datetime(created_at/1000, 'unixepoch', 'localtime')) as date_str, COUNT(*) as count
+                FROM crm_campaigns
+                WHERE created_at >= ?
+                  ${hasOwner ? 'AND owner_zalo_id = ?' : ''}
+                GROUP BY date_str
+                ORDER BY date_str ASC
+            `, timeParams);
+
+            return {
+                sentStrangerMessages: msgRow?.cnt || 0,
+                sentStrangerInvites: inviteRow?.cnt || 0,
+                campaignsOverTime: timeline.map((t: any) => ({ date: t.date_str, count: t.count })),
+            };
+        } catch (err: any) {
+            Logger.error(`[DB] getCampaignSafetyStats: ${err.message}`);
+            return { sentStrangerMessages: 0, sentStrangerInvites: 0, campaignsOverTime: [] };
+        }
     }
 
     /** CRM Contacts — aggregate friends + contacts, dedup */

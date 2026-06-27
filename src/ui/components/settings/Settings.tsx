@@ -15,8 +15,9 @@ import ProxySettings from './ProxySettings';
 import LockScreenSettings from './LockScreenSettings';
 import { loadSeenTabs, markTabSeen, SETTINGS_WATCHLIST, hasUnseenChangelog, markChangelogSeen } from '@/utils/settingsSeenTabs';
 import AccountSettings from './AccountSettings';
+import AppIcon, { IconType } from '../common/AppIcon';
 
-type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'changelog' | 'appearance' | 'proxy' | 'security' | 'license';
+type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'changelog' | 'appearance' | 'proxy' | 'security';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('conversation');
@@ -36,62 +37,6 @@ export default function Settings() {
   const { showNotification, notifSettings, setNotifSettings, getNotifSettingsForAccount, setNotifSettingsForAccount, theme, setTheme } = useAppStore();
   const [selectedNotifAccount, setSelectedNotifAccount] = useState<string>('__global__');
 
-  // License states
-  const [licenseInfo, setLicenseInfo] = useState<any>(null);
-  const [loadingLicense, setLoadingLicense] = useState<boolean>(true);
-  const [showKey, setShowKey] = useState<boolean>(false);
-  const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (window.licenseAPI) {
-      window.licenseAPI.get().then((res: any) => {
-        setLicenseInfo(res);
-        setLoadingLicense(false);
-      }).catch(() => {
-        setLoadingLicense(false);
-      });
-    } else {
-      setLoadingLicense(false);
-    }
-  }, []);
-
-  const handleLogoutLicense = () => {
-    setShowLogoutModal(true);
-  };
-
-  const maskKey = (key: string) => {
-    if (!key) return '';
-    if (key.length <= 10) return '••••••••';
-    return `${key.slice(0, 6)} •••• •••• ${key.slice(-4)}`;
-  };
-
-  const getProgressPercentage = (license: any) => {
-    if (license.isLifetime) return 100;
-    const daysLeft = license.daysLeft ?? 0;
-    if (daysLeft <= 0) return 0;
-    let maxDays = 14;
-    if (license.plan.includes('6m')) maxDays = 183;
-    else if (license.plan.includes('12m')) maxDays = 365;
-    return Math.min(100, Math.max(0, (daysLeft / maxDays) * 100));
-  };
-
-  const getProgressColor = (license: any) => {
-    if (license.isLifetime) return 'bg-emerald-500';
-    const daysLeft = license.daysLeft ?? 0;
-    if (daysLeft <= 5) return 'bg-rose-500';
-    if (daysLeft <= 15) return 'bg-amber-500';
-    return 'bg-emerald-500';
-  };
-
-  const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    } catch {
-      return dateStr;
-    }
-  };
 
   useEffect(() => {
     ipc.db?.getStoragePath().then((res: any) => {
@@ -220,19 +165,18 @@ export default function Settings() {
     await applyStorageChange(defaultStoragePath, false);
   };
 
-  const NAV_ITEMS: { id: SettingsTab; icon: string; label: string; requiredPerm?: string }[] = [
-    { id: 'conversation',  icon: '💬', label: 'Hội thoại' },
-    { id: 'appearance',    icon: '🎨', label: 'Giao diện' },
-    { id: 'notifications', icon: '🔔', label: 'Thông báo' },
-    { id: 'accounts',      icon: '👤', label: 'Tài khoản', requiredPerm: 'settings_accounts' },
-    { id: 'proxy',         icon: '🔒', label: 'Proxy' },
-    { id: 'security',      icon: '🛡️', label: 'Bảo mật' },
-    { id: 'employees',     icon: '👥', label: 'Nhân viên', requiredPerm: 'settings_employees' },
-    { id: 'workspace',     icon: '🗂️', label: 'Workspace' },
-    { id: 'storage',       icon: '📁', label: 'Lưu trữ' },
-    { id: 'license',       icon: '🔐', label: 'Bản quyền' },
-    { id: 'introduction',  icon: '📖', label: 'Giới thiệu' },
-    { id: 'changelog',     icon: '🗒️', label: 'Log phiên bản' },
+  const NAV_ITEMS: { id: SettingsTab; icon: IconType; label: string; requiredPerm?: string }[] = [
+    { id: 'conversation',  icon: 'conversation',  label: 'Hội thoại' },
+    { id: 'appearance',    icon: 'appearance',    label: 'Giao diện' },
+    { id: 'notifications', icon: 'notifications', label: 'Thông báo' },
+    { id: 'accounts',      icon: 'accounts',      label: 'Tài khoản', requiredPerm: 'settings_accounts' },
+    { id: 'proxy',         icon: 'proxy',         label: 'Proxy' },
+    { id: 'security',      icon: 'security',      label: 'Bảo mật' },
+    { id: 'employees',     icon: 'employees',     label: 'Nhân viên', requiredPerm: 'settings_employees' },
+    { id: 'workspace',     icon: 'workspace',     label: 'Workspace' },
+    { id: 'storage',       icon: 'storage',       label: 'Lưu trữ' },
+    { id: 'introduction',  icon: 'introduction',  label: 'Giới thiệu' },
+    { id: 'changelog',     icon: 'changelog',     label: 'Log phiên bản' },
   ];
 
   // Filter nav items by permission — employee/simulation mode may hide certain tabs
@@ -265,7 +209,7 @@ export default function Settings() {
                   ? 'bg-blue-600/20 text-blue-400 border-r-2 border-blue-500'
                   : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
               }`}>
-              <span className="text-base leading-none">{item.icon}</span>
+              <AppIcon name={item.icon} className={activeTab === item.id ? 'text-blue-400' : 'text-blue-500'} size={15} />
               <span className="font-medium">{item.label}</span>
               {/* Chấm đỏ "mới" — chỉ hiện khi tab chưa được xem lần nào */}
               {(SETTINGS_WATCHLIST as readonly string[]).includes(item.id) && !seenTabs.has(item.id) && (
@@ -286,7 +230,10 @@ export default function Settings() {
         {/* ── Appearance ── */}
         {activeTab === 'appearance' && (
           <>
-            <h2 className="text-base font-semibold text-white">🎨 Giao diện</h2>
+            <h2 className="text-base font-semibold text-white flex items-center gap-1.5">
+              <AppIcon name="appearance" size={16} className="text-blue-500" />
+              Giao diện
+            </h2>
             <Section>
               <div className="space-y-4">
                 <div>
@@ -386,7 +333,10 @@ export default function Settings() {
         {/* ── Notifications ── */}
         {activeTab === 'notifications' && (
           <>
-            <h2 className="text-base font-semibold text-white">🔔 Cài đặt thông báo</h2>
+            <h2 className="text-base font-semibold text-white flex items-center gap-1.5">
+              <AppIcon name="notifications" size={16} className="text-blue-500" />
+              Cài đặt thông báo
+            </h2>
 
             {/* Account selector */}
             <div className="mb-2">
@@ -396,15 +346,15 @@ export default function Settings() {
                 onChange={e => setSelectedNotifAccount(e.target.value)}
                 className="w-full bg-gray-700 text-white rounded-lg p-2 text-sm border border-gray-600"
               >
-                <option value="__global__">🌐 Mặc định (tất cả tài khoản)</option>
+                <option value="__global__">[Mặc định] Tất cả tài khoản</option>
                 {accounts.filter(a => (a.channel || 'zalo') === 'zalo').map(acc => (
                   <option key={acc.zalo_id} value={acc.zalo_id}>
-                    📱 {acc.full_name || acc.zalo_id}
+                    [Zalo] {acc.full_name || acc.zalo_id}
                   </option>
                 ))}
                 {accounts.filter(a => a.channel === 'facebook').map(acc => (
                   <option key={acc.zalo_id} value={acc.zalo_id}>
-                    📘 {acc.full_name || acc.zalo_id}
+                    [Facebook] {acc.full_name || acc.zalo_id}
                   </option>
                 ))}
               </select>
@@ -455,16 +405,18 @@ export default function Settings() {
                       )}
                       <div className="flex gap-2 pt-1">
                         <button onClick={() => { if (settings.soundEnabled) playNotificationSound(settings.volume); else showNotification('Hãy bật âm thanh trước', 'info'); }}
-                          className="flex-1 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors">
-                          🔊 Test âm thanh
+                          className="flex-1 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-350 rounded-lg transition-colors flex items-center justify-center gap-1">
+                          <AppIcon name="notifications" size={12} className="text-current" />
+                          Test âm thanh
                         </button>
                         <button onClick={() => {
                           requestNotificationPermission().then(granted => {
                             if (!granted) { showNotification('Cần cấp quyền thông báo', 'warning'); return; }
                             showDesktopNotification('Zagi', 'Đây là thông báo thử nghiệm 🎉');
                           });
-                        }} className="flex-1 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors">
-                          🖥 Test popup
+                        }} className="flex-1 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-355 rounded-lg transition-colors flex items-center justify-center gap-1">
+                          <AppIcon name="appearance" size={12} className="text-current" />
+                          Test popup
                         </button>
                       </div>
                     </>
@@ -487,24 +439,27 @@ export default function Settings() {
         {/* ── Storage ── */}
         {activeTab === 'storage' && (
           <>
-            <h2 className="text-base font-semibold text-white">📁 Thư mục lưu trữ dữ liệu</h2>
+            <h2 className="text-base font-semibold text-white flex items-center gap-1.5">
+              <AppIcon name="storage" size={16} className="text-blue-500" />
+              Thư mục lưu trữ dữ liệu
+            </h2>
 
             {/* ── Khuyến nghị đổi ổ lưu trữ ── */}
             <div className="bg-amber-900/20 border border-amber-500/40 rounded-xl p-4 space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-lg">⚠️</span>
+                <AppIcon name="alert_triangle" className="text-amber-500" size={18} />
                 <p className="text-sm font-semibold text-amber-300">Khuyến nghị: Đổi sang ổ khác (không dùng ổ C:)</p>
               </div>
               <ul className="space-y-1.5 pl-1">
                 {[
-                  { icon: '💾', text: 'Ổ C: thường là ổ hệ thống, dung lượng trống ít — tin nhắn, ảnh, video sẽ tích lũy nhanh theo thời gian.' },
-                  { icon: '🔄', text: 'Khi cài lại Windows, toàn bộ dữ liệu trên ổ C: bị xóa. Lưu ở ổ D:, E:... giúp bảo toàn lịch sử chat qua mọi lần cài lại.' },
-                  { icon: '⚡', text: 'Trên máy SSD đa ổ, tách DB sang ổ phụ giảm áp lực I/O cho ổ hệ thống, app chạy mượt hơn.' },
-                  { icon: '📦', text: 'Dễ backup: chỉ cần copy một thư mục sang ổ ngoài / cloud là có toàn bộ dữ liệu.' },
-                  { icon: '🔒', text: 'Tránh bị antivirus/Windows Update can thiệp nhầm vào dữ liệu app khi quét ổ C:.' },
+                  { icon: 'storage' as const, text: 'Ổ C: thường là ổ hệ thống, dung lượng trống ít — tin nhắn, ảnh, video sẽ tích lũy nhanh theo thời gian.' },
+                  { icon: 'shuffle' as const, text: 'Khi cài lại Windows, toàn bộ dữ liệu trên ổ C: bị xóa. Lưu ở ổ D:, E:... giúp bảo toàn lịch sử chat qua mọi lần cài lại.' },
+                  { icon: 'zap' as const, text: 'Trên máy SSD đa ổ, tách DB sang ổ phụ giảm áp lực I/O cho ổ hệ thống, app chạy mượt hơn.' },
+                  { icon: 'truck' as const, text: 'Dễ backup: chỉ cần copy một thư mục sang ổ ngoài / cloud là có toàn bộ dữ liệu.' },
+                  { icon: 'security' as const, text: 'Tránh bị antivirus/Windows Update can thiệp nhầm vào dữ liệu app khi quét ổ C:.' },
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-xs text-amber-300/80">
-                    <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
+                    <AppIcon name={item.icon} className="flex-shrink-0 mt-0.5" size={12} />
                     <span className="leading-relaxed">{item.text}</span>
                   </li>
                 ))}
@@ -519,7 +474,9 @@ export default function Settings() {
                   <p className="text-xs text-gray-400 mb-1">Thư mục cấu hình:</p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 text-xs bg-gray-700 text-green-300 px-2 py-1.5 rounded truncate block">{storagePath || 'Đang tải...'}</code>
-                    <button onClick={() => ipc.file?.openPath(storagePath)} className="text-xs text-blue-400 hover:text-blue-300 flex-shrink-0" title="Mở thư mục">📂</button>
+                    <button onClick={() => ipc.file?.openPath(storagePath)} className="text-xs text-blue-400 hover:text-blue-300 flex-shrink-0 flex items-center justify-center" title="Mở thư mục">
+                      <AppIcon name="storage" size={14} className="text-current" />
+                    </button>
                   </div>
                 </div>
                 {actualDbPath && (
@@ -531,7 +488,10 @@ export default function Settings() {
                 {/* Cảnh báo nếu DB thực tế khác với config (thường xảy ra sau khi cài lại) */}
                 {actualDbPath && storagePath && !actualDbPath.startsWith(storagePath) && (
                   <div className="bg-red-900/40 border border-red-500/50 rounded-lg p-3">
-                    <p className="text-xs text-red-300 font-semibold mb-1">⚠️ Phát hiện không khớp thư mục!</p>
+                    <p className="text-xs text-red-300 font-semibold mb-1 flex items-center gap-1.5">
+                      <AppIcon name="alert_triangle" className="text-red-400" size={14} />
+                      Phát hiện không khớp thư mục!
+                    </p>
                     <p className="text-xs text-red-200 leading-relaxed">
                       DB đang đọc từ vị trí khác với cấu hình. Điều này thường xảy ra khi nâng cấp Electron làm thay đổi <code>userData</code> path.<br/>
                       Nhấn <strong>Chọn thư mục khác</strong> và trỏ lại đúng thư mục để khôi phục dữ liệu.
@@ -544,12 +504,17 @@ export default function Settings() {
                 </p>
                 <div className="flex gap-2">
                   <button onClick={handleChangeStorageFolder} disabled={changingStorage}
-                    className="btn-primary text-white-important text-sm flex-1 disabled:opacity-50">
+                    className="btn-primary text-white-important text-sm flex-1 disabled:opacity-50 flex items-center justify-center gap-1.5">
                     {changingStorage
                       ? copyProgress > 0
-                        ? `📁 ${copyProgress.toLocaleString()}${copyTotal > 0 ? ` / ${copyTotal.toLocaleString()}` : ''} files…`
+                        ? `${copyProgress.toLocaleString()}${copyTotal > 0 ? ` / ${copyTotal.toLocaleString()}` : ''} files…`
                         : 'Đang xử lý...'
-                      : '📂 Chọn thư mục khác'}
+                      : (
+                        <>
+                          <AppIcon name="storage" size={14} className="text-current" />
+                          Chọn thư mục khác
+                        </>
+                      )}
                   </button>
                   {storagePath && storagePath !== defaultStoragePath && (
                     <button onClick={handleResetStoragePath} className="btn-secondary text-sm">Đặt lại mặc định</button>
@@ -577,142 +542,6 @@ export default function Settings() {
         {/* ── Changelog ── */}
         {activeTab === 'changelog' && <ChangelogSettings />}
 
-        {/* ── Bản quyền (License) ── */}
-        {activeTab === 'license' && (
-          <>
-            <h2 className="text-base font-semibold text-white">🔐 Quản lý bản quyền</h2>
-            <Section>
-              {loadingLicense ? (
-                <div className="flex items-center gap-2 py-4 justify-center">
-                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-sm text-gray-400">Đang tải thông tin bản quyền...</p>
-                </div>
-              ) : !licenseInfo ? (
-                <div className="space-y-4 py-3">
-                  <div className="bg-red-900/20 border border-red-500/40 rounded-xl p-4 flex gap-3 items-start">
-                    <span className="text-xl mt-0.5">⚠️</span>
-                    <div>
-                      <p className="text-sm font-semibold text-red-300">Không tìm thấy thông tin bản quyền</p>
-                      <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                        Thiết bị này chưa được kích hoạt bản quyền hoặc file bản quyền bị lỗi. Vui lòng khởi động lại ứng dụng để thực hiện đăng ký hoặc kích hoạt.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {/* License Info Card */}
-                  <div className="bg-gray-900/40 border border-gray-700/60 rounded-xl p-5 space-y-4">
-                    <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-white">Trạng thái kích hoạt</h3>
-                        <p className="text-xs text-gray-400 mt-0.5">Thông tin chi tiết về giấy phép sử dụng</p>
-                      </div>
-                      <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                        licenseInfo.status === 'active' 
-                          ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/20' 
-                          : 'bg-rose-950/60 text-rose-400 border border-rose-500/20'
-                      }`}>
-                        {licenseInfo.status === 'active' ? 'Đang hoạt động' : 'Hết hạn'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-gray-500">Email đăng ký</p>
-                        <p className="text-sm text-gray-200 font-medium mt-0.5">{licenseInfo.email}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Họ và tên</p>
-                        <p className="text-sm text-gray-200 font-medium mt-0.5">{licenseInfo.fullName || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Số điện thoại</p>
-                        <p className="text-sm text-gray-200 font-medium mt-0.5">{licenseInfo.phone || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Gói bản quyền</p>
-                        <p className="text-sm text-blue-400 font-semibold mt-0.5">
-                          {licenseInfo.isLifetime ? '✨ Vĩnh viễn' : 
-                           licenseInfo.plan === 'trial' ? 'Dùng thử 14 ngày' : 
-                           licenseInfo.plan === '6m' ? 'Gói 6 tháng' : 
-                           licenseInfo.plan === '12m' ? 'Gói 1 năm' : licenseInfo.plan}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-gray-800 pt-3">
-                      <p className="text-xs text-gray-500">Khóa kích hoạt (License Key)</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <code className="flex-1 text-xs bg-gray-950 text-gray-300 font-mono px-3 py-2 rounded-lg border border-gray-800 tracking-wider select-all">
-                          {showKey ? licenseInfo.licenseKey : maskKey(licenseInfo.licenseKey)}
-                        </code>
-                        <button 
-                          onClick={() => setShowKey(!showKey)}
-                          className="p-2 text-gray-400 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700/60"
-                          title={showKey ? 'Ẩn khóa' : 'Hiện khóa'}
-                        >
-                          {showKey ? '👁️' : '🕶️'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Progress Bar & Warnings */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-400 font-medium">Thời hạn sử dụng</span>
-                      <span className={`font-mono font-semibold ${
-                        licenseInfo.isLifetime ? 'text-emerald-400' : 
-                        (licenseInfo.daysLeft ?? 0) <= 5 ? 'text-rose-400 animate-pulse' : 
-                        (licenseInfo.daysLeft ?? 0) <= 15 ? 'text-amber-400' : 'text-emerald-400'
-                      }`}>
-                        {licenseInfo.isLifetime ? 'Không giới hạn' : 
-                         (licenseInfo.daysLeft ?? 0) < 0 ? 'Đã hết hạn' : 
-                         (licenseInfo.daysLeft ?? 0) === 0 ? 'Hết hạn hôm nay' : `Còn ${licenseInfo.daysLeft} ngày`}
-                      </span>
-                    </div>
-
-                    {/* Progress Bar Container */}
-                    <div className="h-2.5 w-full bg-gray-950 rounded-full overflow-hidden border border-gray-800">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-500 ${getProgressColor(licenseInfo)}`}
-                        style={{ width: `${getProgressPercentage(licenseInfo)}%` }}
-                      />
-                    </div>
-
-                    {/* Expiry Details */}
-                    {!licenseInfo.isLifetime && licenseInfo.expiryDate && (
-                      <p className="text-[11px] text-gray-500">
-                        Ngày hết hạn: <span className="text-gray-400 font-medium">{formatDate(licenseInfo.expiryDate)}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Danger Zone */}
-                  <div className="border-t border-gray-800 pt-4 mt-6">
-                    <p className="text-xs font-semibold text-red-400/90 mb-2">Vùng nguy hiểm</p>
-                    <div className="flex items-center justify-between p-3.5 bg-red-950/10 border border-red-500/20 rounded-xl">
-                      <div className="flex-1 pr-4">
-                        <p className="text-xs font-medium text-gray-300">Đăng xuất bản quyền</p>
-                        <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
-                          Xóa khóa kích hoạt hiện tại, toàn bộ dữ liệu cơ sở dữ liệu cục bộ và bộ nhớ cache. Sau khi đăng xuất, ứng dụng sẽ tự động đóng và mở lại cửa sổ kích hoạt bản quyền.
-                        </p>
-                      </div>
-                      <button 
-                        onClick={handleLogoutLicense}
-                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
-                      >
-                        Đăng xuất
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </Section>
-          </>
-        )}
-
       </div>
     </div>
 
@@ -725,7 +554,7 @@ export default function Settings() {
           {/* Header */}
           <div className="px-5 pt-5 pb-3 border-b border-gray-700">
             <div className="flex items-center gap-3 mb-1">
-              <span className="text-2xl">📂</span>
+              <AppIcon name="storage" size={24} className="text-gray-400" />
               <h3 className="text-base font-semibold text-white">Thư mục đã có dữ liệu</h3>
             </div>
             <p className="text-xs text-gray-400 break-all leading-relaxed mt-1">
@@ -745,7 +574,7 @@ export default function Settings() {
               onClick={() => applyStorageChange(pendingFolder, true)}
               className="w-full flex items-start gap-3 p-3.5 rounded-xl border-2 border-blue-500 bg-blue-500/10 hover:bg-blue-500/20 transition-colors text-left disabled:opacity-50"
             >
-              <span className="text-xl flex-shrink-0 mt-0.5">🗄️</span>
+              <AppIcon name="storage" size={20} className="text-blue-400 mt-0.5 flex-shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-blue-300">Dùng dữ liệu cũ tại đây</p>
                 <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
@@ -769,7 +598,7 @@ export default function Settings() {
               }}
               className="w-full flex items-start gap-3 p-3.5 rounded-xl border border-gray-600 hover:bg-gray-700 transition-colors text-left disabled:opacity-50"
             >
-              <span className="text-xl flex-shrink-0 mt-0.5">📋</span>
+              <AppIcon name="file_text" size={20} className="text-gray-400 mt-0.5 flex-shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-200">Sao chép dữ liệu hiện tại vào đây</p>
                 <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
@@ -834,56 +663,6 @@ export default function Settings() {
       </div>
     )}
 
-    {/* ── Modal chọn phương án đăng xuất bản quyền (Phương án A) ── */}
-    {showLogoutModal && (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4"
-        onClick={() => setShowLogoutModal(false)}>
-        <div className="bg-gray-800 border border-gray-600 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden p-6 space-y-4"
-          onClick={e => e.stopPropagation()}>
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🔐</span>
-            <h3 className="text-base font-semibold text-white">Đăng xuất bản quyền</h3>
-          </div>
-          <p className="text-xs text-gray-400 leading-relaxed">
-            Bạn muốn xử lý dữ liệu hiện tại (tin nhắn, tài khoản chat và CRM) như thế nào sau khi đăng xuất bản quyền?
-          </p>
-          <div className="space-y-2.5 pt-2">
-            <button
-              onClick={async () => {
-                setShowLogoutModal(false);
-                try {
-                  await window.licenseAPI.logout({ clearData: false });
-                } catch (err: any) {
-                  showNotification('Không thể đăng xuất bản quyền: ' + err.message, 'error');
-                }
-              }}
-              className="w-full py-2.5 px-4 bg-gray-700 hover:bg-gray-600/80 text-gray-200 font-semibold rounded-xl border border-gray-650 transition-colors text-xs text-center"
-            >
-              💾 Chỉ đăng xuất (Giữ lại dữ liệu)
-            </button>
-            <button
-              onClick={async () => {
-                setShowLogoutModal(false);
-                try {
-                  await window.licenseAPI.logout({ clearData: true });
-                } catch (err: any) {
-                  showNotification('Không thể đăng xuất bản quyền: ' + err.message, 'error');
-                }
-              }}
-              className="w-full py-2.5 px-4 bg-red-950/40 hover:bg-red-900/40 text-red-400 hover:text-red-300 font-semibold rounded-xl border border-red-500/30 transition-colors text-xs text-center"
-            >
-              🗑️ Đăng xuất & Xóa sạch dữ liệu (Cảnh báo nguy hiểm)
-            </button>
-            <button
-              onClick={() => setShowLogoutModal(false)}
-              className="w-full py-2 px-4 bg-transparent hover:bg-gray-750 text-gray-400 hover:text-gray-300 transition-colors text-[10px] text-center"
-            >
-              Hủy bỏ
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
     </>
   );
 }

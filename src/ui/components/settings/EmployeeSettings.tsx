@@ -6,19 +6,20 @@ import { useEmployeeStore } from '@/store/employeeStore';
 import { showConfirm } from '../common/ConfirmDialog';
 import RelayStatusPanel from './RelayStatusPanel';
 import { toLocalMediaUrl } from '@/lib/localMedia';
+import AppIcon, { IconType } from '../common/AppIcon';
 
 const ALL_MODULES = [
-    { key: 'chat', label: 'Chat', icon: '💬', desc: 'Gửi/nhận tin nhắn', group: 'main' },
-    { key: 'friends', label: 'Bạn bè', icon: '👥', desc: 'Danh sách bạn bè', group: 'main' },
-    { key: 'crm', label: 'CRM', icon: '📊', desc: 'Quản lý khách hàng', group: 'main' },
-    { key: 'erp', label: 'ERP', icon: '📋', desc: 'Quản lý công việc & dự án', group: 'main' },
-    { key: 'workflow', label: 'Workflow', icon: '⚡', desc: 'Tự động hóa', group: 'main' },
-    { key: 'integration', label: 'Tích hợp', icon: '🔗', desc: 'Kết nối POS/Shipping', group: 'main' },
-    { key: 'analytics', label: 'Thống kê', icon: '📈', desc: 'Báo cáo phân tích', group: 'main' },
-    { key: 'ai_assistant', label: 'AI', icon: '🤖', desc: 'Trợ lý AI', group: 'main' },
-    { key: 'facebook', label: 'Facebook', icon: '📘', desc: 'Facebook Messenger nhóm', group: 'main' },
-    { key: 'settings_accounts', label: 'Quản lý TK Zalo', icon: '👤', desc: 'Xem/xóa tài khoản (boss)', group: 'settings', bossOnly: true },
-    { key: 'settings_employees', label: 'Quản lý nhân viên', icon: '👥', desc: 'Thêm/sửa/xóa NV (boss)', group: 'settings', bossOnly: true },
+    { key: 'chat', label: 'Chat', icon: 'chat' as const, desc: 'Gửi/nhận tin nhắn', group: 'main' },
+    { key: 'friends', label: 'Bạn bè', icon: 'friends' as const, desc: 'Danh sách bạn bè', group: 'main' },
+    { key: 'crm', label: 'CRM', icon: 'crm' as const, desc: 'Quản lý khách hàng', group: 'main' },
+    { key: 'erp', label: 'ERP', icon: 'erp' as const, desc: 'Quản lý công việc & dự án', group: 'main' },
+    { key: 'workflow', label: 'Workflow', icon: 'workflow' as const, desc: 'Tự động hóa', group: 'main' },
+    { key: 'integration', label: 'Tích hợp', icon: 'integration' as const, desc: 'Kết nối POS/Shipping', group: 'main' },
+    { key: 'analytics', label: 'Thống kê', icon: 'analytics' as const, desc: 'Báo cáo phân tích', group: 'main' },
+    { key: 'ai_assistant', label: 'AI', icon: 'ai' as const, desc: 'Trợ lý AI', group: 'main' },
+    { key: 'facebook', label: 'Facebook', icon: 'facebook' as const, desc: 'Facebook Messenger nhóm', group: 'main' },
+    { key: 'settings_accounts', label: 'Quản lý TK Zalo', icon: 'accounts' as const, desc: 'Xem/xóa tài khoản (boss)', group: 'settings', bossOnly: true },
+    { key: 'settings_employees', label: 'Quản lý nhân viên', icon: 'employees' as const, desc: 'Thêm/sửa/xóa NV (boss)', group: 'settings', bossOnly: true },
 ] as const;
 
 interface EmployeeGroup {
@@ -172,15 +173,15 @@ export default function EmployeeSettings() {
                 </div>
                 <p className="text-xs text-gray-500">@{emp.username}</p>
                 <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-[11px] text-gray-500">
-                        🔑 {emp.permissions?.filter((p: any) => p.can_access).length || 0} modules
+                    <span className="text-[11px] text-gray-500 flex items-center gap-0.5">
+                        <AppIcon name="security" size={10} className="text-current" /> {emp.permissions?.filter((p: any) => p.can_access).length || 0} modules
                     </span>
-                    <span className="text-[11px] text-gray-500">
-                        📱 {emp.assigned_accounts?.length || 0} TK Zalo
+                    <span className="text-[11px] text-gray-500 flex items-center gap-0.5">
+                        <AppIcon name="phone" size={10} className="text-current" /> {emp.assigned_accounts?.length || 0} TK Zalo
                     </span>
                     {emp.last_login && (
-                        <span className="text-[11px] text-gray-500">
-                            🕐 {new Date(emp.last_login).toLocaleDateString('vi-VN')}
+                        <span className="text-[11px] text-gray-500 flex items-center gap-0.5">
+                            <AppIcon name="clock" size={10} className="text-current" /> {new Date(emp.last_login).toLocaleDateString('vi-VN')}
                         </span>
                     )}
                 </div>
@@ -212,27 +213,27 @@ export default function EmployeeSettings() {
                             Thoát
                         </>
                     ) : (
-                        <>🔄 Giả lập</>
+                        <span className="flex items-center gap-1"><AppIcon name="shuffle" size={11} className="text-current" /> Giả lập</span>
                     )}
                 </button>
                 <button
                     onClick={() => handleToggleActive(emp)}
-                    className={`px-2 py-1 rounded-lg transition-colors ${emp.is_active ? 'text-yellow-400 hover:bg-yellow-600/20' : 'text-green-400 hover:bg-green-600/20'}`}
+                    className={`px-2 py-1 rounded-lg transition-colors flex items-center justify-center ${emp.is_active ? 'text-yellow-400 hover:bg-yellow-600/20' : 'text-green-400 hover:bg-green-600/20'}`}
                     title={emp.is_active ? 'Vô hiệu hóa tài khoản' : 'Kích hoạt'}
                 >
-                    {emp.is_active ? '⏸' : '▶️'}
+                    {emp.is_active ? <AppIcon name="pause" size={12} className="text-current" /> : <AppIcon name="play" size={12} className="text-current" />}
                 </button>
                 <button
                     onClick={() => { setEditingEmployee(emp); setShowForm(true); }}
-                    className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded-lg hover:bg-blue-600/20 transition-colors"
+                    className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded-lg hover:bg-blue-600/20 transition-colors flex items-center justify-center"
                 >
-                    ✏️
+                    <AppIcon name="edit" size={12} className="text-current" />
                 </button>
                 <button
                     onClick={() => handleDelete(emp)}
-                    className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-600/20 transition-colors"
+                    className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-600/20 transition-colors flex items-center justify-center"
                 >
-                    🗑️
+                    <AppIcon name="trash" size={12} className="text-current" />
                 </button>
             </div>
         </div>
@@ -241,13 +242,16 @@ export default function EmployeeSettings() {
     return (
         <div className="space-y-5">
             <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-white">👥 Quản lý nhân viên</h2>
+                <h2 className="text-base font-semibold text-white flex items-center gap-1.5">
+                  <AppIcon name="employees" size={16} className="text-blue-500" />
+                  Quản lý nhân viên
+                </h2>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setShowGroupForm(!showGroupForm)}
                         className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600 transition-colors"
                     >
-                        📁 Nhóm
+                        <AppIcon name="workspace" size={12} className="text-current" /> Nhóm
                     </button>
                     <button
                         onClick={() => { setEditingEmployee(null); setShowForm(true); }}
@@ -263,9 +267,15 @@ export default function EmployeeSettings() {
 
             {/* Info box */}
             <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 text-xs text-blue-200 space-y-1.5">
-                <p className="font-semibold text-blue-300">ℹ️ Tính năng quản lý nhân viên</p>
+                <p className="font-semibold text-blue-300 flex items-center gap-1.5">
+                  <AppIcon name="introduction" size={14} className="text-blue-300" />
+                  Tính năng quản lý nhân viên
+                </p>
                 <p>Cho phép tạo tài khoản nhân viên để chia sẻ quyền quản lý tin nhắn Zalo. Nhân viên đăng nhập trên máy riêng và nhận tin nhắn qua kết nối mạng từ máy Boss.</p>
-                <p className="text-blue-500">⚡ Bước tiếp theo: Sau khi tạo nhân viên, bật Relay Server ở mục bên dưới để nhân viên kết nối.</p>
+                <p className="text-blue-500 flex items-center gap-1">
+                  <AppIcon name="workflow" size={12} className="text-current" />
+                  Bước tiếp theo: Sau khi tạo nhân viên, bật Relay Server ở mục bên dưới để nhân viên kết nối.
+                </p>
             </div>
 
             {/* Group management panel — popup modal */}
@@ -274,7 +284,10 @@ export default function EmployeeSettings() {
                     <div className="bg-gray-800 border border-gray-600 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className="px-5 pt-5 pb-3 border-b border-gray-700 flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-white">📁 Quản lý nhóm nhân viên</h3>
+                            <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                              <AppIcon name="workspace" size={16} className="text-blue-500" />
+                              Quản lý nhóm nhân viên
+                            </h3>
                             <button onClick={() => setShowGroupForm(false)} className="text-gray-400 hover:text-white transition-colors w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-700">✕</button>
                         </div>
 
@@ -297,7 +310,7 @@ export default function EmployeeSettings() {
                                             ) : (
                                                 <>
                                                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600/30 to-purple-600/30 flex items-center justify-center flex-shrink-0">
-                                                        <span className="text-sm">📁</span>
+                                                        <AppIcon name="workspace" size={14} className="text-blue-400" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm text-gray-200 font-medium truncate">{grp.name}</p>
@@ -308,14 +321,18 @@ export default function EmployeeSettings() {
                                                     <div className="flex items-center gap-1 flex-shrink-0">
                                                         <button
                                                             onClick={() => { setEditingGroupId(grp.group_id); setEditingGroupName(grp.name); }}
-                                                            className="p-1.5 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-600/20 transition-colors"
+                                                            className="p-1.5 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-600/20 transition-colors flex items-center justify-center"
                                                             title="Sửa tên"
-                                                        >✏️</button>
+                                                        >
+                                                            <AppIcon name="edit" size={12} className="text-current" />
+                                                        </button>
                                                         <button
                                                             onClick={() => handleDeleteGroup(grp)}
-                                                            className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-colors"
+                                                            className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-colors flex items-center justify-center"
                                                             title="Xóa nhóm"
-                                                        >🗑️</button>
+                                                        >
+                                                            <AppIcon name="trash" size={12} className="text-current" />
+                                                        </button>
                                                     </div>
                                                 </>
                                             )}
@@ -324,7 +341,9 @@ export default function EmployeeSettings() {
                                 </div>
                             ) : (
                                 <div className="text-center py-6">
-                                    <p className="text-3xl mb-2">📁</p>
+                                    <div className="text-3xl mb-2 flex justify-center">
+                                      <AppIcon name="workspace" size={32} className="text-gray-600" />
+                                    </div>
                                     <p className="text-sm text-gray-400">Chưa có nhóm nào</p>
                                     <p className="text-xs text-gray-500 mt-1">Tạo nhóm để phân loại nhân viên</p>
                                 </div>
@@ -332,7 +351,7 @@ export default function EmployeeSettings() {
 
                             {/* Add new group */}
                             <div className="pt-2 border-t border-gray-700/50">
-                                <p className="text-[11px] text-gray-400 font-medium mb-2">➕ Thêm nhóm mới</p>
+                                <p className="text-[11px] text-gray-400 font-medium mb-2 flex items-center gap-1"><AppIcon name="plus" size={12} className="text-current" /> Thêm nhóm mới</p>
                                 <div className="flex items-center gap-2">
                                     <input
                                         value={newGroupName}
@@ -344,9 +363,9 @@ export default function EmployeeSettings() {
                                     <button
                                         onClick={handleCreateGroup}
                                         disabled={!newGroupName.trim()}
-                                        className="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                                        className="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 flex items-center gap-1.5"
                                     >
-                                        + Tạo
+                                        <AppIcon name="plus" size={12} className="text-current" /> Tạo
                                     </button>
                                 </div>
                             </div>
@@ -382,7 +401,10 @@ export default function EmployeeSettings() {
                                 <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-400 rounded-full border-2 border-gray-800 animate-pulse" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-amber-100">🔄 Đang giả lập: {simEmp.display_name}</p>
+                                <p className="text-sm font-semibold text-amber-100 flex items-center gap-1.5">
+                                  <AppIcon name="shuffle" size={14} className="text-amber-500" />
+                                  Đang giả lập: {simEmp.display_name}
+                                </p>
                                 <p className="text-[11px] text-amber-300/70">
                                     Bạn đang xem app như nhân viên "{simEmp.display_name}" — chỉ thấy {accCount} TK Zalo, {permCount} modules được phân quyền.
                                 </p>
@@ -413,8 +435,18 @@ export default function EmployeeSettings() {
                             {/* Group header — only show if there are groups */}
                             {groups.length > 0 && (
                                 <div className="flex items-center gap-2 mb-1.5 mt-1">
-                                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                                        {group ? `📁 ${group.name}` : '📋 Chưa phân nhóm'}
+                                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                        {group ? (
+                                          <>
+                                            <AppIcon name="workspace" size={11} className="text-gray-400" />
+                                            {group.name}
+                                          </>
+                                        ) : (
+                                          <>
+                                            <AppIcon name="file_text" size={11} className="text-gray-400" />
+                                            Chưa phân nhóm
+                                          </>
+                                        )}
                                     </span>
                                     <span className="text-[10px] text-gray-600 bg-gray-700/50 px-1.5 py-0.5 rounded-full">{emps.length}</span>
                                     <div className="flex-1 border-t border-gray-700/50" />
@@ -574,8 +606,18 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
             <div className="bg-gray-800 border border-gray-600 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="px-5 pt-5 pb-3 border-b border-gray-700 flex-shrink-0">
-                    <h3 className="text-base font-semibold text-white">
-                        {isEdit ? `✏️ Sửa nhân viên: ${employee.display_name}` : '➕ Thêm nhân viên mới'}
+                    <h3 className="text-base font-semibold text-white flex items-center gap-1.5">
+                        {isEdit ? (
+                          <>
+                            <AppIcon name="edit" size={14} className="text-current" />
+                            Sửa nhân viên: {employee.display_name}
+                          </>
+                        ) : (
+                          <>
+                            <AppIcon name="plus" size={14} className="text-current" />
+                            Thêm nhân viên mới
+                          </>
+                        )}
                     </h3>
                 </div>
 
@@ -593,7 +635,7 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                                         <img src={avatarUrl} className="w-full h-full object-cover" alt="Avatar"
                                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                     ) : (
-                                        <span className="text-2xl text-gray-400">{displayName?.charAt(0)?.toUpperCase() || '👤'}</span>
+                                        <AppIcon name="employees" size={24} className="text-gray-500" />
                                     )}
                                 </div>
                                 <button
@@ -614,9 +656,10 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                                     <button
                                         type="button"
                                         onClick={handleAvatarUpload}
-                                        className="text-[11px] text-blue-400 hover:text-blue-300 px-2 py-1 bg-blue-600/10 rounded-md border border-blue-500/20 hover:bg-blue-600/20 transition-colors"
+                                        className="text-[11px] text-blue-400 hover:text-blue-300 px-2 py-1 bg-blue-600/10 rounded-md border border-blue-500/20 hover:bg-blue-600/20 transition-colors flex items-center gap-1"
                                     >
-                                        📷 Chọn ảnh
+                                        <AppIcon name="image" size={11} className="text-current" />
+                                        Chọn ảnh
                                     </button>
                                     {avatarUrl && (
                                         <button
@@ -715,7 +758,7 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                                     }`}>
                                         {permissions[m.key] && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
                                     </span>
-                                    <span className="text-base">{m.icon}</span>
+                                    <AppIcon name={m.icon} size={16} className="text-gray-400" />
                                     <div className="min-w-0">
                                         <p className="text-xs text-gray-200 font-medium">{m.label}</p>
                                         <p className="text-[10px] text-gray-500 truncate">{m.desc}</p>
@@ -726,7 +769,10 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
 
                         {/* Settings sub-permissions */}
                         <div className="mt-2 pt-2 border-t border-gray-700/50">
-                            <p className="text-[11px] font-medium text-gray-500 mb-1.5">⚙️ Cài đặt — phân quyền chi tiết</p>
+                            <p className="text-[11px] font-medium text-gray-500 mb-1.5 flex items-center gap-1">
+                              <AppIcon name="settings" size={11} className="text-gray-500" />
+                              Cài đặt — phân quyền chi tiết
+                            </p>
                             <div className="space-y-1">
                                 {settingsModules.map(m => (
                                     <label
@@ -745,7 +791,7 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                                         }`}>
                                             {permissions[m.key] && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
                                         </span>
-                                        <span className="text-base">{m.icon}</span>
+                                        <AppIcon name={m.icon} size={16} className="text-gray-400" />
                                         <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-1.5">
                                                 <p className="text-xs text-gray-200 font-medium">{m.label}</p>
@@ -758,8 +804,9 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                                     </label>
                                 ))}
                             </div>
-                            <p className="text-[10px] text-gray-600 mt-1.5 italic">
-                                💡 Giao diện, Thông báo, Lưu trữ, Giới thiệu, Log phiên bản — luôn truy cập được. Chỉ Quản lý TK Zalo và Nhân viên cần phân quyền riêng.
+                            <p className="text-[10px] text-gray-600 mt-1.5 flex items-center gap-1">
+                                <AppIcon name="sparkles" size={10} className="text-amber-400" />
+                                Giao diện, Thông báo, Lưu trữ, Giới thiệu, Log phiên bản — luôn truy cập được. Chỉ Quản lý TK Zalo và Nhân viên cần phân quyền riêng.
                             </p>
                         </div>
                     </div>

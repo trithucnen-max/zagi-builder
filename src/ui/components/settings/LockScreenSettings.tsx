@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ipc from '@/lib/ipc';
+import AppIcon, { IconType } from '../common/AppIcon';
 
 type Tab = 'security' | 'recovery' | 'disable';
 
@@ -149,7 +150,7 @@ export default function LockScreenSettings() {
   };
 
   // ─── Tab button helper ───────────────────────────────────────────────────
-  const TabBtn = ({ id, label, icon }: { id: Tab; label: string; icon: string }) => (
+  const TabBtn = ({ id, label, icon }: { id: Tab; label: string; icon: IconType }) => (
     <button
       onClick={() => { setTab(id); clearMessages(); setRecoveryView('idle'); setPassword(''); }}
       className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all ${
@@ -158,7 +159,7 @@ export default function LockScreenSettings() {
           : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 border border-transparent'
       }`}
     >
-      <span>{icon}</span>
+      <AppIcon name={icon} size={12} className="text-current" />
       {label}
     </button>
   );
@@ -190,7 +191,8 @@ export default function LockScreenSettings() {
     return (
       <div className="space-y-4">
         <h2 className="text-base font-semibold text-white flex items-center gap-2">
-          <span>🛡️</span> Bảo mật
+          <AppIcon name="security" size={16} className="text-blue-500" />
+          Bảo mật
         </h2>
 
         <div className="bg-gray-800 rounded-xl p-4">
@@ -214,9 +216,10 @@ export default function LockScreenSettings() {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => handleCopyKey(savedRecoveryKey)}
-              className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
+              className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5"
             >
-              📋 Sao chép
+              <AppIcon name="copy" size={14} className="text-current" />
+              Sao chép
             </button>
           </div>
 
@@ -258,7 +261,8 @@ export default function LockScreenSettings() {
     return (
       <div className="space-y-4">
         <h2 className="text-base font-semibold text-white flex items-center gap-2">
-          <span>🛡️</span> Bảo mật
+          <AppIcon name="security" size={16} className="text-blue-500" />
+          Bảo mật
         </h2>
 
         <div className="bg-gray-800 rounded-xl p-4">
@@ -282,9 +286,10 @@ export default function LockScreenSettings() {
 
           <button
             onClick={() => handleCopyKey(recoveryKey)}
-            className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
+            className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5"
           >
-            📋 Sao chép Recovery Key
+            <AppIcon name="copy" size={14} className="text-current" />
+            Sao chép Recovery Key
           </button>
         </div>
 
@@ -302,7 +307,8 @@ export default function LockScreenSettings() {
     return (
       <div className="space-y-4">
         <h2 className="text-base font-semibold text-white flex items-center gap-2">
-          <span>🛡️</span> Bảo mật
+          <AppIcon name="security" size={16} className="text-blue-500" />
+          Bảo mật
         </h2>
 
         <div className="bg-gray-800 rounded-xl p-4">
@@ -354,7 +360,8 @@ export default function LockScreenSettings() {
   return (
     <div className="space-y-4">
       <h2 className="text-base font-semibold text-white flex items-center gap-2">
-        <span>🛡️</span> Bảo mật
+        <AppIcon name="security" size={16} className="text-blue-500" />
+        Bảo mật
       </h2>
 
       {/* Status bar */}
@@ -372,9 +379,9 @@ export default function LockScreenSettings() {
 
       {/* Tab bar */}
       <div className="flex gap-1.5 bg-gray-800/60 rounded-xl p-1">
-        <TabBtn id="security" label="Đổi MK" icon="🔑" />
-        <TabBtn id="recovery" label="Recovery" icon="🗝️" />
-        <TabBtn id="disable" label="Tắt khoá" icon="🔓" />
+        <TabBtn id="security" label="Đổi MK" icon="security" />
+        <TabBtn id="recovery" label="Recovery" icon="shield_check" />
+        <TabBtn id="disable" label="Tắt khoá" icon="security" />
       </div>
 
       {/* ── Tab: Security (change password + biometric) ─────────────────── */}

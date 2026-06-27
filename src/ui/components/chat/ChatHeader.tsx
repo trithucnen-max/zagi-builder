@@ -211,11 +211,21 @@ export default function ChatHeader() {
           const count = res?.response?.groupMsgsCount ?? 0;
           showNotification(`Đã tải lại tin nhắn nhóm thành công (${count} tin nhắn)`, 'success');
         } else {
-          showNotification(res?.error || 'Không thể tải tin nhắn nhóm', 'error');
+          const errMsg = res?.error || '';
+          if (errMsg.includes('404') || errMsg.includes('status code 404')) {
+            showNotification('Zalo đã ngưng hỗ trợ API tải tin nhắn cũ của nhóm. Tin nhắn mới sẽ tự động cập nhật kể từ lúc tài khoản được kết nối.', 'warning');
+          } else {
+            showNotification(errMsg || 'Không thể tải tin nhắn nhóm', 'error');
+          }
         }
       }
     } catch (e: any) {
-      showNotification('Lỗi: ' + (e.message || 'Không thể tải lại'), 'error');
+      const errMsg = e.message || '';
+      if (errMsg.includes('404') || errMsg.includes('status code 404')) {
+        showNotification('Zalo đã ngưng hỗ trợ API tải tin nhắn cũ của nhóm. Tin nhắn mới sẽ tự động cập nhật kể từ lúc tài khoản được kết nối.', 'warning');
+      } else {
+        showNotification('Lỗi: ' + (errMsg || 'Không thể tải lại'), 'error');
+      }
     } finally {
       setLoadingGroupMsgs(false);
     }
@@ -369,6 +379,88 @@ export default function ChatHeader() {
     showNotification(alreadyHas ? 'Đã gỡ nhãn' : `Đã gán nhãn "${target.text}"`, 'success');
     // Note: Workflow events are emitted by backend (zaloIpc.ts) to avoid duplicates
     setLabelPickerOpen(null);
+  };
+
+  const handleRemoveZaloLabel = async (labelId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const acc = getActiveAccount();
+    if (!acc || !activeAccountId || !activeThreadId) return;
+    const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+    const currentLabels = allLabels[activeAccountId] || [];
+
+    const contactsForAccount = contacts[activeAccountId] || [];
+    const threadContact = contactsForAccount.find(c => c.contact_id === activeThreadId);
+    const isGroupThread = activeThreadType === 1 || threadContact?.contact_type === 'group';
+    const labelThreadId = isGroupThread ? `g${activeThreadId}` : activeThreadId;
+
+    let freshLabels = currentLabels;
+    let freshVersion = labelsVersion;
+    try {
+      const res = await ipc.zalo?.getLabels({ auth });
+      if (res?.response?.labelData) {
+        freshLabels = res.response.labelData;
+        freshVersion = res.response.version || 0;
+        setLabels(activeAccountId, freshLabels);
+        setLabelsVersion(freshVersion);
+      }
+    } catch {}
+
+    const target = freshLabels.find(l => l.id === labelId);
+    if (!target) return;
+    const updated = freshLabels.map(l => {
+      if (l.id === labelId) {
+        const filtered = l.conversations.filter((c: string) => c !== labelThreadId && c !== activeThreadId);
+        return { ...l, conversations: filtered };
+      }
+      return l;
+    });
+
+    let result = await ipc.zalo?.updateLabels({ auth, labelData: updated, version: freshVersion });
+    if (!result?.success && result?.error?.includes('Outdated')) {
+      try {
+        const retried = await ipc.zalo?.getLabels({ auth });
+        if (retried?.response?.labelData) {
+          freshLabels = retried.response.labelData; freshVersion = retried.response.version || 0;
+          const retryUpdated = freshLabels.map(l => {
+            if (l.id === labelId) {
+              const filtered = l.conversations.filter((c: string) => c !== labelThreadId && c !== activeThreadId);
+              return { ...l, conversations: filtered };
+            }
+            return l;
+          });
+          result = await ipc.zalo?.updateLabels({ auth, labelData: retryUpdated, version: freshVersion });
+          if (result?.success) {
+            setLabels(activeAccountId, retryUpdated); setLabelsVersion(result?.response?.version ?? freshVersion);
+            showNotification('Đã gỡ nhãn', 'success');
+            return;
+          }
+        }
+      } catch {}
+    }
+    if (!result?.success) { showNotification('Lỗi: ' + (result?.error || 'Không thể cập nhật nhãn'), 'error'); return; }
+    setLabels(activeAccountId, updated); setLabelsVersion(result?.response?.version ?? freshVersion);
+    showNotification('Đã gỡ nhãn', 'success');
+  };
+
+  const handleRemoveLocalLabel = async (labelId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!activeAccountId || !activeThreadId) return;
+    try {
+      const res = await ipc.db?.removeLocalLabelFromThread({
+        zaloId: activeAccountId,
+        labelId,
+        threadId: activeThreadId,
+      });
+      if (res?.success) {
+        showNotification('Đã gỡ nhãn local', 'success');
+        loadHeaderLocalLabels();
+        window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId: activeAccountId } }));
+      } else {
+        showNotification(res?.error || 'Không thể gỡ nhãn local', 'error');
+      }
+    } catch (err: any) {
+      showNotification('Lỗi: ' + (err.message || 'Không thể gỡ nhãn local'), 'error');
+    }
   };
 
   const handleCopyName = () => {
@@ -729,20 +821,21 @@ export default function ChatHeader() {
           </div>
           {/* Active labels row — clickable to open label picker */}
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            {channelCap.supportsLabel && (
+            {!isGroup && channelCap.supportsLabel && (
             <ActiveLabels
               labels={allLabels[activeAccountId] || []}
               activeThreadId={activeThreadId}
               isGroup={isGroup}
               maxDisplay={3}
               onClickPill={(e) => { e.stopPropagation(); setLabelPickerOpen({ x: e.clientX, y: e.clientY }); }}
+              onRemoveLabel={handleRemoveZaloLabel}
             />
             )}
             {/* Local labels — Pancake-style pills */}
             {(() => {
               const activeLocalLabels = headerLocalLabels.filter(l => headerThreadLabelIds.has(l.id));
               if (activeLocalLabels.length === 0) return null;
-              const hasZaloLabels = (allLabels[activeAccountId] || []).some(l => {
+              const hasZaloLabels = !isGroup && (allLabels[activeAccountId] || []).some(l => {
                 const pid = isGroup ? `g${activeThreadId}` : activeThreadId;
                 return l.conversations?.includes(activeThreadId) || l.conversations?.includes(pid);
               });
@@ -750,15 +843,24 @@ export default function ChatHeader() {
                 <>
                   {hasZaloLabels && <span className="w-px h-4 bg-gray-600 flex-shrink-0" />}
                   {activeLocalLabels.slice(0, 4).map(label => (
-                    <button
+                    <div
                       key={`local-${label.id}`}
-                      className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-1 rounded-full leading-none hover:opacity-80 transition-opacity cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[11px] pl-2 pr-1.5 py-0.5 rounded-full leading-none hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: label.color || '#3b82f6', color: label.text_color || '#ffffff' }}
                       title={`${label.name} — Nhãn Local`}
                     >
-                      {label.emoji && <span>{label.emoji}</span>}
-                      <span>{label.name}</span>
-                    </button>
+                      <span className="inline-flex items-center gap-0.5">
+                        {label.emoji && <span>{label.emoji}</span>}
+                        <span>{label.name}</span>
+                      </span>
+                      <button
+                        onClick={(e) => handleRemoveLocalLabel(label.id, e)}
+                        className="w-3.5 h-3.5 rounded-full hover:bg-black/20 flex items-center justify-center text-[9px] opacity-80 hover:opacity-100 transition-opacity"
+                        title={`Gỡ nhãn local "${label.name}"`}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   ))}
                   {activeLocalLabels.length > 4 && (
                     <button className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors">

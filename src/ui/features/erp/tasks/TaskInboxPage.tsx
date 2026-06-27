@@ -9,6 +9,7 @@ import { EmployeeAvatar, RichContentPreview } from '../shared/ErpBadges';
 import { ConfirmDialog, ErpModalCard, ErpOverlay } from '../shared/ErpDialogs';
 import { ERP_DATE_FILTER_OPTIONS, getDefaultCustomRange, resolveErpDateRange, type ErpDateFilterPreset } from '../shared/erpDateFilters';
 import type { CreateCalendarEventInput, ErpCalendarEvent, ErpTask } from '../../../../models/erp';
+import AppIcon from '@/components/common/AppIcon';
 
 const STATUS_LABELS: Record<string, string> = {
   todo: 'Cần làm',
@@ -300,15 +301,18 @@ export default function TaskInboxPage() {
                     </div>
                   )}
                   <div className="flex items-center gap-3 mt-2 text-[11px] text-gray-400 flex-wrap">
-                    <span className="font-medium">{task.priority === 'urgent' ? '🔴' : task.priority === 'high' ? '🟠' : task.priority === 'normal' ? '🔵' : '⚪'} {task.priority}</span>
+                    <span className="font-medium flex items-center gap-1">
+                      {task.priority === 'urgent' ? <AppIcon name="alert_circle" className="text-red-400" size={11} /> : task.priority === 'high' ? <AppIcon name="alert_triangle" className="text-orange-400" size={11} /> : task.priority === 'normal' ? <AppIcon name="zap" className="text-blue-400" size={11} /> : <AppIcon name="alert_circle" className="text-gray-400" size={11} />}
+                      {task.priority}
+                    </span>
                     {task.due_date && (
-                      <span className={overdue ? 'text-red-300 font-medium' : 'text-gray-400'}>
-                        📅 {new Date(task.due_date).toLocaleDateString('vi-VN')}
+                      <span className={`flex items-center gap-1 ${overdue ? 'text-red-300 font-medium' : 'text-gray-400'}`}>
+                        <AppIcon name="calendar" className="text-current" size={11} /> {new Date(task.due_date).toLocaleDateString('vi-VN')}
                       </span>
                     )}
                     {!!task.assignees?.length && (
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span>👥</span>
+                        <AppIcon name="users" className="text-gray-400" size={11} />
                         {task.assignees.slice(0, 3).map(employeeId => (
                           <EmployeeAvatar key={`${task.id}-${employeeId}`} employeeId={employeeId} size={18} showName />
                         ))}
@@ -317,7 +321,7 @@ export default function TaskInboxPage() {
                     )}
                     {!!task.watchers?.length && (
                       <div className="flex items-center gap-1.5 flex-wrap rounded-full border border-violet-500/20 bg-violet-500/5 px-2 py-1 text-violet-500">
-                        <span>👀</span>
+                        <AppIcon name="eye" className="text-violet-500" size={11} />
                         {task.watchers.slice(0, 2).map(employeeId => (
                           <EmployeeAvatar key={`watcher-${task.id}-${employeeId}`} employeeId={employeeId} size={16} showName={false} />
                         ))}
@@ -359,7 +363,7 @@ export default function TaskInboxPage() {
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: event.color || '#3b82f6' }} />
                   </div>
                   <p className="text-xs text-gray-300 mt-1">{new Date(event.start_at).toLocaleString('vi-VN')}</p>
-                  {event.location && <p className="text-[11px] text-gray-500 mt-1">📍 {event.location}</p>}
+                  {event.location && <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1"><AppIcon name="map_pin" className="text-gray-500" size={10} /> {event.location}</p>}
                 </button>
               ))
             )}

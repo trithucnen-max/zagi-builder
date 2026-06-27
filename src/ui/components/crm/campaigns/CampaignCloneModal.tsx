@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import AppIcon from '@/components/common/AppIcon';
 
 interface CampaignCloneModalProps {
   campaignName: string;
@@ -34,7 +35,7 @@ export default function CampaignCloneModal({ campaignName, totalContacts, onClos
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
           <div className="flex items-center gap-2">
-            <span className="text-lg">📋</span>
+            <AppIcon name="copy" className="text-blue-500" size={18} />
             <h3 className="font-semibold text-white text-sm">Nhân bản chiến dịch</h3>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">✕</button>
@@ -74,7 +75,7 @@ export default function CampaignCloneModal({ campaignName, totalContacts, onClos
                     : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-200'
                 }`}
               >
-                <span className="text-xl">📝</span>
+                <AppIcon name="file_text" className={!includeContacts ? 'text-blue-400' : 'text-gray-400'} size={20} />
                 <span className="text-xs font-semibold">Chỉ clone template</span>
                 <span className="text-[11px] leading-snug opacity-70">
                   Sao chép nội dung trừ danh sách tệp gửi.
@@ -85,11 +86,11 @@ export default function CampaignCloneModal({ campaignName, totalContacts, onClos
                 onClick={() => setIncludeContacts(true)}
                 className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-colors ${
                   includeContacts
-                    ? 'border-purple-500 bg-purple-500/15 text-white'
+                    ? 'border-emerald-500 bg-emerald-500/15 text-white'
                     : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-200'
                 }`}
               >
-                <span className="text-xl">👥</span>
+                <AppIcon name="layers" className={includeContacts ? 'text-emerald-400' : 'text-gray-400'} size={20} />
                 <span className="text-xs font-semibold">Clone giống hệt</span>
                 <span className="text-[11px] leading-snug opacity-70">
                   Sao chép toàn bộ, cả danh sách tệp gửi.
@@ -110,9 +111,16 @@ export default function CampaignCloneModal({ campaignName, totalContacts, onClos
           <button
             onClick={handleConfirm}
             disabled={cloning || !cloneName.trim()}
-            className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-40 transition-colors font-medium"
+            className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-40 transition-colors font-medium flex items-center justify-center gap-1.5"
           >
-            {cloning ? 'Đang nhân bản...' : '📋 Nhân bản'}
+            {cloning ? (
+              'Đang nhân bản...'
+            ) : (
+              <>
+                <AppIcon name="copy" className="text-white" size={14} />
+                Nhân bản
+              </>
+            )}
           </button>
         </div>
       </div>

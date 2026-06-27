@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useErpCalendarStore } from '@/store/erp/erpCalendarStore';
 import { ConfirmDialog, ErpModalCard, ErpOverlay } from '../shared/ErpDialogs';
 import type { ErpCalendarEvent, CreateCalendarEventInput } from '../../../../models/erp';
+import AppIcon from '@/components/common/AppIcon';
 
 type ViewMode = 'week' | 'month' | 'list';
 
@@ -222,7 +223,7 @@ export default function CalendarPage() {
                       {new Date(ev.start_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                       {ev.end_at && ev.end_at > ev.start_at ? ` → ${new Date(ev.end_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : ''}
                     </div>
-                    {ev.location && <div className="text-xs text-gray-500 mt-1">📍 {ev.location}</div>}
+                    {ev.location && <div className="text-xs text-gray-500 mt-1 flex items-center gap-1"><AppIcon name="map_pin" className="text-gray-500" size={10} />{ev.location}</div>}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: ev.color || '#3b82f6' }} />
@@ -230,7 +231,7 @@ export default function CalendarPage() {
                       onClick={() => setDeleteTarget(ev)}
                       className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-300 opacity-0 pointer-events-none transition-all group-hover:opacity-100 group-hover:pointer-events-auto focus:opacity-100 focus:pointer-events-auto hover:border-red-400/50 hover:bg-red-500/20 hover:text-white"
                     >
-                      🗑 Xóa
+                      <span className="flex items-center gap-1"><AppIcon name="trash" className="text-current" size={11} /> Xóa</span>
                     </button>
                   </div>
                 </div>
@@ -390,7 +391,7 @@ export default function CalendarPage() {
                 ? ` → ${new Date(selectedEvent.end_at).toLocaleString('vi-VN')}`
                 : ''}
             </p>
-            {selectedEvent.location && <p className="text-xs text-gray-400 mt-1">📍 {selectedEvent.location}</p>}
+            {selectedEvent.location && <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><AppIcon name="map_pin" className="text-gray-400" size={10} />{selectedEvent.location}</p>}
             {selectedEvent.description && <p className="text-xs text-gray-300 mt-2 whitespace-pre-wrap">{selectedEvent.description}</p>}
             <div className="flex gap-2 mt-4 justify-end">
               <button
@@ -439,7 +440,7 @@ export default function CalendarPage() {
                     onClick={() => setDeleteTarget(ev)}
                     className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-300 hover:border-red-400/50 hover:bg-red-500/20 hover:text-white"
                   >
-                    🗑 Xóa
+                    <span className="flex items-center gap-1"><AppIcon name="trash" className="text-current" size={11} /> Xóa</span>
                   </button>
                 </div>
               ))}

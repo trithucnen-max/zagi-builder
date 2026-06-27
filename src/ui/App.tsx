@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import TopBar from './components/layout/TopBar';
+import LicenseExpiryBanner from './components/common/LicenseExpiryBanner';
 import Sidebar from './components/layout/Sidebar';
 import Dashboard from './components/dashboard/Dashboard';
 import ConversationList from './components/chat/ConversationList';
@@ -163,40 +164,62 @@ export default function App() {
     document.documentElement.style.zoom = '';
   }, [fontSizeScale]);
 
-  // ─── Lock screen: check status on mount ─────────────────────────────────
+
+
+  // Initialize lock screen state on mount
   useEffect(() => {
-    ipc.lockScreen.status().then(res => {
-      if (res.success && res.enabled) {
-        setLockEnabled(true);
+    ipc.lockScreen?.status().then(res => {
+      if (res?.success && res.enabled) {
         setIsLocked(true);
       }
     });
   }, []);
 
-  // ─── Lock screen: listen for lock events + keyboard shortcut ───────────
+  // Listen for lock screen event from TopBar
   useEffect(() => {
-    if (!lockEnabled) return;
-    const handleLockEvent = () => setIsLocked(true);
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'L') {
-        e.preventDefault();
-        setIsLocked(true);
-      }
+    const handleLock = () => {
+      setIsLocked(true);
     };
-    window.addEventListener('lockScreen:lock', handleLockEvent);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('lockScreen:lock', handleLockEvent);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [lockEnabled]);
+    window.addEventListener('lockScreen:lock', handleLock);
+    return () => window.removeEventListener('lockScreen:lock', handleLock);
+  }, []);
 
-  // ─── Account switcher (Ctrl+Tab): global keyboard handler ──────────────
   useEffect(() => {
     const ctrlHeldRef = { current: false };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Disable shortcuts when typing in inputs/textareas
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
       const store = useAppStore.getState();
+
+      // Ctrl + Shift + L: lock screen
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'L' || e.key === 'l')) {
+        e.preventDefault();
+        try {
+          const status = await ipc.lockScreen?.status();
+          if (status?.success && status.enabled) {
+            setIsLocked(true);
+          } else {
+            store.showNotification('Vui lòng thiết lập mật khẩu khóa màn hình trong Cài đặt trước.', 'info');
+            store.setView('settings');
+          }
+        } catch (err) {
+          console.error('Lock screen shortcut error:', err);
+        }
+        return;
+      }
+
+      // Ctrl + Shift + N: open quick chat
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'N' || e.key === 'n')) {
+        e.preventDefault();
+        openQuickChat();
+        return;
+      }
+
       // Ctrl+Tab: open account switcher
       if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
         e.preventDefault();
@@ -209,6 +232,7 @@ export default function App() {
         ctrlHeldRef.current = true;
         return;
       }
+
       // Escape while switcher open: close without switching
       if (e.key === 'Escape' && store.accountSwitcherOpen) {
         store.closeAccountSwitcher(false);
@@ -235,7 +259,7 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [openQuickChat]);
 
   // ─── Employee permission guard: redirect to dashboard if current view is not allowed ──
   useEffect(() => {
@@ -913,16 +937,6 @@ export default function App() {
     });
     return () => unsub?.();
   }, []);
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
-        e.preventDefault();
-        openQuickChat();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [openQuickChat]);
 
   // ─── Listen for reminder notifications ────────────────────────────────────
   useEffect(() => {
@@ -1173,7 +1187,7 @@ export default function App() {
   };
 
   // ─── Lock screen gate: block entire app until unlocked ───────────────────
-  if (lockEnabled && isLocked) {
+  if (isLocked) {
     return <LockScreen onUnlock={() => setIsLocked(false)} />;
   }
 
@@ -1197,6 +1211,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-900 overflow-hidden">
       <TopBar />
+      <LicenseExpiryBanner />
       <EmployeeConnectionBanner />
 
       <div className="flex flex-1 overflow-hidden">

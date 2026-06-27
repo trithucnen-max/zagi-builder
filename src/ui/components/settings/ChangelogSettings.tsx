@@ -1,4 +1,56 @@
 import React, { useState } from 'react';
+import AppIcon, { IconType } from '@/components/common/AppIcon';
+
+const EMOJI_MAP: Record<string, IconType> = {
+  '🎨': 'appearance',
+  '✨': 'sparkles',
+  '🔐': 'security',
+  '👥': 'employees',
+  '🤖': 'ai',
+  '📝': 'file_text',
+  '🧪': 'tools',
+  '🏷️': 'labels',
+  '🏠': 'home',
+  '🪄': 'sparkles',
+  '🔄': 'shuffle',
+  '🤝': 'users',
+  '🛡️': 'shield_check',
+  '🐛': 'bug',
+  '🐧': 'workspace',
+  '📡': 'proxy',
+  '📹': 'image',
+  '📤': 'download',
+  '➕': 'plus',
+  '📦': 'truck',
+  '⏱️': 'clock',
+  '⏱': 'clock',
+  '✅': 'check',
+  '📊': 'analytics',
+  '🔒': 'security',
+  '☑️': 'check',
+  '🖼️': 'image',
+  '📞': 'phone',
+  '🚀': 'sparkles',
+  '🗂️': 'erp',
+  '🗂': 'erp',
+  '🔧': 'tools',
+  '✏️': 'edit',
+  '🚫': 'x',
+  '⚙️': 'tools',
+  '⚙': 'tools',
+  '🔗': 'integration',
+  '📖': 'book',
+  '⚡': 'zap',
+};
+
+function cleanEmojiPrefix(str: string): { icon: IconType | null; cleanText: string } {
+  for (const [emoji, iconKey] of Object.entries(EMOJI_MAP)) {
+    if (str.startsWith(emoji)) {
+      return { icon: iconKey, cleanText: str.substring(emoji.length).trim() };
+    }
+  }
+  return { icon: null, cleanText: str };
+}
 
 interface VersionEntry {
   version: string;
@@ -13,6 +65,44 @@ interface VersionEntry {
 
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
+  {
+    version: '27.1.8',
+    date: '06/2026',
+    type: 'patch',
+    highlights: [
+      '🎨 Đồng bộ hoá biểu tượng hệ thống (AppIcon Integration) — Tạo và triển khai component AppIcon tập trung chứa toàn bộ bộ icon outline mảnh Lucide-style cao cấp. Loại bỏ hơn 200 dòng mã SVG nội tuyến lặp lại trong Sidebar, Settings, CRM và các trang tích hợp.',
+      '✨ Chuẩn hóa UI/UX Tích hợp & AI Assistant — Thiết lập kích thước chuẩn 20px (w-5 h-5) cho logo các đối tác trong IntegrationPage và AIAssistantPage. Thay thế dropdown native bằng Custom Select Dropdown cao cấp kèm icon outline cho bộ chọn mô hình AI.',
+      '🔐 Tách biệt Quản lý Bản quyền (License Modal & Banner) — Tách độc lập module quản lý bản quyền ra khỏi Cài đặt chung, bổ sung LicenseModal hiển thị chi tiết hạn dùng và LicenseExpiryBanner cảnh báo thời hạn tiện dụng.',
+      '👥 Đồng bộ hóa hoàn toàn Icon module Chiến dịch (Campaigns) — Thay thế 100% các biểu tượng emoji thô trong bộ tạo, danh sách, chi tiết chiến dịch và bộ chọn đối tượng sang dùng AppIcon. Loại bỏ các tông màu tím tại nút clone giống hệt sang xanh lá/xanh dương để tuân thủ quy định thiết kế thương hiệu (Purple Ban).',
+      '🤖 Khắc phục lỗi Zalo Login & Message HTTP 404 — Sửa lỗi race condition và stale closure khiến tài khoản Zalo không hiển thị sau khi quét QR trong AddAccountModal & accountStore. Bắt lỗi HTTP 404 thân thiện hiển thị banner cảnh báo thay vì quăng lỗi thô khi tải tin nhắn cũ nhóm Zalo.'
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Tạo mới component AppIcon.tsx hỗ trợ tập trung các SVG outline Lucide-style.',
+          'Tạo mới component LicenseModal.tsx và LicenseExpiryBanner.tsx.',
+          'Bổ sung Custom Select Dropdown cho bộ chọn AI Provider trong AIAssistantDetailPage.tsx.'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Refactor Sidebar.tsx sử dụng AppIcon và xóa hoàn toàn NavIcon cũ cùng hàng trăm dòng SVG inline.',
+          'Đồng bộ hóa w-4.5 h-4.5 thành w-5 h-5 (20px) cho toàn bộ logo trong IntegrationPage và AIAssistantPage.',
+          'Chuyển đổi nút "Clone giống hệt" từ màu tím (Purple Ban) sang màu emerald (bg-emerald-500/15 border-emerald-500).',
+          'Đồng bộ hóa 5 file trong thư mục crm/campaigns (CampaignCloneModal, CampaignList, CampaignDetail, TargetSelector, CampaignCreateModal) sang dùng AppIcon.'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi race condition và stale closure trong AddAccountModal.tsx & accountStore.ts.',
+          'Sửa lỗi crash hoặc báo lỗi thô khi Zalo API tải tin nhắn cũ trả về 404 trong ChatHeader.tsx.'
+        ]
+      }
+    ]
+  },
   {
     version: '27.1.7',
     date: '06/2026',
@@ -803,18 +893,18 @@ const CHANGELOG: VersionEntry[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const TYPE_STYLES: Record<VersionEntry['type'], { label: string; cls: string }> = {
-  major:  { label: 'Major',  cls: 'bg-purple-600/30 text-purple-500 border border-purple-500/30' },
+  major:  { label: 'Major',  cls: 'bg-indigo-600/30 text-indigo-400 border border-indigo-500/30' },
   minor:  { label: 'Minor',  cls: 'bg-blue-600/30 text-blue-500 border border-blue-500/30' },
   patch:  { label: 'Patch',  cls: 'bg-gray-600/40 text-gray-500 border border-gray-500/30' },
   hotfix: { label: 'Hotfix', cls: 'bg-red-600/30 text-red-500 border border-red-500/30' },
 };
 
-const CATEGORY_STYLES: Record<string, { icon: string; label: string; cls: string }> = {
-  new:      { icon: '✨', label: 'Tính năng mới',   cls: 'text-green-400' },
-  improved: { icon: '⚡', label: 'Cải thiện',        cls: 'text-blue-400' },
-  fixed:    { icon: '🐛', label: 'Sửa lỗi',          cls: 'text-amber-400' },
-  removed:  { icon: '🗑️', label: 'Đã xóa',           cls: 'text-red-400' },
-  security: { icon: '🔒', label: 'Bảo mật',          cls: 'text-purple-400' },
+const CATEGORY_STYLES: Record<string, { icon: any; label: string; cls: string }> = {
+  new:      { icon: 'sparkles', label: 'Tính năng mới',   cls: 'text-green-400' },
+  improved: { icon: 'zap',      label: 'Cải thiện',        cls: 'text-blue-400' },
+  fixed:    { icon: 'bug',      label: 'Sửa lỗi',          cls: 'text-amber-400' },
+  removed:  { icon: 'trash',    label: 'Đã xóa',           cls: 'text-red-400' },
+  security: { icon: 'security', label: 'Bảo mật',          cls: 'text-sky-400' },
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -838,7 +928,10 @@ export default function ChangelogSettings() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-white">📋 Log phiên bản</h2>
+        <h2 className="text-base font-semibold text-white flex items-center gap-2">
+          <AppIcon name="changelog" className="text-blue-500" size={16} />
+          Log phiên bản
+        </h2>
         <div className="flex gap-2">
           <button onClick={expandAll}
             className="text-xs text-gray-500 hover:text-gray-300 transition-colors px-2 py-1 rounded-lg hover:bg-gray-700">
@@ -900,10 +993,20 @@ export default function ChangelogSettings() {
                 <div className="px-4 pb-4 space-y-3 border-t border-gray-700/50 pt-3">
                   {/* Highlights */}
                   {entry.highlights && entry.highlights.length > 0 && (
-                    <div className="bg-gray-700/30 rounded-lg px-3 py-2.5 space-y-1">
-                      {entry.highlights.map((h, i) => (
-                        <p key={i} className="text-gray-200 text-xs font-medium">{h}</p>
-                      ))}
+                    <div className="bg-gray-700/30 rounded-lg px-3 py-2.5 space-y-1.5">
+                      {entry.highlights.map((h, i) => {
+                        const { icon, cleanText } = cleanEmojiPrefix(h);
+                        return (
+                          <p key={i} className="text-gray-200 text-xs font-medium flex items-start gap-1.5">
+                            {icon ? (
+                              <AppIcon name={icon} className="text-blue-500 mt-0.5 flex-shrink-0" size={12} />
+                            ) : (
+                              <span className="text-blue-500 mt-0.5 flex-shrink-0">—</span>
+                            )}
+                            <span className="leading-relaxed">{cleanText}</span>
+                          </p>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -913,8 +1016,8 @@ export default function ChangelogSettings() {
                     return (
                       <div key={gi} className="space-y-1.5">
                         <p className={`text-xs font-semibold flex items-center gap-1.5 ${style.cls}`}>
-                          <span>{style.icon}</span>
-                          {style.label}
+                          <AppIcon name={style.icon} className="text-current" size={12} />
+                          <span>{style.label}</span>
                         </p>
                         <ul className="space-y-1 pl-1">
                           {group.items.map((item, ii) => (

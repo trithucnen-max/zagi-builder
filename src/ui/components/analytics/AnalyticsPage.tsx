@@ -7,6 +7,8 @@ import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import AccountSelectorDropdown from '@/components/common/AccountSelectorDropdown';
 import EmployeeAnalyticsTab from './EmployeeAnalyticsTab';
+import AppIcon, { IconType } from '@/components/common/AppIcon';
+import ipc from '@/lib/ipc';
 
 // ── IPC helper ─────────────────────────────────────────────────────────────────
 const api = () => window.electronAPI?.analytics;
@@ -206,15 +208,15 @@ function SkeletonChart() {
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 type TabId = 'overview' | 'messages' | 'contacts' | 'labels' | 'campaigns' | 'workflow' | 'ai' | 'employees';
-const TABS: { id: TabId; icon: string; label: string }[] = [
-  { id: 'overview', icon: '📊', label: 'Tổng quan' },
-  { id: 'messages', icon: '💬', label: 'Tin nhắn' },
-  { id: 'contacts', icon: '👥', label: 'Liên hệ' },
-  { id: 'labels', icon: '🏷️', label: 'Nhãn' },
-  { id: 'employees', icon: '👤', label: 'Nhân viên' },
-  { id: 'campaigns', icon: '📢', label: 'Chiến dịch' },
-  { id: 'workflow', icon: '⚡', label: 'Workflow' },
-  { id: 'ai', icon: '🤖', label: 'AI' },
+const TABS: { id: TabId; icon: IconType; label: string }[] = [
+  { id: 'overview', icon: 'overview', label: 'Tổng quan' },
+  { id: 'messages', icon: 'messages', label: 'Tin nhắn' },
+  { id: 'contacts', icon: 'contacts', label: 'Liên hệ' },
+  { id: 'labels',   icon: 'labels',   label: 'Nhãn' },
+  { id: 'employees',icon: 'employees',label: 'Nhân viên' },
+  { id: 'campaigns',icon: 'campaigns',label: 'Chiến dịch' },
+  { id: 'workflow', icon: 'workflow',  label: 'Workflow' },
+  { id: 'ai',       icon: 'ai',       label: 'AI' },
 ];
 
 type TimePeriod = 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'custom';
@@ -600,7 +602,8 @@ export default function AnalyticsPage() {
                 ? 'bg-gray-800/80 text-white border-b-2 border-blue-500'
                 : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/30'
             }`}>
-            <span>{tab.icon}</span> {tab.label}
+            <AppIcon name={tab.icon} className={activeTab === tab.id ? 'text-white' : 'text-black dark:text-gray-400'} size={14} />
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
@@ -1252,6 +1255,30 @@ function LabelsTab({ loading, labelUsage, periodDays }: {
 function CampaignsTab({ loading, campaigns, overview }: {
   loading: boolean; campaigns: CampaignRow[]; overview: OverviewData | null;
 }) {
+  const [safetyStats, setSafetyStats] = useState<{
+    sentStrangerMessages: number;
+    sentStrangerInvites: number;
+    campaignsOverTime: Array<{ date: string; count: number }>;
+  } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const fetchStats = async () => {
+      try {
+        const res = await ipc.crm.getCampaignSafetyStats({});
+        if (res.success && res.data && active) {
+          setSafetyStats(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching safety stats:', err);
+      }
+    };
+    fetchStats();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   if (loading) return <SkeletonChart />;
 
   const totalSent = campaigns.reduce((s, c) => s + c.sent, 0);
@@ -1270,6 +1297,77 @@ function CampaignsTab({ loading, campaigns, overview }: {
 
   return (
     <div className="space-y-5">
+      {/* Campaign Safety Sections */}
+      {safetyStats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Section title="🛡️ Báo cáo an toàn gửi tin (Người lạ)">
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>Tin nhắn đã gửi (Tháng này)</span>
+                  <span className="font-bold text-white">{safetyStats.sentStrangerMessages} / 40</span>
+                </div>
+                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      safetyStats.sentStrangerMessages >= 40 ? 'bg-red-500' : safetyStats.sentStrangerMessages >= 30 ? 'bg-amber-500' : 'bg-green-500'
+                    }`}
+                    style={{ width: `${Math.min((safetyStats.sentStrangerMessages / 40) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
+                  {safetyStats.sentStrangerMessages >= 40 
+                    ? '⚠️ Đã vượt hạn mức Zalo cá nhân miễn phí. Hãy dùng Zalo Business để tránh bị khóa!' 
+                    : safetyStats.sentStrangerMessages >= 30 
+                      ? '⚡ Sắp đạt hạn mức Zalo cá nhân. Hãy giãn cách thời gian gửi hoặc dùng Zalo Business.' 
+                      : '✓ Hạn mức trong tầm kiểm soát an toàn.'}
+                </p>
+              </div>
+
+              <div className="border-t border-gray-750/60 pt-3 flex justify-between items-center text-xs">
+                <span className="text-gray-400 flex items-center gap-1">
+                  <AppIcon name="shield_check" size={12} className="text-sky-400" />
+                  Lời mời kết bạn đã gửi:
+                </span>
+                <span className="font-bold text-sky-400">{safetyStats.sentStrangerInvites} lời mời</span>
+              </div>
+            </div>
+          </Section>
+
+          <Section title="📈 Tần suất tạo chiến dịch (30 ngày qua)">
+            <div className="h-28 flex items-end gap-1 px-1">
+              {safetyStats.campaignsOverTime.length === 0 ? (
+                <div className="flex-grow h-full flex items-center justify-center text-[10px] text-gray-505">
+                  Chưa có chiến dịch nào được tạo
+                </div>
+              ) : (
+                (() => {
+                  const maxVal = Math.max(...safetyStats.campaignsOverTime.map(c => c.count), 1);
+                  return safetyStats.campaignsOverTime.map((c, i) => {
+                    const pctHeight = (c.count / maxVal) * 100;
+                    return (
+                      <div
+                        key={i}
+                        className="flex-grow bg-blue-500/20 hover:bg-blue-500/60 rounded-t-sm transition-all relative group"
+                        style={{ height: `${Math.max(pctHeight, 15)}%` }}
+                      >
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-gray-950 text-white text-[8px] font-bold py-0.5 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-25">
+                          {c.date}: {c.count} chiến dịch
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </div>
+            <div className="flex justify-between text-[8px] text-gray-500 mt-2 px-0.5">
+              <span>{safetyStats.campaignsOverTime[0]?.date || '30 ngày trước'}</span>
+              <span>{safetyStats.campaignsOverTime[safetyStats.campaignsOverTime.length - 1]?.date || 'Hôm nay'}</span>
+            </div>
+          </Section>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KPICard icon="📢" label="Tổng chiến dịch" value={overview?.totalCampaigns ?? campaigns.length} color="blue" />
         <KPICard icon="✅" label="Đã gửi" value={totalSent} color="green" />

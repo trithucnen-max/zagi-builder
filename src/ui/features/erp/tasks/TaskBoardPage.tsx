@@ -7,6 +7,7 @@ import { ConfirmDialog, ErpModalCard, ErpOverlay } from '../shared/ErpDialogs';
 import { ERP_DATE_FILTER_OPTIONS, getDefaultCustomRange, resolveErpDateRange, type ErpDateFilterPreset } from '../shared/erpDateFilters';
 import { EmployeeAvatar, RichContentPreview } from '../shared/ErpBadges';
 import type { ErpTask, ErpTaskPriority, ErpTaskStatus } from '../../../../models/erp';
+import AppIcon from '@/components/common/AppIcon';
 
 const STATUS_COLS: { id: ErpTaskStatus; label: string; color: string }[] = [
   { id: 'todo',      label: 'Cần làm',    color: 'bg-gray-700/50 border-gray-600' },
@@ -16,11 +17,11 @@ const STATUS_COLS: { id: ErpTaskStatus; label: string; color: string }[] = [
   { id: 'cancelled', label: 'Huỷ',        color: 'bg-gray-800/50 border-gray-700' },
 ];
 
-const PRIORITY_META: Record<string, { color: string; label: string; icon: string }> = {
-  low: { color: 'text-gray-400', label: 'Thấp', icon: '⚪' },
-  normal: { color: 'text-blue-400', label: 'Bình thường', icon: '🔵' },
-  high: { color: 'text-orange-400', label: 'Cao', icon: '🟠' },
-  urgent: { color: 'text-red-400', label: 'Khẩn cấp', icon: '🔴' },
+const PRIORITY_META: Record<string, { color: string; label: string; icon: 'alert_circle' | 'zap' | 'alert_triangle' | 'x' }> = {
+  low: { color: 'text-gray-400', label: 'Thấp', icon: 'alert_circle' },
+  normal: { color: 'text-blue-400', label: 'Bình thường', icon: 'zap' },
+  high: { color: 'text-orange-400', label: 'Cao', icon: 'alert_triangle' },
+  urgent: { color: 'text-red-400', label: 'Khẩn cấp', icon: 'alert_circle' },
 };
 
 const STATUS_LABELS: Record<ErpTaskStatus, string> = {
@@ -233,11 +234,11 @@ export default function TaskBoardPage() {
                       )}
                       <p className="text-[10px] text-gray-500">{STATUS_LABELS[task.status]}</p>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span className={`text-[10px] font-medium ${PRIORITY_META[task.priority]?.color || 'text-gray-400'}`}>
-                          {(PRIORITY_META[task.priority]?.icon || '⚪')} {PRIORITY_META[task.priority]?.label || task.priority}
+                        <span className={`text-[10px] font-medium flex items-center gap-0.5 ${PRIORITY_META[task.priority]?.color || 'text-gray-400'}`}>
+                          <AppIcon name={PRIORITY_META[task.priority]?.icon || 'alert_circle'} className="text-current" size={10} /> {PRIORITY_META[task.priority]?.label || task.priority}
                         </span>
                         {!!task.comment_count && (
-                          <span className="text-[10px] text-gray-500">💬 {task.comment_count}</span>
+                          <span className="text-[10px] text-gray-500 flex items-center gap-0.5"><AppIcon name="chat" className="text-current" size={9} /> {task.comment_count}</span>
                         )}
                         {task.due_date && (
                           <span className={`text-[10px] ml-auto ${task.due_date < Date.now() ? 'text-red-400' : 'text-gray-500'}`}>
@@ -255,7 +256,7 @@ export default function TaskBoardPage() {
                       )}
                       {!!task.watchers?.length && (
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 rounded-lg border border-violet-500/20 bg-violet-500/5 px-2 py-1 text-[10px] text-violet-500">
-                          <span className="font-semibold uppercase tracking-wide text-violet-500">👀 Theo dõi</span>
+                          <span className="font-semibold uppercase tracking-wide text-violet-500 flex items-center gap-0.5"><AppIcon name="eye" className="text-current" size={10} /> Theo dõi</span>
                           {task.watchers.slice(0, 2).map((employeeId: string) => (
                             <EmployeeAvatar key={`watcher-${task.id}-${employeeId}`} employeeId={employeeId} size={16} showName={false} />
                           ))}

@@ -5,6 +5,7 @@ import { useEmployeeStore } from '@/store/employeeStore';
 import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
 import { ConfirmDialog, ErpModalCard, ErpOverlay } from '../shared/ErpDialogs';
+import AppIcon from '@/components/common/AppIcon';
 import {
   ERP_DATE_FILTER_OPTIONS,
   getDefaultCustomRange,
@@ -24,14 +25,14 @@ import {
 } from '../../../../models/erp/Permission';
 
 const EMPLOYEE_MODULES = [
-  { key: 'chat', label: 'Chat', icon: '💬', desc: 'Gửi / nhận tin nhắn' },
-  { key: 'crm', label: 'CRM', icon: '📊', desc: 'Quản lý khách hàng' },
-  { key: 'workflow', label: 'Workflow', icon: '⚡', desc: 'Tự động hoá' },
-  { key: 'integration', label: 'Tích hợp', icon: '🔗', desc: 'POS / Shipping / dịch vụ ngoài' },
-  { key: 'analytics', label: 'Thống kê', icon: '📈', desc: 'Báo cáo phân tích' },
-  { key: 'ai_assistant', label: 'AI', icon: '🤖', desc: 'Trợ lý AI' },
-  { key: 'settings_accounts', label: 'QL tài khoản Zalo', icon: '👤', desc: 'Phần cài đặt tài khoản' },
-  { key: 'settings_employees', label: 'QL nhân viên', icon: '🧑‍💼', desc: 'Phần cài đặt nhân viên' },
+  { key: 'chat', label: 'Chat', icon: 'chat' as const, desc: 'Gửi / nhận tin nhắn' },
+  { key: 'crm', label: 'CRM', icon: 'crm' as const, desc: 'Quản lý khách hàng' },
+  { key: 'workflow', label: 'Workflow', icon: 'workflow' as const, desc: 'Tự động hoá' },
+  { key: 'integration', label: 'Tích hợp', icon: 'integration' as const, desc: 'POS / Shipping / dịch vụ ngoài' },
+  { key: 'analytics', label: 'Thống kê', icon: 'analytics' as const, desc: 'Báo cáo phân tích' },
+  { key: 'ai_assistant', label: 'AI', icon: 'ai' as const, desc: 'Trợ lý AI' },
+  { key: 'settings_accounts', label: 'QL tài khoản Zalo', icon: 'accounts' as const, desc: 'Phần cài đặt tài khoản' },
+  { key: 'settings_employees', label: 'QL nhân viên', icon: 'employees' as const, desc: 'Phần cài đặt nhân viên' },
 ] as const;
 
 const EMPLOYEE_MODULE_KEYS = new Set<string>(EMPLOYEE_MODULES.map(module => module.key));
@@ -605,7 +606,7 @@ function EmployeeEditorModal({ employee, profile, departments, positions, canMan
                     <span className={`w-4 h-4 rounded border flex items-center justify-center ${modulePermissions[module.key] ? 'border-blue-400 bg-blue-500' : 'border-gray-500'}`}>
                       {modulePermissions[module.key] && <span className="text-[10px] text-white">✓</span>}
                     </span>
-                    <span className="text-base">{module.icon}</span>
+                    <AppIcon name={module.icon} className="text-gray-400" size={16} />
                     <div className="min-w-0">
                       <div className="text-xs text-gray-100 font-medium">{module.label}</div>
                       <div className="text-[10px] text-gray-500 truncate">{module.desc}</div>

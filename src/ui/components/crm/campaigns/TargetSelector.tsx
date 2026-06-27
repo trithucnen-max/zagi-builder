@@ -5,6 +5,7 @@ import ipc from '@/lib/ipc';
 import ZaloLabelBadge from '../tags/ZaloLabelBadge';
 import GroupAvatar from '@/components/common/GroupAvatar';
 import { formatPhone } from '@/utils/phoneUtils';
+import AppIcon from '@/components/common/AppIcon';
 
 export interface LocalLabelItem {
   id: number;
@@ -39,6 +40,7 @@ function normalizePhone(raw: string): string {
 export default function TargetSelector({ zaloId, allLabels, localLabels, localLabelThreadMap, existingContactIds, onConfirm, onClose, headerContent }: TargetSelectorProps) {
   const [mode, setMode] = useState<SelectMode>('by_label');
   const groupInfoCache = useAppStore(s => s.groupInfoCache);
+  const showNotification = useAppStore(s => s.showNotification);
   const [selectedZaloLabelIds, setSelectedZaloLabelIds] = useState<number[]>([]);
   const [selectedLocalLabelIds, setSelectedLocalLabelIds] = useState<number[]>([]);
   const [manualSelected, setManualSelected] = useState<Set<string>>(new Set());
@@ -301,38 +303,89 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
     });
   };
 
+  const confirmSelection = async (selectedList: any[]) => {
+    setLoading(true);
+    try {
+      const expandedContacts: any[] = [];
+      const seenIds = new Set<string>();
+
+      const currentTargetCount = existingContactIds.size;
+      let availableSlots = 1000 - currentTargetCount;
+      let limitExceeded = false;
+      let discardedCount = 0;
+
+      for (const contact of selectedList) {
+        // If contact is a group, expand it
+        if (contact.contact_type === 'group' || (contact.contact_id && contact.contact_id.startsWith('g'))) {
+          const gId = contact.contact_id;
+          const res = await ipc.db?.getGroupMembers({ zaloId, groupId: gId }).catch(() => null);
+          if (res?.success && Array.isArray(res.members)) {
+            for (const member of res.members) {
+              const mId = member.member_id;
+              if (existingContactIds.has(mId) || seenIds.has(mId)) {
+                continue;
+              }
+              if (availableSlots <= 0) {
+                limitExceeded = true;
+                discardedCount += 1;
+                continue;
+              }
+              expandedContacts.push({
+                contact_id: mId,
+                display_name: member.display_name || mId,
+                avatar: member.avatar || '',
+                phone: '',
+              });
+              seenIds.add(mId);
+              availableSlots -= 1;
+            }
+          }
+        } else {
+          // Standard contact
+          const cId = contact.contact_id;
+          if (existingContactIds.has(cId) || seenIds.has(cId) || (contact.phone && existingContactIds.has(`phone:${contact.phone}`))) {
+            continue;
+          }
+          if (availableSlots <= 0) {
+            limitExceeded = true;
+            discardedCount += 1;
+            continue;
+          }
+          expandedContacts.push(contact);
+          seenIds.add(cId);
+          availableSlots -= 1;
+        }
+      }
+
+      if (limitExceeded) {
+        showNotification(
+          `Chiến dịch chỉ cho tối đa 1000 người. Đã loại bỏ ${discardedCount} người vượt quá.`,
+          'warning'
+        );
+      }
+
+      if (expandedContacts.length > 0) {
+        onConfirm(expandedContacts);
+      }
+      onClose();
+    } catch (err) {
+      console.error('Error confirming targets:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Confirm phone contacts — unresolved phones are added directly,
   // Zalo API resolution will happen at send time in CRMQueueService.
   const handleConfirmPhones = () => {
     const contacts = phoneList
       .map(phone => {
         const r = phoneResolved.get(phone);
-        if (r) return { contact_id: r.uid, display_name: r.name || phone, avatar: r.avatar || '', phone };
+        if (r) return { contact_id: r.uid, display_name: r.name || phone, avatar: r.avatar || '', phone, source: 'phone' };
         // Not resolved — add as pending phone, will be resolved at send time
-        return { contact_id: `phone:${phone}`, display_name: phone, avatar: '', phone };
-      })
-      .filter(c => {
-        // Check both contact_id and phone: prefix to prevent duplicates
-        // when resolution status changes between sessions
-        if (existingContactIds.has(c.contact_id)) return false;
-        if (c.phone && existingContactIds.has(`phone:${c.phone}`)) return false;
-        return true;
+        return { contact_id: `phone:${phone}`, display_name: phone, avatar: '', phone, source: 'phone_pending' };
       });
-    if (contacts.length > 0) {
-      onConfirm(contacts);
-      onClose();
-    } else if (phoneList.length > 0) {
-      // All phones already exist in campaign — close modal
-      onClose();
-    }
-  };
-
-  const removeUid = (uid: string) => {
-    setUidList(prev => prev.filter(u => u !== uid));
-    setUidInput(prev => {
-      const lines = prev.split('\n').filter(l => l.trim() !== uid);
-      return lines.join('\n');
-    });
+    confirmSelection(contacts);
   };
 
   // Confirm UID contacts — unresolved UIDs are added directly,
@@ -341,18 +394,19 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
     const contacts = uidList
       .map(uid => {
         const r = uidResolved.get(uid);
-        if (r) return { contact_id: uid, display_name: r.name || uid, avatar: r.avatar || '' };
+        if (r) return { contact_id: uid, display_name: r.name || uid, avatar: r.avatar || '', source: 'uid' };
         // Not resolved locally — will be resolved at send time
-        return { contact_id: uid, display_name: '', avatar: '' };
-      })
-      .filter(c => !existingContactIds.has(c.contact_id));
-    if (contacts.length > 0) {
-      onConfirm(contacts);
-      onClose();
-    } else if (uidList.length > 0) {
-      // All UIDs already exist in campaign — close modal
-      onClose();
-    }
+        return { contact_id: uid, display_name: '', avatar: '', source: 'uid_pending' };
+      });
+    confirmSelection(contacts);
+  };
+
+  const removeUid = (uid: string) => {
+    setUidList(prev => prev.filter(u => u !== uid));
+    setUidInput(prev => {
+      const lines = prev.split('\n').filter(l => l.trim() !== uid);
+      return lines.join('\n');
+    });
   };
 
   const totalLabelFilters = selectedZaloLabelIds.length + selectedLocalLabelIds.length;
@@ -381,19 +435,26 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
         )}
 
         {/* Mode selector */}
-        <div className="flex gap-1 px-4 py-2.5 border-b border-gray-700 flex-shrink-0 overflow-x-auto">
+        <div className="flex gap-1 px-4 py-2.5 border-b border-gray-700 flex-shrink-0 overflow-x-auto select-none" style={{ scrollbarWidth: 'none' }}>
           {([
-            { key: 'by_label' as const, label: '🏷️ Theo nhãn' },
-            { key: 'by_phone' as const, label: '📞 Theo SĐT' },
-            { key: 'by_uid' as const, label: '🔗 Theo UID' },
-            { key: 'friends_only' as const, label: '🤝 Bạn bè' },
-            { key: 'groups_only' as const, label: '👥 Nhóm' },
-          ]).map(({ key, label }) => (
-            <button key={key} onClick={() => setMode(key)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors whitespace-nowrap flex-shrink-0 ${
-                mode === key ? 'border-blue-500 bg-blue-500/20 text-blue-300' : 'border-gray-600 text-gray-400 hover:border-gray-500'
-              }`}>{label}</button>
-          ))}
+            { key: 'by_label' as const, icon: 'layers' as const, label: 'Theo nhãn' },
+            { key: 'by_phone' as const, icon: 'phone' as const, label: 'Theo SĐT' },
+            { key: 'by_uid' as const, icon: 'integration' as const, label: 'Theo UID' },
+            { key: 'friends_only' as const, icon: 'user_plus' as const, label: 'Bạn bè' },
+            { key: 'groups_only' as const, icon: 'users' as const, label: 'Nhóm' },
+          ]).map(({ key, icon, label }) => {
+            const isActive = mode === key;
+            return (
+              <button key={key} onClick={() => setMode(key)}
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 font-medium ${
+                  isActive ? 'border-blue-500 bg-blue-500/20 text-blue-300' : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600 hover:text-gray-300'
+                }`}
+              >
+                <AppIcon name={icon} className={isActive ? 'text-blue-300' : 'text-gray-500'} size={12} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* ── Label filter chips (by_label mode) ── */}
@@ -407,7 +468,10 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
                     : 'text-gray-500 hover:text-gray-300 border border-transparent'
                 }`}>
-                💾 Nhãn Local{effectiveLocalLabels.length > 0 ? ` (${effectiveLocalLabels.length})` : ''}
+                <span className="flex items-center gap-1">
+                  <AppIcon name="storage" className="text-current" size={10} />
+                  Nhãn Local{effectiveLocalLabels.length > 0 ? ` (${effectiveLocalLabels.length})` : ''}
+                </span>
               </button>
               <button onClick={() => setLabelTab('zalo')}
                 className={`text-[11px] px-3 py-1 rounded-md font-medium transition-colors ${
@@ -415,7 +479,10 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
                     ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
                     : 'text-gray-500 hover:text-gray-300 border border-transparent'
                 }`}>
-                ☁️ Nhãn Zalo{allLabels.length > 0 ? ` (${allLabels.length})` : ''}
+                <span className="flex items-center gap-1">
+                  <AppIcon name="sync" className="text-current" size={10} />
+                  Nhãn Zalo{allLabels.length > 0 ? ` (${allLabels.length})` : ''}
+                </span>
               </button>
             </div>
 
@@ -746,8 +813,8 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
             <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-700 flex-shrink-0">
               <span className="text-xs text-gray-500 flex-1">{finalSelected.length} liên hệ được chọn</span>
               <button onClick={onClose} className="px-4 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600">Hủy</button>
-              <button disabled={finalSelected.length === 0}
-                onClick={() => { onConfirm(finalSelected); onClose(); }}
+              <button disabled={finalSelected.length === 0 || loading}
+                onClick={() => confirmSelection(finalSelected)}
                 className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-40">
                 Thêm {finalSelected.length} liên hệ
               </button>

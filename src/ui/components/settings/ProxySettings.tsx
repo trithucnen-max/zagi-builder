@@ -3,6 +3,7 @@ import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import { useAccountStore } from '@/store/accountStore';
 import { showConfirm } from '../common/ConfirmDialog';
+import AppIcon from '../common/AppIcon';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ProxyItem {
@@ -77,9 +78,9 @@ function TestProxyButton({ proxy, size = 'sm' }: { proxy: any; size?: 'sm' | 'xs
         ) : state === 'ok' ? (
           <>✅ OK ({info})</>
         ) : state === 'fail' ? (
-          <>❌ Lỗi</>
+          <span className="flex items-center gap-1"><AppIcon name="x" className="text-red-500" size={12} /> Lỗi</span>
         ) : (
-          <>🔌 Test kết nối</>
+          <span className="flex items-center gap-1"><AppIcon name="link" className="text-current" size={12} /> Test kết nối</span>
         )}
       </button>
     );
@@ -105,9 +106,9 @@ function TestProxyButton({ proxy, size = 'sm' }: { proxy: any; size?: 'sm' | 'xs
         ) : state === 'ok' ? (
           <>✅ OK ({info})</>
         ) : state === 'fail' ? (
-          <>❌ Lỗi</>
+          <span className="flex items-center gap-1"><AppIcon name="x" className="text-red-500" size={12} /> Lỗi</span>
         ) : (
-          <>🔌 Test kết nối</>
+          <span className="flex items-center gap-1"><AppIcon name="link" className="text-current" size={12} /> Test kết nối</span>
         )}
       </button>
       {state === 'fail' && info && (
@@ -367,7 +368,10 @@ export default function ProxySettings() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-white">🔒 Quản lý Proxy</h2>
+          <h2 className="text-base font-semibold text-white flex items-center gap-1.5">
+            <AppIcon name="proxy" size={16} className="text-blue-500" />
+            Quản lý Proxy
+          </h2>
           <p className="text-xs text-gray-500 mt-0.5">
             Mỗi tài khoản có thể gắn 1 proxy riêng. Hỗ trợ HTTP, HTTPS, SOCKS4, SOCKS5.
           </p>
@@ -387,9 +391,19 @@ export default function ProxySettings() {
 
       {/* Add / Edit Form */}
       {formMode !== 'none' && (
-        <div className="bg-gray-750 border border-gray-600 rounded-xl p-4">
-          <p className="text-sm font-semibold text-white mb-3">
-            {formMode === 'add' ? '➕ Thêm proxy mới' : `✏️ Sửa "${editTarget?.name}"`}
+        <div className="bg-gray-755 border border-gray-600 rounded-xl p-4">
+          <p className="text-sm font-semibold text-white mb-3 flex items-center gap-1.5">
+            {formMode === 'add' ? (
+              <>
+                <AppIcon name="plus" size={14} className="text-current" />
+                Thêm proxy mới
+              </>
+            ) : (
+              <>
+                <AppIcon name="edit" size={14} className="text-current" />
+                Sửa "{editTarget?.name}"
+              </>
+            )}
           </p>
           <ProxyForm
             initial={formMode === 'edit' && editTarget ? {
@@ -410,7 +424,9 @@ export default function ProxySettings() {
       {/* Proxy List */}
       {proxies.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
-          <div className="text-4xl mb-3">🔒</div>
+          <div className="text-4xl mb-3 flex justify-center">
+            <AppIcon name="proxy" size={36} className="text-gray-600" />
+          </div>
           <p className="text-sm font-medium text-gray-400">Chưa có proxy nào</p>
           <p className="text-xs mt-1">Thêm proxy để gán cho từng tài khoản Zalo khi đăng nhập</p>
         </div>

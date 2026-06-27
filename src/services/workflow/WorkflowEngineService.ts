@@ -1253,7 +1253,7 @@ class WorkflowEngineService {
 
       // ── Zalo Actions ─────────────────────────────────────────────────────
       case 'zalo.sendMessage': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;   // guard NaN → 0
         const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
         const continueOnError = cfg.continueOnError === true;
@@ -1331,7 +1331,7 @@ class WorkflowEngineService {
         // Gửi sự kiện "đang gõ" rồi chờ delay trước khi bước tiếp theo chạy.
         // Mục đích: đặt thẻ này TRƯỚC zalo.sendMessage để tạo hiệu ứng tự nhiên.
         //   threadType 0 = DM (cần destType=3), 1 = Group (không cần destType)
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const destType   = threadType === 0 ? 3 : undefined; // DestType.User=3
         const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
@@ -1348,7 +1348,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.sendImage': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
         const continueOnError = cfg.continueOnError === true;
@@ -1393,7 +1393,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.sendFile': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
         const continueOnError = cfg.continueOnError === true;
@@ -1429,7 +1429,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.findUser': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const result: any = await api.findUser(cfg.phone);
         return {
           userId: result?.data?.uid || '', displayName: result?.data?.displayName || '',
@@ -1438,31 +1438,31 @@ class WorkflowEngineService {
       }
 
       case 'zalo.getUserInfo': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const result: any = await api.getUserInfo({ userId: cfg.userId } as any);
         return result?.data || {};
       }
 
       case 'zalo.acceptFriendRequest': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         await api.acceptFriendRequest(cfg.userId);
         return { success: true };
       }
 
       case 'zalo.rejectFriendRequest': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         await api.rejectFriendRequest(cfg.userId);
         return { success: true };
       }
 
       case 'zalo.sendFriendRequest': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         await api.sendFriendRequest(cfg.message || '', cfg.userId);
         return { success: true };
       }
 
       case 'zalo.addToGroup': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const groupIds = this.resolveTargetIds(cfg, 'groupId', ctx);
         for (const groupId of groupIds) {
           try {
@@ -1475,7 +1475,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.removeFromGroup': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const groupIds = this.resolveTargetIds(cfg, 'groupId', ctx);
         for (const groupId of groupIds) {
           try {
@@ -1488,7 +1488,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.undoMessage': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
         for (const threadId of threadIds) {
@@ -1502,7 +1502,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.setMute': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
         for (const threadId of threadIds) {
@@ -1516,7 +1516,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.getMessageHistory': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const result: any = await api.getGroupChatHistory({
           groupId: cfg.threadId,
           lastMsgId: cfg.lastMsgId || '',
@@ -1526,7 +1526,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.forwardMessage': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.toThreadType ?? 0);
         const threadIds = this.resolveTargetIds(cfg, 'toThreadId', ctx);
         if (threadIds.length === 0) throw new Error('[zalo.forwardMessage] toThreadId / toThreadIds required');
@@ -1575,7 +1575,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.createPoll': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const options = String(cfg.options || '').split('\n').map((s: string) => s.trim()).filter(Boolean);
         const groupIds = this.resolveTargetIds(cfg, 'groupId', ctx);
         for (const groupId of groupIds) {
@@ -1595,7 +1595,7 @@ class WorkflowEngineService {
       }
 
       case 'zalo.addReaction': {
-        const api = this.getApi(ctx.pageId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         await api.addReaction({ msgId: cfg.msgId, clientMsgId: cfg.clientMsgId || '' } as any, Number(cfg.reactionType ?? 1));
         return { success: true };
       }
@@ -1624,7 +1624,7 @@ class WorkflowEngineService {
           // Gán nhãn Zalo
           if (zaloEntries.length > 0) {
             try {
-              const api = this.getApi(ctx.pageId);
+              const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
               const labelsRes = await (api as any).getLabels();
               const labelData = labelsRes?.labelData || labelsRes?.data?.labelData || [];
               const version = labelsRes?.version || labelsRes?.data?.version || 0;
@@ -1679,7 +1679,7 @@ class WorkflowEngineService {
           // Gỡ nhãn Zalo
           if (zaloEntries.length > 0) {
             try {
-              const api = this.getApi(ctx.pageId);
+              const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
               const labelsRes = await (api as any).getLabels();
               const labelData = labelsRes?.labelData || labelsRes?.data?.labelData || [];
               const version = labelsRes?.version || labelsRes?.data?.version || 0;
@@ -2840,16 +2840,19 @@ class WorkflowEngineService {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  private getApi(pageId: string): any {
+  private getApi(pageId: string, fallbackPageId?: string): any {
     // Try to find connection by pageId or use any connected account
     let conn = ConnectionManager.getConnection(pageId);
+    if (!conn && fallbackPageId) {
+      conn = ConnectionManager.getConnection(fallbackPageId);
+    }
     if (!conn) {
       // Try first available connected account
       for (const [, c] of ConnectionManager.getAllConnections()) {
         if (c.connected) { conn = c; break; }
       }
     }
-    if (!conn || !conn.api) throw new Error(`Account ${pageId || 'unknown'} không connected`);
+    if (!conn || !conn.api) throw new Error(`Account ${pageId || fallbackPageId || 'unknown'} không connected`);
     return conn.api;
   }
 

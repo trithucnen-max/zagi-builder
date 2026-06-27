@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ipc from '@/lib/ipc';
 import { toLocalMediaUrl } from '@/lib/localMedia';
+import AppIcon from '@/components/common/AppIcon';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -78,15 +79,15 @@ function parseMixedConfig(raw?: string): MixedConfig {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TEMPLATE_VARS = [
-  { key: '{name}', label: '👤 Tên Zalo' },
-  { key: '{userId}', label: '🆔 ID Zalo' },
-  { key: '{gender_greeting}', label: '👫 Anh/Chị' },
-  { key: '{alias}', label: '🏷️ Biệt danh' },
-  { key: '{campaign_name}', label: '📢 Chiến dịch' },
-  { key: '{date}', label: '📅 Ngày' },
-  { key: '{time}', label: '⏰ Giờ' },
-  { key: '{birthday_day}', label: '🎂 Ngày sinh' },
-  { key: '{birthday_month}', label: '🎂 Tháng sinh' },
+  { key: '{name}', label: 'Tên Zalo' },
+  { key: '{userId}', label: 'ID Zalo' },
+  { key: '{gender_greeting}', label: 'Anh/Chị' },
+  { key: '{alias}', label: 'Biệt danh' },
+  { key: '{campaign_name}', label: 'Chiến dịch' },
+  { key: '{date}', label: 'Ngày' },
+  { key: '{time}', label: 'Giờ' },
+  { key: '{birthday_day}', label: 'Ngày sinh' },
+  { key: '{birthday_month}', label: 'Tháng sinh' },
 ];
 
 const DELAY_OPTIONS = [
@@ -97,10 +98,10 @@ const DELAY_OPTIONS = [
 ];
 
 const TYPE_OPTIONS: { value: CampaignType; icon: string; label: string }[] = [
-  { value: 'message',         icon: '💬', label: 'Tin nhắn'   },
-  { value: 'friend_request',  icon: '🤝', label: 'Kết bạn'    },
-  { value: 'invite_to_group', icon: '👥', label: 'Mời nhóm'   },
-  { value: 'mixed',           icon: '🔀', label: 'Hỗn hợp'    },
+  { value: 'message',         icon: 'chat', label: 'Tin nhắn'   },
+  { value: 'friend_request',  icon: 'user_plus', label: 'Kết bạn'    },
+  { value: 'invite_to_group', icon: 'user_check', label: 'Mời nhóm'   },
+  { value: 'mixed',           icon: 'shuffle', label: 'Hỗn hợp'    },
 ];
 
 const INVITE_ERROR_LABELS: Record<number, string> = {
@@ -643,7 +644,7 @@ export default function CampaignCreateModal({
   };
 
   const handleSave = async () => {
-    if (!isValid()) return;
+    if (!isValid() || saving) return;
     setSaving(true);
 
     let scheduledStartAt = 0;
@@ -710,8 +711,18 @@ export default function CampaignCreateModal({
         {/* ── Topbar ── */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-850">
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 text-[15px]">
-              {editMode ? '✏️ Chỉnh sửa chiến dịch' : '🚀 Tạo chiến dịch mới'}
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 text-[15px] flex items-center gap-1.5">
+              {editMode ? (
+                <>
+                  <AppIcon name="edit" className="text-blue-500" size={14} />
+                  <span>Chỉnh sửa chiến dịch</span>
+                </>
+              ) : (
+                <>
+                  <AppIcon name="rocket" className="text-blue-500" size={14} />
+                  <span>Tạo chiến dịch mới</span>
+                </>
+              )}
             </h3>
             <p className="text-[11px] text-gray-500 mt-0.5">Cấu hình nội dung và phương thức gửi</p>
           </div>
@@ -747,7 +758,7 @@ export default function CampaignCreateModal({
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-gray-100 font-semibold'
                         : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
                     }`}>
-                    <span className={`text-base leading-none ${type === opt.value ? '' : 'grayscale opacity-60'}`}>{opt.icon}</span>
+                    <AppIcon name={opt.icon as any} className={type === opt.value ? 'text-blue-500' : 'text-gray-500'} size={14} />
                     <span className="text-xs font-medium">{opt.label}</span>
                     {type === opt.value && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
@@ -763,9 +774,9 @@ export default function CampaignCreateModal({
                 <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Hành động</label>
                 <div className="space-y-1">
                   {([
-                    { action: 'message' as MixedAction,         icon: '💬', label: 'Tin nhắn' },
-                    { action: 'friend_request' as MixedAction,  icon: '🤝', label: 'Kết bạn' },
-                    { action: 'invite_to_groups' as MixedAction, icon: '👥', label: 'Mời nhóm' },
+                    { action: 'message' as MixedAction,         icon: 'chat' as const, label: 'Tin nhắn' },
+                    { action: 'friend_request' as MixedAction,  icon: 'user_plus' as const, label: 'Kết bạn' },
+                    { action: 'invite_to_groups' as MixedAction, icon: 'user_check' as const, label: 'Mời nhóm' },
                   ]).map(({ action, icon, label }) => {
                     const checked = mixedActions.includes(action);
                     return (
@@ -777,7 +788,7 @@ export default function CampaignCreateModal({
                           }`}>
                           {checked && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
-                        <span className="text-base leading-none">{icon}</span>
+                        <AppIcon name={icon} className={checked ? 'text-blue-500' : 'text-gray-500'} size={12} />
                         <span className="text-xs text-gray-700 dark:text-gray-300">{label}</span>
                       </label>
                     );
@@ -789,7 +800,10 @@ export default function CampaignCreateModal({
 
             {/* Delay */}
             <div>
-              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">⏱ Delay</label>
+              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                <AppIcon name="clock" className="text-gray-500" size={10} />
+                Delay
+              </label>
               <div className="grid grid-cols-2 gap-1">
                 {DELAY_OPTIONS.map(opt => (
                   <button key={opt.value} type="button" onClick={() => setDelay(opt.value)}
@@ -812,7 +826,10 @@ export default function CampaignCreateModal({
 
             {/* Daily Send Limit */}
             <div>
-              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">📊 Giới hạn/ngày</label>
+              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                <AppIcon name="chart" className="text-gray-500" size={10} />
+                Giới hạn/ngày
+              </label>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <input
@@ -942,17 +959,18 @@ export default function CampaignCreateModal({
                   {contentConfig.blocks.length > 1 && (
                     <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                       {([
-                        { value: 'random' as SendMode, icon: '🎲', label: 'Random' },
-                        { value: 'all' as SendMode,    icon: '📨', label: 'Tất cả' },
+                        { value: 'random' as SendMode, icon: 'shuffle' as const, label: 'Random' },
+                        { value: 'all' as SendMode,    icon: 'send' as const, label: 'Tất cả' },
                       ]).map(opt => (
                         <button key={opt.value} type="button"
                           onClick={() => setContentConfig(prev => ({ ...prev, mode: opt.value }))}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
                             contentConfig.mode === opt.value
                               ? 'bg-blue-600 border-blue-500 text-white'
                               : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                           }`}>
-                          <span>{opt.icon}</span> {opt.label}
+                          <AppIcon name={opt.icon} className="text-current" size={10} />
+                          <span>{opt.label}</span>
                         </button>
                       ))}
                     </div>
@@ -960,7 +978,10 @@ export default function CampaignCreateModal({
                 </>
               ) : hasFR && !hasMsg ? (
                 <>
-                  <span className="text-xs font-semibold text-gray-800 dark:text-gray-300">🤝 Lời nhắn kết bạn</span>
+                  <span className="text-xs font-semibold text-gray-800 dark:text-gray-300 flex items-center gap-1.5">
+                    <AppIcon name="user_plus" className="text-blue-500" size={12} />
+                    <span>Lời nhắn kết bạn</span>
+                  </span>
                   <div className="flex gap-1 flex-wrap">
                     {TEMPLATE_VARS.map(v => (
                       <button key={v.key} type="button" onClick={() => insertFRVar(v.key)}
@@ -972,7 +993,10 @@ export default function CampaignCreateModal({
                   </div>
                 </>
               ) : hasInvite && !hasMsg ? (
-                <span className="text-xs font-semibold text-gray-800 dark:text-gray-300">👥 Chọn nhóm để mời</span>
+                <span className="text-xs font-semibold text-gray-800 dark:text-gray-300 flex items-center gap-1.5">
+                  <AppIcon name="user_check" className="text-blue-500" size={12} />
+                  <span>Chọn nhóm để mời</span>
+                </span>
               ) : (
                 <span className="text-xs text-gray-500">Editor</span>
               )}

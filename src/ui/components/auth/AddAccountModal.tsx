@@ -435,7 +435,9 @@ function QRLoginTab({ onSuccess, proxyId }: { onSuccess: () => void; proxyId?: n
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
   const { showNotification } = useAppStore();
-  const { setAccounts, accounts: existingAccounts } = useAccountStore();
+  // NOTE: Do NOT destructure accounts/setAccounts from hook here — the useEffect
+  // below has deps=[] and would capture a stale snapshot. Use getState() inside
+  // the event handler instead to always read the latest store value.
 
   const clearTimer = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -501,12 +503,14 @@ function QRLoginTab({ onSuccess, proxyId }: { onSuccess: () => void; proxyId?: n
         clearTimer();
         setStatus('success');
         showNotification('Đăng nhập thành công! 🎉 Đang hoàn tất thiết lập tài khoản...', 'success');
-        const existingIds = new Set(existingAccounts.map(a => a.zalo_id));
 
         const loadAccounts = async () => {
           const res = await ipc.login?.getAccounts();
           if (res?.accounts?.length) {
-            setAccounts(res.accounts);
+            // Use getState() to avoid stale closure — always read latest store value
+            const store = useAccountStore.getState();
+            const existingIds = new Set(store.accounts.map((a: any) => a.zalo_id));
+            store.setAccounts(res.accounts);
             const newAccounts = res.accounts.filter((acc: any) => !existingIds.has(acc.zalo_id));
             if (newAccounts.length > 0) {
               showNotification('✅ Tài khoản đã được thêm vào ứng dụng!', 'success');
@@ -524,8 +528,9 @@ function QRLoginTab({ onSuccess, proxyId }: { onSuccess: () => void; proxyId?: n
           // 2nd pass sau 2.5s: ZaloLoginHelper fetch phone async sau success broadcast
           // → cần reload lại để store có đủ thông tin (phone, isBusiness)
           setTimeout(loadAccounts, 2500);
+          // Close modal only AFTER accounts are confirmed loaded (fixes race condition)
+          onSuccess();
         });
-        setTimeout(onSuccess, 1800);
       }
 
       if (data.status === 'expired' || data.status === 'declined') {

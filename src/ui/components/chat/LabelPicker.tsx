@@ -121,6 +121,7 @@ export function ActiveLabels({
   isGroup = false,
   maxDisplay = 3,
   onClickPill,
+  onRemoveLabel,
   className = '',
 }: {
   labels: LabelData[];
@@ -128,6 +129,7 @@ export function ActiveLabels({
   isGroup?: boolean;
   maxDisplay?: number;
   onClickPill?: (e: React.MouseEvent) => void;
+  onRemoveLabel?: (labelId: number, e: React.MouseEvent) => void;
   className?: string;
 }) {
   const prefixedId = isGroup ? `g${activeThreadId}` : activeThreadId;
@@ -154,16 +156,30 @@ export function ActiveLabels({
   return (
     <div className={`flex items-center gap-1 flex-wrap ${className}`}>
       {activeLabels.slice(0, maxDisplay).map((l) => (
-        <button
+        <div
           key={l.id}
           onClick={onClickPill}
           title={`${l.text} — nhấn để đổi nhãn Zalo`}
-          className="inline-flex items-center gap-0.5 text-white text-[11px] px-1.5 py-1 rounded-full leading-none hover:opacity-80 transition-opacity cursor-pointer"
+          className="inline-flex items-center gap-1 text-white text-[11px] pl-2 pr-1.5 py-0.5 rounded-full leading-none hover:opacity-90 transition-opacity cursor-pointer"
           style={{ backgroundColor: l.color || '#3b82f6', color: '#fff' }}
         >
-          {l.emoji && <span>{l.emoji}</span>}
-          <span>{l.text}</span>
-        </button>
+          <span className="inline-flex items-center gap-0.5">
+            {l.emoji && <span>{l.emoji}</span>}
+            <span>{l.text}</span>
+          </span>
+          {onRemoveLabel && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveLabel(l.id, e);
+              }}
+              className="w-3.5 h-3.5 rounded-full hover:bg-black/20 flex items-center justify-center text-[9px] text-white/80 hover:text-white transition-colors"
+              title={`Gỡ nhãn "${l.text}"`}
+            >
+              ✕
+            </button>
+          )}
+        </div>
       ))}
       {activeLabels.length > maxDisplay && (
         <button

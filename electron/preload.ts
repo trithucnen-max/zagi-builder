@@ -270,6 +270,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSendLog: (params: any) => ipcRenderer.invoke('crm:getSendLog', params),
     getQueueStatus: (params: any) => ipcRenderer.invoke('crm:getQueueStatus', params),
     getCampaignStats: (params: any) => ipcRenderer.invoke('crm:getCampaignStats', params),
+    getCampaignSafetyStats: (params: any) => ipcRenderer.invoke('crm:getCampaignSafetyStats', params),
     getActivityStats: (params: any) => ipcRenderer.invoke('crm:getActivityStats', params),
   },
 

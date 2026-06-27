@@ -357,7 +357,8 @@ class FileStorageService {
         try {
             const dir = this.getAccountDir(zaloId);
             const ext = this.getExtFromUrl(imageUrl) || '.jpg';
-            const fname = filename || `img_${Date.now()}${ext}`;
+            const randomSuffix = Math.random().toString(36).substring(2, 8);
+            const fname = filename || `img_${Date.now()}_${randomSuffix}${ext}`;
             const localPath = path.join(dir, fname);
 
             if (fs.existsSync(localPath)) {
@@ -479,7 +480,8 @@ class FileStorageService {
             const urlExt = path.extname(urlPath) || '';
             const ext = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v', '.3gp'].includes(urlExt.toLowerCase())
                 ? urlExt.toLowerCase() : '.mp4';
-            const fname = filename || `vid_${Date.now()}${ext}`;
+            const randomSuffix = Math.random().toString(36).substring(2, 8);
+            const fname = filename || `vid_${Date.now()}_${randomSuffix}${ext}`;
             const localPath = path.join(dir, fname);
 
             if (fs.existsSync(localPath)) {
