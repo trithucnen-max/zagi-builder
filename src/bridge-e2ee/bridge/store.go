@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"go.mau.fi/mautrix-meta/pkg/messagix"
+	"go.mau.fi/mautrix-meta/pkg/messagix/httpclient"
 	"go.mau.fi/whatsmeow/store"
 	waTypes "go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/util/keys"
@@ -331,5 +331,5 @@ func (ds *DeviceStore) DeleteOldOutgoingEvents(ctx context.Context) error {
 }
 
 // Unused imports fix
-var _ = messagix.ErrTokenInvalidated
+var _ = httpclient.ErrTokenInvalidated
 var _ = strconv.Atoi

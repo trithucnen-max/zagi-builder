@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"go.mau.fi/mautrix-meta/pkg/messagix"
+	"go.mau.fi/mautrix-meta/pkg/messagix/httpclient"
 	"go.mau.fi/mautrix-meta/pkg/messagix/socket"
 	"go.mau.fi/mautrix-meta/pkg/messagix/table"
 )
@@ -39,14 +40,14 @@ type UploadMediaResult struct {
 
 // UploadMedia uploads media to Messenger
 func (c *Client) UploadMedia(opts *UploadMediaOptions) (*UploadMediaResult, error) {
-	media := &messagix.MercuryUploadMedia{
+	media := &httpclient.MercuryUploadMedia{
 		Filename:    opts.Filename,
 		MimeType:    opts.MimeType,
 		MediaData:   opts.Data,
 		IsVoiceClip: opts.IsVoice,
 	}
 
-	resp, err := c.Messagix.SendMercuryUploadRequest(c.ctx, opts.ThreadID, media)
+	resp, err := c.Messagix.GetHTTP().SendMercuryUploadRequest(c.ctx, opts.ThreadID, media)
 	if err != nil {
 		return nil, err
 	}
@@ -313,13 +314,13 @@ type SetGroupPhotoOptions struct {
 // SetGroupPhoto sets the group photo/avatar
 func (c *Client) SetGroupPhoto(opts *SetGroupPhotoOptions) error {
 	// Upload the image first
-	media := &messagix.MercuryUploadMedia{
+	media := &httpclient.MercuryUploadMedia{
 		Filename:  "group_photo.jpg",
 		MimeType:  opts.MimeType,
 		MediaData: opts.Data,
 	}
 
-	resp, err := c.Messagix.SendMercuryUploadRequest(c.ctx, opts.ThreadID, media)
+	resp, err := c.Messagix.GetHTTP().SendMercuryUploadRequest(c.ctx, opts.ThreadID, media)
 	if err != nil {
 		return fmt.Errorf("failed to upload group photo: %w", err)
 	}
