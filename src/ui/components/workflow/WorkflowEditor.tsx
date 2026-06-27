@@ -41,9 +41,14 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
 }) {
   const isFriendRequest = triggerType === 'trigger.friendRequest';
   const [selectedAccount, setSelectedAccount] = useState('');
+  // Tab: 'friend' | 'group'
+  const [tab, setTab] = useState<'friend' | 'group'>('friend');
+  const [runRealMode, setRunRealMode] = useState(false);
   const [friends, setFriends] = useState<{ userId: string; displayName: string; avatar: string }[]>([]);
+  const [groups, setGroups] = useState<{ contactId: string; displayName: string; avatar: string }[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<{ userId: string; displayName: string } | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState<{ id: string; name: string; isGroup: boolean } | null>(null);
   const [search, setSearch] = useState('');
   const [testContent, setTestContent] = useState('Xin chào, đây là tin nhắn thử nghiệm từ workflow');
 
@@ -63,42 +68,73 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
   useEffect(() => {
     if (!selectedAccount) return;
     setLoadingFriends(true);
-    setSelectedFriend(null);
+    setSelectedTarget(null);
     ipc.db?.getFriends({ zaloId: selectedAccount }).then((res: any) => {
       if (res?.success) {
-        // Exclude self (the selected account itself)
         const list = (res.friends || []).filter((f: any) => f.userId !== selectedAccount);
         setFriends(list);
       }
     }).catch(() => {}).finally(() => setLoadingFriends(false));
   }, [selectedAccount]);
 
-  const filteredFriends = search.trim()
-    ? friends.filter(f => f.displayName?.toLowerCase().includes(search.toLowerCase()) || f.userId?.includes(search))
-    : friends;
+  // Load groups when account changes
+  useEffect(() => {
+    if (!selectedAccount) return;
+    setLoadingGroups(true);
+    ipc.db?.getContacts(selectedAccount).then((res: any) => {
+      if (res?.success) {
+        const groupList = (res.contacts || [])
+          .filter((c: any) => c.contactType === 'group' || c.contact_type === 'group')
+          .map((c: any) => ({
+            contactId: c.contactId || c.contact_id,
+            displayName: c.displayName || c.display_name || c.name || c.contactId,
+            avatar: c.avatar || c.avatar_url || c.avatarUrl || '',
+          }));
+        setGroups(groupList);
+      }
+    }).catch(() => {}).finally(() => setLoadingGroups(false));
+  }, [selectedAccount]);
+
+  // Reset selection when switching tabs
+  useEffect(() => { setSelectedTarget(null); setSearch(''); }, [tab]);
+
+  const currentList = tab === 'friend'
+    ? friends.filter(f => !search.trim() || f.displayName?.toLowerCase().includes(search.toLowerCase()) || f.userId?.includes(search))
+    : groups.filter(g => !search.trim() || g.displayName?.toLowerCase().includes(search.toLowerCase()) || g.contactId?.includes(search));
 
   const handleRun = () => {
-    if (!selectedFriend || !selectedAccount) return;
-    if (isFriendRequest) {
-      onRun({
-        userId: selectedFriend.userId,
-        displayName: selectedFriend.displayName,
-        phone: '',
-        message: '',
-        zaloId: selectedAccount,
-      });
-    } else {
+    if (!selectedAccount) return;
+    if (runRealMode) {
       onRun({
         zaloId: selectedAccount,
-        threadId: selectedFriend.userId,
-        threadType: 0,
-        fromId: selectedFriend.userId,
-        fromName: selectedFriend.displayName,
         content: testContent,
-        isGroup: false,
-        isSelf: false,
+        isOverrideTarget: false, // chạy thực theo node
         timestamp: Date.now(),
       });
+    } else {
+      if (!selectedTarget) return;
+      if (isFriendRequest) {
+        onRun({
+          userId: selectedTarget.id,
+          displayName: selectedTarget.name,
+          phone: '',
+          message: '',
+          zaloId: selectedAccount,
+        });
+      } else {
+        onRun({
+          zaloId: selectedAccount,
+          threadId: selectedTarget.id,
+          threadType: selectedTarget.isGroup ? 1 : 0,
+          fromId: selectedTarget.id,
+          fromName: selectedTarget.name,
+          content: testContent,
+          isGroup: selectedTarget.isGroup,
+          isOverrideTarget: true, // ghi đè đích gửi sang target test được chọn
+          isSelf: false,
+          timestamp: Date.now(),
+        });
+      }
     }
     onClose();
   };
@@ -106,12 +142,14 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-[440px] max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-[460px] max-h-[88vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-5 py-4 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
           <div>
             <p className="text-white font-semibold text-sm flex items-center gap-2">▶️ Chạy thử Workflow</p>
-            <p className="text-gray-500 text-[11px] mt-0.5">{isFriendRequest ? 'Chọn người để mô phỏng lời mời kết bạn' : 'Chọn người nhận để gửi tin nhắn thử nghiệm'}</p>
+            <p className="text-gray-500 text-[11px] mt-0.5">
+              {isFriendRequest ? 'Chọn người để mô phỏng lời mời kết bạn' : 'Chọn người hoặc nhóm để gửi thử'}
+            </p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-700 transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -150,6 +188,31 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
             </div>
           )}
 
+          {/* Toggle Chạy thực tế hay Chạy gửi đè */}
+          {!isFriendRequest && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-800/40 border border-gray-700/50">
+              <div className="flex-1 pr-4">
+                <p className="text-xs font-semibold text-gray-200">Gửi thực tế theo cấu hình Node</p>
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  Tin nhắn/ảnh sẽ gửi trực tiếp đến các nhóm hoặc cá nhân được lưu cứng trong từng Node của Workflow thay vì gửi đè
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRunRealMode(p => !p)}
+                className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-colors duration-200 focus:outline-none flex-shrink-0 ${
+                  runRealMode ? 'bg-green-600' : 'bg-gray-700'
+                }`}
+              >
+                <div
+                  className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ${
+                    runRealMode ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
+
           {/* Test message content */}
           {!isFriendRequest && (
           <div>
@@ -164,61 +227,120 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
           </div>
           )}
 
-          {/* Friend picker */}
-          <div>
-            <label className="text-gray-400 text-xs font-medium mb-1.5 block">
-              {isFriendRequest ? 'Chọn người gửi lời mời kết bạn' : 'Chọn người nhận'} <span className="text-gray-600">(không thể gửi cho chính mình)</span>
-            </label>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-blue-500 outline-none mb-2"
-              placeholder="🔍 Tìm tên hoặc ID..."
-            />
+          {/* Hiển thị thông báo khi chạy thực */}
+          {runRealMode && !isFriendRequest && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex gap-2.5">
+              <span className="text-amber-500 text-sm flex-shrink-0">⚠️</span>
+              <p className="text-amber-400 text-xs leading-relaxed">
+                <strong>Chế độ gửi thực tế đang bật:</strong> Hệ thống sẽ gửi tin nhắn trực tiếp vào đúng các nhóm hoặc cá nhân được cấu hình bên trong các Node (ví dụ: nhóm bạn đã gán cứng trong Node gửi tin). Hãy cẩn thận để không gửi nhầm nội dung test tới khách hàng thực tế!
+              </p>
+            </div>
+          )}
 
-            {loadingFriends ? (
-              <div className="flex items-center gap-2 py-4 justify-center text-gray-500 text-xs">
-                <span className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                Đang tải danh bạ…
-              </div>
-            ) : filteredFriends.length === 0 ? (
-              <div className="py-4 text-center text-gray-600 text-xs">
-                {friends.length === 0 ? 'Chưa có bạn bè nào' : 'Không tìm thấy'}
-              </div>
-            ) : (
-              <div className="max-h-[200px] overflow-y-auto space-y-1 pr-1">
-                {filteredFriends.slice(0, 50).map(f => {
-                  const isActive = selectedFriend?.userId === f.userId;
-                  return (
-                    <button key={f.userId} type="button"
-                      onClick={() => setSelectedFriend(isActive ? null : f)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left transition-all ${
-                        isActive
-                          ? 'bg-green-600/20 border-green-500/60 ring-1 ring-green-500/30'
-                          : 'bg-gray-800/40 border-gray-700/40 hover:border-gray-600'
-                      }`}>
-                      {f.avatar
-                        ? <img src={f.avatar} className="w-7 h-7 rounded-full object-cover flex-shrink-0" alt="" />
-                        : <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0 text-[10px] text-gray-400 font-bold">
-                            {(f.displayName || '?').charAt(0).toUpperCase()}
-                          </div>}
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-sm font-medium truncate ${isActive ? 'text-green-300' : 'text-gray-200'}`}>
-                          {f.displayName || f.userId}
-                        </p>
-                        <p className="text-[10px] text-gray-600 truncate">{f.userId}</p>
-                      </div>
-                      {isActive && (
-                        <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* Tab switcher: Bạn bè / Nhóm (hidden for friendRequest trigger or when runRealMode is enabled) */}
+          {!isFriendRequest && !runRealMode && (
+            <div className="flex rounded-xl bg-gray-800/60 border border-gray-700/50 p-0.5 gap-0.5">
+              <button
+                type="button"
+                onClick={() => setTab('friend')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  tab === 'friend'
+                    ? 'bg-gray-700 text-white shadow'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                👤 Bạn bè <span className="text-gray-600">({friends.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('group')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  tab === 'group'
+                    ? 'bg-gray-700 text-white shadow'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                🏠 Nhóm <span className="text-gray-600">({groups.length})</span>
+              </button>
+            </div>
+          )}
+
+          {/* Contact / Group list (hidden when runRealMode is enabled) */}
+          {!runRealMode && (
+            <div>
+              <label className="text-gray-400 text-xs font-medium mb-1.5 block">
+                {isFriendRequest
+                  ? 'Chọn người gửi lời mời kết bạn'
+                  : tab === 'friend' ? 'Chọn bạn bè để gửi thử' : 'Chọn nhóm để gửi thử'}
+              </label>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-blue-500 outline-none mb-2"
+                placeholder="🔍 Tìm tên hoặc ID..."
+              />
+
+              {(tab === 'friend' ? loadingFriends : loadingGroups) ? (
+                <div className="flex items-center gap-2 py-4 justify-center text-gray-500 text-xs">
+                  <span className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                  {tab === 'friend' ? 'Đang tải danh bạ…' : 'Đang tải danh sách nhóm…'}
+                </div>
+              ) : currentList.length === 0 ? (
+                <div className="py-4 text-center text-gray-600 text-xs">
+                  {tab === 'friend'
+                    ? (friends.length === 0 ? 'Chưa có bạn bè nào' : 'Không tìm thấy')
+                    : (groups.length === 0 ? 'Chưa có nhóm nào (cần tải nhóm từ Zalo trước)' : 'Không tìm thấy')}
+                </div>
+              ) : (
+                <div className="max-h-[200px] overflow-y-auto space-y-1 pr-1">
+                  {currentList.slice(0, 60).map((item: any) => {
+                    const id = item.userId || item.contactId;
+                    const name = item.displayName || id;
+                    const avatar = item.avatar || '';
+                    const isGroup = tab === 'group';
+                    const isActive = selectedTarget?.id === id;
+                    return (
+                      <button key={id} type="button"
+                        onClick={() => setSelectedTarget(isActive ? null : { id, name, isGroup })}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left transition-all ${
+                          isActive
+                            ? 'bg-green-600/20 border-green-500/60 ring-1 ring-green-500/30'
+                            : 'bg-gray-800/40 border-gray-700/40 hover:border-gray-600'
+                        }`}>
+                        {avatar
+                          ? <img src={avatar} className="w-7 h-7 rounded-full object-cover flex-shrink-0" alt="" />
+                          : <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold ${isGroup ? 'bg-emerald-700 text-emerald-200' : 'bg-gray-700 text-gray-400'}`}>
+                              {isGroup ? '🏠' : (name || '?').charAt(0).toUpperCase()}
+                            </div>}
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium truncate ${isActive ? 'text-green-300' : 'text-gray-200'}`}>
+                            {name}
+                          </p>
+                          <p className="text-[10px] text-gray-600 truncate">{id}</p>
+                        </div>
+                        {isActive && (
+                          <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Selected target summary */}
+          {selectedTarget && !runRealMode && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-green-600/10 border border-green-500/30 rounded-xl">
+              <span className="text-green-400 text-xs">✓</span>
+              <p className="text-green-300 text-xs flex-1 truncate">
+                Sẽ gửi đến: <strong>{selectedTarget.name}</strong>
+                <span className="text-green-500 ml-1">({selectedTarget.isGroup ? 'Nhóm — threadType: 1' : 'Cá nhân — threadType: 0'})</span>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -226,8 +348,11 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
           <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium rounded-xl transition-colors">
             Hủy
           </button>
-          <button onClick={handleRun} disabled={!selectedFriend || !selectedAccount}
-            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
+          <button
+            onClick={handleRun}
+            disabled={runRealMode ? !selectedAccount : (!selectedTarget || !selectedAccount)}
+            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             Chạy thử
           </button>
@@ -394,7 +519,24 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
     setSaving(true);
     try {
       const res = await ipc.workflow?.save(buildWorkflow());
-      if (res?.success) showNotification('Đã lưu workflow', 'success');
+      if (res?.success) {
+        showNotification('Đã lưu workflow', 'success');
+        // Apply generated webhook token to local node state
+        if (res.webhookToken) {
+          setNodes(prev => prev.map(n => {
+            if ((n.data?.type || '').startsWith('trigger.webhook')) {
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  config: { ...(n.data?.config || {}), webhookToken: res.webhookToken }
+                }
+              };
+            }
+            return n;
+          }));
+        }
+      }
       else showNotification(res?.error || 'Lỗi lưu workflow', 'error');
     } finally {
       setSaving(false);
@@ -757,6 +899,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
             node={selectedNode}
             nodes={nodes}
             edges={edges}
+            workflowId={workflowId}
             onConfigChange={cfg => updateNodeConfig(selectedNode.id, cfg)}
             onLabelChange={label => updateNodeLabel(selectedNode.id, label)}
             onClose={() => setSelectedNode(null)}

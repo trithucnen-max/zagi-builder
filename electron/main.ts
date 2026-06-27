@@ -31,6 +31,7 @@ import WorkspaceManager from '../src/utils/WorkspaceManager';
 import HttpConnectionManager from '../src/services/http/HttpConnectionManager';
 import WorkflowEngineService from '../src/services/workflow/WorkflowEngineService';
 import IntegrationRegistry from '../src/services/integrations/IntegrationRegistry';
+import WebhookGatewayService from '../src/services/workflow/WebhookGatewayService';
 import EventBroadcaster from '../src/services/event/EventBroadcaster';
 import CRMQueueService from '../src/services/crm/CRMQueueService';
 import FileStorageService from '../src/services/file/FileStorageService';
@@ -906,6 +907,14 @@ async function startupAfterLicenseCheck(): Promise<void> {
       WorkflowEngineService.getInstance()['triggerWorkflows']('trigger.payment', data);
     });
   }, 2500);
+  // Initialize Webhook Gateway (port 9889)
+  setTimeout(() => {
+    WebhookGatewayService.getInstance().start().then(result => {
+      if (result.success) {
+        console.log('[main] WebhookGateway started on port ' + result.port);
+      }
+    });
+  }, 3000);
 
   // Initialize Tracking Service (chỉ chạy trong production build)
   setTimeout(() => {
@@ -1058,6 +1067,11 @@ app.on('before-quit', () => {
   try {
     // Dừng webhook HTTP server
     IntegrationRegistry.stopWebhookServer();
+  } catch {}
+
+  try {
+    // Dừng webhook gateway
+    WebhookGatewayService.getInstance().stop();
   } catch {}
 
   try {

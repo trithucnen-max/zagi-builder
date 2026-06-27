@@ -86,6 +86,8 @@ interface AppStore {
   quickChatZaloId: string | null;
   openQuickChat: (opts?: { target?: QuickChatTarget; zaloId?: string }) => void;
   closeQuickChat: () => void;
+  bugReportOpen: boolean;
+  setBugReportOpen: (open: boolean) => void;
   labels: Record<string, LabelData[]>;
   /** Per-account label version from Zalo API (needed for updateLabels) */
   labelsVersionMap: Record<string, number>;
@@ -211,6 +213,10 @@ interface AppStore {
   clearCRMRequestUnseen: (zaloId: string) => void;
   hasCRMRequestUnseen: (zaloId: string) => boolean;
   hasAnyCRMRequestUnseen: () => boolean;
+
+  // ── Sidebar expanded ────────────────────────────────────────────
+  sidebarExpanded: boolean;
+  toggleSidebarExpanded: () => void;
 
   // ── Account switcher (Ctrl+Tab) ──────────────────────────────────────────
   accountSwitcherOpen: boolean;
@@ -348,6 +354,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   quickChatOpen: false,
   quickChatTarget: null,
   quickChatZaloId: null,
+  bugReportOpen: false,
   labels: {},
   labelsVersionMap: {},
   labelsFetchedAt: {},
@@ -366,6 +373,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   analyticsInitialTab: null as string | null,
   crmRequestUnseenByAccount: loadCRMRequestUnseen(),
 
+  // Sidebar expanded state
+  sidebarExpanded: false,
+  toggleSidebarExpanded: () => set((s) => ({ sidebarExpanded: !s.sidebarExpanded })),
+
   // Account switcher state
   accountSwitcherOpen: false,
   accountSwitcherIndex: 0,
@@ -376,6 +387,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     quickChatZaloId: opts?.zaloId ?? null,
   }),
   closeQuickChat: () => set({ quickChatOpen: false, quickChatTarget: null, quickChatZaloId: null }),
+  setBugReportOpen: (open) => set({ bugReportOpen: open }),
 
   setView: (view) => set({ view }),
   setLoading: (isLoading) => set({ isLoading }),

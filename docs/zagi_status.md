@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 26/06/2026  
-> **Phiên bản:** v27.1.7 (Stable)  
+> **Ngày cập nhật:** 28/06/2026  
+> **Phiên bản:** v27.1.8 (Stable)  
 > **Nhánh Git hiện tại:** `main` (Working tree sạch)
 
 ---
@@ -35,6 +35,23 @@
 7.  **Đồng bộ POS & Brand Logos:** Tích hợp KiotViet, Haravan, Sapo, Pancake, Nhanh.vn, GHN, GHTK, Casso, SePay (SVG trắng trên nền màu gốc). DeepSeek dùng nền trời xanh (`bg-sky-600`) để tuân thủ **quy tắc cấm màu tím (Purple Ban)**.
 8.  **Font Scale & UI Zoom:** Co giãn phông chữ đồng bộ qua CSS Variable (`--zagi-font-scale`) không vỡ layout, tích hợp thanh trượt trên TopBar.
 9.  **Hướng dẫn sử dụng tích hợp:** Được đưa thành một Tab chuyên biệt trong **Cài đặt → Giới thiệu → Hướng dẫn sử dụng**.
+10. **Nâng cấp Động cơ Workflow & Chạy thử (v27.1.8):**
+    *   **Tự động nhận diện API tài khoản:** Cơ chế `resolveApiForThread()` tự động tra cứu cơ sở dữ liệu để tìm tài khoản Zalo đang kết nối thực tế có tham gia nhóm/hội thoại, giải quyết triệt để lỗi Zalo API 161 "Nhóm không tồn tại".
+    *   **Chạy thử linh hoạt (Modal Test-run):** Nâng cấp `TestRunModal` hỗ trợ tab **Bạn bè** và **Nhóm** giúp chạy thử trực tiếp vào Group.
+    *   **Gửi thực tế theo cấu hình Node:** Thêm toggle **"Gửi thực tế theo cấu hình Node"** để mô phỏng chạy thật (gửi trực tiếp vào ID nhóm được cấu hình trong Node) thay vì luôn ghi đè đích gửi test.
+11. **Sửa lỗi hệ thống (v27.1.8):**
+    *   **Sửa lỗi tải thành viên nhóm:** Bổ sung xử lý khóa `changed_groups` khi parse danh sách nhóm và bọc try-catch/hiển thị thông báo khi quét nhóm bị khóa.
+    *   **Sửa lỗi tạo chiến dịch:** Khắc phục lỗi thiếu placeholder `?` trong câu lệnh INSERT bảng `crm_campaigns` và sửa lỗi mất số điện thoại (`phone`) khi nhân bản (clone) chiến dịch.
+    *   **Sửa lỗi trắng trang CRM**: Khắc phục lỗi thiếu `onPatchContact` trong destructuring props của `CRMContactList.tsx` gây crash runtime React.
+    *   **Sửa lỗi Giới tính trong Chat**: Cấu hình lại các tùy chọn chọn giới tính của chat profile khớp với DB SQLite.
+12. **Cải tiến Inline Edit CRM & Custom Salutation (v27.1.8):**
+    *   **Inline Edit trên CRM lớn & bảng chi tiết**: Nháy đúp (hoặc click 1 lần khi bật Sửa nhanh) để sửa trực tiếp Biệt danh, Xưng hô, Sinh nhật, SĐT trên bảng CRM lớn. Cho phép sửa trực tiếp thông tin trên bảng chi tiết khách hàng và tự động lưu.
+    *   **Chế độ Sửa nhanh (Edit Mode)**: Thêm nút bật tắt "Sửa nhanh" trên thanh công cụ giúp vô hiệu hóa mở bảng chi tiết khi click dòng và cho phép click 1 phát sửa ngay.
+    *   **Cột Xưng hô (Salutation) & Biến chiến dịch**: Thêm cột Xưng hô tự động từ giới tính và có thể chỉnh sửa thủ công (Cô, Chú, Em...). Biến `{salutation}` hỗ trợ lấy xưng hô tùy chỉnh này hoặc tự động fallback về giới tính nếu rỗng.
+13. **Cập nhật Xưng hô trực tiếp khi Chat (v27.1.8):**
+    *   Thêm trường nhập **Xưng hô (tùy chỉnh)** vào form chỉnh sửa thông tin liên hệ ngay bên cạnh khung chat (ConversationInfo Panel) để bổ sung nhanh khi đang chat.
+    *   Đồng bộ dữ liệu thời gian thực giữa Database, danh sách Chat (`chatStore`) và danh sách CRM (`crmStore`).
+
 
 ## 4. Trạng Thái Kiểm Thử & Chạy Thử
 *   **Preview Server:** ⚪ **Stopped** (Đang dừng).

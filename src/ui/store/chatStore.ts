@@ -70,6 +70,7 @@ export interface ContactItem {
   fb_participant_count?: number;
   gender?: number;
   birthday?: string;
+  salutation?: string | null;
 }
 
 interface ChatStore {

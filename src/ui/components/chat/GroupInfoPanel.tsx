@@ -279,8 +279,11 @@ export default function GroupInfoPanel() {
       });
 
       // Parse member IDs (same multi-source logic as before)
-      const parseMemVerList = (list: string[]): string[] =>
-        list.map(entry => {
+      const parseMemVerList = (list: any): string[] => {
+        const entries: string[] = Array.isArray(list)
+          ? list
+          : (list && typeof list === 'object' ? Object.keys(list) : []);
+        return entries.map(entry => {
           const lastUnder = entry.lastIndexOf('_');
           if (lastUnder <= 0) return entry;
           const possibleVer = entry.substring(lastUnder + 1);
@@ -288,6 +291,7 @@ export default function GroupInfoPanel() {
             return entry.substring(0, lastUnder);
           return entry;
         }).filter(Boolean);
+      };
 
       const currentMemMap = new Map<string, any>();
       for (const cm of (gData.currentMems || [])) {

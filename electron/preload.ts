@@ -221,6 +221,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setContactFlags: (params: any) => ipcRenderer.invoke('db:setContactFlags', params),
     getContactsWithFlags: (params: any) => ipcRenderer.invoke('db:getContactsWithFlags', params),
     setContactAlias: (params: any) => ipcRenderer.invoke('db:setContactAlias', params),
+    patchContactFields: (params: any) => ipcRenderer.invoke('db:patchContactFields', params),
 
     // Message Drafts
     upsertDraft: (params: any) => ipcRenderer.invoke('db:upsertDraft', params),
@@ -318,7 +319,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
       deleteLogs: (id: string) => ipcRenderer.invoke('workflow:deleteLogs', { id }),
       clone: (id: string, targetZaloId: string) => ipcRenderer.invoke('workflow:clone', { id, targetZaloId }),
       cloneAll: (sourceZaloId: string, targetZaloId: string) => ipcRenderer.invoke('workflow:cloneAll', { sourceZaloId, targetZaloId }),
-  },
+      getWebhookUrl: (id: string) => ipcRenderer.invoke('workflow:getWebhookUrl', { id }),
+      regenerateWebhookToken: (id: string) => ipcRenderer.invoke('workflow:regenerateWebhookToken', { id }),
+      startTunnel: () => ipcRenderer.invoke('workflow:startTunnel'),
+      stopTunnel: () => ipcRenderer.invoke('workflow:stopTunnel'),
+      getTunnelStatus: () => ipcRenderer.invoke('workflow:getTunnelStatus'),
+      getPortConfig: () => ipcRenderer.invoke('workflow:getPortConfig'),
+      setPortConfig: (key: string, port: number) => ipcRenderer.invoke('workflow:setPortConfig', { key, port }),
+    },
 
   // ─── App-level (badge, open thread) ─────────────────────────────
   app: {

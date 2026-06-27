@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ipc from '@/lib/ipc';
 import qrCodeImg from '../../../assets/donate/qr.png';
 import AppIcon, { IconType } from '@/components/common/AppIcon';
+import { useAppStore } from '@/store/appStore';
 
 type FeatureId =
   | 'overview'
@@ -1194,6 +1195,7 @@ function IntegrationShippingPanel() {
 }
 
 function AIAssistantPanel() {
+  const setBugReportOpen = useAppStore(s => s.setBugReportOpen);
   return (
     <div className="space-y-4">
       <Card>
@@ -1382,7 +1384,7 @@ function AIAssistantPanel() {
                   Sau khi kết nối thành công, danh sách model trong Zagi sẽ tự động cập nhật theo các provider bạn đã thêm vào 9Router.
                   Nếu có model mới xuất hiện trong Dashboard 9Router, bạn chỉ cần reload trang Zagi để thấy — không cần cấu hình thêm.{' '}
                   <button
-                    onClick={() => ipc.shell?.openExternal('https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg')}
+                    onClick={() => setBugReportOpen(true)}
                     className="text-blue-400 hover:text-blue-300 underline underline-offset-2 inline-flex items-center gap-0.5"
                   >
                     Theo dõi issue #31 →
@@ -1888,6 +1890,7 @@ function EmployeesPanel() {
 }
 
 function PolicyPanel() {
+  const setBugReportOpen = useAppStore(s => s.setBugReportOpen);
   return (
     <div className="space-y-4">
       <div className="bg-blue-900/20 border border-blue-700/40 rounded-xl p-4">
@@ -1951,15 +1954,22 @@ function PolicyPanel() {
 
       <Card>
         <SectionTitle>6. Liên hệ & Hỗ trợ</SectionTitle>
-        <BulletList items={[
-          'Form báo lỗi: <strong class="text-gray-200">https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg</strong>',
-        ]} />
+        <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+          Gặp lỗi hoặc có góp ý? Bạn có thể gửi báo cáo trực tiếp trong ứng dụng:{' '}
+          <button
+            onClick={() => setBugReportOpen(true)}
+            className="text-blue-400 hover:text-blue-300 font-semibold underline underline-offset-2"
+          >
+            Mở biểu mẫu báo lỗi →
+          </button>
+        </p>
       </Card>
     </div>
   );
 }
 
 function BugReportPanel() {
+  const setBugReportOpen = useAppStore(s => s.setBugReportOpen);
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
@@ -1975,10 +1985,10 @@ function BugReportPanel() {
 
       <div className="flex justify-center gap-2">
         <button
-          onClick={() => ipc.shell?.openExternal('https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg')}
+          onClick={() => setBugReportOpen(true)}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors"
         >
-          Gửi báo cáo lỗi mới qua Lark Form →
+          Gửi báo cáo lỗi trực tiếp trong ứng dụng →
         </button>
       </div>
 
@@ -2078,6 +2088,7 @@ function BugReportPanel() {
 }
 
 function ContactPanel() {
+  const setBugReportOpen = useAppStore(s => s.setBugReportOpen);
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
@@ -2105,10 +2116,10 @@ function ContactPanel() {
           <div className="flex items-center gap-3">
             <span className="text-gray-400 text-sm w-20">Báo lỗi:</span>
             <button
-              onClick={() => ipc.shell?.openExternal('https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg')}
+              onClick={() => setBugReportOpen(true)}
               className="text-blue-400 hover:text-blue-300 transition-colors"
             >
-              Gửi qua Lark Form
+              Gửi trực tiếp trong ứng dụng
             </button>
           </div>
         </div>

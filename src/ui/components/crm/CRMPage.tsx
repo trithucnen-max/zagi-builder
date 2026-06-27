@@ -780,6 +780,14 @@ export default function CRMPage() {
                       }
                     }
                   }}
+                  onPatchContact={async (contactId, fields) => {
+                    const res = await ipc.db?.patchContactFields({ zaloId: activeAccountId || '', contactId, fields });
+                    if (res?.success) {
+                      loadContacts();
+                    } else {
+                      showNotification("Lưu thất bại: " + (res?.error || 'Lỗi không xác định'), "error");
+                    }
+                  }}
                 />
               </div>
               {activeContact && (
@@ -808,6 +816,7 @@ export default function CRMPage() {
                   onDelete={handleDeleteCampaign}
                   onClone={id => { setCloneCampaignId(id); setShowCloneCampaign(true); }}
                   onUpdateStatus={handleUpdateCampaignStatus}
+                  zaloId={activeAccountId || ''}
                 />
               </div>
               <div className="flex-1 overflow-hidden flex flex-col">

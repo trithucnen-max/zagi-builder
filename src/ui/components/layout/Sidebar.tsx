@@ -46,7 +46,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
   const canErpAccess = canErp('erp.access');
   // Use visible (filtered) accounts for rendering
   const accounts = visibleAccounts;
-  const { view, setView, mergedInboxMode, mergedInboxAccounts, mergedInboxFilterAccount, setMergedInboxFilter, exitMergedInbox } = useAppStore();
+  const { view, setView, mergedInboxMode, mergedInboxAccounts, mergedInboxFilterAccount, setMergedInboxFilter, exitMergedInbox, sidebarExpanded, toggleSidebarExpanded } = useAppStore();
   const crmRequestUnseenByAccount = useAppStore(s => s.crmRequestUnseenByAccount);
   const { contacts, activeThreadId, activeThreadType, saveAccountThread } = useChatStore();
   const { othersConversations: allOthers } = useAppStore();
@@ -83,12 +83,40 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
     dragIndexRef.current = null;
     setDragOverIndex(null);
   };
+  const showExpanded = sidebarExpanded && view === 'chat';
 
   return (
     <>
     <div className="flex flex-col w-16 bg-sidebar border-r border-white/10 h-full">
-      {/* Danh sách tài khoản — chế độ Gộp trang: hiện các avatar dùng làm bộ lọc */}
-      {mergedInboxMode ? (
+      {/* ─── Toggle expand/collapse - chỉ hiện ở màn hình Chat ─── */}
+      {view === 'chat' && (
+        <div className="pt-2 pb-1 flex justify-center flex-shrink-0">
+          <button
+            onClick={toggleSidebarExpanded}
+            title={showExpanded ? 'Ẩn danh sách tài khoản đầy đủ' : 'Hiện danh sách tài khoản đầy đủ'}
+            className={`font-semibold w-8 h-8 rounded-lg flex items-center justify-center transition-colors border-0 cursor-pointer ${
+              showExpanded
+                ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
+                : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-white'
+            }`}
+          >
+            {showExpanded ? (
+              /* X - đóng */
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              /* Hamburger - mở rộng */
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" />
+              </svg>
+            )}
+          </button>
+        </div>
+      )}
+      {showExpanded ? (
+        <div className="" />
+      ) : mergedInboxMode ? (
         <div className="flex-1 overflow-y-auto py-2 flex flex-col items-center gap-2">
           {/* Exit button — ở trên cùng */}
           <button

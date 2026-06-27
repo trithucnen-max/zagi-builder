@@ -17,6 +17,7 @@ export const NODE_GROUPS: NodeGroup[] = [
       { type: 'trigger.schedule',      label: 'Chạy theo lịch hẹn',          desc: 'Tự động kích hoạt theo lịch (hàng ngày, hàng giờ...)', channel: 'both' },
       { type: 'trigger.manual',        label: 'Chạy thủ công',               desc: 'Kích hoạt bằng tay từ giao diện, dùng để test workflow', channel: 'both' },
       { type: 'trigger.payment',       label: 'Khi nhận thanh toán',         desc: 'Kích hoạt khi nhận webhook thanh toán từ Casso / SePay (VietQR)', channel: 'both' },
+      { type: 'trigger.webhook',       label: 'Webhook bên ngoài',           desc: 'Kích hoạt khi nhận dữ liệu từ webhook bên thứ 3 gửi sang', channel: 'both' },
       // Facebook triggers
       { type: 'fb.trigger.message',    label: 'Khi nhận tin nhắn',           desc: 'Kích hoạt khi có tin nhắn mới trên Facebook Messenger', channel: 'facebook' },
       { type: 'fb.trigger.image',      label: 'Khi nhận tin nhắn ảnh',       desc: 'Kích hoạt khi nhận được tin nhắn chứa ảnh trên Messenger', channel: 'facebook' },
@@ -245,6 +246,7 @@ export const DEFAULT_CONFIGS: Record<string, Record<string, any>> = {
   'notify.notion':   { apiKey: '', databaseId: '', properties: '{"Tên": {"title": [{"text": {"content": "{{ $trigger.fromName }}"}}]}}' },
   // Trigger: payment
   'trigger.payment': { integrationId: '', minAmount: 0, descContains: '' },
+  'trigger.webhook': { webhookToken: '', secretKey: '', method: 'POST', allowedIps: '' },
   'kiotviet.lookupCustomer': { phone: '{{ $trigger.fromPhone }}' },
   'kiotviet.lookupOrder':    { phone: '{{ $trigger.fromPhone }}', orderId: '' },
   'kiotviet.lookupProduct':  { keyword: '{{ $trigger.content }}', limit: 10 },

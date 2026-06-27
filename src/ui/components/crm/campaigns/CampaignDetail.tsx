@@ -7,6 +7,15 @@ import TargetSelector from './TargetSelector';
 import CampaignCreateModal from './CampaignCreateModal';
 import AppIcon from '@/components/common/AppIcon';
 
+function fmtDelayRange(min: number, max: number): string {
+  const fmt = (s: number) => {
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.round(s / 60)}ph`;
+    return `${Math.round(s / 3600)}h`;
+  };
+  return min === max ? fmt(min) : `${fmt(min)}-${fmt(max)}`;
+}
+
 interface LocalLabelItem {
   id: number;
   name: string;
@@ -23,7 +32,20 @@ interface CampaignDetailProps {
   localLabelThreadMap?: Record<string, number[]>;
   onStatusChange: (id: number, status: string) => void;
   onAddContacts: (campaignId: number, contacts: any[]) => Promise<void>;
-  onUpdate?: (data: { name: string; template_message: string; friend_request_message: string; campaign_type: string; delay_seconds: number }) => Promise<void>;
+  onUpdate?: (data: {
+    name: string;
+    template_message: string;
+    friend_request_message: string;
+    campaign_type: string;
+    delay_seconds: number;
+    delay_min_seconds?: number;
+    delay_max_seconds?: number;
+    per_contact_delay_min_seconds?: number;
+    per_contact_delay_max_seconds?: number;
+    daily_send_limit?: number;
+    daily_start_time?: string;
+    scheduled_start_at?: number;
+  }) => Promise<void>;
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -217,7 +239,7 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
             <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
               <span className="flex items-center gap-0.5">
                 <AppIcon name="clock" className="text-gray-500" size={10} />
-                {campaign.delay_seconds}s delay
+                ⏱ {fmtDelayRange(campaign.delay_min_seconds || Math.max(5, campaign.delay_seconds - 10), campaign.delay_max_seconds || campaign.delay_seconds + 10)}
               </span>
               <span>·</span>
               <span className="flex items-center gap-0.5">
@@ -545,6 +567,10 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
             campaign_type: campaign.campaign_type,
             mixed_config: campaign.mixed_config || '{}',
             delay_seconds: campaign.delay_seconds,
+            delay_min_seconds: campaign.delay_min_seconds,
+            delay_max_seconds: campaign.delay_max_seconds,
+            per_contact_delay_min_seconds: campaign.per_contact_delay_min_seconds,
+            per_contact_delay_max_seconds: campaign.per_contact_delay_max_seconds,
             daily_send_limit: campaign.daily_send_limit,
             daily_start_time: campaign.daily_start_time,
           }}

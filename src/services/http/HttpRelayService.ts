@@ -13,14 +13,14 @@ interface RegisteredEmployee {
     display_name: string;
     avatar_url: string;
     username: string;
-    callbackUrl: string; // http://IP:PORT — employee's local HTTP server
+    callbackUrl: string; // http://IP:PORT - employee's local HTTP server
     token: string;
     lastSeen: number;
     assigned_accounts: string[];
     ip_address: string;
     connected_at: number;
     consecutiveFailures: number;
-    /** Timestamp until which a heavy sync is in progress — offline check skips during this window */
+    /** Timestamp until which a heavy sync is in progress - offline check skips during this window */
     syncingUntil?: number;
 }
 
@@ -52,11 +52,11 @@ interface EmployeeSnapshot {
 }
 
 /**
- * HttpRelayService — Boss side only.
+ * HttpRelayService - Boss side only.
  * HTTP server that relays Zalo events to Employee machines via HTTP POST
  * and proxies Employee actions back to Zalo via IPC handler registry.
  *
- * Replaces SocketRelayService — no persistent WebSocket connections.
+ * Replaces SocketRelayService - no persistent WebSocket connections.
  */
 class HttpRelayService {
     private static instance: HttpRelayService;
@@ -77,7 +77,7 @@ class HttpRelayService {
      * queued here and flushed the next time the employee's SSE stream reconnects.
      */
     private sseEventQueue = new Map<string, Array<{ channel: string; data: any; ts: number }>>();
-    private static SSE_QUEUE_TTL_MS = 600_000; // 10-minute TTL (was 2 min — WAN reconnect can take longer)
+    private static SSE_QUEUE_TTL_MS = 600_000; // 10-minute TTL (was 2 min - WAN reconnect can take longer)
     private static SSE_QUEUE_MAX = 500;        // max queued events per employee (was 300)
 
     /** Tunnel state */
@@ -145,7 +145,7 @@ class HttpRelayService {
                 return info;
             }
         }
-        // Try by cliMsgId — proxy may have registered under this key
+        // Try by cliMsgId - proxy may have registered under this key
         if (cliMsgId && cliMsgId !== msgId) {
             const key = String(cliMsgId);
             const info = this.pendingEmployeeMsgIds.get(key);
@@ -169,7 +169,7 @@ class HttpRelayService {
 
     /** Max consecutive push failures before marking employee offline */
     private static MAX_FAILURES = 3;
-    /** Heartbeat timeout — if no heartbeat for this long, mark offline */
+    /** Heartbeat timeout - if no heartbeat for this long, mark offline */
     private static HEARTBEAT_TIMEOUT_MS = 45_000; // 45s (employee sends every 15s)
     /** Push timeout for event delivery */
     private static PUSH_TIMEOUT_MS = 3000;
@@ -352,7 +352,7 @@ class HttpRelayService {
             this.sseKeepaliveTimers.clear();
             // Stop tunnel if active
             if (this.tunnelActive) {
-                TunnelService.stop().catch(() => {});
+                TunnelService.stop(this.port).catch(() => {});
                 this.tunnelActive = false;
                 this.tunnelUrl = null;
             }
@@ -635,7 +635,7 @@ class HttpRelayService {
                 params = { ...params, _fromRelay: true };
             }
 
-            // Special handling for login:connect — not in zaloIpc handler registry
+            // Special handling for login:connect - not in zaloIpc handler registry
             // Boss looks up real auth from its own DB and connects directly
             if (channel === 'login:connect' && zaloId) {
                 try {
@@ -723,8 +723,8 @@ class HttpRelayService {
                     if (zaloId) {
                         const empId = employee.employee_id;
 
-                        // Register in pending map — consumed by EventBroadcaster.broadcastMessage
-                        // Always register (even if msgId is empty) — the thread fallback will work
+                        // Register in pending map - consumed by EventBroadcaster.broadcastMessage
+                        // Always register (even if msgId is empty) - the thread fallback will work
                         HttpRelayService.setPendingEmployeeMsg(msgId, {
                             employee_id: empId,
                             employee_name: employee.display_name,
@@ -737,7 +737,7 @@ class HttpRelayService {
                         // Also retry DB update after delays as fallback
                         // Use setMessageHandledByEmployeeFlexible to match by msg_id OR cli_msg_id
                         // (proxy may return cliMsgId while webhook uses globalMsgId)
-                        // Delay 2s/5s — webhook typically arrives within 200ms-2s
+                        // Delay 2s/5s - webhook typically arrives within 200ms-2s
                         const doFallbackUpdate = (delay: number) => {
                             setTimeout(() => {
                                 try {
@@ -782,7 +782,7 @@ class HttpRelayService {
                                 if (emp.callbackUrl) {
                                     this.pushToEmployee(emp, 'relay:messageSentByEmployee', senderPayload).catch(() => {});
                                 } else {
-                                    // WAN mode — queue for delivery on reconnect
+                                    // WAN mode - queue for delivery on reconnect
                                     this.queueSseEvent(emp.employee_id, 'relay:messageSentByEmployee', senderPayload);
                                 }
                             }
@@ -993,7 +993,7 @@ class HttpRelayService {
         // Replace any previous SSE stream for this employee
         const old = this.sseClients.get(employee.employee_id);
         if (old && old !== res) {
-            Logger.warn(`[HttpRelayService] ⚠️ Replacing EXISTING SSE for ${employee.display_name} — old.end() called. New request from ${req.socket?.remoteAddress || 'unknown'}`);
+            Logger.warn(`[HttpRelayService] ⚠️ Replacing EXISTING SSE for ${employee.display_name} - old.end() called. New request from ${req.socket?.remoteAddress || 'unknown'}`);
             try { old.end(); } catch {}
             const oldKt = this.sseKeepaliveTimers.get(employee.employee_id);
             if (oldKt) clearInterval(oldKt);
@@ -1014,7 +1014,7 @@ class HttpRelayService {
                     res.write(`data: ${JSON.stringify({ channel: ev.channel, data: ev.data })}\n\n`);
                     flushed++;
                 } catch {
-                    // SSE already broken again — stop flushing
+                    // SSE already broken again - stop flushing
                     break;
                 }
             }
@@ -1081,7 +1081,7 @@ class HttpRelayService {
         const now = Date.now();
         // Expire stale entries first
         queue = queue.filter(e => now - e.ts < HttpRelayService.SSE_QUEUE_TTL_MS);
-        // Cap queue size — drop oldest if full
+        // Cap queue size - drop oldest if full
         if (queue.length >= HttpRelayService.SSE_QUEUE_MAX) queue.shift();
         queue.push({ channel, data, ts: now });
         this.sseEventQueue.set(employeeId, queue);
@@ -1095,13 +1095,13 @@ class HttpRelayService {
             return { success: false, error: 'Relay server chưa được bật' };
         }
         try {
-            const url = await TunnelService.start(this.port);
+            const url = await TunnelService.start(this.port, 'Employee Relay');
             this.tunnelActive = true;
             this.tunnelUrl = url;
             Logger.log(`[HttpRelayService] 🌐 Tunnel active: ${url}`);
 
-            // Listen for URL changes (localtunnel reconnects)
-            TunnelService.onChange((newUrl) => {
+            // Listen for URL changes (relay reconnects)
+            TunnelService.onChange(this.port, (newUrl) => {
                 this.tunnelUrl = newUrl;
                 this.tunnelActive = !!newUrl;
                 EventBroadcaster.emit('relay:tunnelStatusUpdate', {
@@ -1119,7 +1119,7 @@ class HttpRelayService {
     }
 
     public async stopTunnel(): Promise<{ success: boolean }> {
-        await TunnelService.stop();
+        await TunnelService.stop(this.port);
         this.tunnelActive = false;
         this.tunnelUrl = null;
         EventBroadcaster.emit('relay:tunnelStatusUpdate', { active: false, tunnelUrl: null });
@@ -1158,7 +1158,7 @@ class HttpRelayService {
     private relayEventToEmployees(channel: string, data: any): void {
         if (!this.running) return;
 
-        // Push to ALL connected employees — no filtering by assigned_accounts.
+        // Push to ALL connected employees - no filtering by assigned_accounts.
         // Each employee saves to their own DB if online.
         // If offline, they sync later from boss via full/delta sync.
         for (const emp of this.employees.values()) {
@@ -1169,7 +1169,7 @@ class HttpRelayService {
                 if (emp.callbackUrl) {
                     this.pushToEmployee(emp, channel, data).catch(() => {});
                 } else {
-                    // WAN/SSE mode: no callbackUrl fallback — queue for delivery on reconnect
+                    // WAN/SSE mode: no callbackUrl fallback - queue for delivery on reconnect
                     this.queueSseEvent(emp.employee_id, channel, data);
                 }
             }
@@ -1268,14 +1268,14 @@ class HttpRelayService {
         this.offlineCheckTimer = setInterval(() => {
             const now = Date.now();
             for (const [empId, emp] of this.employees) {
-                // ── SSE connection is a live heartbeat — employee is definitely online ──
+                // ── SSE connection is a live heartbeat - employee is definitely online ──
                 // Refresh lastSeen so the employee doesn't get kicked when SSE eventually drops.
                 if (this.sseClients.has(empId)) {
                     emp.lastSeen = now;
                     continue;
                 }
 
-                // ── Active heavy sync in progress — extend grace period ──
+                // ── Active heavy sync in progress - extend grace period ──
                 if (emp.syncingUntil && now < emp.syncingUntil) {
                     emp.lastSeen = now;
                     continue;
@@ -1315,7 +1315,7 @@ class HttpRelayService {
 
         const emp = this.employees.get(validation.employee_id);
         if (!emp) {
-            // Employee authenticated but not registered — auto-register
+            // Employee authenticated but not registered - auto-register
             const empData = EmployeeService.getInstance().getEmployeeById(validation.employee_id);
             if (!empData || !empData.is_active) return null;
 

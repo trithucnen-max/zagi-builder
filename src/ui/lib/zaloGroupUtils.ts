@@ -242,19 +242,20 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
     console.log('[DEBUG getGroupInfo] response keys:', Object.keys(infoRes?.response || {}));
     console.log('[DEBUG getGroupInfo] full response:', JSON.stringify(infoRes?.response).substring(0, 500));
     if (!infoRes?.success) {
-      console.warn('[zaloGroupUtils] getGroupInfo failed for:', groupId, infoRes?.error);
-      return;
+      const errMsg = infoRes?.error || 'Lỗi không xác định khi gọi getGroupInfo';
+      console.warn('[zaloGroupUtils] getGroupInfo failed for:', groupId, errMsg);
+      throw new Error(errMsg);
     }
     // Support both response shapes: .gridInfoMap and .data.gridInfoMap
     const gridMap: Record<string, any> =
-      infoRes.response?.gridInfoMap ?? infoRes.response?.data?.gridInfoMap ?? {};
+      infoRes.response?.gridInfoMap ?? infoRes.response?.changed_groups ?? infoRes.response?.data?.gridInfoMap ?? {};
     console.log('[DEBUG getGroupInfo] gridMap keys:', Object.keys(gridMap));
     console.log('[DEBUG getGroupInfo] groupId lookup:', groupId, 'found?', !!gridMap[groupId]);
     const gData: any = gridMap[groupId] ?? Object.values(gridMap)[0];
     if (!gData) {
       console.warn('[zaloGroupUtils] getGroupInfo returned no data for:', groupId);
       console.log('[DEBUG getGroupInfo] gridMap full:', JSON.stringify(gridMap).substring(0, 500));
-      return;
+      throw new Error('Không lấy được dữ liệu của nhóm này.');
     }
     console.log('[DEBUG getGroupInfo] gData keys:', Object.keys(gData));
     const memVL = gData.memVerList;
@@ -365,7 +366,7 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
 
     if (memberIds.length === 0) {
       console.warn('[zaloGroupUtils] No UIDs from getGroupInfo for:', groupId);
-      return;
+      throw new Error('Không lấy được danh sách UID thành viên nhóm.');
     }
 
     // Build placeholders (empty names — will be enriched)
@@ -417,8 +418,9 @@ async function _syncAllGroups(opts: SyncGroupsOptions): Promise<void> {
 
   const res = await ipc.zalo?.getGroups(auth);
   if (!res?.success) {
-    console.warn('[zaloGroupUtils] getGroups failed:', res?.error);
-    return;
+    const errMsg = res?.error || 'Lỗi không xác định khi gọi getGroups';
+    console.warn('[zaloGroupUtils] getGroups failed:', errMsg);
+    throw new Error(errMsg);
   }
 
   const gridVerMap: Record<string, string> = res.response?.gridVerMap ?? {};
@@ -473,7 +475,7 @@ async function _syncAllGroups(opts: SyncGroupsOptions): Promise<void> {
     const batchIds = groupIds.slice(i, i + BATCH_GROUPS);
     const infoRes = await ipc.zalo?.getGroupInfo({ auth, groupId: batchIds });
     const batchMap: Record<string, any> = infoRes?.success
-      ? (infoRes.response?.gridInfoMap ?? infoRes.response?.data?.gridInfoMap ?? {})
+      ? (infoRes.response?.gridInfoMap ?? infoRes.response?.changed_groups ?? infoRes.response?.data?.gridInfoMap ?? {})
       : {};
 
     for (const [groupId, info] of Object.entries(batchMap)) {

@@ -1,6 +1,9 @@
 /**
- * TunnelService — wraps cloudflared Quick Tunnel to expose the relay HTTP server to the internet.
- * Uses trycloudflare.com — no Cloudflare account required.
+ * TunnelService - wraps cloudflared Quick Tunnel to expose local HTTP servers to the internet.
+ * Uses trycloudflare.com - no Cloudflare account required.
+ *
+ * Supports MULTIPLE concurrent tunnels keyed by port number.
+ * Each tunnel gets its own public URL (e.g. https://xxxx.trycloudflare.com).
  *
  * Advantages over loca.lt (localtunnel):
  *  - No response size limits (loca.lt chokes on large JSON payloads)
@@ -9,8 +12,10 @@
  *  - More stable long-lived connections (important for SSE streams)
  *
  * Usage:
- *   const url = await TunnelService.start(9900);   // returns https://xxxx.trycloudflare.com
- *   TunnelService.stop();
+ *   const url1 = await TunnelService.start(9888, 'Webhook Gateway');
+ *   const url2 = await TunnelService.start(9900, 'Employee Relay');
+ *   TunnelService.stop(9888);            // stop one
+ *   TunnelService.stopAll();             // stop all
  */
 
 import path from 'path';
@@ -29,7 +34,7 @@ try {
   // Fix binary path when running inside Electron asar archive.
   // cf.bin uses __dirname which resolves inside app.asar. We must use cf.use()
   // to update the module-scope bin variable that Tunnel.quick() reads via
-  // import_constants.bin — a local assignment wouldn't propagate.
+  // import_constants.bin - a local assignment wouldn't propagate.
   if (bin && bin.includes('app.asar') && typeof cf.use === 'function') {
     bin = bin.replace('app.asar', 'app.asar.unpacked');
     cf.use(bin);  // ← writes into constants.js module-scope
@@ -39,15 +44,29 @@ try {
   Logger.warn('[TunnelService] cloudflared package not found');
 }
 
-let activeTunnel: any = null;
-let activeUrl: string | null = null;
-let onChangeCallbacks: ((url: string | null) => void)[] = [];
+// ─── Multi-tunnel store ──────────────────────────────────────────────────────
+
+interface TunnelEntry {
+  tunnel: any;
+  url: string | null;
+  label: string;
+  onChangeCbs: Set<(url: string | null) => void>;
+}
+
+const tunnels = new Map<number, TunnelEntry>();
+
+// ─── Service ─────────────────────────────────────────────────────────────────
 
 export const TunnelService = {
-  /** Start a Cloudflare Quick Tunnel pointing to the local relay port. Returns the public URL. */
-  async start(port: number): Promise<string> {
-    if (activeTunnel) {
-      await this.stop();
+  /**
+   * Start a Cloudflare Quick Tunnel pointing to a local port.
+   * Multiple tunnels can run concurrently (keyed by port).
+   * Returns the public URL.
+   */
+  async start(port: number, label?: string): Promise<string> {
+    // If a tunnel already exists for this port, stop it first before restarting
+    if (tunnels.has(port)) {
+      await this.stop(port);
     }
 
     if (!Tunnel || !bin || !install) {
@@ -62,7 +81,7 @@ export const TunnelService = {
       Logger.log('[TunnelService] cloudflared binary installed');
     }
 
-    Logger.log(`[TunnelService] Starting Cloudflare Quick Tunnel on port ${port}...`);
+    Logger.log(`[TunnelService] Starting Cloudflare Quick Tunnel on port ${port}${label ? ` (${label})` : ''}...`);
 
     return new Promise((resolve, reject) => {
       const tunnel = Tunnel.quick(`http://localhost:${port}`);
@@ -72,7 +91,7 @@ export const TunnelService = {
         if (!resolved) {
           resolved = true;
           try { tunnel.stop(); } catch {}
-          reject(new Error('Cloudflare tunnel timeout — kiểm tra kết nối mạng'));
+          reject(new Error(`Cloudflare tunnel timeout (port ${port}) - kiểm tra kết nối mạng`));
         }
       }, 30_000);
 
@@ -80,66 +99,119 @@ export const TunnelService = {
         if (!resolved) {
           resolved = true;
           clearTimeout(timeout);
-          activeTunnel = tunnel;
-          activeUrl = url;
-          Logger.log(`[TunnelService] Tunnel active: ${url}`);
-          TunnelService._notifyChange(url);
+
+          const entry: TunnelEntry = {
+            tunnel,
+            url,
+            label: label || `Port ${port}`,
+            onChangeCbs: new Set(),
+          };
+          tunnels.set(port, entry);
+
+          Logger.log(`[TunnelService] ✅ Tunnel active [${port}]: ${url}${label ? ` (${label})` : ''}`);
+          TunnelService._notifyChange(port, url);
           resolve(url);
         }
       });
 
       tunnel.on('error', (err: Error) => {
-        Logger.error(`[TunnelService] Tunnel error: ${err.message}`);
+        Logger.error(`[TunnelService] Tunnel error [${port}]: ${err.message}`);
         if (!resolved) {
           resolved = true;
           clearTimeout(timeout);
           reject(err);
         } else {
-          activeTunnel = null;
-          activeUrl = null;
-          TunnelService._notifyChange(null);
+          const entry = tunnels.get(port);
+          if (entry && entry.tunnel === tunnel) {
+            tunnels.delete(port);
+            TunnelService._notifyChange(port, null);
+          }
         }
       });
 
       tunnel.on('exit', (code: number | null) => {
-        if (activeTunnel === tunnel) {
-          Logger.log(`[TunnelService] Tunnel exited (code ${code})`);
-          activeTunnel = null;
-          activeUrl = null;
-          TunnelService._notifyChange(null);
+        const entry = tunnels.get(port);
+        if (entry && entry.tunnel === tunnel) {
+          Logger.log(`[TunnelService] Tunnel exited (code ${code}) [${port}]`);
+          tunnels.delete(port);
+          TunnelService._notifyChange(port, null);
         }
       });
     });
   },
 
-  /** Stop the active tunnel */
-  async stop(): Promise<void> {
-    if (activeTunnel) {
-      try { activeTunnel.stop(); } catch { /* ignore */ }
-      activeTunnel = null;
-      activeUrl = null;
-      this._notifyChange(null);
-      Logger.log('[TunnelService] Tunnel stopped');
+  /**
+   * Stop a specific tunnel by port.
+   * Usage: TunnelService.stop(9888)
+   */
+  async stop(port: number): Promise<void> {
+    const entry = tunnels.get(port);
+    if (entry) {
+      try { entry.tunnel.stop(); } catch { /* ignore */ }
+      tunnels.delete(port);
+      TunnelService._notifyChange(port, null);
+      Logger.log(`[TunnelService] Stopped tunnel [${port}]${entry.label ? ` (${entry.label})` : ''}`);
     }
   },
 
-  /** Get current tunnel URL (null if not active) */
-  getUrl(): string | null {
-    return activeUrl;
+  /**
+   * Stop all active tunnels.
+   */
+  async stopAll(): Promise<void> {
+    const ports = Array.from(tunnels.keys());
+    for (const port of ports) {
+      await this.stop(port);
+    }
+    Logger.log(`[TunnelService] All tunnels stopped (${ports.length} total)`);
   },
 
-  /** Check if tunnel is currently active */
-  isActive(): boolean {
-    return !!activeUrl;
+  /**
+   * Get the public URL for a specific tunnel (null if not active).
+   */
+  getUrl(port: number): string | null {
+    return tunnels.get(port)?.url ?? null;
   },
 
-  /** Register a callback for tunnel URL changes */
-  onChange(cb: (url: string | null) => void): void {
-    onChangeCallbacks.push(cb);
+  /**
+   * Check if a specific tunnel is currently active.
+   */
+  isActive(port: number): boolean {
+    return tunnels.has(port) && !!tunnels.get(port)?.url;
   },
 
-  _notifyChange(url: string | null): void {
-    for (const cb of onChangeCallbacks) {
+  /**
+   * Get all active tunnels with their URLs and labels.
+   * Returns a record keyed by port number.
+   */
+  getAllTunnels(): Record<number, { url: string; label: string }> {
+    const result: Record<number, { url: string; label: string }> = {};
+    for (const [port, entry] of tunnels) {
+      if (entry.url) {
+        result[port] = { url: entry.url, label: entry.label };
+      }
+    }
+    return result;
+  },
+
+  /**
+   * Register a callback for URL changes of a specific tunnel.
+   * Called with the new URL (or null if tunnel went down).
+   */
+  onChange(port: number, cb: (url: string | null) => void): void {
+    let entry = tunnels.get(port);
+    if (!entry) {
+      // Create a placeholder entry so we don't lose the callback
+      // when the tunnel hasn't started yet. It will be replaced on start().
+      entry = { tunnel: null as any, url: null, label: `Port ${port}`, onChangeCbs: new Set() };
+      tunnels.set(port, entry);
+    }
+    entry.onChangeCbs.add(cb);
+  },
+
+  _notifyChange(port: number, url: string | null): void {
+    const entry = tunnels.get(port);
+    if (!entry) return;
+    for (const cb of entry.onChangeCbs) {
       try { cb(url); } catch { /* ignore */ }
     }
   },

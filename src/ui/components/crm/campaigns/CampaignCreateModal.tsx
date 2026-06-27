@@ -20,6 +20,10 @@ interface CampaignFormData {
   campaign_type: CampaignType;
   mixed_config: string;
   delay_seconds: number;
+  delay_min_seconds?: number;
+  delay_max_seconds?: number;
+  per_contact_delay_min_seconds?: number;
+  per_contact_delay_max_seconds?: number;
   daily_send_limit: number;
   daily_start_time: string;
   scheduled_start_at?: number;
@@ -45,6 +49,7 @@ function substitutePreview(text: string, campaignName: string = ''): string {
     .replace(/\{name\}/g, 'Nguyễn Văn A')
     .replace(/\{userId\}/g, '0987654321')
     .replace(/\{gender_greeting\}/g, 'Anh/Chị')
+    .replace(/\{salutation\}/g, 'Anh')
     .replace(/\{alias\}/g, 'Biệt danh A')
     .replace(/\{campaign_name\}/g, campaignName || 'Chiến dịch tri ân')
     .replace(/\{date\}/g, `${todayDD}/${todayMM}/${todayYYYY}`)
@@ -81,7 +86,8 @@ function parseMixedConfig(raw?: string): MixedConfig {
 const TEMPLATE_VARS = [
   { key: '{name}', label: 'Tên Zalo' },
   { key: '{userId}', label: 'ID Zalo' },
-  { key: '{gender_greeting}', label: 'Anh/Chị' },
+  { key: '{salutation}', label: 'Xưng hô (tùy chỉnh)' },
+  { key: '{gender_greeting}', label: 'Anh/Chị (auto)' },
   { key: '{alias}', label: 'Biệt danh' },
   { key: '{campaign_name}', label: 'Chiến dịch' },
   { key: '{date}', label: 'Ngày' },
@@ -90,11 +96,33 @@ const TEMPLATE_VARS = [
   { key: '{birthday_month}', label: 'Tháng sinh' },
 ];
 
-const DELAY_OPTIONS = [
-  { label: '5s',    value: 5   }, { label: '15s',   value: 15  },
-  { label: '30s',   value: 30  }, { label: '1 phút', value: 60  },
-  { label: '2 phút',value: 120 }, { label: '3 phút', value: 180 },
-  { label: '5 phút',value: 300 }, { label: '15 phút',value: 900 },
+function fmtDelayRange(min: number, max: number): string {
+  if (min === max) {
+    if (min < 60) return `${min}s`;
+    if (min < 3600) return `${Math.round(min / 60)}m`;
+    return `${Math.round(min / 3600)}h`;
+  }
+  const fmt = (s: number) => {
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.round(s / 60)}m`;
+    return `${Math.round(s / 3600)}h`;
+  };
+  return `${fmt(min)}-${fmt(max)}`;
+}
+
+const DELAY_PRESETS = [
+  { label: '5-15s',   min: 5,   max: 15 },
+  { label: '30-60s',  min: 30,  max: 60 },
+  { label: '2-3ph',   min: 120, max: 180 },
+  { label: '5-10ph',  min: 300, max: 600 },
+];
+
+const PC_DELAY_PRESETS = [
+  { label: 'Không',   min: 0,   max: 0   },
+  { label: '5-15s',   min: 5,   max: 15  },
+  { label: '15-30s',  min: 15,  max: 30  },
+  { label: '30-60s',  min: 30,  max: 60  },
+  { label: '1-2m',    min: 60,  max: 120 },
 ];
 
 const TYPE_OPTIONS: { value: CampaignType; icon: string; label: string }[] = [
@@ -534,7 +562,35 @@ export default function CampaignCreateModal({
 }: CampaignCreateModalProps) {
   const [name,          setName]         = useState(initialData?.name ?? '');
   const [type,          setType]         = useState<CampaignType>(initialData?.campaign_type ?? 'message');
-  const [delay,         setDelay]        = useState(initialData?.delay_seconds ?? 120);
+
+  // ── Delay range between contacts ──
+  const getInitMinMax = (): [number, number] => {
+    const d = initialData;
+    if (!d) return [120, 180];
+    const dm = (d as any).delay_min_seconds;
+    const dx = (d as any).delay_max_seconds;
+    if (dm != null && dx != null) return [dm, dx];
+    const fallback = d.delay_seconds || 120;
+    return [Math.max(5, fallback - 10), fallback + 10];
+  };
+  const initRange = getInitMinMax();
+  const [delayMin, setDelayMin] = useState(initRange[0]);
+  const [delayMax, setDelayMax] = useState(initRange[1]);
+  const [customDelayMode, setCustomDelayMode] = useState(false);
+
+  // ── Per-contact delay range ──
+  const getInitPc = (): [number, number] => {
+    const d = initialData;
+    if (!d) return [0, 0];
+    return [
+      (d as any).per_contact_delay_min_seconds ?? 0,
+      (d as any).per_contact_delay_max_seconds ?? 0,
+    ];
+  };
+  const initPcRange = getInitPc();
+  const [pcDelayMin, setPcDelayMin] = useState(initPcRange[0]);
+  const [pcDelayMax, setPcDelayMax] = useState(initPcRange[1]);
+  const [customPcDelayMode, setCustomPcDelayMode] = useState(false);
   const [saving,        setSaving]       = useState(false);
   const [friendReqMsg,  setFriendReqMsg] = useState(initialData?.friend_request_message ?? '');
   const [activeBlock,   setActiveBlock]  = useState(0);
@@ -663,7 +719,11 @@ export default function CampaignCreateModal({
       friend_request_message: friendReqMsg.trim(),
       campaign_type: type,
       mixed_config: buildMixedConfig(),
-      delay_seconds: delay,
+      delay_seconds: Math.round((delayMin + delayMax) / 2),
+      delay_min_seconds: delayMin,
+      delay_max_seconds: delayMax,
+      per_contact_delay_min_seconds: pcDelayMin,
+      per_contact_delay_max_seconds: pcDelayMax,
       daily_send_limit: dailyLimit,
       daily_start_time: dailyStartTime,
       scheduled_start_at: scheduledStartAt,
@@ -699,6 +759,11 @@ export default function CampaignCreateModal({
 
   // Current block reference
   const currentBlock = contentConfig.blocks[activeBlock] ?? contentConfig.blocks[0];
+
+  // Whether the campaign can send multiple items per contact (show per-contact delay section)
+  const hasMultiSend = (hasMsg && contentConfig.mode === 'all' && contentConfig.blocks.length > 1)
+    || (type === 'mixed' && mixedActions.length > 1)
+    || (hasMsg && hasFR);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -798,31 +863,106 @@ export default function CampaignCreateModal({
               </div>
             )}
 
-            {/* Delay */}
+            {/* ⏱ Delay giữa các liên hệ */}
             <div>
               <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
                 <AppIcon name="clock" className="text-gray-500" size={10} />
-                Delay
+                Delay giữa các liên hệ
               </label>
               <div className="grid grid-cols-2 gap-1">
-                {DELAY_OPTIONS.map(opt => (
-                  <button key={opt.value} type="button" onClick={() => setDelay(opt.value)}
-                    className={`py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
-                      delay === opt.value
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold'
-                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-gray-300'
-                    }`}>
-                    {opt.label}
-                  </button>
-                ))}
+                {DELAY_PRESETS.map(p => {
+                  const active = !customDelayMode && delayMin === p.min && delayMax === p.max;
+                  return (
+                    <button key={p.label} type="button" onClick={() => { setDelayMin(p.min); setDelayMax(p.max); setCustomDelayMode(false); }}
+                      className={`py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
+                        active ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold'
+                          : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-gray-300'
+                      }`}>
+                      {p.label}
+                    </button>
+                  );
+                })}
               </div>
-              <p className="text-[10px] text-gray-600 mt-1">± 10s jitter ngẫu nhiên</p>
-              {isStrangerTarget && delay < 180 && (
+              <button type="button" onClick={() => setCustomDelayMode(!customDelayMode)}
+                className={`flex items-center gap-1 mt-1.5 text-[11px] px-2 py-1 rounded-lg border transition-colors w-full ${
+                  customDelayMode ? 'border-blue-500 bg-blue-500/10 text-blue-300'
+                    : 'border-gray-350 dark:border-gray-600 text-gray-500 hover:text-gray-300 hover:border-gray-500'
+                }`}>
+                <span>{customDelayMode ? '▾' : '▸'}</span> Tùy chỉnh khoảng
+              </button>
+              {customDelayMode && (
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <input type="number" min={5} value={delayMin || ''}
+                    onChange={e => setDelayMin(Math.max(5, parseInt(e.target.value) || 0))}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                    placeholder="Tối thiểu (s)" />
+                  <span className="text-gray-500 text-xs">→</span>
+                  <input type="number" min={delayMin} value={delayMax || ''}
+                    onChange={e => setDelayMax(Math.max(delayMin || 5, parseInt(e.target.value) || 0))}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                    placeholder="Tối đa (s)" />
+                  <span className="text-gray-500 text-[10px] flex-shrink-0">giây</span>
+                </div>
+              )}
+              <p className="text-[10px] text-gray-550 mt-1">
+                ⏱ Ngẫu nhiên <span className="text-gray-750 dark:text-gray-400 font-semibold">{fmtDelayRange(delayMin, delayMax)}</span> giữa các liên hệ
+              </p>
+              {isStrangerTarget && delayMin < 180 && (
                 <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-1.5 leading-relaxed">
                   ⚠️ Khuyến nghị: Nên giãn cách 3 - 5 phút (180s - 300s) khi gửi tin cho người lạ/kết bạn để tránh bị Zalo quét.
                 </p>
               )}
             </div>
+
+            {/* ⏱ Delay giữa các tin nhắn (chỉ khi gửi nhiều tin/liên hệ) */}
+            {hasMultiSend && (
+              <div>
+                <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                  <AppIcon name="clock" className="text-gray-500" size={10} />
+                  Delay giữa các tin nhắn
+                </label>
+                <div className="grid grid-cols-2 gap-1">
+                  {PC_DELAY_PRESETS.map(p => {
+                    const active = !customPcDelayMode && pcDelayMin === p.min && pcDelayMax === p.max;
+                    return (
+                      <button key={p.label} type="button" onClick={() => { setPcDelayMin(p.min); setPcDelayMax(p.max); setCustomPcDelayMode(false); }}
+                        className={`py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
+                          active ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold'
+                            : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-gray-300'
+                        }`}>
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button type="button" onClick={() => setCustomPcDelayMode(!customPcDelayMode)}
+                  className={`flex items-center gap-1 mt-1.5 text-[11px] px-2 py-1 rounded-lg border transition-colors w-full ${
+                    customPcDelayMode ? 'border-blue-500 bg-blue-500/10 text-blue-300'
+                      : 'border-gray-350 dark:border-gray-600 text-gray-500 hover:text-gray-300 hover:border-gray-500'
+                  }`}>
+                  <span>{customPcDelayMode ? '▾' : '▸'}</span> Tùy chỉnh
+                </button>
+                {customPcDelayMode && (
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <input type="number" min={0} value={pcDelayMin ?? ''}
+                      onChange={e => setPcDelayMin(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder="Min (s)" />
+                    <span className="text-gray-500 text-xs">→</span>
+                    <input type="number" min={pcDelayMin} value={pcDelayMax ?? ''}
+                      onChange={e => setPcDelayMax(Math.max(pcDelayMin || 0, parseInt(e.target.value) || 0))}
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder="Max (s)" />
+                    <span className="text-gray-500 text-[10px] flex-shrink-0">giây</span>
+                  </div>
+                )}
+                <p className="text-[10px] text-gray-550 mt-1">
+                  {pcDelayMin > 0 || pcDelayMax > 0
+                    ? `⏱ Ngẫu nhiên ${fmtDelayRange(pcDelayMin, pcDelayMax)} giữa các tin nhắn`
+                    : '⏱ Gửi liên tiếp (mặc định ~1s)'}
+                </p>
+              </div>
+            )}
 
             {/* Daily Send Limit */}
             <div>
@@ -862,11 +1002,15 @@ export default function CampaignCreateModal({
               {isStrangerTarget && (
                 dailyLimit === 0 ? (
                   <p className="text-[10px] text-red-500 dark:text-red-400 font-semibold mt-1.5 leading-relaxed">
-                    ⚠️ Cảnh báo: Không nên để không giới hạn khi gửi kết bạn/người lạ. Hạn mức an toàn khuyên dùng: 10 - 20 người/ngày.
+                    ⚠️ Cảnh báo: Không nên để không giới hạn khi gửi người lạ/kết bạn. Zalo giới hạn tối đa 50 người/ngày cho tài khoản cá nhân.
+                  </p>
+                ) : dailyLimit > 50 ? (
+                  <p className="text-[10px] text-red-600 dark:text-red-500 font-semibold mt-1.5 leading-relaxed">
+                    ⚠️ Cảnh báo nguy hiểm: Hạn mức ngày vượt quá giới hạn 50 người/ngày của Zalo cá nhân. Tài khoản có nguy cơ bị khóa cao!
                   </p>
                 ) : dailyLimit > 20 ? (
                   <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-1.5 leading-relaxed">
-                    ⚠️ Khuyến nghị: Chỉ nên gửi kết bạn tối đa 10 - 20 người/ngày để tránh bị Zalo khóa tài khoản.
+                    ⚠️ Khuyến nghị: Nên đặt hạn mức từ 10 - 20 người/ngày để đảm bảo tài khoản hoạt động an toàn tối đa.
                   </p>
                 ) : null
               )}

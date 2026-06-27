@@ -25,6 +25,10 @@ export interface CRMCampaign {
   mixed_config: string;
   status: 'draft' | 'active' | 'paused' | 'done';
   delay_seconds: number;
+  delay_min_seconds: number;
+  delay_max_seconds: number;
+  per_contact_delay_min_seconds: number;
+  per_contact_delay_max_seconds: number;
   daily_send_limit: number;    // 0 = không giới hạn
   daily_start_time: string;    // "HH:MM" format
   scheduled_start_at: number;
@@ -57,6 +61,8 @@ export interface CRMContact {
   ai_profile?: string | null;
   extra_data?: string | null;
   fb_linked_id?: string | null;
+  /** Xưng hô tùy chỉnh (VD: Anh, Chị, Cô, Chú, Em...). NULL = tự động từ gender */
+  salutation?: string | null;
 }
 
 export interface PipelineStage {

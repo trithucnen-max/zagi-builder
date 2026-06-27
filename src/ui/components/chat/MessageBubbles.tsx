@@ -143,6 +143,59 @@ function isVoiceType(msgType: string): boolean {
   return msgType === 'chat.voice' || msgType === 'audio';
 }
 
+function isLocationType(msgType: string): boolean {
+  return msgType === 'chat.location.new';
+}
+
+// ── LocationBubble ──────────────────────────────────────────────────────────────
+function LocationBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
+  const { lat, lng, description } = React.useMemo(() => {
+    try {
+      const parsed = JSON.parse(msg.content || '{}');
+      const params = typeof parsed.params === 'string'
+        ? JSON.parse(parsed.params || '{}')
+        : (parsed.params || {});
+      return {
+        lat: params.latitude || '',
+        lng: params.longitude || '',
+        description: parsed.description || '',
+      };
+    } catch { return { lat: '', lng: '', description: '' }; }
+  }, [msg.content]);
+
+  const mapsUrl = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : '';
+
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (mapsUrl) ipc.shell?.openExternal(mapsUrl);
+  };
+
+  return (
+    <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'} mb-0.5`}>
+      <button
+        onClick={handleOpen}
+        className={`rounded-2xl max-w-[260px] text-left ${isSelf ? 'bg-blue-600 text-white' : 'bg-gray-750 text-gray-200'} hover:opacity-85 transition-opacity cursor-pointer border-0`}
+      >
+        <div className="px-3 py-2.5 flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-400 flex-shrink-0">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+          <div className="min-w-0 flex-1">
+            <span className="text-sm font-medium">📍 Vị trí</span>
+            {description && <span className="text-xs opacity-80 ml-1">· {description}</span>}
+          </div>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-50 flex-shrink-0">
+            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </div>
+      </button>
+    </div>
+  );
+}
+
 // ── RTF style constants ───────────────────────────────────────────────────────
 const RTF_COLOR_MAP: Record<string, string> = {
   'c_db342e': '#db342e', 'c_f27806': '#f27806',
@@ -1636,6 +1689,10 @@ export function MessageBubble({ msg, isSelf, senderName, onManage, onView, onOpe
       </div>
     );
   }
+
+  // ── Location ──
+  if (isLocationType(mt)) {
+    return <LocationBubble msg={msg} isSelf={isSelf} />;}
 
   // ── Bank Card (webcontent + zinstant.bankcard) — must be before media/file/card checks ──
   if (isBankCardType(mt, mc)) {

@@ -324,6 +324,9 @@ export default function GroupMembersTab() {
         },
         stopRef: manualLoadStopRef,
       });
+    } catch (e: any) {
+      console.error('[GroupMembersTab] fetchMembersFromAPI error:', e);
+      useAppStore.getState().showNotification('Không thể tải thành viên: ' + (e?.message || 'Lỗi không xác định'), 'error');
     } finally {
       setMembersLoading(false);
       setManualLoadProgress(null);
@@ -407,7 +410,7 @@ export default function GroupMembersTab() {
           const gRes = await ipc.zalo?.getGroupInfo({ auth, groupId });
           if (gRes?.success) {
             const gridMap: Record<string, any> =
-              gRes.response?.gridInfoMap ?? gRes.response?.data?.gridInfoMap ?? {};
+              gRes.response?.gridInfoMap ?? gRes.response?.changed_groups ?? gRes.response?.data?.gridInfoMap ?? {};
             const gData: any = gridMap[groupId] ?? Object.values(gridMap)[0];
             if (gData) {
               // Cập nhật lại adminIds/creatorId nếu getGroupInfo trả về đầy đủ hơn

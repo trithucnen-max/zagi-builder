@@ -1898,6 +1898,11 @@ class DatabaseService {
                 Logger.log('[DatabaseService] Migration: added fb_linked_id to contacts');
                 needSave = true;
             }
+            if (!names.includes('salutation')) {
+                db!.exec(`ALTER TABLE contacts ADD COLUMN salutation TEXT DEFAULT NULL`);
+                Logger.log('[DatabaseService] Migration: added salutation to contacts');
+                needSave = true;
+            }
             if (needSave) this.save();
         } catch (err: any) {
             Logger.warn(`[DatabaseService] contacts flags migration warning: ${err.message}`);
@@ -2293,6 +2298,23 @@ class DatabaseService {
             }
         } catch (err: any) {
             Logger.warn(`[DatabaseService] crm_campaigns columns migration: ${err.message}`);
+        }
+
+        // Migration: add delay_min_seconds + delay_max_seconds + per_contact_delay to crm_campaigns
+        try {
+            const campCols2 = this.query<any>(`PRAGMA table_info(crm_campaigns)`);
+            if (campCols2.length > 0 && !campCols2.some((c: any) => c.name === 'delay_min_seconds')) {
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN delay_min_seconds INTEGER NOT NULL DEFAULT 60`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN delay_max_seconds INTEGER NOT NULL DEFAULT 60`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN per_contact_delay_min_seconds INTEGER NOT NULL DEFAULT 0`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN per_contact_delay_max_seconds INTEGER NOT NULL DEFAULT 0`);
+                // Backfill existing campaigns: derive range from delay_seconds (±10s, min 30s)
+                db!.exec(`UPDATE crm_campaigns SET delay_min_seconds = MAX(30, delay_seconds - 10), delay_max_seconds = delay_seconds + 10 WHERE delay_min_seconds = 60 AND delay_max_seconds = 60`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added delay_min/max + per_contact_delay to crm_campaigns');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] delay_min/max migration: ${err.message}`);
         }
 
         // ── fb_threads.is_e2ee ──────────────────────────────────────────────
@@ -3047,6 +3069,38 @@ class DatabaseService {
             );
         } catch (err: any) {
             Logger.error(`[DatabaseService] updateContactExtraData error: ${err.message}`);
+        }
+    }
+
+    /**
+     * Patch nhiều trường text của contact cùng lúc (dùng cho inline edit batch save).
+     * Các trường hợp lệ: alias, salutation, phone, gender, birthday
+     */
+    public patchContactFields(
+        ownerZaloId: string,
+        contactId: string,
+        fields: {
+            alias?: string;
+            salutation?: string | null;
+            phone?: string;
+            gender?: number | null;
+            birthday?: string | null;
+        }
+    ): void {
+        if (!this.initialized || !contactId) return;
+        const sets: string[] = [];
+        const vals: any[] = [];
+        if (fields.alias !== undefined)      { sets.push('alias=?');      vals.push(fields.alias ?? ''); }
+        if (fields.salutation !== undefined) { sets.push('salutation=?'); vals.push(fields.salutation || null); }
+        if (fields.phone !== undefined)      { sets.push('phone=?');      vals.push(this.normalizeVietnamPhone(fields.phone ?? '')); }
+        if (fields.gender !== undefined)     { sets.push('gender=?');     vals.push(fields.gender); }
+        if (fields.birthday !== undefined)   { sets.push('birthday=?');   vals.push(fields.birthday || null); }
+        if (sets.length === 0) return;
+        vals.push(ownerZaloId, contactId);
+        try {
+            this.run(`UPDATE contacts SET ${sets.join(', ')} WHERE owner_zalo_id=? AND contact_id=?`, vals);
+        } catch (err: any) {
+            Logger.error(`[DatabaseService] patchContactFields error: ${err.message}`);
         }
     }
 
@@ -4966,16 +5020,23 @@ class DatabaseService {
             const dailyLimit = campaign.daily_send_limit ?? 0;
             const dailyStartTime = campaign.daily_start_time || '08:00';
             const scheduledStartAt = campaign.scheduled_start_at ?? 0;
+            // Delay range fields (with backward compat)
+            const delayMin = (campaign as any).delay_min_seconds ?? Math.max(5, (campaign.delay_seconds || 60) - 10);
+            const delayMax = (campaign as any).delay_max_seconds ?? Math.max(delayMin, (campaign.delay_seconds || 60) + 10);
+            const perContactMin = (campaign as any).per_contact_delay_min_seconds ?? 0;
+            const perContactMax = (campaign as any).per_contact_delay_max_seconds ?? perContactMin;
+            // Still write delay_seconds as the midpoint for backward compat
+            const compatDelaySeconds = campaign.delay_seconds || Math.round((delayMin + delayMax) / 2);
             if (campaign.id) {
                 this.run(
-                    `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                    [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, campaign.delay_seconds || 60, dailyLimit, dailyStartTime, scheduledStartAt, now, campaign.id, campaign.owner_zalo_id]
+                    `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                    [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, campaign.id, campaign.owner_zalo_id]
                 );
                 return campaign.id;
             } else {
                 return this.runInsert(
-                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, daily_send_limit, daily_start_time, scheduled_start_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', campaign.delay_seconds || 60, dailyLimit, dailyStartTime, scheduledStartAt, now, now]
+                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, now]
                 );
             }
         } catch (err: any) { Logger.error(`[DB] saveCRMCampaign: ${err.message}`); return 0; }
@@ -5018,8 +5079,8 @@ class DatabaseService {
                     // Batch insert via a prepared statement to avoid per-row save() calls
                     const stmt = db!.prepare(
                         `INSERT OR IGNORE INTO crm_campaign_contacts
-                         (campaign_id, owner_zalo_id, contact_id, display_name, avatar, status, sent_at, retry_count, error)
-                         VALUES (?,?,?,?,?,?,?,?,?)`
+                         (campaign_id, owner_zalo_id, contact_id, display_name, avatar, phone, status, sent_at, retry_count, error)
+                         VALUES (?,?,?,?,?,?,?,0,0,'')`
                     );
                     for (const c of contacts) {
                         stmt.run(
@@ -5028,10 +5089,8 @@ class DatabaseService {
                             c.contact_id ?? '',
                             c.display_name ?? '',
                             c.avatar ?? '',
-                            'pending',  // luôn reset về pending khi clone
-                            0,          // sent_at
-                            0,          // retry_count
-                            '',         // error
+                            c.phone ?? '',
+                            'pending'  // luôn reset về pending khi clone
                         );
                     }
                     Logger.log(`[DB] cloneCRMCampaign: copied ${contacts.length} contacts to campaign ${newId}`);
@@ -5179,7 +5238,8 @@ class DatabaseService {
                     COALESCE(cont.contact_type, 'user') as contact_type,
                     COALESCE(cont.alias, '') as alias,
                     cont.gender,
-                    cont.birthday
+                    cont.birthday,
+                    cont.salutation
                  FROM crm_campaign_contacts cc
                  JOIN crm_campaigns c ON c.id=cc.campaign_id
                  LEFT JOIN contacts cont ON cont.owner_zalo_id=cc.owner_zalo_id AND cont.contact_id=cc.contact_id
@@ -5223,7 +5283,8 @@ class DatabaseService {
                     COALESCE(cont.contact_type, 'user') as contact_type,
                     COALESCE(cont.alias, '') as alias,
                     cont.gender,
-                    cont.birthday
+                    cont.birthday,
+                    cont.salutation
                  FROM crm_campaign_contacts cc
                  JOIN crm_campaigns c ON c.id=cc.campaign_id
                  LEFT JOIN contacts cont ON cont.owner_zalo_id=cc.owner_zalo_id AND cont.contact_id=cc.contact_id
@@ -5354,14 +5415,18 @@ class DatabaseService {
         if (!this.initialized) return { sentStrangerMessages: 0, sentStrangerInvites: 0, campaignsOverTime: [] };
         try {
             const hasOwner = !!ownerZaloId;
-            const params: any[] = [];
-            if (hasOwner) params.push(ownerZaloId);
+            const startOfTodayMs = new Date();
+            startOfTodayMs.setHours(0, 0, 0, 0);
+            const startOfToday = startOfTodayMs.getTime();
+
+            const params: any[] = hasOwner ? [startOfToday, ownerZaloId] : [startOfToday];
 
             const msgSql = `
                 SELECT COUNT(DISTINCT cc.id) as cnt
                 FROM crm_campaign_contacts cc
                 JOIN crm_campaigns c ON cc.campaign_id = c.id
                 WHERE cc.status = 'sent'
+                  AND cc.sent_at >= ?
                   AND c.campaign_type = 'message'
                   ${hasOwner ? 'AND cc.owner_zalo_id = ?' : ''}
                   AND NOT EXISTS (
@@ -5377,6 +5442,7 @@ class DatabaseService {
                 FROM crm_campaign_contacts cc
                 JOIN crm_campaigns c ON cc.campaign_id = c.id
                 WHERE cc.status = 'sent'
+                  AND cc.sent_at >= ?
                   AND c.campaign_type = 'friend_request'
                   ${hasOwner ? 'AND cc.owner_zalo_id = ?' : ''}
                   AND NOT EXISTS (
@@ -5440,7 +5506,7 @@ class DatabaseService {
                     `SELECT contact_id, COALESCE(alias,'') as alias, COALESCE(display_name,'') as display_name,
                         COALESCE(avatar_url,'') as avatar, '' as phone,
                         0 as is_friend, COALESCE(last_message_time,0) as last_message_time, 'group' as contact_type,
-                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id
+                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation
                      FROM contacts WHERE owner_zalo_id=? AND contact_type='group'
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -5454,7 +5520,7 @@ class DatabaseService {
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -5469,7 +5535,7 @@ class DatabaseService {
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -5481,7 +5547,7 @@ class DatabaseService {
                         COALESCE(avatar_url,'') as avatar, COALESCE(phone,'') as phone,
                         is_friend, COALESCE(last_message_time,0) as last_message_time,
                         COALESCE(contact_type,'user') as contact_type,
-                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id
+                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation
                      FROM contacts WHERE owner_zalo_id=?
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]

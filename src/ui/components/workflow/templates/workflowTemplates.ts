@@ -39,7 +39,8 @@ export type TemplateCategory =
   | 'ai'             // AI & Thông minh
   | 'nang-cao'       // Nâng cao
   | 'tich-hop'       // Tích hợp POS & Thanh toán
-  | 'bat-dong-san';  // Bất động sản
+  | 'bat-dong-san'   // Bất động sản
+  | 'webhook';       // Webhooks
 
 export const TEMPLATE_CATEGORIES: { key: TemplateCategory; label: string; icon: string; color: string }[] = [
   { key: 'ban-hang',   label: 'Bán hàng & CSKH',           icon: '🛒', color: 'bg-blue-500' },
@@ -50,6 +51,7 @@ export const TEMPLATE_CATEGORIES: { key: TemplateCategory; label: string; icon: 
   { key: 'nang-cao',   label: 'Nâng cao',                    icon: '⚙️', color: 'bg-rose-500' },
   { key: 'tich-hop',   label: 'Tích hợp POS & Thanh toán',  icon: '🔌', color: 'bg-teal-600' },
   { key: 'bat-dong-san', label: 'Bất động sản',             icon: '🏠', color: 'bg-emerald-600' },
+  { key: 'webhook',    label: 'Webhooks',                    icon: '🔗', color: 'bg-cyan-600' },
 ];
 
 // ── Helper: generate fresh IDs when installing ─────────────────────────────────
@@ -2075,6 +2077,35 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: 'e4', source: 'n4', target: 'n5' },
       { id: 'e5', source: 'n5', target: 'n6' },
       { id: 'e6', source: 'n6', target: 'n7' },
+    ],
+  },
+
+  // 14. Webhook có tài khoản → Gửi tin nhắn Zalo
+  {
+    id: 'tpl-webhook-account-send',
+    name: 'Webhook có tài khoản → Gửi tin nhắn Zalo',
+    description: 'Nhận webhook với threadId (người nhận), message (nội dung) và accountId (tài khoản Zalo gửi). Validate params trước khi gửi, nếu thiếu sẽ báo lỗi.',
+    category: 'webhook',
+    tags: ['webhook', 'API', 'tích hợp', 'gửi tin', 'tài khoản'],
+    icon: '📨',
+    difficulty: 'advanced',
+    nodes: [
+      { id: 'n1', type: 'trigger.webhook', label: 'Webhook bên ngoài', position: { x: 300, y: 50 },
+        config: { ...DEFAULT_CONFIGS['trigger.webhook'] } },
+      { id: 'n2', type: 'logic.if', label: 'Có đủ params không?', position: { x: 300, y: 220 },
+        config: { left: '{{ $trigger.body.threadId }}', operator: 'equals', right: '' } },
+      { id: 'n3', type: 'zalo.sendMessage', label: 'Gửi tin nhắn', position: { x: 150, y: 400 },
+        config: { threadId: '{{ $trigger.body.threadId }}', threadType: '0', message: '{{ $trigger.body.message }}' } },
+      { id: 'n4', type: 'output.log', label: 'Ghi log thành công', position: { x: 150, y: 570 },
+        config: { message: 'Đã gửi tin qua acc đến threadId: {{ $trigger.body.threadId }}, nội dung: {{ $trigger.body.message }}', level: 'info' } },
+      { id: 'n5', type: 'output.log', label: 'Ghi log lỗi', position: { x: 500, y: 400 },
+        config: { message: 'Webhook thiếu params: threadId={{ $trigger.body.threadId }}', level: 'error' } },
+    ],
+    edges: [
+      { id: 'e1', source: 'n1', target: 'n2' },
+      { id: 'e2', source: 'n2', sourceHandle: 'false', target: 'n3' },
+      { id: 'e3', source: 'n3', target: 'n4' },
+      { id: 'e4', source: 'n2', sourceHandle: 'true', target: 'n5' },
     ],
   },
 ];

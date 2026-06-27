@@ -14,7 +14,7 @@ const BUG_REPORT_URL = 'https://tlavietnam.sg.larksuite.com/share/base/form/shrl
 
 export default function Dashboard() {
   const { updateAccountStatus, reorderAccounts } = useAccountStore();
-  const { showNotification, mergedInboxMode, exitMergedInbox } = useAppStore();
+  const { showNotification, mergedInboxMode, exitMergedInbox, setBugReportOpen } = useAppStore();
   const previewEmployeeId = useEmployeeStore(s => s.previewEmployeeId);
   const empMode = useEmployeeStore(s => s.mode);
   const isSimulating = empMode !== 'employee' && !!previewEmployeeId;
@@ -174,10 +174,10 @@ export default function Dashboard() {
           👤 Đăng nhập dành cho nhân viên
         </button>
         <button
-          onClick={() => ipc.shell?.openExternal(BUG_REPORT_URL)}
+          onClick={() => setBugReportOpen(true)}
           className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors mt-2"
         >
-          🐛 Báo lỗi? Gửi qua Lark
+          🐛 Báo lỗi & góp ý nhanh
         </button>
         {employeeLoginOpen && <EmployeeLoginModal onClose={() => setEmployeeLoginOpen(false)} />}
       </div>
@@ -332,7 +332,7 @@ export default function Dashboard() {
           {/* Nút hỗ trợ — always visible */}
           <div className="relative group">
             <button
-                onClick={() => ipc.shell?.openExternal(BUG_REPORT_URL)}
+                onClick={() => setBugReportOpen(true)}
                 className="flex text-white items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 transition-colors"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -345,7 +345,7 @@ export default function Dashboard() {
             <div className="absolute top-full right-0 mt-2 w-[300px] bg-gray-800 border border-gray-600/60 rounded-xl shadow-2xl p-3.5 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
               <p className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">🐛 Báo lỗi & Góp ý</p>
               <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
-                Gặp lỗi hoặc có góp ý? Hãy gửi qua form Lark — chúng tôi sẽ xử lý nhanh nhất có thể.
+                Gặp lỗi hoặc có góp ý? Hãy gửi trực tiếp qua biểu mẫu trong ứng dụng để chúng tôi xử lý nhanh nhất.
               </p>
               <div className="border-t border-gray-700 pt-2 mt-2.5 space-y-1.5">
                 <p className="text-[10px] text-amber-400 font-medium mb-1">💡 Mẹo để được hỗ trợ nhanh:</p>

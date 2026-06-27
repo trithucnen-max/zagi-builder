@@ -1302,34 +1302,50 @@ function CampaignsTab({ loading, campaigns, overview }: {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Section title="🛡️ Báo cáo an toàn gửi tin (Người lạ)">
             <div className="space-y-4">
+              {/* Stranger Messages */}
               <div>
                 <div className="flex justify-between text-xs text-gray-400 mb-1">
-                  <span>Tin nhắn đã gửi (Tháng này)</span>
-                  <span className="font-bold text-white">{safetyStats.sentStrangerMessages} / 40</span>
+                  <span>Tin nhắn gửi người lạ (Hôm nay)</span>
+                  <span className="font-bold text-white">{safetyStats.sentStrangerMessages} / 50</span>
                 </div>
                 <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      safetyStats.sentStrangerMessages >= 40 ? 'bg-red-500' : safetyStats.sentStrangerMessages >= 30 ? 'bg-amber-500' : 'bg-green-500'
+                      safetyStats.sentStrangerMessages >= 50 ? 'bg-red-500' : safetyStats.sentStrangerMessages >= 40 ? 'bg-amber-500' : 'bg-green-500'
                     }`}
-                    style={{ width: `${Math.min((safetyStats.sentStrangerMessages / 40) * 100, 100)}%` }}
+                    style={{ width: `${Math.min((safetyStats.sentStrangerMessages / 50) * 100, 100)}%` }}
                   />
                 </div>
                 <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
-                  {safetyStats.sentStrangerMessages >= 40 
-                    ? '⚠️ Đã vượt hạn mức Zalo cá nhân miễn phí. Hãy dùng Zalo Business để tránh bị khóa!' 
-                    : safetyStats.sentStrangerMessages >= 30 
+                  {safetyStats.sentStrangerMessages >= 50 
+                    ? '⚠️ Đã đạt hạn mức an toàn của Zalo ngày hôm nay. Hãy đổi tài khoản khác!' 
+                    : safetyStats.sentStrangerMessages >= 40 
                       ? '⚡ Sắp đạt hạn mức Zalo cá nhân. Hãy giãn cách thời gian gửi hoặc dùng Zalo Business.' 
-                      : '✓ Hạn mức trong tầm kiểm soát an toàn.'}
+                      : '✓ Hạn mức tin nhắn người lạ trong tầm kiểm soát.'}
                 </p>
               </div>
 
-              <div className="border-t border-gray-750/60 pt-3 flex justify-between items-center text-xs">
-                <span className="text-gray-400 flex items-center gap-1">
-                  <AppIcon name="shield_check" size={12} className="text-sky-400" />
-                  Lời mời kết bạn đã gửi:
-                </span>
-                <span className="font-bold text-sky-400">{safetyStats.sentStrangerInvites} lời mời</span>
+              {/* Stranger Invites */}
+              <div className="border-t border-gray-750/60 pt-3">
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>Lời mời kết bạn đã gửi (Hôm nay)</span>
+                  <span className="font-bold text-white">{safetyStats.sentStrangerInvites} / 50</span>
+                </div>
+                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      safetyStats.sentStrangerInvites >= 50 ? 'bg-red-500' : safetyStats.sentStrangerInvites >= 40 ? 'bg-amber-500' : 'bg-green-500'
+                    }`}
+                    style={{ width: `${Math.min((safetyStats.sentStrangerInvites / 50) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
+                  {safetyStats.sentStrangerInvites >= 50 
+                    ? '⚠️ Đã gửi tối đa 50 kết bạn hôm nay. Hãy chuyển tài khoản khác để tránh khóa Zalo!' 
+                    : safetyStats.sentStrangerInvites >= 40 
+                      ? '⚡ Sắp đạt giới hạn kết bạn tối đa của Zalo cá nhân hôm nay.' 
+                      : '✓ Hạn mức kết bạn trong tầm kiểm soát an toàn.'}
+                </p>
               </div>
             </div>
           </Section>

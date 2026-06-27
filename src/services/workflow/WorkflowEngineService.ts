@@ -20,7 +20,7 @@ import { getLunarDate } from '../../utils/lunarCalendar';
 export type NodeType =
   | 'trigger.message' | 'trigger.friendRequest' | 'trigger.groupEvent'
   | 'trigger.reaction' | 'trigger.undo' | 'trigger.schedule' | 'trigger.manual'
-  | 'trigger.labelAssigned'
+  | 'trigger.labelAssigned' | 'trigger.webhook'
   | 'crm.getContacts'
   | 'zalo.sendMessage' | 'zalo.sendImage' | 'zalo.sendFile' | 'zalo.sendVoice'
   | 'zalo.forwardMessage' | 'zalo.addReaction' | 'zalo.undoMessage'
@@ -153,6 +153,73 @@ class WorkflowEngineService {
 
   private normalizeWorkflowChannel(channel?: string): WorkflowChannel {
     return channel === 'facebook' ? 'facebook' : 'zalo';
+  }
+
+  private resolveThreadType(ownerZaloId: string | undefined, tid: string, defaultType: number): number {
+    try {
+      const db = DatabaseService.getInstance();
+      if (!db || !(db as any).initialized) return defaultType;
+
+      // 1. Check in friends table
+      if (ownerZaloId) {
+        const friendExists = (db as any).query(
+          `SELECT 1 FROM friends WHERE owner_zalo_id = ? AND user_id = ? LIMIT 1`,
+          [ownerZaloId, tid]
+        );
+        if (friendExists && friendExists.length > 0) return 0; // User/Friend
+      }
+
+      // 2. Check in contacts table (with owner filter when available)
+      const contactRow = ownerZaloId
+        ? (db as any).query(
+            `SELECT contact_type FROM contacts WHERE owner_zalo_id = ? AND contact_id = ? LIMIT 1`,
+            [ownerZaloId, tid]
+          )?.[0]
+          ?? (db as any).query(
+            `SELECT contact_type FROM contacts WHERE contact_id = ? LIMIT 1`,
+            [tid]
+          )?.[0]
+        : (db as any).query(
+            `SELECT contact_type FROM contacts WHERE contact_id = ? LIMIT 1`,
+            [tid]
+          )?.[0];
+      if (contactRow) {
+        return contactRow.contact_type === 'group' ? 1 : 0;
+      }
+    } catch (err) {
+      Logger.error(`[WorkflowEngine] resolveThreadType error:`, err);
+    }
+    // 3. Fallback to defaultType
+    return defaultType;
+  }
+
+  /**
+   * Tìm đúng API cho một threadId cụ thể.
+   * Khi pageId của workflow rỗng hoặc account không sở hữu nhóm đó,
+   * hệ thống tìm trong bảng contacts xem account nào có group này và đang connected.
+   */
+  private resolveApiForThread(tid: string, fallbackApi: any): any {
+    try {
+      const db = DatabaseService.getInstance();
+      if (!db || !(db as any).initialized) return fallbackApi;
+
+      // Tìm tất cả owner_zalo_id có hội thoại này
+      const rows = (db as any).query(
+        `SELECT DISTINCT owner_zalo_id FROM contacts WHERE contact_id = ? LIMIT 10`,
+        [tid]
+      ) as Array<{ owner_zalo_id: string }>;
+
+      for (const row of (rows || [])) {
+        const conn = ConnectionManager.getConnection(row.owner_zalo_id);
+        if (conn?.connected && conn?.api) {
+          Logger.info(`[WorkflowEngine] resolveApiForThread: using account ${row.owner_zalo_id} for thread ${tid}`);
+          return conn.api;
+        }
+      }
+    } catch (err) {
+      Logger.error(`[WorkflowEngine] resolveApiForThread error:`, err);
+    }
+    return fallbackApi;
   }
 
   private isRunnableWorkflow(wf: Workflow): boolean {
@@ -440,6 +507,77 @@ class WorkflowEngineService {
     }
   }
 
+  /**
+   * Find an enabled workflow with a trigger.webhook node matching the given token.
+   */
+  private findWorkflowByWebhookToken(token: string): Workflow | null {
+    for (const wf of this.workflows.values()) {
+      if (!wf.enabled) continue;
+      const triggerNode = wf.nodes.find(n => n.type === 'trigger.webhook');
+      if (!triggerNode) continue;
+      if (triggerNode.config?.webhookToken === token) return wf;
+    }
+    return null;
+  }
+
+  /**
+   * Handle an incoming webhook request from WebhookGatewayService.
+   * Looks up the workflow by webhook token, verifies method, then triggers execution.
+   */
+  public async handleWebhook(token: string, req: {
+    method: string;
+    body: any;
+    headers: Record<string, string>;
+    query: Record<string, string>;
+    rawBody: string;
+    remoteIp?: string;
+  }): Promise<{ status: number; body: any }> {
+    const wf = this.findWorkflowByWebhookToken(token);
+    if (!wf) {
+      Logger.warn('[WorkflowEngine] Webhook token not found: ' + token);
+      return { status: 404, body: { success: false, error: 'Webhook not found' } };
+    }
+
+    const triggerNode = wf.nodes.find(n => n.type === 'trigger.webhook')!;
+    const cfg = triggerNode.config || {};
+
+    // Method check
+    const allowedMethod = (cfg.method || 'POST').toUpperCase();
+    if (allowedMethod !== 'ANY' && req.method.toUpperCase() !== allowedMethod) {
+      Logger.warn('[WorkflowEngine] Webhook ' + token + ': method ' + req.method + ' not allowed (expected ' + allowedMethod + ')');
+      return { status: 405, body: { success: false, error: 'Method not allowed' } };
+    }
+
+    // IP whitelist check
+    if (cfg.allowedIps) {
+      const allowedIps = String(cfg.allowedIps).split(',').map(s => s.trim()).filter(Boolean);
+      if (allowedIps.length > 0 && req.remoteIp) {
+        if (!allowedIps.includes(req.remoteIp)) {
+          Logger.warn('[WorkflowEngine] Webhook ' + token + ': IP ' + req.remoteIp + ' not allowed');
+          return { status: 403, body: { success: false, error: 'IP not allowed' } };
+        }
+      }
+    }
+
+    // Build event data for triggerWorkflows
+    const eventData = {
+      webhookToken: token,
+      body: req.body || {},
+      headers: req.headers || {},
+      method: req.method,
+      query: req.query || {},
+      rawBody: req.rawBody || '',
+    };
+
+    // Fire and forget - run workflow async
+    this.triggerWorkflows('trigger.webhook', eventData);
+
+    return {
+      status: 200,
+      body: { success: true, workflowId: wf.id, workflowName: wf.name },
+    };
+  }
+
   private matchesTriggerFilter(triggerNode: WorkflowNode, data: any): boolean {
     const cfg = triggerNode.config;
 
@@ -537,6 +675,11 @@ class WorkflowEngineService {
         const desc = String(tx.description || tx.memo || tx.content || '').toLowerCase();
         if (!desc.includes(String(cfg.descContains).toLowerCase())) return false;
       }
+    }
+
+    if (triggerNode.type === 'trigger.webhook') {
+      // Method filter - already checked in handleWebhook, but double-check
+      if (cfg.method && cfg.method !== 'ANY' && data.method !== cfg.method) return false;
     }
 
     // ── Facebook trigger matching ───────────────────────────────────────────
@@ -999,6 +1142,16 @@ class WorkflowEngineService {
         action:      data.action || 'assigned',   // 'assigned' | 'removed'
       };
     }
+    if (triggerType === 'trigger.webhook') {
+      return {
+        webhookToken: data.webhookToken || '',
+        body:         data.body || {},
+        headers:      data.headers || {},
+        method:       data.method || 'POST',
+        query:        data.query || {},
+        rawBody:      data.rawBody || '',
+      };
+    }
     if (triggerType === 'trigger.payment' || triggerType === 'integration:payment') {
       const tx = data.transaction || data;
       return {
@@ -1169,7 +1322,7 @@ class WorkflowEngineService {
       case 'trigger.undo':
       case 'trigger.schedule':
       case 'trigger.manual':
-      case 'trigger.labelAssigned':
+      case 'trigger.webhook':
         return { ...ctx.trigger };
 
       // ── CRM Actions ─────────────────────────────────────────────────────
@@ -1253,9 +1406,9 @@ class WorkflowEngineService {
 
       // ── Zalo Actions ─────────────────────────────────────────────────────
       case 'zalo.sendMessage': {
-        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
+        const defaultApi = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;   // guard NaN → 0
-        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
+        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
         const continueOnError = cfg.continueOnError === true;
         Logger.info(`[WorkflowEngine] sendMessage: message="${(cfg.message || '').substring(0, 300)}", threadIds=${JSON.stringify(targetThreadIds)}, threadType=${threadType}, isEmpty=${!cfg.message?.trim()}`);
 
@@ -1267,17 +1420,19 @@ class WorkflowEngineService {
           let lastMsgId = '';
           for (const tid of targetThreadIds) {
             try {
+              const activeApi = this.resolveApiForThread(tid, defaultApi);
+              const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
               for (let i = 0; i < segments.length; i++) {
                 const seg = segments[i];
                 if (seg.type === 'text' && seg.content) {
                   if (i > 0) await new Promise(r => setTimeout(r, 600));
                   try {
-                    const destType = threadType === 0 ? 3 : undefined;
-                    await api.sendTypingEvent(tid, threadType, destType);
+                    const destType = activeThreadType === 0 ? 3 : undefined;
+                    await activeApi.sendTypingEvent(tid, activeThreadType, destType);
                   } catch {}
                   const typingDelay = Math.min(Math.max(String(seg.content).length * 30, 800), 3000);
                   await new Promise(r => setTimeout(r, typingDelay));
-                  const res = await api.sendMessage({ msg: String(seg.content) }, tid, threadType);
+                  const res = await activeApi.sendMessage({ msg: String(seg.content) }, tid, activeThreadType);
                   lastMsgId = (res as any)?.message?.msgId || lastMsgId;
                 } else if (seg.type === 'image') {
                   const urls = Array.isArray(seg.content) ? seg.content : [seg.content];
@@ -1287,14 +1442,14 @@ class WorkflowEngineService {
                     try {
                       const tempPath = await this.downloadUrlToTempFile(String(url));
                       try {
-                        const res = await api.sendMessage({ msg: '', attachments: [tempPath] }, tid, threadType);
+                        const res = await activeApi.sendMessage({ msg: '', attachments: [tempPath] }, tid, activeThreadType);
                         lastMsgId = (res as any)?.attachment?.[0]?.msgId || (res as any)?.message?.msgId || lastMsgId;
                       } finally {
                         try { fs.unlinkSync(tempPath); } catch {}
                       }
                     } catch (e: any) {
                       Logger.warn(`[WorkflowEngine] Failed to send image ${url}: ${e.message}`);
-                      await api.sendMessage({ msg: String(url) }, tid, threadType);
+                      await activeApi.sendMessage({ msg: String(url) }, tid, activeThreadType);
                     }
                   }
                 }
@@ -1311,7 +1466,9 @@ class WorkflowEngineService {
         let lastResult: any = { success: false, error: 'Không gửi được đến hội thoại nào' };
         for (const tid of targetThreadIds) {
           try {
-            const result = await api.sendMessage({ msg: cfg.message }, tid, threadType);
+            const activeApi = this.resolveApiForThread(tid, defaultApi);
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
+            const result = await activeApi.sendMessage({ msg: cfg.message }, tid, activeThreadType);
             lastResult = result;
             Logger.log(`[WorkflowEngine] zalo.sendMessage to ${tid}: success=true, msgId=${(result as any)?.message?.msgId}`);
           } catch (err: any) {
@@ -1337,7 +1494,9 @@ class WorkflowEngineService {
         const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
         for (const threadId of threadIds) {
           try {
-            await api.sendTypingEvent(threadId, threadType, destType);
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, threadId, threadType);
+            const activeDestType = activeThreadType === 0 ? 3 : undefined;
+            await api.sendTypingEvent(threadId, activeThreadType, activeDestType);
           } catch (e: any) {
             Logger.warn(`[WorkflowEngine] sendTypingEvent warning for ${threadId}: ${e.message}`);
           }
@@ -1350,7 +1509,7 @@ class WorkflowEngineService {
       case 'zalo.sendImage': {
         const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
-        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
+        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
         const continueOnError = cfg.continueOnError === true;
 
         const sendMode = cfg.sendMode || 'single';
@@ -1376,7 +1535,8 @@ class WorkflowEngineService {
         let lastResult: any = { success: false, error: 'Không gửi được ảnh đến hội thoại nào' };
         for (const tid of targetThreadIds) {
           try {
-            const result = await api.sendMessage({ msg: cfg.message || '', attachments }, tid, threadType, 'file');
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
+            const result = await api.sendMessage({ msg: cfg.message || '', attachments }, tid, activeThreadType, 'file');
             lastResult = result;
             Logger.log(`[WorkflowEngine] zalo.sendImage to ${tid}: success=true`);
           } catch (err: any) {
@@ -1395,7 +1555,7 @@ class WorkflowEngineService {
       case 'zalo.sendFile': {
         const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
-        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
+        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
         const continueOnError = cfg.continueOnError === true;
 
         const sendMode = cfg.sendMode || 'single';
@@ -1413,7 +1573,8 @@ class WorkflowEngineService {
         let lastResult: any = { success: false, error: 'Không gửi được file đến hội thoại nào' };
         for (const tid of targetThreadIds) {
           try {
-            const result = await api.sendMessage({ msg: '', attachments }, tid, threadType, 'file');
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
+            const result = await api.sendMessage({ msg: '', attachments }, tid, activeThreadType, 'file');
             lastResult = result;
             Logger.log(`[WorkflowEngine] zalo.sendFile to ${tid}: success=true`);
           } catch (err: any) {
@@ -1493,7 +1654,8 @@ class WorkflowEngineService {
         const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
         for (const threadId of threadIds) {
           try {
-            await api.undo({ msgId: cfg.msgId, threadId, threadType } as any);
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, threadId, threadType);
+            await api.undo({ msgId: cfg.msgId, threadId, threadType: activeThreadType } as any);
           } catch (err: any) {
             Logger.warn(`[WorkflowEngine] undoMessage error for ${threadId}: ${err.message}`);
           }
@@ -1507,7 +1669,8 @@ class WorkflowEngineService {
         const threadIds = this.resolveTargetIds(cfg, 'threadId', ctx);
         for (const threadId of threadIds) {
           try {
-            await api.setMute(threadId, threadType, cfg.duration ?? 0, cfg.action === 'mute' ? 1 : 0);
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, threadId, threadType);
+            await api.setMute(threadId, activeThreadType, cfg.duration ?? 0, cfg.action === 'mute' ? 1 : 0);
           } catch (err: any) {
             Logger.warn(`[WorkflowEngine] setMute error for ${threadId}: ${err.message}`);
           }
@@ -1557,12 +1720,13 @@ class WorkflowEngineService {
         const mediaPath = localPaths.file || localPaths.video || localPaths.main || localPaths.hd || '';
         for (const threadId of threadIds) {
           try {
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, threadId, threadType);
             if (mediaPath) {
               // Gửi media + text (caption) trong 1 lần
-              await api.sendMessage({ msg: message, attachments: [mediaPath] }, threadId, threadType);
+              await api.sendMessage({ msg: message, attachments: [mediaPath] }, threadId, activeThreadType);
             } else if (message) {
               // Chỉ có text
-              await api.sendMessage({ msg: message, attachments: [] }, threadId, threadType);
+              await api.sendMessage({ msg: message, attachments: [] }, threadId, activeThreadType);
             } else {
               throw new Error('[zalo.forwardMessage] Missing message content');
             }
@@ -2520,7 +2684,7 @@ class WorkflowEngineService {
         if (!rawAccountId) throw new Error('[fb.action.sendMessage] accountId required');
         const accountId = this.resolveFBAccountId(rawAccountId);
         if (!cfg.message) throw new Error('[fb.action.sendMessage] message required');
-        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
+        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
         if (!targetThreadIds.length) throw new Error('[fb.action.sendMessage] threadId/threadIds required');
 
         const continueOnError = cfg.continueOnError === true;
@@ -2575,7 +2739,7 @@ class WorkflowEngineService {
         if (!rawAccountId) throw new Error('[fb.action.sendImage] accountId required');
         const accountId = this.resolveFBAccountId(rawAccountId);
         const service = await FacebookService.getInstance(accountId);
-        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId);
+        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
         if (!targetThreadIds.length) throw new Error('[fb.action.sendImage] threadId/threadIds required');
         const filePath = String(cfg.filePath);
         const caption = cfg.body || cfg.message || '';
@@ -2882,7 +3046,10 @@ class WorkflowEngineService {
   }
 
   /** Resolve target thread IDs từ cfg, hỗ trợ cả threadIds (mảng JSON) và threadId (string cũ) */
-  private resolveTargetThreadIds(cfg: Record<string, any>, triggerThreadId?: string): string[] {
+  private resolveTargetThreadIds(cfg: Record<string, any>, triggerThreadId?: string, ctx?: ExecutionContext): string[] {
+    if (ctx?.trigger?.isOverrideTarget && triggerThreadId) {
+      return [triggerThreadId];
+    }
     if (cfg.threadIds) {
       try {
         const parsed = JSON.parse(cfg.threadIds);
@@ -2896,6 +3063,9 @@ class WorkflowEngineService {
 
   /** Resolve target IDs từ cfg, hỗ trợ cả dạng mảng JSON đa chọn và dạng đơn lẻ cũ/biến động */
   private resolveTargetIds(cfg: Record<string, any>, key: string, ctx: ExecutionContext): string[] {
+    if (ctx.trigger?.isOverrideTarget && ctx.trigger?.threadId && (key === 'threadId' || key === 'toThreadId' || key === 'targetId')) {
+      return [String(ctx.trigger.threadId)];
+    }
     const pluralKey = key.endsWith('Id') ? key.slice(0, -2) + 'Ids' : key + 's';
     if (cfg[pluralKey]) {
       try {

@@ -22,7 +22,7 @@ const scaleToPx = (s: number) => Math.round(16 * s);
 
 export default function TopBar() {
   const [isMaximized, setIsMaximized] = useState(false);
-  const { theme, setTheme, showNotification, fontSizeScale, setFontSizeScale, setView } = useAppStore();
+  const { theme, setTheme, showNotification, fontSizeScale, setFontSizeScale, setView, setBugReportOpen } = useAppStore();
   const { activeAccountId } = useAccountStore();
   const [loadingOldMsgs, setLoadingOldMsgs] = useState(false);
   const [lockScreenEnabled, setLockScreenEnabled] = useState(false);
@@ -325,7 +325,7 @@ export default function TopBar() {
 
         {/* Báo lỗi button */}
         <button
-          onClick={() => ipc.shell?.openExternal(BUG_REPORT_URL)}
+          onClick={() => setBugReportOpen(true)}
           className="w-9 h-9 flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-red-400 transition-colors"
           title="🐛 Báo lỗi — Gửi phản hồi & báo cáo lỗi"
         >

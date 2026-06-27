@@ -11,6 +11,12 @@ import type { LocalLabelItem } from '@/components/common/LocalLabelSelector';
 import PhoneDisplay from '@/components/common/PhoneDisplay';
 import type { PinnedNote } from '@/components/chat/PinnedMessages';
 
+function defaultSalutation(gender?: number | null): string {
+  if (gender === 0) return 'Anh';
+  if (gender === 1) return 'Chị';
+  return 'Bạn';
+}
+
 function renderMarkdownText(text: string) {
   if (!text) return null;
   const lines = text.split('\n');
@@ -370,6 +376,36 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
 
   const isGroup = contact.contact_type === 'group';
 
+  // Local inline edit state for detail panel
+  const [editingField, setEditingField] = useState<string | null>(null);
+
+  const handleSaveField = async (field: string, value: any) => {
+    if (!activeAccountId) return;
+    try {
+      const res = await ipc.db?.patchContactFields({
+        zaloId: activeAccountId,
+        contactId: contact.contact_id,
+        fields: { [field]: value }
+      });
+      if (res?.success) {
+        // Update Zustand store
+        const crmStore = useCRMStore.getState();
+        crmStore.setContacts(
+          crmStore.contacts.map(c =>
+            c.contact_id === contact.contact_id ? { ...c, [field]: value } : c
+          ),
+          crmStore.totalContacts
+        );
+        showNotification('Đã cập nhật', 'success');
+      } else {
+        showNotification('Lỗi khi lưu: ' + (res?.error || 'Không rõ'), 'error');
+      }
+    } catch (err: any) {
+      showNotification('Lỗi: ' + err.message, 'error');
+    }
+  };
+
+
   // Derive current Zalo labels for this contact
   const getLabelThreadId = (cId: string, isGroup: boolean) => isGroup ? `g${cId}` : cId;
   const getContactLabelIds = () => {
@@ -726,19 +762,138 @@ ${notesText}`;
             : <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white text-2xl font-bold">
                 {(name || 'U').charAt(0).toUpperCase()}
               </div>}
-          <div className="text-center">
-            <p className="text-gray-900 font-semibold text-sm">{name}</p>
+          <div className="text-center w-full px-2">
+            {editingField === 'alias' ? (
+              <input
+                autoFocus
+                defaultValue={contact.alias || contact.display_name}
+                onBlur={e => {
+                  setEditingField(null);
+                  handleSaveField('alias', e.target.value.trim());
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={e => e.stopPropagation()}
+                className="text-center text-sm font-semibold text-gray-900 bg-gray-50 border border-blue-500 rounded px-1.5 py-0.5 outline-none max-w-[200px]"
+              />
+            ) : (
+              <p
+                onClick={e => {
+                  e.stopPropagation();
+                  setEditingField('alias');
+                }}
+                className="text-gray-900 font-semibold text-sm cursor-pointer hover:bg-gray-100 px-2 py-0.5 rounded transition-colors inline-block"
+                title="Nhấp để sửa tên/biệt danh"
+              >
+                {name}
+              </p>
+            )}
             {contact.alias && contact.alias !== contact.display_name &&
-              <p className="text-xs text-gray-500">({contact.display_name})</p>}
-            {contact.phone && <p className="text-xs text-gray-500 mt-0.5"><PhoneDisplay phone={contact.phone} className="text-xs text-gray-500" /></p>}
-            <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${contact.is_friend ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
-              {contact.is_friend ? '✓ Bạn bè' : 'Chưa kết bạn'}
-            </span>
-            {/* Gender & Birthday */}
-            <div className="flex items-center justify-center gap-2 mt-1.5">
-              {contact.gender === 0 && <span className="text-[11px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">♂ Nam</span>}
-              {contact.gender === 1 && <span className="text-[11px] font-bold text-pink-800 bg-pink-50 border border-pink-200 px-1.5 py-0.5 rounded">♀ Nữ</span>}
-              {contact.birthday && <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">🎂 {contact.birthday}</span>}
+              <p className="text-xs text-gray-500 mt-0.5">({contact.display_name})</p>}
+            
+            <div className="mt-1">
+              {editingField === 'phone' ? (
+                <input
+                  autoFocus
+                  placeholder="Số điện thoại"
+                  defaultValue={contact.phone || ''}
+                  onBlur={e => {
+                    setEditingField(null);
+                    handleSaveField('phone', e.target.value.trim());
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') setEditingField(null);
+                  }}
+                  onClick={e => e.stopPropagation()}
+                  className="text-center text-xs text-gray-500 bg-gray-50 border border-blue-500 rounded px-1.5 py-0.5 outline-none max-w-[150px]"
+                />
+              ) : (
+                <p
+                  onClick={e => {
+                    e.stopPropagation();
+                    setEditingField('phone');
+                  }}
+                  className="text-xs text-gray-500 cursor-pointer hover:bg-gray-100 px-2 py-0.5 rounded transition-colors inline-block"
+                  title="Nhấp để sửa SĐT"
+                >
+                  {contact.phone ? (
+                    <PhoneDisplay phone={contact.phone} className="text-xs text-gray-500" />
+                  ) : (
+                    <span className="italic text-gray-400">Nhập SĐT</span>
+                  )}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-2">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${contact.is_friend ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}`}>
+                {contact.is_friend ? '✓ Bạn bè' : 'Chưa kết bạn'}
+              </span>
+            </div>
+
+            {/* Xưng hô & Birthday — Không hiện giới tính mà hiện xưng hô */}
+            <div className="flex items-center justify-center gap-2 mt-2">
+              {editingField === 'salutation' ? (
+                <input
+                  autoFocus
+                  placeholder="Xưng hô"
+                  defaultValue={contact.salutation ?? defaultSalutation(contact.gender)}
+                  onBlur={e => {
+                    setEditingField(null);
+                    const val = e.target.value.trim();
+                    handleSaveField('salutation', val || null);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') setEditingField(null);
+                  }}
+                  onClick={e => e.stopPropagation()}
+                  className="text-center text-[11px] font-bold text-amber-800 bg-amber-50 border border-blue-500 rounded px-1.5 py-0.5 outline-none w-20"
+                />
+              ) : (
+                <span
+                  onClick={e => {
+                    e.stopPropagation();
+                    setEditingField('salutation');
+                  }}
+                  className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded cursor-pointer hover:bg-amber-100 transition-colors"
+                  title="Nhấp để sửa xưng hô"
+                >
+                  🗣 {contact.salutation || defaultSalutation(contact.gender)}
+                </span>
+              )}
+
+              {editingField === 'birthday' ? (
+                <input
+                  autoFocus
+                  placeholder="DD/MM/YYYY"
+                  defaultValue={contact.birthday || ''}
+                  onBlur={e => {
+                    setEditingField(null);
+                    handleSaveField('birthday', e.target.value.trim() || null);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') setEditingField(null);
+                  }}
+                  onClick={e => e.stopPropagation()}
+                  className="text-center text-[11px] font-bold text-teal-800 bg-teal-50 border border-blue-500 rounded px-1.5 py-0.5 outline-none w-24"
+                />
+              ) : (
+                <span
+                  onClick={e => {
+                    e.stopPropagation();
+                    setEditingField('birthday');
+                  }}
+                  className="text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded cursor-pointer hover:bg-teal-100 transition-colors"
+                  title="Nhấp để sửa ngày sinh"
+                >
+                  🎂 {contact.birthday || <span className="italic text-teal-600/70">Sinh nhật</span>}
+                </span>
+              )}
             </div>
           </div>
           <p className="text-[10px] text-gray-500">ID: {contact.contact_id}</p>

@@ -440,6 +440,22 @@ export default function ChatWindow() {
     fbProbeDoneRef.current = true;
   }, [activeThreadId]);
 
+  // ─── ESC to exit selection mode ─────────────────────────────────────────
+  useEffect(() => {
+    if (!isSelecting) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsSelecting(false);
+        setSelectedMsgIds(new Set());
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [isSelecting]);
+
   // ─── Drag-to-select: pointer move/up (document level) ──────────────────────
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
@@ -480,7 +496,13 @@ export default function ChatWindow() {
       const rangeIds = new Set(
         currentMsgs.slice(minIdx, maxIdx + 1).map((m: any) => m.msg_id)
       );
-      setSelectedMsgIds(rangeIds);
+      // Merge với selection hiện tại (accumulate khi kéo nhiều lần)
+      setSelectedMsgIds(prev => {
+        if (prev.size === 0) return rangeIds;
+        const next = new Set(prev);
+        for (const id of rangeIds) next.add(id);
+        return next;
+      });
     };
 
     const handlePointerUp = () => {

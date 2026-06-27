@@ -25,7 +25,7 @@ class CRMQueueService {
     public readonly MAX_TOKENS = 60;
     private readonly REFILL_INTERVAL_MS = 60 * 1000;  // 1 phút / token → 60/giờ
     private readonly CHECK_INTERVAL_MS = 5000;          // kiểm tra mỗi 5s
-    private readonly MIN_DELAY_MS = 30 * 1000;          // tối thiểu 30s
+    private readonly MIN_DELAY_MS = 5 * 1000;          // tối thiểu 5s
     private readonly PHONE_RESOLVE_TIMEOUT_MS = 15_000; // timeout resolve phone → tránh treo vô hạn
 
     public static getInstance(): CRMQueueService {
@@ -184,11 +184,15 @@ class CRMQueueService {
             this.dailyPausedCampaigns.delete(item.campaign_id);
         }
 
-        // Check delay (campaign.delay_seconds + jitter ±10s)
-        const delayMs = Math.max(this.MIN_DELAY_MS, (item.delay_seconds || 60) * 1000);
-        const jitter = (Math.random() - 0.5) * 20000; // ±10s
+        // Check delay: random between delay_min_seconds and delay_max_seconds (range-based)
+        const itemAny = item as any;
+        const rawMin = itemAny.delay_min_seconds ?? Math.max(5, (item.delay_seconds || 60) - 10);
+        const rawMax = itemAny.delay_max_seconds ?? Math.max(rawMin, (item.delay_seconds || 60) + 10);
+        const delayMinSec = Math.max(this.MIN_DELAY_MS / 1000, rawMin);
+        const delayMaxSec = Math.max(delayMinSec, rawMax);
+        const actualDelayMs = (delayMinSec + Math.random() * (delayMaxSec - delayMinSec)) * 1000;
         const lastSent = this.lastSentAt.get(zaloId) || 0;
-        if (Date.now() - lastSent < delayMs + jitter) return;
+        if (Date.now() - lastSent < actualDelayMs) return;
 
         // Get connection
         const conn = ConnectionManager.getConnection(zaloId);
@@ -265,6 +269,12 @@ class CRMQueueService {
             const genderVal = (item as any).gender;
             const genderGreeting = genderVal === 0 ? 'Anh' : (genderVal === 1 ? 'Chị' : 'Bạn');
 
+            // {salutation}: ưu tiên giá trị tùy chỉnh từ DB, fallback về genderGreeting
+            const salutationVal = (item as any).salutation;
+            const effectiveSalutation = (salutationVal && typeof salutationVal === 'string' && salutationVal.trim())
+                ? salutationVal.trim()
+                : genderGreeting;
+
             const contactAlias = (item as any).alias || effectiveDisplayName || '';
 
             let bDay = '';
@@ -285,6 +295,7 @@ class CRMQueueService {
                     .replace(/\{name\}/g, effectiveDisplayName || item.contact_id)
                     .replace(/\{userId\}/g, effectiveContactId)
                     .replace(/\{gender_greeting\}/g, genderGreeting)
+                    .replace(/\{salutation\}/g, effectiveSalutation)
                     .replace(/\{alias\}/g, contactAlias)
                     .replace(/\{campaign_name\}/g, campaignName)
                     .replace(/\{date\}/g, `${todayDD}/${todayMM}/${todayYYYY}`)
@@ -392,7 +403,19 @@ class CRMQueueService {
                 const errors: string[] = [];
                 const responses: any[] = [];
                 for (let bi = 0; bi < blocks.length; bi++) {
-                    if (bi > 0) await new Promise(r => setTimeout(r, 1000));
+                    if (bi > 0) {
+                        let perContactDelayMs = 1000;
+                        if (campaignData) {
+                            const pcMin = (campaignData as any).per_contact_delay_min_seconds || 0;
+                            const pcMax = (campaignData as any).per_contact_delay_max_seconds || 0;
+                            if (pcMax > pcMin) {
+                                perContactDelayMs = (pcMin + Math.random() * (pcMax - pcMin)) * 1000;
+                            } else if (pcMin > 0) {
+                                perContactDelayMs = pcMin * 1000;
+                            }
+                        }
+                        await new Promise(r => setTimeout(r, perContactDelayMs));
+                    }
                     try {
                         const resps = await sendBlock(blocks[bi], threadId, threadType);
                         responses.push(...resps);

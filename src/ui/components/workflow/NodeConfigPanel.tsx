@@ -6,11 +6,105 @@ import { getNodeLabel } from './workflowConfig';
 import GroupAvatar from '@/components/common/GroupAvatar';
 import TemplateVarPopup from './TemplateVarPopup';
 import { SmartInput, SmartTextarea } from './SmartInput';
+import { showConfirm } from '@/components/common/ConfirmDialog';
 
+// ─── Webhook URL field component ─────────────────────────────────────
+function WebhookUrlField({ field, config, workflowId, update }: {
+  field: any; config: any; workflowId?: string; update: (key: string, val: any) => void;
+}) {
+  const [webhookUrl, setWebhookUrl] = React.useState<string | null>(null);
+  const [webhookToken, setWebhookToken] = React.useState<string>(config.webhookToken || '');
+  const [tunnelLoading, setTunnelLoading] = React.useState(false);
+  React.useEffect(() => {
+    const token = config.webhookToken || '';
+    setWebhookToken(token);
+    if (!token || !ipc.workflow || !workflowId) { setWebhookUrl(null); return; }
+    ipc.workflow?.getWebhookUrl?.(workflowId).then(res => {
+      if (res?.success) {
+        setWebhookUrl(res.webhookUrl || null);
+      }
+    }).catch(() => {});
+  }, [config.webhookToken, workflowId]);
+  return (
+    <div className="space-y-2">
+      {webhookToken ? (
+        <div className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-3">
+          <div className="text-xs text-gray-400 mb-1">{field.label}</div>
+          {webhookUrl ? (
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-gray-900/80 px-2 py-1.5 rounded-lg break-all select-all text-gray-300">
+                {webhookUrl}
+              </code>
+              <button onClick={() => { navigator.clipboard.writeText(webhookUrl); }}
+                className="px-2 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 rounded-lg text-xs transition-colors" title="Copy URL">
+                📋
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="text-yellow-400 text-xs">
+                ⚠️ Tunnel Workflow chưa được bật. URL webhook sẽ không hoạt động.
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={async () => {
+                  setTunnelLoading(true);
+                  try {
+                    const res = await ipc.workflow?.startTunnel();
+                    if (res?.success && res.tunnelUrl) {
+                      setWebhookUrl(res.tunnelUrl + '/api/workflow/webhook/' + webhookToken);
+                    }
+                  } finally {
+                    setTunnelLoading(false);
+                  }
+                }} disabled={tunnelLoading}
+                  className="px-2.5 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-wait text-white rounded-lg transition-colors flex items-center gap-1.5">
+                  {tunnelLoading ? (
+                    <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Đang bật...</>
+                  ) : '🔌 Bật Tunnel'}
+                </button>
+                <button onClick={() => {
+                  useAppStore.getState().setView('settings');
+                  setTimeout(() => window.dispatchEvent(new CustomEvent('nav:settings', { detail: { tab: 'webhooks' } })), 100);
+                }} className="px-2.5 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors">
+                  📖 Hướng dẫn
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+            <span>Token: <code className="text-gray-400">{webhookToken.substring(0, 8)}...</code></span>
+            <button onClick={async () => {
+              const confirmed = await showConfirm({
+                title: 'Tạo token mới?',
+                message: 'Token mới sẽ làm URL webhook cũ không còn hoạt động. Các bên thứ 3 đang dùng URL cũ sẽ cần được cập nhật.',
+                confirmText: 'Tạo mới',
+                variant: 'warning',
+              });
+              if (!confirmed) return;
+              const res = await ipc.workflow?.regenerateWebhookToken?.(workflowId);
+              if (res?.success) {
+                setWebhookUrl(res.webhookUrl || null);
+                setWebhookToken(res.token || '');
+                update('webhookToken', res.token || '');
+              }
+            }} className="text-blue-400 hover:text-blue-300 underline" title="Tạo token mới nếu URL bị lộ">
+              🔄 Regenerate
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-3 text-yellow-400 text-xs">
+          💡 Lưu workflow để tạo URL webhook tự động.
+        </div>
+      )}
+      <p className="text-xs text-gray-500 mt-1">{field.desc}</p>
+    </div>
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type FieldType = 'text' | 'textarea' | 'select' | 'number' | 'boolean' | 'json' | 'multiline' | 'cron' | 'html' | 'label-picker' | 'assistant-picker' | 'contact-picker' | 'file-picker' | 'pipeline-picker';
+type FieldType = 'text' | 'textarea' | 'select' | 'number' | 'boolean' | 'json' | 'multiline' | 'cron' | 'html' | 'label-picker' | 'assistant-picker' | 'contact-picker' | 'file-picker' | 'pipeline-picker' | 'info';
 
 interface SelectOption { value: string; label: string }
 
@@ -25,6 +119,7 @@ interface Field {
   desc?: string;
   /** Ẩn trong mục "Nâng cao" (collapsed mặc định) */
   advanced?: boolean;
+  isWebhookUrl?: boolean;
   /**
    * Biến gợi ý (tên variable, VD: '$trigger.fromName').
    * Nếu có field này, UI sẽ hiện nút "Chèn biến động" để mở popup
@@ -1306,6 +1401,36 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
     },
   ],
 
+  // ─── Trigger: Webhook bên ngoài ──────────────────────────────────────────
+  'trigger.webhook': [
+    {
+      key: 'webhookUrlDisplay', label: 'URL Webhook', type: 'info',
+      desc: 'URL này dùng để nhận dữ liệu từ bên thứ 3. Gửi URL này cho đối tác để họ POST dữ liệu vào.',
+      isWebhookUrl: true,
+    },
+    {
+      key: 'secretKey', label: 'Secret Key (tùy chọn)', type: 'text',
+      placeholder: 'Để trống nếu không cần xác thực',
+      desc: 'Nếu có, hệ thống sẽ verify HMAC-SHA256 từ header X-Signature. Dùng để đảm bảo dữ liệu đến từ đúng đối tác.',
+    },
+    {
+      key: 'method', label: 'Phương thức HTTP', type: 'select',
+      options: [
+        { value: 'POST', label: 'POST' },
+        { value: 'GET', label: 'GET' },
+        { value: 'PUT', label: 'PUT' },
+        { value: 'ANY', label: 'Bất kỳ' },
+      ],
+      desc: 'Phương thức HTTP mà bên thứ 3 sẽ dùng để gửi dữ liệu.',
+    },
+    {
+      key: 'allowedIps', label: 'Chỉ cho phép IP (tùy chọn)', type: 'text',
+      placeholder: 'Để trống = cho phép tất cả. VD: 103.21.244.0, 103.21.245.0',
+      desc: 'Giới hạn địa chỉ IP được phép gọi webhook. Cách nhau bằng dấu phẩy.',
+      advanced: true,
+    },
+  ],
+
   // ─── KiotViet ─────────────────────────────────────────────────────────────
   'kiotviet.lookupCustomer': [
     {
@@ -2012,6 +2137,7 @@ interface Props {
   node: any;
   nodes?: any[];          // All nodes in the workflow (for node reference picking)
   edges?: any[];          // All edges in the workflow (to compute upstream nodes)
+  workflowId?: string;
   onConfigChange: (config: Record<string, any>) => void;
   onLabelChange: (label: string) => void;
   onClose: () => void;
@@ -4117,7 +4243,7 @@ function NodePickerModal({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function NodeConfigPanel({ node, nodes, edges, onConfigChange, onLabelChange, onClose }: Props) {
+export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConfigChange, onLabelChange, onClose }: Props) {
   const { accounts } = useAccountStore();
   const [config, setConfig]             = useState<Record<string, any>>(node.config || {});
   const [label, setLabel]               = useState(node.label || '');
@@ -4604,6 +4730,9 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         )}
         {field.type === 'html' && (
           <HtmlEditorField value={config[field.key] ?? ''} onChange={v => update(field.key, v)} placeholder={field.placeholder} />
+        )}
+        {field.type === 'info' && field.isWebhookUrl && (
+          <WebhookUrlField field={field} config={config} workflowId={workflowId} update={update} />
         )}
         {field.type === 'label-picker' && (() => {
           // Tính mode: dynamic → phụ thuộc labelSource

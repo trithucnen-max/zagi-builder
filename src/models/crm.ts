@@ -25,6 +25,10 @@ export interface CRMCampaign {
     mixed_config?: string;
     status: CRMCampaignStatus;
     delay_seconds: number;
+    delay_min_seconds?: number;
+    delay_max_seconds?: number;
+    per_contact_delay_min_seconds?: number;
+    per_contact_delay_max_seconds?: number;
     daily_send_limit?: number;
     daily_start_time?: string;
     scheduled_start_at?: number;

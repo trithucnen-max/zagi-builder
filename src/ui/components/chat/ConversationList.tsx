@@ -90,6 +90,7 @@ export default function ConversationList() {
   const [channelFilter, setChannelFilter] = useState<Channel | 'all'>('all');
   const [filterLabelIds, setFilterLabelIds] = useState<number[]>([]);
   const [filterLabelSource, setFilterLabelSource] = useState<LabelSource>('local');
+  const [filterLabelMode, setFilterLabelMode] = useState<'all' | 'any'>('all'); // 'all' = AND, 'any' = OR
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [pinnedThreads, setPinnedThreads] = useState<Set<string>>(new Set());
@@ -714,17 +715,24 @@ export default function ConversationList() {
         // Local labels filter
         const threadMap = localLabelThreadMapByAccount[activeAccountId || ''] || {};
         const threadLabelIds = threadMap[c.contact_id] || [];
-        if (filterLabelIds.length > 0) return filterLabelIds.every(id => threadLabelIds.includes(id));
+        if (filterLabelIds.length > 0) {
+          return filterLabelMode === 'all'
+            ? filterLabelIds.every(id => threadLabelIds.includes(id))
+            : filterLabelIds.some(id => threadLabelIds.includes(id));
+        }
         return threadLabelIds.length > 0;
       } else {
         // Zalo labels filter
         const isGroupC = c.contact_type === 'group';
         const labelCId = isGroupC ? `g${c.contact_id}` : c.contact_id;
         if (filterLabelIds.length > 0) {
-          return filterLabelIds.every(id => {
+          const matchFn = (id: number) => {
             const lbl = labels.find(l => l.id === id);
             return lbl ? (lbl.conversations.includes(labelCId) || lbl.conversations.includes(c.contact_id)) : false;
-          });
+          };
+          return filterLabelMode === 'all'
+            ? filterLabelIds.every(matchFn)
+            : filterLabelIds.some(matchFn);
         }
         return labels.some(l => l.conversations.includes(labelCId) || l.conversations.includes(c.contact_id));
       }
@@ -814,27 +822,34 @@ export default function ConversationList() {
         if (filterLabelSource === 'local') {
           const threadMap = localLabelThreadMapByAccount[c.owner_zalo_id!] || {};
           const threadLabelIds = threadMap[c.contact_id] || [];
-          if (filterLabelIds.length > 0) return filterLabelIds.every(id => threadLabelIds.includes(id));
+          if (filterLabelIds.length > 0) {
+            return filterLabelMode === 'all'
+              ? filterLabelIds.every(id => threadLabelIds.includes(id))
+              : filterLabelIds.some(id => threadLabelIds.includes(id));
+          }
           return threadLabelIds.length > 0;
         } else {
           const ownerLabels: LabelData[] = allLabels[c.owner_zalo_id!] || [];
           const isGroupC = c.contact_type === 'group';
           const labelCId = isGroupC ? `g${c.contact_id}` : c.contact_id;
           if (filterLabelIds.length > 0) {
-            return filterLabelIds.every(id => {
+            const matchFn = (id: number) => {
               const selectedText = mergedLabels?.find(l => l.id === id)?.text;
               const matchingLabels = selectedText != null
                 ? ownerLabels.filter(l => l.text === selectedText)
                 : ownerLabels.filter(l => l.id === id);
               return matchingLabels.some(l => l.conversations.includes(labelCId) || l.conversations.includes(c.contact_id));
-            });
+            };
+            return filterLabelMode === 'all'
+              ? filterLabelIds.every(matchFn)
+              : filterLabelIds.some(matchFn);
           }
           return ownerLabels.some(l => l.conversations.includes(labelCId) || l.conversations.includes(c.contact_id));
         }
       }
       return true;
     });
-  }, [mergedContacts, mergedInboxFilterAccount, search, filter, filterLabelIds, allOthers, allLabels, mergedLabels]);
+  }, [mergedContacts, mergedInboxFilterAccount, search, filter, filterLabelIds, filterLabelMode, allOthers, allLabels, mergedLabels]);
 
   const mergedUnreadCount = mergedContacts
     ? mergedContacts.reduce((s, c) => {
@@ -1608,6 +1623,26 @@ export default function ConversationList() {
                         filterLabelSource === 'zalo' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'
                       }`}>☁️ Zalo</button>
                   )}
+                </div>
+              </div>
+
+              {/* AND/OR filter mode radio */}
+              <div className="px-2 py-1.5 border-b border-gray-700/60 flex-shrink-0">
+                <div className="flex flex-col gap-1">
+                  <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-gray-700/50 cursor-pointer text-xs select-none border-0"
+                    onClick={() => setFilterLabelMode('all')}>
+                    <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${filterLabelMode === 'all' ? 'border-blue-500' : 'border-gray-500'}`}>
+                      {filterLabelMode === 'all' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                    </div>
+                    <span className="text-gray-300">Tất cả nhãn đã chọn (AND)</span>
+                  </label>
+                  <label className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-gray-700/50 cursor-pointer text-xs select-none border-0"
+                    onClick={() => setFilterLabelMode('any')}>
+                    <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${filterLabelMode === 'any' ? 'border-blue-500' : 'border-gray-500'}`}>
+                      {filterLabelMode === 'any' && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                    </div>
+                    <span className="text-gray-300">Có chứa 1 trong số nhãn (OR)</span>
+                  </label>
                 </div>
               </div>
 

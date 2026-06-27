@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import TopBar from './components/layout/TopBar';
 import LicenseExpiryBanner from './components/common/LicenseExpiryBanner';
 import Sidebar from './components/layout/Sidebar';
+import AccountPanel from './components/layout/AccountPanel';
 import Dashboard from './components/dashboard/Dashboard';
 import ConversationList from './components/chat/ConversationList';
 import ChatHeader from './components/chat/ChatHeader';
@@ -14,6 +15,7 @@ import AIQuickPanel from './components/integration/AIQuickPanel';
 import ReminderNotification from './components/chat/ReminderNotification';
 import FriendRequestNotification, { FriendRequestNotifData } from './components/common/FriendRequestNotification';
 import QuickChatModal from './components/chat/QuickChatModal';
+import { BugReportModal } from './components/common/BugReportModal';
 import Settings from './components/settings/Settings';
 import CRMPage from './components/crm/CRMPage';
 import WorkflowPage from './components/workflow/WorkflowPage';
@@ -110,7 +112,8 @@ export default function App() {
     showGroupBoard, setShowGroupBoard,
     showIntegrationQuickPanel, toggleIntegrationQuickPanel,
     showAIQuickPanel, toggleAIQuickPanel,
-    openQuickChat, quickChatOpen, theme, fontSizeScale
+    openQuickChat, quickChatOpen, theme, fontSizeScale,
+    sidebarExpanded
   } = useAppStore();
   const { setAccounts, updateListenerActive, accounts } = useAccountStore();
   const { setContacts } = useChatStore();
@@ -1218,6 +1221,11 @@ export default function App() {
         {/* Left sidebar: account list + nav */}
         <Sidebar onAddAccount={() => setAddAccountModalOpen(true)} />
 
+        {/* Account panel (sidebar expanded) - chỉ hiện ở chat view */}
+        {view === 'chat' && sidebarExpanded && (
+          <AccountPanel onAddAccount={() => setAddAccountModalOpen(true)} />
+        )}
+
         {/* Main content */}
         <div className="flex flex-1 overflow-hidden">
           {view === 'chat' && (
@@ -1571,6 +1579,9 @@ export default function App() {
 
       {/* Auto-update notification — bottom-right corner */}
       <UpdateNotification />
+
+      {/* Bug Report Modal */}
+      <BugReportModal />
     </div>
   );
 }

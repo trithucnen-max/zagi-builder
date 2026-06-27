@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@/store/chatStore';
+import { useCRMStore } from '@/store/crmStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
@@ -38,6 +39,12 @@ export default function ConversationInfo() {
   return <UserConversationInfo />;
 }
 
+function defaultSalutation(gender?: number | null): string {
+  if (gender === 0) return 'Anh';
+  if (gender === 1) return 'Chị';
+  return 'Bạn';
+}
+
 // ─── UserConversationInfo ─────────────────────────────────────────────────────
 function UserConversationInfo() {
   const { activeThreadId, activeThreadType, contacts, updateContact } = useChatStore();
@@ -51,7 +58,9 @@ function UserConversationInfo() {
   const [editPhone, setEditPhone] = useState('');
   const [editBirthday, setEditBirthday] = useState('');
   const [editGender, setEditGender] = useState<number>(0);
+  const [editSalutation, setEditSalutation] = useState('');
   const [hovering, setHovering] = useState(false);
+
   const [muteDropdownOpen, setMuteDropdownOpen] = useState(false);
   const [muteDropdownPos, setMuteDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const muteRef = useRef<HTMLDivElement>(null);
@@ -273,6 +282,7 @@ function UserConversationInfo() {
     setEditPhone(contact.phone || '');
     setEditBirthday(contact.birthday || '');
     setEditGender(contact.gender ?? 0);
+    setEditSalutation(contact.salutation || '');
     setIsEditingProfile(true);
   };
 
@@ -314,13 +324,45 @@ function UserConversationInfo() {
         }).catch(() => {});
       }
 
+      // Save salutation via patchContactFields
+      await ipc.db?.patchContactFields({
+        zaloId: activeAccountId,
+        contactId: contact.contact_id,
+        fields: { salutation: editSalutation.trim() || null }
+      });
+
       updateContact(activeAccountId, {
         contact_id: contact.contact_id,
         alias: trimmedAlias,
         phone: editPhone.trim(),
         gender: editGender,
-        birthday: editBirthday.trim()
+        birthday: editBirthday.trim(),
+        salutation: editSalutation.trim() || null
       });
+
+      // Sync with crmStore if it has data
+      try {
+        const crmStore = useCRMStore.getState();
+        if (crmStore.contacts && crmStore.contacts.length > 0) {
+          crmStore.setContacts(
+            crmStore.contacts.map(c =>
+              c.contact_id === contact.contact_id
+                ? {
+                    ...c,
+                    alias: trimmedAlias,
+                    phone: editPhone.trim(),
+                    gender: editGender,
+                    birthday: editBirthday.trim(),
+                    salutation: editSalutation.trim() || null
+                  }
+                : c
+            ),
+            crmStore.totalContacts
+          );
+        }
+      } catch (err) {
+        console.error('Error syncing crmStore from chat:', err);
+      }
 
       showNotification('Đã cập nhật thông tin liên hệ', 'success');
       setIsEditingProfile(false);
@@ -541,15 +583,24 @@ function UserConversationInfo() {
               />
             </div>
             <div className="flex flex-col gap-0.5 w-full">
+              <label className="text-[10px] uppercase font-bold text-gray-400 self-start">Xưng hô (tùy chỉnh)</label>
+              <input
+                value={editSalutation}
+                onChange={e => setEditSalutation(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
+                placeholder="Ví dụ: Cô, Chú, Anh, Chị..."
+              />
+            </div>
+            <div className="flex flex-col gap-0.5 w-full">
               <label className="text-[10px] uppercase font-bold text-gray-400 self-start">Giới tính</label>
               <select
-                value={editGender}
-                onChange={e => setEditGender(Number(e.target.value))}
+                value={editGender ?? ''}
+                onChange={e => setEditGender(e.target.value === '' ? null : Number(e.target.value))}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
               >
-                <option value={0}>Chưa xác định</option>
-                <option value={1}>Nam</option>
-                <option value={2}>Nữ</option>
+                <option value="">Chưa xác định</option>
+                <option value={0}>Nam</option>
+                <option value={1}>Nữ</option>
               </select>
             </div>
             <div className="flex gap-2 justify-end mt-1.5 w-full">
@@ -601,14 +652,17 @@ function UserConversationInfo() {
                 📞 <PhoneDisplay phone={contact.phone} className="text-gray-400 text-xs" />
               </p>
             )}
+            <p className="text-gray-400 text-xs mt-0.5">
+              🗣 Xưng hô: {contact?.salutation || defaultSalutation(contact?.gender)}
+            </p>
             {contact?.birthday && (
               <p className="text-gray-400 text-xs mt-0.5">
                 🎂 {contact.birthday}
               </p>
             )}
-            {(contact?.gender === 1 || contact?.gender === 2) && (
+            {(contact?.gender === 0 || contact?.gender === 1) && (
               <p className="text-gray-400 text-xs mt-0.5">
-                {contact.gender === 1 ? '👨 Nam' : '👩 Nữ'}
+                {contact.gender === 0 ? '♂ Nam' : '♀ Nữ'}
               </p>
             )}
           </>

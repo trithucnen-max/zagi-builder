@@ -42,7 +42,23 @@ interface CRMContactListProps {
   onImportPhones?: () => void;
   onImportData?: () => void;
   onDeleteContact?: (contactId: string) => void;
+  /** Batch patch nhiều field của một contact (inline edit) */
+  onPatchContact?: (contactId: string, fields: {
+    alias?: string;
+    salutation?: string | null;
+    phone?: string;
+    gender?: number | null;
+    birthday?: string | null;
+  }) => Promise<void>;
 }
+
+/** Tính xưng hô mặc định từ gender khi salutation chưa được set */
+function defaultSalutation(gender?: number | null): string {
+  if (gender === 0) return 'Anh';
+  if (gender === 1) return 'Chị';
+  return 'Bạn';
+}
+
 
 /** Dropdown to pick labels for filtering — supports Local + Zalo tabs */
 function LabelFilterDropdown({ allLabels, filterLabelIds, filterLocalLabelIds, onChange, localLabels }: {
@@ -447,7 +463,7 @@ export default function CRMContactList({
   onSelectContact, onActivateContact, onSelectAll, onClearAll, onSelectAllPages,
   onExportAll,
   onFilterChange, onPageChange, onMessage, onImportPhones, onImportData,
-  onDeleteContact,
+  onDeleteContact, onPatchContact,
 }: CRMContactListProps) {
   const totalPages = Math.ceil(total / pageSize);
   const groupInfoCache = useAppStore(s => s.groupInfoCache);
@@ -455,6 +471,17 @@ export default function CRMContactList({
   const [avatarPopup, setAvatarPopup] = useState<{ userId: string; x: number; y: number } | null>(null);
   const [selectingAllPages, setSelectingAllPages] = useState(false);
   const [exportingCSV, setExportingCSV] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+
+  // ─── Inline Edit State ────────────────────────────────────────────────
+  /** Map: contactId → { field → pendingValue } */
+  const [pendingEdits, setPendingEdits] = useState<Record<string, Record<string, any>>>({});
+  /** Ô đang được edit: { contactId, field } */
+  const [editingCell, setEditingCell] = useState<{ contactId: string; field: string } | null>(null);
+  /** Đang lưu */
+  const [saving, setSaving] = useState(false);
+  const pendingCount = Object.keys(pendingEdits).length;
 
   const fmt = (ts: number) => {
     if (!ts) return '';
@@ -475,6 +502,36 @@ export default function CRMContactList({
     return s;
   }
 
+  /** Batch save tất cả pending edits */
+  const handleBatchSave = useCallback(async () => {
+    if (!onPatchContact || pendingCount === 0) return;
+    setSaving(true);
+    try {
+      await Promise.all(
+        Object.entries(pendingEdits).map(([contactId, fields]) =>
+          onPatchContact(contactId, fields)
+        )
+      );
+      setPendingEdits({});
+    } catch (err) {
+      console.error('[CRMContactList] batch save error:', err);
+    } finally {
+      setSaving(false);
+    }
+  }, [pendingEdits, pendingCount, onPatchContact]);
+
+  /** Commit giá trị mớt cho một ô */
+  const commitEdit = useCallback((contactId: string, field: string, rawValue: string) => {
+    const trimmed = rawValue.trim();
+    // Nếu xóa hết salutation → reset về null (sẽ hiển default từ gender)
+    const value = (field === 'salutation' && !trimmed) ? null : trimmed || null;
+    setPendingEdits(prev => ({
+      ...prev,
+      [contactId]: { ...(prev[contactId] || {}), [field]: value },
+    }));
+    setEditingCell(null);
+  }, []);
+
   const exportToCSV = useCallback(async () => {
     if (total === 0) return;
     setExportingCSV(true);
@@ -483,10 +540,11 @@ export default function CRMContactList({
       const allContacts = onExportAll ? await onExportAll() : contacts;
       if (!allContacts.length) return;
 
-      const headers = ['Tên hiển thị', 'Biệt danh', 'Điện thoại', 'UID', 'Loại', 'Bạn bè', 'Giới tính', 'Sinh nhật', 'Tin nhắn cuối', 'Ghi chú'];
+      const headers = ['Tên hiển thị', 'Biệt danh', 'Điện thoại', 'UID', 'Loại', 'Bạn bè', 'Giới tính', 'Xưng hô', 'Sinh nhật', 'Tin nhắn cuối', 'Ghi chú'];
       const rows = allContacts.map((c: any) => {
         const typeLabel = c.contact_type === 'group' ? 'Nhóm' : c.is_friend === 1 ? 'Bạn bè' : 'Chưa là bạn bè';
         const genderLabel = c.gender === 0 ? 'Nam' : c.gender === 1 ? 'Nữ' : '';
+        const salutationLabel = c.salutation || defaultSalutation(c.gender);
         return [
           escapeCSV(c.display_name || c.contact_id),
           escapeCSV(c.alias || ''),
@@ -495,6 +553,7 @@ export default function CRMContactList({
           escapeCSV(typeLabel),
           escapeCSV(c.is_friend === 1 ? 'Có' : 'Không'),
           escapeCSV(genderLabel),
+          escapeCSV(salutationLabel),
           escapeCSV(c.birthday || ''),
           escapeCSV(c.last_message_time ? new Date(c.last_message_time).toLocaleString('vi-VN') : ''),
           escapeCSV(c.note_count || 0),
@@ -616,7 +675,24 @@ export default function CRMContactList({
                  className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors" />
         </div>
 
-        <div className="flex-1"></div>
+        {/* Toggle Edit Mode button */}
+        <button
+          onClick={() => {
+            setIsEditMode(!isEditMode);
+            setEditingCell(null);
+          }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors border flex-shrink-0
+            ${isEditMode
+              ? 'bg-amber-600/20 border-amber-500/50 text-amber-300 hover:bg-amber-600/30'
+              : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'}`}
+          title={isEditMode ? 'Tắt chế độ sửa nhanh' : 'Bật chế độ sửa nhanh để click là sửa và không mở bảng chi tiết'}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z" />
+          </svg>
+          {isEditMode ? 'Bật Sửa Nhanh' : 'Sửa nhanh'}
+        </button>
 
         {/* Actions dropdown (Export CSV + Import SĐT) */}
         <ActionsDropdown
@@ -626,6 +702,26 @@ export default function CRMContactList({
           onImportPhones={onImportPhones}
           onImportData={onImportData}
         />
+
+        {/* Batch Save button — chỉ hiện khi có pending edits */}
+        {pendingCount > 0 && (
+          <button
+            onClick={handleBatchSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 text-xs text-white bg-green-600 hover:bg-green-700 disabled:opacity-60 px-3 py-1.5 rounded-lg transition-colors border border-green-600 font-medium flex-shrink-0"
+          >
+            {saving ? (
+              <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+            ) : (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            )}
+            Lưu {pendingCount} thay đổi
+          </button>
+        )}
       </div>
 
       {/* Table header */}
@@ -651,8 +747,9 @@ export default function CRMContactList({
         <span className="w-8 flex-shrink-0" />
         <span className="flex-1 ml-2">Tên</span>
         <span className="w-16 flex-shrink-0 text-center">Giới tính</span>
+        <span className="w-20 flex-shrink-0 text-center">Xưng hô</span>
         <span className="w-24 flex-shrink-0 text-center">Sinh nhật</span>
-        <span className="w-28 flex-shrink-0 ">Điện thoại</span>
+        <span className="w-28 flex-shrink-0 ">SĐT</span>
         <span className="w-20 flex-shrink-0 text-right">Tin nhắn</span>
       </div>
 
@@ -678,8 +775,12 @@ export default function CRMContactList({
             const contactLabels = getContactLabels(contact);
             return (
               <div key={contact.contact_id}
-                onClick={() => onActivateContact(contact.contact_id)}
-                className={`flex items-center px-4 py-2.5 border-b border-gray-700/50 cursor-pointer transition-colors group ${isActive ? 'bg-blue-600/15' : 'hover:bg-gray-700/40'}`}>
+                onClick={() => {
+                  if (!isEditMode) {
+                    onActivateContact(contact.contact_id);
+                  }
+                }}
+                className={`flex items-center px-4 py-2.5 border-b border-gray-700/50 cursor-pointer transition-colors group ${isActive && !isEditMode ? 'bg-blue-600/15' : 'hover:bg-gray-700/40'}`}>
                 {/* Styled checkbox */}
                 <div
                   onClick={e => { e.stopPropagation(); onSelectContact(contact.contact_id); }}
@@ -719,8 +820,48 @@ export default function CRMContactList({
                 </div>
                 {/* Name + Labels underneath */}
                 <div className="flex-1 ml-2 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-gray-200 truncate font-medium">{name}</span>
+                  <div className="flex items-center gap-1.5"
+                    onClick={e => {
+                      if (isEditMode) {
+                        e.stopPropagation();
+                        if (contact.contact_type === 'group') return;
+                        setEditingCell({ contactId: contact.contact_id, field: 'alias' });
+                      }
+                    }}
+                    onDoubleClick={e => {
+                      e.stopPropagation();
+                      if (contact.contact_type === 'group') return;
+                      setEditingCell({ contactId: contact.contact_id, field: 'alias' });
+                    }}
+                    title={isEditMode ? "Nhấp để sửa Biệt danh" : "Nhấp đúp để sửa Biệt danh"}
+                  >
+                    {editingCell?.contactId === contact.contact_id && editingCell.field === 'alias' ? (
+                      <input
+                        autoFocus
+                        defaultValue={
+                          pendingEdits[contact.contact_id]?.alias
+                            ?? contact.alias
+                            ?? contact.display_name
+                        }
+                        onBlur={e => commitEdit(contact.contact_id, 'alias', e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                          if (e.key === 'Escape') setEditingCell(null);
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        className="text-sm bg-gray-700 border border-blue-500 rounded px-1.5 py-0.5 outline-none text-white max-w-[180px]"
+                      />
+                    ) : (
+                      <span className={`text-sm truncate font-medium ${isEditMode ? 'border-b border-dashed border-gray-500 pb-0.5 cursor-text' : ''} ${
+                        pendingEdits[contact.contact_id]?.alias !== undefined
+                          ? 'text-green-400 font-semibold'
+                          : contact.alias
+                            ? 'text-gray-200'
+                            : 'text-gray-400 hover:text-gray-200 cursor-pointer'
+                      }`}>
+                        {pendingEdits[contact.contact_id]?.alias ?? name}
+                      </span>
+                    )}
                     {contact.contact_type === 'group'
                       ? <span className="text-[9px] text-purple-400 flex-shrink-0 bg-purple-400/10 px-1 rounded">nhóm</span>
                       : contact.is_friend === 1 && <span className="text-[9px] text-green-500 flex-shrink-0">●</span>}
@@ -781,13 +922,137 @@ export default function CRMContactList({
                   {contact.gender === 0 && <span className="text-[11px] text-blue-400">♂ Nam</span>}
                   {contact.gender === 1 && <span className="text-[11px] text-pink-400">♀ Nữ</span>}
                 </span>
+                {/* Salutation column — inline editable (nhấp đúp để sửa) */}
+                <span
+                  className="w-20 flex-shrink-0 hidden lg:flex items-center justify-center cursor-default group/sal"
+                  onClick={e => {
+                    if (isEditMode) {
+                      e.stopPropagation();
+                      if (contact.contact_type === 'group') return;
+                      setEditingCell({ contactId: contact.contact_id, field: 'salutation' });
+                    }
+                  }}
+                  onDoubleClick={e => {
+                    e.stopPropagation();
+                    if (contact.contact_type === 'group') return; // groups don't have salutation
+                    setEditingCell({ contactId: contact.contact_id, field: 'salutation' });
+                  }}
+                  title={isEditMode ? "Nhấp để sửa xưng hô" : "Nhấp đúp để sửa xưng hô"}
+                >
+                  {editingCell?.contactId === contact.contact_id && editingCell.field === 'salutation' ? (
+                    <input
+                      autoFocus
+                      defaultValue={
+                        pendingEdits[contact.contact_id]?.salutation
+                          ?? contact.salutation
+                          ?? defaultSalutation(contact.gender)
+                      }
+                      onBlur={e => commitEdit(contact.contact_id, 'salutation', e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                        if (e.key === 'Escape') setEditingCell(null);
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      className="w-full text-center text-[11px] bg-gray-700 border border-blue-500 rounded px-1 py-0.5 outline-none text-white"
+                    />
+                  ) : (
+                    <span className={`text-[11px] transition-colors ${isEditMode ? 'border-b border-dashed border-gray-500 pb-0.5 cursor-text' : ''} ${
+                      pendingEdits[contact.contact_id]?.salutation !== undefined
+                        ? 'text-green-400 font-medium'
+                        : contact.salutation
+                          ? 'text-amber-300/90'
+                          : 'text-gray-500'
+                    } group-hover/sal:text-amber-200 cursor-pointer`}>
+                      {pendingEdits[contact.contact_id]?.salutation
+                        ?? contact.salutation
+                        ?? defaultSalutation(contact.gender)}
+                    </span>
+                  )}
+                </span>
                 {/* Birthday column */}
-                <span className="w-24 flex-shrink-0 hidden lg:block text-center text-[11px] text-gray-500">
-                  {contact.birthday || ''}
+                <span
+                  className="w-24 flex-shrink-0 hidden lg:flex items-center justify-center text-center text-[11px] text-gray-500 cursor-default group/bday"
+                  onClick={e => {
+                    if (isEditMode) {
+                      e.stopPropagation();
+                      if (contact.contact_type === 'group') return;
+                      setEditingCell({ contactId: contact.contact_id, field: 'birthday' });
+                    }
+                  }}
+                  onDoubleClick={e => {
+                    e.stopPropagation();
+                    if (contact.contact_type === 'group') return;
+                    setEditingCell({ contactId: contact.contact_id, field: 'birthday' });
+                  }}
+                  title={isEditMode ? "Nhấp để sửa Sinh nhật" : "Nhấp đúp để sửa Sinh nhật"}
+                >
+                  {editingCell?.contactId === contact.contact_id && editingCell.field === 'birthday' ? (
+                    <input
+                      autoFocus
+                      placeholder="DD/MM/YYYY"
+                      defaultValue={
+                        pendingEdits[contact.contact_id]?.birthday
+                          ?? contact.birthday
+                          ?? ''
+                      }
+                      onBlur={e => commitEdit(contact.contact_id, 'birthday', e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                        if (e.key === 'Escape') setEditingCell(null);
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      className="w-full text-center text-[11px] bg-gray-700 border border-blue-500 rounded px-1 py-0.5 outline-none text-white"
+                    />
+                  ) : (
+                    <span className={`${isEditMode ? 'border-b border-dashed border-gray-500 pb-0.5 cursor-text' : ''} ${pendingEdits[contact.contact_id]?.birthday !== undefined ? 'text-green-400 font-medium' : 'text-gray-500'}`}>
+                      {pendingEdits[contact.contact_id]?.birthday ?? contact.birthday ?? '—'}
+                    </span>
+                  )}
                 </span>
                 {/* Phone */}
-                <span className="w-28 flex-shrink-0 hidden md:block">
-                  <PhoneDisplay phone={contact.phone} className="text-xs text-gray-500" />
+                <span
+                  className="w-28 flex-shrink-0 hidden md:flex items-center justify-center cursor-default group/phone"
+                  onClick={e => {
+                    if (isEditMode) {
+                      e.stopPropagation();
+                      if (contact.contact_type === 'group') return;
+                      setEditingCell({ contactId: contact.contact_id, field: 'phone' });
+                    }
+                  }}
+                  onDoubleClick={e => {
+                    e.stopPropagation();
+                    if (contact.contact_type === 'group') return;
+                    setEditingCell({ contactId: contact.contact_id, field: 'phone' });
+                  }}
+                  title={isEditMode ? "Nhấp để sửa SĐT" : "Nhấp đúp để sửa SĐT"}
+                >
+                  {editingCell?.contactId === contact.contact_id && editingCell.field === 'phone' ? (
+                    <input
+                      autoFocus
+                      defaultValue={
+                        pendingEdits[contact.contact_id]?.phone
+                          ?? contact.phone
+                          ?? ''
+                      }
+                      onBlur={e => commitEdit(contact.contact_id, 'phone', e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                        if (e.key === 'Escape') setEditingCell(null);
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      className="w-full text-center text-[11px] bg-gray-700 border border-blue-500 rounded px-1 py-0.5 outline-none text-white"
+                    />
+                  ) : (
+                    <span className={`${isEditMode ? 'border-b border-dashed border-gray-500 pb-0.5 cursor-text' : ''} ${pendingEdits[contact.contact_id]?.phone !== undefined ? 'text-green-400 font-medium font-semibold' : 'text-gray-500'}`}>
+                      {pendingEdits[contact.contact_id]?.phone ? (
+                        <PhoneDisplay phone={pendingEdits[contact.contact_id]?.phone} className="text-xs" />
+                      ) : contact.phone ? (
+                        <PhoneDisplay phone={contact.phone} className="text-xs text-gray-500" />
+                      ) : (
+                        '—'
+                      )}
+                    </span>
+                  )}
                 </span>
                 {/* Message button + last message time */}
                 <div className="w-20 flex-shrink-0 flex items-center justify-end gap-1">

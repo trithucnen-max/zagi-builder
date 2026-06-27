@@ -5,6 +5,29 @@ import AppModeManager from '../../src/utils/AppModeManager';
 import EmployeeService from '../../src/services/employee/EmployeeService';
 import { v4 as uuidv4 } from 'uuid';
 import Logger from '../../src/utils/Logger';
+import WebhookGatewayService from '../../src/services/workflow/WebhookGatewayService';
+import TunnelService from '../../src/services/tunnel/TunnelService';
+
+/** Generate a fresh UUID webhook token */
+function generateWebhookToken(): string {
+  return uuidv4();
+}
+
+/** Check if a workflow has a trigger.webhook node */
+function hasWebhookTrigger(nodes: any[]): boolean {
+  return nodes.some(n => n.type === "trigger.webhook");
+}
+
+/** Ensure webhook token exists on a trigger.webhook node config */
+function ensureWebhookToken(nodes: any[]): string | null {
+  const hookNode = nodes.find(n => n.type === "trigger.webhook");
+  if (!hookNode) return null;
+  if (!hookNode.config) hookNode.config = {};
+  if (!hookNode.config.webhookToken) {
+    hookNode.config.webhookToken = generateWebhookToken();
+  }
+  return hookNode.config.webhookToken;
+}
 
 /** Helper: row → Workflow shape (pageIds array) */
 function normalizeWorkflowChannel(channel?: string): WorkflowChannel {
@@ -107,10 +130,15 @@ export function registerWorkflowIpc(): void {
                 createdAt: workflow.createdAt || now,
                 updatedAt: now,
             };
+            // Auto-generate webhook token if workflow has trigger.webhook
+            let webhookToken: string | null = null;
+            if (hasWebhookTrigger(wf.nodes)) {
+              webhookToken = ensureWebhookToken(wf.nodes);
+            }
             DatabaseService.getInstance().saveWorkflow(wf);
             DatabaseService.getInstance().save();
             WorkflowEngineService.getInstance().reloadWorkflow(wf.id);
-            return { success: true, id: wf.id };
+            return { success: true, id: wf.id, webhookToken };
         } catch (e: any) {
             Logger.error(`[WorkflowIpc] save error: ${e.message}`);
             return { success: false, error: e.message };
@@ -171,6 +199,15 @@ export function registerWorkflowIpc(): void {
             }
             const newId = DatabaseService.getInstance().cloneWorkflow(id, targetZaloId);
             if (!newId) return { success: false, error: 'Không tìm thấy workflow gốc' };
+            // Regenerate webhook token for cloned workflow if it has trigger.webhook
+            const clonedRow = DatabaseService.getInstance().getWorkflowById(newId);
+            if (clonedRow) {
+              const clonedWf = rowToWorkflow(clonedRow);
+              if (hasWebhookTrigger(clonedWf.nodes)) {
+                ensureWebhookToken(clonedWf.nodes);
+                DatabaseService.getInstance().saveWorkflow(clonedWf);
+              }
+            }
             DatabaseService.getInstance().save();
             WorkflowEngineService.getInstance().reloadWorkflow(newId);
             return { success: true, newId };
@@ -218,6 +255,100 @@ export function registerWorkflowIpc(): void {
             DatabaseService.getInstance().save();
             return { success: true };
         } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    // ─── Webhook: Get webhook URL ────────────────────────────────────────
+    ipcMain.handle('workflow:getWebhookUrl', async (_e, { id }: { id: string }) => {
+        try {
+            const row = DatabaseService.getInstance().getWorkflowById(id);
+            if (!row) return { success: false, error: 'Not found' };
+            const wf = rowToWorkflow(row);
+            const hookNode = wf.nodes.find(n => n.type === 'trigger.webhook');
+            if (!hookNode) return { success: false, error: 'Workflow này không có trigger.webhook' };
+            const token = hookNode.config?.webhookToken || '';
+            const tunnelUrl = TunnelService.getUrl(9889);
+            const webhookUrl = tunnelUrl ? tunnelUrl + '/api/workflow/webhook/' + token : null;
+            return { success: true, webhookUrl, token, tunnelActive: !!tunnelUrl };
+        } catch (e: any) {
+            Logger.error('[WorkflowIpc] getWebhookUrl error: ' + e.message);
+            return { success: false, error: e.message };
+        }
+    });
+
+    // ─── Webhook: Gateway Tunnel ───────────────────────────────────────
+    ipcMain.handle('workflow:startTunnel', async () => {
+        try {
+            const result = await WebhookGatewayService.getInstance().startTunnel();
+            return result;
+        } catch (e: any) {
+            Logger.error('[WorkflowIpc] startTunnel error: ' + e.message);
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('workflow:stopTunnel', async () => {
+        try {
+            const result = await WebhookGatewayService.getInstance().stopTunnel();
+            return result;
+        } catch (e: any) {
+            Logger.error('[WorkflowIpc] stopTunnel error: ' + e.message);
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('workflow:getTunnelStatus', async () => {
+        try {
+            return { success: true, ...WebhookGatewayService.getInstance().getStatus() };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    // ─── Webhook: Regenerate token ─────────────────────────────────────────
+    ipcMain.handle('workflow:regenerateWebhookToken', async (_e, { id }: { id: string }) => {
+        try {
+            const row = DatabaseService.getInstance().getWorkflowById(id);
+            if (!row) return { success: false, error: 'Not found' };
+            const wf = rowToWorkflow(row);
+            const hookNode = wf.nodes.find(n => n.type === 'trigger.webhook');
+            if (!hookNode) return { success: false, error: 'Workflow này không có trigger.webhook' };
+            const newToken = generateWebhookToken();
+            if (!hookNode.config) hookNode.config = {};
+            hookNode.config.webhookToken = newToken;
+            // Save updated node config back to DB
+            DatabaseService.getInstance().saveWorkflow(wf);
+            DatabaseService.getInstance().save();
+            WorkflowEngineService.getInstance().reloadWorkflow(wf.id);
+            const tunnelUrl = TunnelService.getUrl(9889);
+            const webhookUrl = tunnelUrl ? tunnelUrl + '/api/workflow/webhook/' + newToken : null;
+            return { success: true, webhookUrl, token: newToken };
+        } catch (e: any) {
+            Logger.error('[WorkflowIpc] regenerateWebhookToken error: ' + e.message);
+            return { success: false, error: e.message };
+        }
+    });
+
+    // ─── Webhook: Get/Set port config ─────────────────────────────────────
+    ipcMain.handle('workflow:getPortConfig', async () => {
+        try {
+            const db = DatabaseService.getInstance();
+            const intPort = db.getSetting('webhook_port_integration');
+            const wfPort = db.getSetting('webhook_port_workflow');
+            return { success: true, integrationPort: intPort ? Number(intPort) : 9888, workflowPort: wfPort ? Number(wfPort) : 9889 };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('workflow:setPortConfig', async (_e, { key, port }: { key: string; port: number }) => {
+        try {
+            DatabaseService.getInstance().setSetting(key, String(port));
+            DatabaseService.getInstance().save();
+            return { success: true };
+        } catch (e: any) {
+            Logger.error('[WorkflowIpc] setPortConfig error: ' + e.message);
             return { success: false, error: e.message };
         }
     });

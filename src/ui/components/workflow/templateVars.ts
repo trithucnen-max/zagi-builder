@@ -223,6 +223,43 @@ export const TEMPLATE_VARS: TemplateVarInfo[] = [
     group: 'trigger',
   },
 
+  // ── Trigger: webhook ────────────────────────────────────────────────────
+  {
+    key: '$trigger.body',
+    label: 'Toàn bộ dữ liệu webhook (JSON)',
+    description: 'Toàn bộ nội dung JSON mà bên thứ 3 gửi đến. Dùng $trigger.body.field để lấy 1 trường cụ thể.',
+    group: 'trigger',
+    example: '{"orderId":"ORD123","customer":{...}}',
+  },
+  {
+    key: '$trigger.body.<field>',
+    label: '1 trường bất kỳ trong webhook',
+    description: 'Truy cập 1 trường cụ thể từ JSON. VD: $trigger.body.orderId, $trigger.body.customer.name. Hỗ trợ nested object với dấu chấm.',
+    group: 'trigger',
+    example: '$trigger.body.orderId → "ORD123"',
+  },
+  {
+    key: '$trigger.method',
+    label: 'Phương thức HTTP',
+    description: 'Phương thức HTTP mà bên thứ 3 dùng để gửi webhook (POST, GET, PUT...).',
+    group: 'trigger',
+    example: '"POST"',
+  },
+  {
+    key: '$trigger.headers',
+    label: 'Headers của request webhook',
+    description: 'Toàn bộ HTTP headers từ request của bên thứ 3.',
+    group: 'trigger',
+    example: '{"content-type":"application/json"}',
+  },
+  {
+    key: '$trigger.query',
+    label: 'Query string params',
+    description: 'Các tham số trên URL (sau dấu ?). VD: ?source=web → $trigger.query.source = "web".',
+    group: 'trigger',
+    example: '{"source":"web"}',
+  },
+
   // ── Date / Time ─────────────────────────────────────────────────────────
   {
     key: '$date.now',

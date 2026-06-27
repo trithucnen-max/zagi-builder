@@ -361,7 +361,7 @@ declare global {
       workflow: {
         list: () => Promise<{ success: boolean; workflows: any[]; error?: string }>;
         get: (id: string) => Promise<{ success: boolean; workflow?: any; error?: string }>;
-        save: (workflow: any) => Promise<{ success: boolean; id?: string; error?: string }>;
+        save: (workflow: any) => Promise<{ success: boolean; id?: string; webhookToken?: string | null; error?: string }>;
         delete: (id: string) => Promise<{ success: boolean; error?: string }>;
         toggle: (id: string, enabled: boolean) => Promise<{ success: boolean; error?: string }>;
         runManual: (id: string, triggerData?: any, isSandbox?: boolean) => Promise<{ success: boolean; log?: any; error?: string }>;
@@ -369,6 +369,13 @@ declare global {
         deleteLogs: (id: string) => Promise<{ success: boolean; error?: string }>;
         clone: (id: string, targetZaloId: string) => Promise<{ success: boolean; newId?: string; error?: string }>;
         cloneAll: (sourceZaloId: string, targetZaloId: string) => Promise<{ success: boolean; count?: number; error?: string }>;
+        getWebhookUrl: (id: string) => Promise<{ success: boolean; webhookUrl?: string | null; token?: string; tunnelActive?: boolean; error?: string }>;
+        regenerateWebhookToken: (id: string) => Promise<{ success: boolean; webhookUrl?: string | null; token?: string; error?: string }>;
+        startTunnel: () => Promise<{ success: boolean; tunnelUrl?: string; error?: string }>;
+        stopTunnel: () => Promise<{ success: boolean; error?: string }>;
+        getTunnelStatus: () => Promise<{ success: boolean; running: boolean; port: number; tunnelActive: boolean; tunnelUrl: string | null; error?: string }>;
+        getPortConfig: () => Promise<{ success: boolean; integrationPort: number; workflowPort: number; error?: string }>;
+        setPortConfig: (key: string, port: number) => Promise<{ success: boolean; error?: string }>;
       };
       integration: {
         list:           () => Promise<{ success: boolean; integrations: any[]; webhookPort?: number; error?: string }>;

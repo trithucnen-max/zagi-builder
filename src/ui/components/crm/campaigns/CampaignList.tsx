@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { CRMCampaign } from '@/store/crmStore';
 import { showConfirm } from '@/components/common/ConfirmDialog';
 import AppIcon from '@/components/common/AppIcon';
+import ipc from '@/lib/ipc';
 
 interface CampaignListProps {
   campaigns: CRMCampaign[];
@@ -12,6 +13,7 @@ interface CampaignListProps {
   onDelete: (id: number) => void;
   onClone: (id: number) => void;
   onUpdateStatus: (id: number, status: string) => void;
+  zaloId?: string;
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -28,10 +30,35 @@ function fmtDate(ts: number): string {
   return new Date(ts).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-export default function CampaignList({ campaigns, loading, activeId, onSelect, onCreate, onDelete, onClone, onUpdateStatus }: CampaignListProps) {
+export default function CampaignList({ campaigns, loading, activeId, onSelect, onCreate, onDelete, onClone, onUpdateStatus, zaloId }: CampaignListProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [page, setPage] = useState(0);
+
+  const [safetyStats, setSafetyStats] = useState<{
+    sentStrangerMessages: number;
+    sentStrangerInvites: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!zaloId) {
+      setSafetyStats(null);
+      return;
+    }
+    const fetchStats = async () => {
+      try {
+        const res = await ipc.crm.getCampaignSafetyStats({ zaloId });
+        if (res.success && res.data) {
+          setSafetyStats(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching safety stats in CampaignList:', err);
+      }
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000);
+    return () => clearInterval(interval);
+  }, [zaloId, campaigns]);
 
   const filtered = useMemo(() => {
     let list = campaigns;
@@ -59,6 +86,36 @@ export default function CampaignList({ campaigns, loading, activeId, onSelect, o
           Tạo mới
         </button>
       </div>
+
+
+      {/* Safety Stats Info Panel */}
+      {zaloId && safetyStats && (
+        <div className="mx-3 mt-3 bg-gray-800/40 border border-gray-700/60 rounded-xl p-2.5 space-y-1.5 text-xs flex-shrink-0">
+          <div className="flex items-center gap-1.5 text-gray-300 font-semibold">
+            <AppIcon name="shield_check" className="text-emerald-500" size={13} />
+            <span className="text-[11px]">Gửi hôm nay (Người lạ)</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="bg-gray-900/30 rounded-lg p-1.5 border border-gray-750">
+              <span className="text-[9px] text-gray-500 block leading-tight">Tin nhắn</span>
+              <span className={`text-xs font-bold ${safetyStats.sentStrangerMessages >= 50 ? 'text-red-400' : 'text-white'}`}>
+                {safetyStats.sentStrangerMessages} <span className="text-gray-500 font-normal text-[10px]">/ 50</span>
+              </span>
+            </div>
+            <div className="bg-gray-900/30 rounded-lg p-1.5 border border-gray-750">
+              <span className="text-[9px] text-gray-500 block leading-tight">Kết bạn</span>
+              <span className={`text-xs font-bold ${safetyStats.sentStrangerInvites >= 50 ? 'text-red-400' : 'text-white'}`}>
+                {safetyStats.sentStrangerInvites} <span className="text-gray-500 font-normal text-[10px]">/ 50</span>
+              </span>
+            </div>
+          </div>
+          {(safetyStats.sentStrangerMessages >= 50 || safetyStats.sentStrangerInvites >= 50) && (
+            <p className="text-[9px] text-amber-500 leading-tight">
+              ⚠️ Đã đạt hạn mức an toàn trong ngày. Hãy chuyển đổi tài khoản Zalo khác.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="px-3 pt-2.5 pb-2 border-b border-gray-700 flex-shrink-0 space-y-2">

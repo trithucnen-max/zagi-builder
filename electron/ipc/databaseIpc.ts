@@ -960,6 +960,22 @@ export function registerDatabaseIpc() {
         }
     });
 
+    ipcMain.handle('db:patchContactFields', async (_event, {
+        zaloId, contactId, fields
+    }: {
+        zaloId: string;
+        contactId: string;
+        fields: { alias?: string; salutation?: string | null; phone?: string; gender?: number | null; birthday?: string | null; };
+    }) => {
+        try {
+            DatabaseService.getInstance().patchContactFields(zaloId, contactId, fields);
+            proxyToBoss('db:patchContactFields', { zaloId, contactId, fields });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
     // ─── Message Drafts ───────────────────────────────────────────────────
     ipcMain.handle('db:upsertDraft', async (_event, { zaloId, threadId, content }: { zaloId: string; threadId: string; content: string }) => {
         try {

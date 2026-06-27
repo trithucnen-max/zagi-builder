@@ -118,9 +118,9 @@ export function registerIntegrationIpc(): void {
     ipcMain.handle('tunnel:start', async () => {
         try {
             const port = IntegrationRegistry.getWebhookPort();
-            const url = await TunnelService.start(port);
+            const url = await TunnelService.start(port, 'Webhook Gateway');
             // Notify all renderer windows of the tunnel URL change
-            BrowserWindow.getAllWindows().forEach(w => w.webContents.send('tunnel:changed', { url }));
+            BrowserWindow.getAllWindows().forEach(w => w.webContents.send('tunnel:changed', { port, url }));
             return { success: true, url };
         } catch (e: any) {
             Logger.error(`[TunnelIpc] start: ${e.message}`);
@@ -131,8 +131,9 @@ export function registerIntegrationIpc(): void {
     // ─── Tunnel: stop ─────────────────────────────────────────────────────────
     ipcMain.handle('tunnel:stop', async () => {
         try {
-            await TunnelService.stop();
-            BrowserWindow.getAllWindows().forEach(w => w.webContents.send('tunnel:changed', { url: null }));
+            const port = IntegrationRegistry.getWebhookPort();
+            await TunnelService.stop(port);
+            BrowserWindow.getAllWindows().forEach(w => w.webContents.send('tunnel:changed', { port, url: null }));
             return { success: true };
         } catch (e: any) {
             return { success: false, error: e.message };
@@ -140,9 +141,17 @@ export function registerIntegrationIpc(): void {
     });
 
     // ─── Tunnel: status ───────────────────────────────────────────────────────
-    ipcMain.handle('tunnel:status', () => ({
-        active: TunnelService.isActive(),
-        url: TunnelService.getUrl(),
+    ipcMain.handle('tunnel:status', () => {
+        const port = IntegrationRegistry.getWebhookPort();
+        return {
+            active: TunnelService.isActive(port),
+            url: TunnelService.getUrl(port),
+        };
+    });
+
+    // ─── Tunnel: get all ─────────────────────────────────────────────────────
+    ipcMain.handle('tunnel:getAll', () => ({
+        tunnels: TunnelService.getAllTunnels(),
     }));
 }
 
