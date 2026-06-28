@@ -296,15 +296,20 @@ function createWindow() {
   // CSP: chặn inline scripts bên ngoài trong production
   if (!isDev) {
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [
-            // img-src và media-src phải có https: để load ảnh/video từ CDN Zalo
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: local-media: blob: https:; media-src 'self' local-media: blob: https:; connect-src 'self' https: wss:; font-src 'self' data: https:; frame-src 'self' https:;",
-          ],
-        },
-      });
+      const isInternal = details.url.startsWith('file://') || details.url.includes('index.html');
+      if (isInternal) {
+        callback({
+          responseHeaders: {
+            ...details.responseHeaders,
+            'Content-Security-Policy': [
+              // img-src và media-src phải có https: để load ảnh/video từ CDN Zalo
+              "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: local-media: blob: https:; media-src 'self' local-media: blob: https:; connect-src 'self' https: wss:; font-src 'self' data: https:; frame-src 'self' https:;",
+            ],
+          },
+        });
+      } else {
+        callback({ responseHeaders: details.responseHeaders });
+      }
     });
   }
 
