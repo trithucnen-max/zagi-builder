@@ -35,7 +35,8 @@ import WebhookGatewayService from '../src/services/workflow/WebhookGatewayServic
 import EventBroadcaster from '../src/services/event/EventBroadcaster';
 import CRMQueueService from '../src/services/crm/CRMQueueService';
 import FileStorageService from '../src/services/file/FileStorageService';
-import TrackingService from '../src/services/tracking/TrackingService';
+// TrackingService removed — will be re-added with new URL
+
 import { SHOW_DEV_TOOLS, IS_DEV_BUILD } from '../src/configs/BuildConfig';
 
 const isDev = IS_DEV_BUILD;
@@ -922,14 +923,8 @@ async function startupAfterLicenseCheck(): Promise<void> {
     });
   }, 3000);
 
-  // Initialize Tracking Service (chỉ chạy trong production build)
-  setTimeout(() => {
-    try {
-      TrackingService.getInstance().start();
-    } catch (err: any) {
-      console.error('[main] TrackingService init error:', err.message);
-    }
-  }, 5000);
+  // TrackingService disabled — will be re-added with new URL
+
 
   // ─── Media cleanup scheduler (tự động xoá media cũ) ─────────────────────
   // Chạy mỗi ngày lúc 3:00 sáng, kiểm tra tất cả tài khoản có cấu hình auto-delete
