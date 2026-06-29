@@ -13,11 +13,12 @@ import EmployeeSettings from './EmployeeSettings';
 import WorkspaceSettings from './WorkspaceSettings';
 import ProxySettings from './ProxySettings';
 import LockScreenSettings from './LockScreenSettings';
+import TunnelSettings from './TunnelSettings';
 import { loadSeenTabs, markTabSeen, SETTINGS_WATCHLIST, hasUnseenChangelog, markChangelogSeen } from '@/utils/settingsSeenTabs';
 import AccountSettings from './AccountSettings';
 import AppIcon, { IconType } from '../common/AppIcon';
 
-type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'changelog' | 'appearance' | 'proxy' | 'security';
+type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'changelog' | 'appearance' | 'proxy' | 'security' | 'webhook';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('conversation');
@@ -174,6 +175,7 @@ export default function Settings() {
     { id: 'security',      icon: 'security',      label: 'Bảo mật' },
     { id: 'employees',     icon: 'employees',     label: 'Nhân viên', requiredPerm: 'settings_employees' },
     { id: 'workspace',     icon: 'workspace',     label: 'Workspace' },
+    { id: 'webhook',       icon: 'integration',   label: 'Webhooks' },
     { id: 'storage',       icon: 'storage',       label: 'Lưu trữ' },
     { id: 'introduction',  icon: 'introduction',  label: 'Giới thiệu' },
     { id: 'changelog',     icon: 'changelog',     label: 'Log phiên bản' },
@@ -541,6 +543,9 @@ export default function Settings() {
 
         {/* ── Changelog ── */}
         {activeTab === 'changelog' && <ChangelogSettings />}
+
+        {/* ── Webhooks / Tunnel ── */}
+        {activeTab === 'webhook' && <TunnelSettings />}
 
       </div>
     </div>
