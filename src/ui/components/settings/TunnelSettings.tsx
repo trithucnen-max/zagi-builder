@@ -136,13 +136,14 @@ function NamedTunnelConfig() {
                 <li>Vào <strong className="text-blue-300">Networks</strong> → Chọn <strong className="text-blue-300">Connectors</strong> (Tunnels).</li>
                 <li>Nhấn <strong className="text-blue-300">Create a tunnel</strong> → Chọn loại kết nối <strong className="text-blue-300">cloudflared</strong>.</li>
                 <li>Đặt tên cho tunnel (ví dụ: <strong className="text-gray-300">zagi</strong>) → Sao chép <strong className="text-yellow-300">Token</strong> hiển thị trên màn hình và dán vào ô bên dưới.</li>
-                <li>Cấu hình tên miền đầu tiên tại bước tạo: Chọn <strong className="text-gray-300">HTTP</strong>, trỏ về địa chỉ <strong className="text-gray-300">localhost:9900</strong> (cổng kết nối nhân viên) và gắn tên miền <strong className="text-green-300">relay.basancorp.com</strong>. Nhấn lưu để hoàn tất.</li>
+                <li>Cấu hình tên miền đầu tiên tại bước tạo: Chọn <strong className="text-gray-300">HTTP</strong>, trỏ về địa chỉ <strong className="text-gray-300">localhost:9900</strong> (cổng kết nối nhân viên) và gắn tên miền của bạn (ví dụ: <strong className="text-green-300">relay.yourdomain.com</strong>). Nhấn lưu để hoàn tất.</li>
                 <li>Thêm 2 tên miền còn lại: Bấm vào Tunnel vừa tạo → Chọn <strong className="text-blue-300">Configure</strong> → Chọn tab <strong className="text-blue-300">Published application routes</strong> → Nhấn **Add a published application route** để cấu hình tiếp cho:
                   <ul className="list-disc pl-3 mt-0.5 space-y-0.5 text-gray-400">
-                    <li><strong className="text-green-300">payment.basancorp.com</strong> trỏ về <strong className="text-gray-300">localhost:9888</strong> (HTTP)</li>
-                    <li><strong className="text-green-300">wf.basancorp.com</strong> trỏ về <strong className="text-gray-300">localhost:9889</strong> (HTTP)</li>
+                    <li><strong className="text-green-300">payment.yourdomain.com</strong> trỏ về <strong className="text-gray-300">localhost:9888</strong> (HTTP - Tích hợp thanh toán)</li>
+                    <li><strong className="text-green-300">wf.yourdomain.com</strong> trỏ về <strong className="text-gray-300">localhost:9889</strong> (HTTP - Workflow Webhook)</li>
                   </ul>
                 </li>
+
               </ol>
             </div>
 
