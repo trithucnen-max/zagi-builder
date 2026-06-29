@@ -225,6 +225,14 @@ class HttpClientService {
         return this.connected;
     }
 
+    public getBossUrl(): string {
+        return this.bossUrl;
+    }
+
+    public getToken(): string {
+        return this.token;
+    }
+
     public getStatus(): { connected: boolean; bossUrl: string; latency: number } {
         return { connected: this.connected, bossUrl: this.bossUrl, latency: this.latencyMs };
     }

@@ -29,6 +29,196 @@ const PORT_KEYS = {
   WORKFLOW: 'webhook_port_workflow',
 };
 
+// ─── Named Tunnel Config UI ───────────────────────────────────────────────────
+
+type NamedConfig = {
+  token: string;
+  domainIntegration: string;
+  domainWorkflow: string;
+  domainRelay: string;
+};
+
+function NamedTunnelConfig() {
+  const [config, setConfig] = useState<NamedConfig>({
+    token: '',
+    domainIntegration: '',
+    domainWorkflow: '',
+    domainRelay: '',
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await (ipc.tunnel as any)?.getConfig?.();
+        if (res?.success) {
+          setConfig({
+            token: res.token || '',
+            domainIntegration: res.domainIntegration || '',
+            domainWorkflow: res.domainWorkflow || '',
+            domainRelay: res.domainRelay || '',
+          });
+          // Auto-expand if user already has a token saved
+          if (res.token) setExpanded(true);
+        }
+      } catch {} finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await (ipc.tunnel as any)?.saveConfig?.(config);
+      if (res?.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        setError(res?.error || 'Lưu thất bại');
+      }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hasToken = !!config.token.trim();
+  const hasAnyDomain = !!(config.domainIntegration || config.domainWorkflow || config.domainRelay);
+
+  return (
+    <div className="rounded-xl border border-blue-500/30 bg-blue-900/10 overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-800/20 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="text-lg">☁️</span>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-white">
+              Cloudflare Named Tunnel
+              {hasToken && (
+                <span className="ml-2 text-[10px] bg-green-600/30 text-green-300 border border-green-500/30 px-1.5 py-0.5 rounded-full">
+                  ĐÃ CẤU HÌNH
+                </span>
+              )}
+            </p>
+            <p className="text-[11px] text-blue-300/70">URL cố định • Domain riêng • Cần tài khoản Cloudflare</p>
+          </div>
+        </div>
+        <span className={`text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}>▼</span>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-4 border-t border-blue-500/20">
+          {/* Intro */}
+          <div className="bg-blue-900/20 rounded-lg px-3 py-2.5 space-y-1.5 mt-3">
+            <p className="text-xs text-blue-200 font-medium">
+              🔒 Tại sao dùng Named Tunnel?
+            </p>
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              Quick Tunnel (mặc định) tạo URL <strong className="text-gray-300">ngẫu nhiên, thay đổi mỗi lần khởi động</strong>.
+              Named Tunnel dùng Cloudflare Zero Trust của bạn để tạo URL <strong className="text-green-300">cố định, không bao giờ thay đổi</strong> —
+              không cần cập nhật lại webhook với đối tác khi restart app.
+            </p>
+            <div className="bg-gray-900/60 rounded-lg px-3 py-2 mt-2 space-y-1">
+              <p className="text-[11px] text-gray-400 font-medium">Hướng dẫn lấy Token:</p>
+              <ol className="text-[10px] text-gray-500 space-y-0.5 pl-3 list-decimal">
+                <li>Vào <strong className="text-blue-300">one.dash.cloudflare.com</strong> → Zero Trust → Networks → Tunnels</li>
+                <li>Nhấn <strong className="text-blue-300">Create a tunnel</strong> → chọn <strong>Cloudflared</strong></li>
+                <li>Đặt tên tunnel → Sao chép <strong className="text-yellow-300">Token</strong></li>
+                <li>Vào tab <strong className="text-blue-300">Public Hostname</strong> → thêm từng domain với port tương ứng</li>
+              </ol>
+            </div>
+          </div>
+
+          {loading ? (
+            <p className="text-xs text-gray-500 text-center py-2">Đang tải...</p>
+          ) : (
+            <div className="space-y-3">
+              {/* Token */}
+              <div>
+                <label className="block text-[11px] text-gray-400 mb-1 font-medium">
+                  Cloudflare Tunnel Token <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="eyJhIjoiXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX..."
+                  value={config.token}
+                  onChange={e => setConfig(v => ({ ...v, token: e.target.value }))}
+                  className="w-full bg-gray-900 text-white text-xs rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-400 focus:outline-none font-mono"
+                />
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-px bg-gray-700" />
+                <p className="text-[10px] text-gray-600">Domain cho từng cổng (tùy chọn)</p>
+                <div className="flex-1 h-px bg-gray-700" />
+              </div>
+
+              {/* Domain fields */}
+              {[
+                { key: 'domainIntegration', label: '🔗 Tích hợp & Thanh toán (Port 9888)', placeholder: 'webhook.yourdomain.com' },
+                { key: 'domainWorkflow',    label: '⚡ Workflow Webhook (Port 9889)',       placeholder: 'workflow.yourdomain.com' },
+                { key: 'domainRelay',       label: '👥 Kết nối nhân viên (Port 9900)',      placeholder: 'relay.yourdomain.com'   },
+              ].map(({ key, label, placeholder }) => (
+                <div key={key}>
+                  <label className="block text-[11px] text-gray-400 mb-1">{label}</label>
+                  <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={(config as any)[key]}
+                    onChange={e => setConfig(v => ({ ...v, [key]: e.target.value }))}
+                    className="w-full bg-gray-900 text-white text-xs rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-400 focus:outline-none font-mono"
+                  />
+                </div>
+              ))}
+
+              {/* Info note */}
+              {hasToken && !hasAnyDomain && (
+                <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg px-3 py-2">
+                  <p className="text-[11px] text-amber-300">
+                    ⚠️ Bạn đã nhập Token nhưng chưa cấu hình domain nào. Tunnel sẽ chạy nhưng URL tự động sẽ là URL tạm thời.
+                    Thêm domain để có URL cố định vĩnh viễn.
+                  </p>
+                </div>
+              )}
+
+              {error && (
+                <p className="text-xs text-red-400">⚠️ {error}</p>
+              )}
+
+              {/* Save button */}
+              <button
+                onClick={handleSave}
+                disabled={saving || !config.token.trim()}
+                className="w-full py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-40
+                  bg-blue-600 hover:bg-blue-500 text-white"
+              >
+                {saving ? '⏳ Đang lưu...' : saved ? '✅ Đã lưu!' : '💾 Lưu cấu hình Tunnel'}
+              </button>
+
+              <p className="text-[10px] text-gray-600 text-center leading-relaxed">
+                Lưu xong → Tắt và bật lại tunnel để áp dụng. Token được lưu mã hoá trong DB cục bộ.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function TunnelSettings() {
   const [integration, setIntegration] = useState<TunnelState>({ active: false, url: null, loading: true });
   const [workflow, setWorkflow] = useState<TunnelState>({ active: false, url: null, loading: true });
@@ -190,7 +380,7 @@ export default function TunnelSettings() {
         </p>
         <p className="text-xs dark:text-gray-400 leading-relaxed">
           Deplao dùng <strong className="text-blue-600 dark:text-blue-300">Cloudflare Quick Tunnel</strong> (miễn phí, không cần tài khoản)
-          để tạo các URL này. Mỗi nhóm webhook có một URL riêng.
+          theo mặc định. Nếu cần URL cố định, dùng <strong className="text-blue-400">Named Tunnel</strong> bên dưới.
         </p>
         <div className="dark:bg-amber-900/20 border rounded-lg px-3 py-2 space-y-1.5">
           <p className="text-xs font-medium ">
@@ -198,12 +388,14 @@ export default function TunnelSettings() {
             Chỉ bật khi cần nhận dữ liệu từ Internet.
           </p>
           <p className="text-[11px] leading-relaxed">
-            ⚠️ Tunnel chỉ hoạt động khi app đang chạy. Khi bạn tắt máy hoặc đóng app, tunnel ngừng
-            và URL cũ không còn dùng được. Khi khởi động lại, bạn phải bật lại tunnel và sẽ nhận được
-            <strong> địa chỉ URL mới</strong>. Các bên thứ 3 đang dùng URL cũ sẽ cần được cập nhật.
+            ⚠️ Quick Tunnel chỉ hoạt động khi app đang chạy. Khi khởi động lại, bạn sẽ nhận được
+            <strong> địa chỉ URL mới</strong>. Dùng Named Tunnel để URL không thay đổi.
           </p>
         </div>
       </div>
+
+      {/* ─── Named Tunnel Config ─── */}
+      <NamedTunnelConfig />
 
       {/* ─── Service cards ─── */}
       {services.map(svc => {
@@ -324,6 +516,10 @@ export default function TunnelSettings() {
               Để cho phép nhân viên kết nối từ xa qua Internet, bạn cần bật tunnel riêng cho Relay.
               Tính năng này được quản lý trong <strong>Cài đặt → Nhân viên</strong> sau khi bật Relay Server.
               Port kết nối nhân viên (9900) cố định để tránh gián đoạn cho nhân viên đang làm việc.
+            </p>
+            {/* Named Tunnel shortcut note */}
+            <p className="text-[11px] text-blue-400">
+              💡 Để URL Relay luôn cố định, cấu hình domain cho Port 9900 trong phần <strong>Cloudflare Named Tunnel</strong> phía trên.
             </p>
           </div>
         </div>

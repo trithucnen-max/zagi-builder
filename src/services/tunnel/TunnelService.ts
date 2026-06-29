@@ -1,15 +1,19 @@
 /**
- * TunnelService - wraps cloudflared Quick Tunnel to expose local HTTP servers to the internet.
- * Uses trycloudflare.com - no Cloudflare account required.
+ * TunnelService - wraps cloudflared to expose local HTTP servers to the internet.
+ *
+ * Supports TWO modes:
+ *  1. Quick Tunnel (default): trycloudflare.com — no Cloudflare account required.
+ *     URL changes every restart.
+ *  2. Named Tunnel (via Token): User's own Cloudflare Zero Trust account.
+ *     Fixed custom domain (e.g. webhook.myzagi.com) — URL never changes.
  *
  * Supports MULTIPLE concurrent tunnels keyed by port number.
- * Each tunnel gets its own public URL (e.g. https://xxxx.trycloudflare.com).
  *
- * Advantages over loca.lt (localtunnel):
- *  - No response size limits (loca.lt chokes on large JSON payloads)
- *  - No interstitial HTML bypass page
- *  - Much higher bandwidth & concurrent connection support
- *  - More stable long-lived connections (important for SSE streams)
+ * Named Tunnel setup (once, by user):
+ *  1. Go to Cloudflare Zero Trust → Access → Tunnels → Create Tunnel
+ *  2. Add public hostname: <domain> → http://localhost:<port>
+ *  3. Copy the Tunnel Token
+ *  4. Paste Token into Zagi Settings → Tunnels → Cloudflare Token
  *
  * Usage:
  *   const url1 = await TunnelService.start(9888, 'Webhook Gateway');
@@ -55,11 +59,41 @@ interface TunnelEntry {
 
 const tunnels = new Map<number, TunnelEntry>();
 
+// ─── Named Tunnel Token state ────────────────────────────────────────────────
+
+// A Named Tunnel (Token-based) runs a single cloudflared process for ALL ports simultaneously.
+// Cloudflare routes traffic to correct port based on hostname config in Zero Trust dashboard.
+let namedTunnelProcess: any = null;
+let namedTunnelToken: string | null = null;
+
+/** Port → custom domain mapping, set by configureNamedTunnel() */
+const customDomains = new Map<number, string>();
+
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 export const TunnelService = {
   /**
-   * Start a Cloudflare Quick Tunnel pointing to a local port.
+   * Configure a Cloudflare Named Tunnel (Token-based) with fixed custom domains.
+   * Call this BEFORE calling start() when user has a Cloudflare account.
+   *
+   * @param token - Cloudflare Tunnel Token from Zero Trust dashboard
+   * @param domains - map of port → custom hostname (e.g. { 9888: 'webhook.myzagi.com', 9900: 'relay.myzagi.com' })
+   */
+  configureNamedTunnel(token: string | null, domains: Record<number, string>): void {
+    namedTunnelToken = token || null;
+    customDomains.clear();
+    for (const [port, domain] of Object.entries(domains)) {
+      if (domain && domain.trim()) {
+        customDomains.set(Number(port), domain.trim());
+      }
+    }
+    Logger.log(`[TunnelService] Named Tunnel configured. Token: ${token ? 'SET' : 'NONE'}, Domains: ${JSON.stringify(domains)}`);
+  },
+
+  /**
+   * Start a tunnel pointing to a local port.
+   * - If a Cloudflare Tunnel Token is configured, starts a Named Tunnel with a fixed URL.
+   * - Otherwise falls back to Quick Tunnel (trycloudflare.com).
    * Multiple tunnels can run concurrently (keyed by port).
    * Returns the public URL.
    */
@@ -81,6 +115,57 @@ export const TunnelService = {
       Logger.log('[TunnelService] cloudflared binary installed');
     }
 
+    // ── Named Tunnel (Token-based) mode ──────────────────────────────────────
+    if (namedTunnelToken) {
+      const customDomain = customDomains.get(port);
+      const url = customDomain
+        ? (customDomain.startsWith('https://') ? customDomain : `https://${customDomain}`)
+        : null;
+
+      Logger.log(`[TunnelService] Named Tunnel mode for port ${port}${label ? ` (${label})` : ''}. Domain: ${url || 'not configured'}`);
+
+      // Start shared cloudflared process if not already running
+      if (!namedTunnelProcess) {
+        Logger.log('[TunnelService] Starting shared Named Tunnel process with Token...');
+        namedTunnelProcess = Tunnel.withToken(namedTunnelToken);
+
+        namedTunnelProcess.on('connected', (conn: any) => {
+          Logger.log(`[TunnelService] Named Tunnel connected: ${JSON.stringify(conn)}`);
+        });
+
+        namedTunnelProcess.on('error', (err: Error) => {
+          Logger.error(`[TunnelService] Named Tunnel process error: ${err.message}`);
+          namedTunnelProcess = null;
+          // Notify all active named-tunnel entries of URL loss
+          for (const [p, entry] of tunnels) {
+            if (entry.url && customDomains.has(p)) {
+              tunnels.delete(p);
+              TunnelService._notifyChange(p, null);
+            }
+          }
+        });
+
+        namedTunnelProcess.on('exit', (code: number | null) => {
+          Logger.log(`[TunnelService] Named Tunnel process exited (code ${code})`);
+          namedTunnelProcess = null;
+        });
+      }
+
+      // Register this port in the tunnels map with its fixed URL
+      const finalUrl = url || `https://${port}.unknown-domain.invalid`;
+      const entry: TunnelEntry = {
+        tunnel: namedTunnelProcess,
+        url: finalUrl,
+        label: label || `Port ${port}`,
+        onChangeCbs: new Set(),
+      };
+      tunnels.set(port, entry);
+      Logger.log(`[TunnelService] ✅ Named Tunnel registered [${port}]: ${finalUrl}${label ? ` (${label})` : ''}`);
+      TunnelService._notifyChange(port, finalUrl);
+      return finalUrl;
+    }
+
+    // ── Quick Tunnel mode (no account) ───────────────────────────────────────
     Logger.log(`[TunnelService] Starting Cloudflare Quick Tunnel on port ${port}${label ? ` (${label})` : ''}...`);
 
     return new Promise((resolve, reject) => {
@@ -108,7 +193,7 @@ export const TunnelService = {
           };
           tunnels.set(port, entry);
 
-          Logger.log(`[TunnelService] ✅ Tunnel active [${port}]: ${url}${label ? ` (${label})` : ''}`);
+          Logger.log(`[TunnelService] ✅ Quick Tunnel active [${port}]: ${url}${label ? ` (${label})` : ''}`);
           TunnelService._notifyChange(port, url);
           resolve(url);
         }
@@ -142,25 +227,46 @@ export const TunnelService = {
 
   /**
    * Stop a specific tunnel by port.
-   * Usage: TunnelService.stop(9888)
+   * For Named Tunnels, removes the port registration but does NOT stop the shared process
+   * (other ports may still be using it). Call stopAll() to terminate everything.
    */
   async stop(port: number): Promise<void> {
     const entry = tunnels.get(port);
     if (entry) {
-      try { entry.tunnel.stop(); } catch { /* ignore */ }
+      // Only actually kill the process for Quick Tunnels (each has its own process)
+      // Named Tunnel processes are shared — only kill when all ports stop
+      const isNamedTunnel = namedTunnelToken && customDomains.has(port);
+      if (!isNamedTunnel) {
+        try { entry.tunnel.stop(); } catch { /* ignore */ }
+      }
       tunnels.delete(port);
       TunnelService._notifyChange(port, null);
       Logger.log(`[TunnelService] Stopped tunnel [${port}]${entry.label ? ` (${entry.label})` : ''}`);
+
+      // Kill the shared Named Tunnel process if no ports are using it anymore
+      if (namedTunnelToken && namedTunnelProcess) {
+        const remainingNamedPorts = [...tunnels.keys()].filter(p => customDomains.has(p));
+        if (remainingNamedPorts.length === 0) {
+          Logger.log('[TunnelService] No more Named Tunnel ports active — stopping shared process');
+          try { namedTunnelProcess.stop(); } catch {}
+          namedTunnelProcess = null;
+        }
+      }
     }
   },
 
   /**
-   * Stop all active tunnels.
+   * Stop all active tunnels and terminate cloudflared processes.
    */
   async stopAll(): Promise<void> {
     const ports = Array.from(tunnels.keys());
     for (const port of ports) {
       await this.stop(port);
+    }
+    // Ensure shared Named Tunnel process is killed
+    if (namedTunnelProcess) {
+      try { namedTunnelProcess.stop(); } catch {}
+      namedTunnelProcess = null;
     }
     Logger.log(`[TunnelService] All tunnels stopped (${ports.length} total)`);
   },

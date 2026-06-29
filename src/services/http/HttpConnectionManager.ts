@@ -258,21 +258,30 @@ class HttpConnectionManager {
     /**
      * Start periodic health check that detects dead connections and triggers reconnect.
      * Called once at app startup after connectAutoWorkspaces.
+     *
+     * Uses client service's stored bossUrl/token directly instead of WorkspaceManager
+     * so reconnect works even for workspaces not marked as 'remote' (e.g., manual employee connections).
      */
     public startHealthCheck(intervalMs = 60_000): void {
         this.stopHealthCheck();
         this.healthCheckTimer = setInterval(async () => {
-            const wm = WorkspaceManager.getInstance();
             for (const [wsId, client] of this.clients) {
                 const status = client.service.getStatus();
                 if (status.connected) continue; // Already connected — skip
 
-                const ws = wm.getWorkspaceById(wsId);
-                if (!ws || ws.type !== 'remote' || !ws.bossUrl || !ws.token) continue;
+                // Read connection details from the service itself (not WorkspaceManager)
+                // This ensures reconnect works for all connected workspaces regardless of their stored type
+                const bossUrl = client.service.getBossUrl();
+                const token = client.service.getToken();
 
-                Logger.log(`[HttpConnectionManager] Health check: "${wsId}" disconnected — attempting reconnect`);
+                if (!bossUrl || !token) {
+                    Logger.log(`[HttpConnectionManager] Health check: "${wsId}" disconnected but no credentials stored — skipping`);
+                    continue;
+                }
+
+                Logger.log(`[HttpConnectionManager] Health check: "${wsId}" disconnected — attempting reconnect to ${bossUrl}`);
                 try {
-                    await this.connect(wsId, ws.bossUrl, ws.token);
+                    await this.connect(wsId, bossUrl, token);
                 } catch (err: any) {
                     Logger.warn(`[HttpConnectionManager] Health check reconnect failed for "${wsId}": ${err.message}`);
                 }
@@ -280,6 +289,7 @@ class HttpConnectionManager {
         }, intervalMs);
         Logger.log(`[HttpConnectionManager] Health check started (interval=${intervalMs}ms)`);
     }
+
 
     public stopHealthCheck(): void {
         if (this.healthCheckTimer) {

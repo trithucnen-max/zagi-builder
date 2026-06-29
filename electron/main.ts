@@ -10,7 +10,7 @@ import { registerDatabaseIpc } from './ipc/databaseIpc';
 import { registerFileIpc } from './ipc/fileIpc';
 import { registerCRMIpc } from './ipc/crmIpc';
 import { registerWorkflowIpc } from './ipc/workflowIpc';
-import { registerIntegrationIpc } from './ipc/integrationIpc';
+import { registerIntegrationIpc, loadTunnelConfig } from './ipc/integrationIpc';
 import { registerAIAssistantIpc } from './ipc/aiAssistantIpc';
 import { registerUtilIpc } from './ipc/utilIpc';
 import { registerEmployeeIpc } from './ipc/employeeIpc';
@@ -864,6 +864,7 @@ async function startupAfterLicenseCheck(): Promise<void> {
   registerCRMIpc();
   registerWorkflowIpc();
   registerIntegrationIpc();
+  loadTunnelConfig(); // Apply saved Cloudflare Tunnel Token + custom domains before any tunnel starts
   registerAIAssistantIpc();
   registerUtilIpc();
   registerEmployeeIpc();

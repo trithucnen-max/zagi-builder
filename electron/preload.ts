@@ -379,10 +379,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ─── Tunnel ───────────────────────────────────────────────────────
   tunnel: {
-    start:  () => ipcRenderer.invoke('tunnel:start'),
-    stop:   () => ipcRenderer.invoke('tunnel:stop'),
-    status: () => ipcRenderer.invoke('tunnel:status'),
+    start:      () => ipcRenderer.invoke('tunnel:start'),
+    stop:       () => ipcRenderer.invoke('tunnel:stop'),
+    status:     () => ipcRenderer.invoke('tunnel:status'),
+    getConfig:  () => ipcRenderer.invoke('tunnel:getConfig'),
+    saveConfig: (config: any) => ipcRenderer.invoke('tunnel:saveConfig', config),
   },
+
 
   // ─── Employee Management ───────────────────────────────────────────
   employee: {

@@ -16,6 +16,7 @@ export default function EmployeeLoginScreen({ onBossMode, onEmployeeConnected }:
     const [bossAddress, setBossAddress] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberPassword, setRememberPassword] = useState(false);
     const [connecting, setConnecting] = useState(false);
     const [error, setError] = useState('');
 
@@ -39,6 +40,10 @@ export default function EmployeeLoginScreen({ onBossMode, onEmployeeConnected }:
                 if (data.bossAddress) setBossAddress(data.bossAddress);
                 else if (data.bossIp) setBossAddress(data.bossIp + (data.bossPort ? `:${data.bossPort}` : ':9900'));
                 if (data.username) setUsername(data.username);
+                if (data.rememberPassword && data.password) {
+                    setPassword(data.password);
+                    setRememberPassword(true);
+                }
             }
         } catch { /* */ }
     }, []);
@@ -80,6 +85,8 @@ export default function EmployeeLoginScreen({ onBossMode, onEmployeeConnected }:
             localStorage.setItem('zagi_employee_login', JSON.stringify({
                 bossAddress: bossAddress.trim(),
                 username: username.trim(),
+                rememberPassword,
+                password: rememberPassword ? password : '',
             }));
 
             // Update store
@@ -290,6 +297,16 @@ export default function EmployeeLoginScreen({ onBossMode, onEmployeeConnected }:
                                     onKeyDown={e => e.key === 'Enter' && handleEmployeeLogin()}
                                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-200 placeholder-gray-500"
                                 />
+                                {/* Remember password checkbox */}
+                                <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={rememberPassword}
+                                        onChange={e => setRememberPassword(e.target.checked)}
+                                        className="w-3.5 h-3.5 rounded accent-green-500 cursor-pointer"
+                                    />
+                                    <span className="text-[11px] text-gray-400">Ghi nhớ mật khẩu</span>
+                                </label>
                             </div>
 
                             {error && (

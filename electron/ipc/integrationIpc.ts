@@ -1,7 +1,43 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import IntegrationRegistry from '../../src/services/integrations/IntegrationRegistry';
 import TunnelService from '../../src/services/tunnel/TunnelService';
+import DatabaseService from '../../src/services/database/DatabaseService';
 import Logger from '../../src/utils/Logger';
+
+/** Keys used in DB settings for Named Tunnel config */
+export const CF_TUNNEL_KEYS = {
+    TOKEN:             'cf_tunnel_token',
+    DOMAIN_INTEGRATION:'cf_domain_integration',
+    DOMAIN_WORKFLOW:   'cf_domain_workflow',
+    DOMAIN_RELAY:      'cf_domain_relay',
+};
+
+/** Port → DB key mapping */
+const PORT_DOMAIN_KEYS: Record<number, string> = {
+    9888: CF_TUNNEL_KEYS.DOMAIN_INTEGRATION,
+    9889: CF_TUNNEL_KEYS.DOMAIN_WORKFLOW,
+    9900: CF_TUNNEL_KEYS.DOMAIN_RELAY,
+};
+
+/**
+ * Load Cloudflare Tunnel config from DB and apply to TunnelService.
+ * Called once at app startup (before any tunnel is started).
+ */
+export function loadTunnelConfig(): void {
+    try {
+        const db = DatabaseService.getInstance();
+        const token = db.getSetting(CF_TUNNEL_KEYS.TOKEN) || null;
+        const domains: Record<number, string> = {};
+        for (const [port, key] of Object.entries(PORT_DOMAIN_KEYS)) {
+            const domain = db.getSetting(key);
+            if (domain) domains[Number(port)] = domain;
+        }
+        TunnelService.configureNamedTunnel(token, domains);
+        Logger.log(`[IntegrationIpc] Tunnel config loaded from DB. Token: ${token ? 'SET' : 'NONE'}`);
+    } catch (err: any) {
+        Logger.warn(`[IntegrationIpc] Failed to load tunnel config: ${err.message}`);
+    }
+}
 
 export function registerIntegrationIpc(): void {
     const extractActionError = (data: any): string | null => {
@@ -153,5 +189,52 @@ export function registerIntegrationIpc(): void {
     ipcMain.handle('tunnel:getAll', () => ({
         tunnels: TunnelService.getAllTunnels(),
     }));
-}
 
+    // ─── Tunnel: get Named Tunnel config ────────────────────────────────────
+    ipcMain.handle('tunnel:getConfig', () => {
+        try {
+            const db = DatabaseService.getInstance();
+            return {
+                success: true,
+                token: db.getSetting(CF_TUNNEL_KEYS.TOKEN) || '',
+                domainIntegration: db.getSetting(CF_TUNNEL_KEYS.DOMAIN_INTEGRATION) || '',
+                domainWorkflow:    db.getSetting(CF_TUNNEL_KEYS.DOMAIN_WORKFLOW) || '',
+                domainRelay:       db.getSetting(CF_TUNNEL_KEYS.DOMAIN_RELAY) || '',
+            };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    // ─── Tunnel: save Named Tunnel config ───────────────────────────────────
+    ipcMain.handle('tunnel:saveConfig', (_e, config: {
+        token: string;
+        domainIntegration: string;
+        domainWorkflow: string;
+        domainRelay: string;
+    }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.setSetting(CF_TUNNEL_KEYS.TOKEN,              config.token?.trim() || '');
+            db.setSetting(CF_TUNNEL_KEYS.DOMAIN_INTEGRATION, config.domainIntegration?.trim() || '');
+            db.setSetting(CF_TUNNEL_KEYS.DOMAIN_WORKFLOW,    config.domainWorkflow?.trim() || '');
+            db.setSetting(CF_TUNNEL_KEYS.DOMAIN_RELAY,       config.domainRelay?.trim() || '');
+            db.save();
+
+            // Apply new config immediately so next tunnel start uses it
+            TunnelService.configureNamedTunnel(
+                config.token?.trim() || null,
+                {
+                    9888: config.domainIntegration?.trim(),
+                    9889: config.domainWorkflow?.trim(),
+                    9900: config.domainRelay?.trim(),
+                },
+            );
+
+            return { success: true };
+        } catch (e: any) {
+            Logger.error(`[IntegrationIpc] saveConfig: ${e.message}`);
+            return { success: false, error: e.message };
+        }
+    });
+}
