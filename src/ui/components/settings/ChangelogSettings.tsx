@@ -66,6 +66,44 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.1.9',
+    date: '06/2026',
+    type: 'patch',
+    highlights: [
+      '☁️ Tích hợp Cloudflare Named Tunnel (Token-based) — Hỗ trợ cấu hình domain riêng cố định cho các cổng tích hợp thanh toán (9888), kịch bản tự động workflow (9889) và kết nối nhân viên (9900) qua tài khoản Cloudflare Zero Trust cá nhân, giải quyết triệt để vấn đề đổi URL ngẫu nhiên khi restart ứng dụng.',
+      '🔌 Khắc phục lỗi ngắt kết nối của nhân viên — Tái cấu trúc Health Check trong HttpConnectionManager để tự động nhận dạng kết nối bị đứt và reconnect dựa trên client instance lưu trong bộ nhớ tạm mà không phụ thuộc vào trạng thái type trong WorkspaceManager.',
+      '🔑 Ghi nhớ mật khẩu nhân viên — Thêm checkbox "Ghi nhớ mật khẩu" trên màn hình đăng nhập Nhân viên, hỗ trợ lưu trữ an toàn trong localStorage để người dùng không phải nhập lại mật khẩu khi mở app.',
+      '🔗 Khắc phục lỗi ẩn tab Webhooks — Tích hợp trực tiếp component TunnelSettings làm một tab chức năng chính thức trong màn hình Cài Đặt (Webhooks), sửa lỗi giao diện cấu hình tunnel bị cô lập không hiển thị.',
+      '🧹 Loại bỏ nhãn hiệu cũ (Deplao) & Gỡ bỏ TrackingService — Rà soát toàn bộ chuỗi ký tự hiển thị trên UI, thay thế hoàn toàn chữ Deplao thành Zagi, đổi tên thư mục ảnh tạm sang zagi-workflow-images. Gỡ bỏ hoàn toàn module TrackingService thu thập dữ liệu thống kê sử dụng không cần thiết.'
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Hỗ trợ IPC handlers tunnel:getConfig / tunnel:saveConfig để thiết lập Token và Domain cố định.',
+          'Bổ sung form cấu hình NamedTunnelConfig collapsible bên trong tab Webhooks.',
+          'Thêm checkbox "Ghi nhớ mật khẩu" vào EmployeeLoginScreen.tsx.'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Tích hợp component TunnelSettings vào Settings.tsx (tab Webhooks).',
+          'Sửa đổi logic TunnelService.ts hỗ trợ khởi chạy duy nhất 1 tiến trình cloudflared khi cấu hình Named Tunnel (Token-based).',
+          'Cập nhật toàn bộ các chuỗi giao diện hiển thị từ Deplao sang Zagi.'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi HttpConnectionManager.startHealthCheck() để hỗ trợ auto-reconnect đúng quy chuẩn cho mọi loại workspace.',
+          'Xoá hoàn toàn module TrackingService khởi động khi chạy Electron app.'
+        ]
+      }
+    ]
+  },
+  {
+
     version: '27.1.8',
     date: '06/2026',
     type: 'patch',

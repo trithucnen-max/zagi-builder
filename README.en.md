@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v27.1.8** — [View all versions](#changelog)
+> **Latest version: v27.1.9** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.8-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.1.9-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.9-x64.exe)
 
-**[Zagi-Setup-27.1.8-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-x64.exe)**
+**[Zagi-Setup-27.1.9-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.9-x64.exe)**
 
 NSIS Installer · ~148 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~148 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.8-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-arm64-mac.zip)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.1.9-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.9-arm64-mac.zip)
 
-**[Zagi-27.1.8-arm64-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-arm64-mac.zip)**
+**[Zagi-27.1.9-arm64-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.9-arm64-mac.zip)**
 
 Apple Silicon · ~160 MB
 
@@ -69,9 +69,9 @@ Apple Silicon · ~160 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.8-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-mac.zip)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.1.9-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.9-mac.zip)
 
-**[Zagi-27.1.8-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8-mac.zip)**
+**[Zagi-27.1.9-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.9-mac.zip)**
 
 Intel x64 · ~165 MB
 
@@ -80,10 +80,10 @@ Intel x64 · ~165 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.8-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.1.9-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.9.AppImage)
 
-**[Zagi-27.1.8.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.8.AppImage)**  
-**[zagi_27.1.8_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.8_amd64.deb)**
+**[Zagi-27.1.9.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.1.9.AppImage)**  
+**[zagi_27.1.9_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.1.9_amd64.deb)**
 
 AppImage + .deb · ~197 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~197 MB
 > 
 > Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.8-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.1.9-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.9-arm64.exe)
 
-**[Zagi-Setup-27.1.8-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.8-arm64.exe)**
+**[Zagi-Setup-27.1.9-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.1.9-arm64.exe)**
 
 NSIS Installer ARM64 · ~148 MB · Native performance on Surface ARM
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.8-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.1.9-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.8-x64.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.1.9-x64.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.1.8.AppImage
-./Zagi-27.1.8.AppImage
+chmod +x Zagi-27.1.9.AppImage
+./Zagi-27.1.9.AppImage
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i zagi_27.1.8_amd64.deb
+sudo dpkg -i zagi_27.1.9_amd64.deb
 ```
 
 </details>
@@ -381,7 +381,21 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.1.8</strong> — 2026-06-26 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.1.9</strong> — 2026-06-29 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights
+
+- ☁️ **Cloudflare Named Tunnel (Custom Domains)**: Supports configuring a Cloudflare Zero Trust Tunnel Token to maintain static Internet connections via 3 independent subdomains for: payment integration (Port 9888), Workflow Webhook (Port 9889), and remote employee connection (Port 9900). Eliminates random URL changes after application restarts.
+- 🔌 **Wifi Switch Auto-reconnect**: Overhauled the connection watchdog (Health Check) in HttpConnectionManager. Automatically reconnects when an employee switches Wifi networks or experiences temporary network drops, utilizing active client instances in memory instead of relying on database workspace properties.
+- 🔑 **Remember Employee Password**: Added a "Remember Password" checkbox to the Employee Login screen. Securely saves the password in localStorage to autofill the login form on subsequent launches.
+- 🔗 **Webhooks Settings Integration**: Mounted the Cloudflare Tunnel configuration component as a native "Webhooks" tab inside the Settings panel for ease of use.
+- 🧹 **Zagi Brand Alignment & Disabled Tracking**: Replaced all remaining instances of "Deplao" with "Zagi" in UI texts, folder structures, and renamed workflow image directory to zagi-workflow-images. Disabled and removed the background usage TrackingService module entirely.
+
+</details>
+
+
+<details open>
+<summary><strong>v27.1.8</strong> — 2026-06-26</summary>
 
 ### 🚀 Key Highlights
 
