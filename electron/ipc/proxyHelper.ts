@@ -14,17 +14,36 @@ export function proxyToBoss(channel: string, params: any): void {
     try {
         if (AppModeManager.getInstance().getMode() !== 'employee') return;
 
-        const WsMgr = require('../../src/utils/WorkspaceManager').default;
-        const activeWs = WsMgr.getInstance().getActiveWorkspace();
-        if (!activeWs || activeWs.type !== 'remote') return;
-
         const HCM = require('../../src/services/http/HttpConnectionManager').default;
-        if (!HCM.getInstance().isConnected(activeWs.id)) return;
+        const hcmInstance = HCM.getInstance();
 
-        HCM.getInstance().proxyAction(activeWs.id, channel, params).catch((err: any) => {
-            Logger.warn(`[proxyToBoss] ${channel} failed: ${err.message}`);
+        // Find any workspace that is actively connected to Boss
+        let activeWsId: string | null = null;
+        for (const [wsId, entry] of hcmInstance.clients.entries()) {
+            if (entry.service.getStatus().connected) {
+                activeWsId = wsId;
+                break;
+            }
+        }
+
+        // Fallback to active workspace if no client is marked connected yet
+        if (!activeWsId) {
+            const WsMgr = require('../../src/utils/WorkspaceManager').default;
+            const activeWs = WsMgr.getInstance().getActiveWorkspace();
+            if (activeWs) activeWsId = activeWs.id;
+        }
+
+        if (!activeWsId) {
+            Logger.warn(`[proxyToBoss] Không tìm thấy Workspace nào hoạt động để gửi action: ${channel}`);
+            return;
+        }
+
+        hcmInstance.proxyAction(activeWsId, channel, params).catch((err: any) => {
+            Logger.warn(`[proxyToBoss] ${channel} failed for ws=${activeWsId}: ${err.message}`);
         });
-    } catch {}
+    } catch (err: any) {
+        Logger.error(`[proxyToBoss] Error: ${err.message}`);
+    }
 }
 
 /**
@@ -40,17 +59,32 @@ export function proxyToBoss(channel: string, params: any): void {
 export async function uploadEmployeeMedia(filePaths: string[], zaloId?: string): Promise<string[]> {
     if (AppModeManager.getInstance().getMode() !== 'employee') return filePaths;
 
-    const WsMgr = require('../../src/utils/WorkspaceManager').default;
-    const activeWs = WsMgr.getInstance().getActiveWorkspace();
-    if (!activeWs || activeWs.type !== 'remote') throw new Error('Không kết nối tới Boss');
-
     const HCM = require('../../src/services/http/HttpConnectionManager').default;
-    const client = HCM.getInstance().getServiceForWorkspace(activeWs.id);
-    if (!client) throw new Error('Không kết nối tới Boss');
+    const hcmInstance = HCM.getInstance();
+
+    // Find actively connected workspace
+    let activeWsId: string | null = null;
+    for (const [wsId, entry] of hcmInstance.clients.entries()) {
+        if (entry.service.getStatus().connected) {
+            activeWsId = wsId;
+            break;
+        }
+    }
+
+    if (!activeWsId) {
+        const WsMgr = require('../../src/utils/WorkspaceManager').default;
+        const activeWs = WsMgr.getInstance().getActiveWorkspace();
+        if (activeWs) activeWsId = activeWs.id;
+    }
+
+    if (!activeWsId) throw new Error('Không tìm thấy kết nối Boss đang hoạt động');
+
+    const client = hcmInstance.getServiceForWorkspace(activeWsId);
+    if (!client) throw new Error('Không thể khởi tạo dịch vụ truyền dẫn với Boss');
 
     const bossPaths: string[] = new Array(filePaths.length);
 
-    // Upload parallel all files để giảm thời gian chờ (nhất là khi gửi nhiều ảnh)
+    // Upload parallel all files để giảm thời gian chờ
     const uploadTasks = filePaths.map(async (fp, index) => {
         if (!fp) { bossPaths[index] = fp; return; }
         if (!fs.existsSync(fp)) {
@@ -77,3 +111,4 @@ export async function uploadEmployeeMedia(filePaths: string[], zaloId?: string):
     await Promise.all(uploadTasks);
     return bossPaths;
 }
+
