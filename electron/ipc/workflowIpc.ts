@@ -346,6 +346,11 @@ export function registerWorkflowIpc(): void {
         try {
             DatabaseService.getInstance().setSetting(key, String(port));
             DatabaseService.getInstance().save();
+
+            // Import dynamically to avoid circular dependencies and reload tunnel configuration
+            const { loadTunnelConfig } = require('./integrationIpc');
+            loadTunnelConfig();
+
             return { success: true };
         } catch (e: any) {
             Logger.error('[WorkflowIpc] setPortConfig error: ' + e.message);
@@ -353,3 +358,4 @@ export function registerWorkflowIpc(): void {
         }
     });
 }
+

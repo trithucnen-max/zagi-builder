@@ -12,13 +12,6 @@ export const CF_TUNNEL_KEYS = {
     DOMAIN_RELAY:      'cf_domain_relay',
 };
 
-/** Port → DB key mapping */
-const PORT_DOMAIN_KEYS: Record<number, string> = {
-    9888: CF_TUNNEL_KEYS.DOMAIN_INTEGRATION,
-    9889: CF_TUNNEL_KEYS.DOMAIN_WORKFLOW,
-    9900: CF_TUNNEL_KEYS.DOMAIN_RELAY,
-};
-
 /**
  * Load Cloudflare Tunnel config from DB and apply to TunnelService.
  * Called once at app startup (before any tunnel is started).
@@ -27,17 +20,33 @@ export function loadTunnelConfig(): void {
     try {
         const db = DatabaseService.getInstance();
         const token = db.getSetting(CF_TUNNEL_KEYS.TOKEN) || null;
+
+        // Read dynamic ports from DB settings
+        const intPortStr = db.getSetting('webhook_port_integration');
+        const wfPortStr = db.getSetting('webhook_port_workflow');
+
+        const intPort = intPortStr ? Number(intPortStr) : 9888;
+        const wfPort = wfPortStr ? Number(wfPortStr) : 9889;
+        const relayPort = 9900; // Relay port is currently fixed at 9900
+
         const domains: Record<number, string> = {};
-        for (const [port, key] of Object.entries(PORT_DOMAIN_KEYS)) {
-            const domain = db.getSetting(key);
-            if (domain) domains[Number(port)] = domain;
-        }
+
+        const domainIntegration = db.getSetting(CF_TUNNEL_KEYS.DOMAIN_INTEGRATION);
+        if (domainIntegration) domains[intPort] = domainIntegration;
+
+        const domainWorkflow = db.getSetting(CF_TUNNEL_KEYS.DOMAIN_WORKFLOW);
+        if (domainWorkflow) domains[wfPort] = domainWorkflow;
+
+        const domainRelay = db.getSetting(CF_TUNNEL_KEYS.DOMAIN_RELAY);
+        if (domainRelay) domains[relayPort] = domainRelay;
+
         TunnelService.configureNamedTunnel(token, domains);
-        Logger.log(`[IntegrationIpc] Tunnel config loaded from DB. Token: ${token ? 'SET' : 'NONE'}`);
+        Logger.log(`[IntegrationIpc] Tunnel config loaded from DB. Token: ${token ? 'SET' : 'NONE'}, Ports: [int=${intPort}, wf=${wfPort}, relay=${relayPort}]`);
     } catch (err: any) {
         Logger.warn(`[IntegrationIpc] Failed to load tunnel config: ${err.message}`);
     }
 }
+
 
 export function registerIntegrationIpc(): void {
     const extractActionError = (data: any): string | null => {
@@ -221,15 +230,8 @@ export function registerIntegrationIpc(): void {
             db.setSetting(CF_TUNNEL_KEYS.DOMAIN_RELAY,       config.domainRelay?.trim() || '');
             db.save();
 
-            // Apply new config immediately so next tunnel start uses it
-            TunnelService.configureNamedTunnel(
-                config.token?.trim() || null,
-                {
-                    9888: config.domainIntegration?.trim(),
-                    9889: config.domainWorkflow?.trim(),
-                    9900: config.domainRelay?.trim(),
-                },
-            );
+            // Reload configuration dynamically using current ports
+            loadTunnelConfig();
 
             return { success: true };
         } catch (e: any) {
@@ -237,4 +239,5 @@ export function registerIntegrationIpc(): void {
             return { success: false, error: e.message };
         }
     });
+
 }
