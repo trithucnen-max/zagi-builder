@@ -3506,7 +3506,7 @@ class DatabaseService {
      * of doing raw string replacement.
      *
      * Example:
-     *   baseDir = "C:\Users\Admin\AppData\Roaming\Deplao\media"
+     *   baseDir = "C:\Users\Admin\AppData\Roaming\Zagi\media"
      *   stored  = {"main":"C:\\Users\\Admin\\...\\media\\zaloId\\date\\img.jpg"}
      *   →         {"main":"zaloId/date/img.jpg"}
      *

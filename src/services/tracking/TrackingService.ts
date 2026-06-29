@@ -1,12 +1,13 @@
 /**
- * TrackingService — Gửi dữ liệu tracking page lên API deplaoapp.com.
+ * TrackingService — Gửi dữ liệu tracking page lên API Zagi server.
  *
  * - Chỉ hoạt động khi build production (GitHub Actions / NODE_ENV=production).
  * - Cache local: mỗi ngày chỉ push 1 lần.
  * - Gửi pageId (zalo_id), machineId, lastTrackedAt lên Google Sheets.
  * - Không gửi các field nhạy cảm khác (name, phone,...).
  *
- * API: POST https://deplaoapp.com/api/tracking/page
+ * API: POST https://deplaoapp.com/api/tracking/page  (Zagi server)
+
  * Rate limit: 10 req/giờ/IP — trả về 429 nếu vượt quá.
  */
 

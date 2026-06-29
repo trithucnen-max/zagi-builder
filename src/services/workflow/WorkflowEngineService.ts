@@ -3449,7 +3449,7 @@ class WorkflowEngineService {
    * Download a URL to a temporary file. Returns the local temp file path.
    */
   private async downloadUrlToTempFile(url: string): Promise<string> {
-    const tmpDir = path.join(os.tmpdir(), 'deplao-workflow-images');
+    const tmpDir = path.join(os.tmpdir(), 'zagi-workflow-images');
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
     // Extract extension from URL or default to .jpg
