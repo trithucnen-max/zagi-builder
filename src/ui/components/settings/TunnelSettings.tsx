@@ -128,15 +128,24 @@ function NamedTunnelConfig() {
               Named Tunnel dùng Cloudflare Zero Trust của bạn để tạo URL <strong className="text-green-300">cố định, không bao giờ thay đổi</strong> —
               không cần cập nhật lại webhook với đối tác khi restart app.
             </p>
-            <div className="bg-gray-900/60 rounded-lg px-3 py-2 mt-2 space-y-1">
-              <p className="text-[11px] text-gray-400 font-medium">Hướng dẫn lấy Token:</p>
-              <ol className="text-[10px] text-gray-500 space-y-0.5 pl-3 list-decimal">
-                <li>Vào <strong className="text-blue-300">one.dash.cloudflare.com</strong> → Zero Trust → Networks → Tunnels</li>
-                <li>Nhấn <strong className="text-blue-300">Create a tunnel</strong> → chọn <strong>Cloudflared</strong></li>
-                <li>Đặt tên tunnel → Sao chép <strong className="text-yellow-300">Token</strong></li>
-                <li>Vào tab <strong className="text-blue-300">Public Hostname</strong> → thêm từng domain với port tương ứng</li>
+            <div className="bg-gray-900/60 rounded-lg px-3 py-2.5 mt-2 space-y-1">
+              <p className="text-[11px] text-gray-400 font-medium">Hướng dẫn lấy Token và cấu hình:</p>
+              <ol className="text-[10px] text-gray-500 space-y-1 pl-3 list-decimal">
+                <li>Truy cập <strong className="text-blue-300">https://dash.cloudflare.com/</strong> → Đăng nhập tài khoản của bạn.</li>
+                <li>Chọn mục <strong className="text-blue-300">Zero Trust</strong> ở menu bên trái.</li>
+                <li>Vào <strong className="text-blue-300">Networks</strong> → Chọn <strong className="text-blue-300">Connectors</strong> (Tunnels).</li>
+                <li>Nhấn <strong className="text-blue-300">Create a tunnel</strong> → Chọn loại kết nối <strong className="text-blue-300">cloudflared</strong>.</li>
+                <li>Đặt tên cho tunnel (ví dụ: <strong className="text-gray-300">zagi</strong>) → Sao chép <strong className="text-yellow-300">Token</strong> hiển thị trên màn hình và dán vào ô bên dưới.</li>
+                <li>Cấu hình tên miền đầu tiên tại bước tạo: Chọn <strong className="text-gray-300">HTTP</strong>, trỏ về địa chỉ <strong className="text-gray-300">localhost:9900</strong> (cổng kết nối nhân viên) và gắn tên miền <strong className="text-green-300">relay.basancorp.com</strong>. Nhấn lưu để hoàn tất.</li>
+                <li>Thêm 2 tên miền còn lại: Bấm vào Tunnel vừa tạo → Chọn <strong className="text-blue-300">Configure</strong> → Chọn tab <strong className="text-blue-300">Published application routes</strong> → Nhấn **Add a published application route** để cấu hình tiếp cho:
+                  <ul className="list-disc pl-3 mt-0.5 space-y-0.5 text-gray-400">
+                    <li><strong className="text-green-300">payment.basancorp.com</strong> trỏ về <strong className="text-gray-300">localhost:9888</strong> (HTTP)</li>
+                    <li><strong className="text-green-300">wf.basancorp.com</strong> trỏ về <strong className="text-gray-300">localhost:9889</strong> (HTTP)</li>
+                  </ul>
+                </li>
               </ol>
             </div>
+
           </div>
 
           {loading ? (
