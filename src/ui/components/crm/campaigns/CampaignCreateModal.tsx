@@ -597,6 +597,7 @@ export default function CampaignCreateModal({
   const [dailyLimit,    setDailyLimit]   = useState(initialData?.daily_send_limit ?? 0);
   const [dailyStartTime, setDailyStartTime] = useState(initialData?.daily_start_time ?? '08:00');
   const friendReqRef = useRef<HTMLTextAreaElement>(null);
+  const isSavingRef = useRef(false);
 
   const [isScheduled, setIsScheduled] = useState(!!initialData?.scheduled_start_at && initialData.scheduled_start_at > 0);
 
@@ -700,36 +701,43 @@ export default function CampaignCreateModal({
   };
 
   const handleSave = async () => {
-    if (!isValid() || saving) return;
+    if (!isValid() || saving || isSavingRef.current) return;
+    isSavingRef.current = true;
     setSaving(true);
 
-    let scheduledStartAt = 0;
-    if (isScheduled && schedDate && schedTime) {
-      const [year, month, day] = schedDate.split('-').map(Number);
-      const [hour, minute] = schedTime.split(':').map(Number);
-      if (!isNaN(year) && !isNaN(month) && !isNaN(day) && !isNaN(hour) && !isNaN(minute)) {
-        const d = new Date(year, month - 1, day, hour, minute, 0);
-        scheduledStartAt = d.getTime();
+    try {
+      let scheduledStartAt = 0;
+      if (isScheduled && schedDate && schedTime) {
+        const [year, month, day] = schedDate.split('-').map(Number);
+        const [hour, minute] = schedTime.split(':').map(Number);
+        if (!isNaN(year) && !isNaN(month) && !isNaN(day) && !isNaN(hour) && !isNaN(minute)) {
+          const d = new Date(year, month - 1, day, hour, minute, 0);
+          scheduledStartAt = d.getTime();
+        }
       }
-    }
 
-    await onSave({
-      name: name.trim(),
-      template_message: hasMsg ? JSON.stringify(contentConfig) : '',
-      friend_request_message: friendReqMsg.trim(),
-      campaign_type: type,
-      mixed_config: buildMixedConfig(),
-      delay_seconds: Math.round((delayMin + delayMax) / 2),
-      delay_min_seconds: delayMin,
-      delay_max_seconds: delayMax,
-      per_contact_delay_min_seconds: pcDelayMin,
-      per_contact_delay_max_seconds: pcDelayMax,
-      daily_send_limit: dailyLimit,
-      daily_start_time: dailyStartTime,
-      scheduled_start_at: scheduledStartAt,
-    });
-    setSaving(false);
-    onClose();
+      await onSave({
+        name: name.trim(),
+        template_message: hasMsg ? JSON.stringify(contentConfig) : '',
+        friend_request_message: friendReqMsg.trim(),
+        campaign_type: type,
+        mixed_config: buildMixedConfig(),
+        delay_seconds: Math.round((delayMin + delayMax) / 2),
+        delay_min_seconds: delayMin,
+        delay_max_seconds: delayMax,
+        per_contact_delay_min_seconds: pcDelayMin,
+        per_contact_delay_max_seconds: pcDelayMax,
+        daily_send_limit: dailyLimit,
+        daily_start_time: dailyStartTime,
+        scheduled_start_at: scheduledStartAt,
+      });
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      isSavingRef.current = false;
+      setSaving(false);
+    }
   };
 
   const insertFRVar = (v: string) => {
@@ -1070,7 +1078,7 @@ export default function CampaignCreateModal({
           <div className="flex-1 min-w-0 flex flex-col overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             {/* Center topbar */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 min-h-[44px] bg-gray-50 dark:bg-gray-850">
-              {hasMsg && !hasInvite ? (
+              {hasMsg ? (
                 <>
                   {/* Block tabs */}
                   <div className="flex items-center gap-1 overflow-x-auto">

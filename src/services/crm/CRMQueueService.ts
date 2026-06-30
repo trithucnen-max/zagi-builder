@@ -99,6 +99,15 @@ class CRMQueueService {
         }
     }
 
+    /** Dừng tất cả dispatcher */
+    public stopAllQueues(): void {
+        const activeZaloIds = Array.from(this.timers.keys());
+        for (const zaloId of activeZaloIds) {
+            this.stopForAccount(zaloId);
+        }
+        Logger.log(`[CRMQueue] ⏹ Stopped all queues`);
+    }
+
     private refillTokens(zaloId: string): void {
         const now = Date.now();
         const lastRefill = this.lastRefillAt.get(zaloId) || now;

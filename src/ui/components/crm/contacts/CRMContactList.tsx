@@ -49,7 +49,12 @@ interface CRMContactListProps {
     phone?: string;
     gender?: number | null;
     birthday?: string | null;
+    ai_assistant_id?: string | null;
+    ai_auto_summary?: number;
+    ai_auto_summary_threshold?: number;
   }) => Promise<void>;
+  /** Danh sách trợ lý AI (để render trong cột AI) */
+  assistants?: { id: string; name: string }[];
 }
 
 /** Tính xưng hô mặc định từ gender khi salutation chưa được set */
@@ -459,7 +464,7 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onI
 export default function CRMContactList({
   contacts, total, page, pageSize, loading, selectedIds, activeContactId,
   allLabels, filterLabelIds, filterLocalLabelIds, filterContactTypes, filterGender, filterBirthday, searchText, sortBy, sortDir,
-  activeAccountId, localLabels, localLabelThreadMap,
+  activeAccountId, localLabels, localLabelThreadMap, assistants,
   onSelectContact, onActivateContact, onSelectAll, onClearAll, onSelectAllPages,
   onExportAll,
   onFilterChange, onPageChange, onMessage, onImportPhones, onImportData,
@@ -523,8 +528,14 @@ export default function CRMContactList({
   /** Commit giá trị mớt cho một ô */
   const commitEdit = useCallback((contactId: string, field: string, rawValue: string) => {
     const trimmed = rawValue.trim();
-    // Nếu xóa hết salutation → reset về null (sẽ hiển default từ gender)
-    const value = (field === 'salutation' && !trimmed) ? null : trimmed || null;
+    let value: any = trimmed || null;
+    if (field === 'salutation' && !trimmed) {
+      value = null;
+    } else if (field === 'ai_auto_summary') {
+      value = trimmed ? parseInt(trimmed, 10) : 0;
+    } else if (field === 'ai_auto_summary_threshold') {
+      value = trimmed ? parseInt(trimmed, 10) : 30;
+    }
     setPendingEdits(prev => ({
       ...prev,
       [contactId]: { ...(prev[contactId] || {}), [field]: value },
@@ -750,6 +761,8 @@ export default function CRMContactList({
         <span className="w-20 flex-shrink-0 text-center">Xưng hô</span>
         <span className="w-24 flex-shrink-0 text-center">Sinh nhật</span>
         <span className="w-28 flex-shrink-0 ">SĐT</span>
+        <span className="w-32 flex-shrink-0 text-center">Trợ lý AI</span>
+        <span className="w-28 flex-shrink-0 text-center">Tự động tổng hợp</span>
         <span className="w-20 flex-shrink-0 text-right">Tin nhắn</span>
       </div>
 
@@ -1051,6 +1064,158 @@ export default function CRMContactList({
                       ) : (
                         '—'
                       )}
+                    </span>
+                  )}
+                </span>
+                {/* AI Assistant column */}
+                <span
+                  className="w-32 flex-shrink-0 flex items-center justify-center cursor-default group/ai-assistant text-[11px] text-gray-500"
+                  onClick={e => {
+                    if (isEditMode) {
+                      e.stopPropagation();
+                      if (contact.contact_type === 'group') return;
+                      setEditingCell({ contactId: contact.contact_id, field: 'ai_assistant_id' });
+                    }
+                  }}
+                  onDoubleClick={e => {
+                    e.stopPropagation();
+                    if (contact.contact_type === 'group') return;
+                    setEditingCell({ contactId: contact.contact_id, field: 'ai_assistant_id' });
+                  }}
+                  title={isEditMode ? "Nhấp để chọn Trợ lý AI" : "Nhấp đúp để chọn Trợ lý AI"}
+                >
+                  {editingCell?.contactId === contact.contact_id && editingCell.field === 'ai_assistant_id' ? (
+                    <select
+                      autoFocus
+                      defaultValue={
+                        pendingEdits[contact.contact_id]?.ai_assistant_id
+                          ?? contact.ai_assistant_id
+                          ?? ''
+                      }
+                      onChange={e => commitEdit(contact.contact_id, 'ai_assistant_id', e.target.value)}
+                      onBlur={() => setEditingCell(null)}
+                      onClick={e => e.stopPropagation()}
+                      className="w-full text-center text-[11px] bg-gray-700 border border-blue-500 rounded px-1 py-0.5 outline-none text-white font-medium"
+                    >
+                      <option value="">— Mặc định —</option>
+                      {assistants?.map(a => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className={`${isEditMode ? 'border-b border-dashed border-gray-500 pb-0.5 cursor-text' : ''} ${pendingEdits[contact.contact_id]?.ai_assistant_id !== undefined ? 'text-green-400 font-medium' : 'text-gray-500'}`}>
+                      {(() => {
+                        const val = pendingEdits[contact.contact_id]?.ai_assistant_id !== undefined
+                          ? pendingEdits[contact.contact_id]?.ai_assistant_id
+                          : contact.ai_assistant_id;
+                        if (!val) return 'Mặc định';
+                        return assistants?.find(a => a.id === val)?.name || val;
+                      })()}
+                    </span>
+                  )}
+                </span>
+
+                {/* Auto Summary column */}
+                <span
+                  className="w-28 flex-shrink-0 flex items-center justify-center cursor-default group/ai-auto text-[11px] text-gray-500"
+                  onClick={e => {
+                    if (isEditMode) {
+                      e.stopPropagation();
+                      if (contact.contact_type === 'group') return;
+                      setEditingCell({ contactId: contact.contact_id, field: 'ai_auto_summary' });
+                    }
+                  }}
+                  onDoubleClick={e => {
+                    e.stopPropagation();
+                    if (contact.contact_type === 'group') return;
+                    setEditingCell({ contactId: contact.contact_id, field: 'ai_auto_summary' });
+                  }}
+                  title={isEditMode ? "Nhấp để sửa Tự động tổng hợp" : "Nhấp đúp để sửa Tự động tổng hợp"}
+                >
+                  {editingCell?.contactId === contact.contact_id && editingCell.field === 'ai_auto_summary' ? (
+                    <div className="flex items-center gap-1 w-full px-1" onClick={e => e.stopPropagation()}>
+                      <select
+                        autoFocus
+                        defaultValue={
+                          pendingEdits[contact.contact_id]?.ai_auto_summary !== undefined
+                            ? String(pendingEdits[contact.contact_id]?.ai_auto_summary)
+                            : String(contact.ai_auto_summary ?? 0)
+                        }
+                        onChange={e => {
+                          const val = parseInt(e.target.value, 10);
+                          setPendingEdits(prev => ({
+                            ...prev,
+                            [contact.contact_id]: {
+                              ...(prev[contact.contact_id] || {}),
+                              ai_auto_summary: val,
+                            }
+                          }));
+                          if (val === 0) {
+                            setEditingCell(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            if (document.activeElement?.id !== `list-threshold-input-${contact.contact_id}`) {
+                              setEditingCell(null);
+                            }
+                          }, 150);
+                        }}
+                        className="text-[11px] bg-gray-700 border border-blue-500 rounded px-1 py-0.5 outline-none text-white flex-1 min-w-0 font-medium"
+                      >
+                        <option value="1">Bật</option>
+                        <option value="0">Tắt</option>
+                      </select>
+                      {((pendingEdits[contact.contact_id]?.ai_auto_summary !== undefined
+                        ? pendingEdits[contact.contact_id]?.ai_auto_summary
+                        : contact.ai_auto_summary) === 1) && (
+                        <input
+                          id={`list-threshold-input-${contact.contact_id}`}
+                          type="number"
+                          min={1}
+                          max={500}
+                          defaultValue={
+                            pendingEdits[contact.contact_id]?.ai_auto_summary_threshold
+                              ?? contact.ai_auto_summary_threshold
+                              ?? 30
+                          }
+                          onBlur={e => {
+                            const thresholdVal = parseInt(e.target.value, 10);
+                            if (!isNaN(thresholdVal) && thresholdVal > 0) {
+                              setPendingEdits(prev => ({
+                                ...prev,
+                                [contact.contact_id]: {
+                                  ...(prev[contact.contact_id] || {}),
+                                  ai_auto_summary_threshold: thresholdVal,
+                                }
+                              }));
+                            }
+                            setEditingCell(null);
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                            if (e.key === 'Escape') setEditingCell(null);
+                          }}
+                          className="w-10 text-center text-[11px] bg-gray-700 border border-blue-500 rounded px-0.5 py-0.5 outline-none text-white shrink-0 font-medium"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <span className={`${isEditMode ? 'border-b border-dashed border-gray-500 pb-0.5 cursor-text' : ''} ${
+                      pendingEdits[contact.contact_id]?.ai_auto_summary !== undefined ||
+                      pendingEdits[contact.contact_id]?.ai_auto_summary_threshold !== undefined
+                        ? 'text-green-400 font-medium'
+                        : 'text-gray-500'
+                    }`}>
+                      {(() => {
+                        const enabled = pendingEdits[contact.contact_id]?.ai_auto_summary !== undefined
+                          ? pendingEdits[contact.contact_id]?.ai_auto_summary === 1
+                          : contact.ai_auto_summary === 1;
+                        const thres = pendingEdits[contact.contact_id]?.ai_auto_summary_threshold
+                          ?? contact.ai_auto_summary_threshold
+                          ?? 30;
+                        return enabled ? `🟢 Bật (${thres})` : '⚪ Tắt';
+                      })()}
                     </span>
                   )}
                 </span>

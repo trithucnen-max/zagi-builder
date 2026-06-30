@@ -244,6 +244,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deletePipelineStage: (params: any) => ipcRenderer.invoke('db:deletePipelineStage', params),
     updateContactPipelineStage: (params: any) => ipcRenderer.invoke('db:updateContactPipelineStage', params),
     updateContactAIProfile: (params: any) => ipcRenderer.invoke('db:updateContactAIProfile', params),
+    updateContactAIConfig:  (params: any) => ipcRenderer.invoke('db:updateContactAIConfig', params),
     upsertPinSchedule: (params: any) => ipcRenderer.invoke('db:upsertPinSchedule', params),
     getSetting: (params: any) => ipcRenderer.invoke('db:getSetting', params),
     setSetting: (params: any) => ipcRenderer.invoke('db:setSetting', params),
@@ -375,6 +376,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAccountAssistants: (zaloId: string) => ipcRenderer.invoke('ai:getAccountAssistants', { zaloId }),
     getUsageLogs:  (opts?: any) => ipcRenderer.invoke('ai:getUsageLogs', opts || {}),
     getUsageStats: (opts?: any) => ipcRenderer.invoke('ai:getUsageStats', opts || {}),
+    triggerContactSummary: (params: { ownerZaloId: string; contactId: string }) => ipcRenderer.invoke('ai:triggerContactSummary', params),
   },
 
   // ─── Tunnel ───────────────────────────────────────────────────────
@@ -701,6 +703,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'erp:event:noteShared',
       'erp:event:departmentUpdated',
       'erp:event:employeeProfileUpdated',
+      'event:aiProfileUpdated',
     ];
     if (validChannels.includes(channel)) {
       const subscription = (_event: any, ...args: any[]) => callback(...args);

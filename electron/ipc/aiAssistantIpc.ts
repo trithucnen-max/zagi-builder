@@ -2,6 +2,8 @@ import { ipcMain } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import AIAssistantService from '../../src/services/ai/AIAssistantService';
+import ContactAISummarizer from '../../src/services/ai/ContactAISummarizer';
+import DatabaseService from '../../src/services/database/DatabaseService';
 import Logger from '../../src/utils/Logger';
 
 export function registerAIAssistantIpc(): void {
@@ -189,6 +191,34 @@ export function registerAIAssistantIpc(): void {
       return { success: true, stats };
     } catch (e: any) {
       return { success: false, error: e.message, stats: [] };
+    }
+  });
+
+  // ─── Trigger manual AI contact summary ────────────────────────────────────
+  ipcMain.handle('ai:triggerContactSummary', async (_e, {
+    ownerZaloId, contactId
+  }: { ownerZaloId: string; contactId: string }) => {
+    try {
+      const db = DatabaseService.getInstance();
+      const contactRow = db.queryOne<{
+        ai_assistant_id: string | null;
+        ai_profile: string | null;
+        ai_auto_summary_threshold: number;
+      }>(
+        `SELECT ai_assistant_id, ai_profile, ai_auto_summary_threshold FROM contacts WHERE owner_zalo_id=? AND contact_id=?`,
+        [ownerZaloId, contactId]
+      );
+      const result = await ContactAISummarizer.runAutoSummary(
+        ownerZaloId,
+        contactId,
+        contactRow?.ai_assistant_id ?? null,
+        contactRow?.ai_profile ?? null,
+        contactRow?.ai_auto_summary_threshold ?? 30
+      );
+      return result;
+    } catch (e: any) {
+      Logger.error(`[AIAssistantIpc] triggerContactSummary: ${e.message}`);
+      return { success: false, error: e.message };
     }
   });
 }

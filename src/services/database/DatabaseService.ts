@@ -4,6 +4,7 @@ import { app, safeStorage } from 'electron';
 import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
+import ContactAISummarizer from '../ai/ContactAISummarizer';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
 let db: BetterSqlite3.Database | null = null;
@@ -1903,6 +1904,26 @@ class DatabaseService {
                 Logger.log('[DatabaseService] Migration: added salutation to contacts');
                 needSave = true;
             }
+            if (!names.includes('ai_assistant_id')) {
+                db!.exec(`ALTER TABLE contacts ADD COLUMN ai_assistant_id TEXT DEFAULT NULL`);
+                Logger.log('[DatabaseService] Migration: added ai_assistant_id to contacts');
+                needSave = true;
+            }
+            if (!names.includes('ai_auto_summary')) {
+                db!.exec(`ALTER TABLE contacts ADD COLUMN ai_auto_summary INTEGER DEFAULT 0`);
+                Logger.log('[DatabaseService] Migration: added ai_auto_summary to contacts');
+                needSave = true;
+            }
+            if (!names.includes('ai_auto_summary_threshold')) {
+                db!.exec(`ALTER TABLE contacts ADD COLUMN ai_auto_summary_threshold INTEGER DEFAULT 30`);
+                Logger.log('[DatabaseService] Migration: added ai_auto_summary_threshold to contacts');
+                needSave = true;
+            }
+            if (!names.includes('ai_auto_summary_counter')) {
+                db!.exec(`ALTER TABLE contacts ADD COLUMN ai_auto_summary_counter INTEGER DEFAULT 0`);
+                Logger.log('[DatabaseService] Migration: added ai_auto_summary_counter to contacts');
+                needSave = true;
+            }
             if (needSave) this.save();
         } catch (err: any) {
             Logger.warn(`[DatabaseService] contacts flags migration warning: ${err.message}`);
@@ -2723,6 +2744,17 @@ class DatabaseService {
                 timestamp,
                 !isSent
             );
+
+            // Hook: Asynchronously trigger AI summarization check for 1-1 messages
+            if (!isGroup) {
+                setImmediate(async () => {
+                    try {
+                        await ContactAISummarizer.onNewMessage(ownerZaloId, threadId);
+                    } catch (err: any) {
+                        Logger.warn(`[DatabaseService] saveMessage AI hook error: ${err.message}`);
+                    }
+                });
+            }
         } catch (err: any) {
             Logger.error(`[DatabaseService] saveMessage error: ${err.message}`);
         }
@@ -4882,10 +4914,14 @@ class DatabaseService {
     public getLocalLabelThreads(ownerZaloId: string): { label_id: number; thread_id: string }[] {
         if (!this.initialized) return [];
         try {
-            return this.query<any>(
+            const rows = this.query<any>(
                 `SELECT label_id, thread_id FROM local_label_threads WHERE owner_zalo_id=?`,
                 [ownerZaloId]
             );
+            return rows.map((r: any) => ({
+                label_id: r.label_id,
+                thread_id: r.thread_id.startsWith('g') ? r.thread_id.slice(1) : r.thread_id
+            }));
         } catch (err: any) {
             Logger.error(`[DB] getLocalLabelThreads: ${err.message}`);
             return [];
@@ -4896,9 +4932,10 @@ class DatabaseService {
     public assignLocalLabelToThread(ownerZaloId: string, labelId: number, threadId: string): void {
         if (!this.initialized) return;
         try {
+            const cleanThreadId = threadId.startsWith('g') ? threadId.slice(1) : threadId;
             this.run(
                 `INSERT OR IGNORE INTO local_label_threads (owner_zalo_id, label_id, thread_id, created_at) VALUES (?,?,?,?)`,
-                [ownerZaloId, labelId, threadId, Date.now()]
+                [ownerZaloId, labelId, cleanThreadId, Date.now()]
             );
         } catch (err: any) {
             Logger.error(`[DB] assignLocalLabelToThread: ${err.message}`);
@@ -4909,9 +4946,10 @@ class DatabaseService {
     public removeLocalLabelFromThread(ownerZaloId: string, labelId: number, threadId: string): void {
         if (!this.initialized) return;
         try {
+            const cleanThreadId = threadId.startsWith('g') ? threadId.slice(1) : threadId;
             this.run(
                 `DELETE FROM local_label_threads WHERE owner_zalo_id=? AND label_id=? AND thread_id=?`,
-                [ownerZaloId, labelId, threadId]
+                [ownerZaloId, labelId, cleanThreadId]
             );
         } catch (err: any) {
             Logger.error(`[DB] removeLocalLabelFromThread: ${err.message}`);
@@ -4922,12 +4960,13 @@ class DatabaseService {
     public getThreadLocalLabels(ownerZaloId: string, threadId: string): any[] {
         if (!this.initialized) return [];
         try {
+            const cleanThreadId = threadId.startsWith('g') ? threadId.slice(1) : threadId;
             return this.query<any>(
                 `SELECT ll.* FROM local_labels ll
                  INNER JOIN local_label_threads llt ON ll.id = llt.label_id
                  WHERE llt.owner_zalo_id=? AND llt.thread_id=?
                  ORDER BY ll.name ASC`,
-                [ownerZaloId, threadId]
+                [ownerZaloId, cleanThreadId]
             );
         } catch (err: any) {
             Logger.error(`[DB] getThreadLocalLabels: ${err.message}`);
@@ -5506,7 +5545,8 @@ class DatabaseService {
                     `SELECT contact_id, COALESCE(alias,'') as alias, COALESCE(display_name,'') as display_name,
                         COALESCE(avatar_url,'') as avatar, '' as phone,
                         0 as is_friend, COALESCE(last_message_time,0) as last_message_time, 'group' as contact_type,
-                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation
+                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
+                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter
                      FROM contacts WHERE owner_zalo_id=? AND contact_type='group'
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -5535,7 +5575,8 @@ class DatabaseService {
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation,
+                        c.ai_assistant_id, c.ai_auto_summary, c.ai_auto_summary_threshold, c.ai_auto_summary_counter
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -5547,7 +5588,8 @@ class DatabaseService {
                         COALESCE(avatar_url,'') as avatar, COALESCE(phone,'') as phone,
                         is_friend, COALESCE(last_message_time,0) as last_message_time,
                         COALESCE(contact_type,'user') as contact_type,
-                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation
+                        gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
+                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter
                      FROM contacts WHERE owner_zalo_id=?
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -5583,10 +5625,11 @@ class DatabaseService {
                     [ownerZaloId]
                 );
                 for (const row of labelRows) {
-                    if (!threadLabelsMap[row.thread_id]) {
-                        threadLabelsMap[row.thread_id] = new Set();
+                    const cleanTid = row.thread_id.startsWith('g') ? row.thread_id.slice(1) : row.thread_id;
+                    if (!threadLabelsMap[cleanTid]) {
+                        threadLabelsMap[cleanTid] = new Set();
                     }
-                    threadLabelsMap[row.thread_id].add(Number(row.label_id));
+                    threadLabelsMap[cleanTid].add(Number(row.label_id));
                 }
 
                 all = all.filter(c => {
@@ -7891,17 +7934,100 @@ class DatabaseService {
         return { success: true };
     }
 
-    public updateContactAIProfile(params: { ownerZaloId: string; contactId: string; aiProfile: string | null }): { success: boolean } {
-        const { ownerZaloId, contactId, aiProfile } = params;
+    public updateContactAIProfile(params: { ownerZaloId: string; contactId: string; aiProfile: string | null; resetCounter?: boolean }): { success: boolean } {
+        const { ownerZaloId, contactId, aiProfile, resetCounter } = params;
         this.ensureContactRowExists(ownerZaloId, contactId);
-        this.run(`
-            UPDATE contacts
-            SET ai_profile = ?
-            WHERE owner_zalo_id = ? AND contact_id = ?
-        `, [aiProfile, ownerZaloId, contactId]);
+        if (resetCounter) {
+            this.run(`
+                UPDATE contacts
+                SET ai_profile = ?, ai_auto_summary_counter = 0
+                WHERE owner_zalo_id = ? AND contact_id = ?
+            `, [aiProfile, ownerZaloId, contactId]);
+        } else {
+            this.run(`
+                UPDATE contacts
+                SET ai_profile = ?
+                WHERE owner_zalo_id = ? AND contact_id = ?
+            `, [aiProfile, ownerZaloId, contactId]);
+        }
         this.save();
         return { success: true };
     }
+
+    /** Cập nhật cấu hình trợ lý AI cho một liên hệ */
+    public updateContactAIConfig(params: {
+        ownerZaloId: string;
+        contactId: string;
+        assistantId?: string | null;
+        autoSummary?: number;
+        threshold?: number;
+    }): { success: boolean } {
+        const { ownerZaloId, contactId, assistantId, autoSummary, threshold } = params;
+        if (!this.initialized || !contactId) return { success: false };
+        this.ensureContactRowExists(ownerZaloId, contactId);
+        const sets: string[] = [];
+        const vals: any[] = [];
+        if (assistantId !== undefined) { sets.push('ai_assistant_id=?'); vals.push(assistantId || null); }
+        if (autoSummary !== undefined) { sets.push('ai_auto_summary=?'); vals.push(autoSummary ? 1 : 0); }
+        if (threshold !== undefined)   { sets.push('ai_auto_summary_threshold=?'); vals.push(Math.max(1, threshold)); }
+        if (sets.length === 0) return { success: true };
+        vals.push(ownerZaloId, contactId);
+        try {
+            this.run(`UPDATE contacts SET ${sets.join(', ')} WHERE owner_zalo_id=? AND contact_id=?`, vals);
+            this.save();
+            return { success: true };
+        } catch (err: any) {
+            Logger.error(`[DatabaseService] updateContactAIConfig error: ${err.message}`);
+            return { success: false };
+        }
+    }
+
+    /**
+     * Tăng bộ đếm tin nhắn tự động tổng hợp.
+     * Trả về thông tin cần thiết để ContactAISummarizer quyết định có chạy tổng hợp không.
+     */
+    public incrementContactMessageCounter(ownerZaloId: string, contactId: string): {
+        counter: number;
+        threshold: number;
+        autoEnabled: boolean;
+        assistantId: string | null;
+        currentProfile: string | null;
+    } | null {
+        if (!this.initialized || !contactId) return null;
+        try {
+            // Tăng counter
+            this.run(`
+                UPDATE contacts
+                SET ai_auto_summary_counter = ai_auto_summary_counter + 1
+                WHERE owner_zalo_id = ? AND contact_id = ? AND ai_auto_summary = 1
+            `, [ownerZaloId, contactId]);
+
+            // Lấy state hiện tại
+            const row = this.queryOne<{
+                ai_auto_summary: number;
+                ai_auto_summary_threshold: number;
+                ai_auto_summary_counter: number;
+                ai_assistant_id: string | null;
+                ai_profile: string | null;
+            }>(
+                `SELECT ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter, ai_assistant_id, ai_profile
+                 FROM contacts WHERE owner_zalo_id=? AND contact_id=?`,
+                [ownerZaloId, contactId]
+            );
+            if (!row) return null;
+            return {
+                counter:      row.ai_auto_summary_counter ?? 0,
+                threshold:    row.ai_auto_summary_threshold ?? 30,
+                autoEnabled:  (row.ai_auto_summary ?? 0) === 1,
+                assistantId:  row.ai_assistant_id ?? null,
+                currentProfile: row.ai_profile ?? null,
+            };
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] incrementContactMessageCounter error: ${err.message}`);
+            return null;
+        }
+    }
+
 
     public upsertPinSchedule(params: {
         zaloId: string;

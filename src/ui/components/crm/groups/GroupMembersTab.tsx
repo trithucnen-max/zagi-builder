@@ -1269,6 +1269,7 @@ export default function GroupMembersTab() {
       {/* ── Create campaign popup (from picker) ───────────────────────────── */}
       {showCreateCampaign && (
         <CampaignCreateModal
+          zaloId={activeAccountId || ''}
           onClose={() => setShowCreateCampaign(false)}
           onSave={async (data) => {
             await handleCreateCampaignInPicker(data);

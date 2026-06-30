@@ -91,7 +91,8 @@ async function prepareLocalFilesForProxy(params: any): Promise<any> {
 
     for (const field of singleFields) {
         if (result[field] && typeof result[field] === 'string' && result[field].length > 0) {
-            const bossPaths = await uploadEmployeeMedia([result[field]]);
+            const absPath = FileStorageService.resolveAbsolutePath(result[field]);
+            const bossPaths = await uploadEmployeeMedia([absPath]);
             if (bossPaths && bossPaths[0]) {
                 result[field] = bossPaths[0];
             }
@@ -99,7 +100,8 @@ async function prepareLocalFilesForProxy(params: any): Promise<any> {
     }
 
     if (result.filePaths && Array.isArray(result.filePaths) && result.filePaths.length > 0) {
-        const bossPaths = await uploadEmployeeMedia(result.filePaths);
+        const resolvedPaths = result.filePaths.map((fp: string) => FileStorageService.resolveAbsolutePath(fp));
+        const bossPaths = await uploadEmployeeMedia(resolvedPaths);
         if (bossPaths && bossPaths.length > 0) {
             result.filePaths = bossPaths;
         }
@@ -189,7 +191,7 @@ export function registerZaloIpc() {
     );
 
     wrap('zalo:uploadVoiceFile', (s, p) =>
-        s.uploadVoiceFile(p.voicePath, p.threadId, p.type)
+        s.uploadVoiceFile(FileStorageService.resolveAbsolutePath(p.voicePath), p.threadId, p.type)
     );
 
     wrap('zalo:sendVideo', (s, p) =>
@@ -197,11 +199,11 @@ export function registerZaloIpc() {
     );
 
     wrap('zalo:uploadVideoThumb', (s, p) =>
-        s.uploadVideoThumb(p.thumbPath, p.threadId, p.type)
+        s.uploadVideoThumb(FileStorageService.resolveAbsolutePath(p.thumbPath), p.threadId, p.type)
     );
 
     wrap('zalo:uploadVideoFile', (s, p) =>
-        s.uploadVideoFile(p.videoPath, p.threadId, p.type)
+        s.uploadVideoFile(FileStorageService.resolveAbsolutePath(p.videoPath), p.threadId, p.type)
     );
 
     wrap('zalo:sendLink', (s, p) =>

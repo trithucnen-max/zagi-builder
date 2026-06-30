@@ -74,6 +74,7 @@ import * as fs from "node:fs";
 import {SendMessageResult} from "zca-js/dist/apis/sendMessage";
 import {SendCardOptions} from "zca-js/dist/apis/sendCard";
 import ConnectionManager from "../../utils/ConnectionManager";
+import FileStorageService from "../file/FileStorageService";
 import {SendLinkOptions, SendLinkResponse} from "zca-js/dist/apis/sendLink";
 import {GetGroupLinkDetailResponse} from "zca-js/dist/apis/getGroupLinkDetail";
 import {imageSize} from "image-size";
@@ -394,7 +395,7 @@ export default class ZaloService {
         for (const fileUrl of attachments) {
             if (!fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
                 // Nếu là đường dẫn tệp cục bộ, sử dụng trực tiếp không tải xuống
-                downloadedFiles.push(fileUrl);
+                downloadedFiles.push(FileStorageService.resolveAbsolutePath(fileUrl));
                 continue;
             }
             try {
@@ -1510,7 +1511,8 @@ export default class ZaloService {
         if (!this.api) throw new Error("API not initialized");
         if (type === 1) {
             try {
-                return await this.api.getGroupChatHistory(threadId, count ?? 500);
+                const cleanGroupId = threadId.startsWith('g') ? threadId : `g${threadId}`;
+                return await this.api.getGroupChatHistory(cleanGroupId, count ?? 500);
             } catch (error: any) {
                 // zca-js có thể throw SyntaxError khi response JSON bị truncated
                 if (error instanceof SyntaxError) {
@@ -1551,7 +1553,8 @@ export default class ZaloService {
         }
 
         try {
-            return await this.api.getGroupChatHistory(groupId, count);
+            const cleanGroupId = groupId.startsWith('g') ? groupId : `g${groupId}`;
+            return await this.api.getGroupChatHistory(cleanGroupId, count);
         } catch (error: any) {
             if (error instanceof SyntaxError) {
                 throw new Error(`Không thể tải tin nhắn nhóm (lỗi phản hồi từ Zalo): ${error.message}`);

@@ -139,6 +139,11 @@ class EventBroadcaster {
         }
     }
 
+    /** Broadcast AI profile auto-summary result to renderer */
+    public static broadcastAIProfileUpdated(ownerZaloId: string, contactId: string, aiProfile: string): void {
+        this.send('event:aiProfileUpdated', { ownerZaloId, contactId, aiProfile });
+    }
+
     /**
      * Fire onBeforeSend hooks ONLY — do NOT send to renderer.
      * Used when boss webhook fires while an employee workspace is active:

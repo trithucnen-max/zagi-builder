@@ -115,6 +115,15 @@ export default function CRMPage() {
   const [wizardCampaignId, setWizardCampaignId] = useState<number | null>(null);
 
 
+  // ── AI Assistants state ──────────────────────────────────────────────────
+  const [assistants, setAssistants] = useState<any[]>([]);
+
+  useEffect(() => {
+    ipc.ai?.listAssistants().then(res => {
+      if (res?.success) setAssistants(res.assistants || []);
+    }).catch(() => {});
+  }, []);
+
   // ── Local labels state ──────────────────────────────────────────────────
   const [localLabels, setLocalLabels] = useState<Array<{ id: number; name: string; color: string; text_color?: string; emoji?: string }>>([]);
   const [localLabelThreadMap, setLocalLabelThreadMap] = useState<Record<string, number[]>>({});
@@ -758,6 +767,7 @@ export default function CRMPage() {
                   activeAccountId={activeAccountId || ''}
                   localLabels={localLabels}
                   localLabelThreadMap={localLabelThreadMap}
+                  assistants={assistants}
                   onSelectContact={store.toggleSelectContact}
                   onActivateContact={id => store.setActiveContact(store.activeContactId === id ? null : id)}
                   onSelectAll={() => store.selectAllContacts(filteredContacts.map(c => c.contact_id))}
@@ -781,11 +791,48 @@ export default function CRMPage() {
                     }
                   }}
                   onPatchContact={async (contactId, fields) => {
-                    const res = await ipc.db?.patchContactFields({ zaloId: activeAccountId || '', contactId, fields });
-                    if (res?.success) {
-                      loadContacts();
-                    } else {
-                      showNotification("Lưu thất bại: " + (res?.error || 'Lỗi không xác định'), "error");
+                    const aiFields = {
+                      assistantId: fields.ai_assistant_id,
+                      autoSummary: fields.ai_auto_summary,
+                      threshold: fields.ai_auto_summary_threshold,
+                    };
+                    const normalFields = {
+                      alias: fields.alias,
+                      salutation: fields.salutation,
+                      phone: fields.phone,
+                      gender: fields.gender,
+                      birthday: fields.birthday,
+                    };
+
+                    let hasAiUpdate = aiFields.assistantId !== undefined || aiFields.autoSummary !== undefined || aiFields.threshold !== undefined;
+                    let hasNormalUpdate = normalFields.alias !== undefined || normalFields.salutation !== undefined || normalFields.phone !== undefined || normalFields.gender !== undefined || normalFields.birthday !== undefined;
+
+                    try {
+                      let success = true;
+                      if (hasAiUpdate && activeAccountId) {
+                        const res = await ipc.db?.updateContactAIConfig({
+                          ownerZaloId: activeAccountId,
+                          contactId,
+                          ...aiFields
+                        });
+                        if (!res?.success) success = false;
+                      }
+                      if (hasNormalUpdate) {
+                        const res = await ipc.db?.patchContactFields({
+                          zaloId: activeAccountId || '',
+                          contactId,
+                          fields: normalFields
+                        });
+                        if (!res?.success) success = false;
+                      }
+
+                      if (success) {
+                        loadContacts();
+                      } else {
+                        showNotification("Lưu thất bại: Lỗi không xác định", "error");
+                      }
+                    } catch (err: any) {
+                      showNotification("Lưu thất bại: " + err.message, "error");
                     }
                   }}
                 />

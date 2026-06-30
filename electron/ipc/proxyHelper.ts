@@ -2,6 +2,7 @@ import AppModeManager from '../../src/utils/AppModeManager';
 import Logger from '../../src/utils/Logger';
 import * as fs from 'fs';
 import * as path from 'path';
+import FileStorageService from '../../src/services/file/FileStorageService';
 
 /**
  * Fire-and-forget proxy: send a DB/CRM mutation to the Boss when running in Employee mode.
@@ -87,12 +88,13 @@ export async function uploadEmployeeMedia(filePaths: string[], zaloId?: string):
     // Upload parallel all files để giảm thời gian chờ
     const uploadTasks = filePaths.map(async (fp, index) => {
         if (!fp) { bossPaths[index] = fp; return; }
-        if (!fs.existsSync(fp)) {
-            Logger.warn(`[uploadEmployeeMedia] File not found on Employee: ${fp}`);
+        const absPath = FileStorageService.resolveAbsolutePath(fp);
+        if (!absPath || !fs.existsSync(absPath)) {
+            Logger.warn(`[uploadEmployeeMedia] File not found on Employee: ${absPath || fp}`);
             bossPaths[index] = fp;
             return;
         }
-        const buffer = fs.readFileSync(fp);
+        const buffer = fs.readFileSync(absPath);
         const base64 = buffer.toString('base64');
         const filename = path.basename(fp);
         try {

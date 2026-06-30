@@ -63,6 +63,14 @@ export interface CRMContact {
   fb_linked_id?: string | null;
   /** Xưng hô tùy chỉnh (VD: Anh, Chị, Cô, Chú, Em...). NULL = tự động từ gender */
   salutation?: string | null;
+  /** ID trợ lý AI được chỉ định cho khách hàng này */
+  ai_assistant_id?: string | null;
+  /** 1 = bật tự động tổng hợp, 0 = tắt */
+  ai_auto_summary?: number;
+  /** Ngưỡng số tin nhắn để kích hoạt tổng hợp (mặc định 30) */
+  ai_auto_summary_threshold?: number;
+  /** Bộ đếm số tin nhắn hiện tại kể từ lần tổng hợp gần nhất */
+  ai_auto_summary_counter?: number;
 }
 
 export interface PipelineStage {

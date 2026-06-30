@@ -614,15 +614,87 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
     }
   };
 
+  // ─── AI Assistant config state ────────────────────────────────────────────
+  const [assistants, setAssistants] = useState<any[]>([]);
+  const [aiConfigSaving, setAiConfigSaving] = useState(false);
+
+  // Load available assistants once
+  useEffect(() => {
+    ipc.ai?.listAssistants().then(res => {
+      if (res?.success) setAssistants(res.assistants || []);
+    }).catch(() => {});
+  }, []);
+
+  // Listen for background auto-summary completion
+  useEffect(() => {
+    const handler = (data: { ownerZaloId: string; contactId: string; aiProfile: string }) => {
+      if (data.contactId !== contact.contact_id) return;
+      const crmState = useCRMStore.getState();
+      crmState.setContacts(
+        crmState.contacts.map(c =>
+          c.contact_id === contact.contact_id
+            ? { ...c, ai_profile: data.aiProfile, ai_auto_summary_counter: 0 }
+            : c
+        ),
+        crmState.totalContacts
+      );
+      showNotification('🤖 Hồ sơ khách hàng đã được AI tự động cập nhật', 'success');
+    };
+    const unsub = window.electronAPI?.on?.('event:aiProfileUpdated', handler);
+    return () => { if (unsub) unsub(); };
+  }, [contact.contact_id, showNotification]);
+
+  const handleSaveAIConfig = async (patch: { assistantId?: string | null; autoSummary?: number; threshold?: number }) => {
+    if (!activeAccountId) return;
+    setAiConfigSaving(true);
+    try {
+      await ipc.db?.updateContactAIConfig({
+        ownerZaloId: activeAccountId,
+        contactId: contact.contact_id,
+        ...patch,
+      });
+      // Optimistic update to store
+      const crmState = useCRMStore.getState();
+      const updates: Partial<typeof contact> = {};
+      if (patch.assistantId !== undefined) updates.ai_assistant_id = patch.assistantId;
+      if (patch.autoSummary !== undefined) updates.ai_auto_summary = patch.autoSummary;
+      if (patch.threshold !== undefined) updates.ai_auto_summary_threshold = patch.threshold;
+      crmState.setContacts(
+        crmState.contacts.map(c =>
+          c.contact_id === contact.contact_id ? { ...c, ...updates } : c
+        ),
+        crmState.totalContacts
+      );
+    } catch (err: any) {
+      showNotification('Lỗi lưu cài đặt AI: ' + err.message, 'error');
+    } finally {
+      setAiConfigSaving(false);
+    }
+  };
+
   const handleGenerateAIProfile = async () => {
-    if (!activeAccountId || notes.length === 0) return;
+    if (!activeAccountId) return;
     setGeneratingAI(true);
     try {
+      // Use the contact's assigned assistant first, then fall back to summary via IPC trigger
+      if (contact.ai_assistant_id) {
+        const res = await ipc.ai?.triggerContactSummary({
+          ownerZaloId: activeAccountId,
+          contactId: contact.contact_id,
+        });
+        if (res?.success) {
+          showNotification('Tổng hợp hồ sơ khách hàng bằng AI thành công!', 'success');
+        } else {
+          showNotification('Lỗi: ' + (res?.error || 'Trợ lý AI không phản hồi'), 'error');
+        }
+        return;
+      }
+
+      // Fallback: use default assistant + notes-based prompt
       const defaultRes = await ipc.ai?.getDefault();
       const assistant = defaultRes?.assistant;
       if (!assistant) {
         showNotification('Vui lòng cấu hình Trợ lý AI mặc định trong cài đặt.', 'error');
-        setGeneratingAI(false);
         return;
       }
       const notesText = notes
@@ -675,6 +747,8 @@ ${notesText}`;
       setGeneratingAI(false);
     }
   };
+
+
 
   const name = contact.alias || contact.display_name || contact.contact_id;
   const fmt = (ts: number) => ts ? new Date(ts).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-';
@@ -955,6 +1029,72 @@ ${notesText}`;
 
         {/* AI Analysis Section */}
         <div className="space-y-2.5">
+          {/* AI Config Controls */}
+          <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm space-y-2.5">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-gray-600 flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              Cài đặt Trợ lý AI
+            </p>
+
+            {/* Assistant selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-gray-500 shrink-0 w-24">Trợ lý AI:</span>
+              <select
+                id={`ai-assistant-select-${contact.contact_id}`}
+                value={contact.ai_assistant_id || ''}
+                onChange={e => handleSaveAIConfig({ assistantId: e.target.value || null })}
+                disabled={aiConfigSaving}
+                className="flex-1 text-[11px] border border-gray-300 rounded-md px-2 py-1 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-60"
+              >
+                <option value="">— Mặc định —</option>
+                {assistants.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Auto-summary toggle + threshold */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] text-gray-500 shrink-0 w-24">Tự động tổng hợp:</span>
+              <button
+                id={`ai-auto-summary-toggle-${contact.contact_id}`}
+                onClick={() => handleSaveAIConfig({ autoSummary: contact.ai_auto_summary ? 0 : 1 })}
+                disabled={aiConfigSaving}
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-60 ${
+                  contact.ai_auto_summary ? 'bg-emerald-500' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                  contact.ai_auto_summary ? 'translate-x-4' : 'translate-x-1'
+                }`} />
+              </button>
+              {contact.ai_auto_summary ? (
+                <>
+                  <input
+                    id={`ai-threshold-input-${contact.contact_id}`}
+                    type="number"
+                    min={1}
+                    max={500}
+                    defaultValue={contact.ai_auto_summary_threshold ?? 30}
+                    onBlur={e => {
+                      const v = parseInt(e.target.value, 10);
+                      if (!isNaN(v) && v > 0) handleSaveAIConfig({ threshold: v });
+                    }}
+                    className="w-14 text-[11px] border border-gray-300 rounded-md px-2 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                  <span className="text-[11px] text-gray-400">tin</span>
+                  {/* Counter badge */}
+                  <span className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+                    {contact.ai_auto_summary_counter ?? 0}/{contact.ai_auto_summary_threshold ?? 30}
+                  </span>
+                </>
+              ) : (
+                <span className="text-[11px] text-gray-400 italic">Tắt</span>
+              )}
+            </div>
+          </div>
+
+          {/* AI Profile Card / Generate */}
           {contact.ai_profile ? (
             <AIProfileCard
               aiProfile={contact.ai_profile}
@@ -976,7 +1116,7 @@ ${notesText}`;
                 </span>
                 <button
                   onClick={handleGenerateAIProfile}
-                  disabled={generatingAI || notes.length === 0}
+                  disabled={generatingAI}
                   className="px-2 py-0.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-[9px] uppercase font-bold tracking-wider transition-all duration-200 disabled:opacity-40 flex items-center gap-1 cursor-pointer"
                 >
                   {generatingAI ? (
@@ -991,12 +1131,14 @@ ${notesText}`;
               </div>
               <p className="text-[11px] text-gray-600 italic py-3 text-center bg-white rounded-lg border border-dashed border-gray-300">
                 {notes.length === 0 
-                  ? 'Hãy thêm ghi chú trước khi tổng hợp bằng AI.' 
+                  ? 'Hãy thêm ghi chú hoặc chat để tổng hợp bằng AI.' 
                   : 'Chưa có phân tích. Nhấn nút để bắt đầu phân tích.'}
               </p>
             </div>
           )}
         </div>
+
+
 
         {/* Notes (Chat Timeline) Section */}
         <div className="space-y-2.5 pb-4">

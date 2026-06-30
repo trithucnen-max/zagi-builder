@@ -232,6 +232,7 @@ declare global {
         deletePipelineStage: (params: { id: number }) => Promise<{ success: boolean; error?: string }>;
         updateContactPipelineStage: (params: { ownerZaloId: string; contactId: string; stageId: number | null }) => Promise<{ success: boolean; error?: string }>;
         updateContactAIProfile: (params: { ownerZaloId: string; contactId: string; aiProfile: string | null }) => Promise<{ success: boolean; error?: string }>;
+        updateContactAIConfig: (params: { ownerZaloId: string; contactId: string; assistantId?: string | null; autoSummary?: number; threshold?: number }) => Promise<{ success: boolean; error?: string }>;
         upsertPinSchedule: (params: any) => Promise<any>;
         // App Settings
         getSetting: (params: { key: string }) => Promise<{ success: boolean; value: string | null; error?: string }>;
@@ -405,6 +406,7 @@ declare global {
         getAccountAssistants: (zaloId: string) => Promise<{ success: boolean; suggestion?: string | null; panel?: string | null; error?: string }>;
         getUsageLogs:  (opts?: { assistantId?: string; dateFrom?: number; dateTo?: number; limit?: number }) => Promise<{ success: boolean; logs: any[]; error?: string }>;
         getUsageStats: (opts?: { assistantId?: string; days?: number }) => Promise<{ success: boolean; stats: any[]; error?: string }>;
+        triggerContactSummary: (params: { ownerZaloId: string; contactId: string }) => Promise<{ success: boolean; error?: string }>;
       };
       tunnel: {
         start:  () => Promise<{ success: boolean; url?: string; error?: string }>;

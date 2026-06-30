@@ -66,6 +66,36 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.2.0',
+    date: '06/2026',
+    type: 'patch',
+    highlights: [
+      '🤖 CRM AI Đa Trợ Lý & Tự động tổng hợp hồ sơ — Cho phép chỉ định trợ lý AI riêng biệt cho từng khách hàng và tự động cập nhật phân tích hồ sơ khách hàng chạy ngầm khi đạt số lượng tin nhắn trao đổi theo cấu hình (ví dụ: sau mỗi 30 tin nhắn).',
+      '📈 Hiển thị cấu hình AI trong danh sách CRM — Bổ sung cột "Trợ lý AI" và "Tự động tổng hợp" trực tiếp vào bảng danh sách CRM, cho phép xem nhanh trạng thái và chỉnh sửa nhanh tại chỗ (inline-edit).',
+      '💬 Sửa lỗi đồng bộ tin nhắn nhóm Zalo — Khắc phục triệt để lỗi 404 bằng cách tự động bổ sung tiền tố "g" vào Group ID Zalo khi đồng bộ tin nhắn từ các nhóm.',
+      '📢 Sửa lỗi tạo chiến dịch CRM từ thành viên nhóm — Sửa giao diện tạo chiến dịch không hiển thị phần nhập tin nhắn và lỗi GroupPicker trống khi mở từ tab thành viên nhóm.'
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Thêm cấu hình AI (Trợ lý, Bật/tắt tự động, Ngưỡng tin nhắn) vào bảng contacts trong DatabaseService.',
+          'Tạo ContactAISummarizer service chạy ngầm ở Main Process để tự động đếm tin nhắn và cập nhật hồ sơ khách hàng.',
+          'Bổ sung dropdown cấu hình trợ lý AI, toggle tự động và bộ đếm vào panel chi tiết khách hàng CRM.',
+          'Thêm cột Trợ lý AI và Tự động tổng hợp hỗ trợ inline-edit trực tiếp trong bảng danh sách CRM.'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Tự động thêm tiền tố "g" cho group ID trong ZaloService.ts giúp sửa lỗi đồng bộ lịch sử tin nhắn.',
+          'Sửa lỗi hiển thị UI biên tập tin nhắn trong CampaignCreateModal khi tạo chiến dịch hỗn hợp.',
+          'Truyền activeAccountId zaloId vào CampaignCreateModal trong GroupMembersTab giúp GroupPicker hoạt động.'
+        ]
+      }
+    ]
+  },
+  {
     version: '27.1.9',
     date: '06/2026',
     type: 'patch',

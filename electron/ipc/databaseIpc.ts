@@ -1088,6 +1088,20 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
+    ipcMain.handle('db:updateContactAIConfig', async (_event, {
+        ownerZaloId, contactId, assistantId, autoSummary, threshold
+    }: {
+        ownerZaloId: string;
+        contactId: string;
+        assistantId?: string | null;
+        autoSummary?: number;
+        threshold?: number;
+    }) => {
+        try {
+            return DatabaseService.getInstance().updateContactAIConfig({ ownerZaloId, contactId, assistantId, autoSummary, threshold });
+        } catch (error: any) { return { success: false, error: error.message }; }
+    });
+
     ipcMain.handle('db:upsertPinSchedule', async (_event, params: any) => {
         try {
             return DatabaseService.getInstance().upsertPinSchedule(params);

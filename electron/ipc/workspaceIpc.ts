@@ -9,6 +9,7 @@ import HttpConnectionManager from '../../src/services/http/HttpConnectionManager
 import HttpRelayService from '../../src/services/http/HttpRelayService';
 import ConnectionManager from '../../src/utils/ConnectionManager';
 import EventBroadcaster from '../../src/services/event/EventBroadcaster';
+import CRMQueueService from '../../src/services/crm/CRMQueueService';
 import Logger from '../../src/utils/Logger';
 
 /**
@@ -187,6 +188,13 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
                 // Clear AppModeManager override so it derives mode from workspace
                 AppModeManager.getInstance().clearOverride();
 
+                // Stop all CRM campaign queues before switching DB to prevent query leakage
+                try {
+                    CRMQueueService.getInstance().stopAllQueues();
+                } catch (err: any) {
+                    Logger.warn(`[workspaceIpc] Failed to stop CRM queues: ${err.message}`);
+                }
+
                 // Flush pending DB writes before switching
                 DatabaseService.getInstance().forceFlush();
 
@@ -225,6 +233,13 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
                     }
                 } catch (err: any) {
                     Logger.warn(`[workspaceIpc] Cookie sync from ConnectionManager failed: ${err.message}`);
+                }
+
+                // Resume active CRM campaigns for the newly loaded workspace database
+                try {
+                    CRMQueueService.getInstance().resumeActiveCampaigns();
+                } catch (err: any) {
+                    Logger.warn(`[workspaceIpc] Failed to resume CRM campaigns: ${err.message}`);
                 }
 
                 Logger.log(`[workspaceIpc] switch → workspace=${result.workspace.id} name="${result.workspace.name}" type=${result.workspace.type} dbPath=${newDbPath} cachedAssigned=${result.workspace.cachedAssignedAccounts?.length || 0} cachedAccountsData=${result.workspace.cachedAccountsData?.length || 0} cachedPermissions=${result.workspace.cachedPermissions?.length || 0}`);
