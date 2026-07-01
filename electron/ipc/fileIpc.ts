@@ -67,6 +67,16 @@ export function registerFileIpc() {
         }
     });
 
+    ipcMain.handle('file:exists', async (_event, filePath: string) => {
+        try {
+            if (!filePath) return false;
+            const resolved = FileStorageService.resolveAbsolutePath(filePath);
+            return fs.existsSync(resolved);
+        } catch {
+            return false;
+        }
+    });
+
     /** Mở thư mục chứa file và highlight file đó (Explorer/Finder) */
     ipcMain.handle('file:showItemInFolder', async (_event, filePath: string) => {
         try {

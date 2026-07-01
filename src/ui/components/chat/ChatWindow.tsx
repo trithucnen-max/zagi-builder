@@ -3523,11 +3523,28 @@ function FileBubble({ msg, isSent }: { msg: any; isSent: boolean }) {
     } catch {}
   }
 
+  const [fileExists, setFileExists] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    if (localFilePath) {
+      ipc.file?.exists(localFilePath).then((exists: boolean) => {
+        setFileExists(exists);
+      }).catch(() => {
+        setFileExists(false);
+      });
+    } else {
+      setFileExists(false);
+    }
+  }, [localFilePath]);
+
+  const hasLocal = !!localFilePath && fileExists === true;
+  const canOpen = hasLocal || !!fileHref;
+
   const handleOpen = async () => {
     if (opening) return;
     setOpening(true);
     try {
-      if (localFilePath) await ipc.file?.openPath(localFilePath);
+      if (hasLocal) await ipc.file?.openPath(localFilePath);
       else if (fileHref) ipc.shell?.openExternal(fileHref);
     } catch {} finally { setOpening(false); }
   };
@@ -3562,8 +3579,6 @@ function FileBubble({ msg, isSent }: { msg: any; isSent: boolean }) {
   };
 
   const sizeText = formatFileSize(fileSize);
-  const hasLocal = !!localFilePath;
-  const canOpen = hasLocal || !!fileHref;
   const { icon, bg, text } = getFileIconAndColor(fileExt);
 
   return (

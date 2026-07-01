@@ -362,6 +362,24 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
   );
 }
 
+// Helper to check if adding a connection would create a cyclic loop (infinite loop)
+const wouldCreateCycle = (source: string, target: string, currentEdges: any[]): boolean => {
+  const visited = new Set<string>();
+  const queue = [target];
+  while (queue.length > 0) {
+    const curr = queue.shift()!;
+    if (curr === source) return true;
+    visited.add(curr);
+    const nextNodes = currentEdges
+      .filter(e => e.source === curr)
+      .map(e => e.target);
+    for (const nextNode of nextNodes) {
+      if (!visited.has(nextNode)) queue.push(nextNode);
+    }
+  }
+  return false;
+};
+
 export default function WorkflowEditor({ workflowId, onBack }: Props) {
   const { showNotification, theme } = useAppStore();
   const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -382,6 +400,173 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
   const [showAIDialog, setShowAIDialog] = useState(false);
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+
+  // States and refs for Smart Connect (Option C)
+  const [showSuggestionMenu, setShowSuggestionMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number; flowPos: { x: number; y: number } } | null>(null);
+  const connectingNodeRef = useRef<{ nodeId: string; handleId: string | null; handleType: 'source' | 'target' | null } | null>(null);
+
+  // States and methods for Undo/Redo (v27.2.3)
+  const [history, setHistory] = useState<{ nodes: any[]; edges: any[] }[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  const recordState = useCallback((newNodes: any[], newEdges: any[]) => {
+    setHistory(prev => {
+      const sliced = historyIndex >= 0 ? prev.slice(0, historyIndex + 1) : [];
+      return [...sliced, { 
+        nodes: JSON.parse(JSON.stringify(newNodes)), 
+        edges: JSON.parse(JSON.stringify(newEdges)) 
+      }];
+    });
+    setHistoryIndex(prev => prev + 1);
+  }, [historyIndex]);
+
+  // Set initial history snapshot once loaded
+  useEffect(() => {
+    if (nodes.length > 0 && history.length === 0) {
+      setHistory([{ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) }]);
+      setHistoryIndex(0);
+    }
+  }, [nodes, edges, history.length]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      const prevSnapshot = history[prevIndex];
+      setNodes(prevSnapshot.nodes);
+      setEdges(prevSnapshot.edges);
+      setHistoryIndex(prevIndex);
+      showNotification('Đã hoàn tác (Undo)', 'success');
+    }
+  }, [history, historyIndex, setNodes, setEdges, showNotification]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      const nextSnapshot = history[nextIndex];
+      setNodes(nextSnapshot.nodes);
+      setEdges(nextSnapshot.edges);
+      setHistoryIndex(nextIndex);
+      showNotification('Đã làm lại (Redo)', 'success');
+    }
+  }, [history, historyIndex, setNodes, setEdges, showNotification]);
+
+  // Keyboard shortcut listener for Undo/Redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (isCmdOrCtrl && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (isCmdOrCtrl && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
+  // Silent Background Auto-save
+  const autoSave = useCallback(async (updatedNodes?: any[], updatedEdges?: any[]) => {
+    try {
+      const wNodes = (updatedNodes || nodes).map((n: any) => ({
+        id: n.id, type: n.data.type, label: n.data.label, position: n.position, config: n.data.config,
+      }));
+      const wEdges = (updatedEdges || edges).map((e: any) => ({
+        id: e.id, source: e.source, sourceHandle: e.sourceHandle, target: e.target
+      }));
+      
+      const payload = {
+        id: workflowId,
+        name: workflowMeta.name,
+        description: workflowMeta.description,
+        enabled: workflowMeta.enabled,
+        channel: workflowMeta.channel,
+        pageIds: workflowMeta.pageIds,
+        nodes: wNodes,
+        edges: wEdges,
+      };
+      await ipc.workflow?.save(payload);
+    } catch (err) {
+      console.error('Auto save error:', err);
+    }
+  }, [workflowId, workflowMeta, nodes, edges]);
+
+  // Auto layout / alignment (BFS Level-by-Level tree mapping starting from trigger)
+  const autoLayout = useCallback(() => {
+    if (nodes.length === 0) return;
+    const triggerNode = nodes.find(n => n.type === 'trigger' || (n.data?.type || '').startsWith('trigger.'));
+    const startId = triggerNode?.id || nodes[0].id;
+    
+    const levels: Record<string, number> = {};
+    const queue: string[] = [startId];
+    levels[startId] = 0;
+    
+    while (queue.length > 0) {
+      const currId = queue.shift()!;
+      const currLvl = levels[currId];
+      const childIds = edges.filter(e => e.source === currId).map(e => e.target);
+      for (const cid of childIds) {
+        if (levels[cid] === undefined) {
+          levels[cid] = currLvl + 1;
+          queue.push(cid);
+        }
+      }
+    }
+    
+    const groups: Record<number, string[]> = {};
+    const unmapped: string[] = [];
+    
+    for (const n of nodes) {
+      const lvl = levels[n.id];
+      if (lvl !== undefined) {
+        if (!groups[lvl]) groups[lvl] = [];
+        groups[lvl].push(n.id);
+      } else {
+        unmapped.push(n.id);
+      }
+    }
+    
+    const maxL = Object.keys(groups).length > 0 ? Math.max(...Object.keys(groups).map(Number)) : -1;
+    if (unmapped.length > 0) {
+      groups[maxL + 1] = unmapped;
+    }
+    
+    const nextNodes = nodes.map(n => {
+      let lvl = levels[n.id];
+      if (lvl === undefined) lvl = maxL + 1;
+      const g = groups[lvl];
+      const idx = g.indexOf(n.id);
+      const y = 80 + lvl * 160;
+      const width = (g.length - 1) * 265;
+      const x = 200 + idx * 265 - width / 2;
+      return { ...n, position: { x, y } };
+    });
+    
+    setNodes(nextNodes);
+    recordState(nextNodes, edges);
+    autoSave(nextNodes, edges);
+    showNotification('Đã căn chỉnh tự động sơ đồ Workflow', 'success');
+  }, [nodes, edges, setNodes, recordState, autoSave, showNotification]);
+
+  const customOnEdgesChange = useCallback((changes: any) => {
+    onEdgesChange(changes);
+    const hasRemoval = changes.some((c: any) => c.type === 'remove');
+    if (hasRemoval) {
+      setTimeout(() => {
+        setEdges(currentEdges => {
+          setNodes(currentNodes => {
+            recordState(currentNodes, currentEdges);
+            autoSave(currentNodes, currentEdges);
+            return currentNodes;
+          });
+          return currentEdges;
+        });
+      }, 0);
+    }
+  }, [onEdgesChange, setEdges, setNodes, recordState, autoSave]);
 
   // Load connected accounts for page selector
   useEffect(() => {
@@ -443,14 +628,20 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
 
     setEdges(es => es.map(e => {
       if (!activeDebugLog) {
-        return { ...e, style: { stroke: '#4b5563' } };
+        return { ...e, animated: false, style: { stroke: '#4b5563' } };
       }
       const sourceResult = activeDebugLog.nodeResults?.find((r: any) => r.nodeId === e.source);
       const targetResult = activeDebugLog.nodeResults?.find((r: any) => r.nodeId === e.target);
       
       let strokeColor = '#4b5563'; // default dark gray
+      let isAnimated = false;
+      
       if (sourceResult?.status === 'success' && targetResult?.status === 'success') {
-        strokeColor = '#22c55e'; // green path
+        strokeColor = '#10b981'; // green path
+        isAnimated = true;
+      } else if (sourceResult?.status === 'success' && targetResult?.status === 'waiting') {
+        strokeColor = '#f59e0b'; // orange waiting path
+        isAnimated = true;
       } else if (targetResult?.status === 'skipped') {
         strokeColor = '#374151'; // skipped dark path
       } else if (sourceResult?.status === 'error' || targetResult?.status === 'error') {
@@ -459,19 +650,45 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
 
       return {
         ...e,
-        style: { stroke: strokeColor }
+        animated: isAnimated,
+        style: { stroke: strokeColor, strokeWidth: isAnimated ? 2.5 : 1.5 }
       };
     }));
   }, [activeDebugLog, setNodes, setEdges]);
 
   const onConnect = useCallback((params: Connection | Edge) => {
-    setEdges(es => addEdge({
-      ...params,
-      type: 'custom',
-      markerEnd: { type: MarkerType.ArrowClosed },
-      style: { stroke: '#4b5563' },
-    }, es));
-  }, [setEdges]);
+    // Prevent self-connection
+    if (params.source === params.target) {
+      showNotification('Không thể tự kết nối tới chính nó!', 'error');
+      return;
+    }
+
+    // Cycle detection
+    if (wouldCreateCycle(params.source!, params.target!, edges)) {
+      showNotification('Không thể kết nối: Phát hiện vòng lặp vô hạn!', 'error');
+      return;
+    }
+
+    setEdges(es => {
+      const nextEdges = addEdge({
+        ...params,
+        type: 'custom',
+        markerEnd: { type: MarkerType.ArrowClosed },
+        style: { stroke: '#4b5563' },
+      }, es);
+      
+      // Save history and autoSave
+      setTimeout(() => {
+        setNodes(currNodes => {
+          recordState(currNodes, nextEdges);
+          autoSave(currNodes, nextEdges);
+          return currNodes;
+        });
+      }, 0);
+      
+      return nextEdges;
+    });
+  }, [setEdges, edges, recordState, autoSave, showNotification]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -485,11 +702,96 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
       position: pos,
       config: { ...(DEFAULT_CONFIGS[nodeType] || {}) },
     };
-    setNodes(ns => [...ns, toRFNode(newNode)]);
-  }, [setNodes, toRFNode]);
+    
+    setNodes(ns => {
+      const nextNodes = [...ns, toRFNode(newNode)];
+      setEdges(currEdges => {
+        recordState(nextNodes, currEdges);
+        autoSave(nextNodes, currEdges);
+        return currEdges;
+      });
+      return nextNodes;
+    });
+  }, [setNodes, setEdges, toRFNode, recordState, autoSave]);
+
+  const onConnectStart = useCallback((event: any, { nodeId, handleId, handleType }: any) => {
+    connectingNodeRef.current = { nodeId, handleId, handleType };
+  }, []);
+
+  const onConnectEnd = useCallback((event: any) => {
+    if (!connectingNodeRef.current || !rfInstanceRef.current) return;
+
+    // Use document.elementFromPoint to reliably detect drop target under pointer
+    const { clientX, clientY } = 'changedTouches' in event ? event.changedTouches[0] : event;
+    const target = document.elementFromPoint(clientX, clientY);
+    if (!target) {
+      connectingNodeRef.current = null;
+      return;
+    }
+
+    const isOverNode = target.closest('.react-flow__node');
+    const isOverHandle = target.closest('.react-flow__handle');
+    const targetIsPane = !isOverNode && !isOverHandle;
+
+    if (targetIsPane) {
+      const pos = rfInstanceRef.current.screenToFlowPosition({ x: clientX, y: clientY });
+      setMenuPosition({ x: clientX, y: clientY, flowPos: pos });
+      setShowSuggestionMenu(true);
+    } else {
+      connectingNodeRef.current = null;
+    }
+  }, []);
+
+  const addSuggestedNode = useCallback((nodeType: string) => {
+    if (!connectingNodeRef.current || !menuPosition) return;
+
+    const newId = uuidv4();
+    const newNode = {
+      id: newId,
+      type: nodeType,
+      label: getNodeLabel(nodeType),
+      position: menuPosition.flowPos,
+      config: { ...(DEFAULT_CONFIGS[nodeType] || {}) },
+    };
+
+    const addedNode = toRFNode(newNode);
+
+    setNodes(ns => {
+      const nextNodes = [...ns, addedNode];
+      
+      const { nodeId, handleId, handleType } = connectingNodeRef.current!;
+      const edgeParams = {
+        id: `e-${nodeId}-${newId}`,
+        source: handleType === 'source' ? nodeId : newId,
+        sourceHandle: handleType === 'source' ? handleId : null,
+        target: handleType === 'target' ? nodeId : newId,
+        targetHandle: handleType === 'target' ? handleId : null,
+        type: 'custom',
+        markerEnd: { type: MarkerType.ArrowClosed },
+        style: { stroke: '#4b5563' },
+      };
+
+      setEdges(es => {
+        const nextEdges = addEdge(edgeParams, es);
+        
+        // Save history and autoSave
+        recordState(nextNodes, nextEdges);
+        autoSave(nextNodes, nextEdges);
+        
+        return nextEdges;
+      });
+
+      return nextNodes;
+    });
+
+    // Clear state
+    setShowSuggestionMenu(false);
+    connectingNodeRef.current = null;
+  }, [menuPosition, setNodes, setEdges, toRFNode, recordState, autoSave]);
 
   const onNodeClick = useCallback((_: any, node: any) => {
     setSelectedNode(node.data);
+    setShowSuggestionMenu(false);
   }, []);
 
   const updateNodeConfig = (nodeId: string, config: Record<string, any>) => {
@@ -834,6 +1136,27 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
 
           <div className="w-px h-4 bg-gray-700" />
 
+          {/* Undo/Redo & Auto Align controls */}
+          <button onClick={undo} disabled={historyIndex <= 0}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:hover:bg-gray-800 text-gray-300 text-xs font-semibold rounded-xl transition-colors border border-gray-700/50"
+            title="Hoàn tác (Ctrl+Z)">
+            ↩️ Hoàn tác
+          </button>
+          
+          <button onClick={redo} disabled={historyIndex >= history.length - 1}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:hover:bg-gray-800 text-gray-300 text-xs font-semibold rounded-xl transition-colors border border-gray-700/50"
+            title="Làm lại (Ctrl+Y)">
+            ↪️ Làm lại
+          </button>
+
+          <button onClick={autoLayout}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-xl transition-all"
+            title="Căn chỉnh tự động các Node sơ đồ">
+            ✨ Căn chỉnh
+          </button>
+
+          <div className="w-px h-4 bg-gray-700" />
+
           <button onClick={handleSandboxClick} disabled={running}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-colors"
             title="Chạy mô phỏng toàn bộ luồng mà không gửi tin nhắn/API thật">
@@ -866,11 +1189,28 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
             onClick={e => e.stopPropagation()}>
             <ReactFlow
               nodes={nodes} edges={edges}
-              onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+              onNodesChange={onNodesChange} onEdgesChange={customOnEdgesChange}
               onConnect={onConnect} onNodeClick={onNodeClick}
-              onPaneClick={() => setSelectedNode(null)}
+              onPaneClick={() => { setSelectedNode(null); setShowSuggestionMenu(false); }}
+              onConnectStart={onConnectStart}
+              onConnectEnd={onConnectEnd}
+              onMoveStart={() => setShowSuggestionMenu(false)}
+              onNodeDragStop={() => {
+                recordState(nodes, edges);
+                autoSave();
+              }}
               onNodesDelete={deleted => {
                 if (selectedNode && deleted.some(n => n.id === selectedNode.id)) setSelectedNode(null);
+                setTimeout(() => {
+                  setEdges(currentEdges => {
+                    setNodes(currentNodes => {
+                      recordState(currentNodes, currentEdges);
+                      autoSave(currentNodes, currentEdges);
+                      return currentNodes;
+                    });
+                    return currentEdges;
+                  });
+                }, 0);
               }}
               nodeTypes={nodeTypes} edgeTypes={edgeTypes}
               deleteKeyCode={['Backspace', 'Delete']}
@@ -880,12 +1220,48 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
             >
               <Background color={isLight ? '#c8c2b8' : '#374151'} gap={20} />
               <Controls />
-              <MiniMap
-                nodeColor={isLight ? '#9ca3af' : '#374151'}
-                maskColor={isLight ? 'rgba(200,194,184,0.45)' : 'rgba(17,24,39,0.7)'}
-                style={{ background: isLight ? '#ede9e3' : '#111827' }}
-              />
             </ReactFlow>
+
+            {/* Smart Connect Next-Node Suggestion Menu (Option C) */}
+            {showSuggestionMenu && menuPosition && (
+              <div 
+                onClick={e => e.stopPropagation()}
+                className="fixed z-[9999] w-64 bg-gray-900/95 border border-gray-700/60 rounded-2xl shadow-2xl backdrop-blur-md p-2 flex flex-col gap-1 overflow-hidden"
+                style={{ 
+                  left: Math.min(menuPosition.x, window.innerWidth - 270), 
+                  top: Math.min(menuPosition.y, window.innerHeight - 380) 
+                }}
+              >
+                <div className="px-3 py-1.5 border-b border-gray-800 text-[10px] text-gray-500 font-semibold uppercase tracking-wider">
+                  ⚡ Gợi ý Node tiếp theo
+                </div>
+                <div className="max-h-[300px] overflow-y-auto pr-1 flex flex-col gap-0.5">
+                  {[
+                    { type: 'zalo.sendMessage', label: '💬 Gửi tin nhắn Zalo', desc: 'Gửi văn bản kèm nút bấm' },
+                    { type: 'zalo.sendImage', label: '🖼️ Gửi ảnh Zalo', desc: 'Gửi một hoặc nhiều hình ảnh' },
+                    { type: 'crm.getContacts', label: '👤 Lọc CRM Contacts', desc: 'Lấy danh sách khách hàng từ CRM' },
+                    { type: 'logic.condition', label: '🔀 Bộ lọc Điều kiện', desc: 'Phân nhánh IF/ELSE' },
+                    { type: 'logic.loop', label: '🔄 Vòng lặp (forEach)', desc: 'Lặp qua danh sách liên hệ' },
+                    { type: 'logic.delay', label: '⏳ Chờ đợi (Delay)', desc: 'Tạm dừng luồng trong vài phút/giờ' },
+                    { type: 'integration.assistant', label: '🔮 Trợ lý AI (Gemini)', desc: 'Xử lý nội dung bằng AI' },
+                  ].map(item => (
+                    <button
+                      key={item.type}
+                      type="button"
+                      onClick={() => addSuggestedNode(item.type)}
+                      className="w-full flex flex-col items-start px-3 py-2 rounded-xl text-left hover:bg-gray-850 hover:text-white transition-colors duration-150 group"
+                    >
+                      <span className="text-xs font-semibold text-gray-200 group-hover:text-blue-400 transition-colors">
+                        {item.label}
+                      </span>
+                      <span className="text-[10px] text-gray-500 line-clamp-1">
+                        {item.desc}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* UX hint */}
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[11px] text-gray-600 pointer-events-none select-none whitespace-nowrap">
               Click liên kết → nhấn ✕ hoặc <kbd className="bg-gray-800 border border-gray-700 rounded px-1">Del</kbd> để xóa

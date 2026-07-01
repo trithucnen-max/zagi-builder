@@ -21,6 +21,8 @@ interface Props {
   onSelect: (varKey: string) => void;
   /** Field key đang được focus — để gợi ý variable liên quan */
   currentField?: string;
+  /** Node có nằm trong vòng lặp logic.forEach không */
+  isInsideLoop?: boolean;
 }
 
 export default function TemplateVarPopup({
@@ -31,6 +33,7 @@ export default function TemplateVarPopup({
   currentId,
   onSelect,
   currentField,
+  isInsideLoop,
 }: Props) {
   const [search, setSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<TemplateVarGroup | 'all'>('all');
@@ -39,7 +42,68 @@ export default function TemplateVarPopup({
 
   // Build grouped vars
   const groupedVars = useMemo(() => {
-    const trigger = getTemplateVarsByGroup(nodeType);
+    const original = getTemplateVarsByGroup(nodeType);
+    const trigger = new Map<TemplateVarGroup, TemplateVarInfo[]>();
+
+    // Add loop vars first if inside loop
+    if (isInsideLoop) {
+      trigger.set('loop', [
+        {
+          key: '$item.salutation',
+          label: 'Danh xưng (Anh/Chị/...)',
+          description: 'Danh xưng/Xưng xô của khách hàng đang lặp. VD: "Anh", "Chị", "Cô", "Chú"...',
+          group: 'loop',
+        },
+        {
+          key: '$item.display_name',
+          label: 'Tên Zalo khách hàng',
+          description: 'Tên hiển thị Zalo của khách hàng đang lặp.',
+          group: 'loop',
+        },
+        {
+          key: '$item.phone',
+          label: 'Số điện thoại',
+          description: 'Số điện thoại của khách hàng đang lặp (nếu có).',
+          group: 'loop',
+        },
+        {
+          key: '$item.birthday',
+          label: 'Ngày sinh nhật',
+          description: 'Ngày sinh nhật của khách hàng đang lặp (VD: 01/07/1996).',
+          group: 'loop',
+        },
+        {
+          key: '$item.contact_id',
+          label: 'ID Zalo khách hàng',
+          description: 'Mã ID Zalo của khách hàng đang lặp.',
+          group: 'loop',
+        },
+        {
+          key: '$item.alias',
+          label: 'Biệt danh khách hàng',
+          description: 'Biệt danh của khách hàng đang lặp lưu trong CRM.',
+          group: 'loop',
+        },
+        {
+          key: '$item.gender',
+          label: 'Giới tính khách hàng',
+          description: 'Giới tính của khách hàng đang lặp: 1=Nam, 2=Nữ.',
+          group: 'loop',
+        },
+        {
+          key: 'index',
+          label: 'Thứ tự lượt lặp (0, 1, 2...)',
+          description: 'Thứ tự lượt lặp của phần tử hiện tại trong danh sách.',
+          group: 'loop',
+        }
+      ]);
+    }
+
+    // Copy original groups
+    for (const [k, v] of original.entries()) {
+      trigger.set(k, v);
+    }
+
     // Add node output vars
     if (allNodes) {
       const nodeVars = getNodeOutputVars(allNodes, currentId);
@@ -48,7 +112,7 @@ export default function TemplateVarPopup({
       }
     }
     return trigger;
-  }, [nodeType, allNodes, currentId]);
+  }, [nodeType, allNodes, currentId, isInsideLoop]);
 
   // Flatten + filter
   const filtered = useMemo(() => {
@@ -180,7 +244,7 @@ export default function TemplateVarPopup({
               >
                 {/* Icon based on group */}
                 <span className="flex-shrink-0 text-base mt-0.5">
-                  {group === 'trigger' ? '📩' : group === 'date' ? '📅' : group === 'variable' ? '📦' : group === 'node' ? '🔗' : '👤'}
+                  {group === 'trigger' ? '📩' : group === 'date' ? '📅' : group === 'variable' ? '📦' : group === 'node' ? '🔗' : group === 'loop' ? '🔁' : '👤'}
                 </span>
 
                 {/* Content */}

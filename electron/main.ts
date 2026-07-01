@@ -768,8 +768,20 @@ app.whenReady().then(async () => {
   // Initialize workspace manager (must be BEFORE database init)
   WorkspaceManager.getInstance().initialize();
 
-  // Initialize database
+  // Initialize database (with retry on failure)
   await DatabaseService.getInstance().initialize();
+  if (!DatabaseService.getInstance().getIsInitialized()) {
+    console.warn('[main] DB init failed on first try — retrying in 500ms...');
+    await new Promise(r => setTimeout(r, 500));
+    await DatabaseService.getInstance().initialize();
+    if (!DatabaseService.getInstance().getIsInitialized()) {
+      console.error('[main] ❌ DB init failed after retry — app will run with no database!');
+    } else {
+      console.log('[main] ✅ DB init succeeded on retry');
+    }
+  } else {
+    console.log('[main] ✅ DB init succeeded on first try');
+  }
 
   // ── Migrate absolute local_paths → relative (runs once in background) ─────
   setTimeout(() => {

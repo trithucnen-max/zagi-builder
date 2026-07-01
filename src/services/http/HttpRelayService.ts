@@ -1440,9 +1440,19 @@ class HttpRelayService {
     // ─── Utility ──────────────────────────────────────────────────────
 
     private readBody(req: http.IncomingMessage, cb: (body: string) => void): void {
-        let body = '';
-        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
-        req.on('end', () => cb(body));
+        const chunks: any[] = [];
+        req.on('data', (chunk: any) => { chunks.push(chunk); });
+        req.on('end', () => {
+            let body = '';
+            if (chunks.length > 0) {
+                if (typeof chunks[0] === 'string') {
+                    body = chunks.join('');
+                } else {
+                    body = Buffer.concat(chunks).toString('utf8');
+                }
+            }
+            cb(body);
+        });
     }
 
     private json(res: http.ServerResponse, status: number, data: any): void {

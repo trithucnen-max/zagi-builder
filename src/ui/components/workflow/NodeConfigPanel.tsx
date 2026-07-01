@@ -212,8 +212,14 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       desc: 'Tìm kiếm khách hàng theo tên, số điện thoại, biệt danh hoặc ID Zalo.',
     },
     {
-      key: 'birthdayToday', label: 'Sinh nhật hôm nay', type: 'boolean',
-      desc: 'Chỉ lấy các liên hệ có ngày sinh là hôm nay (tự động khớp ngày/tháng, không phân biệt định dạng DD/MM hay DD/MM/YYYY).',
+      key: 'birthdayFilter', label: 'Lọc sinh nhật', type: 'select',
+      options: [
+        { value: '', label: 'Không lọc sinh nhật' },
+        { value: 'today', label: 'Sinh nhật hôm nay' },
+        { value: 'this_week', label: 'Sinh nhật tuần này' },
+        { value: 'this_month', label: 'Sinh nhật tháng này' },
+      ],
+      desc: 'Lọc các liên hệ có ngày sinh trong khoảng thời gian được chọn (tự động khớp ngày/tháng, không phân biệt định dạng DD/MM hay DD/MM/YYYY).',
     },
     {
       key: 'channel', label: 'Kênh liên lạc', type: 'select',
@@ -4131,13 +4137,15 @@ function NodePickerModal({
   onClose,
   allNodes,
   currentId,
-  onInsertOutput,
+  onInsert,
+  onCopy,
 }: {
   open: boolean;
   onClose: () => void;
   allNodes: { id: string; label: string; type: string; isCurrent: boolean }[];
   currentId?: string;
-  onInsertOutput: (nodeId: string) => void;
+  onInsert: (nodeLabel: string) => void;
+  onCopy: (nodeLabel: string) => void;
 }) {
   const [search, setSearch] = React.useState('');
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
@@ -4152,13 +4160,6 @@ function NodePickerModal({
       )
     : allNodes;
 
-  const copyRef = (id: string) => {
-    const text = `{{ $node.${id}.output }}`;
-    navigator.clipboard.writeText(text).catch(() => {});
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 1200);
-  };
-
   if (!open) return null;
 
   return (
@@ -4171,7 +4172,7 @@ function NodePickerModal({
         <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? 'border-gray-200' : 'border-gray-700'}`}>
           <div>
             <p className={`text-base font-semibold ${isLight ? 'text-gray-900' : 'text-white'}`}>Chọn dữ liệu từ node</p>
-            <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Click để copy UUID hoặc chèn cú pháp tham chiếu</p>
+            <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Chọn tên thân thiện để chèn hoặc copy cú pháp đầu ra</p>
           </div>
           <button onClick={onClose} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
             isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-700 text-gray-400'
@@ -4211,6 +4212,7 @@ function NodePickerModal({
             filtered.map(n => {
               const isCurrent = n.id === currentId;
               const copied = copiedId === n.id;
+              const emoji = n.type?.startsWith('zalo.') ? '📩' : n.type?.startsWith('crm.') ? '👤' : n.type?.startsWith('logic.') ? '🔁' : '🔗';
               return (
                 <div key={n.id} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all ${
                   isCurrent
@@ -4220,7 +4222,8 @@ function NodePickerModal({
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className={`text-sm font-medium truncate flex items-center gap-1.5 ${isLight ? 'text-gray-900' : 'text-white'}`}>
-                      {n.label}
+                      <span>{emoji}</span>
+                      <span className="truncate">{n.label}</span>
                       {isCurrent && (
                         <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
                           isLight ? 'bg-gray-200 text-gray-500' : 'bg-gray-700 text-gray-400'
@@ -4228,28 +4231,46 @@ function NodePickerModal({
                       )}
                     </div>
                     <div className={`text-[10px] font-mono truncate mt-0.5 ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {n.id}
+                      {`{{ $node.${n.label}.output }}`}
                     </div>
                   </div>
 
-                  {/* Copy full reference button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      copyRef(n.id);
-                      onClose();
-                    }}
-                    title="Copy {{ $node.<ID>.output }}"
-                    className={`flex-shrink-0 px-2.5 py-1.5 text-[10px] font-medium rounded-lg transition-colors ${
-                      copied
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/40'
-                        : isLight
-                          ? 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200'
-                          : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30'
-                    }`}
-                  >
-                    {copied ? '✓ Copied' : 'Copy output'}
-                  </button>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1.5">
+                    {/* Insert button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onInsert(n.label);
+                        onClose();
+                      }}
+                      className={`px-2.5 py-1.5 text-[10px] font-semibold rounded-lg transition-colors ${
+                        isLight
+                          ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                          : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
+                      }`}
+                    >
+                      Chèn
+                    </button>
+                    {/* Copy button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onCopy(n.label);
+                        setCopiedId(n.id);
+                        setTimeout(() => setCopiedId(null), 1000);
+                      }}
+                      className={`px-2.5 py-1.5 text-[10px] font-medium rounded-lg transition-colors ${
+                        copied
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/40'
+                          : isLight
+                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                      }`}
+                    >
+                      {copied ? '✓ Đã copy' : 'Copy'}
+                    </button>
+                  </div>
                 </div>
               );
             })
@@ -4287,6 +4308,11 @@ export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConf
   const [showTemplatePopup, setShowTemplatePopup] = useState(false);
   const [templatePopupField, setTemplatePopupField] = useState<string>('');
   const [copiedNodeId, setCopiedNodeId] = useState<string | null>(null);
+  const [showExpandModal, setShowExpandModal] = useState(false);
+  const [expandFieldKey, setExpandFieldKey] = useState<string>('');
+  const [expandFieldLabel, setExpandFieldLabel] = useState<string>('');
+  const [expandFieldValue, setExpandFieldValue] = useState<string>('');
+  const [expandFieldPlaceholder, setExpandFieldPlaceholder] = useState<string>('');
   const isResizingRef = useRef(false);
   const resizeStartXRef  = useRef(0);
   const resizeStartWRef  = useRef(320);
@@ -4582,6 +4608,32 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [nodes, node?.id]);
 
+  const isNodeInsideLoop = React.useMemo(() => {
+    if (!node?.id || !nodes || !edges) return false;
+    const queue = [node.id];
+    const visited = new Set<string>();
+    visited.add(node.id);
+    
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const incoming = edges.filter(e => e.target === current);
+      for (const edge of incoming) {
+        const parentId = edge.source;
+        if (visited.has(parentId)) continue;
+        visited.add(parentId);
+        
+        const parentNode = nodes.find(n => n.id === parentId);
+        if (!parentNode) continue;
+        const type = parentNode.data?.type || parentNode.type;
+        if (type === 'logic.forEach') {
+          return true;
+        }
+        queue.push(parentId);
+      }
+    }
+    return false;
+  }, [node?.id, nodes, edges]);
+
   // ── Drag-resize logic ────────────────────────────────────────────────────
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -4619,6 +4671,121 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
   };
 
   const appendVar = (key: string, v: string) => update(key, (config[key] ?? '') + v);
+
+  const renderVarToolbar = (field: Field) => {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-1 bg-gray-800 border border-gray-700 rounded-t-xl px-2 py-1.5 border-b-0">
+        {/* Left side: Quick Variables */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] text-gray-500 font-semibold mr-1">Chèn nhanh:</span>
+          {isNodeInsideLoop ? (
+            <>
+              <button
+                type="button"
+                onClick={() => appendVar(field.key, '{{ $item.salutation }}')}
+                className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                title="Xưng hô (Anh/Chị/Cô/Chú...)"
+              >
+                💬 Xưng hô
+              </button>
+              <button
+                type="button"
+                onClick={() => appendVar(field.key, '{{ $item.display_name }}')}
+                className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                title="Tên Zalo khách hàng"
+              >
+                👤 Tên
+              </button>
+              <button
+                type="button"
+                onClick={() => appendVar(field.key, '{{ $item.phone }}')}
+                className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                title="Số điện thoại"
+              >
+                📞 SĐT
+              </button>
+              <button
+                type="button"
+                onClick={() => appendVar(field.key, '{{ $item.birthday }}')}
+                className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                title="Ngày sinh nhật"
+              >
+                📅 Sinh nhật
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => appendVar(field.key, '{{ $trigger.salutation }}')}
+                className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                title="Xưng hô người gửi"
+              >
+                💬 Xưng hô
+              </button>
+              <button
+                type="button"
+                onClick={() => appendVar(field.key, '{{ $trigger.displayName }}')}
+                className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                title="Tên Zalo người gửi"
+              >
+                👤 Tên
+              </button>
+              <button
+                type="button"
+                onClick={() => appendVar(field.key, '{{ $trigger.message }}')}
+                className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                title="Nội dung tin nhắn kích hoạt"
+              >
+                💬 Tin nhắn
+              </button>
+            </>
+          )}
+
+          {/* Generic variable inserter */}
+          <button
+            type="button"
+            onClick={() => { setTemplatePopupField(field.key); setShowTemplatePopup(true); }}
+            className="text-[10px] bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded transition-colors font-semibold border border-blue-500/20"
+            title="Xem danh sách tất cả các biến hỗ trợ"
+          >
+            🔤 Thêm biến...
+          </button>
+
+          {/* Upstream outputs inserter */}
+          <button
+            type="button"
+            onClick={() => { setTemplatePopupField(field.key); setShowNodePicker(true); }}
+            className="text-[10px] bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded transition-colors font-semibold border border-purple-500/20"
+            title="Lấy dữ liệu từ các Node chạy trước"
+          >
+            📩 Đầu ra Node...
+          </button>
+        </div>
+
+        {/* Right side: Expand button for textareas (only if NOT in fullscreen layout) */}
+        {!isFullscreen && (field.type === 'textarea' || field.type === 'multiline') && (
+          <button
+            type="button"
+            onClick={() => {
+              setExpandFieldKey(field.key);
+              setExpandFieldLabel(field.label);
+              setExpandFieldValue(config[field.key] ?? '');
+              setExpandFieldPlaceholder(field.placeholder || '');
+              setShowExpandModal(true);
+            }}
+            className="text-[10px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded transition-colors font-semibold flex items-center gap-1 border border-emerald-500/20"
+            title="Mở trình soạn thảo lớn toàn màn hình"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+            Soạn rộng
+          </button>
+        )}
+      </div>
+    );
+  };
 
   const renderField = (field: Field) => {
     // Custom Interceptor for zalo.sendImage
@@ -4680,10 +4847,13 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           field.templateVars?.length ? (
             <SmartInput value={config[field.key] ?? ''} onChange={v => update(field.key, v)}
               placeholder={field.placeholder} className={inputCls}
-              nodeType={node?.type} allNodes={nodes} currentId={node?.id} />
+              nodeType={node?.type} allNodes={nodes} currentId={node?.id}
+              isInsideLoop={isNodeInsideLoop}
+              onFocus={() => setTemplatePopupField(field.key)} />
           ) : (
             <input value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
-              placeholder={field.placeholder} className={inputCls} />
+              placeholder={field.placeholder} className={inputCls}
+              onFocus={() => setTemplatePopupField(field.key)} />
           )
         )}
         {(field.type === 'textarea' || field.type === 'multiline') && (
@@ -4697,14 +4867,20 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
               />
             ) : (
               field.templateVars?.length ? (
-                <SmartTextarea value={config[field.key] ?? ''} onChange={v => update(field.key, v)}
-                  placeholder={field.placeholder} rows={field.type === 'multiline' ? 5 : 3}
-                  className={`${inputCls} resize-none`}
-                  nodeType={node?.type} allNodes={nodes} currentId={node?.id} />
+                <>
+                  {renderVarToolbar(field)}
+                  <SmartTextarea value={config[field.key] ?? ''} onChange={v => update(field.key, v)}
+                    placeholder={field.placeholder} rows={field.type === 'multiline' ? 5 : 3}
+                    className={`${inputCls} resize-none rounded-t-none border-t-0`}
+                    nodeType={node?.type} allNodes={nodes} currentId={node?.id}
+                    isInsideLoop={isNodeInsideLoop}
+                    onFocus={() => setTemplatePopupField(field.key)} />
+                </>
               ) : (
                 <textarea value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
                   placeholder={field.placeholder} rows={field.type === 'multiline' ? 5 : 3}
-                  className={`${inputCls} resize-none`} />
+                  className={`${inputCls} resize-none`}
+                  onFocus={() => setTemplatePopupField(field.key)} />
               )
             )}
             {showAiInput[field.key] && (
@@ -4921,19 +5097,6 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
 
         {field.desc && !isBool && <p className={descCls}>{field.desc}</p>}
         {field.hint && field.type !== 'json' && <p className={hintCls}>💡 {field.hint}</p>}
-        {field.templateVars?.length && !isBool && !(field.htmlToggle && config[field.htmlToggle]) && (
-          <button
-            type="button"
-            onClick={() => { setTemplatePopupField(field.key); setShowTemplatePopup(true); }}
-            className="mt-1.5 flex items-center gap-1.5 text-[10px] font-medium text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 px-2 py-1 rounded-lg transition-colors"
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>
-            </svg>
-            Chèn biến động
-            <span className="text-[9px] text-cyan-500/60">({field.templateVars.length} biến)</span>
-          </button>
-        )}
       </div>
     );
   };
@@ -5004,34 +5167,44 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
             {upstreamNodes.map(n => {
               const copied = copiedNodeId === n.id;
               return (
-                <div key={n.id} className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`{{ $node.${n.id}.output }}`).catch(()=>{});
-                      setCopiedNodeId(n.id);
-                      setTimeout(() => setCopiedNodeId(null), 1000);
-                    }}
-                    className={`flex-1 flex items-center gap-2 text-[10px] font-mono px-2.5 py-1.5 rounded-lg transition-all truncate ${
-                      copied
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/40'
-                        : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-500/40'
-                    }`}
-                  >
-                    {copied ? (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="flex-shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
-                    ) : (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                      </svg>
-                    )}
-                    <span className="truncate">{n.label}</span>
-                  </button>
+                <div key={n.id} className="flex items-center justify-between gap-1.5 bg-cyan-500/5 border border-cyan-500/10 px-2.5 py-1.5 rounded-lg">
+                  <span className="text-[10px] text-gray-300 truncate font-semibold flex-1">{n.label}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tag = `{{ $node.${n.label}.output }}`;
+                        if (templatePopupField) {
+                          appendVar(templatePopupField, tag);
+                        } else {
+                          navigator.clipboard.writeText(tag).catch(()=>{});
+                        }
+                      }}
+                      className="text-[9px] text-blue-400 hover:text-blue-300 font-semibold bg-blue-500/10 hover:bg-blue-500/20 px-1.5 py-0.5 rounded transition-colors"
+                    >
+                      Chèn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`{{ $node.${n.label}.output }}`).catch(()=>{});
+                        setCopiedNodeId(n.id);
+                        setTimeout(() => setCopiedNodeId(null), 1000);
+                      }}
+                      className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors ${
+                        copied
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20'
+                      }`}
+                    >
+                      {copied ? '✓ Đã copy' : 'Copy'}
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
-          <p className="text-[9px] text-gray-600 mt-1">Click để copy <span className="font-mono text-gray-500">{'{{ $node.<UUID>.output }}'}</span></p>
+          <p className="text-[9px] text-gray-600 mt-1">Chèn hoặc copy output dạng tên thân thiện <span className="font-mono text-gray-500">{'{{ $node.[Tên Node].output }}'}</span></p>
         </div>
       )}
 
@@ -5068,10 +5241,17 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           onClose={() => setShowNodePicker(false)}
           allNodes={allNodeList}
           currentId={node?.id}
-          onInsertOutput={(nodeId) => {
-            const text = `{{ $node.${nodeId}.output }}`;
-            navigator.clipboard.writeText(text).catch(() => {});
-            // Focus current active field — user can paste
+          onInsert={(nodeLabel) => {
+            const tag = `{{ $node.${nodeLabel}.output }}`;
+            if (templatePopupField) {
+              appendVar(templatePopupField, tag);
+            } else {
+              navigator.clipboard.writeText(tag).catch(() => {});
+            }
+          }}
+          onCopy={(nodeLabel) => {
+            const tag = `{{ $node.${nodeLabel}.output }}`;
+            navigator.clipboard.writeText(tag).catch(() => {});
           }}
         />
       )}
@@ -5084,6 +5264,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         allNodes={allNodeList}
         currentId={node?.id}
         currentField={templatePopupField}
+        isInsideLoop={isNodeInsideLoop}
         onSelect={(varKey) => {
           const tag = `{{ ${varKey} }}`;
           if (templatePopupField) {
@@ -5095,6 +5276,22 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           }
         }}
       />
+      {showExpandModal && (
+        <ExpandTextareaModal
+          open={showExpandModal}
+          onClose={() => setShowExpandModal(false)}
+          label={expandFieldLabel}
+          value={expandFieldValue}
+          placeholder={expandFieldPlaceholder}
+          nodeType={node?.type}
+          allNodes={allNodeList}
+          currentId={node?.id}
+          isInsideLoop={isNodeInsideLoop}
+          onSave={(newVal) => {
+            update(expandFieldKey, newVal);
+          }}
+        />
+      )}
       {showCrmPreview && (
         <CRMPreviewContactsModal
           open={showCrmPreview}
@@ -5196,6 +5393,208 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
       </div>
 
       {footer}
+    </div>
+  );
+}
+
+function ExpandTextareaModal({
+  open,
+  onClose,
+  label,
+  value,
+  placeholder,
+  nodeType,
+  allNodes,
+  currentId,
+  isInsideLoop,
+  onSave,
+}: {
+  open: boolean;
+  onClose: () => void;
+  label: string;
+  value: string;
+  placeholder: string;
+  nodeType?: string;
+  allNodes?: any[];
+  currentId?: string;
+  isInsideLoop?: boolean;
+  onSave: (val: string) => void;
+}) {
+  const [val, setVal] = useState(value);
+  const [showPopup, setShowPopup] = useState(false);
+  const theme = useAppStore(s => s.theme);
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  useEffect(() => {
+    if (open) setVal(value);
+  }, [open, value]);
+
+  if (!open) return null;
+
+  const appendLocalVar = (v: string) => {
+    setVal(prev => prev + v);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9990] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+      <div className={`relative rounded-2xl shadow-2xl w-[800px] max-w-[95vw] h-[600px] max-h-[90vh] flex flex-col overflow-hidden border ${
+        isLight ? 'bg-white border-gray-200' : 'bg-gray-900 border-gray-700'
+      }`}>
+        {/* Header */}
+        <div className={`flex items-center justify-between px-6 py-4 border-b ${isLight ? 'border-gray-200' : 'border-gray-700'}`}>
+          <div>
+            <p className={`text-base font-semibold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+              📝 Soạn thảo nội dung: {label}
+            </p>
+            <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+              Dùng {"{{ }}"} để chèn biến động. Nhập {"{"} để xem gợi ý thông minh.
+            </p>
+          </div>
+          <button onClick={onClose} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+            isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-700 text-gray-400'
+          }`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 p-6 overflow-hidden flex flex-col gap-4">
+          <div className="flex-1 overflow-y-auto flex flex-col border border-gray-200 dark:border-gray-700/60 rounded-xl bg-white dark:bg-gray-950/40">
+            {/* Toolbar inside Expand Modal */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-gray-800/40 border border-gray-700/50 rounded-t-xl px-3 py-2 border-b-0 border-l-0 border-r-0">
+              <span className="text-[10px] text-gray-500 font-semibold mr-1">Chèn nhanh:</span>
+              {isInsideLoop ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => appendLocalVar('{{ $item.salutation }}')}
+                    className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                    title="Xưng hô (Anh/Chị/Cô/Chú...)"
+                  >
+                    💬 Xưng hô
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => appendLocalVar('{{ $item.display_name }}')}
+                    className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                    title="Tên Zalo khách hàng"
+                  >
+                    👤 Tên
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => appendLocalVar('{{ $item.phone }}')}
+                    className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                    title="Số điện thoại"
+                  >
+                    📞 SĐT
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => appendLocalVar('{{ $item.birthday }}')}
+                    className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                    title="Ngày sinh nhật"
+                  >
+                    📅 Sinh nhật
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => appendLocalVar('{{ $trigger.salutation }}')}
+                    className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                    title="Xưng hô người gửi"
+                  >
+                    💬 Xưng hô
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => appendLocalVar('{{ $trigger.displayName }}')}
+                    className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                    title="Tên Zalo người gửi"
+                  >
+                    👤 Tên
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => appendLocalVar('{{ $trigger.message }}')}
+                    className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                    title="Nội dung tin nhắn kích hoạt"
+                  >
+                    💬 Tin nhắn
+                  </button>
+                </>
+              )}
+
+              {/* Generic variable inserter */}
+              <button
+                type="button"
+                onClick={() => setShowPopup(true)}
+                className="text-[10px] bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded transition-colors font-semibold border border-blue-500/20"
+                title="Xem danh sách tất cả các biến hỗ trợ"
+              >
+                🔤 Thêm biến...
+              </button>
+            </div>
+
+            {/* SmartTextarea container */}
+            <div className="flex-1 flex flex-col p-4 min-h-0 bg-transparent">
+              <SmartTextarea
+                value={val}
+                onChange={setVal}
+                placeholder={placeholder}
+                rows={15}
+                className="w-full flex-1 resize-none bg-transparent border-0 outline-none text-gray-900 dark:text-gray-100 focus:ring-0 text-sm"
+                nodeType={nodeType}
+                allNodes={allNodes}
+                currentId={currentId}
+                isInsideLoop={isInsideLoop}
+              />
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`px-4 py-2 text-xs font-medium rounded-xl transition-colors ${
+                isLight ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onSave(val);
+                onClose();
+              }}
+              className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors shadow-lg shadow-blue-500/20"
+            >
+              Lưu lại
+            </button>
+          </div>
+        </div>
+
+        {/* Nested variable selector popup inside editor */}
+        <TemplateVarPopup
+          open={showPopup}
+          onClose={() => setShowPopup(false)}
+          nodeType={nodeType}
+          allNodes={allNodes}
+          currentId={currentId}
+          onSelect={(varKey) => {
+            const tag = `{{ ${varKey} }}`;
+            setVal(prev => prev + tag); // Simple append
+          }}
+          isInsideLoop={isInsideLoop}
+        />
+      </div>
     </div>
   );
 }

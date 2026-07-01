@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 28/06/2026  
-> **Phiên bản:** v27.1.8 (Stable)  
+> **Ngày cập nhật:** 01/07/2026  
+> **Phiên bản:** v27.2.2 (Stable)  
 > **Nhánh Git hiện tại:** `main` (Working tree sạch)
 
 ---
@@ -51,6 +51,16 @@
 13. **Cập nhật Xưng hô trực tiếp khi Chat (v27.1.8):**
     *   Thêm trường nhập **Xưng hô (tùy chỉnh)** vào form chỉnh sửa thông tin liên hệ ngay bên cạnh khung chat (ConversationInfo Panel) để bổ sung nhanh khi đang chat.
     *   Đồng bộ dữ liệu thời gian thực giữa Database, danh sách Chat (`chatStore`) và danh sách CRM (`crmStore`).
+14. **Nâng cấp Workflow Editor & Sửa lỗi Smart Connect (v27.2.2):**
+    *   **Hoàn tác / Làm lại (Undo/Redo)**: Bổ sung phím nóng Ctrl+Z / Ctrl+Y và hai nút bấm ↩️ / ↪️ trên đầu trang giúp quay lại các thao tác nhanh chóng.
+    *   **Tự động sắp xếp sơ đồ (Auto Align)**: Nút ✨ Căn chỉnh tự động xếp các Node kịch bản thẳng hàng dọc theo chiều rộng (BFS Layout) cân đối.
+    *   **Kiểm tra vòng lặp vô hạn (Cycle Detection)**: Tự động phát hiện và chặn các kết nối tạo thành vòng lặp vô tận, hiển thị cảnh báo đỏ thân thiện.
+    *   **Tự động lưu ngầm (Silent Auto-save)**: Lưu kịch bản xuống DB SQLite sau mỗi lần kéo thả kết thúc hoặc thay đổi kết nối mà không hiển thị popup phiền phức.
+    *   **Xem chi tiết biến tại chỗ (Tooltip preview)**: Hover lên biến hiện cú pháp gốc và mô tả chi tiết của biến.
+    *   **Mở rộng 3 kịch bản mẫu nâng cao mới**: AI Phân loại & Chăm sóc KH Tiềm năng (`tpl-ai-lead-scoring`), Chăm sóc sau sự kiện Mở bán BĐS (`tpl-re-event-followup`), và Nhắc lịch hẹn dịch vụ từ POS (`tpl-pos-appointment-reminder`).
+    *   **Sửa lỗi Kết nối thông minh (Smart Connect)**: Định vị điểm nhả qua elementFromPoint để sửa lỗi menu gợi ý Node không hiện.
+    *   **Tối ưu hóa Toolbar chèn biến**: Giới hạn thanh công cụ chèn biến chỉ xuất hiện trên các trường nhập liệu văn bản tin nhắn (`textarea`, `multiline`).
+    *   **Tối ưu hóa các biến chào CRM**: Đổi biến chào cũ sang định dạng Zalo-native lịch sự hơn là `{{ $item.salutation }} {{ $item.display_name }}`.
 
 
 ## 4. Trạng Thái Kiểm Thử & Chạy Thử

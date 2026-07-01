@@ -701,6 +701,20 @@ export default function App() {
       if (cachedAccounts.length > 0) {
         setAccounts(cachedAccounts as any);
         console.log(`[App] Accounts set from initialState: ${cachedAccounts.length} accounts`, cachedAccounts.map(a => ({ zalo_id: a.zalo_id, full_name: a.full_name })));
+        // Load contacts from DB for each account
+        for (const acc of cachedAccounts) {
+          try {
+            console.log(`[App] Requesting contacts for ${acc.zalo_id} from DB...`);
+            const contactsRes = await ipc.db?.getContacts(acc.zalo_id);
+            console.log(`[App] getContacts response for ${acc.zalo_id}:`, contactsRes);
+            if (contactsRes?.contacts) {
+              setContacts(acc.zalo_id, contactsRes.contacts);
+              console.log(`[App] Loaded ${contactsRes.contacts.length} contacts for account ${acc.zalo_id} from DB`);
+            }
+          } catch (err: any) {
+            console.error(`[App] Failed to load contacts for account ${acc.zalo_id}:`, err);
+          }
+        }
       } else {
         setAccounts([]);
         console.log(`[App] No accountsData in initialState`);
@@ -831,14 +845,19 @@ export default function App() {
       if (accounts.length > 0) {
         for (const zaloId of accounts) {
           try {
+            console.log(`[App] syncComplete: Requesting contacts for ${zaloId} from DB...`);
             const contactsRes = await Promise.race([
               ipc.db?.getContacts(zaloId),
               new Promise(r => setTimeout(() => r(null), 5000)),
             ]) as any;
+            console.log(`[App] syncComplete: getContacts response for ${zaloId}:`, contactsRes);
             if (contactsRes?.contacts) {
               setContacts(zaloId, contactsRes.contacts);
+              console.log(`[App] syncComplete: Loaded ${contactsRes.contacts.length} contacts for account ${zaloId} from DB`);
             }
-          } catch {}
+          } catch (err: any) {
+            console.error(`[App] syncComplete: Failed to load contacts for account ${zaloId}:`, err);
+          }
         }
         // Reload flags
         const { loadFlags } = useAppStore.getState();

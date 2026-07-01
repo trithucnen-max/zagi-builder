@@ -249,11 +249,6 @@ function PreviewModal({
             >
               <Background color={isLight ? '#c8c2b8' : '#1f2937'} gap={20} />
               <Controls showInteractive={false} />
-              <MiniMap
-                  nodeColor={isLight ? '#9ca3af' : '#374151'}
-                  maskColor={isLight ? 'rgba(200,194,184,0.45)' : 'rgba(17,24,39,0.7)'}
-                  style={{ background: isLight ? '#ede9e3' : '#111827' }}
-              />
             </ReactFlow>
           </div>
 

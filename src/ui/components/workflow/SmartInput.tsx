@@ -8,6 +8,8 @@ interface SmartInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElemen
   nodeType?: string;
   allNodes?: { id: string; label: string; type: string }[];
   currentId?: string;
+  isInsideLoop?: boolean;
+  onFocus?: () => void;
 }
 
 interface SmartTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange' | 'value'> {
@@ -17,6 +19,8 @@ interface SmartTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextA
   allNodes?: { id: string; label: string; type: string }[];
   currentId?: string;
   rows?: number;
+  isInsideLoop?: boolean;
+  onFocus?: () => void;
 }
 
 // ── Helpers to parse/serialize raw text and visual HTML chips ─────────────────
@@ -24,7 +28,7 @@ interface SmartTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextA
 const plainTextToHtml = (
   text: string,
   allAvailableVars: TemplateVarInfo[],
-  allNodes?: { id: string; label: string; type: string }[]
+  allNodes?: any[]
 ): string => {
   if (!text) return '';
   
@@ -55,16 +59,20 @@ const plainTextToHtml = (
       if (dotIdx !== -1) {
         const nodeRef = rest.slice(0, dotIdx);
         const field = rest.slice(dotIdx + 1);
-        const foundNode = allNodes?.find(n => n.id === nodeRef || n.label === nodeRef);
+        const foundNode = allNodes?.find(n => n.id === nodeRef || n.label === nodeRef || n.data?.label === nodeRef);
         if (foundNode) {
-          label = `Output từ "${foundNode.label}"` + (field !== 'output' ? ` (${field})` : '');
+          const nodeLabel = foundNode.label || foundNode.data?.label || foundNode.id;
+          label = `Output từ "${nodeLabel}"` + (field !== 'output' ? ` (${field})` : '');
         }
       }
     }
 
     const finalLabel = (label || baseKey) + filterText;
+    const varInfo = allAvailableVars.find(v => v.key === key || v.key === baseKey);
+    const desc = varInfo?.description || '';
+    const tooltipText = `Cú pháp: {{ ${key} }}${desc ? `\nMô tả: ${desc}` : ''}`;
 
-    return `<span class="font-bold bg-gray-200/80 dark:bg-gray-700/60 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded-md mx-0.5 inline-block text-xs align-middle border border-gray-300/50 dark:border-gray-600/30 select-all" contenteditable="false" data-var-key="${key}">${finalLabel}</span>`;
+    return `<span class="font-bold bg-gray-200/80 dark:bg-gray-700/60 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded-md mx-0.5 inline-block text-xs align-middle border border-gray-300/50 dark:border-gray-600/30 select-all cursor-help" contenteditable="false" data-var-key="${key}" title="${tooltipText}">${finalLabel}</span>`;
   });
 
   return escaped.replace(/\n/g, '<br>');
@@ -107,6 +115,7 @@ interface VarDropdownProps {
   selectedIndex: number;
   onSelect: (varKey: string) => void;
   isLight: boolean;
+  isInsideLoop?: boolean;
 }
 
 const VarDropdown = ({
@@ -117,10 +126,66 @@ const VarDropdown = ({
   selectedIndex,
   onSelect,
   isLight,
+  isInsideLoop,
 }: VarDropdownProps) => {
   const systemVars = useMemo(() => getTemplateVarsForNode(nodeType), [nodeType]);
   const nodeVars = useMemo(() => (allNodes ? getNodeOutputVars(allNodes, currentId) : []), [allNodes, currentId]);
-  const allAvailableVars = useMemo(() => [...systemVars, ...nodeVars], [systemVars, nodeVars]);
+  const allAvailableVars = useMemo(() => {
+    const vars = [...systemVars, ...nodeVars];
+    if (isInsideLoop) {
+      vars.push(
+        {
+          key: '$item.salutation',
+          label: 'Danh xưng (Anh/Chị/...) của khách hàng',
+          description: 'Danh xưng/Xưng xô của khách hàng đang lặp. VD: "Anh", "Chị", "Cô", "Chú"...',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.display_name',
+          label: 'Tên Zalo của khách hàng',
+          description: 'Tên hiển thị Zalo của khách hàng đang lặp.',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.phone',
+          label: 'Số điện thoại của khách hàng',
+          description: 'Số điện thoại của khách hàng đang lặp (nếu có).',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.birthday',
+          label: 'Ngày sinh nhật của khách hàng',
+          description: 'Ngày sinh nhật của khách hàng đang lặp (VD: 01/07/1996).',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.contact_id',
+          label: 'ID Zalo của khách hàng',
+          description: 'Mã ID Zalo của khách hàng đang lặp.',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.alias',
+          label: 'Biệt danh của khách hàng',
+          description: 'Biệt danh của khách hàng đang lặp lưu trong CRM.',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.gender',
+          label: 'Giới tính của khách hàng',
+          description: 'Giới tính của khách hàng đang lặp: 1=Nam, 2=Nữ.',
+          group: 'loop' as any,
+        },
+        {
+          key: 'index',
+          label: 'Thứ tự lượt lặp (0, 1, 2...)',
+          description: 'Thứ tự lượt lặp của phần tử hiện tại trong danh sách.',
+          group: 'loop' as any,
+        }
+      );
+    }
+    return vars;
+  }, [systemVars, nodeVars, isInsideLoop]);
 
   const filteredVars = useMemo(() => {
     const query = search.toLowerCase().trim();
@@ -201,6 +266,8 @@ interface SmartRichEditorProps {
   allNodes?: { id: string; label: string; type: string }[];
   currentId?: string;
   rows?: number;
+  isInsideLoop?: boolean;
+  onFocus?: () => void;
 }
 
 const SmartRichEditor = ({
@@ -213,6 +280,8 @@ const SmartRichEditor = ({
   allNodes,
   currentId,
   rows,
+  isInsideLoop,
+  onFocus,
 }: SmartRichEditorProps) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -226,7 +295,62 @@ const SmartRichEditor = ({
 
   const systemVars = useMemo(() => getTemplateVarsForNode(nodeType), [nodeType]);
   const nodeVars = useMemo(() => (allNodes ? getNodeOutputVars(allNodes, currentId) : []), [allNodes, currentId]);
-  const allAvailableVars = useMemo(() => [...systemVars, ...nodeVars], [systemVars, nodeVars]);
+  const allAvailableVars = useMemo(() => {
+    const vars = [...systemVars, ...nodeVars];
+    if (isInsideLoop) {
+      vars.push(
+        {
+          key: '$item.salutation',
+          label: 'Danh xưng (Anh/Chị/...) của khách hàng',
+          description: 'Danh xưng/Xưng xô của khách hàng đang lặp. VD: "Anh", "Chị", "Cô", "Chú"...',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.display_name',
+          label: 'Tên Zalo của khách hàng',
+          description: 'Tên hiển thị Zalo của khách hàng đang lặp.',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.phone',
+          label: 'Số điện thoại của khách hàng',
+          description: 'Số điện thoại của khách hàng đang lặp (nếu có).',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.birthday',
+          label: 'Ngày sinh nhật của khách hàng',
+          description: 'Ngày sinh nhật của khách hàng đang lặp (VD: 01/07/1996).',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.contact_id',
+          label: 'ID Zalo của khách hàng',
+          description: 'Mã ID Zalo của khách hàng đang lặp.',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.alias',
+          label: 'Biệt danh của khách hàng',
+          description: 'Biệt danh của khách hàng đang lặp lưu trong CRM.',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.gender',
+          label: 'Giới tính của khách hàng',
+          description: 'Giới tính của khách hàng đang lặp: 1=Nam, 2=Nữ.',
+          group: 'loop' as any,
+        },
+        {
+          key: 'index',
+          label: 'Thứ tự lượt lặp (0, 1, 2...)',
+          description: 'Thứ tự lượt lặp của phần tử hiện tại trong danh sách.',
+          group: 'loop' as any,
+        }
+      );
+    }
+    return vars;
+  }, [systemVars, nodeVars, isInsideLoop]);
 
   const filteredCount = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -381,6 +505,7 @@ const SmartRichEditor = ({
       <div
         ref={editorRef}
         contentEditable
+        onFocus={onFocus}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
         className={`${className} outline-none focus:ring-1 focus:ring-blue-500 overflow-y-auto cursor-text`}
@@ -405,6 +530,7 @@ const SmartRichEditor = ({
           selectedIndex={selectedIndex}
           onSelect={handleSelect}
           isLight={isLight}
+          isInsideLoop={isInsideLoop}
         />
       )}
     </div>
@@ -413,7 +539,7 @@ const SmartRichEditor = ({
 
 // ── SmartInput Component ─────────────────────────────────────────────────────
 export const SmartInput = React.forwardRef<any, SmartInputProps>((
-  { value, onChange, nodeType, allNodes, currentId, className, placeholder, ...props },
+  { value, onChange, nodeType, allNodes, currentId, isInsideLoop, className, placeholder, onFocus, ...props },
   forwardedRef
 ) => {
   return (
@@ -426,6 +552,8 @@ export const SmartInput = React.forwardRef<any, SmartInputProps>((
       nodeType={nodeType}
       allNodes={allNodes}
       currentId={currentId}
+      isInsideLoop={isInsideLoop}
+      onFocus={onFocus}
     />
   );
 });
@@ -433,7 +561,7 @@ SmartInput.displayName = 'SmartInput';
 
 // ── SmartTextarea Component ──────────────────────────────────────────────────
 export const SmartTextarea = React.forwardRef<any, SmartTextareaProps>((
-  { value, onChange, nodeType, allNodes, currentId, className, placeholder, rows, ...props },
+  { value, onChange, nodeType, allNodes, currentId, isInsideLoop, className, placeholder, rows, onFocus, ...props },
   forwardedRef
 ) => {
   return (
@@ -447,6 +575,8 @@ export const SmartTextarea = React.forwardRef<any, SmartTextareaProps>((
       allNodes={allNodes}
       currentId={currentId}
       rows={rows}
+      isInsideLoop={isInsideLoop}
+      onFocus={onFocus}
     />
   );
 });

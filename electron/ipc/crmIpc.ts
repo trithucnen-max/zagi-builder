@@ -122,21 +122,50 @@ export function registerCRMIpc(): void {
 
             let rows = DatabaseService.getInstance().query<any>(sql, params) || [];
 
-            if (cfg.birthdayToday === true) {
+            let birthdayFilter = cfg.birthdayFilter || '';
+            if (cfg.birthdayToday === true && !birthdayFilter) {
+              birthdayFilter = 'today';
+            }
+
+            if (birthdayFilter) {
               const today = new Date();
               const utc = today.getTime() + today.getTimezoneOffset() * 60000;
               const vnTime = new Date(utc + 3600000 * 7);
-              const currentDay = vnTime.getDate();
-              const currentMonth = vnTime.getMonth() + 1;
 
               rows = rows.filter((c: any) => {
                 if (!c.birthday) return false;
                 const parts = c.birthday.split('/');
-                if (parts.length >= 2) {
-                  const d = parseInt(parts[0], 10);
-                  const m = parseInt(parts[1], 10);
+                if (parts.length < 2) return false;
+                const d = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10);
+                if (isNaN(d) || isNaN(m)) return false;
+
+                if (birthdayFilter === 'today') {
+                  const currentDay = vnTime.getDate();
+                  const currentMonth = vnTime.getMonth() + 1;
                   return d === currentDay && m === currentMonth;
                 }
+
+                if (birthdayFilter === 'this_week') {
+                  const dayOfWeek = vnTime.getDay();
+                  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+                  const monday = new Date(vnTime.getTime());
+                  monday.setDate(vnTime.getDate() + diffToMonday);
+
+                  const weekDays = new Set<string>();
+                  for (let i = 0; i < 7; i++) {
+                    const day = new Date(monday.getTime());
+                    day.setDate(monday.getDate() + i);
+                    weekDays.add(`${day.getDate()}/${day.getMonth() + 1}`);
+                  }
+                  return weekDays.has(`${d}/${m}`);
+                }
+
+                if (birthdayFilter === 'this_month') {
+                  const currentMonth = vnTime.getMonth() + 1;
+                  return m === currentMonth;
+                }
+
                 return false;
               });
             }

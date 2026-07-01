@@ -11,7 +11,7 @@ const useIsLight = () => {
 // ─── Custom deletable edge ────────────────────────────────────────────────────
 
 export const CustomDeletableEdge = memo((props: EdgeProps) => {
-  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, selected } = props;
+  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, selected, style, animated } = props;
   const { setEdges } = useReactFlow();
   const isLight = useIsLight();
   const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
@@ -23,11 +23,12 @@ export const CustomDeletableEdge = memo((props: EdgeProps) => {
         path={edgePath}
         markerEnd={markerEnd}
         style={{ 
-          stroke: selected ? '#3b82f6' : (isLight ? '#9ca3af' : '#4b5563'), 
-          strokeWidth: selected ? 2 : 1.5, 
-          transition: 'stroke 0.15s' 
+          stroke: selected ? '#3b82f6' : (style?.stroke || (isLight ? '#9ca3af' : '#4b5563')), 
+          strokeWidth: selected ? 2.5 : (style?.strokeWidth || 1.5), 
+          transition: 'stroke 0.15s, stroke-width 0.15s' 
         }}
         interactionWidth={12}
+        className={animated ? 'animated' : ''}
       />
       <EdgeLabelRenderer>
         {/* Delete button — always visible as a faint dot, turns red ✕ on hover/select */}
@@ -69,6 +70,7 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
   const isLight = useIsLight();
   const showNotification = useAppStore(s => s.showNotification);
   const [showInspect, setShowInspect] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -147,13 +149,31 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
 
       {/* Floating inspect details card */}
       {showInspect && debug && (
-        <div className={`absolute left-full top-0 ml-2 w-72 rounded-xl border shadow-2xl p-3 z-50 text-[10px] font-mono leading-relaxed ${
+        <div className={`absolute left-full top-0 ml-2 rounded-xl border shadow-2xl p-3 z-50 text-[10px] font-mono leading-relaxed transition-all duration-200 ${
+          isExpanded ? 'w-[480px]' : 'w-80'
+        } ${
           isLight ? 'bg-white border-gray-200 text-gray-800' : 'bg-gray-900 border-gray-700 text-gray-200'
         }`}
         onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-between items-center pb-1.5 border-b border-gray-700/50 mb-2">
             <span className="font-bold text-xs flex items-center gap-1"><AppIcon name="search" className="text-current" size={12} /> Chi tiết Node</span>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-gray-400 hover:text-gray-200 transition-colors flex items-center gap-0.5 mr-1"
+                title={isExpanded ? "Thu nhỏ" : "Phóng to"}
+              >
+                {isExpanded ? (
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9H4.5m0 0V4.5m0 0L9 9M15 9h4.5m0 0V4.5m0 0l-4.5 4.5M9 15H4.5m0 0v4.5m0 0l4.5-4.5M15 15h4.5m0 0v4.5m0 0l-4.5-4.5" />
+                  </svg>
+                ) : (
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15" />
+                  </svg>
+                )}
+                <span>{isExpanded ? 'Collapse' : 'Expand'}</span>
+              </button>
               <button
                 onClick={() => {
                   const allData = {
@@ -169,10 +189,10 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
                 <AppIcon name="copy" size={10} />
                 <span>Copy all</span>
               </button>
-              <button onClick={() => setShowInspect(false)} className="text-gray-500 hover:text-gray-300 font-bold">✕</button>
+              <button onClick={() => { setShowInspect(false); setIsExpanded(false); }} className="text-gray-500 hover:text-gray-300 font-bold">✕</button>
             </div>
           </div>
-          <div className="space-y-2.5 max-h-56 overflow-y-auto">
+          <div className={`space-y-2.5 overflow-y-auto transition-all duration-200 ${isExpanded ? 'max-h-[460px]' : 'max-h-64'}`}>
             {debug.error && (
               <div className="space-y-1">
                 <span className="font-semibold block text-red-500 flex items-center justify-between">
@@ -202,7 +222,7 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
                     <AppIcon name="copy" size={10} />
                   </button>
                 </span>
-                <pre className={`p-1.5 rounded max-h-24 overflow-auto whitespace-pre-wrap break-all select-all ${isLight ? 'bg-gray-100 border border-gray-200 text-gray-800' : 'bg-gray-800/40 border border-gray-700/30 text-gray-200'}`}>
+                <pre className={`p-1.5 rounded overflow-auto whitespace-pre-wrap break-all select-all transition-all duration-200 ${isExpanded ? 'max-h-[220px]' : 'max-h-24'} ${isLight ? 'bg-gray-100 border border-gray-200 text-gray-800' : 'bg-gray-800/40 border border-gray-700/30 text-gray-200'}`}>
                   {JSON.stringify(debug.input, null, 2)}
                 </pre>
               </div>
@@ -219,7 +239,7 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
                     <AppIcon name="copy" size={10} />
                   </button>
                 </span>
-                <pre className={`p-1.5 rounded max-h-24 overflow-auto whitespace-pre-wrap break-all select-all border-none ${isLight ? 'bg-gray-100 text-gray-800' : 'bg-gray-800/40 text-gray-200'}`}>
+                <pre className={`p-1.5 rounded overflow-auto whitespace-pre-wrap break-all select-all border-none transition-all duration-200 ${isExpanded ? 'max-h-[220px]' : 'max-h-24'} ${isLight ? 'bg-gray-100 text-gray-800' : 'bg-gray-800/40 text-gray-200'}`}>
                   {JSON.stringify(debug.output, null, 2)}
                 </pre>
               </div>

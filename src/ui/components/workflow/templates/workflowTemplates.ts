@@ -2108,5 +2108,79 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: 'e4', source: 'n2', sourceHandle: 'true', target: 'n5' },
     ],
   },
+
+  // ━━━━━ 23. AI Phân loại & Chăm sóc KH Tiềm năng ━━━━━━━━━━━━━━━━━━━━━━━━━
+  {
+    id: 'tpl-ai-lead-scoring',
+    name: 'AI Phân loại & Chăm sóc KH Tiềm năng',
+    description: 'Dùng AI phân loại hội thoại (VIP/Cần chăm sóc/Spam). Tự động thông báo Telegram cho Sales nếu là VIP, gửi ưu đãi Zalo và phân nhóm chăm sóc tự động.',
+    category: 'ai',
+    tags: ['AI', 'CRM', 'chăm sóc', 'VIP', 'Telegram'],
+    icon: '🔮',
+    difficulty: 'advanced',
+    nodes: [
+      {
+        id: 'n1', type: 'trigger.message', label: 'Khi nhận tin nhắn',
+        position: { x: 300, y: 60 },
+        config: { ...DEFAULT_CONFIGS['trigger.message'], threadType: 'user', ignoreOwn: true }
+      },
+      {
+        id: 'n2', type: 'ai.classify', label: 'AI phân loại khách',
+        position: { x: 300, y: 220 },
+        config: {
+          aiConfigMode: 'assistant', assistantId: '', platform: 'openai', apiKey: '', model: 'gpt-5.4-mini',
+          categories: 'VIP - Muốn mua ngay, Quan tâm - Cần tư vấn thêm, Spam - Hỏi dạo',
+          input: '{{ $trigger.content }}'
+        }
+      },
+      {
+        id: 'n3', type: 'logic.switch', label: 'Phân nhánh tiềm năng',
+        position: { x: 300, y: 380 },
+        config: {
+          value: '{{ $node.n2.output }}',
+          cases: [
+            { label: 'VIP - Muốn mua ngay', value: 'VIP - Muốn mua ngay' },
+            { label: 'Quan tâm - Cần tư vấn thêm', value: 'Quan tâm - Cần tư vấn thêm' },
+            { label: 'Spam - Hỏi dạo', value: 'Spam - Hỏi dạo' }
+          ],
+          defaultLabel: 'Spam - Hỏi dạo'
+        }
+      },
+      {
+        id: 'n4', type: 'notify.telegram', label: 'Báo Sales (VIP)',
+        position: { x: 50, y: 560 },
+        config: { botToken: '', chatId: '', message: '🚨 *CÓ KHÁCH HÀNG VIP ĐĂNG KÝ!*\n\n👤 Khách hàng: {{ $trigger.fromName }}\n💬 Tin nhắn: {{ $trigger.content }}\n🎯 Phân loại: {{ $node.n2.output }}\n\nSales trực hỗ trợ gấp nhé! 🚀' }
+      },
+      {
+        id: 'n5', type: 'zalo.sendMessage', label: 'Gửi ưu đãi VIP',
+        position: { x: 50, y: 720 },
+        config: {
+          ...DEFAULT_CONFIGS['zalo.sendMessage'],
+          message: 'Chào {{ $trigger.fromName }}! Cảm ơn bạn đã quan tâm sản phẩm của Zagi. Đối với các khách hàng có nhu cầu hỗ trợ ngay, Zagi xin tặng riêng bạn mã ưu đãi VIP: ZAGIVIP (Giảm 10% đơn đầu). Chờ chút nhé, nhân viên hỗ trợ của chúng tôi sẽ kết nối với bạn ngay lập tức! 🌸'
+        }
+      },
+      {
+        id: 'n6', type: 'zalo.sendMessage', label: 'Gửi thông tin giới thiệu',
+        position: { x: 350, y: 560 },
+        config: {
+          ...DEFAULT_CONFIGS['zalo.sendMessage'],
+          message: 'Chào {{ $trigger.fromName }}! Cảm ơn bạn đã quan tâm. Để tìm hiểu rõ hơn, bạn có thể tham khảo bảng giá dịch vụ tại đây: https://zagi.vn/pricing hoặc phản hồi câu hỏi cụ thể, trợ lý sẽ phản hồi bạn ngay nhé!'
+        }
+      },
+      {
+        id: 'n7', type: 'output.log', label: 'Ghi log khách Spam',
+        position: { x: 650, y: 560 },
+        config: { message: 'Bỏ qua tin nhắn được phân loại là Spam/Hỏi dạo từ {{ $trigger.fromName }}', level: 'info' }
+      }
+    ],
+    edges: [
+      { id: 'e1', source: 'n1', target: 'n2' },
+      { id: 'e2', source: 'n2', target: 'n3' },
+      { id: 'e3', source: 'n3', sourceHandle: 'case-0', target: 'n4' },
+      { id: 'e4', source: 'n4', target: 'n5' },
+      { id: 'e5', source: 'n3', sourceHandle: 'case-1', target: 'n6' },
+      { id: 'e6', source: 'n3', sourceHandle: 'case-2', target: 'n7' }
+    ],
+  },
 ];
 

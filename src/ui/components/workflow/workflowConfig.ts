@@ -192,7 +192,7 @@ export const NODE_GROUPS: NodeGroup[] = [
 const ALL_NODE_GROUPS: NodeGroup[] = NODE_GROUPS;
 
 export const DEFAULT_CONFIGS: Record<string, Record<string, any>> = {
-  'crm.getContacts': { birthdayToday: false, tagIds: [], localLabelIds: [], pipelineStageId: '', gender: '', channel: 'all', isFriend: 'all' },
+  'crm.getContacts': { birthdayToday: false, birthdayFilter: '', tagIds: [], localLabelIds: [], pipelineStageId: '', gender: '', channel: 'all', isFriend: 'all' },
   'trigger.message':       { threadType: 'all', keyword: '', keywordMode: 'contains_any', ignoreOwn: true, debounceSeconds: 0 },
   'trigger.friendRequest': {},
   'trigger.groupEvent':    { groupId: '', eventType: 'all' },

@@ -298,6 +298,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveImage: (params: any) => ipcRenderer.invoke('file:saveImage', params),
     getAppDataPath: () => ipcRenderer.invoke('file:getAppDataPath'),
     openPath: (filePath: string) => ipcRenderer.invoke('file:openPath', filePath),
+    exists: (filePath: string) => ipcRenderer.invoke('file:exists', filePath),
     showItemInFolder: (filePath: string) => ipcRenderer.invoke('file:showItemInFolder', filePath),
     saveAs: (params: any) => ipcRenderer.invoke('file:saveAs', params),
     saveTempBlob: (params: any) => ipcRenderer.invoke('file:saveTempBlob', params),

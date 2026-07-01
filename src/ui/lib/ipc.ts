@@ -326,6 +326,7 @@ declare global {
         saveImage: (params: any) => Promise<any>;
         getAppDataPath: () => Promise<any>;
         openPath: (filePath: string) => Promise<any>;
+        exists: (filePath: string) => Promise<boolean>;
         showItemInFolder: (filePath: string) => Promise<any>;
         saveAs: (params: { localPath?: string; remoteUrl?: string; defaultName: string; zaloId?: string; cookiesJson?: string; userAgent?: string }) => Promise<{ success: boolean; canceled?: boolean; savedPath?: string; error?: string }>;
         saveTempBlob: (params: { base64: string; ext: string; filename?: string }) => Promise<{ success: boolean; filePath?: string; error?: string }>;

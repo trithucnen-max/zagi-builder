@@ -66,6 +66,49 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.2.2',
+    date: '07/2026',
+    type: 'patch',
+    highlights: [
+      '🔤 Tối giản hóa biến động & Chọn đầu ra Node thân thiện — Thay đổi hoàn toàn cơ chế chèn biến và copy ở cả NodePickerModal và Sidebar. Ưu tiên hiển thị tên Node thân thiện dạng {{ $node.[Tên Node].output }} thay cho mã UUID dài dòng, hỗ trợ song song nút Chèn và nút Copy tiện lợi.',
+      '📝 Modal Soạn thảo tin nhắn mở rộng — Tích hợp nút "Mở rộng soạn thảo" màu lục bên cạnh nút Chèn đối với các ô nhập tin nhắn văn bản dài, mở ra trình soạn thảo rộng rãi hỗ trợ SmartTextarea và chèn biến trực quan.',
+      '🎯 Kết nối thông minh & Gợi ý tạo Node nhanh (Smart Connect) — Hỗ trợ kéo thả đường nối thả ra vùng trống để mở nhanh Menu gợi ý nổi gồm các Node phù hợp nhất, tự động liên kết nhanh chóng.',
+      '⚡ Trực quan hóa đường chạy Workflow — Hoạt họa dòng chảy (dash offset) chạy động trên các nhánh đường đi đã thực thi, cùng hiệu ứng hào quang phát sáng (glow) đổi màu theo trạng thái chạy thử.',
+      '↩️ Hỗ trợ Hoàn tác / Làm lại (Undo/Redo) — Tích hợp phím nóng Ctrl+Z / Ctrl+Y và hai nút bấm ↩️ / ↪️ giúp quay lại các thao tác kéo thả node, nối dây, hoặc xóa một cách nhanh chóng.',
+      '✨ Tự động sắp xếp sơ đồ (Auto Align) — Thuật toán sắp xếp BFS tự động xếp hàng các Node kịch bản cân đối, ngay ngắn chỉ với 1 click.',
+      '🛑 Kiểm tra vòng lặp vô hạn (Cycle Detection) — Tự động ngăn chặn kết nối và hiển thị cảnh báo nếu đường nối tạo thành một vòng lặp vô tận.',
+      '💾 Tự động lưu ngầm (Silent Auto-save) — Tự động lưu dữ liệu kịch bản xuống DB sau mỗi lần kéo thả kết thúc hoặc thay đổi kết nối mà không gây phiền hà cho người dùng.',
+      '💬 Xem chi tiết biến tại chỗ (Tooltip preview) — Di chuột qua các tag biến động trong ô soạn tin để xem chi tiết cú pháp và mô tả của biến.',
+      '🏠 Tối ưu hóa & Mở rộng kho mẫu Workflow — Cập nhật toàn bộ các biến chào CRM cũ sang định dạng Zalo-native (danh xưng + tên Zalo), đồng thời bổ sung 3 mẫu kịch bản nâng cao: AI Phân loại & Chăm sóc KH VIP, Chăm sóc sau sự kiện Mở bán BĐS, và Nhắc lịch hẹn từ POS (KiotViet/Sapo).'
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Bổ sung component ExpandTextareaModal hỗ trợ soạn thảo nội dung tin nhắn lớn.',
+          'Tích hợp tính năng Kết nối thông minh & Gợi ý Node nổi khi kéo nhả kết nối ngoài vùng trống.',
+          'Bổ sung hiệu ứng đường chạy hoạt họa dashoffset chạy động và phát sáng (glow) đổi màu theo trạng thái chạy thử.',
+          'Tích hợp phím nóng Ctrl+Z / Ctrl+Y và 2 nút bấm ↩️ / ↪️ cho tính năng Hoàn tác/Làm lại.',
+          'Bổ sung nút ✨ Căn chỉnh và thuật toán BFS sắp xếp tự động các Node sơ đồ.',
+          'Tích hợp bộ kiểm tra Cycle Detection chặn kết nối tạo vòng lặp vô hạn.',
+          'Bổ sung 3 mẫu kịch bản nâng cao mới (AI Phân loại, Chăm sóc sau sự kiện, POS Nhắc lịch hẹn).'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Tích hợp 2 nút hành động Chèn và Copy cú pháp biến dạng tên thân thiện trong NodePickerModal và sidebar.',
+          'Đồng bộ giao diện thanh công cụ chèn nhanh lên đầu SmartTextarea của ô soạn thảo thường và modal soạn rộng.',
+          'Cấu hình lưu lịch sử và tự động lưu ngầm (Silent Auto-save) sau mỗi thao tác kéo thả node, nối dây, xóa node/edge.',
+          'Bổ sung thuộc tính title hiển thị Tooltip preview khi rê chuột qua tag biến động trong SmartInput/SmartTextarea.',
+          'Loại bỏ MiniMap khỏi WorkflowEditor và WorkflowTemplateStore để tối ưu hóa diện tích làm việc.',
+          'Tối ưu hóa các biến chào CRM cũ trong kịch bản mẫu sang dạng Zalo-native {{ $item.salutation }} {{ $item.display_name }}.',
+          'Giới hạn thanh công cụ chèn biến chỉ xuất hiện trên các trường nhập liệu văn bản lớn tin nhắn (textarea, multiline).'
+        ]
+      }
+    ]
+  },
+  {
     version: '27.2.1',
     date: '07/2026',
     type: 'patch',

@@ -1,4 +1,5 @@
 import * as http from 'http';
+import { StringDecoder } from 'string_decoder';
 import Logger from '../../utils/Logger';
 import EventBroadcaster from '../event/EventBroadcaster';
 import DataSyncService, { SyncPayload } from '../employee/DataSyncService';
@@ -478,10 +479,18 @@ class HttpClientService {
 
             this.localServer = http.createServer((req, res) => {
                 if (req.method === 'POST' && req.url === '/event') {
-                    let body = '';
-                    req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+                    const chunks: any[] = [];
+                    req.on('data', (chunk: any) => { chunks.push(chunk); });
                     req.on('end', () => {
                         try {
+                            let body = '';
+                            if (chunks.length > 0) {
+                                if (typeof chunks[0] === 'string') {
+                                    body = chunks.join('');
+                                } else {
+                                    body = Buffer.concat(chunks).toString('utf8');
+                                }
+                            }
                             const { channel, data } = JSON.parse(body);
                             this.handlePushedEvent(channel, data);
                             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -880,12 +889,17 @@ class HttpClientService {
                     }
                     this.sseWasConnected = true;
 
+                    const decoder = new StringDecoder('utf8');
                     let buffer = '';
                     let eventData = '';
 
-                    res.on('data', (chunk: Buffer) => {
+                    res.on('data', (chunk: any) => {
                         this.lastSseDataAt = Date.now(); // Watchdog: mark SSE alive
-                        buffer += chunk.toString();
+                        if (typeof chunk === 'string') {
+                            buffer += chunk;
+                        } else {
+                            buffer += decoder.write(chunk);
+                        }
                         const lines = buffer.split('\n');
                         buffer = lines.pop() || ''; // keep incomplete line
 
@@ -908,6 +922,21 @@ class HttpClientService {
                     });
 
                     res.on('end', () => {
+                        buffer += decoder.end();
+                        if (buffer) {
+                            const lines = buffer.split('\n');
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    eventData += line.slice(6);
+                                } else if (line === '' && eventData) {
+                                    try {
+                                        const { channel, data } = JSON.parse(eventData);
+                                        this.handlePushedEvent(channel, data);
+                                    } catch {}
+                                    eventData = '';
+                                }
+                            }
+                        }
                         const aliveMs = this.lastSseDataAt > 0 ? Date.now() - this.lastSseDataAt : -1;
                         this.sseConnected = false;
                         this.sseReq = null;
@@ -1332,9 +1361,19 @@ class HttpClientService {
                         timeout,
                     },
                     (res: http.IncomingMessage) => {
-                        let data = '';
-                        res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-                        res.on('end', () => resolve(this.parseJsonResponse(data)));
+                        const chunks: any[] = [];
+                        res.on('data', (chunk: any) => { chunks.push(chunk); });
+                        res.on('end', () => {
+                            let data = '';
+                            if (chunks.length > 0) {
+                                if (typeof chunks[0] === 'string') {
+                                    data = chunks.join('');
+                                } else {
+                                    data = Buffer.concat(chunks).toString('utf8');
+                                }
+                            }
+                            resolve(this.parseJsonResponse(data));
+                        });
                     }
                 );
 
@@ -1368,9 +1407,19 @@ class HttpClientService {
                         timeout,
                     },
                     (res: http.IncomingMessage) => {
-                        let data = '';
-                        res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-                        res.on('end', () => resolve(this.parseJsonResponse(data)));
+                        const chunks: any[] = [];
+                        res.on('data', (chunk: any) => { chunks.push(chunk); });
+                        res.on('end', () => {
+                            let data = '';
+                            if (chunks.length > 0) {
+                                if (typeof chunks[0] === 'string') {
+                                    data = chunks.join('');
+                                } else {
+                                    data = Buffer.concat(chunks).toString('utf8');
+                                }
+                            }
+                            resolve(this.parseJsonResponse(data));
+                        });
                     }
                 );
 
@@ -1417,9 +1466,19 @@ class HttpClientService {
                                 resolve({ success: true, data: buffer, fileName });
                             });
                         } else {
-                            let data = '';
-                            res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-                            res.on('end', () => resolve(this.parseJsonResponse(data)));
+                            const stringChunks: any[] = [];
+                            res.on('data', (chunk: any) => { stringChunks.push(chunk); });
+                            res.on('end', () => {
+                                let data = '';
+                                if (stringChunks.length > 0) {
+                                    if (typeof stringChunks[0] === 'string') {
+                                        data = stringChunks.join('');
+                                    } else {
+                                        data = Buffer.concat(stringChunks).toString('utf8');
+                                    }
+                                }
+                                resolve(this.parseJsonResponse(data));
+                            });
                         }
                     }
                 );

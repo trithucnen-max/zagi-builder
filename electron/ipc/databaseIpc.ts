@@ -78,9 +78,34 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getContacts', async (_event, { zaloId }) => {
         try {
-            const contacts = DatabaseService.getInstance().getContacts(zaloId);
-            return { success: true, contacts };
+            const dbInstance = DatabaseService.getInstance();
+            const dbPath = dbInstance.getDbPath();
+            const isInit = dbInstance['initialized'];
+            
+            // Diagnostic check: check how many times DatabaseService is in require.cache
+            const cacheKeys = Object.keys(require.cache).filter(k => k.includes('DatabaseService'));
+            Logger.log(`[databaseIpc DIAGNOSTIC] cacheKeys: ${JSON.stringify(cacheKeys)}`);
+            
+            const contacts = dbInstance.getContacts(zaloId);
+            let countInDb = -1;
+            let accountsCount = -1;
+            try {
+                countInDb = dbInstance.query<any>('SELECT count(*) as count FROM contacts')[0]?.count ?? -1;
+                accountsCount = dbInstance.query<any>('SELECT count(*) as count FROM accounts')[0]?.count ?? -1;
+            } catch {}
+            Logger.log(`[databaseIpc] db:getContacts called: zaloId=${zaloId} dbPath=${dbPath} isInit=${isInit} count=${contacts?.length ?? 0}`);
+            return {
+                success: true,
+                contacts,
+                debug: {
+                    dbPath,
+                    isInit,
+                    countInDb,
+                    accountsCount
+                }
+            };
         } catch (error: any) {
+            Logger.error(`[databaseIpc] db:getContacts error: ${error.message}`);
             return { success: false, error: error.message };
         }
     });

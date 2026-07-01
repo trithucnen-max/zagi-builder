@@ -6,8 +6,18 @@ import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
 import ContactAISummarizer from '../ai/ContactAISummarizer';
 
-// better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
-let db: BetterSqlite3.Database | null = null;
+// declare global db variables to prevent multiple instances load issues
+declare global {
+    var db: BetterSqlite3.Database | null;
+    var db_initialized: boolean;
+}
+
+if (global.db === undefined) {
+    global.db = null;
+}
+if (global.db_initialized === undefined) {
+    global.db_initialized = false;
+}
 
 // ── Cached secondary DB for withDbPath (avoids repeated open/close) ─────────
 let _cachedSecondaryDb: BetterSqlite3.Database | null = null;
@@ -44,7 +54,12 @@ function closeCachedSecondaryDb(): void {
 class DatabaseService {
     private static instance: DatabaseService;
     private dbPath: string = '';
-    private initialized = false;
+    private get initialized(): boolean {
+        return global.db_initialized || false;
+    }
+    private set initialized(val: boolean) {
+        global.db_initialized = val;
+    }
 
     /** Open a better-sqlite3 database at the given path with WAL mode */
     private openDb(dbPath: string): BetterSqlite3.Database {
@@ -64,7 +79,7 @@ class DatabaseService {
     public async initialize(): Promise<void> {
         try {
             const userDataPath = app.getPath('userData');
-            Logger.log(`[DatabaseService] userData path: ${userDataPath}`);
+            Logger.log(`[DatabaseService] INIT STEP 1: userData path: ${userDataPath}`);
 
             // ─── Workspace-aware DB path resolution ─────────────────────
             let resolvedViaWorkspace = false;
@@ -72,12 +87,15 @@ class DatabaseService {
                 const WorkspaceManager = require('../../utils/WorkspaceManager').default;
                 const wm = WorkspaceManager.getInstance();
                 const activeDbPath = wm.getActiveDbPath();
+                Logger.log(`[DatabaseService] INIT STEP 2: activeDbPath from WM: ${activeDbPath}`);
                 if (activeDbPath) {
                     this.dbPath = activeDbPath;
                     resolvedViaWorkspace = true;
-                    Logger.log(`[DatabaseService] DB path from WorkspaceManager: ${this.dbPath}`);
+                    Logger.log(`[DatabaseService] INIT STEP 2a: DB path from WorkspaceManager: ${this.dbPath}`);
                 }
-            } catch { /* WorkspaceManager not yet initialized — fall back to legacy */ }
+            } catch (wmErr: any) {
+                Logger.warn(`[DatabaseService] INIT STEP 2 WARN: WorkspaceManager not ready: ${wmErr?.message}`);
+            }
 
             if (!resolvedViaWorkspace) {
                 let dbFolder = userDataPath;
@@ -103,6 +121,7 @@ class DatabaseService {
                     } catch {}
                 }
                 this.dbPath = path.join(dbFolder, 'zagi-tool.db');
+                Logger.log(`[DatabaseService] INIT STEP 2b: Fallback DB path: ${this.dbPath}`);
             }
 
             const dir = path.dirname(this.dbPath);
@@ -110,16 +129,32 @@ class DatabaseService {
                 fs.mkdirSync(dir, { recursive: true });
             }
 
+            Logger.log(`[DatabaseService] INIT STEP 3: Opening DB at: ${this.dbPath}`);
             // Open DB with better-sqlite3 (native SQLite, memory-mapped I/O)
             db = this.openDb(this.dbPath);
+            Logger.log(`[DatabaseService] INIT STEP 4: global.db is now ${db ? 'OPEN' : 'NULL'}`);
 
+            Logger.log(`[DatabaseService] INIT STEP 5: Running createTables...`);
             this.createTables();
+            Logger.log(`[DatabaseService] INIT STEP 6: Running migrate...`);
             this.migrate();
+            Logger.log(`[DatabaseService] INIT STEP 7: Running initErpSchema...`);
             this.initErpSchema();
             this.initialized = true;
-            Logger.log(`[DatabaseService] Initialized at ${this.dbPath} (better-sqlite3, WAL mode)`);
+            Logger.log(`[DatabaseService] INIT STEP 8 ✅: Initialized at ${this.dbPath} (global.db=${db ? 'OPEN' : 'NULL'}, initialized=${this.initialized})`);
+
+            // ── Health check: detect if global.db gets nulled unexpectedly ──
+            setTimeout(() => {
+                Logger.log(`[DatabaseService] HealthCheck @1s: db=${db ? 'OPEN' : 'NULL'}, initialized=${this.initialized}, path=${this.dbPath}`);
+            }, 1000);
+            setTimeout(() => {
+                Logger.log(`[DatabaseService] HealthCheck @5s: db=${db ? 'OPEN' : 'NULL'}, initialized=${this.initialized}, path=${this.dbPath}`);
+            }, 5000);
+            setTimeout(() => {
+                Logger.log(`[DatabaseService] HealthCheck @15s: db=${db ? 'OPEN' : 'NULL'}, initialized=${this.initialized}, path=${this.dbPath}`);
+            }, 15000);
         } catch (error: any) {
-            Logger.error(`[DatabaseService] Failed to initialize: ${error.message}`);
+            Logger.error(`[DatabaseService] INIT FAILED: ${error.message}\nStack: ${error.stack}`);
             // Fall back to in-memory db so app still runs
             try {
                 db = new BetterSqlite3(':memory:');
@@ -137,6 +172,11 @@ class DatabaseService {
     /** No-op: better-sqlite3 with WAL mode writes directly to disk. Kept for API compat. */
     public save(): void {
         // better-sqlite3 writes to disk automatically via WAL — nothing to do
+    }
+
+    /** Returns true if the database has been successfully initialized */
+    public getIsInitialized(): boolean {
+        return this.initialized && db !== null;
     }
 
     /** No-op: better-sqlite3 auto-persists. Kept for API compat. */
@@ -179,7 +219,8 @@ class DatabaseService {
     }
 
     public close(): void {
-        Logger.log('[DatabaseService] Closing database...');
+        const stack = new Error('close() call stack').stack;
+        Logger.log(`[DatabaseService] close() called! Stack:\n${stack}`);
         try {
             closeCachedSecondaryDb();
         } catch {}

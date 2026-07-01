@@ -1456,22 +1456,51 @@ class WorkflowEngineService {
         let rows = DatabaseService.getInstance().query<any>(sql, params) || [];
 
         // Apply birthday filter in JS if enabled
-        if (cfg.birthdayToday === true) {
+        let birthdayFilter = cfg.birthdayFilter || '';
+        if (cfg.birthdayToday === true && !birthdayFilter) {
+          birthdayFilter = 'today';
+        }
+
+        if (birthdayFilter) {
           const today = new Date();
           // Convert date to UTC+7 offset for Vietnam timezone
           const utc = today.getTime() + today.getTimezoneOffset() * 60000;
           const vnTime = new Date(utc + 3600000 * 7);
-          const currentDay = vnTime.getDate();
-          const currentMonth = vnTime.getMonth() + 1;
 
           rows = rows.filter((c: any) => {
             if (!c.birthday) return false;
             const parts = c.birthday.split('/');
-            if (parts.length >= 2) {
-              const d = parseInt(parts[0], 10);
-              const m = parseInt(parts[1], 10);
+            if (parts.length < 2) return false;
+            const d = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            if (isNaN(d) || isNaN(m)) return false;
+
+            if (birthdayFilter === 'today') {
+              const currentDay = vnTime.getDate();
+              const currentMonth = vnTime.getMonth() + 1;
               return d === currentDay && m === currentMonth;
             }
+
+            if (birthdayFilter === 'this_week') {
+              const dayOfWeek = vnTime.getDay();
+              const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+              const monday = new Date(vnTime.getTime());
+              monday.setDate(vnTime.getDate() + diffToMonday);
+
+              const weekDays = new Set<string>();
+              for (let i = 0; i < 7; i++) {
+                const day = new Date(monday.getTime());
+                day.setDate(monday.getDate() + i);
+                weekDays.add(`${day.getDate()}/${day.getMonth() + 1}`);
+              }
+              return weekDays.has(`${d}/${m}`);
+            }
+
+            if (birthdayFilter === 'this_month') {
+              const currentMonth = vnTime.getMonth() + 1;
+              return m === currentMonth;
+            }
+
             return false;
           });
         }
@@ -3138,6 +3167,82 @@ class WorkflowEngineService {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   private getApi(pageId: string, fallbackPageId?: string): any {
+    // Nếu là nhân viên, chuyển tiếp cuộc gọi API Zalo sang máy Boss
+    try {
+      const WorkspaceManager = require('../../utils/WorkspaceManager').default;
+      const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+      if (activeWs && activeWs.type === 'remote') {
+        const HttpConnectionManager = require('../http/HttpConnectionManager').default;
+        const targetZaloId = pageId || fallbackPageId || '';
+        return {
+          sendMessage: async (p1: any, p2: any, p3: any, p4: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendMessage', {
+              zaloId: targetZaloId,
+              auth: {},
+              message: p1?.msg || '',
+              threadId: p2,
+              type: p3,
+              typeMessage: p4 || 'text'
+            });
+            return res?.success ? res.response : res;
+          },
+          sendTypingEvent: async () => {
+            return { success: true };
+          },
+          findUser: async (phone: string) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:findUser', { zaloId: targetZaloId, auth: {}, phone });
+            return res?.success ? res.response : res;
+          },
+          getUserInfo: async (p: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:getUserInfo', { zaloId: targetZaloId, auth: {}, userId: p.userId });
+            return res?.success ? res.response : res;
+          },
+          acceptFriendRequest: async (userId: string) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:acceptFriendRequest', { zaloId: targetZaloId, auth: {}, userId });
+            return res?.success ? res.response : res;
+          },
+          rejectFriendRequest: async (userId: string) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:rejectFriendRequest', { zaloId: targetZaloId, auth: {}, userId });
+            return res?.success ? res.response : res;
+          },
+          sendFriendRequest: async (message: string, userId: string) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendFriendRequest', { zaloId: targetZaloId, auth: {}, message, userId });
+            return res?.success ? res.response : res;
+          },
+          addUserToGroup: async (p: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:addToGroup', { zaloId: targetZaloId, auth: {}, groupId: p.groupId, userId: p.members?.[0] });
+            return res?.success ? res.response : res;
+          },
+          removeUserFromGroup: async (p: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:removeFromGroup', { zaloId: targetZaloId, auth: {}, groupId: p.groupId, userId: p.members?.[0] });
+            return res?.success ? res.response : res;
+          },
+          undo: async (p: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:undoMessage', { zaloId: targetZaloId, auth: {}, msgId: p.msgId, threadId: p.threadId, type: p.threadType });
+            return res?.success ? res.response : res;
+          },
+          setMute: async (threadId: string, threadType: any, duration: any, isMute: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:setMute', { zaloId: targetZaloId, auth: {}, threadId, type: threadType, duration, isMute });
+            return res?.success ? res.response : res;
+          },
+          addReaction: async (p: any, type: number) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:addReaction', { zaloId: targetZaloId, auth: {}, msgId: p.msgId, clientMsgId: p.clientMsgId, reactionType: type });
+            return res?.success ? res.response : res;
+          },
+          createPoll: async (p: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:createPoll', { zaloId: targetZaloId, auth: {}, ...p });
+            return res?.success ? res.response : res;
+          },
+          getGroupChatHistory: async (p: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:getMessageHistory', { zaloId: targetZaloId, auth: {}, ...p });
+            return res?.success ? res.response : res;
+          }
+        };
+      }
+    } catch (e: any) {
+      Logger.error(`[WorkflowEngine] Proxy init error: ${e.message}`);
+    }
+
     // Try to find connection by pageId or use any connected account
     let conn = ConnectionManager.getConnection(pageId);
     if (!conn && fallbackPageId) {
@@ -3215,206 +3320,243 @@ class WorkflowEngineService {
   private renderConfig(config: Record<string, any>, ctx: ExecutionContext, currentNodeId?: string): Record<string, any> {
     const rendered: Record<string, any> = {};
     for (const [key, value] of Object.entries(config)) {
-      rendered[key] = typeof value === 'string' ? this.renderTemplate(value, ctx, currentNodeId) : value;
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        // Check if it is a single template expression: e.g. "{{ $node.id.contacts }}"
+        if (trimmed.startsWith('{{') && trimmed.endsWith('}}') && (trimmed.match(/\{\{/g) || []).length === 1) {
+          const expr = trimmed.slice(2, -2).trim();
+          const resolved = this.resolveExpressionValue(expr, ctx, currentNodeId);
+          if (resolved !== undefined) {
+            rendered[key] = resolved;
+            continue;
+          }
+        }
+        rendered[key] = this.renderTemplate(value, ctx, currentNodeId);
+      } else {
+        rendered[key] = value;
+      }
     }
     return rendered;
   }
 
   private renderTemplate(template: string, ctx: ExecutionContext, currentNodeId?: string): string {
     return template.replace(/\{\{\s*([\s\S]*?)\s*\}\}/gu, (_, raw) => {
-      try {
-        const expr = raw.trim();
-        // Parse pipeline: split by '|' while ignoring pipes inside quotes
-        const parts: string[] = [];
-        let current = '';
-        let inQuote: string | null = null;
-        for (let i = 0; i < expr.length; i++) {
-          const char = expr[i];
-          if (char === '"' || char === "'") {
-            if (inQuote === char) {
-              inQuote = null;
-            } else if (inQuote === null) {
-              inQuote = char;
-            }
-          }
-          if (char === '|' && !inQuote) {
-            parts.push(current.trim());
-            current = '';
-          } else {
-            current += char;
+      const val = this.resolveExpressionValue(raw, ctx, currentNodeId);
+      if (val === undefined || val === null) return '';
+      if (typeof val === 'object') {
+        return JSON.stringify(val);
+      }
+      return String(val);
+    });
+  }
+
+  private resolveExpressionValue(expr: string, ctx: ExecutionContext, currentNodeId?: string): any {
+    try {
+      // Parse pipeline: split by '|' while ignoring pipes inside quotes
+      const parts: string[] = [];
+      let current = '';
+      let inQuote: string | null = null;
+      for (let i = 0; i < expr.length; i++) {
+        const char = expr[i];
+        if (char === '"' || char === "'") {
+          if (inQuote === char) {
+            inQuote = null;
+          } else if (inQuote === null) {
+            inQuote = char;
           }
         }
-        parts.push(current.trim());
+        if (char === '|' && !inQuote) {
+          parts.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      parts.push(current.trim());
 
-        const baseExpr = parts[0];
-        let val: any = undefined;
+      const baseExpr = parts[0];
+      let val: any = undefined;
 
-        // Resolve base expression
-        if (baseExpr.startsWith('$trigger.')) {
-          val = ctx.trigger?.[baseExpr.slice(9)];
-        } else if (baseExpr.startsWith('$var.')) {
-          val = this.getNestedValue(ctx.variables, baseExpr.slice(5));
-        } else if (baseExpr.startsWith('$vars.')) {
-          val = this.getNestedValue(ctx.variables, baseExpr.slice(6));
-        } else if (baseExpr.startsWith('$item.')) {
-          val = this.getNestedValue(ctx.variables, baseExpr.slice(6));
-        } else if (baseExpr.startsWith('$prev.') && currentNodeId && ctx._wfEdges) {
-          const edge = ctx._wfEdges.find(e => e.target === currentNodeId);
-          if (edge) {
-            const prevNodeId = edge.source;
-            const field = baseExpr.slice(6);
-            const ndata = ctx.nodes[prevNodeId];
-            if (ndata) {
+      // Resolve base expression
+      if (baseExpr.startsWith('$trigger.')) {
+        val = ctx.trigger?.[baseExpr.slice(9)];
+      } else if (baseExpr.startsWith('$var.')) {
+        val = this.getNestedValue(ctx.variables, baseExpr.slice(5));
+      } else if (baseExpr.startsWith('$vars.')) {
+        val = this.getNestedValue(ctx.variables, baseExpr.slice(6));
+      } else if (baseExpr.startsWith('$item.')) {
+        const field = baseExpr.slice(6);
+        let itemObj = ctx.variables['item'];
+        if (itemObj === undefined) {
+          for (const [k, v] of Object.entries(ctx.variables)) {
+            if (k !== 'index' && k !== 'env' && typeof v === 'object' && v !== null) {
+              itemObj = v;
+              break;
+            }
+          }
+        }
+        val = this.getNestedValue(itemObj || ctx.variables, field);
+      } else if (baseExpr === 'index' || baseExpr === '$index') {
+        val = ctx.variables['index'];
+      } else if (baseExpr.startsWith('$prev.') && currentNodeId && ctx._wfEdges) {
+        const edge = ctx._wfEdges.find(e => e.target === currentNodeId);
+        if (edge) {
+          const prevNodeId = edge.source;
+          const field = baseExpr.slice(6);
+          const ndata = ctx.nodes[prevNodeId];
+          if (ndata) {
+            if (field === 'output') {
+              const out = ndata.output;
+              val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? out);
+            } else {
+              const targetField = field.startsWith('output.') ? field.slice(7) : field;
+              val = this.getNestedValue(ndata.output, targetField);
+              if (field === 'result' && (val === undefined || val === null || val === '')) {
+                val = ndata.output.contacts || ndata.output.result || ndata.output;
+              }
+            }
+          }
+        }
+      } else if (baseExpr === '$pageId') {
+        val = ctx.pageId ?? '';
+      } else if (baseExpr === '$date.now') {
+        val = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      } else if (baseExpr === '$date.today') {
+        val = new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      } else if (baseExpr === '$now') {
+        val = new Date();
+      } else if (baseExpr === '$system.lunarDate') {
+        const lunar = getLunarDate(new Date());
+        val = lunar ? `${lunar.day}/${lunar.month}/${lunar.year}` : '';
+      } else if (baseExpr === '$system.lunarDay') {
+        const lunar = getLunarDate(new Date());
+        val = lunar ? String(lunar.day) : '';
+      } else if (baseExpr === '$system.lunarMonth') {
+        const lunar = getLunarDate(new Date());
+        val = lunar ? String(lunar.month) : '';
+      } else if (baseExpr.startsWith('$node.')) {
+        const rest = baseExpr.slice(6);
+        const dotIdx = rest.indexOf('.');
+        if (dotIdx !== -1) {
+          const nodeRef = rest.slice(0, dotIdx);
+          const field = rest.slice(dotIdx + 1);
+          let matched = false;
+          for (const [nid, ndata] of Object.entries(ctx.nodes)) {
+            const nodeDef = ctx._wfNodes?.find(n => n.id === nid);
+            const labelOrId = nodeDef?.label || nid;
+            if (nid === nodeRef || labelOrId === nodeRef) {
+              matched = true;
               if (field === 'output') {
                 const out = ndata.output;
                 val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? out);
               } else {
-                val = this.getNestedValue(ndata.output, field);
-                if (field === 'result' && (val === undefined || val === null || val === '')) {
-                  val = ndata.output.contacts || ndata.output.result || ndata.output;
-                }
+                const targetField = field.startsWith('output.') ? field.slice(7) : field;
+                val = this.getNestedValue(ndata.output, targetField);
               }
+              break;
             }
           }
-        } else if (baseExpr === '$pageId') {
-          val = ctx.pageId ?? '';
-        } else if (baseExpr === '$date.now') {
-          val = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        } else if (baseExpr === '$date.today') {
-          val = new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        } else if (baseExpr === '$now') {
-          val = new Date();
-        } else if (baseExpr === '$system.lunarDate') {
-          const lunar = getLunarDate(new Date());
-          val = lunar ? `${lunar.day}/${lunar.month}/${lunar.year}` : '';
-        } else if (baseExpr === '$system.lunarDay') {
-          const lunar = getLunarDate(new Date());
-          val = lunar ? String(lunar.day) : '';
-        } else if (baseExpr === '$system.lunarMonth') {
-          const lunar = getLunarDate(new Date());
-          val = lunar ? String(lunar.month) : '';
-        } else if (baseExpr.startsWith('$node.')) {
-          const rest = baseExpr.slice(6);
-          const dotIdx = rest.indexOf('.');
-          if (dotIdx !== -1) {
-            const nodeRef = rest.slice(0, dotIdx);
-            const field = rest.slice(dotIdx + 1);
-            let matched = false;
-            for (const [nid, ndata] of Object.entries(ctx.nodes)) {
-              const nodeDef = ctx._wfNodes?.find(n => n.id === nid);
-              const labelOrId = nodeDef?.label || nid;
-              if (nid === nodeRef || labelOrId === nodeRef) {
-                matched = true;
-                if (field === 'output') {
-                  const out = ndata.output;
-                  val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? out);
-                } else {
-                  val = this.getNestedValue(ndata.output, field);
-                }
-                break;
-              }
-            }
-            if (!matched) {
-              const idxMatch = nodeRef.match(/^n(\d+)$/);
-              if (idxMatch && ctx._wfNodes) {
-                const targetIdx = parseInt(idxMatch[1]) - 1;
-                if (targetIdx >= 0 && targetIdx < ctx._wfNodes.length) {
-                  const targetNodeId = ctx._wfNodes[targetIdx].id;
-                  const ndata = ctx.nodes[targetNodeId];
-                  if (ndata) {
-                    if (field === 'output') {
-                      const out = ndata.output;
-                      val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? out);
-                    } else {
-                      val = this.getNestedValue(ndata.output, field);
-                    }
+          if (!matched) {
+            const idxMatch = nodeRef.match(/^n(\d+)$/);
+            if (idxMatch && ctx._wfNodes) {
+              const targetIdx = parseInt(idxMatch[1]) - 1;
+              if (targetIdx >= 0 && targetIdx < ctx._wfNodes.length) {
+                const targetNodeId = ctx._wfNodes[targetIdx].id;
+                const ndata = ctx.nodes[targetNodeId];
+                if (ndata) {
+                  if (field === 'output') {
+                    const out = ndata.output;
+                    val = typeof out === 'string' ? out : (out?.result ?? out?.text ?? out?.message ?? out);
+                  } else {
+                    const targetField = field.startsWith('output.') ? field.slice(7) : field;
+                    val = this.getNestedValue(ndata.output, targetField);
                   }
                 }
               }
             }
           }
         }
+      }
 
-        // Apply filters in sequence
-        for (let j = 1; j < parts.length; j++) {
-          const filterStr = parts[j];
-          if (filterStr === 'formatVND') {
-            const num = Number(val);
-            val = Number.isFinite(num) ? num.toLocaleString('vi-VN') + 'đ' : String(val ?? '');
-          } else if (filterStr === 'extractOrderCode') {
-            if (!val) {
-              val = '';
-            } else {
-              const match = String(val).match(/[A-Z0-9_-]{4,20}/i);
-              val = match ? match[0] : String(val);
-            }
-          } else if (filterStr.startsWith('map(')) {
-            const mapExpr = filterStr.slice(4, -1);
-            if (Array.isArray(val)) {
-              try {
-                const fn = new Function('_', `return (${mapExpr});`);
-                val = val.map(item => {
-                  try {
-                    return fn(item);
-                  } catch {
-                    return '';
-                  }
-                });
-              } catch (err) {
-                Logger.error(`[WorkflowEngine] Error compiling map expression: ${mapExpr}`, err);
-                val = [];
-              }
-            } else {
+      // Apply filters in sequence
+      for (let j = 1; j < parts.length; j++) {
+        const filterStr = parts[j];
+        if (filterStr === 'formatVND') {
+          const num = Number(val);
+          val = Number.isFinite(num) ? num.toLocaleString('vi-VN') + 'đ' : String(val ?? '');
+        } else if (filterStr === 'extractOrderCode') {
+          if (!val) {
+            val = '';
+          } else {
+            const match = String(val).match(/[A-Z0-9_-]{4,20}/i);
+            val = match ? match[0] : String(val);
+          }
+        } else if (filterStr.startsWith('map(')) {
+          const mapExpr = filterStr.slice(4, -1);
+          if (Array.isArray(val)) {
+            try {
+              const fn = new Function('_', `return (${mapExpr});`);
+              val = val.map(item => {
+                try {
+                  return fn(item);
+                } catch {
+                  return '';
+                }
+              });
+            } catch (err) {
+              Logger.error(`[WorkflowEngine] Error compiling map expression: ${mapExpr}`, err);
               val = [];
             }
-          } else if (filterStr.startsWith('join(')) {
-            const sep = filterStr.slice(5, -1).replace(/['"]/g, '').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-            if (Array.isArray(val)) {
-              val = val.join(sep);
-            } else {
-              val = String(val ?? '');
-            }
-          } else if (filterStr.startsWith('sumBy(')) {
-            const field = filterStr.slice(6, -1).replace(/['"]/g, '');
-            if (Array.isArray(val)) {
-              val = val.reduce((sum, item) => sum + (Number(item?.[field]) || 0), 0);
-            } else {
-              val = 0;
-            }
-          } else if (filterStr.startsWith('maxBy(')) {
-            const field = filterStr.slice(6, -1).replace(/['"]/g, '');
-            if (Array.isArray(val)) {
-              val = val.reduce((max, item) => {
-                const itemVal = Number(item?.[field]) || 0;
-                return itemVal > max ? itemVal : max;
-              }, 0);
-            } else {
-              val = 0;
-            }
-          } else if (filterStr.startsWith('formatDate(')) {
-            const fmt = filterStr.slice(11, -1).replace(/['"]/g, '');
-            const date = new Date(val);
-            if (isNaN(date.getTime())) {
-              val = String(val ?? '');
-            } else {
-              const pad = (n: number) => String(n).padStart(2, '0');
-              val = fmt
-                .replace(/YYYY/g, String(date.getFullYear()))
-                .replace(/MM/g, pad(date.getMonth() + 1))
-                .replace(/DD/g, pad(date.getDate()))
-                .replace(/HH/g, pad(date.getHours()))
-                .replace(/mm/g, pad(date.getMinutes()))
-                .replace(/ss/g, pad(date.getSeconds()));
-            }
+          } else {
+            val = [];
+          }
+        } else if (filterStr.startsWith('join(')) {
+          const sep = filterStr.slice(5, -1).replace(/['"]/g, '').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+          if (Array.isArray(val)) {
+            val = val.join(sep);
+          } else {
+            val = String(val ?? '');
+          }
+        } else if (filterStr.startsWith('sumBy(')) {
+          const field = filterStr.slice(6, -1).replace(/['"]/g, '');
+          if (Array.isArray(val)) {
+            val = val.reduce((sum, item) => sum + (Number(item?.[field]) || 0), 0);
+          } else {
+            val = 0;
+          }
+        } else if (filterStr.startsWith('maxBy(')) {
+          const field = filterStr.slice(6, -1).replace(/['"]/g, '');
+          if (Array.isArray(val)) {
+            val = val.reduce((max, item) => {
+              const itemVal = Number(item?.[field]) || 0;
+              return itemVal > max ? itemVal : max;
+            }, 0);
+          } else {
+            val = 0;
+          }
+        } else if (filterStr.startsWith('formatDate(')) {
+          const fmt = filterStr.slice(11, -1).replace(/['"]/g, '');
+          const date = new Date(val);
+          if (isNaN(date.getTime())) {
+            val = String(val ?? '');
+          } else {
+            const pad = (n: number) => String(n).padStart(2, '0');
+            val = fmt
+              .replace(/YYYY/g, String(date.getFullYear()))
+              .replace(/MM/g, pad(date.getMonth() + 1))
+              .replace(/DD/g, pad(date.getDate()))
+              .replace(/HH/g, pad(date.getHours()))
+              .replace(/mm/g, pad(date.getMinutes()))
+              .replace(/ss/g, pad(date.getSeconds()));
           }
         }
-
-        return val !== undefined && val !== null ? String(val) : '';
-      } catch (err) {
-        Logger.error(`[WorkflowEngine] Error rendering expression "${raw}":`, err);
       }
-      return '';
-    });
+
+      return val;
+    } catch (err) {
+      Logger.error(`[WorkflowEngine] Error rendering expression "${expr}":`, err);
+    }
+    return undefined;
   }
   private matchFilterId(id: string, filterVal: any): boolean {
     if (!filterVal) return true;

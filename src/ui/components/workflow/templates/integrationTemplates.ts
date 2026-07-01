@@ -835,5 +835,40 @@ export const INTEGRATION_TEMPLATES: WorkflowTemplate[] = [
       { id: 'e4', source: 'n3', sourceHandle: 'true', target: 'n5' },
     ],
   },
+
+  // ━━━━━ 16. Nhắc lịch hẹn dịch vụ từ POS (KiotViet/Sapo) ━━━━━━━━━━━━━━━━━━━━
+  {
+    id: 'tpl-pos-appointment-reminder',
+    name: 'Nhắc lịch hẹn dịch vụ từ POS (KiotViet/Sapo)',
+    description: 'Khi nhận thông tin cuộc hẹn mới qua webhook của POS, tự động đặt lịch chờ và gửi tin nhắn nhắc nhở Zalo cá nhân hóa cho khách trước giờ hẹn 2 tiếng.',
+    category: 'tich-hop',
+    tags: ['kiotviet', 'sapo', 'lịch hẹn', 'nhắc lịch', 'webhook'],
+    icon: '📅',
+    difficulty: 'medium',
+    nodes: [
+      {
+        id: 'n1', type: 'trigger.webhook', label: 'Nhận lịch hẹn mới từ POS',
+        position: { x: 300, y: 60 },
+        config: { ...DEFAULT_CONFIGS['trigger.webhook'] },
+      },
+      {
+        id: 'n2', type: 'logic.wait', label: 'Chờ đến trước giờ hẹn 2 tiếng',
+        position: { x: 300, y: 220 },
+        config: { delaySeconds: 7200 },
+      },
+      {
+        id: 'n3', type: 'zalo.sendMessage', label: 'Gửi tin nhắc lịch hẹn',
+        position: { x: 300, y: 380 },
+        config: {
+          ...DEFAULT_CONFIGS['zalo.sendMessage'],
+          message: 'Xin chào {{ $trigger.body.salutation }} {{ $trigger.body.display_name }}! 👋 Zagi xin nhắc lịch hẹn dịch vụ của bạn vào lúc {{ $trigger.body.time }} hôm nay. Rất hân hạnh được phục vụ bạn! 🌸',
+        },
+      },
+    ],
+    edges: [
+      { id: 'e1', source: 'n1', target: 'n2' },
+      { id: 'e2', source: 'n2', target: 'n3' },
+    ],
+  },
 ];
 

@@ -24,7 +24,7 @@ export const REAL_ESTATE_TEMPLATES: WorkflowTemplate[] = [
         type: 'crm.getContacts',
         label: 'Khách hàng có sinh nhật hôm nay',
         position: { x: 250, y: 190 },
-        config: { ...DEFAULT_CONFIGS['crm.getContacts'], birthdayToday: true }
+        config: { ...DEFAULT_CONFIGS['crm.getContacts'], birthdayToday: true, birthdayFilter: 'today' }
       },
       {
         id: 'n3',
@@ -41,7 +41,7 @@ export const REAL_ESTATE_TEMPLATES: WorkflowTemplate[] = [
         config: {
           threadId: '{{ $item.zaloId || $item.id }}',
           threadType: '0',
-          message: 'Zagi Land kính chúc Anh/Chị {{ $item.name }} tuổi mới ngập tràn niềm vui, sức khoẻ dồi dào và vạn sự cát tường! 🌸\n\nĐể tri ân sự đồng hành của Anh/Chị, Zagi xin gửi tặng ưu đãi giảm 1% phí dịch vụ môi giới/ký gửi cho giao dịch tiếp theo. Rất hân hạnh được đồng hành cùng Anh/Chị! 🏠'
+          message: 'Zagi Land kính chúc {{ $item.salutation }} {{ $item.display_name }} tuổi mới ngập tràn niềm vui, sức khoẻ dồi dào và vạn sự cát tường! 🌸\n\nĐể tri ân sự đồng hành của Anh/Chị, Zagi xin gửi tặng ưu đãi giảm 1% phí dịch vụ môi giới/ký gửi cho giao dịch tiếp theo. Rất hân hạnh được đồng hành cùng Anh/Chị! 🏠'
         }
       }
     ],
@@ -225,7 +225,7 @@ export const REAL_ESTATE_TEMPLATES: WorkflowTemplate[] = [
         config: {
           threadId: '{{ $item.zaloId || $item.id }}',
           threadType: '0',
-          message: 'Chào Anh/Chị {{ $item.name }}! Zagi Land xin gửi tới Anh/Chị thông tin độc quyền về dự án Diamond Riverside sắp ra mắt vào cuối tháng này.\n\nLà khách hàng thân thiết của chúng tôi, Anh/Chị sẽ được ưu tiên nhận bảng giá suất nội bộ và chiết khấu thêm 1.5% đợt mở bán đầu tiên. Gửi Anh/Chị tài liệu chi tiết: https://zagi.vn/du-an-diamond 🏢'
+          message: 'Chào {{ $item.salutation }} {{ $item.display_name }}! Zagi Land xin gửi tới Anh/Chị thông tin độc quyền về dự án Diamond Riverside sắp ra mắt vào cuối tháng này.\n\nLà khách hàng thân thiết của chúng tôi, Anh/Chị sẽ được ưu tiên nhận bảng giá suất nội bộ và chiết khấu thêm 1.5% đợt mở bán đầu tiên. Gửi Anh/Chị tài liệu chi tiết: https://zagi.vn/du-an-diamond 🏢'
         }
       }
     ],
@@ -275,7 +275,7 @@ export const REAL_ESTATE_TEMPLATES: WorkflowTemplate[] = [
         config: {
           threadId: '{{ $item.zaloId || $item.id }}',
           threadType: '0',
-          message: 'Kính gửi Anh/Chị {{ $item.name }}, Zagi Land xin gửi thông báo nhắc lịch thanh toán đợt tiếp theo cho hợp đồng mua căn hộ tại dự án Grand Center.\n\n• Ngày đến hạn: {{ $item.paymentDueDate || "đầu tháng sau" }}\n• Số tiền: Theo phụ lục hợp đồng đã ký\n\nAnh/Chị vui lòng thanh toán đúng hạn để đảm bảo quyền lợi theo hợp đồng. Nếu có bất kỳ câu hỏi nào, vui lòng liên hệ hotline Zagi để được hỗ trợ nhé! 🙏'
+          message: 'Kính gửi {{ $item.salutation }} {{ $item.display_name }}, Zagi Land xin gửi thông báo nhắc lịch thanh toán đợt tiếp theo cho hợp đồng mua căn hộ tại dự án Grand Center.\n\n• Ngày đến hạn: {{ $item.paymentDueDate || "đầu tháng sau" }}\n• Số tiền: Theo phụ lục hợp đồng đã ký\n\nAnh/Chị vui lòng thanh toán đúng hạn để đảm bảo quyền lợi theo hợp đồng. Nếu có bất kỳ câu hỏi nào, vui lòng liên hệ hotline Zagi để được hỗ trợ nhé! 🙏'
         }
       }
     ],
@@ -367,7 +367,57 @@ export const REAL_ESTATE_TEMPLATES: WorkflowTemplate[] = [
         config: {
           threadId: '{{ $item.zaloId || $item.id }}',
           threadType: '0',
-          message: 'Kính gửi Anh/Chị {{ $item.name }}! Zagi Land gửi tới Anh/Chị báo cáo phân tích biến động thị trường Bất động sản và dự báo xu hướng đầu tư trong tháng mới.\n\nTài liệu phân tích chuyên sâu được thực hiện bởi đội ngũ R&D Zagi: https://zagi.vn/bao-cao-thi-truong-thang 📊 Chúc Anh/Chị có những quyết định đầu tư gặt hái nhiều lợi nhuận!'
+          message: 'Kính gửi {{ $item.salutation }} {{ $item.display_name }}! Zagi Land gửi tới Anh/Chị báo cáo phân tích biến động thị trường Bất động sản và dự báo xu hướng đầu tư trong tháng mới.\n\nTài liệu phân tích chuyên sâu được thực hiện bởi đội ngũ R&D Zagi: https://zagi.vn/bao-cao-thi-truong-thang 📊 Chúc Anh/Chị có những quyết định đầu tư gặt hái nhiều lợi nhuận!'
+        }
+      }
+    ],
+    edges: [
+      { id: 'e1', source: 'n1', target: 'n2' },
+      { id: 'e2', source: 'n2', target: 'n3' },
+      { id: 'e3', source: 'n3', target: 'n4' }
+    ]
+  },
+
+  // ━━━━━ 9. Kịch bản BĐS: Chăm sóc sau sự kiện Mở bán ━━━━━━━━━━━━━━━━━━━━━━
+  {
+    id: 'tpl-re-event-followup',
+    name: 'Chăm sóc sau sự kiện Mở bán',
+    description: 'Tự động chạy quét danh sách khách tham dự sự kiện ngày hôm trước, lặp gửi tin cảm ơn cá nhân hóa kèm tài liệu nội bộ, hẹn lịch xem nhà mẫu lần 2.',
+    category: 'bat-dong-san',
+    tags: ['bất động sản', 'sự kiện', 'mở bán', 'chăm sóc', 'nhà mẫu'],
+    icon: '🏠',
+    difficulty: 'medium',
+    nodes: [
+      {
+        id: 'n1',
+        type: 'trigger.schedule',
+        label: '9:00 Hôm sau sự kiện',
+        position: { x: 250, y: 50 },
+        config: { ...DEFAULT_CONFIGS['trigger.schedule'], cronExpression: '0 9 * * *' }
+      },
+      {
+        id: 'n2',
+        type: 'crm.getContacts',
+        label: 'Khách tham gia sự kiện',
+        position: { x: 250, y: 190 },
+        config: { ...DEFAULT_CONFIGS['crm.getContacts'] }
+      },
+      {
+        id: 'n3',
+        type: 'logic.forEach',
+        label: 'Lặp qua từng khách',
+        position: { x: 250, y: 330 },
+        config: { array: '{{ $node.n2.output.contacts }}', itemVariable: 'item' }
+      },
+      {
+        id: 'n4',
+        type: 'zalo.sendMessage',
+        label: 'Gửi cảm ơn & tài liệu BĐS',
+        position: { x: 250, y: 470 },
+        config: {
+          threadId: '{{ $item.zaloId || $item.id }}',
+          threadType: '0',
+          message: 'Zagi Land cảm ơn {{ $item.salutation }} {{ $item.display_name }} đã dành thời gian quý báu tham dự buổi mở bán dự án ngày hôm qua. Zagi xin gửi {{ $item.salutation }} link tải tài liệu sơ đồ phân lô và giỏ hàng suất ngoại giao cập nhật mới nhất: https://zagi.vn/gio-hang-suat-ngoai-giao 🏢\n\nNếu {{ $item.salutation }} cần hỗ trợ thêm thông tin hoặc đặt lịch xem thực tế dự án, hãy phản hồi lại cho em nhé!'
         }
       }
     ],

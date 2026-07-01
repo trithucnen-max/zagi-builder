@@ -814,11 +814,28 @@ function FileBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
     } catch {}
   }
 
+  const [fileExists, setFileExists] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    if (localFilePath) {
+      ipc.file?.exists(localFilePath).then((exists: boolean) => {
+        setFileExists(exists);
+      }).catch(() => {
+        setFileExists(false);
+      });
+    } else {
+      setFileExists(false);
+    }
+  }, [localFilePath]);
+
+  const hasLocal = !!localFilePath && fileExists === true;
+  const canOpen = hasLocal || !!fileHref;
+
   const handleOpen = async () => {
     if (opening) return;
     setOpening(true);
     try {
-      if (localFilePath) await ipc.file?.openPath(localFilePath);
+      if (hasLocal) await ipc.file?.openPath(localFilePath);
       else if (fileHref) ipc.shell?.openExternal(fileHref);
     } catch {} finally { setOpening(false); }
   };
@@ -846,7 +863,6 @@ function FileBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
   };
 
   const sizeText = fmtSize(fileSize);
-  const canOpen = !!localFilePath || !!fileHref;
   const { icon, bg } = getIcon(fileExt);
 
   return (
@@ -860,7 +876,7 @@ function FileBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
         <p className="text-xs mt-0.5 bubble-subtext">
           {sizeText && <>{sizeText} · </>}
           {opening ? 'Đang mở...'
-            : localFilePath ? '✓ Đã có trên máy'
+            : hasLocal ? '✓ Đã có trên máy'
             : fileHref ? 'Nhấn để tải'
             : (msg.channel === 'facebook' && (msg.is_sent === 1 || isSelf)) ? '✓ Đã gửi'
             : 'Đang tải về...'}

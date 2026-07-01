@@ -46,9 +46,17 @@ function httpPost(url: string, body: any, timeoutMs = 15000): Promise<any> {
             },
             timeout: timeoutMs,
         }, (res) => {
-            let responseBody = '';
-            res.on('data', (chunk: Buffer) => { responseBody += chunk.toString(); });
+            const responseChunks: any[] = [];
+            res.on('data', (chunk: any) => { responseChunks.push(chunk); });
             res.on('end', () => {
+                let responseBody = '';
+                if (responseChunks.length > 0) {
+                    if (typeof responseChunks[0] === 'string') {
+                        responseBody = responseChunks.join('');
+                    } else {
+                        responseBody = Buffer.concat(responseChunks).toString('utf8');
+                    }
+                }
                 try {
                     resolve(JSON.parse(responseBody));
                 } catch {

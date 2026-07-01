@@ -30,6 +30,7 @@ export type TemplateVarGroup =
   | 'variable'      // Biến do người dùng đặt (logic.setVariable)
   | 'node'          // Output từ node khác (dùng NodePicker)
   | 'page'          // Thông tin tài khoản Zalo
+  | 'loop'          // Biến của đối tượng vòng lặp
   ;
 
 export const TEMPLATE_VAR_GROUP_LABELS: Record<TemplateVarGroup, string> = {
@@ -38,6 +39,7 @@ export const TEMPLATE_VAR_GROUP_LABELS: Record<TemplateVarGroup, string> = {
   variable:  '📦 Biến (Variable)',
   node:      '🔗 Output từ node khác',
   page:      '👤 Thông tin tài khoản',
+  loop:      '🔁 Đối tượng lặp (Khách hàng hiện tại)',
 };
 
 // ─── Definitions ──────────────────────────────────────────────────────────────
@@ -329,7 +331,7 @@ export function getTemplateVarsByGroup(nodeType?: string): Map<TemplateVarGroup,
  * dưới dạng $node.<label>.output và $node.<label>.data.field
  */
 export function getNodeOutputVars(
-  allNodes: { id: string; label: string; type: string }[],
+  allNodes: any[],
   currentId?: string
 ): TemplateVarInfo[] {
   const vars: TemplateVarInfo[] = [];
@@ -337,81 +339,84 @@ export function getNodeOutputVars(
   for (const n of allNodes) {
     if (n.id === currentId) continue;
 
+    const label = n.label || n.data?.label || n.id;
+    const type = n.type || n.data?.type;
+
     // Gợi ý chung
     vars.push({
-      key: `$node.${n.label}.output`,
-      label: `Output từ "${n.label}"`,
-      description: `Toàn bộ dữ liệu đầu ra của node "${n.label}" (${n.type}). Dùng .data.field để lấy trường cụ thể.`,
+      key: `$node.${label}.output`,
+      label: `Output từ "${label}"`,
+      description: `Toàn bộ dữ liệu đầu ra của node "${label}" (${type}). Dùng .data.field để lấy trường cụ thể.`,
       group: 'node' as TemplateVarGroup,
     });
 
     // Nếu là node CRM Get Contacts
-    if (n.type === 'crm.getContacts') {
+    if (type === 'crm.getContacts') {
       vars.push(
         {
-          key: `$node.${n.label}.contacts`,
-          label: `Danh sách liên hệ từ "${n.label}"`,
-          description: `Mảng chứa danh sách tất cả các liên hệ lấy được từ bộ lọc CRM.`,
+          key: `$node.${label}.contacts`,
+          label: `Danh sách khách hàng từ "${label}"`,
+          description: `Mảng chứa danh sách tất cả các khách hàng lấy được từ bộ lọc CRM.`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].contact_id`,
-          label: `Zalo ID liên hệ đầu tiên (avatar)`,
-          description: `Mã ID Zalo của khách hàng đầu tiên.`,
+          key: `$node.${label}.contacts[0].contact_id`,
+          label: `ID Zalo khách hàng đầu tiên (từ "${label}")`,
+          description: `Mã định danh ID Zalo của khách hàng đầu tiên tìm thấy.`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].display_name`,
-          label: `Tên Zalo liên hệ đầu tiên`,
-          description: `Tên hiển thị Zalo của liên hệ đầu tiên.`,
+          key: `$node.${label}.contacts[0].display_name`,
+          label: `Tên Zalo khách hàng đầu tiên (từ "${label}")`,
+          description: `Tên hiển thị Zalo của khách hàng đầu tiên tìm thấy.`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].salutation`,
-          label: `Xưng hô liên hệ đầu tiên`,
-          description: `Xưng hô (Anh, Chị, Bạn, Em...) đã cấu hình trong CRM.`,
+          key: `$node.${label}.contacts[0].salutation`,
+          label: `Xưng hô khách hàng đầu tiên (từ "${label}")`,
+          description: `Danh xưng/Xưng hô (Anh, Chị, Bạn, Em...) của khách hàng đầu tiên tìm thấy.`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].alias`,
-          label: `Biệt danh liên hệ đầu tiên`,
-          description: `Biệt danh lưu trong CRM.`,
+          key: `$node.${label}.contacts[0].alias`,
+          label: `Biệt danh khách hàng đầu tiên (từ "${label}")`,
+          description: `Biệt danh của khách hàng đầu tiên lưu trong CRM.`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].gender`,
-          label: `Giới tính liên hệ đầu tiên`,
-          description: `Giới tính: 1=Nam, 2=Nữ.`,
+          key: `$node.${label}.contacts[0].gender`,
+          label: `Giới tính khách hàng đầu tiên (từ "${label}")`,
+          description: `Giới tính của khách hàng đầu tiên: 1=Nam, 2=Nữ.`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].birthday`,
-          label: `Ngày sinh liên hệ đầu tiên`,
-          description: `Ngày sinh nhật của khách hàng (VD: 25/03/1990).`,
+          key: `$node.${label}.contacts[0].birthday`,
+          label: `Ngày sinh nhật khách hàng đầu tiên (từ "${label}")`,
+          description: `Ngày sinh nhật của khách hàng đầu tiên (VD: 01/07/1996).`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].pipeline_stage_id`,
-          label: `ID trạng thái Pipeline`,
-          description: `ID của bước phễu Pipeline hiện tại của liên hệ.`,
+          key: `$node.${label}.contacts[0].pipeline_stage_id`,
+          label: `ID bước phễu khách hàng đầu tiên (từ "${label}")`,
+          description: `ID của bước trạng thái trong phễu Pipeline của khách hàng đầu tiên.`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].aiProfile`,
-          label: `Thông tin AI Profile`,
-          description: `Hồ sơ tóm tắt tự động do AI phân tích cho liên hệ này.`,
+          key: `$node.${label}.contacts[0].aiProfile`,
+          label: `Hồ sơ AI khách hàng đầu tiên (từ "${label}")`,
+          description: `Hồ sơ tóm tắt tự động do AI phân tích cho khách hàng đầu tiên.`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].extraData`,
-          label: `Thông tin hồ sơ đã cập nhật (JSON)`,
-          description: `Chuỗi dữ liệu hồ sơ chi tiết dạng JSON chứa các trường thông tin tự định nghĩa khác.`,
+          key: `$node.${label}.contacts[0].extraData`,
+          label: `Hồ sơ JSON khách hàng đầu tiên (từ "${label}")`,
+          description: `Chuỗi dữ liệu chi tiết dạng JSON chứa các trường thông tin tự định nghĩa khác.`,
           group: 'node' as TemplateVarGroup,
         },
         {
-          key: `$node.${n.label}.contacts[0].labels`,
-          label: `Mảng nhãn liên hệ đầu tiên`,
-          description: `Mảng các nhãn (local & Zalo) được gán cho liên hệ. Mỗi phần tử chứa { id, name, color, textColor, shortcut }.`,
+          key: `$node.${label}.contacts[0].labels`,
+          label: `Mảng nhãn khách hàng đầu tiên (từ "${label}")`,
+          description: `Danh sách các nhãn tag được gán cho khách hàng đầu tiên.`,
           group: 'node' as TemplateVarGroup,
         }
       );

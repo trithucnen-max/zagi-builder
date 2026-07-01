@@ -139,11 +139,30 @@ export function registerSyncIpc() {
     // ─── Get Sync Status ────────────────────────────────────────────
     ipcMain.handle('sync:getStatus', async () => {
         try {
-            const row = DatabaseService.getInstance().query<any>(
-                `SELECT value FROM app_settings WHERE key = 'employee_last_sync_ts'`
-            );
-            const lastSyncTs = row[0]?.value ? Number(row[0].value) : 0;
-            return { success: true, lastSyncTs };
+            // PRIMARY: read lastSyncTs from WorkspaceManager (workspaces.json) — reliable even when DB is not initialized
+            const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+            if (activeWs?.lastSyncTs && activeWs.lastSyncTs > 0) {
+                Logger.log(`[syncIpc] getStatus: lastSyncTs=${activeWs.lastSyncTs} (from workspaces.json)`);
+                return { success: true, lastSyncTs: activeWs.lastSyncTs };
+            }
+
+            // FALLBACK: try DB if WorkspaceManager doesn't have it
+            try {
+                const row = DatabaseService.getInstance().query<any>(
+                    `SELECT value FROM app_settings WHERE key = 'employee_last_sync_ts'`
+                );
+                const lastSyncTs = row[0]?.value ? Number(row[0].value) : 0;
+                if (lastSyncTs > 0) {
+                    Logger.log(`[syncIpc] getStatus: lastSyncTs=${lastSyncTs} (from DB)`);
+                    // Persist to workspaces.json for future use (DB-independent)
+                    try {
+                        WorkspaceManager.getInstance().updateWorkspace(activeWs.id, { lastSyncTs } as any);
+                    } catch {}
+                }
+                return { success: true, lastSyncTs };
+            } catch {
+                return { success: true, lastSyncTs: 0 };
+            }
         } catch (err: any) {
             return { success: true, lastSyncTs: 0 };
         }
