@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v27.2.0** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v27.2.1** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>
@@ -47,45 +47,45 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.0-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-x64.exe)
 
-**[Zagi-Setup-27.2.0-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.0-x64.exe)**
+**[Zagi-Setup-27.2.1-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-x64.exe)**
 
-NSIS Installer · ~148 MB
+NSIS Installer · ~195 MB
 
 </td>
 <td align="center" width="25%">
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.0-arm64-mac.zip)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.1-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.dmg)
 
-**[Zagi-27.2.0-arm64-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.0-arm64-mac.zip)**
+**[Zagi-27.2.1-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.dmg)**
 
-Apple Silicon · ~160 MB
+Apple Silicon DMG · ~257 MB
 
 </td>
 <td align="center" width="25%">
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.0-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.0-mac.zip)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.1-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1.dmg)
 
-**[Zagi-27.2.0-mac.zip](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.0-mac.zip)**
+**[Zagi-27.2.1.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1.dmg)**
 
-Intel x64 · ~165 MB
+Intel x64 DMG · ~265 MB
 
 </td>
 <td align="center" width="25%">
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.0.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.1-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.AppImage)
 
-**[Zagi-27.2.0.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.0.AppImage)**  
-**[zagi_27.2.0_amd64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.2.0_amd64.deb)**
+**[Zagi-27.2.1-arm64.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.AppImage)**  
+**[zagi_27.2.1_arm64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.2.1_arm64.deb)**
 
-AppImage + .deb · ~197 MB
+AppImage + .deb · ~239 MB
 
 </td>
 </tr>
@@ -96,13 +96,13 @@ AppImage + .deb · ~197 MB
 
 > Dành cho **Surface Pro X, Pro 9 5G, Pro 10, Pro 11, Laptop 7** (chip Snapdragon / ARM64)
 > 
-> **Surface Pro 7 trở xuống (Intel)** → dùng bản Windows x64 phía trên.
+> Surface Pro 7 trở xuống (Intel) → dùng bản Windows x64 phía trên.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.0-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-arm64.exe)
 
-**[Zagi-Setup-27.2.0-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.0-arm64.exe)**
+**[Zagi-Setup-27.2.1-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-arm64.exe)**
 
-NSIS Installer ARM64 · ~148 MB · Tối ưu native cho Surface ARM
+NSIS Installer ARM64 · ~196 MB · Tối ưu native cho Surface ARM
 
 </td>
 </tr>
@@ -456,7 +456,20 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.2.0</strong> — 2026-06-29 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v27.2.1</strong> — 2026-07-01 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật
+
+- 👑 **Giải tán nhóm Owner hàng loạt**: Bổ sung tùy chọn giải tán nhóm (Disperse Group) trực tiếp trong SmartGroupModal.tsx đối với các nhóm bạn sở hữu (Trưởng nhóm). Có Selector chuyển đổi hành động động và cảnh báo đỏ chi tiết tránh rủi ro bấm nhầm, tự động dọn sạch cơ sở dữ liệu local sau khi giải tán thành công.
+- ⏳ **Cấu hình trễ thông minh cho Node Chờ**: Hỗ trợ nhập thời gian delay theo Ngày, Giờ, Phút, Giây cho node logic.wait, tự động tính toán thời gian trễ cộng dồn và tương thích ngược hoàn hảo.
+- 🔍 **Bộ lọc CRM nâng cao & Xem trước Workflow**: Thêm trường tìm kiếm tự do, lọc theo xưng hô và nhãn Zalo đồng bộ cho node crm.getContacts, tích hợp nút xem trước danh sách đối tượng thực tế kèm vẽ GroupAvatar composite và việt hóa đầy đủ nhãn/icon.
+- 🛡️ **Bảo mật Webhooks & Proxy đồng bộ Boss**: Cấu hình proxy tự động update dữ liệu CRM từ máy nhân viên lên máy Boss trực tiếp và ẩn cấu hình Webhooks Zero Trust đối với nhân viên.
+
+</details>
+
+
+<details>
+<summary><strong>v27.2.0</strong> — 2026-06-29</summary>
 
 ### 🚀 Nâng cấp nổi bật
 
