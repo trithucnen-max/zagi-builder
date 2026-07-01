@@ -244,34 +244,66 @@ export function registerZaloIpc() {
     );
 
     wrap('zalo:getGroupChatHistory', async (s, p) => {
-        let result: any;
-        try {
-            result = await s.getGroupChatHistory(p.groupId, p.count ?? 500);
-        } catch (apiErr: any) {
-            Logger.warn(`[zaloIpc] getGroupChatHistory API error for group ${p.groupId}: ${apiErr.message}`);
-            throw apiErr;
-        }
-        Logger.info(`[zaloIpc] getGroupChatHistory raw result keys: ${Object.keys(result || {}).join(', ')}`);
-        // zca-js trả về { groupMsgs: GroupMessage[] }
-        // Mỗi GroupMessage đã được wrap thành object có { data, threadId, type, isSelf, ... }
         const zaloId = s.getZaloId();
-        const rawMsgs = result?.groupMsgs || result?.data;
-        const msgs = Array.isArray(rawMsgs) ? rawMsgs : [];
-        Logger.info(`[zaloIpc] getGroupChatHistory: zaloId=${zaloId}, msgs.length=${msgs.length}, groupId=${p.groupId}`);
-        if (zaloId && msgs.length > 0) {
-            let count = 0;
+        const batchSize = p.count ?? 20;
+        let result: any;
+        let msgs: any[] = [];
+        let unsyncedMsgs: any[] = [];
+        let foundExisting = false;
+
+        // Quét tăng dần tối đa 5 vòng (tổng cộng 100 tin) để lấp khoảng trống dữ liệu
+        const maxBatches = 5;
+        for (let step = 1; step <= maxBatches; step++) {
+            const currentCount = batchSize * step;
+            try {
+                result = await s.getGroupChatHistory(p.groupId, currentCount);
+            } catch (apiErr: any) {
+                Logger.warn(`[zaloIpc] getGroupChatHistory API error for group ${p.groupId}: ${apiErr.message}`);
+                throw apiErr;
+            }
+
+            const rawMsgs = result?.groupMsgs || result?.data;
+            msgs = Array.isArray(rawMsgs) ? rawMsgs : [];
+            
+            // Tìm kiếm điểm giao với tin nhắn cũ đã đồng bộ
+            foundExisting = false;
+            unsyncedMsgs = [];
+
             for (const message of msgs) {
+                const msgId = message.data?.msgId;
+                if (zaloId && msgId && DatabaseService.getInstance().hasMessage(zaloId, String(msgId))) {
+                    foundExisting = true;
+                    break; // Đã tìm thấy tin nhắn cũ đã có sẵn trong DB
+                }
+                unsyncedMsgs.push(message);
+            }
+
+            // Nếu phát hiện tin nhắn cũ đã tồn tại, hoặc số tin trả về ít hơn giới hạn yêu cầu,
+            // nghĩa là chúng ta đã bao phủ toàn bộ khoảng trống tin nhắn mới.
+            if (foundExisting || msgs.length < currentCount) {
+                break;
+            }
+
+            // Nếu chưa tìm thấy tin cũ, tiếp tục vòng lặp sau để quét sâu hơn (tải count lớn hơn)
+            await new Promise(r => setTimeout(r, 200));
+        }
+
+        // Sau khi đã thu thập toàn bộ các tin nhắn chưa đồng bộ, tiến hành lưu và phát sóng
+        let processedCount = 0;
+        if (zaloId) {
+            for (const message of unsyncedMsgs) {
                 try {
                     message.zaloId = zaloId;
                     await EventBroadcaster.broadcastMessage(zaloId, message, { silent: true });
-                    count++;
+                    processedCount++;
                 } catch (err: any) {
                     Logger.warn(`[zaloIpc] getGroupChatHistory broadcast error: ${err.message}`);
                 }
             }
-            Logger.info(`[zaloIpc] getGroupChatHistory: processed ${count}/${msgs.length} messages for group ${p.groupId}`);
         }
-        return { groupMsgsCount: msgs.length, groupMsgs: msgs };
+        
+        Logger.info(`[zaloIpc] getGroupChatHistory: processed ${processedCount}/${unsyncedMsgs.length} unsynced messages for group ${p.groupId}`);
+        return { groupMsgsCount: unsyncedMsgs.length, groupMsgs: unsyncedMsgs };
     });
 
     // ─── Bạn bè ───────────────────────────────────────────────────────────

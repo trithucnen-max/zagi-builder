@@ -35,7 +35,7 @@ export default function TemplateVarPopup({
   const [search, setSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<TemplateVarGroup | 'all'>('all');
   const theme = useAppStore(s => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   // Build grouped vars
   const groupedVars = useMemo(() => {

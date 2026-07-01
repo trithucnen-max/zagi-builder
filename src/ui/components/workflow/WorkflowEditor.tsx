@@ -364,7 +364,7 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
 
 export default function WorkflowEditor({ workflowId, onBack }: Props) {
   const { showNotification, theme } = useAppStore();
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<any | null>(null);

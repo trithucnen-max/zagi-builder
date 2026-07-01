@@ -258,6 +258,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveNote: (params: any) => ipcRenderer.invoke('crm:saveNote', params),
     deleteNote: (params: any) => ipcRenderer.invoke('crm:deleteNote', params),
     getContacts: (params: any) => ipcRenderer.invoke('crm:getContacts', params),
+    previewWorkflowContacts: (params: any) => ipcRenderer.invoke('crm:previewWorkflowContacts', params),
     getContactStats: (params: any) => ipcRenderer.invoke('crm:getContactStats', params),
     getCampaigns: (params: any) => ipcRenderer.invoke('crm:getCampaigns', params),
     saveCampaign: (params: any) => ipcRenderer.invoke('crm:saveCampaign', params),

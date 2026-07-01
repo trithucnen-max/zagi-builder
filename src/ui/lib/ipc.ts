@@ -247,6 +247,7 @@ declare global {
         saveNote: (params: { zaloId: string; note: any }) => Promise<{ success: boolean; id: number }>;
         deleteNote: (params: { zaloId: string; noteId: number }) => Promise<{ success: boolean }>;
         getContacts: (params: { zaloId: string; opts?: any }) => Promise<{ success: boolean; contacts: any[]; total: number }>;
+        previewWorkflowContacts: (params: { zaloId: string; cfg: any }) => Promise<{ success: boolean; contacts: any[]; error?: string }>;
         getContactStats: (params: { zaloId: string }) => Promise<{ success: boolean; total: number; friendCount: number; noteCount: number }>;
         getCampaigns: (params: { zaloId: string }) => Promise<{ success: boolean; campaigns: any[] }>;
         saveCampaign: (params: { zaloId: string; campaign: any }) => Promise<{ success: boolean; id: number }>;

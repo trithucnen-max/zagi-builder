@@ -222,7 +222,7 @@ const SmartRichEditor = ({
   const editorRef = useRef<HTMLDivElement>(null);
 
   const theme = useAppStore(s => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   const systemVars = useMemo(() => getTemplateVarsForNode(nodeType), [nodeType]);
   const nodeVars = useMemo(() => (allNodes ? getNodeOutputVars(allNodes, currentId) : []), [allNodes, currentId]);

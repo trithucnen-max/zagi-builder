@@ -207,6 +207,11 @@ function cronToHuman(expr: string): string {
 const CONFIG_SCHEMA: Record<string, Field[]> = {
   'crm.getContacts': [
     {
+      key: 'searchQuery', label: 'Tìm kiếm liên hệ', type: 'text',
+      placeholder: 'Nhập tên, số điện thoại, biệt danh hoặc ID Zalo...',
+      desc: 'Tìm kiếm khách hàng theo tên, số điện thoại, biệt danh hoặc ID Zalo.',
+    },
+    {
       key: 'birthdayToday', label: 'Sinh nhật hôm nay', type: 'boolean',
       desc: 'Chỉ lấy các liên hệ có ngày sinh là hôm nay (tự động khớp ngày/tháng, không phân biệt định dạng DD/MM hay DD/MM/YYYY).',
     },
@@ -229,6 +234,11 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       desc: 'Lọc khách hàng theo giới tính.',
     },
     {
+      key: 'salutation', label: 'Xưng hô', type: 'text',
+      placeholder: 'Anh, Chị, Em...',
+      desc: 'Lọc khách hàng theo xưng hô cụ thể.',
+    },
+    {
       key: 'isFriend', label: 'Mối quan hệ', type: 'select',
       options: [
         { value: 'all', label: 'Tất cả' },
@@ -244,6 +254,10 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
     {
       key: 'localLabelIds', label: 'Nhãn Local (Chọn nhiều)', type: 'label-picker', labelMode: 'multi',
       desc: 'Lọc khách hàng được gán các nhãn local này.',
+    },
+    {
+      key: 'zaloLabelIds', label: 'Nhãn Zalo (Chọn nhiều)', type: 'label-picker', labelMode: 'multi',
+      desc: 'Lọc khách hàng được gán các nhãn Zalo đã đồng bộ này.',
     },
   ],
   'trigger.message': [
@@ -817,9 +831,24 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'logic.wait': [
     {
-      key: 'delaySeconds', label: 'Thời gian chờ (giây)', type: 'number',
-      desc: 'Tạm dừng workflow trước khi tiếp tục bước tiếp theo.',
-      hint: '5 = 5 giây  •  60 = 1 phút  •  3600 = 1 giờ',
+      key: 'days', label: 'Số ngày chờ', type: 'number', min: 0,
+      desc: 'Khoảng thời gian chờ tính bằng ngày.',
+      placeholder: '0',
+    },
+    {
+      key: 'hours', label: 'Số giờ chờ', type: 'number', min: 0,
+      desc: 'Khoảng thời gian chờ tính bằng giờ.',
+      placeholder: '0',
+    },
+    {
+      key: 'minutes', label: 'Số phút chờ', type: 'number', min: 0,
+      desc: 'Khoảng thời gian chờ tính bằng phút.',
+      placeholder: '0',
+    },
+    {
+      key: 'seconds', label: 'Số giây chờ', type: 'number', min: 0,
+      desc: 'Khoảng thời gian chờ tính bằng giây.',
+      placeholder: '0',
     },
   ],
   'logic.setVariable': [
@@ -3036,7 +3065,7 @@ function ContactPickerModal({
   const [filterTab, setFilterTab] = React.useState<'all' | 'user' | 'group'>('all');
   const theme = useAppStore(s => s.theme);
   const groupInfoCache = useAppStore(s => s.groupInfoCache);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   // Load contacts when account changes
   React.useEffect(() => {
@@ -3608,7 +3637,7 @@ function ContactPickerField({
   const { accounts } = useAccountStore();
   const [showModal, setShowModal] = React.useState(false);
   const theme = useAppStore(s => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   // Parse giá trị hiện tại: string đơn hoặc JSON array
   const selectedIds: string[] = React.useMemo(() => {
@@ -3767,7 +3796,7 @@ function FilePickerField({
   placeholder?: string;
 }) {
   const theme = useAppStore(s => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
   const [previewError, setPreviewError] = React.useState(false);
 
   const handleSelectFile = async () => {
@@ -3905,7 +3934,7 @@ function MultiImageSelector({
   onChange: (updates: Record<string, any>) => void;
 }) {
   const theme = useAppStore(s => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
   
   // Extract paths from config.filePaths or config.filePath
   const filePathsStr = config.filePaths || '';
@@ -4113,7 +4142,7 @@ function NodePickerModal({
   const [search, setSearch] = React.useState('');
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const theme = useAppStore(s => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   const filtered = search.trim()
     ? allNodes.filter(n =>
@@ -4265,6 +4294,34 @@ export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConf
   const [showAiInput, setShowAiInput] = useState<Record<string, boolean>>({});
   const [aiPrompts, setAiPrompts] = useState<Record<string, string>>({});
   const [aiGenerating, setAiGenerating] = useState<Record<string, boolean>>({});
+
+  const [showCrmPreview, setShowCrmPreview] = useState(false);
+  const [previewContacts, setPreviewContacts] = useState<any[]>([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const handlePreviewCRMContacts = async () => {
+    const activeZaloId = accounts[0]?.zalo_id;
+    if (!activeZaloId) {
+      alert('Vui lòng kết nối ít nhất một tài khoản Zalo để thực hiện xem trước.');
+      return;
+    }
+    setShowCrmPreview(true);
+    setLoadingPreview(true);
+    setPreviewError(null);
+    try {
+      const res = await ipc.crm?.previewWorkflowContacts({ zaloId: activeZaloId, cfg: config });
+      if (res?.success) {
+        setPreviewContacts(res.contacts || []);
+      } else {
+        setPreviewError(res?.error || 'Không thể tải danh sách xem trước.');
+      }
+    } catch (err: any) {
+      setPreviewError(err?.message || 'Có lỗi xảy ra.');
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
 
   const handleAiDraft = async (fieldKey: string, promptText: string) => {
     if (!promptText.trim()) return;
@@ -4905,6 +4962,18 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
 
       {basicFields.map(renderField)}
 
+      {node.type === 'crm.getContacts' && (
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={handlePreviewCRMContacts}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/35 text-blue-400 hover:text-blue-300 font-semibold rounded-xl text-xs transition-all duration-200 active:scale-95 shadow-sm"
+          >
+            🔍 Xem trước danh sách liên hệ lọc được
+          </button>
+        </div>
+      )}
+
       {advFields.length > 0 && (
         <div>
           <button type="button" onClick={() => setShowAdvanced(p => !p)}
@@ -5026,6 +5095,15 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           }
         }}
       />
+      {showCrmPreview && (
+        <CRMPreviewContactsModal
+          open={showCrmPreview}
+          onClose={() => setShowCrmPreview(false)}
+          loading={loadingPreview}
+          contacts={previewContacts}
+          error={previewError}
+        />
+      )}
     </div>
   );
 
@@ -5113,11 +5191,182 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
       </div>
 
       {/* Form */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
         {formContent}
       </div>
 
       {footer}
+    </div>
+  );
+}
+
+// ─── CRM Preview Contacts Modal ───────────────────────────────────────────
+
+function CRMPreviewContactsModal({
+  open,
+  onClose,
+  loading,
+  contacts,
+  error,
+}: {
+  open: boolean;
+  onClose: () => void;
+  loading: boolean;
+  contacts: any[];
+  error: string | null;
+}) {
+  const theme = useAppStore(s => s.theme);
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const getGroupInfo = useAppStore(s => s.getGroupInfo);
+  const { accounts } = useAccountStore();
+  const activeZaloId = accounts[0]?.zalo_id;
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative rounded-2xl shadow-2xl w-[640px] max-w-[95vw] h-[600px] max-h-[85vh] flex flex-col overflow-hidden border transition-all ${
+        isLight ? 'bg-white border-gray-200' : 'bg-gray-900 border-gray-750'
+      }`}>
+        {/* Header */}
+        <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? 'border-gray-200' : 'border-gray-700/60'}`}>
+          <div>
+            <p className={`text-base font-semibold ${isLight ? 'text-gray-900' : 'text-white'}`}>Xem trước khách hàng lọc được</p>
+            <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+              {loading ? 'Đang truy vấn dữ liệu...' : `Tìm thấy ${contacts.length} khách hàng khớp với bộ lọc`}
+            </p>
+          </div>
+          <button onClick={onClose} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+            isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-700 text-gray-400'
+          }`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-full py-12 gap-3">
+              <div className="w-8 h-8 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+              <p className={`text-xs font-medium ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Đang quét cơ sở dữ liệu CRM...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+              <span className="text-3xl mb-2">❌</span>
+              <p className="text-sm font-semibold text-red-500">Lỗi truy vấn</p>
+              <p className={`text-xs mt-1 max-w-sm ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{error}</p>
+            </div>
+          ) : contacts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+              <span className="text-4xl mb-2">👥</span>
+              <p className={`text-sm font-semibold ${isLight ? 'text-gray-900' : 'text-white'}`}>Không tìm thấy khách hàng nào</p>
+              <p className={`text-xs mt-1 max-w-sm ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                Hãy thử nới lỏng các bộ lọc (ví dụ: không chọn nhãn hoặc bước phễu quá hẹp).
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {contacts.map((c, idx) => {
+                const getGenderLabel = () => {
+                  if (c.contact_type === 'group') return '👥 Nhóm';
+                  if (c.gender === 1) return '♂️ Nam';
+                  if (c.gender === 2) return '♀️ Nữ';
+                  return '⚧️ Chưa rõ';
+                };
+
+                const getRelationLabel = () => {
+                  if (c.contact_type === 'group') return '👥 Nhóm';
+                  return c.is_friend === 1 ? '👥 Bạn bè' : '👤 Chưa kết bạn';
+                };
+
+                const getChannelLabel = () => {
+                  if (c.channel === 'zalo') return '💬 Zalo';
+                  if (c.channel === 'facebook') return '📘 Facebook';
+                  return `📱 ${c.channel}`;
+                };
+
+                return (
+                  <div
+                    key={c.contact_id || idx}
+                    className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${
+                      isLight ? 'bg-gray-50 border-gray-150 hover:bg-gray-100' : 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/60'
+                    }`}
+                  >
+                    {/* Avatar */}
+                    {c.contact_type === 'group' ? (() => {
+                      const groupInfo = getGroupInfo(activeZaloId || '', c.contact_id);
+                      return <GroupAvatar avatarUrl={c.avatar} groupInfo={groupInfo} name={c.display_name} size="xs" />;
+                    })() : (
+                      <GroupAvatar avatarUrl={c.avatar} name={c.display_name} size="xs" />
+                    )}
+
+                    {/* Meta info */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-sm font-semibold truncate ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                          {c.display_name}
+                        </span>
+                        {c.salutation && (
+                          <span className="text-[10px] px-1.5 py-0.5 font-medium rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            Xưng hô: {c.salutation}
+                          </span>
+                        )}
+                        {c.alias && (
+                          <span className={`text-[10px] px-1.5 py-0.5 font-medium rounded ${
+                            isLight ? 'bg-gray-200 text-gray-600' : 'bg-gray-750 text-gray-300'
+                          }`}>
+                            Biệt danh: {c.alias}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className={`flex items-center gap-x-3 gap-y-1 text-[11px] flex-wrap ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {c.phone && <span>📞 {c.phone}</span>}
+                        <span>{getGenderLabel()}</span>
+                        {c.contact_type !== 'group' && <span>{getRelationLabel()}</span>}
+                        {c.birthday && <span>🎂 {c.birthday}</span>}
+                        <span>{getChannelLabel()}</span>
+                      </div>
+
+                      {/* Labels */}
+                      {c.labels && c.labels.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {c.labels.map((l: any, lIdx: number) => (
+                            <span
+                              key={l.id || lIdx}
+                              style={{ backgroundColor: l.color + '20', color: l.color, borderColor: l.color + '40' }}
+                              className="text-[9px] px-1.5 py-0.5 font-semibold rounded-md border"
+                            >
+                              {l.shortcut ? `[${l.shortcut}] ` : ''}{l.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className={`px-5 py-3 border-t flex items-center justify-end ${
+          isLight ? 'border-gray-200 bg-gray-50' : 'border-gray-700 bg-gray-800/50'
+        }`}>
+          <button
+            onClick={onClose}
+            className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+              isLight ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-gray-800 hover:bg-gray-750 text-gray-300'
+            }`}
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

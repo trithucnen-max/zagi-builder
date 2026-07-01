@@ -670,6 +670,16 @@ export default function CRMPage() {
       });
     }
 
+    // Client-side filter: salutation
+    if (store.filterSalutation && store.filterSalutation !== 'all') {
+      const targetSal = store.filterSalutation;
+      result = result.filter(c => {
+        const effectiveSalutation = c.salutation ||
+          (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Bạn');
+        return effectiveSalutation === targetSal;
+      });
+    }
+
     return result;
   })();
 
@@ -746,7 +756,8 @@ export default function CRMPage() {
                   total={
                     (store.filterLabelIds.length === 0 && store.filterLocalLabelIds.length === 0
                       && !store.filterContactTypes.includes('has_phone') && !store.filterContactTypes.includes('has_notes')
-                      && store.filterGender === 'all' && store.filterBirthday === 'all')
+                      && store.filterGender === 'all' && store.filterBirthday === 'all'
+                      && (!store.filterSalutation || store.filterSalutation === 'all'))
                       ? store.totalContacts
                       : filteredContacts.length
                   }
@@ -761,6 +772,8 @@ export default function CRMPage() {
                   filterContactTypes={store.filterContactTypes}
                   filterGender={store.filterGender}
                   filterBirthday={store.filterBirthday}
+                  filterSalutation={store.filterSalutation}
+                  allContactsForFilter={store.contacts}
                   searchText={store.searchText}
                   sortBy={store.sortBy}
                   sortDir={store.sortDir}
@@ -1180,10 +1193,7 @@ export default function CRMPage() {
         <CampaignCreateModal
           zaloId={activeAccountId || ''}
           onClose={() => setShowCreateInAddModal(false)}
-          onSave={async (data) => {
-            await handleCreateCampaignInAddModal(data);
-            setShowCreateInAddModal(false);
-          }}
+          onSave={handleCreateCampaignInAddModal}
         />
       )}
 

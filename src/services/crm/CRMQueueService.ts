@@ -497,6 +497,7 @@ class CRMQueueService {
                         db.saveSendLog({ ...logBase,
                             message: `[Hỗn hợp/${action}] Lỗi: ${actionErr.message}`,
                             status: 'failed', error: actionErr.message,
+                            send_type: action === 'friend_request' ? 'friend_request' : action === 'invite_to_groups' ? 'invite_to_group' : 'message',
                             data_request: JSON.stringify(req), data_response: JSON.stringify(errResponse) });
                         Logger.warn(`[CRMQueue] Mixed/${action} ❌ → ${effectiveContactId}: ${actionErr.message}`);
                         anyFailed = true;
@@ -531,7 +532,7 @@ class CRMQueueService {
                 const req = { type: 'sendFriendRequest', msg: friendMsg, userId: effectiveContactId };
                 const resp = await (conn.api as any).sendFriendRequest(friendMsg, effectiveContactId);
                 db.updateCampaignContactStatus(item.id!, 'sent');
-                db.saveSendLog({ ...logBase, message: `[Kết bạn] ${friendMsg}`, status: 'sent',
+                db.saveSendLog({ ...logBase, message: `[Kết bạn] ${friendMsg}`, status: 'sent', send_type: 'friend_request',
                     data_request: JSON.stringify(req), data_response: JSON.stringify(resp) });
 
             } else if (campaignType === 'invite_to_group') {
@@ -557,7 +558,7 @@ class CRMQueueService {
                 const finalStatus = result.errors.length > 0 ? 'failed' : 'sent';
                 db.updateCampaignContactStatus(item.id!, finalStatus, result.errors.join('; ') || undefined);
                 db.saveSendLog({ ...logBase, message: logMsg, status: finalStatus,
-                    error: result.errors.join('; ') || '',
+                    error: result.errors.join('; ') || '', send_type: 'message',
                     data_request: JSON.stringify({ type: 'sendMessage', threadId: effectiveContactId, threadType, blocks: blocksToSend.length, sent: result.sent }),
                     data_response: result.responses.length > 0 ? JSON.stringify(result.responses.length === 1 ? result.responses[0] : result.responses) : '' });
             }

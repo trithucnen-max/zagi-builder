@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import { useCRMStore } from '@/store/crmStore';
@@ -27,6 +27,7 @@ export default function AddToCampaignModal({
   const [showCreateInAddModal, setShowCreateInAddModal] = useState(false);
   const { showNotification } = useAppStore();
   const store = useCRMStore();
+  const creatingRef = useRef(false);
 
   if (!isOpen) return null;
 
@@ -67,7 +68,8 @@ export default function AddToCampaignModal({
   };
 
   const handleCreateCampaignInAddModal = async (data: any) => {
-    if (!activeAccountId) return;
+    if (!activeAccountId || creatingRef.current) return;
+    creatingRef.current = true;
     try {
       const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
       if (res?.success) {
@@ -81,6 +83,8 @@ export default function AddToCampaignModal({
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Không rõ';
       showNotification('Lỗi: ' + errMsg, 'error');
+    } finally {
+      creatingRef.current = false;
     }
   };
 

@@ -91,6 +91,9 @@ export type GenderFilter = 'all' | 'male' | 'female' | 'unknown';
 /** 'all' = tất cả, 'has_birthday' = có ngày sinh, 'no_birthday' = chưa có, 'today' = hôm nay, 'this_week' = tuần này, 'this_month' = tháng này */
 export type BirthdayFilter = 'all' | 'has_birthday' | 'no_birthday' | 'today' | 'this_week' | 'this_month';
 
+/** 'all' = tất cả, hoặc bất kỳ chuỗi xưng hô tuỳ chỉnh (VD: 'Anh', 'Chị', 'Bạn'...) */
+export type SalutationFilter = string;
+
 interface CRMStore {
   tab: CRMTabView;
   contacts: CRMContact[];
@@ -106,6 +109,8 @@ interface CRMStore {
   filterContactTypes: ContactTypeFilter[];
   filterGender: GenderFilter;
   filterBirthday: BirthdayFilter;
+  /** Lọc theo xưng hô — 'all' hoặc giá trị xưng hô cụ thể */
+  filterSalutation: SalutationFilter;
   sortBy: 'name' | 'last_message';
   sortDir: 'asc' | 'desc';
   page: number;
@@ -128,7 +133,7 @@ interface CRMStore {
   clearSelection: () => void;
   setActiveContact: (id: string | null) => void;
   setActiveCampaign: (id: number | null) => void;
-  setFilter: (f: Partial<Pick<CRMStore, 'searchText' | 'filterLabelIds' | 'filterLocalLabelIds' | 'filterContactTypes' | 'filterGender' | 'filterBirthday' | 'sortBy' | 'sortDir' | 'page'>>) => void;
+  setFilter: (f: Partial<Pick<CRMStore, 'searchText' | 'filterLabelIds' | 'filterLocalLabelIds' | 'filterContactTypes' | 'filterGender' | 'filterBirthday' | 'filterSalutation' | 'sortBy' | 'sortDir' | 'page'>>) => void;
   setContactsLoading: (v: boolean) => void;
   setCampaignsLoading: (v: boolean) => void;
   setPipelineStages: (stages: PipelineStage[]) => void;
@@ -154,6 +159,7 @@ export const useCRMStore = create<CRMStore>((set) => ({
   filterContactTypes: [],
   filterGender: 'all',
   filterBirthday: 'all',
+  filterSalutation: 'all',
   sortBy: 'name',
   sortDir: 'asc',
   page: 0,
@@ -203,6 +209,7 @@ export const useCRMStore = create<CRMStore>((set) => ({
     filterContactTypes: [],
     filterGender: 'all',
     filterBirthday: 'all',
+    filterSalutation: 'all',
     sortBy: 'name',
     sortDir: 'asc',
     page: 0,

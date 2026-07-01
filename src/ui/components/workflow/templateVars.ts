@@ -332,12 +332,91 @@ export function getNodeOutputVars(
   allNodes: { id: string; label: string; type: string }[],
   currentId?: string
 ): TemplateVarInfo[] {
-  return allNodes
-    .filter(n => n.id !== currentId)
-    .map(n => ({
+  const vars: TemplateVarInfo[] = [];
+
+  for (const n of allNodes) {
+    if (n.id === currentId) continue;
+
+    // Gợi ý chung
+    vars.push({
       key: `$node.${n.label}.output`,
       label: `Output từ "${n.label}"`,
       description: `Toàn bộ dữ liệu đầu ra của node "${n.label}" (${n.type}). Dùng .data.field để lấy trường cụ thể.`,
       group: 'node' as TemplateVarGroup,
-    }));
+    });
+
+    // Nếu là node CRM Get Contacts
+    if (n.type === 'crm.getContacts') {
+      vars.push(
+        {
+          key: `$node.${n.label}.contacts`,
+          label: `Danh sách liên hệ từ "${n.label}"`,
+          description: `Mảng chứa danh sách tất cả các liên hệ lấy được từ bộ lọc CRM.`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].contact_id`,
+          label: `Zalo ID liên hệ đầu tiên (avatar)`,
+          description: `Mã ID Zalo của khách hàng đầu tiên.`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].display_name`,
+          label: `Tên Zalo liên hệ đầu tiên`,
+          description: `Tên hiển thị Zalo của liên hệ đầu tiên.`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].salutation`,
+          label: `Xưng hô liên hệ đầu tiên`,
+          description: `Xưng hô (Anh, Chị, Bạn, Em...) đã cấu hình trong CRM.`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].alias`,
+          label: `Biệt danh liên hệ đầu tiên`,
+          description: `Biệt danh lưu trong CRM.`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].gender`,
+          label: `Giới tính liên hệ đầu tiên`,
+          description: `Giới tính: 1=Nam, 2=Nữ.`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].birthday`,
+          label: `Ngày sinh liên hệ đầu tiên`,
+          description: `Ngày sinh nhật của khách hàng (VD: 25/03/1990).`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].pipeline_stage_id`,
+          label: `ID trạng thái Pipeline`,
+          description: `ID của bước phễu Pipeline hiện tại của liên hệ.`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].aiProfile`,
+          label: `Thông tin AI Profile`,
+          description: `Hồ sơ tóm tắt tự động do AI phân tích cho liên hệ này.`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].extraData`,
+          label: `Thông tin hồ sơ đã cập nhật (JSON)`,
+          description: `Chuỗi dữ liệu hồ sơ chi tiết dạng JSON chứa các trường thông tin tự định nghĩa khác.`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
+          key: `$node.${n.label}.contacts[0].labels`,
+          label: `Mảng nhãn liên hệ đầu tiên`,
+          description: `Mảng các nhãn (local & Zalo) được gán cho liên hệ. Mỗi phần tử chứa { id, name, color, textColor, shortcut }.`,
+          group: 'node' as TemplateVarGroup,
+        }
+      );
+    }
+  }
+
+  return vars;
 }

@@ -187,7 +187,10 @@ export default function Settings() {
     if (!perm) return true; // no permission required
     return useEmployeeStore.getState().hasPermission(perm);
   };
-  const visibleNavItems = NAV_ITEMS.filter(item => hasSettingsPerm(item.requiredPerm));
+  const visibleNavItems = NAV_ITEMS.filter(item => {
+    if (item.id === 'webhook' && empMode === 'employee') return false;
+    return hasSettingsPerm(item.requiredPerm);
+  });
 
   // Guard: nếu activeTab không còn trong visibleNavItems (do đổi workspace/quyền) → reset về tab đầu tiên
   useEffect(() => {

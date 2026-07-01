@@ -48,6 +48,46 @@ export function proxyToBoss(channel: string, params: any): void {
 }
 
 /**
+ * Synchronous version of proxyToBoss: returns the response payload from the Boss.
+ * In Standalone/Boss mode, this is a no-op returning null.
+ */
+export async function proxyToBossAsync(channel: string, params: any): Promise<any> {
+    try {
+        if (AppModeManager.getInstance().getMode() !== 'employee') return null;
+
+        const HCM = require('../../src/services/http/HttpConnectionManager').default;
+        const hcmInstance = HCM.getInstance();
+
+        // Find any workspace that is actively connected to Boss
+        let activeWsId: string | null = null;
+        for (const [wsId, entry] of hcmInstance.clients.entries()) {
+            if (entry.service.getStatus().connected) {
+                activeWsId = wsId;
+                break;
+            }
+        }
+
+        // Fallback to active workspace if no client is marked connected yet
+        if (!activeWsId) {
+            const WsMgr = require('../../src/utils/WorkspaceManager').default;
+            const activeWs = WsMgr.getInstance().getActiveWorkspace();
+            if (activeWs) activeWsId = activeWs.id;
+        }
+
+        if (!activeWsId) {
+            Logger.warn(`[proxyToBossAsync] Không tìm thấy Workspace nào hoạt động để gửi action: ${channel}`);
+            throw new Error('Không tìm thấy kết nối tới máy chủ BOSS');
+        }
+
+        return await hcmInstance.proxyAction(activeWsId, channel, params);
+    } catch (err: any) {
+        Logger.error(`[proxyToBossAsync] Error for ${channel}: ${err.message}`);
+        throw err;
+    }
+}
+
+
+/**
  * Upload media files from Employee machine to Boss machine.
  * Used when Employee's local file path is not valid on Boss (cross-platform paths).
  * Each file is read on Employee, sent as base64 via HTTP, saved on Boss,

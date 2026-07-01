@@ -26,11 +26,14 @@ import {
 
 const EMPLOYEE_MODULES = [
   { key: 'chat', label: 'Chat', icon: 'chat' as const, desc: 'Gửi / nhận tin nhắn' },
+  { key: 'friends', label: 'Bạn bè', icon: 'friends' as const, desc: 'Danh sách bạn bè' },
   { key: 'crm', label: 'CRM', icon: 'crm' as const, desc: 'Quản lý khách hàng' },
+  { key: 'erp', label: 'ERP', icon: 'erp' as const, desc: 'Quản lý công việc & dự án' },
   { key: 'workflow', label: 'Workflow', icon: 'workflow' as const, desc: 'Tự động hoá' },
   { key: 'integration', label: 'Tích hợp', icon: 'integration' as const, desc: 'POS / Shipping / dịch vụ ngoài' },
   { key: 'analytics', label: 'Thống kê', icon: 'analytics' as const, desc: 'Báo cáo phân tích' },
   { key: 'ai_assistant', label: 'AI', icon: 'ai' as const, desc: 'Trợ lý AI' },
+  { key: 'facebook', label: 'Facebook', icon: 'facebook' as const, desc: 'Facebook Messenger nhóm' },
   { key: 'settings_accounts', label: 'QL tài khoản Zalo', icon: 'accounts' as const, desc: 'Phần cài đặt tài khoản' },
   { key: 'settings_employees', label: 'QL nhân viên', icon: 'employees' as const, desc: 'Phần cài đặt nhân viên' },
 ] as const;

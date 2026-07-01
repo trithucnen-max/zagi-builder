@@ -4,13 +4,16 @@ import { GROUP_COLORS, getNodeLabel } from '../workflowConfig';
 import { useAppStore } from '@/store/appStore';
 import AppIcon from '@/components/common/AppIcon';
 
+const useIsLight = () => {
+  return useAppStore(s => s.theme === 'light' || (s.theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches));
+};
+
 // ─── Custom deletable edge ────────────────────────────────────────────────────
 
 export const CustomDeletableEdge = memo((props: EdgeProps) => {
   const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, selected } = props;
   const { setEdges } = useReactFlow();
-  const theme = useAppStore(s => s.theme);
-  const isLight = theme === 'light';
+  const isLight = useIsLight();
   const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
 
   return (
@@ -63,8 +66,7 @@ CustomDeletableEdge.displayName = 'CustomDeletableEdge';
 
 function NodeBase({ data, color, children }: { data: any; color: string; children?: React.ReactNode }) {
   const { setNodes, setEdges } = useReactFlow();
-  const theme = useAppStore(s => s.theme);
-  const isLight = theme === 'light';
+  const isLight = useIsLight();
   const showNotification = useAppStore(s => s.showNotification);
   const [showInspect, setShowInspect] = useState(false);
 
@@ -231,7 +233,7 @@ function NodeBase({ data, color, children }: { data: any; color: string; childre
 
 export const TriggerNode = memo(({ data }: NodeProps) => {
   const color = GROUP_COLORS['trigger'];
-  const isLight = useAppStore(s => s.theme) === 'light';
+  const isLight = useIsLight();
   return (
     <div style={{ background: 'transparent' }}>
       <NodeBase data={data} color={color}>
@@ -247,7 +249,7 @@ TriggerNode.displayName = 'TriggerNode';
 
 export const ActionNode = memo(({ data }: NodeProps) => {
   const color = GROUP_COLORS['action'];
-  const isLight = useAppStore(s => s.theme) === 'light';
+  const isLight = useIsLight();
   return (
     <div style={{ background: 'transparent' }}>
       <Handle type="target" position={Position.Top} id="default" style={{ background: color }} />
@@ -266,7 +268,7 @@ export const LogicNode = memo(({ data }: NodeProps) => {
   const color = GROUP_COLORS['logic'];
   const isIf = data.type === 'logic.if';
   const isSwitch = data.type === 'logic.switch';
-  const isLight = useAppStore(s => s.theme) === 'light';
+  const isLight = useIsLight();
   return (
     <div style={{ background: 'transparent' }}>
       <Handle type="target" position={Position.Top} id="default" style={{ background: color }} />
@@ -305,7 +307,7 @@ LogicNode.displayName = 'LogicNode';
 
 export const DataNode = memo(({ data }: NodeProps) => {
   const color = GROUP_COLORS['data'];
-  const isLight = useAppStore(s => s.theme) === 'light';
+  const isLight = useIsLight();
   return (
     <div style={{ background: 'transparent' }}>
       <Handle type="target" position={Position.Top} id="default" style={{ background: color }} />
@@ -325,7 +327,7 @@ export const OutputNode = memo(({ data }: NodeProps) => {
   const isHttp = data.type === 'output.httpRequest';
   const isLog  = data.type === 'output.log';
   const cfg = data.config || {};
-  const isLight = useAppStore(s => s.theme) === 'light';
+  const isLight = useIsLight();
   // Màu text nhẹ hơn cho output nodes
   const textClass = isLight ? 'text-gray-700' : 'text-rose-300';
 
@@ -378,7 +380,7 @@ OutputNode.displayName = 'OutputNode';
 
 export const IntegrationNode = memo(({ data }: NodeProps) => {
   const color = GROUP_COLORS['integration'];
-  const isLight = useAppStore(s => s.theme) === 'light';
+  const isLight = useIsLight();
   return (
     <div style={{ background: 'transparent' }}>
       <Handle type="target" position={Position.Top} id="default" style={{ background: color }} />

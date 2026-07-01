@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useCRMStore, type CRMContact, type CRMNote } from '@/store/crmStore';
 import type { LabelData } from '@/store/appStore';
 import ipc from '@/lib/ipc';
@@ -372,6 +372,7 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
   const [newNoteText, setNewNoteText] = useState('');
   const [editNoteId, setEditNoteId] = useState<number | null>(null);
   const [editNoteText, setEditNoteText] = useState('');
+  const savingNoteRef = useRef(false);
   const [savingNote, setSavingNote] = useState(false);
 
   const isGroup = contact.contact_type === 'group';
@@ -469,7 +470,8 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
   // Re-fetch notes when remote CRM note changes arrive
   useEffect(() => {
     const handleNoteChange = () => {
-      if (activeAccountId) {
+      // Skip if we're currently saving — handleAddNote will call loadNotes() itself
+      if (activeAccountId && !savingNoteRef.current) {
         loadNotes();
       }
     };
@@ -549,7 +551,8 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
   };
 
   const handleAddNote = async () => {
-    if (!newNoteText.trim() || !activeAccountId) return;
+    if (!newNoteText.trim() || !activeAccountId || savingNoteRef.current) return;
+    savingNoteRef.current = true;
     setSavingNote(true);
     try {
       await ipc.crm?.saveNote({ zaloId: activeAccountId, note: { contact_id: contact.contact_id, content: newNoteText.trim() } });
@@ -559,6 +562,7 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
     } catch {
       showNotification('Không thể thêm ghi chú', 'error');
     } finally {
+      savingNoteRef.current = false;
       setSavingNote(false);
     }
   };
@@ -799,30 +803,56 @@ ${notesText}`;
         </button>
       </div>
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-3 gap-1 px-3 py-2.5 bg-white border-b border-gray-200 text-center text-xs">
-        <div className={`flex flex-col items-center justify-center p-1.5 rounded-lg shadow-sm border ${
-          notes.length >= 5 ? 'bg-red-500 border-red-500' : notes.length >= 1 ? 'bg-orange-500 border-orange-500' : 'bg-blue-500 border-blue-500'
+      {/* Stats Bar — Tinted soft cards */}
+      <div className="grid grid-cols-3 gap-1.5 px-3 py-2.5 bg-white border-b border-gray-100">
+        {/* LEAD */}
+        <div className={`flex flex-col items-center justify-center p-2 rounded-xl border ${
+          notes.length >= 5
+            ? 'bg-red-50 border-red-200'
+            : notes.length >= 1
+              ? 'bg-orange-50 border-orange-200'
+              : 'bg-sky-50 border-sky-200'
         }`}>
-          <span className="text-[9px] uppercase tracking-wider font-bold text-white-important opacity-90">LEAD</span>
-          <span className="mt-0.5 font-bold text-[11px] text-white-important">
-            {Math.min(100, notes.length * 20)} ({notes.length >= 5 ? 'Nóng' : notes.length >= 1 ? 'Ấm' : 'Lạnh'})
+          <span className="text-base leading-none">{notes.length >= 5 ? '🔥' : notes.length >= 1 ? '🌡️' : '💧'}</span>
+          <span className={`text-[9px] uppercase tracking-wider font-bold mt-0.5 ${
+            notes.length >= 5 ? 'text-red-600' : notes.length >= 1 ? 'text-orange-600' : 'text-sky-600'
+          }`}>LEAD</span>
+          <span className={`font-bold text-[10px] ${
+            notes.length >= 5 ? 'text-red-700' : notes.length >= 1 ? 'text-orange-700' : 'text-sky-700'
+          }`}>
+            {notes.length >= 5 ? 'Nóng' : notes.length >= 1 ? 'Ấm' : 'Lạnh'}
           </span>
         </div>
-        <div className={`flex flex-col items-center justify-center p-1.5 rounded-lg shadow-sm border ${
-          priorityText === 'Cao' ? 'bg-red-500 border-red-500' : priorityText === 'T.Bình' ? 'bg-orange-500 border-orange-500' : 'bg-blue-500 border-blue-500'
+        {/* ƯU TIÊN */}
+        <div className={`flex flex-col items-center justify-center p-2 rounded-xl border ${
+          priorityText === 'Cao'
+            ? 'bg-red-50 border-red-200'
+            : priorityText === 'T.Bình'
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-gray-50 border-gray-200'
         }`}>
-          <span className="text-[9px] uppercase tracking-wider font-bold text-white-important opacity-90">ƯU TIÊN</span>
-          <span className="mt-0.5 font-bold text-[11px] text-white-important">
+          <span className="text-base leading-none">{priorityText === 'Cao' ? '🚩' : priorityText === 'T.Bình' ? '📊' : '📉'}</span>
+          <span className={`text-[9px] uppercase tracking-wider font-bold mt-0.5 ${
+            priorityText === 'Cao' ? 'text-red-600' : priorityText === 'T.Bình' ? 'text-amber-600' : 'text-gray-500'
+          }`}>ƯU TIÊN</span>
+          <span className={`font-bold text-[10px] ${
+            priorityText === 'Cao' ? 'text-red-700' : priorityText === 'T.Bình' ? 'text-amber-700' : 'text-gray-600'
+          }`}>
             {priorityText}
           </span>
         </div>
-        <div className={`flex flex-col items-center justify-center p-1.5 rounded-lg shadow-sm border ${
-          contact.is_friend === 1 ? 'bg-green-600 border-green-600' : 'bg-blue-500 border-blue-500'
+        {/* TƯƠNG TÁC */}
+        <div className={`flex flex-col items-center justify-center p-2 rounded-xl border ${
+          contact.is_friend === 1 ? 'bg-emerald-50 border-emerald-200' : 'bg-gray-50 border-gray-200'
         }`}>
-          <span className="text-[9px] uppercase tracking-wider font-bold text-white-important opacity-90">TƯƠNG TÁC</span>
-          <span className="mt-0.5 font-bold text-[11px] text-white-important">
-            {contact.is_friend === 1 ? 'Thân thiết' : 'Lạnh'}
+          <span className="text-base leading-none">{contact.is_friend === 1 ? '👋' : '👤'}</span>
+          <span className={`text-[9px] uppercase tracking-wider font-bold mt-0.5 ${
+            contact.is_friend === 1 ? 'text-emerald-600' : 'text-gray-500'
+          }`}>KHÁCH</span>
+          <span className={`font-bold text-[10px] ${
+            contact.is_friend === 1 ? 'text-emerald-700' : 'text-gray-600'
+          }`}>
+            {contact.is_friend === 1 ? 'Bạn bè' : 'Lạ'}
           </span>
         </div>
       </div>
@@ -858,10 +888,11 @@ ${notesText}`;
                   e.stopPropagation();
                   setEditingField('alias');
                 }}
-                className="text-gray-900 font-semibold text-sm cursor-pointer hover:bg-gray-100 px-2 py-0.5 rounded transition-colors inline-block"
+                className="group/alias relative text-gray-900 font-semibold text-sm cursor-pointer hover:bg-gray-100 px-2 py-0.5 rounded transition-colors inline-flex items-center gap-1"
                 title="Nhấp để sửa tên/biệt danh"
               >
                 {name}
+                <span className="opacity-0 group-hover/alias:opacity-40 text-gray-400 text-[10px] transition-opacity">✏️</span>
               </p>
             )}
             {contact.alias && contact.alias !== contact.display_name &&
@@ -890,7 +921,7 @@ ${notesText}`;
                     e.stopPropagation();
                     setEditingField('phone');
                   }}
-                  className="text-xs text-gray-500 cursor-pointer hover:bg-gray-100 px-2 py-0.5 rounded transition-colors inline-block"
+                  className="group/phone relative text-xs text-gray-500 cursor-pointer hover:bg-gray-100 px-2 py-0.5 rounded transition-colors inline-flex items-center gap-1"
                   title="Nhấp để sửa SĐT"
                 >
                   {contact.phone ? (
@@ -898,6 +929,7 @@ ${notesText}`;
                   ) : (
                     <span className="italic text-gray-400">Nhập SĐT</span>
                   )}
+                  <span className="opacity-0 group-hover/phone:opacity-40 text-gray-400 text-[10px] transition-opacity">✏️</span>
                 </p>
               )}
             </div>
@@ -1029,68 +1061,57 @@ ${notesText}`;
 
         {/* AI Analysis Section */}
         <div className="space-y-2.5">
-          {/* AI Config Controls */}
-          <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm space-y-2.5">
-            <p className="text-[10px] uppercase font-bold tracking-wider text-gray-600 flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-              Cài đặt Trợ lý AI
-            </p>
-
-            {/* Assistant selector */}
+          {/* AI Config Controls — compact single row */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 shadow-sm">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-gray-500 shrink-0 w-24">Trợ lý AI:</span>
+              {/* Icon + label */}
+              <svg className="w-3 h-3 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500 flex-shrink-0">Trợ lý AI</span>
+              {/* Assistant select */}
               <select
                 id={`ai-assistant-select-${contact.contact_id}`}
                 value={contact.ai_assistant_id || ''}
                 onChange={e => handleSaveAIConfig({ assistantId: e.target.value || null })}
                 disabled={aiConfigSaving}
-                className="flex-1 text-[11px] border border-gray-300 rounded-md px-2 py-1 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-60"
+                className="flex-1 text-[10px] border border-gray-200 rounded px-1.5 py-0.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-60 min-w-0"
               >
                 <option value="">— Mặc định —</option>
                 {assistants.map(a => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
-            </div>
-
-            {/* Auto-summary toggle + threshold */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] text-gray-500 shrink-0 w-24">Tự động tổng hợp:</span>
-              <button
-                id={`ai-auto-summary-toggle-${contact.contact_id}`}
-                onClick={() => handleSaveAIConfig({ autoSummary: contact.ai_auto_summary ? 0 : 1 })}
-                disabled={aiConfigSaving}
-                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-60 ${
-                  contact.ai_auto_summary ? 'bg-emerald-500' : 'bg-gray-300'
-                }`}
-              >
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                  contact.ai_auto_summary ? 'translate-x-4' : 'translate-x-1'
-                }`} />
-              </button>
+              {/* Auto-summary toggle */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-[10px] text-gray-400">Tự tổng</span>
+                <button
+                  id={`ai-auto-summary-toggle-${contact.contact_id}`}
+                  onClick={() => handleSaveAIConfig({ autoSummary: contact.ai_auto_summary ? 0 : 1 })}
+                  disabled={aiConfigSaving}
+                  className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-60 ${
+                    contact.ai_auto_summary ? 'bg-emerald-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${
+                    contact.ai_auto_summary ? 'translate-x-3.5' : 'translate-x-0.5'
+                  }`} />
+                </button>
+              </div>
+              {/* Threshold input (only when auto-summary ON) */}
               {contact.ai_auto_summary ? (
-                <>
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <input
                     id={`ai-threshold-input-${contact.contact_id}`}
-                    type="number"
-                    min={1}
-                    max={500}
+                    type="number" min={1} max={500}
                     defaultValue={contact.ai_auto_summary_threshold ?? 30}
                     onBlur={e => {
                       const v = parseInt(e.target.value, 10);
                       if (!isNaN(v) && v > 0) handleSaveAIConfig({ threshold: v });
                     }}
-                    className="w-14 text-[11px] border border-gray-300 rounded-md px-2 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    className="w-10 text-[10px] border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
                   />
-                  <span className="text-[11px] text-gray-400">tin</span>
-                  {/* Counter badge */}
-                  <span className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
-                    {contact.ai_auto_summary_counter ?? 0}/{contact.ai_auto_summary_threshold ?? 30}
-                  </span>
-                </>
-              ) : (
-                <span className="text-[11px] text-gray-400 italic">Tắt</span>
-              )}
+                  <span className="text-[10px] text-gray-400">{contact.ai_auto_summary_counter ?? 0}/{contact.ai_auto_summary_threshold ?? 30}</span>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -1163,61 +1184,53 @@ ${notesText}`;
           {/* Local Notes Timeline */}
           {(!isGroup || noteTab === 'local') && (
             <div className="space-y-3.5">
-              {/* Timeline feed container */}
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {/* Notes list — plain content + timestamp */}
+              <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
                 {sortedNotes.map(note => (
                   <div key={note.id} className="w-full">
                     {editNoteId === note.id ? (
-                      <div className="w-full bg-white border border-gray-200 rounded-lg p-2.5 space-y-1.5 shadow-sm">
-                        <textarea 
-                          value={editNoteText} 
+                      <div className="space-y-1.5">
+                        <textarea
+                          value={editNoteText}
                           onChange={e => setEditNoteText(e.target.value)}
-                          rows={2} 
+                          rows={2}
                           autoFocus
-                          className="w-full bg-white border border-gray-300 rounded px-2 py-1.5 text-xs text-gray-900 focus:outline-none focus:border-blue-500 resize-none" 
+                          className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 focus:outline-none focus:border-blue-500 resize-none"
                         />
                         <div className="flex gap-2">
-                          <button onClick={() => setEditNoteId(null)} className="flex-1 py-1 rounded bg-gray-100 text-[11px] text-gray-700 hover:bg-gray-200 font-medium transition-colors border border-gray-300">Hủy</button>
+                          <button onClick={() => setEditNoteId(null)} className="flex-1 py-1 rounded bg-gray-100 text-[11px] text-gray-700 hover:bg-gray-200 font-medium transition-colors border border-gray-200">Hủy</button>
                           <button onClick={() => handleEditNote(note.id)} disabled={savingNote || !editNoteText.trim()} className="flex-1 py-1 rounded bg-blue-600 text-[11px] text-white hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors">Lưu</button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-start gap-1 group">
-                        <div className="max-w-[95%] bg-white border border-gray-300 rounded-xl rounded-tl-none px-3 py-2 text-xs text-gray-900 shadow-sm relative">
-                          <p className="whitespace-pre-wrap leading-relaxed font-medium">{note.content}</p>
-                          
-                          <div className="absolute right-2 bottom-1 opacity-0 group-hover:opacity-100 flex gap-2 bg-white border border-gray-200 px-1.5 py-0.5 rounded transition-opacity shadow ml-4">
-                            <button 
-                              onClick={() => { setEditNoteId(note.id); setEditNoteText(note.content); }} 
-                              className="text-[10px] text-blue-600 hover:text-blue-500 font-medium"
-                            >
-                              Sửa
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteNote(note.id)} 
-                              className="text-[10px] text-red-655 hover:text-red-500 font-medium"
-                            >
-                              Xóa
-                            </button>
-                          </div>
+                      <div className="group">
+                        <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{note.content}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-gray-400">{fmt(note.created_at || note.updated_at)}</span>
+                          <span className="opacity-0 group-hover:opacity-100 flex gap-2 transition-opacity">
+                            <button
+                              onClick={() => { setEditNoteId(note.id); setEditNoteText(note.content); }}
+                              className="text-[10px] text-blue-500 hover:text-blue-600 font-medium"
+                            >Sửa</button>
+                            <button
+                              onClick={() => handleDeleteNote(note.id)}
+                              className="text-[10px] text-red-400 hover:text-red-500 font-medium"
+                            >Xóa</button>
+                          </span>
                         </div>
-                        <span className="text-[10px] text-gray-500 ml-1">
-                          {fmt(note.created_at || note.updated_at)}
-                        </span>
                       </div>
                     )}
                   </div>
                 ))}
 
                 {notes.length === 0 && (
-                  <p className="text-xs text-gray-600 text-center py-4 bg-white border border-dashed border-gray-300 rounded-lg">
-                    Chưa có ghi chú nào.
-                  </p>
+                  <p className="text-xs text-gray-400 text-center py-4">Chưa có ghi chú nào.</p>
                 )}
               </div>
 
-              {/* Chat-style new note input bar */}
-              <div className="flex items-center gap-2 bg-white border border-gray-300 px-2.5 py-1.5 rounded-lg focus-within:border-blue-500 transition-colors">
+
+              {/* Chat-style new note input bar — clean pill */}
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-2xl focus-within:border-blue-400 transition-colors">
                 <textarea
                   value={newNoteText}
                   onChange={e => setNewNoteText(e.target.value)}
@@ -1226,17 +1239,19 @@ ${notesText}`;
                   className="flex-1 bg-transparent text-xs text-gray-900 placeholder-gray-400 focus:outline-none resize-none max-h-16"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
+                      if (e.nativeEvent.isComposing) return;
                       e.preventDefault();
                       handleAddNote();
                     }
                   }}
                 />
                 <button 
+                  type="button"
                   onClick={handleAddNote} 
                   disabled={savingNote || !newNoteText.trim()}
-                  className="p-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors disabled:opacity-40 self-end"
+                  className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors disabled:opacity-40 self-end"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
               </div>
             </div>

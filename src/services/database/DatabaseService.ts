@@ -4837,27 +4837,49 @@ class DatabaseService {
             }
 
             if (label.id) {
-                this.run(
-                    `UPDATE local_labels
-                     SET name=?, color=?, text_color=?, emoji=?, page_ids=?,
-                         is_active=COALESCE(?,is_active),
-                         sort_order=COALESCE(?,sort_order),
-                         shortcut=?,
-                         updated_at=?
-                     WHERE id=?`,
-                    [
-                        label.name,
-                        label.color,
-                        tc,
-                        label.emoji,
-                        label.pageIds,
-                        label.isActive ?? null,
-                        label.sortOrder ?? null,
-                        shortcut,
-                        now,
-                        label.id
-                    ]
-                );
+                const existedRow = this.queryOne<any>(`SELECT id FROM local_labels WHERE id=?`, [label.id]);
+                if (existedRow) {
+                    this.run(
+                        `UPDATE local_labels
+                         SET name=?, color=?, text_color=?, emoji=?, page_ids=?,
+                             is_active=COALESCE(?,is_active),
+                             sort_order=COALESCE(?,sort_order),
+                             shortcut=?,
+                             updated_at=?
+                         WHERE id=?`,
+                        [
+                            label.name,
+                            label.color,
+                            tc,
+                            label.emoji,
+                            label.pageIds,
+                            label.isActive ?? null,
+                            label.sortOrder ?? null,
+                            shortcut,
+                            now,
+                            label.id
+                        ]
+                    );
+                } else {
+                    this.run(
+                        `INSERT INTO local_labels
+                         (id, name, color, text_color, emoji, page_ids, is_active, sort_order, shortcut, created_at, updated_at)
+                         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+                        [
+                            label.id,
+                            label.name,
+                            label.color,
+                            tc,
+                            label.emoji,
+                            label.pageIds,
+                            label.isActive ?? 1,
+                            label.sortOrder ?? 0,
+                            shortcut,
+                            now,
+                            now
+                        ]
+                    );
+                }
                 return label.id;
             } else {
                 this.run(
@@ -4991,12 +5013,30 @@ class DatabaseService {
             const contactType = note.contact_type ?? 'user';
             const topicId = note.topic_id ?? null;
             if (note.id) {
-                this.run(
-                    `UPDATE crm_notes SET content=?, topic_id=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                    [note.content, topicId, now, note.id, note.owner_zalo_id],
-                );
+                const rows = this.query<any>(`SELECT id FROM crm_notes WHERE id=? AND owner_zalo_id=?`, [note.id, note.owner_zalo_id]);
+                if (rows.length > 0) {
+                    this.run(
+                        `UPDATE crm_notes SET content=?, topic_id=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [note.content, topicId, now, note.id, note.owner_zalo_id],
+                    );
+                } else {
+                    this.run(
+                        `INSERT INTO crm_notes (id, owner_zalo_id, contact_id, contact_type, content, topic_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+                        [note.id, note.owner_zalo_id, note.contact_id, contactType, note.content, topicId, now, now],
+                    );
+                }
                 return note.id;
             } else {
+                // Check duplicate crm note within 1.5 seconds (same owner, contact, content)
+                const checkRows = this.query<any>(
+                    `SELECT id FROM crm_notes WHERE owner_zalo_id=? AND contact_id=? AND content=? AND created_at > ?`,
+                    [note.owner_zalo_id, note.contact_id, note.content, now - 1500]
+                );
+                if (checkRows.length > 0) {
+                    Logger.warn(`[DB] saveCRMNote: Phát hiện tạo ghi chú trùng lặp, bỏ qua INSERT và trả về ID=${checkRows[0].id}`);
+                    return checkRows[0].id;
+                }
+
                 return this.runInsert(
                     `INSERT INTO crm_notes (owner_zalo_id, contact_id, contact_type, content, topic_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?)`,
                     [note.owner_zalo_id, note.contact_id, contactType, note.content, topicId, now, now],
@@ -5067,12 +5107,30 @@ class DatabaseService {
             // Still write delay_seconds as the midpoint for backward compat
             const compatDelaySeconds = campaign.delay_seconds || Math.round((delayMin + delayMax) / 2);
             if (campaign.id) {
-                this.run(
-                    `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                    [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, campaign.id, campaign.owner_zalo_id]
-                );
+                const rows = this.query<any>(`SELECT id FROM crm_campaigns WHERE id=? AND owner_zalo_id=?`, [campaign.id, campaign.owner_zalo_id]);
+                if (rows.length > 0) {
+                    this.run(
+                        `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, campaign.id, campaign.owner_zalo_id]
+                    );
+                } else {
+                    this.run(
+                        `INSERT INTO crm_campaigns (id, owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        [campaign.id, campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, now]
+                    );
+                }
                 return campaign.id;
             } else {
+                // Check duplicate campaign within 1.5 seconds (same owner, name, type)
+                const checkRows = this.query<any>(
+                    `SELECT id FROM crm_campaigns WHERE owner_zalo_id=? AND name=? AND campaign_type=? AND created_at > ?`,
+                    [campaign.owner_zalo_id, campaign.name, type, now - 1500]
+                );
+                if (checkRows.length > 0) {
+                    Logger.warn(`[DB] saveCRMCampaign: Phát hiện tạo chiến dịch trùng lặp, bỏ qua INSERT và trả về ID=${checkRows[0].id}`);
+                    return checkRows[0].id;
+                }
+
                 return this.runInsert(
                     `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                     [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, now]
@@ -5096,7 +5154,7 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] deleteCRMCampaign: ${err.message}`); }
     }
 
-    public cloneCRMCampaign(campaignId: number, ownerZaloId: string, includeContacts: boolean, newName?: string): number {
+    public cloneCRMCampaign(campaignId: number, ownerZaloId: string, includeContacts: boolean, newName?: string, explicitNewId?: number): number {
         if (!this.initialized) return 0;
         try {
             const orig = this.getCRMCampaign(campaignId);
@@ -5104,7 +5162,7 @@ class DatabaseService {
 
             const newId = this.saveCRMCampaign({
                 ...orig,
-                id: 0,
+                id: explicitNewId || 0,
                 name: (newName?.trim()) || ((orig.name || '') + ' (bản sao)'),
                 status: 'draft',
                 scheduled_start_at: 0,
@@ -5461,34 +5519,33 @@ class DatabaseService {
             const params: any[] = hasOwner ? [startOfToday, ownerZaloId] : [startOfToday];
 
             const msgSql = `
-                SELECT COUNT(DISTINCT cc.id) as cnt
-                FROM crm_campaign_contacts cc
-                JOIN crm_campaigns c ON cc.campaign_id = c.id
-                WHERE cc.status = 'sent'
-                  AND cc.sent_at >= ?
-                  AND c.campaign_type = 'message'
-                  ${hasOwner ? 'AND cc.owner_zalo_id = ?' : ''}
+                SELECT COUNT(DISTINCT sl.contact_id) as cnt
+                FROM crm_send_log sl
+                WHERE sl.status = 'sent'
+                  AND sl.sent_at >= ?
+                  AND (sl.send_type = 'message' OR sl.send_type = '' OR sl.send_type IS NULL)
+                  AND NOT (sl.send_type = 'friend_request' OR sl.message LIKE '[%Kết bạn]%' OR sl.message LIKE '[Kết bạn]%' OR sl.message LIKE '[Hỗn hợp/Kết bạn]%' OR sl.message LIKE '[Kết bạn dự phòng]%')
+                  ${hasOwner ? 'AND sl.owner_zalo_id = ?' : ''}
                   AND NOT EXISTS (
-                      SELECT 1 FROM friends f WHERE f.owner_zalo_id = cc.owner_zalo_id AND f.user_id = cc.contact_id
+                      SELECT 1 FROM friends f WHERE f.owner_zalo_id = sl.owner_zalo_id AND f.user_id = sl.contact_id
                   )
                   AND NOT EXISTS (
-                      SELECT 1 FROM contacts co WHERE co.owner_zalo_id = cc.owner_zalo_id AND co.contact_id = cc.contact_id AND co.is_friend = 1
+                      SELECT 1 FROM contacts co WHERE co.owner_zalo_id = sl.owner_zalo_id AND co.contact_id = sl.contact_id AND co.is_friend = 1
                   )
             `;
 
             const inviteSql = `
-                SELECT COUNT(DISTINCT cc.id) as cnt
-                FROM crm_campaign_contacts cc
-                JOIN crm_campaigns c ON cc.campaign_id = c.id
-                WHERE cc.status = 'sent'
-                  AND cc.sent_at >= ?
-                  AND c.campaign_type = 'friend_request'
-                  ${hasOwner ? 'AND cc.owner_zalo_id = ?' : ''}
+                SELECT COUNT(DISTINCT sl.contact_id) as cnt
+                FROM crm_send_log sl
+                WHERE sl.status = 'sent'
+                  AND sl.sent_at >= ?
+                  AND (sl.send_type = 'friend_request' OR sl.message LIKE '[%Kết bạn]%' OR sl.message LIKE '[Kết bạn]%' OR sl.message LIKE '[Hỗn hợp/Kết bạn]%' OR sl.message LIKE '[Kết bạn dự phòng]%')
+                  ${hasOwner ? 'AND sl.owner_zalo_id = ?' : ''}
                   AND NOT EXISTS (
-                      SELECT 1 FROM friends f WHERE f.owner_zalo_id = cc.owner_zalo_id AND f.user_id = cc.contact_id
+                      SELECT 1 FROM friends f WHERE f.owner_zalo_id = sl.owner_zalo_id AND f.user_id = sl.contact_id
                   )
                   AND NOT EXISTS (
-                      SELECT 1 FROM contacts co WHERE co.owner_zalo_id = cc.owner_zalo_id AND co.contact_id = cc.contact_id AND co.is_friend = 1
+                      SELECT 1 FROM contacts co WHERE co.owner_zalo_id = sl.owner_zalo_id AND co.contact_id = sl.contact_id AND co.is_friend = 1
                   )
             `;
 
@@ -5497,7 +5554,7 @@ class DatabaseService {
 
             // Group campaigns by creation date (last 30 days)
             const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-            const timeParams = hasOwner ? [ownerZaloId, thirtyDaysAgo] : [thirtyDaysAgo];
+            const timeParams = hasOwner ? [thirtyDaysAgo, ownerZaloId] : [thirtyDaysAgo];
             const timeline = this.query<any>(`
                 SELECT strftime('%Y-%m-%d', datetime(created_at/1000, 'unixepoch', 'localtime')) as date_str, COUNT(*) as count
                 FROM crm_campaigns

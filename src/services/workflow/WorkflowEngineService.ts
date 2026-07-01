@@ -1230,6 +1230,65 @@ class WorkflowEngineService {
 
     const type = node.type;
     
+    // AI Actions
+    if (type === 'ai.generateText') {
+      return { result: `[Sandbox AI Mock] Trả lời giả lập cho prompt: "${cfg.prompt || ''}"`, totalTokens: 100, model: 'sandbox-model', _sandbox: true };
+    }
+    if (type === 'ai.classify') {
+      const categories: string[] = String(cfg.categories || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+      const matchedCategory = categories[0] || 'default';
+      return { category: matchedCategory, input: cfg.input || '', _sandbox: true };
+    }
+
+    // Logic wait & Zalo getProfile mock for sandbox testing
+    if (type === 'logic.wait') {
+      let ms = 0;
+      if (cfg.delayMs !== undefined && cfg.delayMs !== null) {
+        ms = Number(cfg.delayMs);
+      } else if (cfg.delaySeconds !== undefined && cfg.delaySeconds !== null && cfg.delaySeconds !== '') {
+        ms = Number(cfg.delaySeconds) * 1000;
+      } else {
+        const d = Number(cfg.days || 0);
+        const h = Number(cfg.hours || 0);
+        const m = Number(cfg.minutes || 0);
+        const s = Number(cfg.seconds || 0);
+        ms = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+      }
+      return { waited: ms, _sandbox: true };
+    }
+    if (type === 'zalo.getUserInfo') {
+      return {
+        userId: cfg.userId || 'mock_user_id',
+        displayName: 'Khách Hàng Sandbox',
+        avatarUrl: 'https://avatar.talk.zdn.vn/default',
+        phone: '0901234567',
+        isFriend: 1,
+        _sandbox: true
+      };
+    }
+    if (type === 'zalo.getMessageHistory') {
+      return {
+        output: 'Khách hàng: Chào shop, shop có sản phẩm A không?\nShop: Dạ shop có ạ, giá sản phẩm A là 200k ạ.\nKhách hàng: Ship cho mình 1 cái đến quận 1 nhé.',
+        messages: [
+          { senderId: 'customer', senderName: 'Khách hàng', content: 'Chào shop, shop có sản phẩm A không?', timestamp: Date.now() - 10000 },
+          { senderId: 'shop', senderName: 'Shop', content: 'Dạ shop có ạ, giá sản phẩm A là 200k ạ.', timestamp: Date.now() - 8000 },
+          { senderId: 'customer', senderName: 'Khách hàng', content: 'Ship cho mình 1 cái đến quận 1 nhé.', timestamp: Date.now() - 5000 }
+        ],
+        _sandbox: true
+      };
+    }
+    if (type === 'payment.getTransactions') {
+      return {
+        transactions: [
+          { transactionId: 'TX1001', amount: 200000, description: 'ZAGI SPX1', bankName: 'Vietcombank', timestamp: Date.now() },
+          { transactionId: 'TX1002', amount: 350000, description: 'ZAGI SPX2', bankName: 'Techcombank', timestamp: Date.now() }
+        ],
+        count: 2,
+        totalAmount: 550000,
+        _sandbox: true
+      };
+    }
+    
     // Zalo Actions
     if (type === 'zalo.sendMessage') {
       return { msgId: `mock_zalo_msg_${Date.now()}`, success: true, _sandbox: true };
@@ -1328,7 +1387,7 @@ class WorkflowEngineService {
       // ── CRM Actions ─────────────────────────────────────────────────────
       case 'crm.getContacts': {
         let sql = `
-          SELECT contact_id, display_name, avatar_url as avatar, phone, is_friend, contact_type, gender, birthday, pipeline_stage_id, channel
+          SELECT contact_id, display_name, avatar_url as avatar, phone, is_friend, contact_type, gender, birthday, pipeline_stage_id, channel, salutation, alias, ai_profile, extra_data
           FROM contacts
           WHERE 1=1
         `;
@@ -1342,6 +1401,17 @@ class WorkflowEngineService {
         if (cfg.gender !== undefined && cfg.gender !== null && cfg.gender !== '') {
           sql += ` AND gender = ?`;
           params.push(Number(cfg.gender));
+        }
+
+        if (cfg.salutation !== undefined && cfg.salutation !== null && cfg.salutation !== '') {
+          sql += ` AND salutation LIKE ?`;
+          params.push(`%${cfg.salutation}%`);
+        }
+
+        if (cfg.searchQuery !== undefined && cfg.searchQuery !== null && cfg.searchQuery !== '') {
+          sql += ` AND (display_name LIKE ? OR alias LIKE ? OR contact_id LIKE ? OR phone LIKE ?)`;
+          const queryParam = `%${cfg.searchQuery}%`;
+          params.push(queryParam, queryParam, queryParam, queryParam);
         }
 
         if (cfg.pipelineStageId !== undefined && cfg.pipelineStageId !== null && cfg.pipelineStageId !== '') {
@@ -1362,6 +1432,15 @@ class WorkflowEngineService {
             WHERE label_id IN (${placeholders})
           )`;
           params.push(...cfg.localLabelIds);
+        }
+
+        if (cfg.zaloLabelIds && Array.isArray(cfg.zaloLabelIds) && cfg.zaloLabelIds.length > 0) {
+          const placeholders = cfg.zaloLabelIds.map(() => '?').join(',');
+          sql += ` AND contact_id IN (
+            SELECT thread_id FROM local_label_threads 
+            WHERE label_id IN (${placeholders})
+          )`;
+          params.push(...cfg.zaloLabelIds);
         }
 
         if (cfg.tagIds && Array.isArray(cfg.tagIds) && cfg.tagIds.length > 0) {
@@ -1395,6 +1474,49 @@ class WorkflowEngineService {
             }
             return false;
           });
+        }
+
+        // Bổ sung: Lấy nhãn (local & Zalo) của các liên hệ
+        if (rows.length > 0) {
+          const ownerZaloId = _wf.pageIds?.[0] || _wf.pageId || ctx.trigger?.zaloId || '';
+          if (ownerZaloId) {
+            try {
+              const labelRows = DatabaseService.getInstance().query<any>(
+                `SELECT llt.thread_id as contact_id, ll.id, ll.name, ll.color, ll.text_color as textColor, ll.shortcut
+                 FROM local_label_threads llt
+                 JOIN local_labels ll ON llt.label_id = ll.id
+                 WHERE llt.owner_zalo_id = ?`,
+                [ownerZaloId]
+              ) || [];
+
+              const labelMap: Record<string, any[]> = {};
+              for (const lr of labelRows) {
+                if (!labelMap[lr.contact_id]) labelMap[lr.contact_id] = [];
+                labelMap[lr.contact_id].push({
+                  id: lr.id,
+                  name: lr.name,
+                  color: lr.color,
+                  textColor: lr.textColor,
+                  shortcut: lr.shortcut
+                });
+              }
+
+              for (const r of rows) {
+                r.labels = labelMap[r.contact_id] || [];
+                r.salutation = r.salutation || '';
+                r.alias = r.alias || '';
+                r.aiProfile = r.ai_profile || '';
+                r.extraData = r.extra_data || '';
+                try {
+                  r.extraDataObject = r.extra_data ? JSON.parse(r.extra_data) : {};
+                } catch {
+                  r.extraDataObject = {};
+                }
+              }
+            } catch (err: any) {
+              Logger.error(`[WorkflowEngine] crm.getContacts labels fetch error: ${err.message}`);
+            }
+          }
         }
 
         Logger.info(`[WorkflowEngine] crm.getContacts: matched ${rows.length} contacts`);
@@ -1910,7 +2032,18 @@ class WorkflowEngineService {
       }
 
       case 'logic.wait': {
-        const ms = Number(cfg.delayMs ?? (Number(cfg.delaySeconds || 1) * 1000));
+        let ms = 0;
+        if (cfg.delayMs !== undefined && cfg.delayMs !== null) {
+          ms = Number(cfg.delayMs);
+        } else if (cfg.delaySeconds !== undefined && cfg.delaySeconds !== null && cfg.delaySeconds !== '') {
+          ms = Number(cfg.delaySeconds) * 1000;
+        } else {
+          const d = Number(cfg.days || 0);
+          const h = Number(cfg.hours || 0);
+          const m = Number(cfg.minutes || 0);
+          const s = Number(cfg.seconds || 0);
+          ms = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
+        }
         await new Promise(r => setTimeout(r, Math.min(ms, 300_000)));
         return { waited: ms };
       }

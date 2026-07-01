@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { CRMContact } from '@/store/crmStore';
-import type { ContactTypeFilter, GenderFilter, BirthdayFilter } from '@/store/crmStore';
+import type { ContactTypeFilter, GenderFilter, BirthdayFilter, SalutationFilter } from '@/store/crmStore';
 import type { LabelData } from '@/store/appStore';
 import { useAppStore } from '@/store/appStore';
 import type { LocalLabelItem } from '@/components/common/LocalLabelSelector';
@@ -24,6 +24,9 @@ interface CRMContactListProps {
   filterContactTypes: ContactTypeFilter[];
   filterGender: GenderFilter;
   filterBirthday: BirthdayFilter;
+  filterSalutation?: SalutationFilter;
+  /** Toàn bộ danh sách contacts (dùng để tính động các giá trị xưng hô) */
+  allContactsForFilter?: CRMContact[];
   searchText: string;
   sortBy: 'name' | 'last_message';
   sortDir: 'asc' | 'desc';
@@ -385,6 +388,69 @@ function SortDropdown({ sortBy, sortDir, onChange }: {
   );
 }
 
+/** Dropdown lọc theo Xưng hô — tự động thu thập các giá trị có trong danh sách */
+function SalutationFilterDropdown({ contacts, value, onChange }: {
+  contacts: CRMContact[];
+  value: SalutationFilter;
+  onChange: (v: SalutationFilter) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // Thu thập tập hợp xưng hô từ contacts (dùng mặc định khi không có salutation)
+  const salutationValues = Array.from(new Set(
+    contacts
+      .filter(c => c.contact_type !== 'group')
+      .map(c => c.salutation || (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Bạn'))
+      .filter(Boolean)
+  )).sort();
+
+  if (salutationValues.length === 0) return null;
+
+  const isActive = value && value !== 'all';
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+          isActive ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-600 text-gray-400 hover:border-gray-500'
+        }`}>
+        🗣 {isActive ? value : 'Xưng hô'}
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="ml-0.5">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[130px] overflow-hidden">
+          <button onClick={() => { onChange('all'); setOpen(false); }}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-700 text-left transition-colors ${
+              value === 'all' || !value ? 'bg-gray-700/60' : ''
+            }`}>
+            <span className="text-xs">👤</span>
+            <span className="text-xs text-gray-200">Tất cả</span>
+            {(value === 'all' || !value) && <span className="ml-auto text-blue-400 text-[11px]">✓</span>}
+          </button>
+          {salutationValues.map(sal => (
+            <button key={sal} onClick={() => { onChange(sal); setOpen(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-700 text-left transition-colors ${
+                value === sal ? 'bg-gray-700/60' : ''
+              }`}>
+              <span className="text-xs">🗣</span>
+              <span className="text-xs text-gray-200">{sal}</span>
+              {value === sal && <span className="ml-auto text-blue-400 text-[11px]">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onImportData }: {
   total: number;
   exportingCSV: boolean;
@@ -463,8 +529,8 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onI
 
 export default function CRMContactList({
   contacts, total, page, pageSize, loading, selectedIds, activeContactId,
-  allLabels, filterLabelIds, filterLocalLabelIds, filterContactTypes, filterGender, filterBirthday, searchText, sortBy, sortDir,
-  activeAccountId, localLabels, localLabelThreadMap, assistants,
+  allLabels, filterLabelIds, filterLocalLabelIds, filterContactTypes, filterGender, filterBirthday, filterSalutation, searchText, sortBy, sortDir,
+  activeAccountId, localLabels, localLabelThreadMap, assistants, allContactsForFilter,
   onSelectContact, onActivateContact, onSelectAll, onClearAll, onSelectAllPages,
   onExportAll,
   onFilterChange, onPageChange, onMessage, onImportPhones, onImportData,
@@ -669,6 +735,13 @@ export default function CRMContactList({
         <BirthdayFilterDropdown
           value={filterBirthday}
           onChange={v => onFilterChange({ filterBirthday: v, page: 0 })}
+        />
+
+        {/* Salutation filter */}
+        <SalutationFilterDropdown
+          contacts={allContactsForFilter || []}
+          value={filterSalutation || 'all'}
+          onChange={v => onFilterChange({ filterSalutation: v, page: 0 })}
         />
 
         {/* Sort dropdown (styled) */}

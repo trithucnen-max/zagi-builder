@@ -222,7 +222,7 @@ export const DEFAULT_CONFIGS: Record<string, Record<string, any>> = {
   'zalo.removeLabel':      { threadId: '{{ $trigger.threadId }}', labelSource: 'local', labelIds: [] },
   'logic.if':              { left: '{{ $trigger.content }}', operator: 'contains', right: '' },
   'logic.switch':          { value: '{{ $trigger.content }}', cases: [], defaultLabel: 'default' },
-  'logic.wait':            { delaySeconds: 3 },
+  'logic.wait':            { days: 0, hours: 0, minutes: 0, seconds: 3 },
   'logic.setVariable':     { name: '', value: '' },
   'logic.stopIf':          { left: '', operator: 'equals', right: '' },
   'logic.forEach':         { array: '[]', itemVariable: 'item' },

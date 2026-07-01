@@ -121,6 +121,7 @@ export default function SmartGroupModal({
   // Owner group states
   const [ownerGroupIds, setOwnerGroupIds] = useState<Set<string>>(new Set());
   const [appointedOwners, setAppointedOwners] = useState<Record<string, string>>({});
+  const [ownerGroupActions, setOwnerGroupActions] = useState<Record<string, 'leave' | 'disperse'>>({});
   const [groupMembersList, setGroupMembersList] = useState<Record<string, any[]>>({});
 
   // Leave Options
@@ -188,6 +189,12 @@ export default function SmartGroupModal({
         }
         setGroupMembersList(membersListMap);
 
+        const initialActions: Record<string, 'leave' | 'disperse'> = {};
+        for (const id of ownerGroupsList) {
+          initialActions[id] = 'leave';
+        }
+        setOwnerGroupActions(initialActions);
+
         // Map group info
         const groupContacts: any[] = contacts.filter(c => c.contact_type === 'group');
         const mapGroup = (id: string): any => {
@@ -223,7 +230,7 @@ export default function SmartGroupModal({
     if (!auth) return;
 
     // Extra validation
-    const ownerGroupsToLeave = adminGroups.filter((g: any) => ownerGroupIds.has(g.contact_id));
+    const ownerGroupsToLeave = adminGroups.filter((g: any) => ownerGroupIds.has(g.contact_id) && (ownerGroupActions[g.contact_id] || 'leave') === 'leave');
     for (const g of ownerGroupsToLeave) {
       if (!appointedOwners[g.contact_id]) {
         showNotification(`Vui lòng chọn thành viên nhận quyền Trưởng nhóm cho nhóm "${g.display_name}"`, 'error');
@@ -237,7 +244,7 @@ export default function SmartGroupModal({
     setTotal(allSelectedGroups.length);
     let currentProgress = 0;
 
-    addLog(`Bắt đầu rời ${allSelectedGroups.length} nhóm đã chọn...`, 'info');
+    addLog(`Bắt đầu xử lý ${allSelectedGroups.length} nhóm đã chọn...`, 'info');
 
     const isSilent = mode === 'silent';
     const hasFarewell = mode === 'farewell' && !!farewellMessage.trim();
@@ -246,6 +253,7 @@ export default function SmartGroupModal({
       const g = allSelectedGroups[i];
       const isAdmin = adminGroups.some((x: any) => x.contact_id === g.contact_id);
       const isOwner = ownerGroupIds.has(g.contact_id);
+      const action = ownerGroupActions[g.contact_id] || 'leave';
 
       currentProgress++;
       setProgress(currentProgress);
@@ -253,8 +261,37 @@ export default function SmartGroupModal({
       addLog(`👉 Đang xử lý nhóm: "${g.display_name}"...`, 'info');
 
       try {
-        // Chuyển quyền Trưởng nhóm trước nếu mình là Owner
-        if (isOwner) {
+        // Giải tán nhóm nếu là Owner và chọn Giải tán
+        if (isOwner && action === 'disperse') {
+          addLog(`  ↳ Đang giải tán nhóm trên Zalo...`, 'info');
+          try {
+            const disperseRes = await ipc.zalo?.disperseGroup({ auth, groupId: g.contact_id });
+            if (disperseRes?.success) {
+              addLog(`✓ Giải tán nhóm "${g.display_name}" thành công`, 'success');
+              
+              // Xóa khỏi DB local
+              try {
+                await ipc.db?.deleteConversation({ zaloId: activeAccountId, contactId: g.contact_id });
+              } catch (dbErr: any) {
+                console.error('Lỗi dọn DB local:', dbErr);
+              }
+              
+              if (i < allSelectedGroups.length - 1) {
+                await new Promise(r => setTimeout(r, 1000 + Math.random() * 500));
+              }
+              continue;
+            } else {
+              addLog(`✗ Không thể giải tán nhóm "${g.display_name}" → ${disperseRes?.error || 'Lỗi không xác định'}`, 'error');
+              continue;
+            }
+          } catch (err: any) {
+            addLog(`✗ Lỗi hệ thống khi giải tán: ${err.message || 'Lỗi'}`, 'error');
+            continue;
+          }
+        }
+
+        // Chuyển quyền Trưởng nhóm trước nếu mình là Owner và chọn Nhượng quyền
+        if (isOwner && action === 'leave') {
           const newOwnerId = appointedOwners[g.contact_id];
           if (newOwnerId) {
             addLog(`  ↳ Đang chuyển quyền Trưởng nhóm sang thành viên ${newOwnerId}...`, 'info');
@@ -361,7 +398,7 @@ export default function SmartGroupModal({
 
   const isFarewell = mode === 'farewell';
   const hasOwnerGroupWithoutAppointment = selectedGroupIds
-    .filter(id => ownerGroupIds.has(id))
+    .filter(id => ownerGroupIds.has(id) && (ownerGroupActions[id] || 'leave') === 'leave')
     .some(id => !appointedOwners[id]);
 
   const canExecute = !globalRunning && 
@@ -432,38 +469,77 @@ export default function SmartGroupModal({
                 </div>
               )}
 
-              {/* Bổ nhiệm Trưởng nhóm mới (cho cả single và bulk nếu có nhóm là owner) */}
+              {/* Bổ nhiệm Trưởng nhóm mới hoặc Giải tán nhóm (cho cả single và bulk nếu có nhóm là owner) */}
               {ownerGroupsToAppoint.map((g: any) => {
                 const members = groupMembersList[g.contact_id] || [];
                 const hasMembers = members.length > 0;
+                const action = ownerGroupActions[g.contact_id] || 'leave';
                 return (
-                  <div key={g.contact_id} className="space-y-2.5 p-3.5 bg-white dark:bg-[#161616] border border-gray-200/80 dark:border-gray-800 rounded-xl shadow-sm">
+                  <div key={g.contact_id} className="space-y-3 p-3.5 bg-white dark:bg-[#161616] border border-gray-200/80 dark:border-gray-800 rounded-xl shadow-sm">
                     <div className="text-[10px] text-yellow-600 dark:text-yellow-500 font-semibold uppercase tracking-wider flex items-center gap-1">
-                      👑 Bổ nhiệm Trưởng nhóm {isSingle ? '' : `cho "${g.display_name}"`}
+                      👑 Lựa chọn tác vụ {isSingle ? '' : `cho "${g.display_name}"`}
                     </div>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-                      Bạn bắt buộc phải chuyển quyền Trưởng nhóm cho một thành viên khác trước khi rời.
-                    </p>
-                    {hasMembers ? (
-                      <select
-                        value={appointedOwners[g.contact_id] || ''}
-                        onChange={e => setAppointedOwners(prev => ({ ...prev, [g.contact_id]: e.target.value }))}
-                        disabled={globalRunning}
-                        className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:border-[#0068ff] disabled:opacity-50"
+                    
+                    {/* Selector chọn hành động */}
+                    <div className="flex gap-2 p-1 bg-gray-50 dark:bg-[#1a1a1a] rounded-lg border border-gray-200 dark:border-gray-800 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setOwnerGroupActions(prev => ({ ...prev, [g.contact_id]: 'leave' }))}
+                        className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all ${
+                          action === 'leave'
+                            ? 'bg-[#0068ff] text-white shadow-sm'
+                            : 'text-gray-500 hover:bg-gray-150 dark:hover:bg-gray-800'
+                        }`}
                       >
-                        <option value="">-- Chọn thành viên nhận quyền Trưởng nhóm --</option>
-                        {members.map(m => (
-                          <option key={m.member_id} value={m.member_id}>
-                            {m.display_name || m.member_id} ({m.member_id})
-                          </option>
-                        ))}
-                      </select>
+                        👑 Nhượng quyền & Rời
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOwnerGroupActions(prev => ({ ...prev, [g.contact_id]: 'disperse' }))}
+                        className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all ${
+                          action === 'disperse'
+                            ? 'bg-red-600 text-white shadow-sm'
+                            : 'text-gray-500 hover:bg-gray-150 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        ❌ Giải tán nhóm
+                      </button>
+                    </div>
+
+                    {action === 'leave' ? (
+                      <>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                          Bạn bắt buộc phải chuyển quyền Trưởng nhóm cho một thành viên khác trước khi rời.
+                        </p>
+                        {hasMembers ? (
+                          <select
+                            value={appointedOwners[g.contact_id] || ''}
+                            onChange={e => setAppointedOwners(prev => ({ ...prev, [g.contact_id]: e.target.value }))}
+                            disabled={globalRunning}
+                            className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:border-[#0068ff] disabled:opacity-50"
+                          >
+                            <option value="">-- Chọn thành viên nhận quyền Trưởng nhóm --</option>
+                            {members.map(m => (
+                              <option key={m.member_id} value={m.member_id}>
+                                {m.display_name || m.member_id} ({m.member_id})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="text-[11px] text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-lg p-2.5 flex items-center gap-1.5">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <span>Chưa có dữ liệu thành viên. Hãy tải thông tin thành viên của nhóm trước.</span>
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <div className="text-[11px] text-red-500 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-lg p-2.5 flex items-center gap-1.5">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <div className="text-[10px] text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-lg p-2.5 flex items-start gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mt-0.5 flex-shrink-0">
                           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                         </svg>
-                        <span>Chưa có dữ liệu thành viên. Hãy tải thông tin thành viên của nhóm trước.</span>
+                        <span>⚠️ <b>Cảnh báo:</b> Hành động này sẽ giải tán/hủy nhóm Zalo vĩnh viễn, kick tất cả thành viên ra và xóa cuộc trò chuyện. Không thể khôi phục!</span>
                       </div>
                     )}
                   </div>
@@ -614,10 +690,24 @@ export default function SmartGroupModal({
                 className="flex-1 py-2 rounded-xl bg-[#dfdfdf] dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs hover:bg-[#d5d5d5] dark:hover:bg-gray-700/80 transition-colors font-medium">
                 Hủy
               </button>
-              <button onClick={executeLeave} disabled={!canExecute}
-                className="flex-1 py-2 rounded-xl bg-[#f28882] dark:bg-red-600 hover:bg-[#f0746d] dark:hover:bg-red-500 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm">
-                {globalRunning ? 'Đang xử lý...' : isSingle ? 'Rời nhóm' : `Rời ${selectedGroupIds.length} nhóm`}
-              </button>
+              {(() => {
+                const hasDisperse = selectedGroupIds.some(id => ownerGroupIds.has(id) && ownerGroupActions[id] === 'disperse');
+                const isDisperseSingle = isSingle && isOwner && ownerGroupActions[targetGroupId] === 'disperse';
+                const buttonText = globalRunning
+                  ? 'Đang xử lý...'
+                  : isSingle
+                    ? (isDisperseSingle ? 'Giải tán nhóm' : 'Rời nhóm')
+                    : (hasDisperse ? `Xử lý ${selectedGroupIds.length} nhóm` : `Rời ${selectedGroupIds.length} nhóm`);
+                const btnBg = isDisperseSingle || (hasDisperse && !isSingle)
+                  ? 'bg-red-600 hover:bg-red-500'
+                  : 'bg-[#f28882] dark:bg-red-600 hover:bg-[#f0746d] dark:hover:bg-red-500';
+                return (
+                  <button onClick={executeLeave} disabled={!canExecute}
+                    className={`flex-1 py-2 rounded-xl text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm ${btnBg}`}>
+                    {buttonText}
+                  </button>
+                );
+              })()}
             </div>
           </>
         )}

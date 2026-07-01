@@ -66,6 +66,42 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.2.1',
+    date: '07/2026',
+    type: 'patch',
+    highlights: [
+      '👑 Tính năng Giải tán nhóm hàng loạt (Bulk Disperse Group) — Bổ sung tùy chọn giải tán nhóm trực tiếp vào SmartGroupModal.tsx đối với các nhóm bạn sở hữu (Trưởng nhóm). Hiển thị Selector chuyển đổi hành động động giữa nhượng quyền/giải tán và dòng cảnh báo đỏ chi tiết để phòng tránh rủi ro thao tác sai.',
+      '⏳ Tùy chọn cấu hình trễ thông minh cho Node Chờ — Hỗ trợ nhập thời gian delay theo Ngày, Giờ, Phút, Giây trực tiếp trên giao diện cấu hình của node logic.wait, tự động tính toán thời gian trễ cộng dồn và tương thích ngược hoàn hảo với các kịch bản cũ.',
+      '🔍 Bộ lọc CRM nâng cao & Xem trước (Preview) trong Workflow — Thêm trường tìm kiếm tự do, lọc theo xưng hô và nhãn Zalo đồng bộ cho node crm.getContacts. Tích hợp nút xem trước danh sách đối tượng thực tế kèm vẽ GroupAvatar composite và việt hóa đầy đủ nhãn/icon.',
+      '🔗 Bảo mật Webhooks & Proxy đồng bộ Boss — Cấu hình proxy update thông tin khách hàng từ máy nhân viên lên máy Boss trực tiếp và ẩn cấu hình Webhooks Zero Trust đối với tài khoản nhân viên.'
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Thêm Selector hành động "👑 Nhượng quyền & Rời" và "❌ Giải tán nhóm" trong SmartGroupModal.tsx.',
+          'Bổ sung trường days, hours, minutes, seconds cho cấu hình logic.wait ở frontend và backend engine.',
+          'Bổ sung ô nhập searchQuery, salutation, zaloLabelIds và nút Xem trước danh sách trong NodeConfigPanel.tsx.'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Dọn dẹp dứt điểm các mã nguồn thừa của tính năng tải lịch sử nhóm Zalo cũ (lỗi HTTP 404).',
+          'Sửa lỗi theme Sáng cho Workflow khi chọn theme hệ thống.',
+          'Khắc phục lỗi layout scrollbar bị biến mất trên Node Config Panel bằng class min-h-0.'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi proxy đồng bộ dữ liệu CRM từ nhân viên lên máy Boss.',
+          'Ẩn hoàn toàn tab Webhooks cấu hình Zero Trust đối với nhân viên.'
+        ]
+      }
+    ]
+  },
+  {
     version: '27.2.0',
     date: '06/2026',
     type: 'patch',

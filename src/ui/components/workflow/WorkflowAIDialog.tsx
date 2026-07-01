@@ -108,7 +108,7 @@ function extractJSON(text: string): any {
 
 export default function WorkflowAIDialog({ currentNodes, currentEdges, channel, onApply, onClose }: WorkflowAIDialogProps) {
   const { showNotification, theme } = useAppStore();
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [assistants, setAssistants] = useState<any[]>([]);

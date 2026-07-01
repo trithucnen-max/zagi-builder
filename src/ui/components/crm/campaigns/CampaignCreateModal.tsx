@@ -481,6 +481,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
               className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
               onKeyDown={e => {
                 if (e.key === 'Enter') {
+                  if (e.nativeEvent.isComposing) return;
                   e.preventDefault();
                   if (prompt.trim() && !aiGenerating) getAiGeneratedText(prompt.trim());
                 }
@@ -598,6 +599,41 @@ export default function CampaignCreateModal({
   const [dailyStartTime, setDailyStartTime] = useState(initialData?.daily_start_time ?? '08:00');
   const friendReqRef = useRef<HTMLTextAreaElement>(null);
   const isSavingRef = useRef(false);
+
+  // AI for friend request
+  const [aiGeneratingFR, setAiGeneratingFR] = useState(false);
+  const [showAiInputFR, setShowAiInputFR] = useState(false);
+  const [promptFR, setPromptFR] = useState('');
+
+  const getAiGeneratedFRText = async (userPrompt: string) => {
+    try {
+      setAiGeneratingFR(true);
+      const listRes = await ipc.ai?.listAssistants();
+      const assistantId = listRes?.assistants?.[0]?.id || 'default';
+      const systemMessage = `Bạn là trợ lý viết lời mời kết bạn Zalo ngắn gọn, tự nhiên, thân thiện. 
+Yiêu cầu quan trọng: 
+- Tối đa 150 ký tự (bắt buộc)
+- Có thể dùng biến: {name}, {gender_greeting}, {alias}
+- Viết trực tiếp, không giải thích, không dẫn nhập
+- Không đưa link vào nội dung`;
+      const response = await ipc.ai?.chat(assistantId, [
+        { role: 'system', content: systemMessage },
+        { role: 'user', content: userPrompt }
+      ]);
+      if (response?.success && response?.result) {
+        const result = response.result.slice(0, 150);
+        setFriendReqMsg(result);
+        setShowAiInputFR(false);
+        setPromptFR('');
+      } else {
+        alert(response?.error || 'Không thể tạo nội dung. Kiểm tra cấu hình AI Assistant.');
+      }
+    } catch (e: any) {
+      alert(`Lỗi AI: ${e.message}`);
+    } finally {
+      setAiGeneratingFR(false);
+    }
+  };
 
   const [isScheduled, setIsScheduled] = useState(!!initialData?.scheduled_start_at && initialData.scheduled_start_at > 0);
 
@@ -1134,15 +1170,13 @@ export default function CampaignCreateModal({
                     <AppIcon name="user_plus" className="text-blue-500" size={12} />
                     <span>Lời nhắn kết bạn</span>
                   </span>
-                  <div className="flex gap-1 flex-wrap">
-                    {TEMPLATE_VARS.map(v => (
-                      <button key={v.key} type="button" onClick={() => insertFRVar(v.key)}
-                        className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors font-medium"
-                        title={`Chèn biến ${v.key}`}>
-                        {v.label}
-                      </button>
-                    ))}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAiInputFR(v => !v)}
+                    className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20 transition-colors font-medium"
+                  >
+                    🪄 AI
+                  </button>
                 </>
               ) : hasInvite && !hasMsg ? (
                 <span className="text-xs font-semibold text-gray-800 dark:text-gray-300 flex items-center gap-1.5">
@@ -1169,41 +1203,128 @@ export default function CampaignCreateModal({
               {/* Friend request — inline in center when mixed */}
               {hasFR && hasMsg && (
                 <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 pt-3">
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
                     <span className="text-[11px] font-semibold text-gray-650 dark:text-gray-400">🤝 Lời nhắn kết bạn</span>
-                    <div className="flex gap-1 flex-wrap">
+                    <div className="flex items-center gap-1 flex-wrap">
                       {TEMPLATE_VARS.map(v => (
                         <button key={v.key} type="button" onClick={() => insertFRVar(v.key)}
                           className="text-[9px] px-1.5 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors font-medium"
-                          title={`Chèn biến ${v.key}`}>
-                          {v.label}
-                        </button>
+                          title={`ChỈn biến ${v.key}`}>{v.label}</button>
                       ))}
+                      <button
+                        type="button"
+                        onClick={() => setShowAiInputFR(v => !v)}
+                        className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20 transition-colors font-medium"
+                      >
+                        🪄 AI
+                      </button>
                     </div>
                   </div>
-                  <textarea ref={friendReqRef} value={friendReqMsg} onChange={e => setFriendReqMsg(e.target.value)}
+                  {showAiInputFR && (
+                    <div className="flex gap-2 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-2.5 py-1.5 mb-1.5">
+                      <input
+                        value={promptFR}
+                        onChange={e => setPromptFR(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && promptFR.trim() && !aiGeneratingFR) { e.preventDefault(); getAiGeneratedFRText(promptFR.trim()); } }}
+                        placeholder="Mô tả lời mời kết bạn..."
+                        className="flex-1 bg-transparent text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { if (promptFR.trim() && !aiGeneratingFR) getAiGeneratedFRText(promptFR.trim()); }}
+                        disabled={aiGeneratingFR || !promptFR.trim()}
+                        className="text-[10px] px-2 py-0.5 bg-emerald-500 text-white rounded-md disabled:opacity-50 font-medium"
+                      >
+                        {aiGeneratingFR ? '...' : 'Viết'}
+                      </button>
+                    </div>
+                  )}
+                  <textarea ref={friendReqRef} value={friendReqMsg} onChange={e => setFriendReqMsg(e.target.value.slice(0, 150))}
                     rows={2} placeholder="Xin chào {name}, tôi muốn kết nối với bạn!"
                     className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
                   {hasFRMsgLink && (
                     <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-1 leading-relaxed">
-                      ⚠️ Cảnh báo: Tránh gửi đường link (liên kết) kèm theo lời mời kết bạn.
+                      ⚠️ Cảnh báo: Tránh gửi đường link kèm theo lời mời kết bạn.
                     </p>
                   )}
+                  <p className={`text-[10px] text-right mt-0.5 ${ friendReqMsg.length >= 140 ? 'text-orange-500 font-semibold' : 'text-gray-400 dark:text-gray-500' }`}>
+                    {friendReqMsg.length}/150
+                  </p>
                 </div>
               )}
 
               {/* Standalone friend request */}
               {hasFR && !hasMsg && (
                 <div className="flex-1 min-h-0 flex flex-col gap-2">
-                  <textarea ref={friendReqRef} value={friendReqMsg} onChange={e => setFriendReqMsg(e.target.value)}
+                  {/* Header row: variable chips + AI button */}
+                  <div className="flex items-center justify-between flex-wrap gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-gray-500">Chèn biến:</span>
+                      {TEMPLATE_VARS.map(v => (
+                        <button key={v.key} type="button" onClick={() => insertFRVar(v.key)}
+                          className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors font-medium"
+                          title={`Chèn biến ${v.key}`}>{v.label}</button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAiInputFR(v => !v)}
+                      className={`flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-semibold transition-colors border ${
+                        showAiInputFR
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'border-blue-500/30 text-blue-400 hover:bg-blue-500/15'
+                      }`}
+                    >
+                      🪄 Trợ lý AI
+                    </button>
+                  </div>
+
+                  {/* AI input */}
+                  {showAiInputFR && (
+                    <div className="flex flex-col gap-1.5 p-2 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-500/20 rounded-xl flex-shrink-0">
+                      <div className="flex gap-2">
+                        <input
+                          value={promptFR}
+                          onChange={e => setPromptFR(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              if (e.nativeEvent.isComposing) return;
+                              e.preventDefault();
+                              if (promptFR.trim() && !aiGeneratingFR) getAiGeneratedFRText(promptFR.trim());
+                            }
+                          }}
+                          placeholder="Yêu cầu AI viết lời nhắn kết bạn..."
+                          className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          disabled={aiGeneratingFR || !promptFR.trim()}
+                          onClick={() => getAiGeneratedFRText(promptFR.trim())}
+                          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                        >
+                          {aiGeneratingFR && (
+                            <svg className="animate-spin w-3 h-3 text-white" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          )}
+                          {aiGeneratingFR ? '...' : 'Viết'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <textarea ref={friendReqRef} value={friendReqMsg} onChange={e => setFriendReqMsg(e.target.value.slice(0, 150))}
                     placeholder="Xin chào {name}, tôi muốn kết nối với bạn!"
                     className="flex-1 min-h-0 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
                   {hasFRMsgLink && (
                     <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium px-1 leading-relaxed">
-                      ⚠️ Cảnh báo: Tránh gửi đường link (liên kết) kèm theo lời mời kết bạn.
+                      ⚠️ Cảnh báo: Tránh gửi đường link kèm theo lời mời kết bạn.
                     </p>
                   )}
-                  <p className="text-[10px] text-gray-550 dark:text-gray-500 text-right flex-shrink-0">{friendReqMsg.length}/200 ký tự</p>
+                  <p className={`text-[10px] text-right flex-shrink-0 ${ friendReqMsg.length >= 140 ? 'text-orange-500 font-semibold' : 'text-gray-400 dark:text-gray-500' }`}>
+                    {friendReqMsg.length}/150 ký tự
+                  </p>
                 </div>
               )}
 

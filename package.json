@@ -1,6 +1,6 @@
 {
   "name": "zagi",
-  "version": "27.2.0",
+  "version": "27.2.1",
   "description": "Phần mềm desktop Zagi quản lý Zalo Đa tài khoản tích hợp CRM, ERP, POS, Workflow và AI Assistant giúp đội nhóm bán hàng, chăm sóc khách hàng và marketing trên Zalo vận hành tập trung trong một ứng dụng duy nhất.",
   "main": "dist-electron/electron/main.js",
   "scripts": {
@@ -11,7 +11,8 @@
     "dev": "npm run build:electron && concurrently -n VITE,TSC,ELECTRON -c cyan,magenta,yellow \"vite --host 127.0.0.1\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"wait-on -d 1500 http://127.0.0.1:27799 && cross-env NODE_ENV=development electron dist-electron/electron/main.js\"",
     "build:electron": "tsc -p tsconfig.electron.json",
     "build:renderer": "vite build",
-    "production": "npm run build:bridge-e2ee && tsc -p tsconfig.electron.prod.json && node scripts/strip-console.js && npm run build:renderer && electron-builder --publish never"
+    "production": "npm run build:bridge-e2ee && tsc -p tsconfig.electron.prod.json && node scripts/strip-console.js && npm run build:renderer && electron-builder --publish never",
+    "build:all": "node scripts/build-all-platforms.js"
   },
   "author": "trithucnen-max <trithucnen-max@users.noreply.github.com>",
   "homepage": "https://github.com/trithucnen-max/zagi-builder",
@@ -133,13 +134,15 @@
         {
           "target": "nsis",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         },
         {
           "target": "dir",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         }
       ],

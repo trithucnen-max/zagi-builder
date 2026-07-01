@@ -674,17 +674,24 @@ export default function GroupMembersTab() {
   }, [activeAccountId]);
 
   // ── Create new campaign from within picker ────────────────────────────────
+  const creatingCampaignRef = useRef(false);
   const handleCreateCampaignInPicker = useCallback(async (data: any) => {
-    if (!activeAccountId) return;
-    const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
-    if (res?.success) {
-      // Refresh local campaign list and auto-select the new one
-      const res2 = await ipc.crm?.getCampaigns({ zaloId: activeAccountId });
-      if (res2?.success) {
-        const available = (res2.campaigns || []).filter((c: any) => c.status !== 'done');
-        setLocalCampaigns(available);
-        if (res.id) setPickedCampaignId(res.id);
+    if (!activeAccountId || creatingCampaignRef.current) return;
+    creatingCampaignRef.current = true;
+    try {
+      const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
+      if (res?.success) {
+        // Refresh local campaign list and auto-select the new one
+        const res2 = await ipc.crm?.getCampaigns({ zaloId: activeAccountId });
+        if (res2?.success) {
+          const available = (res2.campaigns || []).filter((c: any) => c.status !== 'done');
+          setLocalCampaigns(available);
+          if (res.id) setPickedCampaignId(res.id);
+        }
+        setShowCreateCampaign(false);
       }
+    } finally {
+      creatingCampaignRef.current = false;
     }
   }, [activeAccountId]);
 
@@ -1271,10 +1278,7 @@ export default function GroupMembersTab() {
         <CampaignCreateModal
           zaloId={activeAccountId || ''}
           onClose={() => setShowCreateCampaign(false)}
-          onSave={async (data) => {
-            await handleCreateCampaignInPicker(data);
-            setShowCreateCampaign(false);
-          }}
+          onSave={handleCreateCampaignInPicker}
         />
       )}
 

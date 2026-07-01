@@ -38,7 +38,6 @@ export default function ChatHeader() {
   const [labelsVersion, setLabelsVersion] = useState(0);
   const [labelPickerOpen, setLabelPickerOpen] = useState<{ x: number; y: number } | null>(null);
   const [editLabelsOpen, setEditLabelsOpen] = useState(false);
-  const [loadingGroupMsgs, setLoadingGroupMsgs] = useState(false);
   const [aliasRefreshing, setAliasRefreshing] = useState(false);
   const [refreshingFBInfo, setRefreshingFBInfo] = useState(false);
   const [aliasEditOpen, setAliasEditOpen] = useState(false);
@@ -163,73 +162,7 @@ export default function ChatHeader() {
     }
   }, [activeAccountId, activeThreadId, activeThreadType]);
 
-  // ── Tải lại tin nhắn nhóm (getGroupChatHistory) / FB threads ────────────
-  const handleReloadGroupMessages = useCallback(async () => {
-    if (!activeAccountId || !activeThreadId || loadingGroupMsgs) return;
-    const acc = getActiveAccount();
-    if (!acc) return;
-    const channel = acc.channel || 'zalo';
-    setLoadingGroupMsgs(true);
-    try {
-      if (channel === 'facebook') {
-        // FB: refresh threads from Facebook API
-        const res = await ipc.fb?.getThreads({ accountId: activeAccountId, forceRefresh: true });
-        if (res?.success) {
-          const count = res.threads?.length ?? 0;
-          showNotification(`Đã tải lại ${count} hội thoại Facebook`, 'success');
-          // Reload contacts into store
-          const contactsRes = await ipc.db?.getContacts(activeAccountId);
-          const contacts: any[] = contactsRes?.contacts ?? contactsRes ?? [];
-          if (contacts.length > 0) {
-            useChatStore.getState().setContacts(activeAccountId, contacts);
-          }
-          // Refresh avatar cho Facebook user 1-1 hiện tại (CDN thường hết hn)
-          if (activeThreadId && activeThreadType !== 1 && /^\d+$/.test(activeThreadId)) {
-            ipc.fb.refreshContactAvatar({ accountId: activeAccountId, userId: activeThreadId })
-              .then(refreshRes => {
-                if (refreshRes.success && refreshRes.avatarUrl) {
-                  useChatStore.getState().updateContact(activeAccountId, {
-                    contact_id: activeThreadId,
-                    avatar_url: refreshRes.avatarUrl,
-                  });
-                  // Tải lại contacts vào store
-                  ipc.db?.getContacts(activeAccountId).then(cr => {
-                    const cl = cr?.contacts ?? cr ?? [];
-                    if (cl.length > 0) useChatStore.getState().setContacts(activeAccountId, cl);
-                  });
-                }
-              }).catch(() => {});
-          }
-        } else {
-          showNotification(res?.error || 'Không thể tải hội thoại Facebook', 'error');
-        }
-      } else {
-        // Zalo: reload group chat history
-        const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
-        const res = await ipc.zalo?.getGroupChatHistory({ auth, groupId: activeThreadId });
-        if (res?.success) {
-          const count = res?.response?.groupMsgsCount ?? 0;
-          showNotification(`Đã tải lại tin nhắn nhóm thành công (${count} tin nhắn)`, 'success');
-        } else {
-          const errMsg = res?.error || '';
-          if (errMsg.includes('404') || errMsg.includes('status code 404')) {
-            showNotification('Zalo đã ngưng hỗ trợ API tải tin nhắn cũ của nhóm. Tin nhắn mới sẽ tự động cập nhật kể từ lúc tài khoản được kết nối.', 'warning');
-          } else {
-            showNotification(errMsg || 'Không thể tải tin nhắn nhóm', 'error');
-          }
-        }
-      }
-    } catch (e: any) {
-      const errMsg = e.message || '';
-      if (errMsg.includes('404') || errMsg.includes('status code 404')) {
-        showNotification('Zalo đã ngưng hỗ trợ API tải tin nhắn cũ của nhóm. Tin nhắn mới sẽ tự động cập nhật kể từ lúc tài khoản được kết nối.', 'warning');
-      } else {
-        showNotification('Lỗi: ' + (errMsg || 'Không thể tải lại'), 'error');
-      }
-    } finally {
-      setLoadingGroupMsgs(false);
-    }
-  }, [activeAccountId, activeThreadId, loadingGroupMsgs, getActiveAccount, showNotification]);
+
 
   const handleSearchChange = (q: string) => {
     setSearchQuery(q);
@@ -872,30 +805,7 @@ export default function ChatHeader() {
             })()}
           </div>
         </div>
-
         <div className="flex items-center gap-1">
-          {/* Tải lại tin nhắn nhóm */}
-          {isGroup && channelCap.supportsGroupReload && (
-            <button
-              title="Tải lại tin nhắn nhóm (trong phiên này)"
-              onClick={handleReloadGroupMessages}
-              disabled={loadingGroupMsgs}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${loadingGroupMsgs ? 'text-green-400 bg-gray-700' : 'hover:bg-gray-700 text-gray-400 hover:text-white'}`}
-            >
-              {loadingGroupMsgs ? (
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-              )}
-            </button>
-          )}
           <button
             title="Tìm kiếm tin nhắn"
             onClick={toggleSearch}

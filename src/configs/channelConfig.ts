@@ -140,7 +140,7 @@ export const CHANNEL_CONFIG: Record<Channel, ChannelCapability> = {
     supportsGroupManage: true,
     supportsPendingApproval: true,
     supportsLeaveGroup: true,
-    supportsGroupReload: true,
+    supportsGroupReload: false,
     supportsQuickMessages: true,
     supportsInviteToGroup: true,
     supportsCampaigns: true,
