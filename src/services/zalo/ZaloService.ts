@@ -74,6 +74,7 @@ import {
 import axios from "axios";
 import path from "path";
 import * as fs from "node:fs";
+import { spawnSync } from "node:child_process";
 import {SendMessageResult} from "zca-js/dist/apis/sendMessage";
 import {SendCardOptions} from "zca-js/dist/apis/sendCard";
 import ConnectionManager from "../../utils/ConnectionManager";
@@ -970,6 +971,69 @@ export default class ZaloService {
         }
     }
 
+    private getFfmpegBin(): string {
+        try {
+            let ffmpegStatic = require('ffmpeg-static') as string;
+            if (ffmpegStatic && ffmpegStatic.includes('app.asar') && !ffmpegStatic.includes('app.asar.unpacked')) {
+                ffmpegStatic = ffmpegStatic.replace('app.asar', 'app.asar.unpacked');
+            }
+            if (ffmpegStatic && fs.existsSync(ffmpegStatic)) {
+                return ffmpegStatic;
+            }
+        } catch {}
+        return 'ffmpeg';
+    }
+
+    private async extractVideoMetaAndThumb(videoPath: string): Promise<{ duration?: number; width?: number; height?: number; thumbPath?: string }> {
+        const ffmpegBin = this.getFfmpegBin();
+        const os = require('os');
+        const tmpDir = path.join(os.tmpdir(), 'zagi-videometa');
+        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+        const thumbPath = path.join(tmpDir, `thumb_${Date.now()}.jpg`);
+
+        let duration = 0;
+        let width = 0;
+        let height = 0;
+
+        try {
+            const probe = spawnSync(ffmpegBin, ['-i', videoPath, '-hide_banner'], {
+                timeout: 10000,
+                encoding: 'utf8',
+            });
+            const stderr = (probe.stderr || '') + (probe.stdout || '');
+            const durMatch = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
+            if (durMatch) {
+                duration = parseInt(durMatch[1]) * 3600 + parseInt(durMatch[2]) * 60 + parseFloat(durMatch[3]);
+            }
+            const dimMatch = stderr.match(/Video:.*?(\d{2,5})x(\d{2,5})/);
+            if (dimMatch) {
+                width = parseInt(dimMatch[1]);
+                height = parseInt(dimMatch[2]);
+            }
+        } catch (e: any) {
+            Logger.warn(`[ZaloService] Video probe failed: ${e.message}`);
+        }
+
+        try {
+            const seekSec = duration > 2 ? 1 : 0;
+            spawnSync(ffmpegBin, [
+                '-ss', seekSec.toString(),
+                '-i', videoPath,
+                '-vframes', '1',
+                '-q:v', '2',
+                thumbPath,
+                '-y'
+            ], { timeout: 10000 });
+            if (fs.existsSync(thumbPath)) {
+                return { duration, width, height, thumbPath };
+            }
+        } catch (e: any) {
+            Logger.warn(`[ZaloService] Thumb extraction failed: ${e.message}`);
+        }
+
+        return { duration, width, height };
+    }
+
     public async sendVideo(videoOptions: SendVideoOptions, threadId: string, type?: ThreadType, quote: any = null): Promise<SendVideoResponse> {
         let filesPath: string[] = [];
         try {
@@ -979,7 +1043,53 @@ export default class ZaloService {
 
             type = convertThreadType(type);
             const quoteParsed = quote ? (typeof quote === 'string' ? JSON.parse(quote) : quote) : null;
-            const payload = quoteParsed ? { ...(videoOptions as any), quote: quoteParsed } : videoOptions;
+
+            let videoUrl = videoOptions.videoUrl;
+            let thumbnailUrl = videoOptions.thumbnailUrl;
+            let duration = videoOptions.duration;
+            let width = videoOptions.width;
+            let height = videoOptions.height;
+
+            if (videoUrl && !videoUrl.startsWith('http://') && !videoUrl.startsWith('https://')) {
+                const resolvedVideoPath = FileStorageService.resolveAbsolutePath(videoUrl);
+                if (fs.existsSync(resolvedVideoPath)) {
+                    // Trích xuất metadata và thumbnail tự động
+                    const meta = await this.extractVideoMetaAndThumb(resolvedVideoPath);
+                    if (meta.duration) duration = Math.round(meta.duration);
+                    if (meta.width) width = meta.width;
+                    if (meta.height) height = meta.height;
+
+                    if (meta.thumbPath && fs.existsSync(meta.thumbPath)) {
+                        filesPath.push(meta.thumbPath);
+                        // Upload ảnh bìa lên Zalo
+                        const thumbResp = await this.uploadVideoThumb(meta.thumbPath, threadId, type);
+                        if (thumbResp && thumbResp.fileUrl) {
+                            thumbnailUrl = thumbResp.fileUrl;
+                        }
+                    }
+
+                    // Upload file video lên Zalo
+                    const videoResp = await this.uploadVideoFile(resolvedVideoPath, threadId, type);
+                    if (videoResp && videoResp.fileUrl) {
+                        videoUrl = videoResp.fileUrl;
+                    }
+                }
+            }
+
+            const payload: any = {
+                videoUrl,
+                thumbnailUrl: thumbnailUrl || '',
+                duration: duration || 10,
+                width: width || 480,
+                height: height || 480,
+                msg: videoOptions.msg || '',
+                ttl: videoOptions.ttl || 0
+            };
+
+            if (quoteParsed) {
+                payload.quote = quoteParsed;
+            }
+
             return await (this.api as any).sendVideo(payload, threadId, type);
         } catch (error: any) {
             throw new Error("Error sending video: " + error.message || error);
@@ -1274,7 +1384,27 @@ export default class ZaloService {
         const quoteParsed = quote ? (typeof quote === 'string' ? JSON.parse(quote) : quote) : null;
         type = convertThreadType(type);
         try {
-            const payload = quoteParsed ? { ...(voiceOptions as any), quote: quoteParsed } : voiceOptions;
+            let voiceUrl = voiceOptions.voiceUrl;
+            if (voiceUrl && !voiceUrl.startsWith('http://') && !voiceUrl.startsWith('https://')) {
+                const resolvedVoicePath = FileStorageService.resolveAbsolutePath(voiceUrl);
+                if (fs.existsSync(resolvedVoicePath)) {
+                    // Upload voice file to Zalo
+                    const voiceResp = await this.uploadVoiceFile(resolvedVoicePath, threadId, type);
+                    if (voiceResp && voiceResp.fileUrl) {
+                        voiceUrl = voiceResp.fileUrl;
+                    }
+                }
+            }
+
+            const payload: any = {
+                voiceUrl,
+                ttl: voiceOptions.ttl || 0
+            };
+
+            if (quoteParsed) {
+                payload.quote = quoteParsed;
+            }
+
             return await (this.api as any).sendVoice(payload, threadId, type);
         } catch (error) {
             throw error;

@@ -8,6 +8,53 @@ import TemplateVarPopup from './TemplateVarPopup';
 import { SmartInput, SmartTextarea } from './SmartInput';
 import { showConfirm } from '@/components/common/ConfirmDialog';
 
+const BANK_LIST = [
+  { name: 'Vietcombank', bin: 970436 },
+  { name: 'VietinBank', bin: 970415 },
+  { name: 'BIDV', bin: 970418 },
+  { name: 'Techcombank', bin: 970407 },
+  { name: 'MB Bank', bin: 970422 },
+  { name: 'ACB', bin: 970416 },
+  { name: 'VPBank', bin: 970432 },
+  { name: 'TPBank', bin: 970423 },
+  { name: 'Sacombank', bin: 970403 },
+  { name: 'HDBank', bin: 970437 },
+  { name: 'Agribank', bin: 970405 },
+  { name: 'SHB', bin: 970443 },
+  { name: 'Eximbank', bin: 970431 },
+  { name: 'MSB', bin: 970426 },
+  { name: 'OCB', bin: 970448 },
+  { name: 'VIB', bin: 970441 },
+  { name: 'SeABank', bin: 970440 },
+  { name: 'LPBank', bin: 970449 },
+  { name: 'Nam A Bank', bin: 970428 },
+  { name: 'SCB', bin: 970429 },
+  { name: 'ABBank', bin: 970425 },
+  { name: 'BacA Bank', bin: 970409 },
+  { name: 'PVcomBank', bin: 970412 },
+  { name: 'NCB', bin: 970419 },
+  { name: 'VietABank', bin: 970427 },
+  { name: 'DongA Bank', bin: 970406 },
+  { name: 'KienlongBank', bin: 970452 },
+  { name: 'BVBank', bin: 970454 },
+  { name: 'PGBank', bin: 970430 },
+  { name: 'VietBank', bin: 970433 },
+  { name: 'BaoViet Bank', bin: 970438 },
+  { name: 'CB Bank', bin: 970444 },
+  { name: 'Coop Bank', bin: 970446 },
+  { name: 'Saigon Bank', bin: 970400 },
+  { name: 'GPBank', bin: 970408 },
+  { name: 'Ocean Bank', bin: 970414 },
+  { name: 'Shinhan Bank', bin: 970424 },
+  { name: 'HSBC', bin: 458761 },
+  { name: 'CAKE', bin: 546034 },
+  { name: 'Timo', bin: 963388 },
+  { name: 'TNEX', bin: 9704261 },
+  { name: 'UBank', bin: 546035 },
+  { name: 'KBank', bin: 668888 },
+].sort((a, b) => a.name.localeCompare(b.name));
+
+
 // ─── Webhook URL field component ─────────────────────────────────────
 function WebhookUrlField({ field, config, workflowId, update }: {
   field: any; config: any; workflowId?: string; update: (key: string, val: any) => void;
@@ -557,30 +604,30 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'zalo.sendVideo': [
     {
-      key: 'videoUrl', label: 'URL Video', type: 'text',
-      placeholder: 'https://example.com/video.mp4 hoặc {{ $trigger.videoUrl }}',
-      desc: 'Đường dẫn URL trực tiếp tới file video (hỗ trợ các biến workflow).',
+      key: 'videoUrl', label: 'File video hoặc URL', type: 'file-picker', fileType: 'video',
+      placeholder: 'C:\\Videos\\clip.mp4 hoặc nhập link URL',
+      desc: 'Chọn video từ máy tính hoặc nhập link trực tiếp tới file video.',
     },
     {
-      key: 'thumbnailUrl', label: 'URL Ảnh bìa (Thumbnail)', type: 'text',
+      key: 'thumbnailUrl', label: 'URL Ảnh bìa (Thumbnail - Tùy chọn)', type: 'text',
       placeholder: 'https://example.com/thumb.jpg',
-      desc: 'Ảnh bìa hiển thị trước khi chạy video.',
+      desc: 'Ảnh bìa hiển thị trước khi chạy video. Nếu chọn file từ máy tính, ảnh bìa sẽ được tự động trích xuất.',
     },
     {
-      key: 'duration', label: 'Thời lượng (Giây)', type: 'text',
+      key: 'duration', label: 'Thời lượng (Giây - Tùy chọn)', type: 'text',
       placeholder: '15',
-      desc: 'Thời lượng của video.',
+      desc: 'Thời lượng video (sẽ tự động phát hiện nếu chọn file từ máy tính).',
     },
     {
-      key: 'width', label: 'Chiều rộng (px)', type: 'text',
+      key: 'width', label: 'Chiều rộng (px - Tùy chọn)', type: 'text',
       placeholder: '1280',
-      desc: 'Độ phân giải chiều ngang.',
+      desc: 'Độ phân giải ngang.',
       advanced: true,
     },
     {
-      key: 'height', label: 'Chiều cao (px)', type: 'text',
+      key: 'height', label: 'Chiều cao (px - Tùy chọn)', type: 'text',
       placeholder: '720',
-      desc: 'Độ phân giải chiều dọc.',
+      desc: 'Độ phân giải dọc.',
       advanced: true,
     },
     {
@@ -618,9 +665,9 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'zalo.sendVoice': [
     {
-      key: 'voiceUrl', label: 'URL File âm thanh (Voice)', type: 'text',
-      placeholder: 'https://example.com/audio.m4a',
-      desc: 'URL trực tiếp tới file ghi âm (.m4a, .mp3, .wav).',
+      key: 'voiceUrl', label: 'File ghi âm hoặc URL', type: 'file-picker', fileType: 'audio',
+      placeholder: 'C:\\Audios\\ghi-am.m4a hoặc nhập link URL',
+      desc: 'Chọn file ghi âm từ máy tính hoặc nhập link trực tiếp tới file ghi âm (.m4a, .mp3, .wav).',
     },
     {
       key: 'threadIds', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',
@@ -649,9 +696,9 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'zalo.sendBankCard': [
     {
-      key: 'binBank', label: 'Mã BIN Ngân hàng (Napas)', type: 'text',
-      placeholder: '970436',
-      desc: 'Mã BIN ngân hàng nhận chuyển khoản (ví dụ Vietcombank: 970436, Techcombank: 970407).',
+      key: 'binBank', label: 'Chọn ngân hàng', type: 'select',
+      desc: 'Chọn ngân hàng nhận chuyển khoản (hỗ trợ Napas).',
+      options: BANK_LIST.map(b => ({ value: String(b.bin), label: `${b.name} (${b.bin})` })),
     },
     {
       key: 'numAccBank', label: 'Số tài khoản', type: 'text',
@@ -684,8 +731,8 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'zalo.sendCard': [
     {
-      key: 'userId', label: 'Zalo User ID (UID)', type: 'text',
-      placeholder: '123456789012345',
+      key: 'userId', label: 'Chọn liên hệ gửi danh thiếp', type: 'contact-picker', contactType: 'user',
+      placeholder: 'Tìm kiếm và chọn từ danh bạ...',
       desc: 'ID Zalo của người muốn gửi danh thiếp.',
     },
     {
@@ -3954,7 +4001,7 @@ function FilePickerField({
 }: {
   value: string;
   onChange: (v: string) => void;
-  fileType: 'image' | 'file';
+  fileType: 'image' | 'video' | 'audio' | 'file';
   placeholder?: string;
 }) {
   const theme = useAppStore(s => s.theme);
@@ -3963,9 +4010,14 @@ function FilePickerField({
 
   const handleSelectFile = async () => {
     try {
-      const filters = fileType === 'image'
-        ? [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] }]
-        : [{ name: 'All Files', extensions: ['*'] }];
+      let filters = [{ name: 'All Files', extensions: ['*'] }];
+      if (fileType === 'image') {
+        filters = [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] }];
+      } else if (fileType === 'video') {
+        filters = [{ name: 'Videos', extensions: ['mp4', 'mkv', 'avi', 'mov', 'webm'] }];
+      } else if (fileType === 'audio') {
+        filters = [{ name: 'Audios', extensions: ['mp3', 'm4a', 'wav', 'ogg', 'aac'] }];
+      }
 
       const result = await ipc.file?.openDialog({ filters });
 
@@ -3979,7 +4031,7 @@ function FilePickerField({
   };
 
   const isUrl = value?.startsWith('http://') || value?.startsWith('https://');
-  const isLocalFile = value && !isUrl && value.includes('\\');
+  const isLocalFile = value && !isUrl && (value.includes('\\') || value.includes('/'));
   const showPreview = fileType === 'image' && value && !previewError;
 
   return (
