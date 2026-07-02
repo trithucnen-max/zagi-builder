@@ -7,7 +7,6 @@ import AccountAssignmentPopup from './AccountAssignmentPopup';
 import {SendCardModal} from './GroupModals';
 import {CreatePollDialog, NoteViewModal} from './ChatWindow';
 import BankCardModal from './BankCardModal';
-import RichMessageActions from './RichMessageActions';
 import {
   fetchQuickMessages,
   invalidateZaloQuickMessageCache,
@@ -155,7 +154,6 @@ export default function MessageInput() {
   const [clipboardImages, setClipboardImages] = useState<Array<{ id: string; dataUrl: string; blob: Blob }>>([]);
   // Drag-and-drop state
   const [isDragging, setIsDragging] = useState(false);
-  const [richActionsOpen, setRichActionsOpen] = useState(false);
   const dragCounterRef = useRef(0);
   const [localLabels, setLocalLabels] = useState<LocalLabel[]>([]);
   const [threadLocalLabelIds, setThreadLocalLabelIds] = useState<Set<number>>(new Set());
@@ -3130,19 +3128,6 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           )}
         </ToolbarBtn>
 
-        {/* Tin nhắn nâng cao (Zalo) */}
-        {(activeContact?.channel || 'zalo') === 'zalo' && (
-          <ToolbarBtn
-            onClick={() => setRichActionsOpen(true)}
-            title="Gửi tin nhắn nâng cao (Voice/Bank/Card)"
-            disabled={sending}
-            active={richActionsOpen}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-500">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-          </ToolbarBtn>
-        )}
         {isRecording && (
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-950/30 border border-red-800/40">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
@@ -3718,19 +3703,6 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           </div>
         );
       })()}
-
-      {/* Rich message actions modal */}
-      {richActionsOpen && activeThreadId && activeAccountId && (
-        <RichMessageActions
-          isOpen={richActionsOpen}
-          onClose={() => setRichActionsOpen(false)}
-          threadId={activeThreadId}
-          threadType={activeThreadType}
-          zaloId={activeAccountId}
-          auth={getAuth()}
-          quote={buildQuotePayload(replyTo)}
-        />
-      )}
     </div>
   );
 }
