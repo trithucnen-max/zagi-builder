@@ -454,11 +454,84 @@ export default function GroupMembersTab() {
                   const histRes = await ipc.zalo?.getGroupChatHistory({ auth, groupId, count: 100 });
                   const msgs = histRes?.response?.groupMsgs || [];
                   for (const msg of msgs) {
+                    // 1.1. Lấy thông tin người gửi tin nhắn
                     const senderId = msg.data?.uidFrom || msg.senderId;
                     if (senderId) {
                       const uid = String(senderId).replace(/_0$/, '').trim();
                       if (/^\d+$/.test(uid)) tempIds.add(uid);
                     }
+
+                    // 1.2. Lấy thông tin người thả cảm xúc (Inline reactions)
+                    const reactions = msg.reactions || msg.data?.reactions || [];
+                    if (Array.isArray(reactions)) {
+                      reactions.forEach((r: any) => {
+                        const rUid = r.userId || r.uid || r.uidFrom;
+                        if (rUid) {
+                          const uid = String(rUid).replace(/_0$/, '').trim();
+                          if (/^\d+$/.test(uid)) tempIds.add(uid);
+                        }
+                      });
+                    }
+                    const reactsObj = msg.reacts || msg.data?.reacts || {};
+                    if (reactsObj && typeof reactsObj === 'object' && !Array.isArray(reactsObj)) {
+                      Object.keys(reactsObj).forEach(rUid => {
+                        const uid = String(rUid).replace(/_0$/, '').trim();
+                        if (/^\d+$/.test(uid)) tempIds.add(uid);
+                      });
+                    }
+
+                    // 1.3. Lấy thông tin người được nhắc tên (Mentions)
+                    const mentions = msg.mentions || msg.data?.mentions || [];
+                    if (Array.isArray(mentions)) {
+                      mentions.forEach((m: any) => {
+                        const mUid = m.uid || m.userId;
+                        if (mUid) {
+                          const uid = String(mUid).replace(/_0$/, '').trim();
+                          if (/^\d+$/.test(uid)) tempIds.add(uid);
+                        }
+                      });
+                    }
+
+                    // 1.4. Lấy thông tin từ tin nhắn hệ thống (System messages metadata)
+                    try {
+                      const rawInfo = msg.msgInfo || msg.data?.msgInfo;
+                      const info = typeof rawInfo === 'string' ? JSON.parse(rawInfo) : rawInfo;
+                      if (info && typeof info === 'object') {
+                        const possibleKeys = ['memberId', 'operatorId', 'targetId', 'opId', 'creatorId'];
+                        possibleKeys.forEach(k => {
+                          const val = info[k];
+                          if (val) {
+                            const uid = String(val).replace(/_0$/, '').trim();
+                            if (/^\d+$/.test(uid)) tempIds.add(uid);
+                          }
+                        });
+                        const arrayKeys = ['mIds', 'uids', 'members'];
+                        arrayKeys.forEach(k => {
+                          const arr = info[k];
+                          if (Array.isArray(arr)) {
+                            arr.forEach((item: any) => {
+                              const uid = String(item).replace(/_0$/, '').trim();
+                              if (/^\d+$/.test(uid)) tempIds.add(uid);
+                            });
+                          }
+                        });
+                      }
+                    } catch {}
+
+                    try {
+                      const rawParams = msg.params || msg.data?.params;
+                      const params = typeof rawParams === 'string' ? JSON.parse(rawParams) : rawParams;
+                      if (params && typeof params === 'object') {
+                        const possibleKeys = ['memberId', 'operatorId', 'targetId', 'opId', 'creatorId'];
+                        possibleKeys.forEach(k => {
+                          const val = params[k];
+                          if (val) {
+                            const uid = String(val).replace(/_0$/, '').trim();
+                            if (/^\d+$/.test(uid)) tempIds.add(uid);
+                          }
+                        });
+                      }
+                    } catch {}
                   }
                 } catch (e) {
                   Logger.warn('[GroupMembersTab] getGroupChatHistory error:', e);
