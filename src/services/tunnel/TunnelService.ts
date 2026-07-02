@@ -31,21 +31,26 @@ let install: ((to: string) => Promise<string>) | null = null;
 
 try {
   const cf = require('cloudflared');
+  const fs = require('fs');
+  const { app } = require('electron');
+
   Tunnel = cf.Tunnel;
-  bin = cf.bin;
   install = cf.install;
 
-  // Fix binary path when running inside Electron asar archive.
-  // cf.bin uses __dirname which resolves inside app.asar. We must use cf.use()
-  // to update the module-scope bin variable that Tunnel.quick() reads via
-  // import_constants.bin - a local assignment wouldn't propagate.
-  if (bin && bin.includes('app.asar') && typeof cf.use === 'function') {
-    bin = bin.replace('app.asar', 'app.asar.unpacked');
-    cf.use(bin);  // ← writes into constants.js module-scope
-    Logger.log(`[TunnelService] Rewrote bin path for asar: ${bin}`);
+  // Sử dụng thư mục ghi được trong userData thay vì thư mục cài đặt gốc (tránh lỗi EPERM trên Windows)
+  const customBinDir = path.join(app.getPath('userData'), 'cloudflared-bin');
+  if (!fs.existsSync(customBinDir)) {
+    fs.mkdirSync(customBinDir, { recursive: true });
   }
-} catch {
-  Logger.warn('[TunnelService] cloudflared package not found');
+  const ext = process.platform === 'win32' ? '.exe' : '';
+  bin = path.join(customBinDir, `cloudflared${ext}`);
+
+  if (typeof cf.use === 'function') {
+    cf.use(bin);
+    Logger.log(`[TunnelService] Set cloudflared bin path to writable userData folder: ${bin}`);
+  }
+} catch (err: any) {
+  Logger.warn(`[TunnelService] cloudflared package initialization error: ${err.message}`);
 }
 
 // ─── Multi-tunnel store ──────────────────────────────────────────────────────
