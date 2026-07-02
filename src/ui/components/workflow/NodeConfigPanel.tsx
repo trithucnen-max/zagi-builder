@@ -199,9 +199,11 @@ interface Field {
   /**
    * Dùng khi type === 'file-picker':
    * - 'image' = chỉ chọn ảnh
+   * - 'video' = chỉ chọn video
+   * - 'audio' = chỉ chọn âm thanh/ghi âm
    * - 'file'  = chọn mọi loại file
    */
-  fileType?: 'image' | 'file';
+  fileType?: 'image' | 'video' | 'audio' | 'file';
   /** Ẩn field khi config[hideWhenKey] === hideWhenValue */
   hideWhenKey?: string;
   hideWhenValue?: string;

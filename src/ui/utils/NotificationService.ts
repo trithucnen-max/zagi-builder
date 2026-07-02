@@ -54,7 +54,7 @@ interface QueueItem {
   title: string;
   body: string;
   icon?: string;
-  threadInfo?: { zaloId: string; threadId: string; threadType: number };
+  threadInfo?: { zaloId: string; threadId: string; threadType: number } | { erpLink?: string };
 }
 
 const notifQueue: QueueItem[] = [];
@@ -70,7 +70,7 @@ function processQueue() {
 
   notifBusy = true;
   const item = notifQueue.shift()!;
-  const threadKey = item.threadInfo
+  const threadKey = item.threadInfo && 'zaloId' in item.threadInfo
     ? `${item.threadInfo.zaloId}_${item.threadInfo.threadId}`
     : 'global';
 
@@ -136,12 +136,12 @@ export function showDesktopNotification(
   title: string,
   body: string,
   icon?: string,
-  threadInfo?: { zaloId: string; threadId: string; threadType: number }
+  threadInfo?: { zaloId: string; threadId: string; threadType: number } | { erpLink?: string }
 ) {
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
 
-  const threadKey = threadInfo
+  const threadKey = threadInfo && 'zaloId' in threadInfo
     ? `${threadInfo.zaloId}_${threadInfo.threadId}`
     : 'global';
 
@@ -150,10 +150,12 @@ export function showDesktopNotification(
   lastNotifTime[threadKey] = now;
 
   // Nếu có notification cùng thread đang trong queue, replace nó thay vì add mới
-  if (timeSinceLast < 800) {
+  if (timeSinceLast < 800 && threadInfo && 'zaloId' in threadInfo) {
+    const info = threadInfo as { zaloId: string; threadId: string; threadType: number };
     const existingIdx = notifQueue.findIndex(
-      q => q.threadInfo?.threadId === threadInfo?.threadId &&
-           q.threadInfo?.zaloId === threadInfo?.zaloId
+      q => q.threadInfo && 'zaloId' in q.threadInfo &&
+           (q.threadInfo as any).threadId === info.threadId &&
+           (q.threadInfo as any).zaloId === info.zaloId
     );
     if (existingIdx >= 0) {
       // Update body của notification đang chờ

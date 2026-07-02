@@ -959,7 +959,8 @@ export default function CRMContactList({
                     {contact.contact_type === 'group'
                       ? <span className="text-[9px] text-purple-400 flex-shrink-0 bg-purple-400/10 px-1 rounded">nhóm</span>
                       : contact.is_friend === 1 && (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-500 flex-shrink-0" title="Bạn bè">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-500 flex-shrink-0">
+                            <title>Bạn bè</title>
                             <polyline points="20 6 9 17 4 12"/>
                           </svg>
                         )}

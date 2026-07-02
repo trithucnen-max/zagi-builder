@@ -139,6 +139,7 @@ declare global {
       db: {
         getMessages: (params: any) => Promise<any>;
         getMessagesAround: (params: { zaloId: string; threadId: string; timestamp: number; limit?: number }) => Promise<any>;
+        patchContactFields: (params: { zaloId: string; contactId: string; fields: Record<string, any> }) => Promise<{ success: boolean; error?: string }>;
         getContacts: (zaloId: string) => Promise<any>;
         searchContactByPhone: (params: { zaloId: string; phone: string }) => Promise<{ success: boolean; contact: any | null }>;
         searchMessages: (params: any) => Promise<any>;

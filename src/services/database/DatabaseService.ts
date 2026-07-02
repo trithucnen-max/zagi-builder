@@ -4855,19 +4855,22 @@ class DatabaseService {
 
         try {
             const now = Date.now();
-            const tc = label.textColor || '#FFFFFF';
+            const tc = label.textColor || (label as any).text_color || '#FFFFFF';
             const shortcut = label.shortcut || '';
+            const rawPageIds = label.pageIds !== undefined ? label.pageIds : (label as any).page_ids;
+            const pageIdsStr = rawPageIds || '';
+            const pageIds = pageIdsStr.split(',').filter(Boolean);
+            const isActive = label.isActive !== undefined ? label.isActive : (label as any).is_active;
+            const sortOrder = label.sortOrder !== undefined ? label.sortOrder : (label as any).sort_order;
 
             // 👉 Check trùng name trong từng page_id
-            const pageIds = (label.pageIds || '').split(',').filter(Boolean);
-
             for (const pid of pageIds) {
                 const existed = this.queryOne<any>(
                     `SELECT * FROM local_labels
-                 WHERE name = ?
-                 AND page_ids LIKE ?
-                 AND (${label.id ? 'id != ?' : '1=1'})
-                 LIMIT 1`,
+                  WHERE name = ?
+                  AND page_ids LIKE ?
+                  AND (${label.id ? 'id != ?' : '1=1'})
+                  LIMIT 1`,
                     label.id ? [label.name, `%${pid}%`, label.id] : [label.name, `%${pid}%`]
                 );
 
@@ -4893,9 +4896,9 @@ class DatabaseService {
                             label.color,
                             tc,
                             label.emoji,
-                            label.pageIds,
-                            label.isActive ?? null,
-                            label.sortOrder ?? null,
+                            pageIdsStr,
+                            isActive ?? null,
+                            sortOrder ?? null,
                             shortcut,
                             now,
                             label.id
@@ -4912,9 +4915,9 @@ class DatabaseService {
                             label.color,
                             tc,
                             label.emoji,
-                            label.pageIds,
-                            label.isActive ?? 1,
-                            label.sortOrder ?? 0,
+                            pageIdsStr,
+                            isActive ?? 1,
+                            sortOrder ?? 0,
                             shortcut,
                             now,
                             now
@@ -4932,9 +4935,9 @@ class DatabaseService {
                         label.color,
                         tc,
                         label.emoji,
-                        label.pageIds,
-                        label.isActive ?? 1,
-                        label.sortOrder ?? 0,
+                        pageIdsStr,
+                        isActive ?? 1,
+                        sortOrder ?? 0,
                         shortcut,
                         now,
                         now

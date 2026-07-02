@@ -19,16 +19,18 @@ export const CustomDeletableEdge = memo((props: EdgeProps) => {
   return (
     <>
       <BaseEdge
-        id={id}
-        path={edgePath}
-        markerEnd={markerEnd}
-        style={{ 
-          stroke: selected ? '#3b82f6' : (style?.stroke || (isLight ? '#9ca3af' : '#4b5563')), 
-          strokeWidth: selected ? 2.5 : (style?.strokeWidth || 1.5), 
-          transition: 'stroke 0.15s, stroke-width 0.15s' 
-        }}
-        interactionWidth={12}
-        className={animated ? 'animated' : ''}
+        {...({
+          id,
+          path: edgePath,
+          markerEnd,
+          style: { 
+            stroke: selected ? '#3b82f6' : (style?.stroke || (isLight ? '#9ca3af' : '#4b5563')), 
+            strokeWidth: selected ? 2.5 : (style?.strokeWidth || 1.5), 
+            transition: 'stroke 0.15s, stroke-width 0.15s' 
+          },
+          interactionWidth: 12,
+          className: animated ? 'animated' : ''
+        } as any)}
       />
       <EdgeLabelRenderer>
         {/* Delete button — always visible as a faint dot, turns red ✕ on hover/select */}
