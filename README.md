@@ -47,9 +47,9 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.3-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20Window.exe)
 
-**[Zagi-Setup-27.2.3-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.3-x64.exe)**
+**[Zagi v27.2.3 Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20Window.exe)**
 
 NSIS Installer · ~195 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~195 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.3-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3-arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.3-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20MacOS%20M1%2B%20arm64.dmg)
 
-**[Zagi-27.2.3-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3-arm64.dmg)**
+**[Zagi v27.2.3 MacOS M1+ arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20MacOS%20M1%2B%20arm64.dmg)**
 
 Apple Silicon DMG · ~257 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · ~257 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.3-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.3-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20MacOS%20Intel.dmg)
 
-**[Zagi-27.2.3.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3.dmg)**
+**[Zagi v27.2.3 MacOS Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20MacOS%20Intel.dmg)**
 
 Intel x64 DMG · ~265 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · ~265 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.3-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3-arm64.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.3-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20Linux.AppImage)
 
-**[Zagi-27.2.3-arm64.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3-arm64.AppImage)**  
-**[zagi_27.2.3_arm64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.2.3_arm64.deb)**
+**[Zagi v27.2.3 Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20Linux.AppImage)**  
+**[Zagi v27.2.3 Linux Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20Linux%20Debian.deb)**
 
 AppImage + .deb · ~239 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~239 MB
 > 
 > Surface Pro 7 trở xuống (Intel) → dùng bản Windows x64 phía trên.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.3-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20Surface.exe)
 
-**[Zagi-Setup-27.2.3-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.3-arm64.exe)**
+**[Zagi v27.2.3 Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.3%20Surface.exe)**
 
 NSIS Installer ARM64 · ~196 MB · Tối ưu native cho Surface ARM
 
@@ -124,19 +124,19 @@ NSIS Installer ARM64 · ~196 MB · Tối ưu native cho Surface ARM
 Máy tính của bạn là loại gì?
 │
 ├─ 🖥️ PC desktop / Laptop thông thường (Dell, HP, Lenovo, Asus, Acer...)
-│   └─ → Tải: Zagi-Setup-27.2.0-x64.exe  ✅
+│   └─ → Tải: Zagi v27.2.3 Window.exe  ✅
 │
 ├─ 💻 Surface Pro 7, Surface Laptop 1-4, Surface Go 1-2, Surface Book
-│   └─ → Tải: Zagi-Setup-27.2.0-x64.exe  ✅  (chip Intel, bản x64 chạy ok)
+│   └─ → Tải: Zagi v27.2.3 Window.exe  ✅  (chip Intel, chạy ok)
 │
 └─ 💻 Surface Pro X, Surface Pro 9 (5G), Surface Pro 10, Surface Pro 11,
        Surface Laptop 7 (chip Snapdragon / ARM64)
-    └─ → Tải: Zagi-Setup-27.2.0-arm64.exe  ✅ (bản native ARM64)
+    └─ → Tải: Zagi v27.2.3 Surface.exe  ✅ (bản native ARM64)
 ```
 
 > 💡 **Cách kiểm tra chip máy Surface:** Vào `Settings → System → About`, xem mục **Processor**:
-> - Có chữ `Intel` hoặc `AMD` → dùng bản `.exe` thường (x64)
-> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `-arm64.exe`
+> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v27.2.3 Window.exe`
+> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v27.2.3 Surface.exe`
 
 ---
 
@@ -146,15 +146,15 @@ Máy tính của bạn là loại gì?
 Mac của bạn là loại gì?
 │
 ├─ 🍎 MacBook Air/Pro M1, M2, M3, M4 (2020 trở về sau)
-│   └─ → Tải: Zagi-27.2.0-arm64-mac.zip  ✅
+│   └─ → Tải: Zagi v27.2.3 MacOS M1+ arm64.dmg  ✅
 │
 └─ 🍎 MacBook, iMac, Mac mini chip Intel (2019 trở về trước)
-    └─ → Tải: Zagi-27.2.0-mac.zip  ✅
+    └─ → Tải: Zagi v27.2.3 MacOS Intel.dmg  ✅
 ```
 
 > 💡 **Cách kiểm tra:** Click logo Apple → **About This Mac** → xem mục **Chip** hoặc **Processor**:
-> - Có chữ `Apple M1/M2/M3/M4` → bản `-arm64-mac.zip`
-> - Có chữ `Intel` → bản `-mac.zip`
+> - Có chữ `Apple M1/M2/M3/M4` → bản `Zagi v27.2.3 MacOS M1+ arm64.dmg`
+> - Có chữ `Intel` → bản `Zagi v27.2.3 MacOS Intel.dmg`
 
 ---
 
@@ -164,11 +164,11 @@ Mac của bạn là loại gì?
 Bạn dùng distro nào?
 │
 ├─ Ubuntu, Mint, PopOS, Zorin, ElementaryOS... → Tải .deb  ✅
-│   sudo dpkg -i zagi_27.2.0_amd64.deb
+│   sudo dpkg -i "Zagi v27.2.3 Linux Debian.deb"
 │
 └─ Fedora, Arch, openSUSE hoặc bất kỳ distro nào
     → Tải .AppImage  ✅
-    chmod +x Zagi-27.2.0.AppImage && ./Zagi-27.2.0.AppImage
+    chmod +x "Zagi v27.2.3 Linux.AppImage" && ./"Zagi v27.2.3 Linux.AppImage"
 ```
 
 ---
