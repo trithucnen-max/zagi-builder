@@ -224,6 +224,41 @@ export default function CRMImportModal({ onClose, onDone }: CRMImportModalProps)
     const dupRes = await ipc.db?.checkPhonesDuplicate({ zaloId, phones: parsed.map(r => r.phone) });
     const dupSet = new Set<string>(dupRes?.duplicates || []);
 
+    // ── Bước 4: Tra cứu Zalo theo SĐT hàng loạt (thay vòng lặp tuần tự findUser) ──
+    // getMultiUsersByPhones: tối đa 100 SĐT / lần, nhanh hơn ~20x
+    const BATCH_SIZE = 100;
+    let zaloMap: Record<string, any> = {}; // phone → UserBasic
+
+    if (checkZalo) {
+      const phoneList = parsed.map(r => r.phone);
+      for (let b = 0; b < phoneList.length; b += BATCH_SIZE) {
+        if (stopRef.current) break;
+        const batch = phoneList.slice(b, b + BATCH_SIZE);
+        try {
+          const res = await ipc.zalo?.getMultiUsersByPhones({ auth, phones: batch });
+          if (res?.success && res?.response) {
+            // API trả về key = 84xxxxxxxxx (chuẩn quốc tế), cần normalize về 0xxxxxxxxx
+            for (const [phoneKey, user] of Object.entries(res.response as Record<string, any>)) {
+              // Tìm phone gốc trong batch phù hợp với key (84 → 0)
+              const normalized = phoneKey.startsWith('84') ? '0' + phoneKey.slice(2) : phoneKey;
+              const matched = batch.find(p => p === normalized || p === phoneKey);
+              if (matched) zaloMap[matched] = user;
+            }
+          }
+        } catch {
+          // Batch thất bại → fallback sang findUser đơn lẻ cho batch này
+          for (const phone of batch) {
+            if (stopRef.current) break;
+            try {
+              const res = await ipc.zalo?.findUser({ auth, phone });
+              if (res?.response?.uid) zaloMap[phone] = res.response;
+            } catch {}
+          }
+        }
+        setAnalyzeProgress({ current: Math.min(b + BATCH_SIZE, phoneList.length), total: phoneList.length });
+      }
+    }
+
     const working: ParsedRow[] = [];
     setAnalyzeProgress({ current: 0, total: parsed.length });
 
@@ -244,39 +279,30 @@ export default function CRMImportModal({ onClose, onDone }: CRMImportModalProps)
         continue;
       }
 
-      // 3. Mark duplicate (check before Zalo to show status correctly)
+      // 3. Mark duplicate
       if (dupSet.has(row.phone)) {
         row.status = 'duplicate';
         stats.dup++;
       }
 
-      // 4. Zalo check
+      // 4. Gán kết quả từ zaloMap (đã tra cứu hàng loạt ở trên)
       if (checkZalo) {
-        try {
-          const res = await ipc.zalo?.findUser({ auth, phone: row.phone });
-          const user = res?.response;
-          if (user?.uid) {
-            row.uid = user.uid;
-            row.displayName = row.fbName || user.display_name || user.uid;
-            row.avatar = user.avatar || '';
-            // Keep 'duplicate' if already set, else 'new'
-            if (!row.status) row.status = 'new';
-            stats.zalo++;
-          } else {
-            row.status = 'no_zalo';
-            row.blockReason = 'Không có tài khoản Zalo';
-            stats.noZalo++;
-          }
-        } catch {
+        const user = zaloMap[row.phone];
+        if (user?.uid) {
+          row.uid = user.uid;
+          row.displayName = row.fbName || user.display_name || user.uid;
+          row.avatar = user.avatar || '';
+          if (!row.status) row.status = 'new';
+          stats.zalo++;
+        } else {
           row.status = 'no_zalo';
-          row.blockReason = 'Không tìm thấy';
+          row.blockReason = 'Không có tài khoản Zalo';
           stats.noZalo++;
         }
-        if (i < parsed.length - 1) await new Promise(r => setTimeout(r, 500));
       } else {
         if (!row.status) row.status = 'new';
         row.displayName = row.fbName || row.phone;
-        row.uid = row.phone; // use phone as placeholder ID
+        row.uid = row.phone;
       }
 
       setAnalyzeStats({ ...stats });
@@ -286,6 +312,7 @@ export default function CRMImportModal({ onClose, onDone }: CRMImportModalProps)
     setRows(working);
     setPhase('preview');
   }, [getActiveRows, zaloId, blacklistKeywords, checkZalo, getActiveAccount, showNotification]);
+
 
   // ── Confirm import ────────────────────────────────────────────────────────
   const handleConfirm = useCallback(async () => {

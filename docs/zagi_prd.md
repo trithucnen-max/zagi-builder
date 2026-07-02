@@ -152,7 +152,7 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 
 | Phiên bản | Ngày cập nhật | Loại cập nhật | Điểm nhấn chính (Highlights) |
 | :--- | :--- | :--- | :--- |
-| **v27.2.3** | 03/07/2026 | Patch | Đồng bộ trạng thái bạn bè trực tuyến (Zalo Online Status) kèm chấm xanh lá chỉ báo hoạt động và bộ lọc Online trên CRM, thay đổi ký hiệu đã kết bạn thành tick chữ V xanh dương. Nâng cấp công nghệ Quét bóng thụ động (PSS) cho nhóm ẩn với 3 luồng quét sâu lịch sử trò chuyện (Inline Reactions, Mentions, System Messages). |
+| **v27.2.3** | 03/07/2026 | Patch | Đồng bộ trạng thái trực tuyến CRM, nâng cấp quét nhóm ẩn (PSS) với 3 luồng quét sâu, sửa lỗi ERP & Nhãn 2 chiều. **Bổ sung ẩn danh Ghost Mode (Online/Read), gửi đa phương tiện nâng cao (Voice, Bank Card, Card), gộp Album ảnh tự động, tự động phát hiện video và 4 Node Workflow mới.** |
 | **v27.2.2** | 01/07/2026 | Patch | Nâng cấp Workflow Editor nâng cao: phím nóng và nút bấm Hoàn tác/Làm lại (Undo/Redo), nút ✨ Căn chỉnh node (BFS Layout), kiểm tra vòng lặp vô hạn (Cycle Detection), tự động lưu ngầm (Silent Auto-save), xem nhanh biến động (Tooltip preview), tối ưu hóa nhãn chào CRM Zalo-native và mở rộng 3 kịch bản mẫu nâng cao (AI Lead Scoring, Event Followup BĐS, POS Appointment Reminder). Fix lỗi Smart Connect (định vị điểm nhả qua elementFromPoint). |
 | **v27.2.1** | 01/07/2026 | Patch | Dọn dẹp dứt điểm Zalo Group History (lỗi 404); Đồng bộ hóa CRM từ nhân viên lên Boss; Ẩn tab Webhooks với nhân viên; Đồng bộ theme Sáng (System Theme) của Workflow; Mở rộng bộ lọc CRM nâng cao và tích hợp nút Xem trước (Preview) danh sách đối tượng lọc được trong Workflow (vẽ composite GroupAvatar và việt hóa nhãn, icon); Kiểm định thành công 100% kho 86 workflow mẫu ở Sandbox; Tích hợp tính năng giải tán nhóm hàng loạt (Bulk Disperse Group) cho các nhóm Owner vào SmartGroupModal.tsx. |
 | **v27.2.0** | 30/06/2026 | Patch | CRM AI Đa Trợ Lý và tự động tổng hợp hồ sơ khách hàng theo bộ đếm tin nhắn chạy ngầm ở Main Process; Bổ sung các cột cấu hình AI vào bảng danh sách CRM hỗ trợ inline-edit trực tiếp; Sửa lỗi đồng bộ tin nhắn nhóm Zalo (lỗi 404 do thiếu tiền tố g); Khắc phục lỗi ẩn phần tin nhắn chiến dịch và GroupPicker trống trong modal tạo chiến dịch từ nhóm. |
@@ -171,12 +171,23 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 
 ### Chi tiết các cập nhật từng phiên bản
 
-#### ⚡ v27.2.3 — Online Status Sync & PSS Deep Scanning Upgrades
+#### ⚡ v27.2.3 — Online Status Sync, PSS Deep Scanning, Ghost Mode, Rich Media & 2-way ERP Sync
 *   **Tính năng mới (New):**
     *   **Đồng bộ trạng thái trực tuyến**: Bổ sung cổng IPC `zalo:getFriendOnlines` gọi API của `zca-js` tải danh sách bạn bè đang online, tự động thăm dò (polling) mỗi 60 giây.
     *   **Chỉ báo hoạt động & Bộ lọc CRM**: Thêm chấm tròn xanh lá biểu thị online trên avatar khách hàng và bộ lọc trực quan "🟢 Online" tại CRM.
     *   **Ký hiệu kết bạn mới**: Chuyển đổi biểu tượng tròn xanh lá cũ sang dấu tick V màu xanh dương để phân biệt rõ với chấm hoạt động trực tuyến.
     *   **Quét nhóm ẩn nâng cao (PSS Deep Scanning)**: Nâng cấp [GroupMembersTab.tsx](file:///Users/kimtrungduong/Downloads/deplao/src/ui/components/crm/groups/GroupMembersTab.tsx) tích hợp thêm 3 luồng quét sâu lịch sử trò chuyện gồm: thả cảm xúc tin nhắn (Inline Reactions), tag nhắc tên (Mentions) và siêu dữ liệu tin nhắn hệ thống (System Messages metadata).
+    *   **Ẩn danh Ghost Mode (Online & Read Privacy)**:
+        *   *Ẩn hoạt động (Ghost Online)*: Ẩn chấm xanh online khỏi mắt bạn bè, tự động duy trì ngoại tuyến qua bộ ping định thời mỗi 5 phút.
+        *   *Đọc ngầm tin nhắn (Ghost Read)*: Đọc tin nhắn nhưng chặn gửi sự kiện đã xem lên server Zalo. Khách hàng chỉ thấy trạng thái "Đã nhận".
+    *   **Nhập SĐT hàng loạt cực nhanh**: Tối ưu hóa tra cứu nhóm lên tới 100 số điện thoại/lần qua API `getMultiUsersByPhones`, tăng tốc độ kiểm tra CSV lên 10 lần.
+    *   **Tin nhắn đa phương tiện nâng cao (Rich Media Actions)**: Tích hợp nút thao tác nhanh ⚡ gửi nhanh Voice Note từ file, thẻ ngân hàng (Bank Card với 30+ ngân hàng VN) và danh thiếp liên hệ (Zalo Card).
+    *   **Tự động gộp Album & video Rich**: Gộp nhiều ảnh gửi cùng lúc thành 1 tin nhắn Album duy nhất. Tự động chuyển đổi gửi video thành Rich Video (trích xuất metadata qua ffmpeg, tạo thumbnail tự động).
+    *   **4 Node Workflow mới**: Tích hợp các node `zalo.sendVideo`, `zalo.sendVoice`, `zalo.sendBankCard`, và `zalo.sendCard` hỗ trợ truyền biến động và proxy trung chuyển Boss-Employee.
+*   **Sửa lỗi & Phòng ngừa (Fixed & Preventive):**
+    *   **Đồng bộ ERP & Nhãn 2 chiều từ Nhân viên**: Khắc phục lỗi đứt gãy chiều gửi dữ liệu từ Nhân viên lên máy Boss bằng cách áp dụng proxy tự động chuyển tiếp `proxyToBossAsync` trong Electron IPC Middleware.
+    *   **Ghi nhận dữ liệu thời gian thực bền vững**: Sửa lỗi mất thông tin ERP tạm thời khi Nhân viên tải lại trang (reload) bằng cơ chế tự động ghi nhận (SQLite upsert) cho toàn bộ 19 sự kiện `erp:event:*` nhận được từ SSE vào database local.
+    *   **Cơ chế phòng ngừa dynamic SQLite schema**: Sử dụng truy vấn `PRAGMA table_info` để quét động cấu trúc bảng, tự động loại bỏ các thuộc tính ảo trong payload trước khi lưu vào SQLite local để ngăn ngừa lỗi không tồn tại cột.
 
 #### ⚡ v27.2.2 — Advanced Workflow Editor (Undo/Redo, Auto-align, Cycle detection, Auto-save, Tooltips) & Templates Expansion
 *   **Tính năng mới (New):**

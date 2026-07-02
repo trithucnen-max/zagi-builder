@@ -225,6 +225,14 @@ interface AppStore {
   closeAccountSwitcher: (select?: boolean) => void;
   nextAccountSwitcher: () => void;
   prevAccountSwitcher: () => void;
+
+  // ── Ghost Mode ──────────────────────────────────────────────────────────
+  /** Khi true: không gửi sự kiện "đã xem" lên Zalo — khách chỉ thấy "Đã nhận" */
+  ghostModeRead: boolean;
+  setGhostModeRead: (enabled: boolean) => void;
+  /** Khi true: ẩn trạng thái online (chấm xanh) khỏi mắt bạn bè */
+  ghostModeOnline: boolean;
+  setGhostModeOnline: (enabled: boolean) => void;
 }
 
 // ─── fontSizeScale persists in localStorage ─────────────────────────────────
@@ -376,6 +384,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // Sidebar expanded state
   sidebarExpanded: false,
   toggleSidebarExpanded: () => set((s) => ({ sidebarExpanded: !s.sidebarExpanded })),
+
+  // Ghost Mode
+  ghostModeRead: (() => { try { return localStorage.getItem('ghost_mode_read') === 'true'; } catch { return false; } })(),
+  setGhostModeRead: (enabled) => {
+    try { localStorage.setItem('ghost_mode_read', String(enabled)); } catch {}
+    set({ ghostModeRead: enabled });
+  },
+  ghostModeOnline: (() => { try { return localStorage.getItem('ghost_mode_online') === 'true'; } catch { return false; } })(),
+  setGhostModeOnline: (enabled) => {
+    try { localStorage.setItem('ghost_mode_online', String(enabled)); } catch {}
+    set({ ghostModeOnline: enabled });
+  },
 
   // Account switcher state
   accountSwitcherOpen: false,

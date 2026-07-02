@@ -133,6 +133,8 @@ declare global {
         getReminder: (params: any) => Promise<any>;
         sendSeenEvent: (params: any) => Promise<any>;
         sendBankCard: (params: any) => Promise<any>;
+        getMultiUsersByPhones: (params: { auth: any; phones: string[] }) => Promise<{ success: boolean; response?: Record<string, any>; error?: string }>;
+        updateActiveStatus: (params: { auth: any; active: boolean }) => Promise<{ success: boolean; response?: { status: boolean }; error?: string }>;
       };
       db: {
         getMessages: (params: any) => Promise<any>;

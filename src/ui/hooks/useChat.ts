@@ -26,7 +26,7 @@ export function useChat() {
   } = useChatStore();
 
   const { activeAccountId, getActiveAccount } = useAccountStore();
-  const { showNotification } = useAppStore();
+  const { showNotification, ghostModeRead } = useAppStore();
 
   const getAuth = useCallback(() => {
     const acc = getActiveAccount();
@@ -57,13 +57,15 @@ export function useChat() {
       const contact = currentContacts.find(c => c.contact_id === contactId);
       const channel = (contact?.channel || 'zalo') as string;
 
-      // Mark as read in DB
+      // Mark as read in DB (luôn xóa badge local)
       await ipc.db?.markAsRead({ zaloId: activeAccountId, contactId });
-      // Gửi sự kiện đã đọc: Zalo uses sendSeenForThread, Facebook uses channelIpc
-      if (channel === 'facebook') {
-        channelIpc.markAsRead('facebook', { accountId: activeAccountId, threadId: contactId }).catch(() => {});
-      } else {
-        sendSeenForThread(activeAccountId, contactId, threadType);
+      // Gửi sự kiện đã đọc: bỏ qua nếu Ghost Mode Read bật
+      if (!ghostModeRead) {
+        if (channel === 'facebook') {
+          channelIpc.markAsRead('facebook', { accountId: activeAccountId, threadId: contactId }).catch(() => {});
+        } else {
+          sendSeenForThread(activeAccountId, contactId, threadType);
+        }
       }
 
       // Load messages from DB

@@ -7,6 +7,7 @@ import AccountAssignmentPopup from './AccountAssignmentPopup';
 import {SendCardModal} from './GroupModals';
 import {CreatePollDialog, NoteViewModal} from './ChatWindow';
 import BankCardModal from './BankCardModal';
+import RichMessageActions from './RichMessageActions';
 import {
   fetchQuickMessages,
   invalidateZaloQuickMessageCache,
@@ -154,6 +155,7 @@ export default function MessageInput() {
   const [clipboardImages, setClipboardImages] = useState<Array<{ id: string; dataUrl: string; blob: Blob }>>([]);
   // Drag-and-drop state
   const [isDragging, setIsDragging] = useState(false);
+  const [richActionsOpen, setRichActionsOpen] = useState(false);
   const dragCounterRef = useRef(0);
   const [localLabels, setLocalLabels] = useState<LocalLabel[]>([]);
   const [threadLocalLabelIds, setThreadLocalLabelIds] = useState<Set<number>>(new Set());
@@ -1988,56 +1990,9 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
     } finally { setSending(false); }
   };
 
-  const handleSendFile = async () => {
+  const performSendVideo = async (videoPath: string) => {
     const auth = getAuth();
     if (!auth || !activeThreadId) return;
-    const result = await ipc.file?.openDialog({ filters: [{ name: 'All Files', extensions: ['*'] }] });
-    if (result?.canceled || !result?.filePaths?.length) return;
-    const filePath = result.filePaths[0];
-    setSending(true);
-    try {
-      const quotePayload = buildQuotePayload(replyTo);
-      const ch = activeContact?.channel || 'zalo';
-      if (ch === 'facebook') {
-        const fileName = filePath.split(/[\\/]/).pop() || 'file';
-        const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-        addMessage(activeAccountId!, activeThreadId, {
-          msg_id: tempId, owner_zalo_id: activeAccountId!, thread_id: activeThreadId,
-          thread_type: activeThreadType, sender_id: activeAccountId!, content: `📎 ${fileName}`,
-          msg_type: 'file', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: 'facebook',
-          attachments: JSON.stringify([{ type: 'file', localPath: filePath, name: fileName }]),
-        });
-        const fileRes = await channelIpc.sendAttachment('facebook', { accountId: activeAccountId!, threadId: activeThreadId, filePath, threadType: activeThreadType });
-        if (!fileRes?.success) {
-          showNotification(fileRes?.error || 'Gửi file Facebook thất bại', 'error');
-          removeMessage(activeAccountId!, activeThreadId, tempId);
-        }
-        // The MQTT echo will arrive and replace tempId automatically via useChatEvents
-      } else {
-        await ipc.zalo?.sendFile({
-          auth,
-          threadId: activeThreadId,
-          type: activeThreadType,
-          filePath,
-          ...(quotePayload ? { quote: quotePayload } : {}),
-        });
-      }
-      if (quotePayload) setReplyTo(null);
-      showNotification('Đã gửi file!', 'success');
-    } catch (err: any) {
-      showNotification('Gửi file thất bại: ' + err.message, 'error');
-    } finally { setSending(false); }
-  };
-
-  const handleSendVideo = async () => {
-    const auth = getAuth();
-    if (!auth || !activeThreadId) return;
-    const result = await ipc.file?.openDialog({
-      filters: [{ name: 'Video', extensions: ['mp4', 'avi', 'mov', 'mkv', 'webm', 'm4v', '3gp'] }],
-      multiSelect: false,
-    });
-    if (result?.canceled || !result?.filePaths?.length) return;
-    const videoPath = result.filePaths[0];
     setSending(true);
     try {
       const quotePayload = buildQuotePayload(replyTo);
@@ -2119,6 +2074,64 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
     } catch (err: any) {
       showNotification('Gửi video thất bại: ' + err.message, 'error');
     } finally { setSending(false); }
+  };
+
+  const handleSendFile = async () => {
+    const auth = getAuth();
+    if (!auth || !activeThreadId) return;
+    const result = await ipc.file?.openDialog({ filters: [{ name: 'All Files', extensions: ['*'] }] });
+    if (result?.canceled || !result?.filePaths?.length) return;
+    const filePath = result.filePaths[0];
+
+    // Tự động phát hiện nếu file là video -> chuyển sang luồng video rich
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    const isVideo = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'm4v', '3gp'].includes(ext || '');
+    if (isVideo) {
+      await performSendVideo(filePath);
+      return;
+    }
+
+    setSending(true);
+    try {
+      const quotePayload = buildQuotePayload(replyTo);
+      const ch = activeContact?.channel || 'zalo';
+      if (ch === 'facebook') {
+        const fileName = filePath.split(/[\\/]/).pop() || 'file';
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+        addMessage(activeAccountId!, activeThreadId, {
+          msg_id: tempId, owner_zalo_id: activeAccountId!, thread_id: activeThreadId,
+          thread_type: activeThreadType, sender_id: activeAccountId!, content: `📎 ${fileName}`,
+          msg_type: 'file', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: 'facebook',
+          attachments: JSON.stringify([{ type: 'file', localPath: filePath, name: fileName }]),
+        });
+        const fileRes = await channelIpc.sendAttachment('facebook', { accountId: activeAccountId!, threadId: activeThreadId, filePath, threadType: activeThreadType });
+        if (!fileRes?.success) {
+          showNotification(fileRes?.error || 'Gửi file Facebook thất bại', 'error');
+          removeMessage(activeAccountId!, activeThreadId, tempId);
+        }
+      } else {
+        await ipc.zalo?.sendFile({
+          auth,
+          threadId: activeThreadId,
+          type: activeThreadType,
+          filePath,
+          ...(quotePayload ? { quote: quotePayload } : {}),
+        });
+      }
+      if (quotePayload) setReplyTo(null);
+      showNotification('Đã gửi file!', 'success');
+    } catch (err: any) {
+      showNotification('Gửi file thất bại: ' + err.message, 'error');
+    } finally { setSending(false); }
+  };
+
+  const handleSendVideo = async () => {
+    const result = await ipc.file?.openDialog({
+      filters: [{ name: 'Video', extensions: ['mp4', 'avi', 'mov', 'mkv', 'webm', 'm4v', '3gp'] }],
+      multiSelect: false,
+    });
+    if (result?.canceled || !result?.filePaths?.length) return;
+    await performSendVideo(result.filePaths[0]);
   };
 
   // ── Voice recording ──────────────────────────────────────────────────
@@ -3116,6 +3129,20 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
             </svg>
           )}
         </ToolbarBtn>
+
+        {/* Tin nhắn nâng cao (Zalo) */}
+        {(activeContact?.channel || 'zalo') === 'zalo' && (
+          <ToolbarBtn
+            onClick={() => setRichActionsOpen(true)}
+            title="Gửi tin nhắn nâng cao (Voice/Bank/Card)"
+            disabled={sending}
+            active={richActionsOpen}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-500">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </ToolbarBtn>
+        )}
         {isRecording && (
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-950/30 border border-red-800/40">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
@@ -3691,6 +3718,19 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           </div>
         );
       })()}
+
+      {/* Rich message actions modal */}
+      {richActionsOpen && activeThreadId && activeAccountId && (
+        <RichMessageActions
+          isOpen={richActionsOpen}
+          onClose={() => setRichActionsOpen(false)}
+          threadId={activeThreadId}
+          threadType={activeThreadType}
+          zaloId={activeAccountId}
+          auth={getAuth()}
+          quote={buildQuotePayload(replyTo)}
+        />
+      )}
     </div>
   );
 }

@@ -22,10 +22,10 @@ export type NodeType =
   | 'trigger.reaction' | 'trigger.undo' | 'trigger.schedule' | 'trigger.manual'
   | 'trigger.labelAssigned' | 'trigger.webhook'
   | 'crm.getContacts'
-  | 'zalo.sendMessage' | 'zalo.sendImage' | 'zalo.sendFile' | 'zalo.sendVoice'
+  | 'zalo.sendMessage' | 'zalo.sendImage' | 'zalo.sendFile' | 'zalo.sendVoice' | 'zalo.sendVideo'
   | 'zalo.forwardMessage' | 'zalo.addReaction' | 'zalo.undoMessage'
   | 'zalo.sendTyping'
-  | 'zalo.findUser' | 'zalo.getUserInfo' | 'zalo.sendFriendRequest'
+  | 'zalo.findUser' | 'zalo.getUserInfo' | 'zalo.sendFriendRequest' | 'zalo.sendBankCard' | 'zalo.sendCard'
   | 'zalo.acceptFriendRequest' | 'zalo.rejectFriendRequest'
   | 'zalo.addToGroup' | 'zalo.removeFromGroup' | 'zalo.createPoll'
   | 'zalo.getMessageHistory' | 'zalo.setMute'
@@ -1703,6 +1703,138 @@ class WorkflowEngineService {
         };
       }
 
+      case 'zalo.sendVideo': {
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
+        const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
+        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
+        const continueOnError = cfg.continueOnError === true;
+
+        const options = {
+          videoUrl: cfg.videoUrl,
+          thumbnailUrl: cfg.thumbnailUrl,
+          duration: cfg.duration ? Number(cfg.duration) : undefined,
+          width: cfg.width ? Number(cfg.width) : undefined,
+          height: cfg.height ? Number(cfg.height) : undefined,
+          msg: cfg.msg || undefined,
+          ttl: cfg.ttl ? Number(cfg.ttl) : 0,
+        };
+
+        let lastResult: any = { success: false, error: 'Không gửi được video đến hội thoại nào' };
+        for (const tid of targetThreadIds) {
+          try {
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
+            const result = await api.sendVideo(options, tid, activeThreadType);
+            lastResult = result;
+            Logger.log(`[WorkflowEngine] zalo.sendVideo to ${tid}: success=true`);
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] zalo.sendVideo to ${tid} failed: ${err.message}`);
+            lastResult = { success: false, error: err.message };
+            if (!continueOnError) throw err;
+          }
+        }
+        return {
+          success: true,
+          msgId: lastResult?.msgId || '',
+          _targetCount: targetThreadIds.length,
+        };
+      }
+
+      case 'zalo.sendVoice': {
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
+        const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
+        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
+        const continueOnError = cfg.continueOnError === true;
+
+        const options = {
+          voiceUrl: cfg.voiceUrl,
+          ttl: cfg.ttl ? Number(cfg.ttl) : 0,
+        };
+
+        let lastResult: any = { success: false, error: 'Không gửi được voice đến hội thoại nào' };
+        for (const tid of targetThreadIds) {
+          try {
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
+            const result = await api.sendVoice(options, tid, activeThreadType);
+            lastResult = result;
+            Logger.log(`[WorkflowEngine] zalo.sendVoice to ${tid}: success=true`);
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] zalo.sendVoice to ${tid} failed: ${err.message}`);
+            lastResult = { success: false, error: err.message };
+            if (!continueOnError) throw err;
+          }
+        }
+        return {
+          success: true,
+          msgId: lastResult?.msgId || '',
+          _targetCount: targetThreadIds.length,
+        };
+      }
+
+      case 'zalo.sendBankCard': {
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
+        const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
+        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
+        const continueOnError = cfg.continueOnError === true;
+
+        const bankPayload = {
+          binBank: cfg.binBank,
+          numAccBank: cfg.numAccBank,
+          nameAccBank: (cfg.nameAccBank || '').toUpperCase(),
+        };
+
+        let lastResult: any = { success: false, error: 'Không gửi được thẻ ngân hàng đến hội thoại nào' };
+        for (const tid of targetThreadIds) {
+          try {
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
+            const result = await api.sendBankCard(JSON.stringify(bankPayload), tid, activeThreadType);
+            lastResult = result;
+            Logger.log(`[WorkflowEngine] zalo.sendBankCard to ${tid}: success=true`);
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] zalo.sendBankCard to ${tid} failed: ${err.message}`);
+            lastResult = { success: false, error: err.message };
+            if (!continueOnError) throw err;
+          }
+        }
+        return {
+          success: true,
+          _targetCount: targetThreadIds.length,
+        };
+      }
+
+      case 'zalo.sendCard': {
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
+        const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
+        const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
+        const continueOnError = cfg.continueOnError === true;
+
+        let lastResult: any = { success: false, error: 'Không gửi được danh thiếp đến hội thoại nào' };
+        for (const tid of targetThreadIds) {
+          try {
+            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
+            const result = await api.sendCard([{
+              options: {
+                userId: cfg.userId,
+                phoneNumber: cfg.phoneNumber || undefined,
+                ttl: cfg.ttl ? Number(cfg.ttl) : 0,
+              },
+              threadId: tid,
+              type: activeThreadType,
+            }]);
+            lastResult = result?.[0] || result;
+            Logger.log(`[WorkflowEngine] zalo.sendCard to ${tid}: success=true`);
+          } catch (err: any) {
+            Logger.warn(`[WorkflowEngine] zalo.sendCard to ${tid} failed: ${err.message}`);
+            lastResult = { success: false, error: err.message };
+            if (!continueOnError) throw err;
+          }
+        }
+        return {
+          success: true,
+          msgId: lastResult?.msgId || '',
+          _targetCount: targetThreadIds.length,
+        };
+      }
+
       case 'zalo.sendFile': {
         const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
@@ -3235,6 +3367,23 @@ class WorkflowEngineService {
           },
           getGroupChatHistory: async (p: any) => {
             const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:getMessageHistory', { zaloId: targetZaloId, auth: {}, ...p });
+            return res?.success ? res.response : res;
+          },
+          sendVideo: async (options: any, threadId: string, type: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendVideo', { zaloId: targetZaloId, auth: {}, options, threadId, type });
+            return res?.success ? res.response : res;
+          },
+          sendVoice: async (options: any, threadId: string, type: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendVoice', { zaloId: targetZaloId, auth: {}, options, threadId, type });
+            return res?.success ? res.response : res;
+          },
+          sendBankCard: async (payload: any, threadId: string, type: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendBankCard', { zaloId: targetZaloId, auth: {}, payload, threadId, type });
+            return res?.success ? res.response : res;
+          },
+          sendCard: async (cardsInfo: any) => {
+            const card = cardsInfo[0] || {};
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendCard', { zaloId: targetZaloId, auth: {}, options: card.options, threadId: card.threadId, type: card.type, quote: card.quote });
             return res?.success ? res.response : res;
           }
         };

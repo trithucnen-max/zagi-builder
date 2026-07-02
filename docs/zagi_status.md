@@ -61,10 +61,15 @@
     *   **Sửa lỗi Kết nối thông minh (Smart Connect)**: Định vị điểm nhả qua elementFromPoint để sửa lỗi menu gợi ý Node không hiện.
     *   **Tối ưu hóa Toolbar chèn biến**: Giới hạn thanh công cụ chèn biến chỉ xuất hiện trên các trường nhập liệu văn bản tin nhắn (`textarea`, `multiline`).
     *   **Tối ưu hóa các biến chào CRM**: Đổi biến chào cũ sang định dạng Zalo-native lịch sự hơn là `{{ $item.salutation }} {{ $item.display_name }}`.
-15. **Trạng thái trực tuyến & Nâng cấp quét nhóm ẩn (v27.2.3):**
+15. **Trạng thái trực tuyến, Quét nhóm ẩn, Ghost Mode, Rich Media & 2-way ERP (v27.2.3):**
     *   **Đồng bộ Online**: Gọi API `getFriendOnlines` qua cổng IPC của `zca-js` định kỳ mỗi 60 giây, hỗ trợ hiển thị chấm hoạt động online màu xanh ở avatar và bộ lọc trực quan trên CRM.
     *   **Ký hiệu kết bạn mới**: Đổi chỉ báo kết bạn cũ sang biểu tượng tick xanh dương dạng V để phân biệt rõ với chấm hoạt động online.
     *   **Quét nhóm ẩn nâng cao (PSS)**: Bổ sung 3 luồng quét sâu lịch sử trò chuyện (Reactions tin nhắn, tag Mentions thành viên, và dữ liệu System Messages) giúp thu hoạch đầy đủ UIDs của các thành viên ẩn trong nhóm khóa.
+    *   **Ẩn danh Ghost Mode (Online & Read Privacy)**: Tích hợp chế độ ẩn chấm xanh hoạt động (Ghost Online ping mỗi 5 phút) và đọc ngầm tin nhắn không gửi tín hiệu đã xem (Ghost Read).
+    *   **Tin nhắn đa phương tiện & Tự động gộp Album**: Thêm bảng thao tác nhanh ⚡ gửi Voice Note từ file, thẻ ngân hàng Bank Card và danh thiếp Zalo Card. Tự động gộp ảnh gửi cùng lúc thành Album và tự động phát hiện video gửi làm Rich Video.
+    *   **4 Node kịch bản Workflow mới**: Thêm các node `zalo.sendVideo`, `zalo.sendVoice`, `zalo.sendBankCard`, và `zalo.sendCard` hỗ trợ biến động và proxy trung chuyển.
+    *   **Import SĐT siêu tốc**: Sử dụng API truy vấn hàng loạt `getMultiUsersByPhones` theo lô 100 SĐT để import CSV cực nhanh (< 5s).
+    *   **Sửa lỗi đồng bộ ERP & Nhãn 2 chiều**: Cấu hình bộ chuyển tiếp proxy tự động `proxyToBossAsync` cho toàn bộ các thao tác ghi (mutations) của nhân viên lên máy Boss; Đồng thời xây dựng cơ chế phân tích cấu trúc bảng động qua `PRAGMA table_info` để tự động ghi nhận (SQLite upsert) 19 sự kiện `erp:event:*` thời gian thực nhận được từ SSE vào SQLite local của Nhân viên.
 
 
 ## 4. Trạng Thái Kiểm Thử & Chạy Thử

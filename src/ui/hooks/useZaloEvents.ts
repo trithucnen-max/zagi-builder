@@ -711,7 +711,10 @@ export function useZaloEvents() {
       // 7. Clear unread, mark as read, update badge
       ipc.db?.markAsRead({ zaloId, contactId: threadId }).catch(() => {});
       clearUnread(zaloId, threadId);
-      sendSeenForThread(zaloId, threadId, threadType);
+      // Không gửi seen lên server nếu Ghost Mode Read đang bật
+      if (!useAppStore.getState().ghostModeRead) {
+        sendSeenForThread(zaloId, threadId, threadType);
+      }
       ipc.app?.setBadge(Math.max(0, getFilteredUnreadCount()));
 
       // 8. Auto-fetch user info cho thread nếu thiếu (sau khi contacts kịp load)
@@ -870,10 +873,12 @@ export function useZaloEvents() {
       if (!tid || !activeAccountId) return;
       clearUnread(activeAccountId, tid);
       ipc.db?.markAsRead({ zaloId: activeAccountId, contactId: tid }).catch(() => {});
-      // Gửi sự kiện đã đọc khi cửa sổ được focus lại
-      const activeContact = (useChatStore.getState().contacts[activeAccountId] || []).find(c => c.contact_id === tid);
-      const focusThreadType = activeContact?.contact_type === 'group' ? 1 : 0;
-      sendSeenForThread(activeAccountId, tid, focusThreadType);
+      // Gửi sự kiện đã đọc khi cửa sổ được focus lại (bỏ qua nếu Ghost Mode Read)
+      if (!useAppStore.getState().ghostModeRead) {
+        const activeContact = (useChatStore.getState().contacts[activeAccountId] || []).find(c => c.contact_id === tid);
+        const focusThreadType = activeContact?.contact_type === 'group' ? 1 : 0;
+        sendSeenForThread(activeAccountId, tid, focusThreadType);
+      }
       ipc.app?.setBadge(getFilteredUnreadCount());
     };
     const handleBlur = () => { windowFocusedRef.current = false; };
@@ -1145,8 +1150,10 @@ export function useZaloEvents() {
         // Tin nhắn từ người khác gửi vào thread đang mở VÀ cửa sổ đang focus → mark read ngay
         ipc.db?.markAsRead({ zaloId, contactId: threadId }).catch(() => {});
         clearUnread(zaloId, threadId);
-        // Gửi sự kiện đã đọc cho Zalo vì đang xem thread này
-        sendSeenForThread(zaloId, threadId, isGroup ? 1 : 0);
+        // Gửi sự kiện đã đọc cho Zalo (bỏ qua nếu Ghost Mode Read bật)
+        if (!useAppStore.getState().ghostModeRead) {
+          sendSeenForThread(zaloId, threadId, isGroup ? 1 : 0);
+        }
       }
 
       if (!isGroup) {

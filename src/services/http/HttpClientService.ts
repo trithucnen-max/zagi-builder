@@ -830,9 +830,215 @@ class HttpClientService {
                 });
                 return;
             }
+
+            // ── ERP Project ──
+            if ((channel === 'erp:event:projectCreated' || channel === 'erp:event:projectUpdated') && data?.project) {
+                runOnWsDb(() => {
+                    this.upsertRow(db, 'erp_projects', data.project);
+                });
+                return;
+            }
+            if (channel === 'erp:event:projectDeleted' && data?.projectId) {
+                runOnWsDb(() => {
+                    db.run('DELETE FROM erp_projects WHERE id = ?', [data.projectId]);
+                    db.run('UPDATE erp_tasks SET archived = 1, updated_at = ? WHERE project_id = ?', [Date.now(), data.projectId]);
+                });
+                return;
+            }
+
+            // ── ERP Task ──
+            if ((channel === 'erp:event:taskCreated' || channel === 'erp:event:taskUpdated') && data?.task) {
+                runOnWsDb(() => {
+                    const t = data.task;
+                    this.upsertRow(db, 'erp_tasks', t);
+                    
+                    if (Array.isArray(t.assignees)) {
+                        db.run('DELETE FROM erp_task_assignees WHERE task_id = ?', [t.id]);
+                        for (const empId of t.assignees) {
+                            if (empId) {
+                                db.run('INSERT INTO erp_task_assignees (task_id, employee_id, assigned_at) VALUES (?, ?, ?)', [t.id, empId, Date.now()]);
+                            }
+                        }
+                    }
+                    
+                    if (Array.isArray(t.watchers)) {
+                        db.run('DELETE FROM erp_task_watchers WHERE task_id = ?', [t.id]);
+                        for (const empId of t.watchers) {
+                            if (empId) {
+                                db.run('INSERT INTO erp_task_watchers (task_id, employee_id, added_at) VALUES (?, ?, ?)', [t.id, empId, Date.now()]);
+                            }
+                        }
+                    }
+                });
+                return;
+            }
+            if (channel === 'erp:event:taskDeleted' && data?.taskId) {
+                runOnWsDb(() => {
+                    db.run('DELETE FROM erp_tasks WHERE id = ?', [data.taskId]);
+                    db.run('DELETE FROM erp_task_assignees WHERE task_id = ?', [data.taskId]);
+                    db.run('DELETE FROM erp_task_watchers WHERE task_id = ?', [data.taskId]);
+                    db.run('DELETE FROM erp_task_checklist WHERE task_id = ?', [data.taskId]);
+                    db.run('DELETE FROM erp_task_comments WHERE task_id = ?', [data.taskId]);
+                });
+                return;
+            }
+
+            // ── ERP Comment ──
+            if (channel === 'erp:event:commentAdded' && data?.comment) {
+                runOnWsDb(() => {
+                    this.upsertRow(db, 'erp_task_comments', data.comment);
+                    if (data.task) {
+                        this.upsertRow(db, 'erp_tasks', data.task);
+                    }
+                });
+                return;
+            }
+
+            // ── ERP Calendar Event ──
+            if ((channel === 'erp:event:calendarEventCreated' || channel === 'erp:event:calendarEventUpdated') && data?.event) {
+                runOnWsDb(() => {
+                    const e = data.event;
+                    this.upsertRow(db, 'erp_calendar_events', e);
+                    
+                    if (Array.isArray(e.attendees)) {
+                        db.run('DELETE FROM erp_event_attendees WHERE event_id = ?', [e.id]);
+                        for (const att of e.attendees) {
+                            const empId = typeof att === 'string' ? att : att.employee_id;
+                            if (empId) {
+                                db.run('INSERT INTO erp_event_attendees (event_id, employee_id) VALUES (?, ?)', [e.id, empId]);
+                            }
+                        }
+                    }
+                });
+                return;
+            }
+            if (channel === 'erp:event:calendarEventDeleted' && data?.eventId) {
+                runOnWsDb(() => {
+                    db.run('DELETE FROM erp_calendar_events WHERE id = ?', [data.eventId]);
+                    db.run('DELETE FROM erp_event_attendees WHERE event_id = ?', [data.eventId]);
+                });
+                return;
+            }
+            if (channel === 'erp:event:reminder' && data?.reminder) {
+                runOnWsDb(() => {
+                    this.upsertRow(db, 'erp_event_reminders', data.reminder);
+                });
+                return;
+            }
+
+            // ── ERP Note ──
+            if ((channel === 'erp:event:noteCreated' || channel === 'erp:event:noteUpdated') && data?.note) {
+                runOnWsDb(() => {
+                    this.upsertRow(db, 'erp_notes', data.note);
+                    
+                    if (Array.isArray(data.shares)) {
+                        db.run('DELETE FROM erp_note_shares WHERE note_id = ?', [data.note.id]);
+                        for (const sh of data.shares) {
+                            this.upsertRow(db, 'erp_note_shares', sh);
+                        }
+                    }
+                });
+                return;
+            }
+            if (channel === 'erp:event:noteDeleted' && data?.noteId) {
+                runOnWsDb(() => {
+                    db.run('DELETE FROM erp_notes WHERE id = ?', [data.noteId]);
+                    db.run('DELETE FROM erp_note_shares WHERE note_id = ?', [data.noteId]);
+                    db.run('DELETE FROM erp_note_versions WHERE note_id = ?', [data.noteId]);
+                });
+                return;
+            }
+            if (channel === 'erp:event:noteShared' && data?.noteId) {
+                runOnWsDb(() => {
+                    if (data.note) {
+                        this.upsertRow(db, 'erp_notes', data.note);
+                    }
+                    if (Array.isArray(data.shares)) {
+                        db.run('DELETE FROM erp_note_shares WHERE note_id = ?', [data.noteId]);
+                        for (const sh of data.shares) {
+                            this.upsertRow(db, 'erp_note_shares', sh);
+                        }
+                    }
+                });
+                return;
+            }
+
+            // ── ERP HRM ──
+            if (channel === 'erp:event:leaveCreated' || channel === 'erp:event:leaveDecided') {
+                if (data?.leave) {
+                    runOnWsDb(() => {
+                        this.upsertRow(db, 'erp_leave_requests', data.leave);
+                    });
+                }
+                return;
+            }
+            if (channel === 'erp:event:attendanceUpdated' && data?.attendance) {
+                runOnWsDb(() => {
+                    this.upsertRow(db, 'erp_attendance', data.attendance);
+                });
+                return;
+            }
+            if (channel === 'erp:event:departmentUpdated') {
+                runOnWsDb(() => {
+                    if (data?.deleted && data?.departmentId) {
+                        db.run('DELETE FROM erp_departments WHERE id = ?', [data.departmentId]);
+                    } else if (data?.department) {
+                        this.upsertRow(db, 'erp_departments', data.department);
+                    }
+                });
+                return;
+            }
+            if (channel === 'erp:event:employeeProfileUpdated' && data?.profile) {
+                runOnWsDb(() => {
+                    this.upsertRow(db, 'erp_employee_profiles', data.profile);
+                });
+                return;
+            }
+            if (channel === 'erp:event:employeeProfileDeleted' && data?.employeeId) {
+                runOnWsDb(() => {
+                    db.run('DELETE FROM erp_employee_profiles WHERE employee_id = ?', [data.employeeId]);
+                });
+                return;
+            }
+
+            // Developer fallback warning for unhandled ERP SSE events
+            if (channel.startsWith('erp:event:')) {
+                Logger.warn(`[HttpClientService] Unhandled ERP SSE event channel: ${channel}. Data:`, data);
+            }
         } catch (err: any) {
             Logger.warn(`[HttpClientService] persistRelayConversationEvent error (${channel}): ${err.message}`);
         }
+    }
+
+    private getTableColumns(db: any, tableName: string): string[] {
+        try {
+            const rows = db.query(`PRAGMA table_info(${tableName})`);
+            return rows.map((r: any) => r.name);
+        } catch (err: any) {
+            Logger.warn(`[HttpClientService] getTableColumns error for ${tableName}: ${err.message}`);
+            return [];
+        }
+    }
+
+    private upsertRow(db: any, tableName: string, row: any): void {
+        if (!row || typeof row !== 'object') return;
+        const validCols = this.getTableColumns(db, tableName);
+        if (validCols.length === 0) return;
+
+        const colsToInsert = Object.keys(row).filter(key => validCols.includes(key));
+        if (colsToInsert.length === 0) return;
+
+        const colList = colsToInsert.join(', ');
+        const placeholders = colsToInsert.map(() => '?').join(', ');
+        const vals = colsToInsert.map(c => {
+            const v = row[c];
+            if (v && (typeof v === 'object' || Array.isArray(v))) {
+                return JSON.stringify(v);
+            }
+            return v;
+        });
+
+        db.run(`INSERT OR REPLACE INTO ${tableName} (${colList}) VALUES (${placeholders})`, vals);
     }
 
     // ─── SSE client (receive events from Boss) ──────────────────────

@@ -555,6 +555,162 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       advanced: true,
     },
   ],
+  'zalo.sendVideo': [
+    {
+      key: 'videoUrl', label: 'URL Video', type: 'text',
+      placeholder: 'https://example.com/video.mp4 hoặc {{ $trigger.videoUrl }}',
+      desc: 'Đường dẫn URL trực tiếp tới file video (hỗ trợ các biến workflow).',
+    },
+    {
+      key: 'thumbnailUrl', label: 'URL Ảnh bìa (Thumbnail)', type: 'text',
+      placeholder: 'https://example.com/thumb.jpg',
+      desc: 'Ảnh bìa hiển thị trước khi chạy video.',
+    },
+    {
+      key: 'duration', label: 'Thời lượng (Giây)', type: 'text',
+      placeholder: '15',
+      desc: 'Thời lượng của video.',
+    },
+    {
+      key: 'width', label: 'Chiều rộng (px)', type: 'text',
+      placeholder: '1280',
+      desc: 'Độ phân giải chiều ngang.',
+      advanced: true,
+    },
+    {
+      key: 'height', label: 'Chiều cao (px)', type: 'text',
+      placeholder: '720',
+      desc: 'Độ phân giải chiều dọc.',
+      advanced: true,
+    },
+    {
+      key: 'msg', label: 'Tin nhắn đi kèm', type: 'text',
+      placeholder: 'Gửi bạn video hướng dẫn...',
+      desc: 'Lời nhắn gửi kèm video (tùy chọn).',
+    },
+    {
+      key: 'threadIds', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
+      placeholder: '{{ $trigger.threadId }}',
+      desc: 'Chọn hội thoại nhận video.',
+      templateVars: ['$trigger.threadId'],
+    },
+    {
+      key: 'threadType', label: 'Loại hội thoại', type: 'select',
+      desc: 'Loại hội thoại.',
+      options: [
+        { value: '{{ $trigger.threadType }}', label: '🔄 Tự động (theo trigger)' },
+        { value: '0', label: '👤 Cá nhân' }, { value: '1', label: '👥 Nhóm' },
+      ],
+      advanced: true,
+    },
+    {
+      key: 'ttl', label: 'Thời gian tự hủy (Giây)', type: 'text',
+      placeholder: '0',
+      desc: 'Thời gian tin nhắn tồn tại trước khi tự hủy (mặc định 0 = vĩnh viễn).',
+      advanced: true,
+    },
+    {
+      key: 'continueOnError', label: 'Tiếp tục workflow dù gửi thất bại', type: 'boolean',
+      desc: 'Bật nếu muốn các bước sau vẫn chạy ngay cả khi gửi video lỗi.',
+      advanced: true,
+    },
+  ],
+  'zalo.sendVoice': [
+    {
+      key: 'voiceUrl', label: 'URL File âm thanh (Voice)', type: 'text',
+      placeholder: 'https://example.com/audio.m4a',
+      desc: 'URL trực tiếp tới file ghi âm (.m4a, .mp3, .wav).',
+    },
+    {
+      key: 'threadIds', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
+      placeholder: '{{ $trigger.threadId }}',
+      desc: 'Chọn hội thoại nhận tin nhắn thoại.',
+      templateVars: ['$trigger.threadId'],
+    },
+    {
+      key: 'threadType', label: 'Loại hội thoại', type: 'select',
+      options: [
+        { value: '{{ $trigger.threadType }}', label: '🔄 Tự động (theo trigger)' },
+        { value: '0', label: '👤 Cá nhân' }, { value: '1', label: '👥 Nhóm' },
+      ],
+      advanced: true,
+    },
+    {
+      key: 'ttl', label: 'Thời gian tự hủy (Giây)', type: 'text',
+      placeholder: '0',
+      advanced: true,
+    },
+    {
+      key: 'continueOnError', label: 'Tiếp tục workflow dù gửi thất bại', type: 'boolean',
+      advanced: true,
+    },
+  ],
+  'zalo.sendBankCard': [
+    {
+      key: 'binBank', label: 'Mã BIN Ngân hàng (Napas)', type: 'text',
+      placeholder: '970436',
+      desc: 'Mã BIN ngân hàng nhận chuyển khoản (ví dụ Vietcombank: 970436, Techcombank: 970407).',
+    },
+    {
+      key: 'numAccBank', label: 'Số tài khoản', type: 'text',
+      placeholder: '001100123456',
+      desc: 'Số tài khoản thụ hưởng.',
+    },
+    {
+      key: 'nameAccBank', label: 'Tên tài khoản (Không dấu)', type: 'text',
+      placeholder: 'NGUYEN VAN A',
+      desc: 'Tên chủ tài khoản ngân hàng.',
+    },
+    {
+      key: 'threadIds', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
+      placeholder: '{{ $trigger.threadId }}',
+      templateVars: ['$trigger.threadId'],
+    },
+    {
+      key: 'threadType', label: 'Loại hội thoại', type: 'select',
+      options: [
+        { value: '{{ $trigger.threadType }}', label: '🔄 Tự động (theo trigger)' },
+        { value: '0', label: '👤 Cá nhân' }, { value: '1', label: '👥 Nhóm' },
+      ],
+      advanced: true,
+    },
+    {
+      key: 'continueOnError', label: 'Tiếp tục workflow dù gửi thất bại', type: 'boolean',
+      advanced: true,
+    },
+  ],
+  'zalo.sendCard': [
+    {
+      key: 'userId', label: 'Zalo User ID (UID)', type: 'text',
+      placeholder: '123456789012345',
+      desc: 'ID Zalo của người muốn gửi danh thiếp.',
+    },
+    {
+      key: 'phoneNumber', label: 'Số điện thoại liên kết (Tùy chọn)', type: 'text',
+      placeholder: '0912345678',
+    },
+    {
+      key: 'threadIds', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',
+      contactMode: 'multi',
+      placeholder: '{{ $trigger.threadId }}',
+      templateVars: ['$trigger.threadId'],
+    },
+    {
+      key: 'threadType', label: 'Loại hội thoại', type: 'select',
+      options: [
+        { value: '{{ $trigger.threadType }}', label: '🔄 Tự động (theo trigger)' },
+        { value: '0', label: '👤 Cá nhân' }, { value: '1', label: '👥 Nhóm' },
+      ],
+      advanced: true,
+    },
+    {
+      key: 'continueOnError', label: 'Tiếp tục workflow dù gửi thất bại', type: 'boolean',
+      advanced: true,
+    },
+  ],
   'zalo.findUser': [
     {
       key: 'phone', label: 'Số điện thoại cần tìm', type: 'text',

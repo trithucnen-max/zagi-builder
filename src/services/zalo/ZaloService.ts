@@ -66,7 +66,10 @@ import {
     UpdateGroupSettingsOptions,
     UpdateGroupSettingsResponse,
     UserInfoResponse,
-    UserMessage
+    UserMessage,
+    GetMultiUsersByPhonesResponse,
+    UpdateActiveStatusResponse,
+    UndoFriendRequestResponse,
 } from "zca-js";
 import axios from "axios";
 import path from "path";
@@ -1409,6 +1412,18 @@ export default class ZaloService {
         }
     }
 
+    public async undoFriendRequest(friendId: string): Promise<UndoFriendRequestResponse> {
+        if (!this.api) {
+            throw new Error("API not initialized. Please ensure you've called initialize() first.");
+        }
+
+        try {
+            return await (this.api as any).undoFriendRequest(friendId);
+        } catch (error) {
+            throw error;
+        }
+    }
+
     /**
      * Lấy URL proxy đang được sử dụng cho kết nối Zalo hiện tại
      * @returns The proxy URL or null if not assigned
@@ -1814,4 +1829,35 @@ export default class ZaloService {
         if (!this.api) throw new Error("API not initialized");
         try { return await (this.api as any).reviewPendingMemberRequest(payload, groupId); } catch (error) { throw error; }
     }
+
+    // ─── Tra cứu hàng loạt SĐT ───────────────────────────────────────────────
+    /**
+     * Tra cứu nhiều người dùng theo số điện thoại trong 1 API call.
+     * Thay thế vòng lặp findUser đơn lẻ khi import CSV số điện thoại hàng loạt.
+     * @param phoneNumbers Mảng số điện thoại (tối đa 100)
+     */
+    public async getMultiUsersByPhones(phoneNumbers: string[]): Promise<GetMultiUsersByPhonesResponse> {
+        if (!this.api) throw new Error("API not initialized");
+        try {
+            return await (this.api as any).getMultiUsersByPhones(phoneNumbers);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // ─── Ghost Mode Online ────────────────────────────────────────────────────
+    /**
+     * Cập nhật trạng thái hoạt động (online/offline) của tài khoản.
+     * active=true: hiển thị online; active=false: ẩn khỏi mắt bạn bè (Ghost Mode)
+     * @param active true = online, false = ẩn
+     */
+    public async updateActiveStatus(active: boolean): Promise<UpdateActiveStatusResponse> {
+        if (!this.api) throw new Error("API not initialized");
+        try {
+            return await (this.api as any).updateActiveStatus(active);
+        } catch (error) {
+            throw error;
+        }
+    }
 }
+

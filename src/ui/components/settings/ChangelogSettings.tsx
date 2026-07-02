@@ -71,7 +71,11 @@ const CHANGELOG: VersionEntry[] = [
     type: 'patch',
     highlights: [
       '🟢 Đồng bộ trạng thái bạn bè trực tuyến — Tích hợp cổng IPC kết nối trực tiếp đến API Zalo lấy danh sách bạn bè đang online, hiển thị chỉ báo chấm xanh hoạt động trực quan và thêm bộ lọc Online chuyên nghiệp.',
-      '🔒 Nâng cấp công nghệ Quét bóng thụ động (Passive Shadow Scanning - PSS) — Tích hợp thêm 3 luồng quét sâu lịch sử trò chuyện (Reactions, Mentions, System Messages) giúp trích xuất và dựng lại đầy đủ sơ đồ thành viên của các nhóm khóa danh sách (lockViewMember).'
+      '🔒 Nâng cấp công nghệ Quét bóng thụ động (Passive Shadow Scanning - PSS) — Tích hợp thêm 3 luồng quét sâu lịch sử trò chuyện (Reactions, Mentions, System Messages) giúp trích xuất và dựng lại đầy đủ sơ đồ thành viên của các nhóm khóa danh sách (lockViewMember).',
+      '👻 Chế độ ẩn danh Ghost Mode — Ẩn chấm xanh online, tự động ping duy trì trạng thái ngoại tuyến mỗi 5 phút, và đọc tin nhắn ngầm (Silent Reading) chỉ hiển thị trạng thái "Đã nhận" đối với khách hàng.',
+      '⚡ Tin nhắn đa phương tiện nâng cao & Tự động gộp Album — Gửi nhanh Voice Note từ file, thẻ ngân hàng Bank Card chuyên nghiệp, danh thiếp Zalo Card. Tự động gộp ảnh gửi cùng lúc thành Album và chuyển video thường thành Rich Video.',
+      '🤖 4 Workflow Nodes mới — Mở rộng tự động hóa kịch bản với các node gửi video, voice note, thẻ ngân hàng, danh thiếp Zalo kèm biến động và proxy trung chuyển Boss-Employee.',
+      '🔄 Đồng bộ ERP & Nhãn 2 chiều thời gian thực — Khắc phục triệt để lỗi đứt gãy đồng bộ ERP chiều ghi từ Nhân viên lên Boss bằng Proxy tự động ở IPC Main, cùng cơ chế tự động ghi nhận bền vững (SQLite upsert) cho 19 sự kiện erp:event:* nhận từ SSE.'
     ],
     changes: [
       {
@@ -80,14 +84,28 @@ const CHANGELOG: VersionEntry[] = [
           'Tích hợp cổng IPC và hàm zalo:getFriendOnlines để đồng bộ trạng thái trực tuyến của bạn bè Zalo.',
           'Bổ sung bộ lọc Online và chấm xanh lá hiển thị hoạt động của khách hàng trong phân hệ CRM.',
           'Thay đổi ký hiệu kết bạn cũ thành dấu tick V màu xanh dương để tránh nhầm lẫn với trạng thái online.',
-          'Tích hợp 3 luồng quét sâu lịch sử chat (Inline Reactions, Mentions, System Messages) trong bộ quét PSS.'
+          'Tích hợp 3 luồng quét sâu lịch sử chat (Inline Reactions, Mentions, System Messages) trong bộ quét PSS.',
+          'Thêm cấu hình Ghost Mode Online và Ghost Mode Read trong Cài đặt tài khoản.',
+          'Tích hợp nút thao tác nhanh ⚡ mở bảng gửi Voice Note, thẻ ngân hàng, danh thiếp liên hệ.',
+          'Bổ sung 4 node kịch bản tự động hóa mới: zalo.sendVideo, zalo.sendVoice, zalo.sendBankCard, zalo.sendCard.',
+          'Tích hợp luồng tự động gộp nhiều hình ảnh gửi cùng lúc thành một Album duy nhất.'
         ]
       },
       {
         category: 'improved',
         items: [
           'Tự động gửi yêu cầu lấy trạng thái hoạt động trực tuyến định kỳ mỗi 60 giây.',
-          'Tăng cường khả năng giải mã và thu thập UIDs ẩn từ các hoạt động gián tiếp của thành viên nhóm khóa.'
+          'Tăng cường khả năng giải mã và thu thập UIDs ẩn từ các hoạt động gián tiếp của thành viên nhóm khóa.',
+          'Tối ưu hóa tra cứu SĐT hàng loạt bằng API getMultiUsersByPhones, tăng tốc import CSV gấp 10 lần (< 5s).',
+          'Tự động định vị tệp video trong trình duyệt chọn file thông thường để gửi dạng Rich Video chuyên nghiệp.'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi đứt gãy đồng bộ ERP từ Nhân viên lên máy Boss bằng bộ chuyển tiếp proxy proxyToBossAsync trong Electron IPC Middleware.',
+          'Khắc phục lỗi mất dữ liệu tạm thời khi Nhân viên tải lại trang bằng cách tự động ghi nhận (SQLite upsert) cho toàn bộ 19 kênh sự kiện erp:event:* từ SSE.',
+          'Ngăn ngừa lỗi ghi đè SQLite thông qua cơ chế tự động lấy cấu trúc bảng PRAGMA table_info để lọc bỏ các thuộc tính ảo trước khi ghi.'
         ]
       }
     ]

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
@@ -24,8 +24,49 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 }
 
 export default function AccountSettings() {
-  const { accounts, removeAccount } = useAccountStore();
-  const { showNotification } = useAppStore();
+  const { accounts, removeAccount, activeAccountId } = useAccountStore();
+  const { showNotification, ghostModeRead, setGhostModeRead, ghostModeOnline, setGhostModeOnline } = useAppStore();
+
+  // Ghost Mode Online: ping kèo dài trạng thái ẩn mỗi 5 phút
+  const ghostOnlinePingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const getActiveAuth = useCallback(() => {
+    const acc = accounts.find(a => a.zalo_id === activeAccountId);
+    if (!acc) return null;
+    return { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+  }, [accounts, activeAccountId]);
+
+  const applyGhostOnline = useCallback(async (enabled: boolean) => {
+    const auth = getActiveAuth();
+    if (!auth) return;
+    try {
+      await ipc.zalo?.updateActiveStatus({ auth, active: !enabled });
+    } catch {}
+  }, [getActiveAuth]);
+
+  useEffect(() => {
+    // Khởi động / dừng ping Ghost Mode Online
+    if (ghostModeOnline) {
+      applyGhostOnline(true);
+      ghostOnlinePingRef.current = setInterval(() => applyGhostOnline(true), 5 * 60 * 1000);
+    } else {
+      if (ghostOnlinePingRef.current) clearInterval(ghostOnlinePingRef.current);
+      applyGhostOnline(false);
+    }
+    return () => { if (ghostOnlinePingRef.current) clearInterval(ghostOnlinePingRef.current); };
+  }, [ghostModeOnline, applyGhostOnline]);
+
+  const handleToggleGhostOnline = (val: boolean) => {
+    setGhostModeOnline(val);
+    if (!val) showNotification('Ghost Mode Online đã tắt — trạng thái online hiện lại', 'info');
+    else showNotification('Ghost Mode Online bật — bạn bè sẽ không thấy bạn online', 'success');
+  };
+
+  const handleToggleGhostRead = (val: boolean) => {
+    setGhostModeRead(val);
+    if (!val) showNotification('Ghost Mode Đọc bật — khách sẽ thấy "Đã xem"', 'info');
+    else showNotification('Ghost Mode Đọc bật — khách chỉ thấy "Đã nhận"', 'success');
+  };
 
   // Settings modal state
   const [settingsModalAcc, setSettingsModalAcc] = useState<string | null>(null);
@@ -309,6 +350,43 @@ export default function AccountSettings() {
           </div>
         </div>
       )}
+      {/* ── Ghost Mode Section ── */}
+      <div className="flex items-center gap-3 mt-4">
+        <h2 className="text-base font-semibold text-white flex items-center gap-1.5">
+          <span className="text-lg">👻</span>
+          Ghost Mode
+        </h2>
+      </div>
+      <div className="bg-gray-800 rounded-xl p-4 space-y-3">
+        {/* Ghost Mode Online */}
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-200">Ẩn trạng thái Online</p>
+            <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+              Bạn bè & khách hàng sẽ không thấy chấm xanh online của bạn.
+              Ping tự động mỗi 5 phút để duy trì ẩn.
+            </p>
+          </div>
+          <Toggle value={ghostModeOnline} onChange={handleToggleGhostOnline} />
+        </div>
+
+        <div className="border-t border-gray-700" />
+
+        {/* Ghost Mode Read */}
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-200">Đọc ngầm (Silent Reading)</p>
+            <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+              Khi bật, mở tin nhắn nhưng khách hàng chỉ thấy
+              <span className="text-amber-400"> "Đã nhận"</span> thay vì <span className="text-blue-400">"Đã xem"</span>.
+              Badge unread trên app của bạn vẫn được xóa bình thường.
+            </p>
+          </div>
+          <Toggle value={ghostModeRead} onChange={handleToggleGhostRead} />
+        </div>
+      </div>
+
+      {/* Modals giữ nguyên */}
     </>
   );
 }

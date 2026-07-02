@@ -130,6 +130,32 @@ async function main() {
     if (fs.existsSync(p)) fs.unlinkSync(p);
   }
 
+  // Đổi tên các file cài đặt cho người dùng dễ hiểu
+  console.log('\n[Rename] Đang đổi tên các file cài đặt thân thiện với người dùng...');
+  const distDir = path.join(ROOT_DIR, 'dist-electron-build');
+  const pkg = require(path.join(ROOT_DIR, 'package.json'));
+  const version = pkg.version;
+
+  const renameMappings = [
+    { from: `Zagi-Setup-${version}-x64.exe`, to: `Zagi v${version} Window.exe` },
+    { from: `Zagi-Setup-${version}-arm64.exe`, to: `Zagi v${version} Surface.exe` },
+    { from: `Zagi-${version}-arm64.dmg`, to: `Zagi v${version} MacOS M1+ arm64.dmg` },
+    { from: `Zagi-${version}.dmg`, to: `Zagi v${version} MacOS Intel.dmg` },
+    { from: `Zagi-${version}-arm64.AppImage`, to: `Zagi v${version} Linux.AppImage` },
+    { from: `Zagi-${version}-x86_64.AppImage`, to: `Zagi v${version} Linux.AppImage` },
+    { from: `zagi_${version}_arm64.deb`, to: `Zagi v${version} Linux Debian.deb` },
+    { from: `zagi_${version}_amd64.deb`, to: `Zagi v${version} Linux Debian.deb` }
+  ];
+
+  for (const m of renameMappings) {
+    const oldPath = path.join(distDir, m.from);
+    const newPath = path.join(distDir, m.to);
+    if (fs.existsSync(oldPath)) {
+      console.log(`  -> Đổi tên: ${m.from} ===> ${m.to}`);
+      fs.copyFileSync(oldPath, newPath);
+    }
+  }
+
   console.log('\n🏁 TẤT CẢ CÁC BỘ CÀI ĐÃ ĐƯỢC XUẤT THÀNH CÔNG TẠI: dist-electron-build/');
 }
 

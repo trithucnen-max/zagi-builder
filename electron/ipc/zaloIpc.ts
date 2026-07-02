@@ -383,7 +383,7 @@ export function registerZaloIpc() {
     );
 
     wrap('zalo:undoFriendRequest', (s, p) =>
-        (s as any).undoFriendRequest(p.userId)
+        s.undoFriendRequest(p.userId)
     );
 
     wrap('zalo:removeFriend', (s, p) =>
@@ -732,4 +732,15 @@ export function registerZaloIpc() {
     wrap('zalo:sendBankCard', (s, p) =>
         s.sendBankCard(p.payload, p.threadId, p.type)
     );
+
+    // ─── Tra cứu hàng loạt SĐT ────────────────────────────────────────────
+    wrap('zalo:getMultiUsersByPhones', (s, p) =>
+        s.getMultiUsersByPhones(p.phones)
+    );
+
+    // ─── Ghost Mode Online (ẩn trạng thái hoạt động) ─────────────────────
+    wrap('zalo:updateActiveStatus', (s, p) =>
+        s.updateActiveStatus(p.active)
+    );
 }
+

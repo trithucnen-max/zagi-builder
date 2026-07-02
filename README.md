@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v27.2.1** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v27.2.3** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.3-x64.exe)
 
-**[Zagi-Setup-27.2.1-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-x64.exe)**
+**[Zagi-Setup-27.2.3-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.3-x64.exe)**
 
 NSIS Installer · ~195 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~195 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.1-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.3-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3-arm64.dmg)
 
-**[Zagi-27.2.1-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.dmg)**
+**[Zagi-27.2.3-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3-arm64.dmg)**
 
 Apple Silicon DMG · ~257 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · ~257 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.1-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.3-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3.dmg)
 
-**[Zagi-27.2.1.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1.dmg)**
+**[Zagi-27.2.3.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3.dmg)**
 
 Intel x64 DMG · ~265 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · ~265 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.1-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.3-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3-arm64.AppImage)
 
-**[Zagi-27.2.1-arm64.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.AppImage)**  
-**[zagi_27.2.1_arm64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.2.1_arm64.deb)**
+**[Zagi-27.2.3-arm64.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.3-arm64.AppImage)**  
+**[zagi_27.2.3_arm64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.2.3_arm64.deb)**
 
 AppImage + .deb · ~239 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~239 MB
 > 
 > Surface Pro 7 trở xuống (Intel) → dùng bản Windows x64 phía trên.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.3-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.3-arm64.exe)
 
-**[Zagi-Setup-27.2.1-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-arm64.exe)**
+**[Zagi-Setup-27.2.3-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.3-arm64.exe)**
 
 NSIS Installer ARM64 · ~196 MB · Tối ưu native cho Surface ARM
 
@@ -456,7 +456,37 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.2.1</strong> — 2026-07-01 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v27.2.3</strong> — 2026-07-03 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật
+
+- 👻 **Ẩn danh Ghost Mode (Online/Read Privacy)**: Bật/tắt ẩn chấm xanh online với bộ định thời ping 5 phút; đọc tin nhắn ở chế độ ngầm (Silent Reading) không phát sinh sự kiện "Đã xem", khách hàng chỉ thấy "Đã nhận".
+- ⚡ **Gửi tin đa phương tiện nâng cao**: Bảng thao tác nhanh gửi nhanh file ghi âm dưới dạng Voice Note native, thẻ tài khoản ngân hàng Bank Card (30+ ngân hàng VN) và danh thiếp liên hệ Zalo Card.
+- 📦 **Tự động gộp Album & Rich Video**: Gộp ảnh gửi cùng lúc thành Album duy nhất. Tự động chuyển đổi gửi video thành Rich Video trích xuất metadata bằng ffmpeg.
+- 🤖 **4 Node Workflow mới**: Bổ sung `zalo.sendVideo`, `zalo.sendVoice`, `zalo.sendBankCard`, và `zalo.sendCard` hỗ trợ truyền biến động và proxy trung chuyển Boss-Employee.
+- ⚡ **Import SĐT nhóm cực nhanh**: Tra cứu nhóm 100 SĐT/lần qua API `getMultiUsersByPhones`, tăng tốc độ kiểm tra CSV lên 10 lần (< 5 giây).
+- 🟢 **Đồng bộ Online Status & PSS Deep Scanning**: Thêm bộ lọc khách hàng online và quét bóng thành viên ẩn nhóm khóa bằng 3 luồng (Reactions, Mentions, System Messages).
+- 🔄 **Đồng bộ ERP & Nhãn 2 chiều**: Định tuyến proxy tự động cho Employee và SQLite local upsert cho 19 sự kiện `erp:event:*` từ SSE.
+
+</details>
+
+
+<details>
+<summary><strong>v27.2.2</strong> — 2026-07-01</summary>
+
+### 🚀 Nâng cấp nổi bật
+
+- 🔄 **Hoàn tác & Làm lại (Undo/Redo)**: Hỗ trợ phím nóng `Ctrl + Z` / `Ctrl + Y` (hoặc `Cmd + Z` / `Cmd + Y`) và các nút bấm ↩️ / ↪️ trên thanh công cụ trong màn hình soạn thảo Workflow.
+- ✨ **Căn chỉnh tự động (Auto Align)**: Nút căn chỉnh node tự động theo thuật toán BFS giúp sơ đồ kịch bản luôn cân đối và thẳng hàng.
+- 🔒 **Kiểm tra vòng lặp (Cycle Detection)**: Tự động phát hiện và chặn các kết nối tạo thành vòng lặp vô tận, hiển thị cảnh báo đỏ thân thiện.
+- 💾 **Tự động lưu ngầm (Silent Auto-save)**: Tự động lưu kịch bản xuống DB SQLite sau mỗi lần kéo thả kết thúc hoặc thay đổi kết nối mà không hiển thị popup phiền phức.
+- 💡 **Tooltip Preview & Templates**: Hover chuột qua biến động để xem cú pháp gốc và mô tả chi tiết; bổ sung 3 kịch bản mẫu nâng cao (AI Lead Scoring, Event Followup BĐS, POS Appointment Reminder).
+
+</details>
+
+
+<details>
+<summary><strong>v27.2.1</strong> — 2026-07-01</summary>
 
 ### 🚀 Nâng cấp nổi bật
 
