@@ -5,6 +5,9 @@ import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import Logger from '../../src/utils/Logger';
 import * as fs from 'fs';
 import * as path from 'path';
+import WorkspaceManager from '../../src/utils/WorkspaceManager';
+import HttpConnectionManager from '../../src/services/http/HttpConnectionManager';
+import HttpClientService from '../../src/services/http/HttpClientService';
 
 /** Repair queue: dedup concurrent repairs for the same file */
 const pendingRepairs = new Map<string, Promise<{ success: boolean; newLocalPath?: string; error?: string }>>();
@@ -145,8 +148,31 @@ export function registerFileIpc() {
                 }
             }
 
+            let savedFromBoss = false;
+            const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+            const isRemote = activeWs?.type === 'remote';
+
+            if (!localValid && isRemote && params.localPath) {
+                try {
+                    Logger.info(`[fileIpc] saveAs: fetching from Boss: ${params.localPath}`);
+                    const client = HttpConnectionManager.getInstance().getServiceForWorkspace(activeWs.id)
+                        || HttpClientService.getInstance();
+                    const res = await client.requestMedia(params.localPath);
+                    if (res?.success && res.data) {
+                        fs.writeFileSync(destPath, res.data);
+                        savedFromBoss = true;
+                    } else {
+                        Logger.warn(`[fileIpc] saveAs: failed to fetch from Boss: ${res?.error || 'unknown'}`);
+                    }
+                } catch (err: any) {
+                    Logger.error(`[fileIpc] saveAs: error fetching from Boss: ${err.message}`);
+                }
+            }
+
             if (localValid && resolvedLocalPath) {
                 fs.copyFileSync(resolvedLocalPath, destPath);
+            } else if (savedFromBoss) {
+                // Already saved from Boss
             } else if (params.remoteUrl) {
                 if (!params.zaloId) return { success: false, error: 'zaloId required for remote download' };
                 const tmpRelPath = await FileStorageService.downloadImage(

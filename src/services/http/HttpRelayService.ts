@@ -800,7 +800,32 @@ class HttpRelayService {
             const { ipcMain } = require('electron');
             const internalHandlers: Map<string, Function> | undefined = (ipcMain as any)._invokeHandlers;
             if (internalHandlers && internalHandlers.has(channel)) {
-                return await internalHandlers.get(channel)!(null, params);
+                let erpRole: any = 'member';
+                let permissionOverrides = {};
+                try {
+                    const row = DatabaseService.getInstance().queryOne<{ erp_role: string; extra_json?: string | null }>(
+                        `SELECT erp_role, extra_json FROM erp_employee_profiles WHERE employee_id = ?`,
+                        [employee.employee_id]
+                    );
+                    if (row?.erp_role) {
+                        erpRole = row.erp_role;
+                    }
+                    if (row?.extra_json) {
+                        const parsed = JSON.parse(row.extra_json);
+                        const { sanitizeErpPermissionOverrides } = require('../erp/permissions');
+                        permissionOverrides = sanitizeErpPermissionOverrides(parsed?.action_permissions);
+                    }
+                } catch {}
+
+                const mockEvent = {
+                    ctx: {
+                        employeeId: employee.employee_id,
+                        role: erpRole,
+                        permissionOverrides,
+                        mode: 'employee'
+                    }
+                };
+                return await internalHandlers.get(channel)!(mockEvent, params);
             }
 
             return { success: false, error: `No handler for channel: ${channel}` };
@@ -897,10 +922,10 @@ class HttpRelayService {
                 const path = require('path');
 
                 const FileStorageService = require('../file/FileStorageService').default;
-                const storagePath = FileStorageService.getMediaBasePath?.() || '';
+                const resolved = FileStorageService.resolveAbsolutePath(filePath);
+                const mediaBase = FileStorageService.getBaseDir();
 
-                const resolved = path.resolve(filePath);
-                if (storagePath && !resolved.startsWith(storagePath)) {
+                if (mediaBase && !resolved.startsWith(mediaBase)) {
                     return this.json(res, 403, { success: false, error: 'Access denied' });
                 }
 

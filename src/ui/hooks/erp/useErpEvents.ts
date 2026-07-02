@@ -5,6 +5,8 @@ import { useErpCalendarStore } from '@/store/erp/erpCalendarStore';
 import { useErpNoteStore } from '@/store/erp/erpNoteStore';
 import { useErpNotificationStore } from '@/store/erp/erpNotificationStore';
 import { useErpEmployeeStore } from '@/store/erp/erpEmployeeStore';
+import { useErpContext } from './useErpContext';
+import { playNotificationSound, showDesktopNotification } from '../../utils/NotificationService';
 
 /**
  * Mount once at app root (inside ErpPage or App) to listen to ERP realtime events
@@ -16,6 +18,7 @@ export function useErpEvents() {
   const noteStore = useErpNoteStore();
   const notifStore = useErpNotificationStore();
   const empStore = useErpEmployeeStore();
+  const { employeeId } = useErpContext();
 
   useEffect(() => {
     if (!ipc.on) return;
@@ -47,7 +50,22 @@ export function useErpEvents() {
     unsubs.push(ipc.on('erp:event:noteUpdated', (d: any) => noteStore._onNoteUpdated(d.note)));
     unsubs.push(ipc.on('erp:event:noteDeleted', (d: any) => noteStore._onNoteDeleted(d.noteId)));
     unsubs.push(ipc.on('erp:event:noteShared', () => noteStore.refreshVisible()));
-    unsubs.push(ipc.on('erp:event:notification', (d: any) => notifStore._onNewNotification(d.notification)));
+    unsubs.push(ipc.on('erp:event:notification', (d: any) => {
+      if (d?.notification?.recipient_id === employeeId) {
+        notifStore._onNewNotification(d.notification);
+        try {
+          playNotificationSound();
+          showDesktopNotification(
+            d.notification.title,
+            d.notification.body || '',
+            undefined,
+            { erpLink: d.notification.link }
+          );
+        } catch (err) {
+          console.error('[useErpEvents] showDesktopNotification failed:', err);
+        }
+      }
+    }));
     unsubs.push(ipc.on('erp:event:reminder', (d: any) => {
       document.dispatchEvent(new CustomEvent('erp:reminder', { detail: d }));
     }));
@@ -60,6 +78,6 @@ export function useErpEvents() {
     unsubs.push(ipc.on('erp:event:departmentUpdated', () => empStore.loadDepartments()));
 
     return () => unsubs.forEach(u => u?.());
-  }, []);
+  }, [employeeId]);
 }
 

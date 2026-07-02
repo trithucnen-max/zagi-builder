@@ -1,7 +1,7 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
 > **Phiên bản tài liệu:** 1.0  
-> **Ngày cập nhật:** 01/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v27.2.2 (Stable)  
+> **Ngày cập nhật:** 03/07/2026  
+> **Trạng thái sản phẩm hiện tại:** v27.2.3 (Stable)  
 > **Chủ quản:** Product Management Team  
 
 
@@ -148,10 +148,11 @@ graph TD
 ---
 
 ## 5. LỊCH SỬ CẬP NHẬT CÁC PHIÊN BẢN (CHANGELOG)
-Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.2`:
+Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.3`:
 
 | Phiên bản | Ngày cập nhật | Loại cập nhật | Điểm nhấn chính (Highlights) |
 | :--- | :--- | :--- | :--- |
+| **v27.2.3** | 03/07/2026 | Patch | Đồng bộ trạng thái bạn bè trực tuyến (Zalo Online Status) kèm chấm xanh lá chỉ báo hoạt động và bộ lọc Online trên CRM, thay đổi ký hiệu đã kết bạn thành tick chữ V xanh dương. Nâng cấp công nghệ Quét bóng thụ động (PSS) cho nhóm ẩn với 3 luồng quét sâu lịch sử trò chuyện (Inline Reactions, Mentions, System Messages). |
 | **v27.2.2** | 01/07/2026 | Patch | Nâng cấp Workflow Editor nâng cao: phím nóng và nút bấm Hoàn tác/Làm lại (Undo/Redo), nút ✨ Căn chỉnh node (BFS Layout), kiểm tra vòng lặp vô hạn (Cycle Detection), tự động lưu ngầm (Silent Auto-save), xem nhanh biến động (Tooltip preview), tối ưu hóa nhãn chào CRM Zalo-native và mở rộng 3 kịch bản mẫu nâng cao (AI Lead Scoring, Event Followup BĐS, POS Appointment Reminder). Fix lỗi Smart Connect (định vị điểm nhả qua elementFromPoint). |
 | **v27.2.1** | 01/07/2026 | Patch | Dọn dẹp dứt điểm Zalo Group History (lỗi 404); Đồng bộ hóa CRM từ nhân viên lên Boss; Ẩn tab Webhooks với nhân viên; Đồng bộ theme Sáng (System Theme) của Workflow; Mở rộng bộ lọc CRM nâng cao và tích hợp nút Xem trước (Preview) danh sách đối tượng lọc được trong Workflow (vẽ composite GroupAvatar và việt hóa nhãn, icon); Kiểm định thành công 100% kho 86 workflow mẫu ở Sandbox; Tích hợp tính năng giải tán nhóm hàng loạt (Bulk Disperse Group) cho các nhóm Owner vào SmartGroupModal.tsx. |
 | **v27.2.0** | 30/06/2026 | Patch | CRM AI Đa Trợ Lý và tự động tổng hợp hồ sơ khách hàng theo bộ đếm tin nhắn chạy ngầm ở Main Process; Bổ sung các cột cấu hình AI vào bảng danh sách CRM hỗ trợ inline-edit trực tiếp; Sửa lỗi đồng bộ tin nhắn nhóm Zalo (lỗi 404 do thiếu tiền tố g); Khắc phục lỗi ẩn phần tin nhắn chiến dịch và GroupPicker trống trong modal tạo chiến dịch từ nhóm. |
@@ -169,6 +170,13 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 ---
 
 ### Chi tiết các cập nhật từng phiên bản
+
+#### ⚡ v27.2.3 — Online Status Sync & PSS Deep Scanning Upgrades
+*   **Tính năng mới (New):**
+    *   **Đồng bộ trạng thái trực tuyến**: Bổ sung cổng IPC `zalo:getFriendOnlines` gọi API của `zca-js` tải danh sách bạn bè đang online, tự động thăm dò (polling) mỗi 60 giây.
+    *   **Chỉ báo hoạt động & Bộ lọc CRM**: Thêm chấm tròn xanh lá biểu thị online trên avatar khách hàng và bộ lọc trực quan "🟢 Online" tại CRM.
+    *   **Ký hiệu kết bạn mới**: Chuyển đổi biểu tượng tròn xanh lá cũ sang dấu tick V màu xanh dương để phân biệt rõ với chấm hoạt động trực tuyến.
+    *   **Quét nhóm ẩn nâng cao (PSS Deep Scanning)**: Nâng cấp [GroupMembersTab.tsx](file:///Users/kimtrungduong/Downloads/deplao/src/ui/components/crm/groups/GroupMembersTab.tsx) tích hợp thêm 3 luồng quét sâu lịch sử trò chuyện gồm: thả cảm xúc tin nhắn (Inline Reactions), tag nhắc tên (Mentions) và siêu dữ liệu tin nhắn hệ thống (System Messages metadata).
 
 #### ⚡ v27.2.2 — Advanced Workflow Editor (Undo/Redo, Auto-align, Cycle detection, Auto-save, Tooltips) & Templates Expansion
 *   **Tính năng mới (New):**

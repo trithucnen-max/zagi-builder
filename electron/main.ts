@@ -42,6 +42,51 @@ import { SHOW_DEV_TOOLS, IS_DEV_BUILD } from '../src/configs/BuildConfig';
 const isDev = IS_DEV_BUILD;
 let isQuitting = false;
 
+// ─── Overriding ipcMain.handle for ERP Proxy routing ─────────────────────────
+const ERP_READ_ONLY_CHANNELS = new Set([
+  'erp:project:list',
+  'erp:task:list',
+  'erp:task:get',
+  'erp:task:listMyInbox',
+  'erp:note:listFolders',
+  'erp:note:list',
+  'erp:note:get',
+  'erp:note:listTags',
+  'erp:note:versions',
+  'erp:note:listShares',
+  'erp:calendar:listEvents',
+  'erp:calendar:checkConflict',
+  'erp:department:list',
+  'erp:position:list',
+  'erp:employee:getProfile',
+  'erp:employee:listByDepartment',
+  'erp:attendance:today',
+  'erp:attendance:list',
+  'erp:leave:listMy',
+  'erp:leave:listPending',
+  'erp:license:seatStatus'
+]);
+
+const originalHandle = ipcMain.handle.bind(ipcMain);
+ipcMain.handle = (channel: string, listener: any) => {
+  if (channel.startsWith('erp:') && !ERP_READ_ONLY_CHANNELS.has(channel)) {
+    const wrappedListener = async (event: any, ...args: any[]) => {
+      const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+      if (activeWs?.type === 'remote' && !(args[0]?._fromRelay)) {
+        try {
+          return await HttpConnectionManager.getInstance().proxyAction(activeWs.id, channel, args[0] || {});
+        } catch (err: any) {
+          console.error(`[erpProxy] Error forwarding ${channel} to Boss:`, err.message);
+          return { success: false, error: err.message };
+        }
+      }
+      return await listener(event, ...args);
+    };
+    return originalHandle(channel, wrappedListener);
+  }
+  return originalHandle(channel, listener);
+};
+
 // ─── Hardware acceleration ────────────────────────────────────────────────────
 // Giữ GPU acceleration BẬT: tắt hardware acceleration khiến CPU render toàn bộ UI,
 // dẫn đến renderer unresponsive → màn hình đen sau khi dùng một lúc.
@@ -716,8 +761,7 @@ async function startupAllWorkspaces(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  // ── Register local-media:// protocol handler ───────────────────────────
-  protocol.handle('local-media', (request) => {
+  protocol.handle('local-media', async (request) => {
     let filePath = decodeURIComponent(new URL(request.url).pathname);
     // Windows: strip leading slash → "D:/..." or "media/..."
     if (process.platform === 'win32' && filePath.startsWith('/')) {
@@ -739,12 +783,7 @@ app.whenReady().then(async () => {
       }
     }
 
-    if (!fs.existsSync(filePath)) {
-      return new Response('Not Found', { status: 404 });
-    }
-
-    const absPath = path.resolve(filePath);
-    const ext = path.extname(absPath).toLowerCase();
+    const ext = path.extname(filePath).toLowerCase();
     const mimeTypes: Record<string, string> = {
       '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime',
       '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4',
@@ -753,6 +792,32 @@ app.whenReady().then(async () => {
     };
     const contentType = mimeTypes[ext] || 'application/octet-stream';
 
+    if (!fs.existsSync(filePath)) {
+      const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+      if (activeWs?.type === 'remote') {
+        try {
+          const client = HttpConnectionManager.getInstance().getServiceForWorkspace(activeWs.id)
+            || require('../src/services/http/HttpClientService').default.getInstance();
+          const relPath = FileStorageService.toRelativePath(filePath);
+          console.log(`[local-media] Fetching remote file from Boss: ${relPath}`);
+          const res = await client.requestMedia(relPath);
+          if (res?.success && res.data) {
+            const dir = path.dirname(filePath);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(filePath, res.data);
+            console.log(`[local-media] Successfully cached file locally: ${filePath}`);
+          }
+        } catch (err: any) {
+          console.warn(`[local-media] Failed to fetch remote file from Boss:`, err.message);
+        }
+      }
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return new Response('Not Found', { status: 404 });
+    }
+
+    const absPath = path.resolve(filePath);
     const data = fs.readFileSync(absPath);
     return new Response(data, {
       status: 200,

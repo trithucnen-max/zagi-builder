@@ -398,6 +398,10 @@ export function registerZaloIpc() {
         s.getAliasList(p.count || 500, p.page || 1)
     );
 
+    wrap('zalo:getFriendOnlines', (s) =>
+        (s as any).getFriendOnlines()
+    );
+
     wrap('zalo:getFriendRequestStatus', (s, p) =>
         s.getFriendRequestStatus(p.userId)
     );

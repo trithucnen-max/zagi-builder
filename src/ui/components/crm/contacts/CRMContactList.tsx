@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useCRMStore } from '@/store/crmStore';
 import type { CRMContact } from '@/store/crmStore';
 import type { ContactTypeFilter, GenderFilter, BirthdayFilter, SalutationFilter } from '@/store/crmStore';
 import type { LabelData } from '@/store/appStore';
@@ -188,6 +189,7 @@ function ContactTypeFilterDropdown({ filterContactTypes, onChange }: {
     { key: 'non_friend', label: 'Chưa là bạn bè', icon: '👻' },
     { key: 'has_phone', label: 'Có SĐT', icon: '📞' },
     { key: 'has_notes', label: 'Có ghi chú', icon: '📝' },
+    { key: 'online', label: 'Online', icon: '🟢' },
   ];
 
   const activeCount = filterContactTypes.length;
@@ -538,6 +540,7 @@ export default function CRMContactList({
 }: CRMContactListProps) {
   const totalPages = Math.ceil(total / pageSize);
   const groupInfoCache = useAppStore(s => s.groupInfoCache);
+  const onlineUids = useCRMStore(s => s.onlineUids);
 
   const [avatarPopup, setAvatarPopup] = useState<{ userId: string; x: number; y: number } | null>(null);
   const [selectingAllPages, setSelectingAllPages] = useState(false);
@@ -879,30 +882,35 @@ export default function CRMContactList({
                   )}
                 </div>
                 {/* Avatar — click opens UserProfilePopup */}
-                <div className="w-8 h-8 flex-shrink-0 rounded-full overflow-hidden relative group/av cursor-pointer"
-                  onClick={e => {
-                    e.stopPropagation();
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    setAvatarPopup({ userId: contact.contact_id, x: rect.right + 8, y: rect.top });
-                  }}>
-                  {contact.contact_type === 'group' ? (
-                    <GroupAvatar
-                      avatarUrl={contact.avatar}
-                      groupInfo={(groupInfoCache[activeAccountId] || {})[contact.contact_id]}
-                      name={name}
-                      size="xs"
-                    />
-                  ) : contact.avatar
-                    ? <img src={contact.avatar} alt="" className="w-full h-full object-cover" />
-                    : <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                        {(name || 'U').charAt(0).toUpperCase()}
-                      </div>}
-                  {/* hover overlay */}
-                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover/av:opacity-100 transition-opacity">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-                    </svg>
+                <div className="relative flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full overflow-hidden relative group/av cursor-pointer"
+                    onClick={e => {
+                      e.stopPropagation();
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      setAvatarPopup({ userId: contact.contact_id, x: rect.right + 8, y: rect.top });
+                    }}>
+                    {contact.contact_type === 'group' ? (
+                      <GroupAvatar
+                        avatarUrl={contact.avatar}
+                        groupInfo={(groupInfoCache[activeAccountId] || {})[contact.contact_id]}
+                        name={name}
+                        size="xs"
+                      />
+                    ) : contact.avatar
+                      ? <img src={contact.avatar} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                          {(name || 'U').charAt(0).toUpperCase()}
+                        </div>}
+                    {/* hover overlay */}
+                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover/av:opacity-100 transition-opacity">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                      </svg>
+                    </div>
                   </div>
+                  {contact.contact_type !== 'group' && onlineUids.has(contact.contact_id) && (
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-gray-900 rounded-full z-10" />
+                  )}
                 </div>
                 {/* Name + Labels underneath */}
                 <div className="flex-1 ml-2 min-w-0">
@@ -950,7 +958,11 @@ export default function CRMContactList({
                     )}
                     {contact.contact_type === 'group'
                       ? <span className="text-[9px] text-purple-400 flex-shrink-0 bg-purple-400/10 px-1 rounded">nhóm</span>
-                      : contact.is_friend === 1 && <span className="text-[9px] text-green-500 flex-shrink-0">●</span>}
+                      : contact.is_friend === 1 && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-500 flex-shrink-0" title="Bạn bè">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        )}
                     {contact.note_count > 0 && <span className="text-[12px] text-yellow-500 flex-shrink-0">📝</span>}
                   </div>
                   {contact.alias && contact.alias !== contact.display_name &&

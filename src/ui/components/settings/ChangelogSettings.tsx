@@ -66,6 +66,33 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.2.3',
+    date: '07/2026',
+    type: 'patch',
+    highlights: [
+      '🟢 Đồng bộ trạng thái bạn bè trực tuyến — Tích hợp cổng IPC kết nối trực tiếp đến API Zalo lấy danh sách bạn bè đang online, hiển thị chỉ báo chấm xanh hoạt động trực quan và thêm bộ lọc Online chuyên nghiệp.',
+      '🔒 Nâng cấp công nghệ Quét bóng thụ động (Passive Shadow Scanning - PSS) — Tích hợp thêm 3 luồng quét sâu lịch sử trò chuyện (Reactions, Mentions, System Messages) giúp trích xuất và dựng lại đầy đủ sơ đồ thành viên của các nhóm khóa danh sách (lockViewMember).'
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Tích hợp cổng IPC và hàm zalo:getFriendOnlines để đồng bộ trạng thái trực tuyến của bạn bè Zalo.',
+          'Bổ sung bộ lọc Online và chấm xanh lá hiển thị hoạt động của khách hàng trong phân hệ CRM.',
+          'Thay đổi ký hiệu kết bạn cũ thành dấu tick V màu xanh dương để tránh nhầm lẫn với trạng thái online.',
+          'Tích hợp 3 luồng quét sâu lịch sử chat (Inline Reactions, Mentions, System Messages) trong bộ quét PSS.'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Tự động gửi yêu cầu lấy trạng thái hoạt động trực tuyến định kỳ mỗi 60 giây.',
+          'Tăng cường khả năng giải mã và thu thập UIDs ẩn từ các hoạt động gián tiếp của thành viên nhóm khóa.'
+        ]
+      }
+    ]
+  },
+  {
     version: '27.2.2',
     date: '07/2026',
     type: 'patch',

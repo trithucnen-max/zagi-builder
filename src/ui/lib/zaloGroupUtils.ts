@@ -289,12 +289,12 @@ async function _syncSingleGroup(opts: SyncGroupsOptions): Promise<void> {
       console.log(`[zaloGroupUtils] Group ${groupId} is locked or incomplete (found ${memberIds.length}/${totalMember}) -> running Passive Shadow Scanning (PSS)...`);
       const tempIds = new Set<string>(memberIds);
 
-      // 1. Quét lịch sử trò chuyện (100 tin nhắn gần nhất)
+      // 1. Quét lịch sử trò chuyện (500 tin nhắn gần nhất - bao gồm cả tin nhắn thường, file, hình ảnh, địa chỉ)
       try {
-        const histRes = await ipc.zalo?.getGroupChatHistory({ auth, groupId, count: 100 });
+        const histRes = await ipc.zalo?.getGroupChatHistory({ auth, groupId, count: 500 });
         const msgs = histRes?.response?.groupMsgs || [];
         for (const msg of msgs) {
-          const senderId = msg.data?.uidFrom || msg.senderId;
+          const senderId = msg.data?.uidFrom || msg.uidFrom || msg.senderId;
           if (senderId) {
             const uid = String(senderId).replace(/_0$/, '').trim();
             if (/^\d+$/.test(uid)) tempIds.add(uid);

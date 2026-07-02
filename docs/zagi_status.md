@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 01/07/2026  
-> **Phiên bản:** v27.2.2 (Stable)  
+> **Ngày cập nhật:** 03/07/2026  
+> **Phiên bản:** v27.2.3 (Stable)  
 > **Nhánh Git hiện tại:** `main` (Working tree sạch)
 
 ---
@@ -61,6 +61,10 @@
     *   **Sửa lỗi Kết nối thông minh (Smart Connect)**: Định vị điểm nhả qua elementFromPoint để sửa lỗi menu gợi ý Node không hiện.
     *   **Tối ưu hóa Toolbar chèn biến**: Giới hạn thanh công cụ chèn biến chỉ xuất hiện trên các trường nhập liệu văn bản tin nhắn (`textarea`, `multiline`).
     *   **Tối ưu hóa các biến chào CRM**: Đổi biến chào cũ sang định dạng Zalo-native lịch sự hơn là `{{ $item.salutation }} {{ $item.display_name }}`.
+15. **Trạng thái trực tuyến & Nâng cấp quét nhóm ẩn (v27.2.3):**
+    *   **Đồng bộ Online**: Gọi API `getFriendOnlines` qua cổng IPC của `zca-js` định kỳ mỗi 60 giây, hỗ trợ hiển thị chấm hoạt động online màu xanh ở avatar và bộ lọc trực quan trên CRM.
+    *   **Ký hiệu kết bạn mới**: Đổi chỉ báo kết bạn cũ sang biểu tượng tick xanh dương dạng V để phân biệt rõ với chấm hoạt động online.
+    *   **Quét nhóm ẩn nâng cao (PSS)**: Bổ sung 3 luồng quét sâu lịch sử trò chuyện (Reactions tin nhắn, tag Mentions thành viên, và dữ liệu System Messages) giúp thu hoạch đầy đủ UIDs của các thành viên ẩn trong nhóm khóa.
 
 
 ## 4. Trạng Thái Kiểm Thử & Chạy Thử

@@ -91,6 +91,7 @@ const PRIVACY_FILTERED_ERP_TABLES = new Set([
     'erp_note_tag_map',
     'erp_note_versions',
     'erp_note_shares',
+    'erp_notifications',
 ]);
 
 /** Account info to sync (no imei/user_agent/cookies — employee doesn't need login credentials) */
@@ -192,6 +193,21 @@ class DataSyncService {
             }
         }
 
+        // Export erp_notifications for this specific employeeId
+        if (employeeId) {
+            try {
+                const notifications = db.query<any>(
+                    `SELECT * FROM erp_notifications WHERE recipient_id = ? ORDER BY created_at DESC LIMIT 1000`,
+                    [employeeId]
+                );
+                if (notifications.length > 0) {
+                    tables['erp_notifications'] = notifications;
+                }
+            } catch (err: any) {
+                Logger.warn(`[DataSyncService] Export erp_notifications error: ${err.message}`);
+            }
+        }
+
         // Workflows — filter by page_ids matching assigned accounts
         this.exportWorkflowsFiltered(db, zaloIds, tables);
 
@@ -267,6 +283,21 @@ class DataSyncService {
         // Workflows — filter by page_ids matching assigned accounts
         this.exportWorkflowsFiltered(db, zaloIds, tables, sinceTs);
 
+        // Export erp_notifications for this specific employeeId (delta)
+        if (employeeId) {
+            try {
+                const notifications = db.query<any>(
+                    `SELECT * FROM erp_notifications WHERE recipient_id = ? ORDER BY created_at DESC LIMIT 1000`,
+                    [employeeId]
+                );
+                if (notifications.length > 0) {
+                    tables['erp_notifications'] = notifications;
+                }
+            } catch (err: any) {
+                Logger.warn(`[DataSyncService] Export erp_notifications delta error: ${err.message}`);
+            }
+        }
+
         if (employeeId) this.appendPrivateErpTables(tables, employeeId);
 
         const totalRows = Object.values(tables).reduce((sum, arr) => sum + arr.length, 0);
@@ -303,6 +334,10 @@ class DataSyncService {
         // Clear old account info
         try {
             db.exec(`DELETE FROM accounts WHERE zalo_id IN (${inClause})`);
+        } catch {}
+
+        try {
+            db.exec(`DELETE FROM erp_notifications`);
         } catch {}
 
         onProgress?.('Đang nhập tài khoản...', 10);

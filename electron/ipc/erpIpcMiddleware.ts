@@ -32,7 +32,11 @@ export function withErpAuth<TInput = any, TOutput extends object = any>(
   return async (event: IpcMainInvokeEvent, input: TInput): Promise<ErpHandlerResult> => {
     let ctx: ErpAuthCtx;
     try {
-      ctx = ErpAuthContext.resolve();
+      if (event && (event as any).ctx) {
+        ctx = (event as any).ctx;
+      } else {
+        ctx = ErpAuthContext.resolve();
+      }
       if (action) ErpAuthContext.requirePermission(action, ctx);
     } catch (err: any) {
       if (err instanceof ErpPermissionError) {

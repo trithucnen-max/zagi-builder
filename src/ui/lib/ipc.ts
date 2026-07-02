@@ -69,6 +69,7 @@ declare global {
         getFriendRequestStatus: (params: any) => Promise<any>;
         getFriendRecommendations: (auth: any) => Promise<any>;
         getAliasList: (params: any) => Promise<any>;
+        getFriendOnlines: (params: { auth: any }) => Promise<any>;
         blockUser: (params: any) => Promise<any>;
         unblockUser: (params: any) => Promise<any>;
         getRelatedFriendGroup: (params: any) => Promise<any>;

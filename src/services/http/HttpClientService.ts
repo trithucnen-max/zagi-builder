@@ -807,6 +807,29 @@ class HttpClientService {
                 });
                 return;
             }
+
+            // ── ERP Notifications ──
+            if (channel === 'erp:event:notification' && data?.notification) {
+                runOnWsDb(() => {
+                    const n = data.notification;
+                    db.run(
+                        `INSERT OR REPLACE INTO erp_notifications (id, recipient_id, type, title, body, link, payload, read, created_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            n.id,
+                            n.recipient_id,
+                            n.type,
+                            n.title,
+                            n.body || '',
+                            n.link || '',
+                            typeof n.payload === 'object' ? JSON.stringify(n.payload) : n.payload || '{}',
+                            n.read || 0,
+                            n.created_at
+                        ]
+                    );
+                });
+                return;
+            }
         } catch (err: any) {
             Logger.warn(`[HttpClientService] persistRelayConversationEvent error (${channel}): ${err.message}`);
         }
