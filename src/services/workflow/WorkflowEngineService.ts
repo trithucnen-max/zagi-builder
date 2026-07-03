@@ -777,6 +777,58 @@ class WorkflowEngineService {
     // Flatten trigger data for template access
     const flatTrigger = this.flattenTriggerData(triggerData, triggeredBy);
 
+    // Tự động làm giàu dữ liệu (enrich) cho Trigger từ CRM nếu có thông tin khách hàng (contactId)
+    const contactId = flatTrigger.threadId || flatTrigger.fromId || flatTrigger.userId;
+    if (contactId && typeof contactId === 'string' && !contactId.startsWith('g')) {
+      try {
+        const db = DatabaseService.getInstance();
+        if (db && (db as any).initialized) {
+          const ownerZaloId = wf.pageIds[0] || wf.pageId || flatTrigger.zaloId || triggerData?.zaloId || '';
+          
+          let contactRow = null;
+          if (ownerZaloId) {
+            contactRow = (db as any).query(
+              `SELECT display_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id FROM contacts WHERE owner_zalo_id = ? AND contact_id = ? LIMIT 1`,
+              [ownerZaloId, contactId]
+            )?.[0];
+          } else {
+            contactRow = (db as any).query(
+              `SELECT display_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id FROM contacts WHERE contact_id = ? LIMIT 1`,
+              [contactId]
+            )?.[0];
+          }
+          
+          let friendRow = null;
+          if (ownerZaloId) {
+            friendRow = (db as any).query(
+              `SELECT display_name, avatar, phone FROM friends WHERE owner_zalo_id = ? AND user_id = ? LIMIT 1`,
+              [ownerZaloId, contactId]
+            )?.[0];
+          } else {
+            friendRow = (db as any).query(
+              `SELECT display_name, avatar, phone FROM friends WHERE user_id = ? LIMIT 1`,
+              [contactId]
+            )?.[0];
+          }
+
+          if (contactRow || friendRow) {
+            flatTrigger.salutation = contactRow?.salutation || '';
+            flatTrigger.displayName = contactRow?.alias || contactRow?.display_name || friendRow?.display_name || flatTrigger.fromName || flatTrigger.displayName || '';
+            flatTrigger.display_name = flatTrigger.displayName;
+            flatTrigger.fromName = flatTrigger.displayName;
+            flatTrigger.phone = contactRow?.phone || friendRow?.phone || flatTrigger.fromPhone || flatTrigger.phone || '';
+            flatTrigger.fromPhone = flatTrigger.phone;
+            flatTrigger.avatar = contactRow?.avatar_url || friendRow?.avatar || '';
+            flatTrigger.birthday = contactRow?.birthday || '';
+            flatTrigger.gender = contactRow?.gender !== undefined ? contactRow.gender : '';
+            flatTrigger.pipeline_stage_id = contactRow?.pipeline_stage_id || '';
+          }
+        }
+      } catch (err: any) {
+        Logger.error(`[WorkflowEngine] Failed to enrich trigger with CRM data:`, err.message);
+      }
+    }
+
     const context: ExecutionContext = {
       trigger: flatTrigger,
       nodes: {},
