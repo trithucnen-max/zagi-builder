@@ -566,6 +566,7 @@ class HttpClientService {
         // when HttpRelayService hooks are active in the same process.
         if (channel === 'event:message' && data?.zaloId && data?.message) {
             this.saveRelayMessageToWorkspaceDb(data.zaloId, data.message);
+            this.triggerWorkflowEngine(channel, data);
             return;
         }
 
@@ -573,6 +574,7 @@ class HttpClientService {
         // then forward to renderer if active. Mirrors saveRelayMessageToWorkspaceDb logic.
         if (channel === 'event:reaction' && data?.zaloId && data?.reaction) {
             this.saveRelayReactionToWorkspaceDb(data.zaloId, data.reaction);
+            this.triggerWorkflowEngine(channel, data);
             return;
         }
 
@@ -580,12 +582,14 @@ class HttpClientService {
         // must be updated separately on the employee side.
         if (channel === 'event:undo' && data?.zaloId && data?.msgId) {
             this.saveRelayRecallToWorkspaceDb('event:undo', data, data.zaloId, [String(data.msgId)], data.threadId);
+            this.triggerWorkflowEngine(channel, data);
             return;
         }
 
         // Persist delete (chat.delete) to employee DB — same as undo, mark as recalled.
         if (channel === 'event:delete' && data?.zaloId && Array.isArray(data?.msgIds) && data.msgIds.length) {
             this.saveRelayRecallToWorkspaceDb('event:delete', data, data.zaloId, data.msgIds.map(String), data.threadId);
+            this.triggerWorkflowEngine(channel, data);
             return;
         }
 
@@ -655,6 +659,7 @@ class HttpClientService {
         // (labels, pins, quick messages, CRM, pinned conversations, contact settings)
         if (HttpClientService.FORWARD_CHANNELS.includes(channel)) {
             this.persistRelayConversationEvent(channel, data);
+            this.triggerWorkflowEngine(channel, data);
             // Only forward to renderer when this employee workspace is the active one.
             try {
                 const WorkspaceManager = require('../../utils/WorkspaceManager').default;
@@ -667,6 +672,50 @@ class HttpClientService {
             } catch {
                 EventBroadcaster.sendDirect(channel, data);
             }
+        }
+    }
+
+    /**
+     * Kích hoạt workflow engine cục bộ khi nhận sự kiện chuyển tiếp từ Boss
+     */
+    private triggerWorkflowEngine(channel: string, data: any): void {
+        try {
+            const EVENT_MAP: Record<string, string> = {
+                'event:message':       'trigger.message',
+                'event:friendRequest': 'trigger.friendRequest',
+                'event:groupEvent':    'trigger.groupEvent',
+                'event:reaction':      'trigger.reaction',
+                'event:undo':          'trigger.undo',
+                'db:localLabelThreadChanged': 'trigger.labelAssigned',
+                'integration:payment': 'trigger.payment',
+            };
+
+            const triggerType = EVENT_MAP[channel];
+            if (!triggerType) return;
+
+            const WorkflowEngineService = require('../workflow/WorkflowEngineService').default;
+            
+            let triggerData = data;
+            if (channel === 'db:localLabelThreadChanged') {
+                const db = require('../database/DatabaseService').default.getInstance();
+                const label = db.getLocalLabel(data.labelId);
+                triggerData = {
+                    zaloId: data.zaloId,
+                    threadId: data.threadId,
+                    threadType: data.threadId?.startsWith('g') ? 1 : 0,
+                    labelId: data.labelId,
+                    labelText: label?.name || '',
+                    labelColor: label?.color || '',
+                    labelEmoji: label?.emoji || '',
+                    labelSource: 'local',
+                    action: data.action || 'assigned',
+                };
+            }
+
+            WorkflowEngineService.getInstance().triggerWorkflows(triggerType, triggerData);
+            Logger.log(`[HttpClientService] Triggered workflow engine for ${channel} -> ${triggerType}`);
+        } catch (err: any) {
+            Logger.warn(`[HttpClientService] Failed to trigger workflow engine for ${channel}: ${err.message}`);
         }
     }
 
