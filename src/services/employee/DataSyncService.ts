@@ -352,8 +352,15 @@ class DataSyncService {
             }
         }
 
-        // Import tables
-        const tableNames = Object.keys(payload.tables || {});
+        // Import tables (sắp xếp bảng cha chứa khóa ngoại lên trước để tránh lỗi FOREIGN KEY constraint)
+        const PARENT_TABLES = ['local_labels', 'crm_tags', 'crm_campaigns', 'ai_assistants', 'fb_accounts'];
+        const tableNames = Object.keys(payload.tables || {}).sort((a, b) => {
+            const aIsParent = PARENT_TABLES.includes(a);
+            const bIsParent = PARENT_TABLES.includes(b);
+            if (aIsParent && !bIsParent) return -1;
+            if (!aIsParent && bIsParent) return 1;
+            return 0;
+        });
         let tableIdx = 0;
         for (const tableName of tableNames) {
             const rows = payload.tables[tableName];
@@ -387,8 +394,15 @@ class DataSyncService {
             } catch {}
         }
 
-        // Upsert tables
-        const tableNames = Object.keys(payload.tables || {});
+        // Upsert tables (sắp xếp bảng cha chứa khóa ngoại lên trước để tránh lỗi FOREIGN KEY constraint)
+        const PARENT_TABLES = ['local_labels', 'crm_tags', 'crm_campaigns', 'ai_assistants', 'fb_accounts'];
+        const tableNames = Object.keys(payload.tables || {}).sort((a, b) => {
+            const aIsParent = PARENT_TABLES.includes(a);
+            const bIsParent = PARENT_TABLES.includes(b);
+            if (aIsParent && !bIsParent) return -1;
+            if (!aIsParent && bIsParent) return 1;
+            return 0;
+        });
         for (const tableName of tableNames) {
             if (!PRIVACY_FILTERED_ERP_TABLES.has(tableName)) continue;
             try {
