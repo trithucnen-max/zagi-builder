@@ -20,7 +20,21 @@ export default function CRMPipelineTab() {
   const [editingStage, setEditingStage] = useState<Partial<PipelineStage> | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Load pipeline stages from DB
+  // States bộ lọc và tìm kiếm
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [selectedLabelId, setSelectedLabelId] = useState<number | ''>('');
+  const [localLabels, setLocalLabels] = useState<any[]>([]);
+
+  // Debounce tìm kiếm 300ms
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Tải danh sách trạng thái
   const loadStages = async () => {
     setPipelineStagesLoading(true);
     try {
@@ -35,26 +49,83 @@ export default function CRMPipelineTab() {
     }
   };
 
-  // Load contacts
+  // Tải danh sách Nhãn Local phục vụ bộ lọc
+  const loadLocalLabelsList = async () => {
+    if (!activeAccountId) return;
+    try {
+      const res = await ipc.db?.getLocalLabels({ zaloId: activeAccountId });
+      if (res?.labels) {
+        setLocalLabels(res.labels);
+      }
+    } catch {}
+  };
+
+  // Tải danh sách liên hệ (Tải hết liên hệ đã phân loại + 200 liên hệ chưa phân loại khớp bộ lọc)
   const loadContacts = async () => {
     if (!activeAccountId) return;
     setContactsLoading(true);
     try {
-      const res = await ipc.crm?.getContacts({
-        zaloId: activeAccountId,
-        opts: { limit: 1000, offset: 0 },
-      });
-      if (res?.success) {
-        setContacts(res.contacts, res.total);
+      // Bộ lọc cho nhóm đã phân loại (limit = 10000 để tải hết, tránh bị mất liên hệ)
+      const classifiedOpts: any = {
+        limit: 10000,
+        offset: 0,
+        pipelineStageId: 'any',
+      };
+      if (debouncedSearchQuery.trim()) {
+        classifiedOpts.search = debouncedSearchQuery.trim();
       }
-    } catch {}
-    setContactsLoading(false);
+      if (selectedLabelId !== '') {
+        classifiedOpts.tagIds = [selectedLabelId];
+      }
+
+      // Bộ lọc cho nhóm chưa phân loại (limit = 200 để tránh lag giao diện)
+      const unclassifiedOpts: any = {
+        limit: 200,
+        offset: 0,
+        pipelineStageId: 'unclassified',
+      };
+      if (debouncedSearchQuery.trim()) {
+        unclassifiedOpts.search = debouncedSearchQuery.trim();
+      }
+      if (selectedLabelId !== '') {
+        unclassifiedOpts.tagIds = [selectedLabelId];
+      }
+
+      const [classRes, unclassRes] = await Promise.all([
+        ipc.crm?.getContacts({ zaloId: activeAccountId, opts: classifiedOpts }),
+        ipc.crm?.getContacts({ zaloId: activeAccountId, opts: unclassifiedOpts }),
+      ]);
+
+      let combinedContacts: CRMContact[] = [];
+      let totalCount = 0;
+
+      if (classRes?.success && classRes.contacts) {
+        combinedContacts.push(...classRes.contacts);
+        totalCount += classRes.total || 0;
+      }
+      if (unclassRes?.success && unclassRes.contacts) {
+        combinedContacts.push(...unclassRes.contacts);
+        totalCount += unclassRes.total || 0;
+      }
+
+      setContacts(combinedContacts, totalCount);
+    } catch (err: any) {
+      console.error('[CRMPipelineTab] loadContacts error:', err.message);
+    } finally {
+      setContactsLoading(false);
+    }
   };
 
+  // Tải dữ liệu ban đầu khi đổi tài khoản
   useEffect(() => {
     loadStages();
-    loadContacts();
+    loadLocalLabelsList();
   }, [activeAccountId]);
+
+  // Tải lại liên hệ khi thay đổi bộ lọc/tìm kiếm
+  useEffect(() => {
+    loadContacts();
+  }, [activeAccountId, debouncedSearchQuery, selectedLabelId]);
 
   // Handle save/create stage
   const handleSaveStage = async (e: React.FormEvent) => {
@@ -153,6 +224,67 @@ export default function CRMPipelineTab() {
           </svg>
           Thêm cột trạng thái
         </button>
+      </div>
+
+      {/* Thanh bộ lọc & Tìm kiếm */}
+      <div className="flex flex-wrap items-center gap-4 px-6 py-3.5 border-b border-gray-800 bg-gray-900/40 flex-shrink-0">
+        {/* Tìm kiếm */}
+        <div className="relative w-64">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Tìm theo tên, sđt..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700/80 rounded-xl pl-9 pr-8 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:bg-gray-800/80 transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-500 hover:text-white"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Bộ lọc Nhãn Local */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-400">Nhãn Local:</span>
+          <select
+            value={selectedLabelId}
+            onChange={(e) => setSelectedLabelId(e.target.value === '' ? '' : Number(e.target.value))}
+            className="bg-gray-800 border border-gray-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+          >
+            <option value="">Tất cả nhãn</option>
+            {localLabels.map((lbl) => (
+              <option key={lbl.id} value={lbl.id}>
+                {lbl.emoji || '🏷️'} {lbl.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Đặt lại bộ lọc */}
+        {(searchQuery || selectedLabelId !== '') && (
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedLabelId('');
+            }}
+            className="text-xs font-semibold text-blue-500 hover:text-blue-400 transition-colors"
+          >
+            Đặt lại bộ lọc
+          </button>
+        )}
       </div>
 
       {/* Kanban Board Container */}

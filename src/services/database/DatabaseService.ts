@@ -5627,6 +5627,7 @@ class DatabaseService {
         sortBy?: 'name' | 'last_message'; sortDir?: 'asc' | 'desc';
         limit?: number; offset?: number;
         contactIds?: string[];
+        pipelineStageId?: number | null | 'unclassified' | 'any';
     } = {}): { contacts: any[]; total: number } {
         if (!this.initialized) return { contacts: [], total: 0 };
         try {
@@ -5755,6 +5756,18 @@ class DatabaseService {
                     (c.phone || '').toLowerCase().includes(q) ||
                     c.contact_id.toLowerCase().includes(q)
                 );
+            }
+
+            // Apply pipelineStageId filter
+            if (opts.pipelineStageId !== undefined) {
+                const psId = opts.pipelineStageId;
+                if (psId === 'unclassified' || psId === null) {
+                    all = all.filter(c => !c.pipeline_stage_id);
+                } else if (psId === 'any') {
+                    all = all.filter(c => c.pipeline_stage_id != null);
+                } else {
+                    all = all.filter(c => c.pipeline_stage_id === psId);
+                }
             }
 
             // Sort
