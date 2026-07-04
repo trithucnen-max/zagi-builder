@@ -29,6 +29,8 @@ interface ErpTaskState {
   // callers no longer need to pass them (kept optional for back-compat).
   loadProjects: () => Promise<void>;
   createProject: (params: any) => Promise<ErpProject | null>;
+  updateProject: (id: string, patch: any) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   setActiveProject: (id: string | null) => void;
   loadTasks: (filter?: TaskListFilter) => Promise<void>;
   createTask: (input: CreateTaskInput) => Promise<ErpTask | null>;
@@ -69,6 +71,32 @@ export const useErpTaskStore = create<ErpTaskState>((set) => ({
       return res.project;
     }
     return null;
+  },
+
+  updateProject: async (id, patch) => {
+    const res = await ipc.erp?.projectUpdate({ id, patch });
+    if (res?.success && res.project) {
+      set(s => {
+        const isArchived = res.project.status === 'archived';
+        const nextProjects = isArchived
+          ? s.projects.filter(item => item.id !== id)
+          : s.projects.map(item => item.id === id ? res.project : item);
+        return {
+          projects: nextProjects,
+          activeProjectId: (isArchived && s.activeProjectId === id) ? null : s.activeProjectId
+        };
+      });
+    }
+  },
+
+  deleteProject: async (id) => {
+    const res = await ipc.erp?.projectDelete({ id });
+    if (res?.success) {
+      set(s => ({
+        projects: s.projects.filter(item => item.id !== id),
+        activeProjectId: s.activeProjectId === id ? null : s.activeProjectId
+      }));
+    }
   },
 
   setActiveProject: (id) => set({ activeProjectId: id }),
@@ -118,11 +146,21 @@ export const useErpTaskStore = create<ErpTaskState>((set) => ({
   _onProjectCreated: (project) => set(state => ({
     projects: state.projects.some(item => item.id === project.id) ? state.projects : [...state.projects, project],
   })),
-  _onProjectUpdated: (project) => set(state => ({
-    projects: state.projects.map(item => item.id === project.id ? project : item),
-  })),
+  _onProjectUpdated: (project) => set(state => {
+    const isArchived = project.status === 'archived';
+    const nextProjects = isArchived
+      ? state.projects.filter(item => item.id !== project.id)
+      : state.projects.some(item => item.id === project.id)
+        ? state.projects.map(item => item.id === project.id ? project : item)
+        : [...state.projects, project];
+    return {
+      projects: nextProjects,
+      activeProjectId: (isArchived && state.activeProjectId === project.id) ? null : state.activeProjectId
+    };
+  }),
   _onProjectDeleted: (projectId) => set(state => ({
     projects: state.projects.filter(project => project.id !== projectId),
+    activeProjectId: state.activeProjectId === projectId ? null : state.activeProjectId
   })),
   _onTaskCreated: (task) => set(state => reconcileTaskInState(state, task)),
   _onTaskUpdated: (taskId, patch, task) => set(state => {

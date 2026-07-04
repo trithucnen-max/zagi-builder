@@ -934,6 +934,41 @@ async function startupAfterLicenseCheck(): Promise<void> {
     setTimeout(() => handleDeepLink(initialDeepLink), 3000);
   }
 
+  // Wrap ipcMain.handle to automatically proxy ERP mutations to Boss in employee mode
+  const AppModeManager = require('../src/utils/AppModeManager').default;
+  const { proxyToBossAsync } = require('./ipc/proxyHelper');
+  const originalHandle = ipcMain.handle.bind(ipcMain);
+  ipcMain.handle = (channel: string, handler: any) => {
+    const MUTATION_PREFIXES = [
+      'erp:project:',
+      'erp:task:',
+      'erp:note:',
+      'erp:department:',
+      'erp:position:',
+      'erp:employee:',
+      'erp:attendance:',
+      'erp:leave:',
+      'erp:calendar:'
+    ];
+    const isMutationPrefix = MUTATION_PREFIXES.some(prefix => channel.startsWith(prefix));
+    const isReadPattern = channel.includes(':list') || 
+                          channel.includes(':get') || 
+                          channel.includes(':versions') || 
+                          channel.includes(':shares') || 
+                          channel.includes(':listEvents') || 
+                          channel.includes(':checkConflict');
+    if (isMutationPrefix && !isReadPattern) {
+      originalHandle(channel, async (event: any, ...args: any[]) => {
+        if (AppModeManager.getInstance().getMode() === 'employee') {
+          return await proxyToBossAsync(channel, args[0]);
+        }
+        return await handler(event, ...args);
+      });
+    } else {
+      originalHandle(channel, handler);
+    }
+  };
+
   // Register all IPC handlers
   registerLoginIpc(mainWindow);
   registerZaloIpc();
