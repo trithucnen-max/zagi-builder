@@ -185,7 +185,7 @@ export default function TaskBoardPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         
         {/* Header Tab View (Danh sách / Kanban) */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800/60 flex-shrink-0 bg-gray-950/40">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800/60 flex-shrink-0 bg-gray-950">
           <div className="min-w-0 flex items-center gap-4">
             <h2 className="text-sm font-semibold text-gray-100 truncate flex items-center gap-2">
               <span className="text-base">🎯</span> {currentProjectName}
@@ -217,7 +217,7 @@ export default function TaskBoardPage() {
               onClick={() => setViewMode('list')}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
                 viewMode === 'list'
-                  ? 'bg-gray-700 text-gray-100 shadow-sm'
+                  ? 'bg-gray-950 text-gray-100 shadow-sm'
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
@@ -227,7 +227,7 @@ export default function TaskBoardPage() {
               onClick={() => setViewMode('kanban')}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
                 viewMode === 'kanban'
-                  ? 'bg-gray-700 text-gray-100 shadow-sm'
+                  ? 'bg-gray-950 text-gray-100 shadow-sm'
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
@@ -360,7 +360,7 @@ export default function TaskBoardPage() {
                             {/* Hạn chót */}
                             {task.due_date && (
                               <div className={`flex items-center gap-1 text-[11px] font-medium flex-shrink-0 ${
-                                task.due_date < Date.now() && !isCompleted ? 'text-red-400' : 'text-gray-450'
+                                task.due_date < Date.now() && !isCompleted ? 'text-red-400' : 'text-gray-400'
                               }`}>
                                 <span>📅</span>
                                 <span>
@@ -371,7 +371,7 @@ export default function TaskBoardPage() {
 
                             {/* Nhiệm vụ con progress */}
                             {task.checklist_total ? (
-                              <div className="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 bg-gray-850/40 px-2 py-0.5 rounded-lg border border-gray-800/20">
+                              <div className="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 bg-gray-800/40 px-2 py-0.5 rounded-lg border border-gray-800/30">
                                 <span>📋</span>
                                 <span className="font-semibold text-gray-300">
                                   {task.checklist_done}/{task.checklist_total}
@@ -443,8 +443,8 @@ export default function TaskBoardPage() {
                     >
                       {/* Column Header */}
                       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/40 flex-shrink-0">
-                        <span className="text-xs font-bold text-gray-300 uppercase tracking-wide">{col.label}</span>
-                        <span className="text-[10px] font-bold bg-gray-850 border border-gray-800 rounded-full px-2 py-0.5 text-gray-400">{colTasks.length}</span>
+                        <span className="text-xs font-bold text-gray-200 uppercase tracking-wide">{col.label}</span>
+                        <span className="text-[10px] font-bold bg-gray-800 border border-gray-800 rounded-full px-2 py-0.5 text-gray-400">{colTasks.length}</span>
                       </div>
 
                       {/* Lane Cards Container */}
@@ -510,7 +510,7 @@ export default function TaskBoardPage() {
 
                               {/* checklist progress & assignees */}
                               {(!!task.assignees?.length || !!task.checklist_total) && (
-                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-850/60">
+                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800/60">
                                   {task.checklist_total ? (
                                     <div className="flex items-center gap-1.5 text-[9px] text-gray-400 bg-gray-900/30 px-1.5 py-0.5 rounded border border-gray-800">
                                       <span>📋</span>
