@@ -155,6 +155,7 @@ export default function TaskBoardPage() {
           </button>
 
           {projects.map(project => {
+            if (!project) return null;
             const count = allTasks.filter(t => t.project_id === project.id).length;
             const isSelected = activeProjectId === project.id;
             return (

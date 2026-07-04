@@ -143,15 +143,19 @@ export const useErpTaskStore = create<ErpTaskState>((set) => ({
     if (res?.success) set({ inboxTasks: res.tasks });
   },
 
-  _onProjectCreated: (project) => set(state => ({
-    projects: state.projects.some(item => item.id === project.id) ? state.projects : [...state.projects, project],
-  })),
+  _onProjectCreated: (project) => set(state => {
+    if (!project) return state;
+    return {
+      projects: state.projects.some(item => item?.id === project.id) ? state.projects : [...state.projects, project],
+    };
+  }),
   _onProjectUpdated: (project) => set(state => {
+    if (!project) return state;
     const isArchived = project.status === 'archived';
     const nextProjects = isArchived
-      ? state.projects.filter(item => item.id !== project.id)
-      : state.projects.some(item => item.id === project.id)
-        ? state.projects.map(item => item.id === project.id ? project : item)
+      ? state.projects.filter(item => item?.id !== project.id)
+      : state.projects.some(item => item?.id === project.id)
+        ? state.projects.map(item => item?.id === project.id ? project : item)
         : [...state.projects, project];
     return {
       projects: nextProjects,
@@ -159,7 +163,7 @@ export const useErpTaskStore = create<ErpTaskState>((set) => ({
     };
   }),
   _onProjectDeleted: (projectId) => set(state => ({
-    projects: state.projects.filter(project => project.id !== projectId),
+    projects: state.projects.filter(project => project?.id !== projectId),
     activeProjectId: state.activeProjectId === projectId ? null : state.activeProjectId
   })),
   _onTaskCreated: (task) => set(state => reconcileTaskInState(state, task)),
