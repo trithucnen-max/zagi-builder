@@ -404,20 +404,20 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-[1100px] bg-white border-l border-slate-200 h-full overflow-hidden shadow-2xl flex flex-col text-slate-800 animate-slide-in" onClick={event => event.stopPropagation()}>
+      <div className="w-full max-w-[1100px] bg-gray-800 border-l border-gray-800 h-full overflow-hidden shadow-2xl flex flex-col text-gray-200 animate-slide-in" onClick={event => event.stopPropagation()}>
         
-        {/* Drawer Header (Chữ đen, nền trắng, viền xám) */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0 bg-white">
+        {/* Drawer Header (Chữ đen, nền trắng, viền xám khi sáng) */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/80 flex-shrink-0 bg-gray-950/20">
           <div className="flex items-center gap-3">
-            <h3 className="text-sm font-semibold text-slate-900">{taskId ? 'Chi tiết nhiệm vụ' : 'Tạo nhiệm vụ mới'}</h3>
+            <h3 className="text-sm font-semibold text-white">{taskId ? 'Chi tiết nhiệm vụ' : 'Tạo nhiệm vụ mới'}</h3>
             {taskId && (
-              <button type="button" onClick={handleToggleCompleted} className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border ${task?.status === 'done' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-100 border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-300'}`}>
+              <button type="button" onClick={handleToggleCompleted} className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border ${task?.status === 'done' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500'}`}>
                 {task?.status === 'done' ? '✓ Đã hoàn thành' : 'Đánh dấu là đã hoàn thành'}
               </button>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="px-3.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all">Đóng</button>
+            <button onClick={onClose} className="px-3.5 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-all">Đóng</button>
             <button onClick={saveTask} disabled={!form.title.trim() || saving || loading} className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-all">{saving ? 'Đang lưu...' : 'Lưu nhiệm vụ'}</button>
           </div>
         </div>
@@ -425,66 +425,66 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
         {loading ? (
           <div className="flex-1 flex items-center justify-center"><div className="animate-spin w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full" /></div>
         ) : (
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full grid grid-cols-1 lg:grid-cols-5 overflow-hidden bg-white">
+          <div className="flex-1 overflow-hidden bg-gray-800">
+            <div className="h-full grid grid-cols-1 lg:grid-cols-5 overflow-hidden">
               
               {/* ── CỘT BÊN TRÁI: Nội dung chi tiết, Nhiệm vụ con, Comments (60%) ── */}
-              <div className="lg:col-span-3 overflow-y-auto p-6 space-y-6 erp-scroll-y h-full border-r border-slate-200">
+              <div className="lg:col-span-3 overflow-y-auto p-6 space-y-6 erp-scroll-y h-full border-r border-gray-800/60 bg-gray-800">
                 <div>
-                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1.5 block">Tiêu đề</label>
-                  <input autoFocus={!taskId} value={form.title} onChange={event => setForm(current => ({ ...current, title: event.target.value }))} className="w-full bg-white border-b border-slate-200 hover:border-slate-300 focus:border-blue-500 py-2 text-base text-slate-900 font-semibold focus:outline-none transition-all placeholder-slate-300" placeholder="Nhập tiêu đề công việc..." />
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 mb-1.5 block">Tiêu đề</label>
+                  <input autoFocus={!taskId} value={form.title} onChange={event => setForm(current => ({ ...current, title: event.target.value }))} className="w-full bg-transparent border-b border-gray-800 hover:border-gray-700 focus:border-blue-500 py-2 text-base text-gray-100 font-semibold focus:outline-none transition-all placeholder-gray-600" placeholder="Nhập tiêu đề công việc..." />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Nội dung công việc</label>
-                    <button type="button" onClick={handleEditorImagePick} className="text-[10px] font-semibold text-blue-600 hover:text-blue-500">+ Chèn ảnh</button>
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">Nội dung công việc</label>
+                    <button type="button" onClick={handleEditorImagePick} className="text-[10px] font-semibold text-blue-400 hover:text-blue-300">+ Chèn ảnh</button>
                   </div>
-                  <div className="task-rich-editor-wrap rounded-xl border border-slate-200 overflow-hidden bg-white">
-                    <ReactQuill ref={quillRef} theme="snow" value={form.description} onChange={value => setForm(current => ({ ...current, description: value }))} modules={quillModules} formats={[...QUILL_FORMATS]} className="task-rich-editor light" placeholder="Mô tả công việc chi tiết..." />
+                  <div className="task-rich-editor-wrap rounded-xl border border-gray-800/80 overflow-hidden bg-gray-950/20">
+                    <ReactQuill ref={quillRef} theme="snow" value={form.description} onChange={value => setForm(current => ({ ...current, description: value }))} modules={quillModules} formats={[...QUILL_FORMATS]} className="task-rich-editor" placeholder="Mô tả công việc chi tiết..." />
                   </div>
                 </div>
 
                 {/* Nhiệm vụ con (Checklist) */}
-                <div className="space-y-3.5 border-t border-slate-100 pt-5">
+                <div className="space-y-3.5 border-t border-gray-800/60 pt-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Nhiệm vụ con</label>
-                      <span className="text-xs font-semibold text-slate-500">{checklistDone}/{checklistTotal}</span>
+                      <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">Nhiệm vụ con</label>
+                      <span className="text-xs font-semibold text-gray-400">{checklistDone}/{checklistTotal}</span>
                     </div>
                     {checklistTotal > 0 && (
                       <div className="w-32 flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${checklistPercent}%` }} /></div>
-                        <span className="text-[10px] font-bold text-slate-500">{checklistPercent}%</span>
+                        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${checklistPercent}%` }} /></div>
+                        <span className="text-[10px] font-bold text-gray-400">{checklistPercent}%</span>
                       </div>
                     )}
                   </div>
                   
                   <div className="space-y-1.5">
                     {checklists.map(item => (
-                      <div key={item.id} className="group flex items-center gap-3 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all">
-                        <input type="checkbox" checked={!!item.done} onChange={e => handleChecklistToggle(item.id, e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-0 bg-white" />
-                        <span className={`text-xs flex-1 min-w-0 truncate ${item.done ? 'line-through text-slate-400 opacity-50' : 'text-slate-700'}`}>{item.content}</span>
+                      <div key={item.id} className="group flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-950/20 border border-gray-800/30 hover:border-gray-800 transition-all">
+                        <input type="checkbox" checked={!!item.done} onChange={e => handleChecklistToggle(item.id, e.target.checked)} className="w-4 h-4 rounded border-gray-700 text-blue-600 focus:ring-0 bg-transparent" />
+                        <span className={`text-xs flex-1 min-w-0 truncate ${item.done ? 'line-through text-gray-500 opacity-50' : 'text-slate-200'}`}>{item.content}</span>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <select value={item.assignee_id || ''} onChange={e => handleChecklistAssigneeChange(item.id, e.target.value)} className="bg-transparent border-0 text-[10px] text-slate-500 hover:text-slate-800 cursor-pointer focus:outline-none w-20 truncate">
-                            <option value="" className="text-slate-400">Chưa gán</option>
-                            {assigneeOptions.map(opt => <option key={opt.employee_id} value={opt.employee_id} className="text-slate-700">{opt.display_name}</option>)}
+                          <select value={item.assignee_id || ''} onChange={e => handleChecklistAssigneeChange(item.id, e.target.value)} className="bg-transparent border-0 text-[10px] text-gray-400 hover:text-slate-200 cursor-pointer focus:outline-none w-20 truncate">
+                            <option value="" className="bg-gray-900 text-gray-500">Chưa gán</option>
+                            {assigneeOptions.map(opt => <option key={opt.employee_id} value={opt.employee_id} className="bg-gray-900 text-slate-300">{opt.display_name}</option>)}
                           </select>
-                          <input type="date" value={item.due_date ? new Date(item.due_date).toISOString().split('T')[0] : ''} onChange={e => handleChecklistDueDateChange(item.id, e.target.value)} className="bg-transparent border-0 text-[10px] text-slate-500 hover:text-slate-800 cursor-pointer focus:outline-none w-24 text-right" />
-                          <button type="button" onClick={() => handleChecklistDelete(item.id)} className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-slate-200 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                          <input type="date" value={item.due_date ? new Date(item.due_date).toISOString().split('T')[0] : ''} onChange={e => handleChecklistDueDateChange(item.id, e.target.value)} className="bg-transparent border-0 text-[10px] text-gray-400 hover:text-slate-200 cursor-pointer focus:outline-none w-24 text-right" />
+                          <button type="button" onClick={() => handleChecklistDelete(item.id)} className="w-5 h-5 flex items-center justify-center rounded text-gray-500 hover:text-red-400 hover:bg-gray-850 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
                         </div>
                       </div>
                     ))}
                     
                     {/* Hàng nhập nhanh nhiệm vụ con mới */}
-                    <div className="flex items-center gap-3 px-3 py-2 rounded-xl border border-dashed border-slate-200 bg-white">
-                      <span className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0" />
-                      <input value={subtaskContent} onChange={e => setSubtaskContent(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddSubtask()} placeholder="Nhấn Enter để tạo nhiệm vụ con..." className="text-xs bg-transparent border-0 flex-1 focus:ring-0 focus:outline-none p-0 placeholder-slate-400" />
+                    <div className="flex items-center gap-3 px-3 py-2 rounded-xl border border-dashed border-gray-800 bg-gray-950/5">
+                      <span className="w-4 h-4 rounded-full border border-gray-700 flex-shrink-0" />
+                      <input value={subtaskContent} onChange={e => setSubtaskContent(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddSubtask()} placeholder="Nhấn Enter để tạo nhiệm vụ con..." className="text-xs bg-transparent border-0 flex-1 focus:ring-0 focus:outline-none p-0 placeholder-gray-600 text-gray-200" />
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <select value={subtaskAssignee} onChange={e => setSubtaskAssignee(e.target.value)} className="bg-transparent border-0 text-[10px] text-slate-400 hover:text-slate-700 cursor-pointer focus:outline-none w-20">
-                          <option value="">Gán...</option>
-                          {assigneeOptions.map(opt => <option key={opt.employee_id} value={opt.employee_id} className="text-slate-700">{opt.display_name}</option>)}
+                        <select value={subtaskAssignee} onChange={e => setSubtaskAssignee(e.target.value)} className="bg-transparent border-0 text-[10px] text-gray-500 hover:text-slate-300 cursor-pointer focus:outline-none w-20">
+                          <option value="" className="bg-gray-900 text-gray-500">Gán...</option>
+                          {assigneeOptions.map(opt => <option key={opt.employee_id} value={opt.employee_id} className="bg-gray-900 text-slate-300">{opt.display_name}</option>)}
                         </select>
-                        <input type="date" value={subtaskDueDate} onChange={e => setSubtaskDueDate(e.target.value)} className="bg-transparent border-0 text-[10px] text-slate-400 hover:text-slate-700 cursor-pointer focus:outline-none w-24 text-right" />
+                        <input type="date" value={subtaskDueDate} onChange={e => setSubtaskDueDate(e.target.value)} className="bg-transparent border-0 text-[10px] text-gray-500 hover:text-slate-300 cursor-pointer focus:outline-none w-24 text-right" />
                       </div>
                     </div>
                   </div>
@@ -492,48 +492,48 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
 
                 {/* Bình luận */}
                 {taskId && (
-                  <div className="space-y-4 border-t border-slate-100 pt-5">
-                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Bình luận & Nhận xét</label>
+                  <div className="space-y-4 border-t border-gray-800/60 pt-5">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">Bình luận & Nhận xét</label>
                     <div className="space-y-3.5 max-h-[300px] overflow-y-auto pr-1 erp-scroll-y">
                       {(task?.comments || []).map(comm => (
                         <div key={comm.id} className="flex gap-3 items-start">
                           <EmployeeAvatar employeeId={comm.author_id} size={26} showName={false} />
-                          <div className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5 space-y-1">
-                            <div className="flex items-center justify-between"><span className="text-xs font-bold text-slate-700">{assigneeOptions.find(o => o.employee_id === comm.author_id)?.display_name || comm.author_id}</span><span className="text-[10px] text-slate-400">{new Date(comm.created_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span></div>
-                            <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{comm.content}</p>
+                          <div className="flex-1 bg-gray-950/20 border border-gray-800/40 rounded-2xl px-4 py-2.5 space-y-1">
+                            <div className="flex items-center justify-between"><span className="text-xs font-bold text-gray-300">{assigneeOptions.find(o => o.employee_id === comm.author_id)?.display_name || comm.author_id}</span><span className="text-[10px] text-gray-500">{new Date(comm.created_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span></div>
+                            <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">{comm.content}</p>
                           </div>
                         </div>
                       ))}
-                      {(task?.comments || []).length === 0 && <p className="text-xs text-slate-400 italic pl-1">Chưa có bình luận nào.</p>}
+                      {(task?.comments || []).length === 0 && <p className="text-xs text-gray-600 italic pl-1">Chưa có bình luận nào.</p>}
                     </div>
                     <div className="flex gap-3 items-start">
-                      <input value={comment} onChange={e => setComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAddComment())} placeholder="Viết nhận xét..." className="text-xs bg-white border border-slate-200 rounded-xl px-4 py-3 flex-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 text-slate-800 placeholder-slate-400" />
+                      <input value={comment} onChange={e => setComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAddComment())} placeholder="Viết nhận xét..." className="text-xs bg-gray-950/30 border border-gray-800 rounded-xl px-4 py-3 flex-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 text-gray-200 placeholder-gray-600" />
                       <button onClick={handleAddComment} disabled={!comment.trim()} className="px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-all">Gửi</button>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* ── CỘT BÊN PHẢI: Metadata & Tệp đính kèm (40% - Nền xám nhẹ) ── */}
-              <div className="lg:col-span-2 overflow-y-auto p-6 space-y-6 erp-scroll-y h-full bg-slate-50 border-l border-slate-200">
+              {/* ── CỘT BÊN PHẢI: Metadata & Tệp đính kèm (40% - Nền xám nhẹ khi sáng) ── */}
+              <div className="lg:col-span-2 overflow-y-auto p-6 space-y-6 erp-scroll-y h-full bg-gray-950/10 border-l border-gray-800/60">
                 <Field label="Dự án">
-                  <select value={form.project_id} onChange={event => setForm(current => ({ ...current, project_id: event.target.value }))} className="task-editor-select w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-slate-800">
-                    <option value="">Không thuộc dự án</option>
-                    {projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}
+                  <select value={form.project_id} onChange={event => setForm(current => ({ ...current, project_id: event.target.value }))} className="task-editor-select w-full bg-gray-800/80 border border-gray-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white">
+                    <option value="" className="bg-gray-900 text-gray-500">Không thuộc dự án</option>
+                    {projects.map(project => <option key={project.id} value={project.id} className="bg-gray-900 text-white">{project.name}</option>)}
                   </select>
                 </Field>
                 <Field label="Trạng thái">
-                  <select value={form.status} onChange={event => setForm(current => ({ ...current, status: event.target.value as ErpTaskStatus }))} className="task-editor-select w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-slate-800">
-                    {STATUS_OPTS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  <select value={form.status} onChange={event => setForm(current => ({ ...current, status: event.target.value as ErpTaskStatus }))} className="task-editor-select w-full bg-gray-800/80 border border-gray-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white">
+                    {STATUS_OPTS.map(option => <option key={option.value} value={option.value} className="bg-gray-900 text-white">{option.label}</option>)}
                   </select>
                 </Field>
                 <Field label="Độ ưu tiên">
-                  <select value={form.priority} onChange={event => setForm(current => ({ ...current, priority: event.target.value as ErpTaskPriority }))} className="task-editor-select w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-slate-800">
-                    {PRIORITY_OPTS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  <select value={form.priority} onChange={event => setForm(current => ({ ...current, priority: event.target.value as ErpTaskPriority }))} className="task-editor-select w-full bg-gray-800/80 border border-gray-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white">
+                    {PRIORITY_OPTS.map(option => <option key={option.value} value={option.value} className="bg-gray-900 text-white">{option.label}</option>)}
                   </select>
                 </Field>
                 <Field label="Hạn hoàn thành">
-                  <input type="datetime-local" value={form.due_date} onChange={event => setForm(current => ({ ...current, due_date: event.target.value }))} className="task-editor-select w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-slate-800" />
+                  <input type="datetime-local" value={form.due_date} onChange={event => setForm(current => ({ ...current, due_date: event.target.value }))} className="task-editor-select w-full bg-gray-800/80 border border-gray-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white" />
                 </Field>
                 <Field label="Người thực hiện">
                   <TaskMultiSelect options={assigneeOptions.map((employee: any) => ({ value: employee.employee_id, label: employee.display_name }))} value={form.assignees} placeholder="Chọn người thực hiện" onChange={next => setForm(current => ({ ...current, assignees: next }))} />
@@ -544,25 +544,25 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Tệp đính kèm</label>
-                    <button type="button" onClick={() => attachmentInputRef.current?.click()} className="text-[10px] font-semibold text-blue-600 hover:text-blue-500">+ Thêm tệp</button>
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">Tệp đính kèm</label>
+                    <button type="button" onClick={() => attachmentInputRef.current?.click()} className="text-[10px] font-semibold text-blue-400 hover:text-blue-300">+ Thêm tệp</button>
                   </div>
                   <input ref={attachmentInputRef} type="file" multiple className="hidden" onChange={handleAttachmentFiles} />
                   <input ref={editorImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleInlineImageSelected} />
                   
                   {attachments.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-5 text-center text-xs text-slate-400">Chưa có tệp đính kèm</div>
+                    <div className="rounded-xl border border-dashed border-gray-850 bg-gray-900/10 px-4 py-5 text-center text-xs text-gray-500">Chưa có tệp đính kèm</div>
                   ) : (
                     <div className="space-y-2">
                       {attachments.map(attachment => (
-                        <div key={attachment.id} className="rounded-xl border border-slate-200 bg-white p-2.5 flex items-center justify-between gap-3 shadow-sm">
+                        <div key={attachment.id} className="rounded-xl border border-gray-800 bg-gray-900/30 p-2.5 flex items-center justify-between gap-3 shadow-sm">
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs text-slate-700 font-semibold truncate">{attachment.file_name}</div>
-                            <div className="text-[10px] text-slate-400 mt-0.5 truncate">{attachment.mime_type || 'Tệp'}{attachment.size ? ` · ${(attachment.size / 1024).toFixed(1)} KB` : ''}</div>
+                            <div className="text-xs text-gray-200 font-medium truncate">{attachment.file_name}</div>
+                            <div className="text-[10px] text-gray-500 mt-0.5 truncate">{attachment.mime_type || 'Tệp'}{attachment.size ? ` · ${(attachment.size / 1024).toFixed(1)} KB` : ''}</div>
                           </div>
                           <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button type="button" onClick={() => openAttachment(attachment)} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[10px] font-semibold text-slate-600 transition-all">Mở</button>
-                            <button type="button" onClick={() => removeAttachment(attachment.id)} className="w-7 h-7 flex items-center justify-center rounded-lg border border-red-100 hover:bg-red-50 text-[10px] text-red-500 transition-all">✕</button>
+                            <button type="button" onClick={() => openAttachment(attachment)} className="px-2.5 py-1 rounded-lg border border-gray-800 hover:bg-gray-700 text-[10px] font-semibold text-gray-300 transition-all">Mở</button>
+                            <button type="button" onClick={() => removeAttachment(attachment.id)} className="w-7 h-7 flex items-center justify-center rounded-lg border border-red-500/20 hover:bg-red-500/10 text-[10px] text-red-400 transition-all">✕</button>
                           </div>
                         </div>
                       ))}
@@ -582,7 +582,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">{label}</label>
+      <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">{label}</label>
       {children}
     </div>
   );
