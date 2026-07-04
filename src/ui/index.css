@@ -652,6 +652,11 @@ html[data-theme="light"] .placeholder-gray-600::placeholder { color: #a8a29e; }
 
 /* ── Borders ──────────────────────────────────────────────────────────────── */
 html[data-theme="light"] .border-gray-800 { border-color: #e5e7eb; }
+html[data-theme="light"] .border-gray-800\/80 { border-color: rgba(229, 231, 235, 0.8); }
+html[data-theme="light"] .border-gray-800\/60 { border-color: rgba(229, 231, 235, 0.6); }
+html[data-theme="light"] .border-gray-800\/40 { border-color: rgba(229, 231, 235, 0.4); }
+html[data-theme="light"] .border-gray-800\/30 { border-color: rgba(229, 231, 235, 0.3); }
+html[data-theme="light"] .border-gray-800\/20 { border-color: rgba(229, 231, 235, 0.2); }
 html[data-theme="light"] .border-gray-700 { border-color: #e5e7eb; }
 html[data-theme="light"] .border-gray-600 { border-color: #d1d5db; }
 html[data-theme="light"] .border-gray-500 { border-color: #9ca3af; }

@@ -3,7 +3,7 @@ import { useErpTaskStore } from '@/store/erp/erpTaskStore';
 import { useErpEmployeeStore } from '@/store/erp/erpEmployeeStore';
 import { useEmployeeStore } from '@/store/employeeStore';
 import TaskEditorDrawer from './TaskEditorDrawer';
-import { ConfirmDialog, ErpModalCard, ErpOverlay } from '../shared/ErpDialogs';
+import { ConfirmDialog, ErpModalCard, ErpOverlay, PromptDialog } from '../shared/ErpDialogs';
 import { ERP_DATE_FILTER_OPTIONS, getDefaultCustomRange, resolveErpDateRange, type ErpDateFilterPreset } from '../shared/erpDateFilters';
 import { EmployeeAvatar, RichContentPreview } from '../shared/ErpBadges';
 import type { ErpTask, ErpTaskPriority, ErpTaskStatus } from '../../../../models/erp';
@@ -41,7 +41,6 @@ export default function TaskBoardPage() {
   const [dragOverCol, setDragOverCol] = useState<ErpTaskStatus | null>(null);
   const [editorState, setEditorState] = useState<{ taskId?: string | null; status?: ErpTaskStatus } | null>(null);
   const [newProjectModal, setNewProjectModal] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<'' | ErpTaskPriority>('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [dateFilter, setDateFilter] = useState<'' | ErpDateFilterPreset>('');
@@ -50,7 +49,6 @@ export default function TaskBoardPage() {
   const [cancelConfirm, setCancelConfirm] = useState<{ task: ErpTask } | null>(null);
   const [projectDeleteConfirm, setProjectDeleteConfirm] = useState<string | null>(null);
   const [projectArchiveConfirm, setProjectArchiveConfirm] = useState<string | null>(null);
-  const newProjectInputRef = useRef<HTMLInputElement>(null);
   const boardScrollRef = useRef<HTMLDivElement>(null);
   
   // Mặc định ở chế độ Kanban
@@ -129,7 +127,7 @@ export default function TaskBoardPage() {
         <div className="flex items-center justify-between px-2 flex-shrink-0">
           <span className="text-xs font-bold text-gray-400 tracking-wider uppercase">Dự án</span>
           <button
-            onClick={() => { setNewProjectName(''); setNewProjectModal(true); setTimeout(() => newProjectInputRef.current?.focus(), 50); }}
+            onClick={() => setNewProjectModal(true)}
             className="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition-colors"
             title="Tạo dự án mới"
           >
@@ -609,49 +607,17 @@ export default function TaskBoardPage() {
 
       {/* New Project Modal */}
       {newProjectModal && (
-        <ErpOverlay onClose={() => setNewProjectModal(false)} className="z-50" backdropClassName="bg-black/50">
-          <ErpModalCard className="w-80 p-5 bg-gray-950 border border-gray-800 rounded-2xl">
-            <h3 className="text-sm font-semibold text-gray-100 mb-3">Tạo project mới</h3>
-            <input
-              ref={newProjectInputRef}
-              value={newProjectName}
-              onChange={e => setNewProjectName(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && newProjectName.trim()) {
-                  createProject({ name: newProjectName.trim() }).then(project => {
-                    if (project) setActiveProject(project.id);
-                  });
-                  setNewProjectModal(false);
-                }
-                if (e.key === 'Escape') setNewProjectModal(false);
-              }}
-              placeholder="Tên project..."
-              className="w-full bg-gray-850 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-3"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  if (newProjectName.trim()) {
-                    createProject({ name: newProjectName.trim() }).then(project => {
-                      if (project) setActiveProject(project.id);
-                    });
-                    setNewProjectModal(false);
-                  }
-                }}
-                disabled={!newProjectName.trim()}
-                className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm rounded-lg transition-colors"
-              >
-                Tạo
-              </button>
-              <button
-                onClick={() => setNewProjectModal(false)}
-                className="px-4 py-1.5 text-gray-500 hover:text-gray-100 hover:bg-gray-800 rounded-lg text-sm transition-colors"
-              >
-                Huỷ
-              </button>
-            </div>
-          </ErpModalCard>
-        </ErpOverlay>
+        <PromptDialog
+          title="Tạo project mới"
+          placeholder="Tên project..."
+          onConfirm={(name) => {
+            createProject({ name }).then(project => {
+              if (project) setActiveProject(project.id);
+            });
+            setNewProjectModal(false);
+          }}
+          onCancel={() => setNewProjectModal(false)}
+        />
       )}
     </div>
   );
