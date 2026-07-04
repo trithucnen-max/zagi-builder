@@ -1,8 +1,9 @@
 # ─── Build Zagi — Windows x64 + Windows ARM64 (Surface) + macOS + Linux ─────────
-# Workflow tổng hợp: trigger tất cả job song song, publish lên cùng 1 Release tag
+# CI/CD tổng hợp: trigger tự động khi push tag v*, chạy song song 4 job
+# Publish lên cùng 1 GitHub Release kèm release notes tự động từ CHANGELOG.md
 # ─────────────────────────────────────────────────────────────────────────────
 
-name: Build All Platforms
+name: 🚀 Build All Platforms
 
 permissions:
   contents: write
@@ -11,41 +12,48 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
-  workflow_dispatch:
-    inputs:
-      publish:
-        description: 'Publish to GitHub Releases?'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
-      tag_name:
-        description: 'Tag cho release (vd: v26.4.0). Bỏ trống = tự lấy từ package.json'
-        required: false
-        default: ''
-        type: string
-
+  # Tự động trigger khi push tag vX.X.X (từ git push origin vX.X.X)
   push:
     tags:
       - 'v*'
 
+  # Kích hoạt thủ công qua GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag cho release (vd: v27.2.4). Bỏ trống = tự lấy từ package.json'
+        required: false
+        default: ''
+        type: string
+      publish:
+        description: 'Publish lên GitHub Releases?'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
 # ─── SECRETS cần cấu hình ────────────────────────────────────────────────────
-#   GH_TOKEN — GitHub Personal Access Token (repo scope)
+#   GH_TOKEN — GitHub Personal Access Token (repo scope) — dùng cho electron-builder
+#   GITHUB_TOKEN — tự động có sẵn trong GitHub Actions
+# ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
-  # Resolve tag một lần — chia sẻ cho cả 2 job build
+  # Resolve tag + trích xuất release notes từ CHANGELOG.md
   # ═══════════════════════════════════════════════════════════════════════════
   resolve-tag:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.get_tag.outputs.tag }}
+      version: ${{ steps.get_tag.outputs.version }}
       should_publish: ${{ steps.get_tag.outputs.should_publish }}
+      release_notes: ${{ steps.get_notes.outputs.notes }}
     steps:
       - uses: actions/checkout@v4
-      - name: 🏷️ Resolve tag
+
+      - name: 🏷️ Resolve tag & version
         id: get_tag
         shell: bash
         run: |
@@ -61,17 +69,39 @@ jobs:
             TAG="v${VERSION}"
             SHOULD_PUBLISH="${{ github.event.inputs.publish }}"
           fi
+          VERSION="${TAG#v}"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "should_publish=${SHOULD_PUBLISH}" >> $GITHUB_OUTPUT
-          echo "✅ Tag: ${TAG} | Publish: ${SHOULD_PUBLISH}"
+          echo "✅ Tag: ${TAG} | Version: ${VERSION} | Publish: ${SHOULD_PUBLISH}"
+
+      - name: 📝 Extract release notes from CHANGELOG.md
+        id: get_notes
+        shell: bash
+        run: |
+          TAG="${{ steps.get_tag.outputs.tag }}"
+          VERSION="${{ steps.get_tag.outputs.version }}"
+          # Trích đoạn CHANGELOG từ [vX.X.X] đến [vX.X.X] tiếp theo
+          NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md 2>/dev/null || echo "")
+          if [ -z "$NOTES" ]; then
+            NOTES="Xem [CHANGELOG đầy đủ](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) để biết chi tiết."
+          fi
+          # Ghi ra file để tránh lỗi multiline trong GITHUB_OUTPUT
+          echo "$NOTES" > /tmp/release_notes.md
+          {
+            echo 'notes<<RELEASE_NOTES_EOF'
+            cat /tmp/release_notes.md
+            echo 'RELEASE_NOTES_EOF'
+          } >> $GITHUB_OUTPUT
+          echo "✅ Release notes extracted ($(wc -l < /tmp/release_notes.md) lines)"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Windows (x64) — PC thường, laptop Intel/AMD
+  # Windows x64 — PC thường, laptop Intel/AMD
   # ═══════════════════════════════════════════════════════════════════════════
-  build-windows:
+  build-windows-x64:
     needs: resolve-tag
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: 📥 Checkout code
@@ -83,20 +113,23 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: 🟢 Setup Go 1.x
+      - name: 🟢 Setup Go (stable)
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
           cache: false
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install npm dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: 🏗️ Build bridge E2EE (Go)
+      - name: 🏗️ Build E2EE bridge (Go)
         run: npm run build:bridge-e2ee
 
-      - name: 🏗️ Compile TypeScript (electron)
+      - name: 🏗️ Compile TypeScript (Electron main)
         run: npx tsc -p tsconfig.electron.prod.json
+
+      - name: 🧹 Strip console.* từ dist-electron (production)
+        run: node scripts/strip-console.js
 
       - name: 🏗️ Build renderer (Vite)
         run: npx vite build
@@ -104,16 +137,17 @@ jobs:
           NODE_ENV: production
           BUILD_TARGET: production
 
-      - name: 📦 Build Windows app (x64)
+      - name: 📦 Build Windows installer (x64)
         run: npx electron-builder --win --x64 --publish never
 
-      - name: 🚀 Publish Windows x64 → GitHub Releases
+      - name: 🚀 Upload Windows x64 → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          repository: trithucnen-max/zagi-builder
+          repository: ${{ github.repository }}
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          name: "Zagi ${{ needs.resolve-tag.outputs.tag }}"
+          name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
+          body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
             dist-electron-build/Zagi-Setup-*-x64.exe
             dist-electron-build/Zagi-Setup-*-x64.exe.blockmap
@@ -126,12 +160,11 @@ jobs:
 
   # ═══════════════════════════════════════════════════════════════════════════
   # Windows ARM64 — Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7
-  # (dùng chip Qualcomm Snapdragon / ARM64)
   # ═══════════════════════════════════════════════════════════════════════════
   build-windows-arm64:
     needs: resolve-tag
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: 📥 Checkout code
@@ -143,20 +176,23 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: 🟢 Setup Go 1.x
+      - name: 🟢 Setup Go (stable)
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
           cache: false
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install npm dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: 🏗️ Build bridge E2EE (Go)
+      - name: 🏗️ Build E2EE bridge (Go)
         run: npm run build:bridge-e2ee
 
-      - name: 🏗️ Compile TypeScript (electron)
+      - name: 🏗️ Compile TypeScript (Electron main)
         run: npx tsc -p tsconfig.electron.prod.json
+
+      - name: 🧹 Strip console.* từ dist-electron (production)
+        run: node scripts/strip-console.js
 
       - name: 🏗️ Build renderer (Vite)
         run: npx vite build
@@ -164,16 +200,17 @@ jobs:
           NODE_ENV: production
           BUILD_TARGET: production
 
-      - name: 📦 Build Windows app (arm64 — Surface)
+      - name: 📦 Build Windows installer (ARM64 — Surface)
         run: npx electron-builder --win --arm64 --publish never
 
-      - name: 🚀 Publish Windows ARM64 → GitHub Releases
+      - name: 🚀 Upload Windows ARM64 → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          repository: trithucnen-max/zagi-builder
+          repository: ${{ github.repository }}
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          name: "Zagi ${{ needs.resolve-tag.outputs.tag }}"
+          name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
+          body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
             dist-electron-build/Zagi-Setup-*-arm64.exe
             dist-electron-build/Zagi-Setup-*-arm64.exe.blockmap
@@ -184,12 +221,12 @@ jobs:
           fail_on_unmatched_files: false
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # macOS (arm64 — Apple Silicon)
+  # macOS (x64 Intel + arm64 Apple Silicon) — build trên macos-14 (M1 runner)
   # ═══════════════════════════════════════════════════════════════════════════
-  build-mac-arm64:
+  build-macos:
     needs: resolve-tag
     runs-on: macos-14
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: 📥 Checkout code
@@ -201,20 +238,23 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: 🟢 Setup Go 1.x
+      - name: 🟢 Setup Go (stable)
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
           cache: false
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install npm dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: 🏗️ Build bridge E2EE (Go)
+      - name: 🏗️ Build E2EE bridge (Go)
         run: npm run build:bridge-e2ee
 
-      - name: 🏗️ Compile TypeScript (electron)
+      - name: 🏗️ Compile TypeScript (Electron main)
         run: npx tsc -p tsconfig.electron.prod.json
+
+      - name: 🧹 Strip console.* từ dist-electron (production)
+        run: node scripts/strip-console.js
 
       - name: 🏗️ Build renderer (Vite)
         run: npx vite build
@@ -222,23 +262,23 @@ jobs:
           NODE_ENV: production
           BUILD_TARGET: production
 
-      - name: 📦 Build macOS app (arm64 & x64)
+      - name: 📦 Build macOS app (x64 + arm64)
         run: npx electron-builder --mac --x64 --arm64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: 🚀 Publish macOS → GitHub Releases
+      - name: 🚀 Upload macOS → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          repository: trithucnen-max/zagi-builder
+          repository: ${{ github.repository }}
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          name: "Zagi ${{ needs.resolve-tag.outputs.tag }}"
+          name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
+          body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
-            dist-electron-build/*.zip
             dist-electron-build/*.dmg
-            dist-electron-build/*.blockmap
+            dist-electron-build/*.dmg.blockmap
             dist-electron-build/latest-mac.yml
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
@@ -247,12 +287,12 @@ jobs:
           fail_on_unmatched_files: false
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Ubuntu/Linux (x64 — AppImage + deb)
+  # Linux (x64 — AppImage + .deb)
   # ═══════════════════════════════════════════════════════════════════════════
-  build-ubuntu:
+  build-linux:
     needs: resolve-tag
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: 📥 Checkout code
@@ -264,19 +304,16 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: 🟢 Setup Go 1.x
+      - name: 🟢 Setup Go (stable)
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
           cache: false
 
-      - name: 📦 Install system dependencies
+      - name: 📦 Install system dependencies (libfuse2, dpkg-dev)
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            libfuse2 \
-            dpkg-dev \
-          || echo 'WARN: some system deps may be missing'
+          sudo apt-get install -y -qq libfuse2 dpkg-dev || echo 'WARN: some system deps missing'
 
       - name: 📦 Install npm dependencies
         run: npm ci --legacy-peer-deps
@@ -284,8 +321,11 @@ jobs:
       - name: 🏗️ Build E2EE bridge (Go)
         run: npm run build:bridge-e2ee
 
-      - name: 🏗️ Compile TypeScript (electron)
+      - name: 🏗️ Compile TypeScript (Electron main)
         run: npx tsc -p tsconfig.electron.prod.json
+
+      - name: 🧹 Strip console.* từ dist-electron (production)
+        run: node scripts/strip-console.js
 
       - name: 🏗️ Build renderer (Vite)
         run: npx vite build
@@ -293,24 +333,23 @@ jobs:
           NODE_ENV: production
           BUILD_TARGET: production
 
-      - name: 📦 Build Linux app (x64 — AppImage + deb)
+      - name: 📦 Build Linux app (x64 — AppImage + .deb)
         run: npx electron-builder --linux --x64 --publish never
 
-      - name: 🚀 Publish Linux → GitHub Releases
+      - name: 🚀 Upload Linux → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          repository: trithucnen-max/zagi-builder
+          repository: ${{ github.repository }}
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          name: "Zagi ${{ needs.resolve-tag.outputs.tag }}"
+          name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
+          body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
             dist-electron-build/*.AppImage
             dist-electron-build/*.deb
-            dist-electron-build/*.blockmap
             dist-electron-build/latest-linux.yml
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
           make_latest: false
           fail_on_unmatched_files: false
-
