@@ -1,7 +1,7 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 1.0  
-> **Ngày cập nhật:** 03/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v27.2.3 (Stable)  
+> **Phiên bản tài liệu:** 1.1  
+> **Ngày cập nhật:** 04/07/2026  
+> **Trạng thái sản phẩm hiện tại:** v27.2.4 (Stable)  
 > **Chủ quản:** Product Management Team  
 
 
@@ -148,10 +148,11 @@ graph TD
 ---
 
 ## 5. LỊCH SỬ CẬP NHẬT CÁC PHIÊN BẢN (CHANGELOG)
-Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.3`:
+Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.4`:
 
 | Phiên bản | Ngày cập nhật | Loại cập nhật | Điểm nhấn chính (Highlights) |
 | :--- | :--- | :--- | :--- |
+| **v27.2.4** | 04/07/2026 | Patch | **ERP Task UX Upgrade:** Thay thế bộ chọn emoji bằng hệ thống 12 icon SVG tối giản (Project SVG Icon System), sidebar dự án luôn hiển thị màu nền liên tục (Always-colored sidebar), chữ & icon trắng tương phản chuẩn. Sửa lỗi màn hình trắng khi vào ERP Tasks (`useMemo is not defined`), sửa lỗi tạo project bị nhân đôi (race condition), cải tiến ErrorBoundary hiển thị lỗi rõ ràng hơn. |
 | **v27.2.3** | 03/07/2026 | Patch | Đồng bộ trạng thái trực tuyến CRM, nâng cấp quét nhóm ẩn (PSS) với 3 luồng quét sâu, sửa lỗi ERP & Nhãn 2 chiều. **Bổ sung ẩn danh Ghost Mode (Online/Read), gửi đa phương tiện nâng cao (Voice, Bank Card, Card), gộp Album ảnh tự động, tự động phát hiện video và 4 Node Workflow mới.** |
 | **v27.2.2** | 01/07/2026 | Patch | Nâng cấp Workflow Editor nâng cao: phím nóng và nút bấm Hoàn tác/Làm lại (Undo/Redo), nút ✨ Căn chỉnh node (BFS Layout), kiểm tra vòng lặp vô hạn (Cycle Detection), tự động lưu ngầm (Silent Auto-save), xem nhanh biến động (Tooltip preview), tối ưu hóa nhãn chào CRM Zalo-native và mở rộng 3 kịch bản mẫu nâng cao (AI Lead Scoring, Event Followup BĐS, POS Appointment Reminder). Fix lỗi Smart Connect (định vị điểm nhả qua elementFromPoint). |
 | **v27.2.1** | 01/07/2026 | Patch | Dọn dẹp dứt điểm Zalo Group History (lỗi 404); Đồng bộ hóa CRM từ nhân viên lên Boss; Ẩn tab Webhooks với nhân viên; Đồng bộ theme Sáng (System Theme) của Workflow; Mở rộng bộ lọc CRM nâng cao và tích hợp nút Xem trước (Preview) danh sách đối tượng lọc được trong Workflow (vẽ composite GroupAvatar và việt hóa nhãn, icon); Kiểm định thành công 100% kho 86 workflow mẫu ở Sandbox; Tích hợp tính năng giải tán nhóm hàng loạt (Bulk Disperse Group) cho các nhóm Owner vào SmartGroupModal.tsx. |
@@ -170,6 +171,16 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 ---
 
 ### Chi tiết các cập nhật từng phiên bản
+
+#### 🎨 v27.2.4 — ERP Task UX Upgrade: Project SVG Icons & Always-colored Sidebar
+*   **Tính năng mới (New):**
+    *   **Hệ thống Icon SVG cho Dự án ERP (Project SVG Icon System):** Thay thế bộ chọn emoji bằng 12 icon SVG tối giản Lucide-style (`folder`, `rocket`, `target`, `code`, `palette`, `chart`, `home`, `fire`, `bulb`, `sparkles`, `phone`, `bag`). Tên dự án lưu theo định dạng `[slug] Tên dự án`. Hàm `getProjectDisplay` nhận dạng cả 2 định dạng (tương thích ngược 100%).
+    *   **Sidebar Dự án luôn hiển thị màu (Always-colored Project Sidebar):** Mỗi dự án trong thanh sidebar ERP Task luôn hiển thị màu nền liên tục. Active = `opacity:1` + viền highlight; Inactive = `opacity:0.6`. Chữ và icon SVG dùng màu trắng tinh (`color:#ffffff`) để đảm bảo tương phản cao nhất.
+    *   **Cải tiến ErrorBoundary:** Hiển thị thông báo lỗi nổi bật trong hộp đỏ, bổ sung nút Sao chép mã lỗi.
+*   **Sửa lỗi (Fixed):**
+    *   **Màn hình trắng ERP Tasks:** Import thiếu `useMemo` trong `TaskBoardPage.tsx`.
+    *   **Tạo project bị nhân đôi:** Race condition giữa optimistic state add và sự kiện realtime `erp:event:projectCreated`.
+    *   **Toast thông báo lỗi ERP:** `createProject`, `updateProject`, `deleteProject`, `deleteTask` nay hiển thị toast khi thất bại.
 
 #### ⚡ v27.2.3 — Online Status Sync, PSS Deep Scanning, Ghost Mode, Rich Media & 2-way ERP Sync
 *   **Tính năng mới (New):**

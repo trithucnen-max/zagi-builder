@@ -11,6 +11,7 @@ interface TaskMultiSelectProps {
   onChange: (next: string[]) => void;
   placeholder: string;
   tone?: 'blue' | 'violet';
+  disabled?: boolean;
 }
 
 const TONE_STYLE = {
@@ -30,7 +31,7 @@ const TONE_STYLE = {
   },
 } as const;
 
-export default function TaskMultiSelect({ options, value, onChange, placeholder, tone = 'blue' }: TaskMultiSelectProps) {
+export default function TaskMultiSelect({ options, value, onChange, placeholder, tone = 'blue', disabled = false }: TaskMultiSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const selectedOptions = options.filter(option => value.includes(option.value));
@@ -47,6 +48,7 @@ export default function TaskMultiSelect({ options, value, onChange, placeholder,
   }, []);
 
   const toggleOption = (optionValue: string) => {
+    if (disabled) return;
     onChange(value.includes(optionValue)
       ? value.filter(item => item !== optionValue)
       : [...value, optionValue]);
@@ -56,8 +58,9 @@ export default function TaskMultiSelect({ options, value, onChange, placeholder,
     <div ref={ref} className="relative">
       <button
         type="button"
+        disabled={disabled}
         onClick={() => setOpen(v => !v)}
-        className="w-full min-h-[50px] flex flex-wrap items-center gap-1.5 bg-gray-900/70 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-left text-gray-100 shadow-sm hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        className="w-full min-h-[50px] flex flex-wrap items-center gap-1.5 bg-gray-900/70 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-left text-gray-100 shadow-sm hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {selectedOptions.length > 0 ? selectedOptions.map(option => (
           <span key={option.value} className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium max-w-[150px] truncate ${toneStyle.badge}`}>

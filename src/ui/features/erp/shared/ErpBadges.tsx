@@ -29,11 +29,11 @@ export function PriorityBadge({ value, compact }: { value?: ErpPriority; compact
 export type ErpStatus = 'todo' | 'doing' | 'review' | 'done' | 'cancelled' | string;
 
 const STATUS_STYLE: Record<string, { label: string; cls: string }> = {
-  todo:      { label: 'Cần làm',  cls: 'bg-gray-500/20 text-gray-300' },
-  doing:     { label: 'Đang làm', cls: 'bg-blue-500/20 text-blue-300' },
-  review:    { label: 'Xem xét',  cls: 'bg-purple-500/20 text-purple-300' },
-  done:      { label: 'Hoàn thành', cls: 'bg-green-500/20 text-green-300' },
-  cancelled: { label: 'Huỷ',      cls: 'bg-red-500/20 text-red-300 line-through' },
+  todo:      { label: 'Cần làm',  cls: 'bg-blue-100 text-blue-800 border border-blue-200/30 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800/30' },
+  doing:     { label: 'Đang làm', cls: 'bg-sky-100 text-sky-800 border border-sky-200/30 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800/30' },
+  review:    { label: 'Xem xét',  cls: 'bg-amber-100 text-amber-800 border border-amber-200/30 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800/30' },
+  done:      { label: 'Hoàn thành', cls: 'bg-green-100 text-green-800 border border-green-200/30 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800/30' },
+  cancelled: { label: 'Huỷ',      cls: 'bg-red-100 text-red-800 border border-red-200/30 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800/30 line-through' },
 };
 
 export function StatusBadge({ value, compact }: { value?: ErpStatus; compact?: boolean }) {
@@ -70,10 +70,10 @@ export function useEmployeeDisplay(employeeId: string | undefined | null): { nam
   const employeeNameMap = useEmployeeStore(s => s.employeeNameMap);
   const employeeAvatarMap = useEmployeeStore(s => s.employeeAvatarMap);
   const profile = useErpEmployeeStore(s =>
-    employeeId ? s.profiles.find((p: any) => p.employee_id === employeeId) : undefined
+    employeeId ? (s.profiles || []).find((p: any) => p && p.employee_id === employeeId) : undefined
   );
   const employee = useEmployeeStore(s =>
-    employeeId ? s.employees.find((p: any) => p.employee_id === employeeId) : undefined
+    employeeId ? (s.employees || []).find((p: any) => p && p.employee_id === employeeId) : undefined
   );
   if (!employeeId) return { name: '—' };
   if (employeeId === 'boss') {

@@ -25,10 +25,10 @@ export function useErpContext(): { employeeId: string; role: ErpRole; permission
   const previewEmployeeId = useEmployeeStore(s => s.previewEmployeeId);
   const employees = useEmployeeStore(s => s.employees);
   const profiles = useErpEmployeeStore(s => s.profiles);
-  const activeWorkspace = useWorkspaceStore(s => s.workspaces.find(w => w.id === s.activeWorkspaceId));
+  const activeWorkspace = useWorkspaceStore(s => (s.workspaces || []).find(w => w && w.id === s.activeWorkspaceId));
 
   const previewEmployee = previewEmployeeId
-    ? employees.find((employee: any) => employee.employee_id === previewEmployeeId) ?? null
+    ? (employees || []).find((employee: any) => employee && employee.employee_id === previewEmployeeId) ?? null
     : null;
   const activeEmployeeId = previewEmployeeId || currentEmployee?.employee_id || 'unknown_employee';
   const workspaceProfile = activeWorkspace?.type === 'remote' && activeWorkspace.employeeId === activeEmployeeId
@@ -38,7 +38,7 @@ export function useErpContext(): { employeeId: string; role: ErpRole; permission
         extra_json: activeWorkspace.cachedErpExtraJson,
       }
     : null;
-  const syncedProfile = profiles.find(profile => profile.employee_id === activeEmployeeId);
+  const syncedProfile = (profiles || []).find(profile => profile && profile.employee_id === activeEmployeeId);
   const activeProfile = (workspaceProfile?.erp_role || workspaceProfile?.extra_json)
     ? { ...syncedProfile, ...workspaceProfile }
     : (syncedProfile || workspaceProfile);

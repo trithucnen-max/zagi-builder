@@ -1,7 +1,7 @@
 # HỆ THỐNG THIẾT KẾ GIAO DIỆN (DESIGN SYSTEM) - ZAGI DESKTOP
 > **Chủ đề thiết kế:** Chuyên nghiệp (Professional) · Tin cậy (Trustworthy) · Tốc độ (High-speed)  
 > **Nguyên tắc cốt lõi:** Kế thừa trải nghiệm thân quen (Zalo UI) - Giữ nguyên cấu trúc bố cục (No Layout Shift)  
-> **Ngày ban hành:** 25/06/2026  
+> **Ngày ban hành:** 25/06/2026 | **Cập nhật lần cuối:** 04/07/2026 (v27.2.4)  
 
 ---
 
@@ -147,3 +147,41 @@ graph TD
 *   *Bố cục:* Nằm hoàn toàn trong trang **Cài đặt → Giới thiệu** dưới dạng tab phụ `"userguide"`.
 *   *Thanh tab phụ:* Thiết kế thanh điều hướng ngang gồm 5 tab (Tổng quan, CRM, Workflow, Tích hợp, Kết hợp) sử dụng font phông hệ thống, khi tab active hiển thị chữ đen đậm (hoặc trắng xám ở Dark Mode) kèm đường viền dưới màu xanh Zalo Blue dày `2px`.
 *   *Visual:* Nền trắng tinh `#FFFFFF` (Sáng) / `#1F2937` (Tối), viền mảnh phân cách rõ ràng, văn bản markdown được render định dạng sắc nét, dễ đọc.
+
+---
+
+## 6. HỆ THỐNG ICON SVG DỰ ÁN ERP (PROJECT ICON SYSTEM) — v27.2.4
+
+> **Mục tiêu:** Thay thế emoji (phụ thuộc font hệ điều hành) bằng bộ icon SVG thuần khiết đảm bảo hiển thị nhất quán trên mọi nền tảng (Windows, macOS, Linux).
+
+### 6.1. Bộ 12 Icon chuẩn
+
+| Slug | Biểu tượng | Mô tả | Trường hợp sử dụng |
+| :--- | :---: | :--- | :--- |
+| `folder` | 📂 | Thư mục | Dự án tổng hợp, thư mục chứa tài liệu |
+| `rocket` | 🚀 | Tên lửa | Dự án ra mắt, đẩy mạnh sản phẩm |
+| `target` | 🎯 | Mục tiêu | Dự án mục tiêu / OKR |
+| `code` | 💻 | Lập trình | Dự án kỹ thuật, phát triển phần mềm |
+| `palette` | 🎨 | Bảng màu | Dự án thiết kế, sáng tạo |
+| `chart` | 📊 | Biểu đồ | Dự án báo cáo, phân tích dữ liệu |
+| `home` | 🏠 | Ngôi nhà | Dự án nội bộ, vận hành văn phòng |
+| `fire` | 🔥 | Ngọn lửa | Dự án khẩn cấp / hot |
+| `bulb` | 💡 | Bóng đèn | Dự án ý tưởng, sáng kiến |
+| `sparkles` | ✨ | Lấp lánh | Dự án đặc biệt, AI |
+| `phone` | 📞 | Điện thoại | Dự án CSKH, telesales |
+| `bag` | 🛍️ | Giỏ hàng | Dự án thương mại, bán hàng |
+
+### 6.2. Quy tắc kỹ thuật
+
+- **Định dạng lưu tên:** `[slug] Tên dự án` (ví dụ: `[rocket] Q3 Campaign`).
+- **Nhận dạng:** Hàm `getProjectDisplay(name)` nhận dạng regex `^\[([a-zA-Z0-9_-]+)\]\s*(.*)$`, fallback sang emoji cũ nếu không khớp (tương thích ngược 100%).
+- **Render:** Hàm `renderProjectIcon(iconKey)` tra cứu `PROJECT_ICONS` map và dùng `React.cloneElement` để ép màu/kích thước động.
+- **Màu icon trong sidebar:** Luôn `color: #ffffff` trên nền màu dự án. Không dùng màu tím (Purple Ban).
+- **Trong dropdown chọn dự án:** Icon màu `#9ca3af` (gray-400) trên nền tối.
+
+### 6.3. Quy tắc hiển thị Sidebar Dự án (Always-colored)
+
+- Mọi dự án hiển thị màu nền **liên tục** (không chỉ khi active).
+- **Active state:** `opacity: 1`, `font-weight: 600`, viền highlight `2px solid rgba(255,255,255,0.4)`.
+- **Inactive state:** `opacity: 0.6`, không viền, ảnh hưởng nhẹ để phân cấp thao tác.
+- Tất cả text và SVG icon trong sidebar dùng `color: #ffffff` (force white) bằng inline style để override Tailwind dark/light mode.

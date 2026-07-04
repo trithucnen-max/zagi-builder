@@ -4,7 +4,41 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v27.2.4] - 2026-07-04
+
+### Thay đổi & Tính năng mới
+
+- **Hệ thống Icon SVG đơn giản cho Dự án ERP (Project SVG Icon System):**
+  - Thay thế hoàn toàn bộ chọn emoji cũ (`📁`, `🚀`, `🎯`...) trong hộp thoại **Tạo project mới** bằng bộ **12 icon SVG tối giản** lấy cảm hứng từ Lucide Icons: `folder`, `rocket`, `target`, `code`, `palette`, `chart`, `home`, `fire`, `bulb`, `sparkles`, `phone`, `bag`.
+  - Tên project được lưu theo định dạng chuẩn `[slug] Tên dự án` (ví dụ: `[rocket] Q3 Campaign`) thay vì dán emoji vào chuỗi tên.
+  - Hàm `getProjectDisplay(name)` được nâng cấp nhận dạng cả 2 định dạng: `[slug]` mới và emoji cũ (tương thích ngược 100%).
+  - Hàm `renderProjectIcon(iconKey)` mới được tạo và đồng bộ trên 3 components: `TaskBoardPage`, `TaskCreateModal`, `TaskEditorDrawer`.
+
+- **Giao diện Sidebar Dự án ERP được hiển thị màu sắc dự án liên tục (Always-colored Project Sidebar):**
+  - Mỗi dự án trong thanh sidebar bên trái **luôn hiển thị màu nền** tương ứng màu được chọn khi tạo (thay vì chỉ hiện khi chọn).
+  - Trạng thái **được chọn (active):** `opacity: 1`, viền highlight, chữ đậm.
+  - Trạng thái **không chọn:** `opacity: 0.6`, nhẹ nhàng, không gây rối thị giác.
+  - Toàn bộ chữ và icon SVG trong sidebar dự án được cưỡng bức màu **trắng tinh** (`color: #ffffff`) để đảm bảo tương phản tốt nhất trên mọi màu nền.
+
+- **Cải tiến ErrorBoundary khi crash ERP:**
+  - Hiển thị thông báo lỗi nổi bật trong hộp đỏ ở trên cùng.
+  - Thêm nút **Sao chép mã lỗi** để dễ dàng copy stack trace gửi hỗ trợ.
+
+### Sửa lỗi & Phòng ngừa (Bug Fixes & Prevention)
+
+- **Sửa lỗi màn hình trắng khi vào ERP Tasks (`useMemo is not defined`):**
+  - Bổ sung import thiếu `useMemo` từ `'react'` trong [TaskBoardPage.tsx](file:///Users/kimtrungduong/Downloads/deplao/src/ui/features/erp/tasks/TaskBoardPage.tsx).
+
+- **Sửa lỗi tạo project bị nhân đôi (Double Project Creation Race Condition):**
+  - Thêm kiểm tra trùng lặp trong `createProject` của [erpTaskStore.ts](file:///Users/kimtrungduong/Downloads/deplao/src/ui/store/erp/erpTaskStore.ts) trước khi thêm dự án vào state, ngăn race condition giữa client-side optimistic add và sự kiện realtime `erp:event:projectCreated`.
+
+- **Thêm thông báo lỗi cho các thao tác dự án & nhiệm vụ ERP:**
+  - `createProject`, `updateProject`, `deleteProject`, `deleteTask` nay hiển thị toast notification khi thất bại (thay vì fail âm thầm).
+
+---
+
 ## [v27.2.3] - 2026-07-03
+
 
 ### Thay đổi & Tính năng mới
 

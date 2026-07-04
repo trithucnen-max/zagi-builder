@@ -32,6 +32,7 @@ function endOfDay(ts: number) {
 }
 
 function taskFallsWithinWindow(task: ErpTask, windowStart: number, futureEnd: number) {
+  if (!task) return false;
   if (task.status === 'cancelled') return false;
   if (task.due_date && task.due_date < Date.now() && task.status !== 'done') return true;
   const markers = [task.created_at, task.updated_at, task.start_date, task.due_date, task.completed_at].filter((value): value is number => typeof value === 'number');
@@ -178,7 +179,7 @@ export default function TaskInboxPage() {
 
   const relevantTasks = useMemo(() => {
     if (!activeRange) return [];
-    return inboxTasks.filter(task => taskFallsWithinWindow(task, windowStart, windowEnd));
+    return (inboxTasks || []).filter(task => task && taskFallsWithinWindow(task, windowStart, windowEnd));
   }, [activeRange, inboxTasks, windowEnd, windowStart]);
 
   const summaryCards = useMemo(() => {
@@ -189,16 +190,16 @@ export default function TaskInboxPage() {
     const review = relevantTasks.filter(task => task.status === 'review');
 
     const cards = [
-      { label: 'Cần làm', value: todo.length, tone: 'text-blue-100', chip: 'text-blue-200 bg-blue-900/30 border-blue-500/30', card: 'border-blue-500/20 bg-blue-900/10' },
-      { label: 'Đang làm', value: doing.length, tone: 'text-sky-300', chip: 'text-sky-300 bg-sky-900/50 border-sky-600', card: 'border-sky-600/30 bg-sky-900/50' },
-      { label: 'Đã hoàn thành', value: done.length, tone: 'text-green-200', chip: 'text-green-200 bg-green-900/50 border-green-600/40', card: 'border-green-600/30 bg-green-900/30' },
-      { label: 'Quá hạn', value: overdue.length, tone: 'text-red-200', chip: 'text-red-200 bg-red-900/40 border-red-400/40', card: 'border-red-500/20 bg-red-500/5' },
+      { label: 'Cần làm', value: todo.length, tone: 'text-blue-600 dark:text-blue-400', chip: 'text-blue-600 bg-blue-100/80 border-blue-200/40 dark:text-blue-300 dark:bg-blue-900/50 dark:border-blue-800/40', card: 'border-blue-100/60 bg-blue-50/50 dark:border-blue-900/20 dark:bg-blue-950/20' },
+      { label: 'Đang làm', value: doing.length, tone: 'text-sky-600 dark:text-sky-400', chip: 'text-sky-600 bg-sky-100/80 border-sky-200/40 dark:text-sky-300 dark:bg-sky-900/50 dark:border-sky-800/40', card: 'border-sky-100/60 bg-sky-50/50 dark:border-sky-900/20 dark:bg-sky-950/20' },
+      { label: 'Đã hoàn thành', value: done.length, tone: 'text-green-600 dark:text-green-400', chip: 'text-green-600 bg-green-100/80 border-green-200/40 dark:text-green-300 dark:bg-green-900/50 dark:border-green-800/40', card: 'border-green-100/60 bg-green-50/50 dark:border-green-900/20 dark:bg-green-950/20' },
+      { label: 'Quá hạn', value: overdue.length, tone: 'text-red-600 dark:text-red-400', chip: 'text-red-600 bg-red-100/80 border-red-200/40 dark:text-red-300 dark:bg-red-900/50 dark:border-red-800/40', card: 'border-red-100/60 bg-red-50/50 dark:border-red-900/20 dark:bg-red-950/20' },
     ];
 
     if (perms.role === 'owner' || perms.role === 'admin' || perms.role === 'manager') {
-      cards.push({ label: 'Chờ xem xét', value: review.length, tone: 'text-yellow-200', chip: 'text-yellow-200 bg-yellow-900/40 border-yellow-500/30', card: 'border-yellow-500/20 bg-yellow-500/10' });
+      cards.push({ label: 'Chờ xem xét', value: review.length, tone: 'text-amber-600 dark:text-amber-400', chip: 'text-amber-600 bg-amber-100/80 border-amber-200/40 dark:text-amber-300 dark:bg-amber-900/50 dark:border-amber-800/40', card: 'border-amber-100/60 bg-amber-50/50 dark:border-amber-900/20 dark:bg-amber-950/20' });
     } else {
-      cards.push({ label: 'Sự kiện trong kỳ', value: events.length, tone: 'text-violet-300', chip: 'text-violet-300 bg-violet-600/20 border-violet-500/40', card: 'border-violet-500/20 bg-purple-500/10' });
+      cards.push({ label: 'Sự kiện trong kỳ', value: events.length, tone: 'text-violet-600 dark:text-violet-400', chip: 'text-violet-600 bg-violet-100/80 border-violet-200/40 dark:text-violet-300 dark:bg-violet-900/50 dark:border-violet-800/40', card: 'border-violet-100/60 bg-violet-50/50 dark:border-purple-900/20 dark:bg-purple-950/20' });
     }
 
     return { cards, overdue };
@@ -308,6 +309,18 @@ export default function TaskInboxPage() {
                     {task.due_date && (
                       <span className={`flex items-center gap-1 ${overdue ? 'text-red-300 font-medium' : 'text-gray-400'}`}>
                         <AppIcon name="calendar" className="text-current" size={11} /> {new Date(task.due_date).toLocaleDateString('vi-VN')}
+                      </span>
+                    )}
+                    {!!task.checklist_total && (
+                      <span className="flex items-center gap-2 bg-gray-950/40 px-2 py-0.5 rounded border border-gray-750/30 text-[10px]">
+                        <span>📋</span>
+                        <span className="font-semibold text-gray-300">{task.checklist_done}/{task.checklist_total}</span>
+                        <div className="w-12 h-1 bg-gray-950 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 transition-all duration-300" 
+                            style={{ width: `${Math.round((task.checklist_done / task.checklist_total) * 100)}%` }} 
+                          />
+                        </div>
                       </span>
                     )}
                     {!!task.assignees?.length && (

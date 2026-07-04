@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 03/07/2026  
-> **Phiên bản:** v27.2.3 (Stable)  
+> **Ngày cập nhật:** 04/07/2026  
+> **Phiên bản:** v27.2.4 (Stable)  
 > **Nhánh Git hiện tại:** `main` (Working tree sạch)
 
 ---
@@ -70,7 +70,13 @@
     *   **4 Node kịch bản Workflow mới**: Thêm các node `zalo.sendVideo`, `zalo.sendVoice`, `zalo.sendBankCard`, và `zalo.sendCard` hỗ trợ biến động và proxy trung chuyển.
     *   **Import SĐT siêu tốc**: Sử dụng API truy vấn hàng loạt `getMultiUsersByPhones` theo lô 100 SĐT để import CSV cực nhanh (< 5s).
     *   **Sửa lỗi đồng bộ ERP & Nhãn 2 chiều**: Cấu hình bộ chuyển tiếp proxy tự động `proxyToBossAsync` cho toàn bộ các thao tác ghi (mutations) của nhân viên lên máy Boss; Đồng thời xây dựng cơ chế phân tích cấu trúc bảng động qua `PRAGMA table_info` để tự động ghi nhận (SQLite upsert) 19 sự kiện `erp:event:*` thời gian thực nhận được từ SSE vào SQLite local của Nhân viên.
-
+16. **ERP Task UX Upgrade — Icon SVG & Always-colored Sidebar (v27.2.4):**
+    *   **Hệ thống Icon SVG Dự án**: Thay thế toàn bộ bộ chọn emoji cũ bằng 12 icon SVG tối giản Lucide-style (`folder`, `rocket`, `target`, `code`, `palette`, `chart`, `home`, `fire`, `bulb`, `sparkles`, `phone`, `bag`). Tên dự án lưu theo định dạng `[slug] Tên dự án`. Hàm `getProjectDisplay` và `renderProjectIcon` đồng bộ trên `TaskBoardPage`, `TaskCreateModal`, `TaskEditorDrawer`.
+    *   **Sidebar Dự án luôn hiển thị màu**: Mỗi dự án trong sidebar ERP Task luôn hiển thị màu nền liên tục (active=`opacity:1`, inactive=`opacity:0.6`). Chữ và icon SVG được force màu trắng (`color:#ffffff`).
+    *   **Sửa lỗi màn hình trắng ERP Tasks**: Import thiếu `useMemo` trong `TaskBoardPage.tsx`.
+    *   **Sửa lỗi tạo project nhân đôi**: Race condition giữa optimistic state add và sự kiện realtime `erp:event:projectCreated`.
+    *   **Toast thông báo lỗi ERP**: Toàn bộ thao tác `createProject`, `updateProject`, `deleteProject`, `deleteTask` hiển thị toast khi thất bại.
+    *   **Cải tiến ErrorBoundary**: Hiển thị thông báo lỗi nổi bật (hộp đỏ) + nút Sao chép mã lỗi.
 
 ## 4. Trạng Thái Kiểm Thử & Chạy Thử
 *   **Preview Server:** ⚪ **Stopped** (Đang dừng).

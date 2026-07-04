@@ -1,20 +1,63 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useErpTaskStore } from '@/store/erp/erpTaskStore';
 import { useErpEmployeeStore } from '@/store/erp/erpEmployeeStore';
 import { useEmployeeStore } from '@/store/employeeStore';
 import TaskEditorDrawer from './TaskEditorDrawer';
+import TaskCreateModal from './TaskCreateModal';
 import { ConfirmDialog, ErpModalCard, ErpOverlay, PromptDialog } from '../shared/ErpDialogs';
 import { ERP_DATE_FILTER_OPTIONS, getDefaultCustomRange, resolveErpDateRange, type ErpDateFilterPreset } from '../shared/erpDateFilters';
 import { EmployeeAvatar, RichContentPreview } from '../shared/ErpBadges';
 import type { ErpTask, ErpTaskPriority, ErpTaskStatus } from '../../../../models/erp';
 import AppIcon from '@/components/common/AppIcon';
 
-const STATUS_COLS: { id: ErpTaskStatus; label: string; color: string }[] = [
-  { id: 'todo',      label: 'Cần làm',    color: 'bg-gray-900/60 border-gray-800/40' },
-  { id: 'doing',     label: 'Đang làm',   color: 'bg-gray-900/60 border-gray-800/40' },
-  { id: 'review',    label: 'Xem xét',    color: 'bg-gray-900/60 border-gray-800/40' },
-  { id: 'done',      label: 'Hoàn thành', color: 'bg-gray-900/60 border-gray-800/40' },
-  { id: 'cancelled', label: 'Huỷ',        color: 'bg-gray-900/60 border-gray-800/40' },
+const STATUS_COLS: { 
+  id: ErpTaskStatus; 
+  label: string; 
+  color: string; 
+  textColor: string;
+  badgeColor: string;
+  borderHeaderColor: string;
+}[] = [
+  { 
+    id: 'todo',      
+    label: 'Cần làm',    
+    color: 'bg-blue-50/70 border-blue-100/80 dark:bg-blue-950/15 dark:border-blue-900/20',
+    textColor: 'text-blue-900 dark:text-blue-200',
+    badgeColor: 'bg-blue-100 text-blue-800 border border-blue-200/55 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-800/30',
+    borderHeaderColor: 'border-blue-100/40 dark:border-blue-900/10'
+  },
+  { 
+    id: 'doing',     
+    label: 'Đang làm',   
+    color: 'bg-sky-50/70 border-sky-100/80 dark:bg-sky-950/15 dark:border-sky-900/20',
+    textColor: 'text-sky-900 dark:text-sky-200',
+    badgeColor: 'bg-sky-100 text-sky-800 border border-sky-200/55 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-800/30',
+    borderHeaderColor: 'border-sky-100/40 dark:border-sky-900/10'
+  },
+  { 
+    id: 'review',    
+    label: 'Xem xét',    
+    color: 'bg-amber-50/70 border-amber-100/80 dark:bg-amber-950/15 dark:border-amber-900/20',
+    textColor: 'text-amber-900 dark:text-amber-200',
+    badgeColor: 'bg-amber-100 text-amber-800 border border-amber-200/55 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800/30',
+    borderHeaderColor: 'border-amber-100/40 dark:border-amber-900/10'
+  },
+  { 
+    id: 'done',      
+    label: 'Hoàn thành', 
+    color: 'bg-green-50/70 border-green-100/80 dark:bg-green-950/15 dark:border-green-900/20',
+    textColor: 'text-green-900 dark:text-green-200',
+    badgeColor: 'bg-green-100 text-green-800 border border-green-200/55 dark:bg-green-900/50 dark:text-green-300 dark:border-green-800/30',
+    borderHeaderColor: 'border-green-100/40 dark:border-green-900/10'
+  },
+  { 
+    id: 'cancelled', 
+    label: 'Huỷ',        
+    color: 'bg-red-50/70 border-red-100/80 dark:bg-red-950/15 dark:border-red-900/20',
+    textColor: 'text-red-900 dark:text-red-200',
+    badgeColor: 'bg-red-100 text-red-800 border border-red-200/55 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800/30',
+    borderHeaderColor: 'border-red-100/40 dark:border-red-900/10'
+  },
 ];
 
 // Priority badge: dùng opacity-based để hoạt động đúng cả dark & light theme
@@ -33,8 +76,117 @@ const STATUS_LABELS: Record<ErpTaskStatus, string> = {
   cancelled: 'Huỷ',
 };
 
+const PROJECT_ICONS: Record<string, React.ReactNode> = {
+  folder: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+    </svg>
+  ),
+  rocket: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5M12 2C6.5 2 2 6.5 2 12c0 2.2 1 4.2 2.5 5.5l12-12C15.2 3 13.2 2 12 2zm9 1c-.5-.5-1.5-.5-2 0l-5 5 2 2 5-5c.5-.5.5-1.5 0-2z"></path>
+    </svg>
+  ),
+  target: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <circle cx="12" cy="12" r="10"></circle>
+      <circle cx="12" cy="12" r="6"></circle>
+      <circle cx="12" cy="12" r="2"></circle>
+    </svg>
+  ),
+  code: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <polyline points="16 18 22 12 16 6"></polyline>
+      <polyline points="8 6 2 12 8 18"></polyline>
+    </svg>
+  ),
+  palette: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C5.02845 19.1699 5.28186 19.2241 5.50853 19.1388C5.7352 19.0535 5.89737 18.8427 5.92485 18.6015C5.97441 18.167 6 17.7208 6 17.27C6 15.4641 7.4641 14 9.27 14H10.73C12.5359 14 14 15.4641 14 17.27C14 19.8823 11.8823 22 9.27 22H12zm-3.5-12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm-6 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"></path>
+    </svg>
+  ),
+  chart: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <line x1="18" y1="20" x2="18" y2="10"></line>
+      <line x1="12" y1="20" x2="12" y2="4"></line>
+      <line x1="6" y1="20" x2="6" y2="14"></line>
+    </svg>
+  ),
+  home: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+      <polyline points="9 22 9 12 15 12 15 22"></polyline>
+    </svg>
+  ),
+  fire: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+    </svg>
+  ),
+  bulb: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .5 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5h6z"></path>
+      <line x1="9" y1="18" x2="15" y2="18"></line>
+      <line x1="10" y1="22" x2="14" y2="22"></line>
+    </svg>
+  ),
+  sparkles: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707-.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"></path>
+    </svg>
+  ),
+  phone: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+    </svg>
+  ),
+  bag: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <path d="M16 10a4 4 0 0 1-8 0"></path>
+    </svg>
+  )
+};
+
+const renderProjectIcon = (iconKey: string) => {
+  const iconSvg = PROJECT_ICONS[iconKey];
+  if (iconSvg) {
+    return React.cloneElement(iconSvg as React.ReactElement, {
+      className: 'w-3.5 h-3.5 flex-shrink-0 text-white-important'
+    });
+  }
+  return React.cloneElement(PROJECT_ICONS.folder as React.ReactElement, {
+    className: 'w-3.5 h-3.5 flex-shrink-0 text-white-important'
+  });
+};
+
+const renderHeaderProjectIcon = (iconKey: string) => {
+  const iconSvg = PROJECT_ICONS[iconKey];
+  if (iconSvg) {
+    return React.cloneElement(iconSvg as React.ReactElement, {
+      className: 'w-4 h-4 text-gray-300 flex-shrink-0'
+    });
+  }
+  return <span className="text-base">{iconKey}</span>;
+};
+
+const getProjectDisplay = (name: string) => {
+  if (!name) return { icon: 'folder', cleanName: '' };
+  const slugMatch = name.match(/^\[([a-zA-Z0-9_-]+)\]\s*(.*)$/);
+  if (slugMatch) {
+    return { icon: slugMatch[1], cleanName: slugMatch[2] };
+  }
+  const emojiRegex = /^([\uD800-\uDBFF][\uDC00-\uDFFF]|\p{Emoji_Presentation}|\p{Emoji})\s+(.*)$/u;
+  const match = name.match(emojiRegex);
+  if (match) {
+    return { icon: match[1], cleanName: match[2] };
+  }
+  return { icon: 'folder', cleanName: name };
+};
+
 export default function TaskBoardPage() {
-  const { projects, tasks, loadProjects, loadTasks, createProject, updateProject, deleteProject, activeProjectId, setActiveProject, updateTaskStatus, deleteTask } = useErpTaskStore();
+  const { projects, archivedProjects, tasks, loadProjects, loadArchivedProjects, loadTasks, createProject, updateProject, deleteProject, activeProjectId, setActiveProject, updateTaskStatus, deleteTask } = useErpTaskStore();
   const { employees, loadEmployees } = useEmployeeStore();
   const loadProfiles = useErpEmployeeStore(s => s.loadProfiles);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
@@ -42,6 +194,9 @@ export default function TaskBoardPage() {
   const [editorState, setEditorState] = useState<{ taskId?: string | null; status?: ErpTaskStatus } | null>(null);
   const [newProjectModal, setNewProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectIcon, setNewProjectIcon] = useState('folder');
+  const [newProjectColor, setNewProjectColor] = useState('#0068FF');
+  const creatingProjectRef = useRef(false);
   const [priorityFilter, setPriorityFilter] = useState<'' | ErpTaskPriority>('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [dateFilter, setDateFilter] = useState<'' | ErpDateFilterPreset>('');
@@ -55,12 +210,13 @@ export default function TaskBoardPage() {
   // Mặc định ở chế độ Kanban
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
 
-  useEffect(() => { loadProjects(); loadEmployees(); loadProfiles(); }, []);
+  useEffect(() => { loadProjects(); loadArchivedProjects(); loadEmployees(); loadProfiles(); }, []);
   useEffect(() => {
     const resolvedDateRange = dateFilter ? resolveErpDateRange(dateFilter, customDateRange) : null;
     if (dateFilter === 'custom' && !resolvedDateRange) return;
-    const nextFilter = { archived: false } as {
-      archived: false;
+    const isArchivedProject = activeProjectId ? (archivedProjects || []).some(p => p && p.id === activeProjectId) : false;
+    const nextFilter = { archived: isArchivedProject } as {
+      archived: boolean;
       projectId?: string;
       assigneeId?: string;
       priority?: ErpTaskPriority;
@@ -71,7 +227,24 @@ export default function TaskBoardPage() {
     if (priorityFilter) nextFilter.priority = priorityFilter;
     if (resolvedDateRange) nextFilter.dueRange = [resolvedDateRange.from, resolvedDateRange.to];
     loadTasks(nextFilter);
-  }, [activeProjectId, assigneeFilter, customDateRange, dateFilter, priorityFilter]);
+  }, [activeProjectId, assigneeFilter, customDateRange, dateFilter, priorityFilter, archivedProjects]);
+
+  const handleCreateProject = async () => {
+    const trimmed = newProjectName.trim();
+    if (!trimmed || creatingProjectRef.current) return;
+    creatingProjectRef.current = true;
+    try {
+      const fullName = `[${newProjectIcon}] ${trimmed}`;
+      const project = await createProject({ name: fullName, color: newProjectColor });
+      if (project) setActiveProject(project.id);
+      setNewProjectName('');
+      setNewProjectIcon('folder');
+      setNewProjectColor('#0068FF');
+      setNewProjectModal(false);
+    } finally {
+      creatingProjectRef.current = false;
+    }
+  };
 
   const handleBoardWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (!boardScrollRef.current) return;
@@ -82,13 +255,13 @@ export default function TaskBoardPage() {
     boardScrollRef.current.scrollTo({ left: boardScrollRef.current.scrollLeft + e.deltaY });
   };
 
-  const allTasks = Object.values(tasks);
+  const allTasks = Object.values(tasks || {}).filter(Boolean);
   const projectTasks = activeProjectId
-    ? allTasks.filter(t => t.project_id === activeProjectId)
+    ? allTasks.filter(t => t && t.project_id === activeProjectId)
     : allTasks;
 
   const tasksByStatus = (status: ErpTaskStatus) =>
-    projectTasks.filter(t => t.status === status).sort((a, b) => a.sort_order - b.sort_order);
+    projectTasks.filter(t => t && t.status === status).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
   const handleDrop = (status: ErpTaskStatus) => {
     if (draggingTaskId) {
@@ -116,9 +289,15 @@ export default function TaskBoardPage() {
   const tasksByPriority = (priority: ErpTaskPriority) =>
     projectTasks.filter(t => t.priority === priority);
 
-  const currentProjectName = activeProjectId 
-    ? projects.find(p => p.id === activeProjectId)?.name || 'Dự án'
-    : 'Tất cả dự án';
+  const { activeProjIcon, activeProjName } = useMemo(() => {
+    if (!activeProjectId) return { activeProjIcon: '💼', activeProjName: 'Tất cả dự án' };
+    const found = (projects || []).find(p => p && p.id === activeProjectId) || (archivedProjects || []).find(p => p && p.id === activeProjectId);
+    if (found) {
+      const { icon, cleanName } = getProjectDisplay(found.name);
+      return { activeProjIcon: icon, activeProjName: cleanName + (found.status === 'archived' ? ' (Đã lưu trữ)' : '') };
+    }
+    return { activeProjIcon: '💼', activeProjName: 'Tất cả dự án' };
+  }, [activeProjectId, projects, archivedProjects]);
 
   return (
     <div className="flex h-full overflow-hidden bg-gray-900 text-gray-100">
@@ -139,45 +318,100 @@ export default function TaskBoardPage() {
         <div className="flex-1 overflow-y-auto space-y-1 erp-scroll-y pr-1">
           <button
             onClick={() => setActiveProject(null)}
-            className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+            className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
               activeProjectId === null
-                ? 'bg-blue-600 text-white font-semibold'
-                : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
+                ? 'text-white font-semibold shadow-md ring-1 ring-white/10'
+                : 'text-white/80 hover:text-white'
             }`}
+            style={{
+              backgroundColor: '#0068FF',
+              opacity: activeProjectId === null ? 1 : 0.6
+            }}
           >
             <div className="flex items-center gap-2 truncate">
-              <span className="text-base">💼</span>
-              <span className="truncate">Tất cả dự án</span>
+              {activeProjectId === null ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white flex-shrink-0 text-white-important">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white flex-shrink-0 text-white-important">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                </svg>
+              )}
+              <span className="truncate" style={{ color: '#ffffff' }}>Tất cả dự án</span>
             </div>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-              activeProjectId === null ? 'bg-blue-700 text-white' : 'bg-gray-800 text-gray-400'
-            }`}>{allTasks.length}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 text-white`}>
+              {allTasks.length}
+            </span>
           </button>
 
-          {projects.map(project => {
+          {(projects || []).map(project => {
             if (!project) return null;
             const count = allTasks.filter(t => t.project_id === project.id).length;
             const isSelected = activeProjectId === project.id;
+            const { icon, cleanName } = getProjectDisplay(project.name);
             return (
               <button
                 key={project.id}
                 onClick={() => setActiveProject(project.id)}
-                className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
                   isSelected
-                    ? 'bg-blue-600 text-white font-semibold'
-                    : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
+                    ? 'text-white font-semibold shadow-md ring-1 ring-white/10'
+                    : 'text-white/80 hover:text-white'
                 }`}
+                style={{
+                  backgroundColor: project.color || '#3b82f6',
+                  opacity: isSelected ? 1 : 0.6
+                }}
               >
                 <div className="flex items-center gap-2 truncate">
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: project.color || '#3b82f6' }} />
-                  <span className="truncate">{project.name}</span>
+                  {renderProjectIcon(icon)}
+                  <span className="truncate" style={{ color: '#ffffff' }}>{cleanName}</span>
                 </div>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                  isSelected ? 'bg-blue-700 text-white' : 'bg-gray-800 text-gray-400'
-                }`}>{count}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 text-white`}>
+                  {count}
+                </span>
               </button>
             );
           })}
+
+          {/* Archived Projects Section */}
+          {(archivedProjects || []).length > 0 && (
+            <div className="pt-3 border-t border-gray-850 mt-3 space-y-1">
+              <div className="px-2 pb-1 text-[9px] font-bold text-gray-500 uppercase tracking-wider">Dự án đã lưu trữ</div>
+              {(archivedProjects || []).map(project => {
+                if (!project || !project.name) return null;
+                const count = allTasks.filter(t => t.project_id === project.id).length;
+                const isSelected = activeProjectId === project.id;
+                const { icon, cleanName } = getProjectDisplay(project.name);
+                return (
+                  <button
+                    key={project.id}
+                    onClick={() => setActiveProject(project.id)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
+                      isSelected
+                        ? 'text-white font-semibold shadow-md ring-1 ring-white/10'
+                        : 'text-white/80 hover:text-white'
+                    }`}
+                    style={{
+                      backgroundColor: project.color || '#64748b',
+                      opacity: isSelected ? 1 : 0.6
+                    }}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      {renderProjectIcon(icon)}
+                      <span className="truncate" style={{ color: '#ffffff' }}>{cleanName}</span>
+                    </div>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 text-white`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -188,7 +422,7 @@ export default function TaskBoardPage() {
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800/60 flex-shrink-0 bg-gray-950">
           <div className="min-w-0 flex items-center gap-4">
             <h2 className="text-sm font-semibold text-gray-100 truncate flex items-center gap-2">
-              <span className="text-base">🎯</span> {currentProjectName}
+              {renderHeaderProjectIcon(activeProjIcon)} {activeProjName}
             </h2>
             {activeProjectId && (
               <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
@@ -369,15 +603,21 @@ export default function TaskBoardPage() {
                               </div>
                             )}
 
-                            {/* Nhiệm vụ con progress */}
-                            {task.checklist_total ? (
-                              <div className="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 bg-gray-800/40 px-2 py-0.5 rounded-lg border border-gray-800/30">
-                                <span>📋</span>
-                                <span className="font-semibold text-gray-300">
-                                  {task.checklist_done}/{task.checklist_total}
-                                </span>
-                              </div>
-                            ) : null}
+                             {/* Nhiệm vụ con progress */}
+                             {task.checklist_total ? (
+                               <div className="flex items-center gap-2 text-[11px] text-gray-400 flex-shrink-0 bg-gray-800/40 px-2 py-1 rounded-lg border border-gray-800/30 min-w-[90px]">
+                                 <span>📋</span>
+                                 <span className="font-semibold text-gray-300">
+                                   {task.checklist_done}/{task.checklist_total}
+                                 </span>
+                                 <div className="w-12 h-1 bg-gray-900 rounded-full overflow-hidden">
+                                   <div 
+                                     className="h-full bg-blue-500 transition-all duration-300" 
+                                     style={{ width: `${Math.round((task.checklist_done / task.checklist_total) * 100)}%` }} 
+                                   />
+                                 </div>
+                               </div>
+                             ) : null}
 
                             {/* Người gán (Avatars) */}
                             {!!task.assignees?.length && (
@@ -436,15 +676,15 @@ export default function TaskBoardPage() {
                   return (
                     <div
                       key={col.id}
-                      className={`w-72 flex flex-col rounded-2xl border bg-gray-950/20 ${col.color} ${dragOverCol === col.id ? 'ring-2 ring-blue-500' : ''}`}
+                      className={`w-72 flex flex-col rounded-2xl border ${col.color} ${dragOverCol === col.id ? 'ring-2 ring-blue-500' : ''}`}
                       onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id); }}
                       onDragLeave={() => setDragOverCol(null)}
                       onDrop={() => handleDrop(col.id)}
                     >
                       {/* Column Header */}
-                      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/40 flex-shrink-0">
-                        <span className="text-xs font-bold text-gray-200 uppercase tracking-wide">{col.label}</span>
-                        <span className="text-[10px] font-bold bg-gray-800 border border-gray-800 rounded-full px-2 py-0.5 text-gray-400">{colTasks.length}</span>
+                      <div className={`flex items-center justify-between px-4 py-3 border-b ${col.borderHeaderColor} flex-shrink-0`}>
+                        <span className={`text-xs font-bold ${col.textColor} uppercase tracking-wide`}>{col.label}</span>
+                        <span className={`text-[10px] font-bold rounded-full px-2 py-0.5 ${col.badgeColor}`}>{colTasks.length}</span>
                       </div>
 
                       {/* Lane Cards Container */}
@@ -510,11 +750,19 @@ export default function TaskBoardPage() {
 
                               {/* checklist progress & assignees */}
                               {(!!task.assignees?.length || !!task.checklist_total) && (
-                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800/60">
+                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800/60 gap-2 flex-wrap">
                                   {task.checklist_total ? (
-                                    <div className="flex items-center gap-1.5 text-[9px] text-gray-400 bg-gray-900/30 px-1.5 py-0.5 rounded border border-gray-800">
-                                      <span>📋</span>
-                                      <span>{task.checklist_done}/{task.checklist_total}</span>
+                                    <div className="flex flex-col gap-1 flex-1 min-w-[80px]">
+                                      <div className="flex items-center gap-1 text-[9px] text-gray-400">
+                                        <span>📋</span>
+                                        <span className="font-semibold text-gray-300">{task.checklist_done}/{task.checklist_total}</span>
+                                      </div>
+                                      <div className="w-full h-1 bg-gray-900 rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full bg-blue-500 transition-all duration-300" 
+                                          style={{ width: `${Math.round((task.checklist_done / task.checklist_total) * 100)}%` }} 
+                                        />
+                                      </div>
                                     </div>
                                   ) : <div />}
 
@@ -551,13 +799,22 @@ export default function TaskBoardPage() {
       </div>
 
       {editorState && (
-        <TaskEditorDrawer
-          taskId={editorState.taskId ?? null}
-          defaultStatus={editorState.status ?? 'todo'}
-          projectId={activeProjectId ?? undefined}
-          onClose={() => setEditorState(null)}
-          onSaved={() => undefined}
-        />
+        editorState.taskId ? (
+          <TaskEditorDrawer
+            taskId={editorState.taskId}
+            defaultStatus={editorState.status ?? 'todo'}
+            projectId={activeProjectId ?? undefined}
+            onClose={() => setEditorState(null)}
+            onSaved={() => undefined}
+          />
+        ) : (
+          <TaskCreateModal
+            defaultStatus={editorState.status ?? 'todo'}
+            projectId={activeProjectId ?? undefined}
+            onClose={() => setEditorState(null)}
+            onSaved={() => undefined}
+          />
+        )
       )}
 
       {/* Delete Confirm */}
@@ -583,7 +840,7 @@ export default function TaskBoardPage() {
       {/* Project Archive Confirm */}
       {projectArchiveConfirm && (
         <ConfirmDialog
-          message={`Kết thúc dự án "${projects.find(p => p.id === projectArchiveConfirm)?.name || ''}"? Dự án và tất cả các task thuộc dự án sẽ được lưu trữ và ẩn đi.`}
+          message={`Kết thúc dự án "${(projects || []).find(p => p && p.id === projectArchiveConfirm)?.name || ''}"? Dự án và tất cả các task thuộc dự án sẽ được lưu trữ và ẩn đi.`}
           confirmLabel="Kết thúc"
           onConfirm={async () => {
             await updateProject(projectArchiveConfirm, { status: 'archived' });
@@ -596,7 +853,7 @@ export default function TaskBoardPage() {
       {/* Project Delete Confirm */}
       {projectDeleteConfirm && (
         <ConfirmDialog
-          message={`Xoá dự án "${projects.find(p => p.id === projectDeleteConfirm)?.name || ''}"? Tất cả các task thuộc dự án cũng sẽ bị lưu trữ/xoá. Hành động không thể hoàn tác.`}
+          message={`Xoá dự án "${(projects || []).find(p => p && p.id === projectDeleteConfirm)?.name || ''}"? Tất cả các task thuộc dự án cũng sẽ bị lưu trữ/xoá. Hành động không thể hoàn tác.`}
           confirmLabel="Xoá dự án"
           danger
           onConfirm={async () => {
@@ -610,40 +867,92 @@ export default function TaskBoardPage() {
       {/* New Project Modal */}
       {newProjectModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[9999]" onClick={() => setNewProjectModal(false)}>
-          <div className="bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold text-gray-100 mb-3">Tạo project mới</h3>
+          <div className="bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl w-80 p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-gray-100">Tạo project mới</h3>
             <input
               autoFocus
               value={newProjectName}
               onChange={e => setNewProjectName(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter' && newProjectName.trim()) {
-                  createProject({ name: newProjectName.trim() }).then(project => {
-                    if (project) setActiveProject(project.id);
-                  });
-                  setNewProjectModal(false);
+                  handleCreateProject();
                 }
                 if (e.key === 'Escape') setNewProjectModal(false);
               }}
               placeholder="Tên project..."
-              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-3"
+              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
             />
-            <div className="flex gap-2">
+
+            {/* Icon Picker (SVGs) */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Chọn Icon đại diện</label>
+              <div className="grid grid-cols-6 gap-1.5">
+                {Object.keys(PROJECT_ICONS).map(slug => {
+                  const iconSvg = PROJECT_ICONS[slug];
+                  return (
+                    <button
+                      key={slug}
+                      type="button"
+                      onClick={() => setNewProjectIcon(slug)}
+                      className={`h-8 w-8 flex items-center justify-center rounded-lg border transition-all ${
+                        newProjectIcon === slug 
+                          ? 'bg-blue-600/20 border-blue-500 text-white font-bold' 
+                          : 'bg-gray-900 border-gray-850 hover:border-gray-800 text-gray-400'
+                      }`}
+                    >
+                      {React.cloneElement(iconSvg as React.ReactElement, {
+                        className: 'w-4 h-4',
+                        style: { color: newProjectIcon === slug ? '#3b82f6' : '#9ca3af' }
+                      })}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Color Picker */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Chọn màu sắc</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  '#3b82f6', // Blue
+                  '#0ea5e9', // Sky
+                  '#22c55e', // Green
+                  '#10b981', // Emerald
+                  '#eab308', // Yellow
+                  '#f59e0b', // Amber
+                  '#f97316', // Orange
+                  '#ef4444', // Red
+                  '#ec4899', // Pink
+                  '#f43f5e', // Rose
+                  '#64748b'  // Slate
+                ].map(color => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setNewProjectColor(color)}
+                    className={`h-5 w-5 rounded-full border-2 transition-all ${
+                      newProjectColor === color 
+                        ? 'border-white scale-110 shadow-md' 
+                        : 'border-transparent opacity-80 hover:opacity-100 hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
               <button
-                onClick={() => {
-                  if (newProjectName.trim()) {
-                    createProject({ name: newProjectName.trim() }).then(project => {
-                      if (project) setActiveProject(project.id);
-                    });
-                    setNewProjectModal(false);
-                  }
-                }}
-                disabled={!newProjectName.trim()}
-                className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm rounded-lg transition-colors"
+                type="button"
+                onClick={handleCreateProject}
+                disabled={!newProjectName.trim() || creatingProjectRef.current}
+                className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm rounded-lg transition-colors font-semibold"
               >
                 Tạo
               </button>
               <button
+                type="button"
                 onClick={() => setNewProjectModal(false)}
                 className="px-4 py-1.5 text-gray-500 hover:text-gray-100 hover:bg-gray-800 rounded-lg text-sm transition-colors"
               >
