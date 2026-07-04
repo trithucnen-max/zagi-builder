@@ -918,6 +918,15 @@ class HttpClientService {
                             }
                         }
                     }
+
+                    if (Array.isArray(t.checklist)) {
+                        db.run('DELETE FROM erp_task_checklist WHERE task_id = ?', [t.id]);
+                        for (const item of t.checklist) {
+                            if (item) {
+                                this.upsertRow(db, 'erp_task_checklist', item);
+                            }
+                        }
+                    }
                 });
                 return;
             }

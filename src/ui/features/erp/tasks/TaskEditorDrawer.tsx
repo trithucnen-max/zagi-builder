@@ -130,7 +130,9 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
   const [loading, setLoading] = useState(!!taskId);
   const [saving, setSaving] = useState(false);
   const [comment, setComment] = useState('');
-  const [showActivity, setShowActivity] = useState(false);
+  const [subtaskContent, setSubtaskContent] = useState('');
+  const [subtaskAssignee, setSubtaskAssignee] = useState('');
+  const [subtaskDueDate, setSubtaskDueDate] = useState('');
 
   const assigneeOptions = useMemo(() => {
     const employeeItems = employees.map((employee: any) => ({
@@ -148,22 +150,16 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
       .map(employeeId => ({
         employee_id: employeeId,
         display_name: profileItems.find(profile => profile.employee_id === employeeId)?.display_name || employeeNameMap[employeeId] || employeeId,
+        avatar_url: undefined,
       }));
-
-    const items = [
-      { employee_id: 'boss', display_name: 'Boss' } as any,
-      ...(currentEmployee ? [{ employee_id: currentEmployee.employee_id, display_name: currentEmployee.display_name, avatar_url: currentEmployee.avatar_url } as any] : []),
-      ...employeeItems,
-      ...profileItems,
-      ...fallbackSelected,
-    ];
+    const all = [...employeeItems, ...profileItems, ...fallbackSelected];
     const seen = new Set<string>();
-    return items.filter((item: any) => {
-      if (!item?.employee_id || seen.has(item.employee_id)) return false;
+    return all.filter(item => {
+      if (seen.has(item.employee_id)) return false;
       seen.add(item.employee_id);
       return true;
     });
-  }, [currentEmployee, employeeNameMap, employees, form.assignees, form.watchers, profiles]);
+  }, [employees, profiles, form.assignees, form.watchers, employeeNameMap]);
 
   const syncFormFromTask = useCallback((nextTask: ErpTaskDetail | null) => {
     if (!nextTask) {
@@ -172,7 +168,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
       return;
     }
     setForm({
-      title: nextTask.title ?? '',
+      title: nextTask.title,
       description: nextTask.description ?? '',
       project_id: nextTask.project_id ?? '',
       status: nextTask.status,
@@ -233,9 +229,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
         ['link', 'image'],
         ['clean'],
       ],
-      handlers: {
-        image: handleEditorImagePick,
-      },
+      handlers: { image: handleEditorImagePick },
     },
   }), [handleEditorImagePick]);
 
@@ -248,7 +242,6 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
       if (!editor || typeof reader.result !== 'string') return;
       const range = editor.getSelection(true);
       editor.insertEmbed(range?.index ?? editor.getLength(), 'image', reader.result, 'user');
-      editor.setSelection((range?.index ?? editor.getLength()) + 1, 0);
     };
     reader.readAsDataURL(file);
     event.target.value = '';
@@ -256,91 +249,49 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
 
   const handleAttachmentFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
-    const nextDrafts = files.map((file, index) => {
-      const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined;
-      return {
-        id: `new-${Date.now()}-${index}`,
-        file_name: file.name,
-        file_path: (file as any).path || file.name,
-        mime_type: file.type,
-        size: file.size,
-        previewUrl,
-      } satisfies AttachmentDraft;
-    });
+    const nextDrafts = files.map((file, index) => ({
+      id: `new-${Date.now()}-${index}`,
+      file_name: file.name,
+      file_path: (file as any).path || file.name,
+      mime_type: file.type,
+      size: file.size,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+    } satisfies AttachmentDraft));
     setAttachments(current => [...current, ...nextDrafts]);
     event.target.value = '';
   };
 
   const removeAttachment = (id: string) => {
-    setAttachments(current => {
-      const target = current.find(item => item.id === id);
-      if (target?.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(target.previewUrl);
-      return current.filter(item => item.id !== id);
-    });
+    setAttachments(current => current.filter(item => item.id !== id));
   };
 
   const openAttachment = async (attachment: AttachmentDraft) => {
     const res = await ipc.shell?.openPath?.(attachment.file_path);
-    if (!res?.success) {
-      showNotification(res?.error || 'Không thể mở file đính kèm', 'error');
-    }
+    if (!res?.success) showNotification(res?.error || 'Không thể mở file', 'error');
   };
 
   const saveTask = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
     try {
-      const attachmentPayload: TaskAttachmentInput[] = attachments.map(({ file_name, file_path, mime_type, size }) => ({
-        file_name,
-        file_path,
-        mime_type,
-        size,
-      }));
-
+      const attachmentPayload = attachments.map(({ file_name, file_path, mime_type, size }) => ({ file_name, file_path, mime_type, size }));
       if (!taskId) {
-        const payload: CreateTaskInput = {
-          title: form.title.trim(),
-          description: form.description,
-          project_id: form.project_id || undefined,
-          status: form.status,
-          priority: form.priority,
-          due_date: form.due_date ? new Date(form.due_date).getTime() : undefined,
-          assignees: form.assignees,
-          watchers: form.watchers,
-          attachments: attachmentPayload,
-        };
-        const created = await createTask(payload);
-        if (created) {
-          showNotification('Đã tạo task thành công', 'success');
-          onSaved?.(created);
-          onClose();
-        }
-        return;
-      }
-
-      const patch: UpdateTaskInput = {
-        title: form.title.trim(),
-        description: form.description,
-        project_id: form.project_id || null,
-        status: form.status,
-        priority: form.priority,
-        due_date: form.due_date ? new Date(form.due_date).getTime() : null,
-        assignees: form.assignees,
-        watchers: form.watchers,
-        attachments: attachmentPayload,
-      };
-      await updateTask(taskId, patch);
-      const updated = await ipc.erp?.taskGet({ id: taskId });
-      if (updated?.success && updated.task) {
-        setTask(updated.task);
-        syncFormFromTask(updated.task);
-        showNotification('Đã lưu task thành công', 'success');
-        onSaved?.(updated.task);
+        const created = await createTask({ ...form, title: form.title.trim(), due_date: form.due_date ? new Date(form.due_date).getTime() : undefined, attachments: attachmentPayload });
+        if (created) { onSaved?.(created); onClose(); }
+      } else {
+        await updateTask(taskId, { ...form, title: form.title.trim(), due_date: form.due_date ? new Date(form.due_date).getTime() : null, attachments: attachmentPayload });
+        await refresh(taskId);
+        showNotification('Đã lưu thành công', 'success');
         onClose();
       }
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
+  };
+
+  const handleToggleCompleted = async () => {
+    if (!taskId || !task) return;
+    const nextStatus = task.status === 'done' ? 'todo' : 'done';
+    await ipc.erp?.taskUpdateStatus({ id: taskId, status: nextStatus });
+    await refresh(taskId);
   };
 
   const handleAddComment = async () => {
@@ -355,212 +306,154 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
     await refresh(taskId);
   };
 
-  const actionLabel = (action: string) => ({
-    created: 'Tạo task',
-    status_changed: 'Đổi trạng thái',
-    assigned: 'Cập nhật người thực hiện',
-    commented: 'Thêm bình luận',
-    attached: 'Thêm tệp đính kèm',
-    updated: 'Cập nhật nội dung',
-  }[action] || action);
+  const handleChecklistAssigneeChange = async (itemId: number, employeeId: string) => {
+    await ipc.erp?.taskUpdateChecklist({ id: itemId, patch: { assignee_id: employeeId || null } });
+    await refresh(taskId);
+  };
+
+  const handleChecklistDueDateChange = async (itemId: number, dateStr: string) => {
+    const val = dateStr ? new Date(dateStr).getTime() : null;
+    await ipc.erp?.taskUpdateChecklist({ id: itemId, patch: { due_date: val } });
+    await refresh(taskId);
+  };
+
+  const handleChecklistDelete = async (itemId: number) => {
+    await ipc.erp?.taskDeleteChecklist({ id: itemId });
+    await refresh(taskId);
+  };
+
+  const handleAddSubtask = async () => {
+    if (!taskId || !subtaskContent.trim()) return;
+    await ipc.erp?.taskAddChecklist({ taskId, content: subtaskContent.trim(), assigneeId: subtaskAssignee || null, dueDate: subtaskDueDate ? new Date(subtaskDueDate).getTime() : null });
+    setSubtaskContent(''); setSubtaskAssignee(''); setSubtaskDueDate('');
+    await refresh(taskId);
+  };
+
+  const checklists = task?.checklist || [];
+  const checklistTotal = checklists.length;
+  const checklistDone = checklists.filter(c => c.done).length;
+  const checklistPercent = checklistTotal > 0 ? Math.round((checklistDone / checklistTotal) * 100) : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
-      <div
-        className="w-full max-w-[980px] bg-gray-800 border-l border-gray-700 h-full overflow-hidden shadow-2xl flex flex-col"
-        onClick={event => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700/60 flex-shrink-0">
-          <div className="min-w-0">
-            <h3 className="text-base font-semibold text-white truncate">{taskId ? 'Cập nhật task' : 'Tạo task mới'}</h3>
-            <p className="text-[11px] text-gray-500 mt-1 truncate">{taskId ? `Task ID: ${taskId}` : 'Mọi thay đổi của task sẽ được lưu bằng một nút lưu tổng.'}</p>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-[1100px] bg-gray-900 border-l border-gray-800 h-full overflow-hidden shadow-2xl flex flex-col text-slate-200" onClick={event => event.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/80 flex-shrink-0 bg-gray-950/20">
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-semibold text-white">{taskId ? 'Chi tiết công việc' : 'Tạo công việc mới'}</h3>
+            {taskId && (
+              <button type="button" onClick={handleToggleCompleted} className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border ${task?.status === 'done' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500'}`}>
+                {task?.status === 'done' ? '✓ Đã hoàn thành' : 'Đánh dấu là đã hoàn thành'}
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              Đóng
-            </button>
-            <button
-              onClick={saveTask}
-              disabled={!form.title.trim() || saving || loading}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium rounded-xl transition-colors flex items-center gap-2"
-            >
-              {saving ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Đang lưu...</> : 'Lưu task'}
-            </button>
+            <button onClick={onClose} className="px-3.5 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-all">Đóng</button>
+            <button onClick={saveTask} disabled={!form.title.trim() || saving || loading} className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-all">{saving ? 'Đang lưu...' : 'Lưu công việc'}</button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="animate-spin w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full" />
-          </div>
+          <div className="flex-1 flex items-center justify-center"><div className="animate-spin w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full" /></div>
         ) : (
           <div className="flex-1 overflow-hidden">
-            <div className="h-full grid grid-cols-1">
-              <div className="overflow-y-auto px-5 py-5 space-y-5 border-r border-gray-700/50">
+            <div className="h-full grid grid-cols-1 lg:grid-cols-5 overflow-hidden">
+              <div className="lg:col-span-3 overflow-y-auto p-6 space-y-6 erp-scroll-y h-full border-r border-gray-800/60">
                 <div>
-                  <label className="text-xs text-gray-400 mb-1.5 block font-medium">Tiêu đề <span className="text-red-400">*</span></label>
-                  <input
-                    autoFocus={!taskId}
-                    value={form.title}
-                    onChange={event => setForm(current => ({ ...current, title: event.target.value }))}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
-                    placeholder="Nhập tiêu đề task..."
-                  />
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 mb-1.5 block">Tiêu đề</label>
+                  <input autoFocus={!taskId} value={form.title} onChange={event => setForm(current => ({ ...current, title: event.target.value }))} className="w-full bg-transparent border-b border-gray-800 hover:border-gray-700 focus:border-blue-500 py-2 text-base text-gray-100 font-semibold focus:outline-none transition-all placeholder-gray-600" placeholder="Nhập tiêu đề công việc..." />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                  <Field label="Dự án">
-                    <select
-                      value={form.project_id}
-                      onChange={event => setForm(current => ({ ...current, project_id: event.target.value }))}
-                      className="task-editor-select"
-                    >
-                      <option value="">Không thuộc dự án</option>
-                      {projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Trạng thái">
-                    <select
-                      value={form.status}
-                      onChange={event => setForm(current => ({ ...current, status: event.target.value as ErpTaskStatus }))}
-                      className="task-editor-select"
-                    >
-                      {STATUS_OPTS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Độ ưu tiên">
-                    <select
-                      value={form.priority}
-                      onChange={event => setForm(current => ({ ...current, priority: event.target.value as ErpTaskPriority }))}
-                      className="task-editor-select"
-                    >
-                      {PRIORITY_OPTS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Hạn hoàn thành">
-                    <input
-                      type="datetime-local"
-                      value={form.due_date}
-                      onChange={event => setForm(current => ({ ...current, due_date: event.target.value }))}
-                      className="task-editor-select"
-                    />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-gray-400 font-medium block mb-1.5">Người thực hiện</label>
-                    <TaskMultiSelect
-                      options={assigneeOptions.map((employee: any) => ({ value: employee.employee_id, label: employee.display_name }))}
-                      value={form.assignees}
-                      placeholder="Chọn người thực hiện"
-                      onChange={next => setForm(current => ({ ...current, assignees: next }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 font-medium block mb-1.5">Người theo dõi</label>
-                    <TaskMultiSelect
-                      options={assigneeOptions.map((employee: any) => ({ value: employee.employee_id, label: employee.display_name }))}
-                      value={form.watchers}
-                      placeholder="Chọn người theo dõi"
-                      onChange={next => setForm(current => ({ ...current, watchers: next }))}
-                      tone="violet"
-                    />
-                  </div>
-                </div>
-
                 <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div>
-                      <label className="text-xs text-gray-400 font-medium block">Nội dung task</label>
-                      <p className="text-[11px] text-gray-500 mt-1">Soạn nội dung với heading, danh sách, màu chữ, code block và chèn ảnh trực tiếp.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleEditorImagePick}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:border-blue-400/50 hover:bg-blue-500/20"
-                    >
-                      + Chèn ảnh vào nội dung
-                    </button>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">Nội dung công việc</label>
+                    <button type="button" onClick={handleEditorImagePick} className="text-[10px] font-semibold text-blue-400 hover:text-blue-300">+ Chèn ảnh</button>
                   </div>
-                  <div className="task-rich-editor-wrap rounded-xl border border-gray-600 overflow-hidden bg-gray-900/70">
-                    <ReactQuill
-                      ref={quillRef}
-                      theme="snow"
-                      value={form.description}
-                      onChange={value => setForm(current => ({ ...current, description: value }))}
-                      modules={quillModules}
-                      formats={[...QUILL_FORMATS]}
-                      className="task-rich-editor"
-                      placeholder="Mô tả chi tiết công việc, checklist dạng rich text, hướng dẫn, ảnh minh hoạ..."
-                    />
+                  <div className="task-rich-editor-wrap rounded-xl border border-gray-800/80 overflow-hidden bg-gray-950/20">
+                    <ReactQuill ref={quillRef} theme="snow" value={form.description} onChange={value => setForm(current => ({ ...current, description: value }))} modules={quillModules} formats={[...QUILL_FORMATS]} className="task-rich-editor" placeholder="Mô tả công việc chi tiết..." />
                   </div>
                 </div>
-
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div>
-                      <label className="text-xs text-gray-400 font-medium block">Tệp đính kèm</label>
-                      <p className="text-[11px] text-gray-500 mt-1">Đính kèm file tham chiếu riêng. Ảnh có thể chèn trực tiếp vào nội dung hoặc đính kèm ở đây.</p>
+                {taskId && (
+                  <div className="space-y-3.5 border-t border-gray-800/60 pt-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">Tác vụ con</label>
+                        <span className="text-xs font-semibold text-gray-400">{checklistDone}/{checklistTotal}</span>
+                      </div>
+                      {checklistTotal > 0 && (
+                        <div className="w-32 flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${checklistPercent}%` }} /></div>
+                          <span className="text-[10px] font-bold text-gray-400">{checklistPercent}%</span>
+                        </div>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => attachmentInputRef.current?.click()}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-600 bg-gray-700/70 text-gray-200 hover:border-gray-500 hover:bg-gray-700"
-                    >
-                      + Thêm tệp
-                    </button>
-                  </div>
-                  <input ref={attachmentInputRef} type="file" multiple className="hidden" onChange={handleAttachmentFiles} />
-                  <input ref={editorImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleInlineImageSelected} />
-
-                  {attachments.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-gray-700 bg-gray-900/40 px-4 py-6 text-center text-sm text-gray-500">
-                      Chưa có tệp đính kèm
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {attachments.map(attachment => (
-                        <div key={attachment.id} className="rounded-xl border border-gray-700/60 bg-gray-900/40 p-3">
-                          {attachment.previewUrl && isImageAttachment(attachment) ? (
-                            <img src={attachment.previewUrl} alt={attachment.file_name} className="w-full h-32 object-cover rounded-lg border border-gray-700/60 mb-3" />
-                          ) : (
-                            <div className="h-32 rounded-lg border border-dashed border-gray-700/60 flex items-center justify-center text-4xl text-gray-600 mb-3">📎</div>
-                          )}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="text-sm text-gray-100 font-medium truncate">{attachment.file_name}</div>
-                              <div className="text-[11px] text-gray-500 mt-1 truncate">{attachment.mime_type || 'Tệp đính kèm'}{attachment.size ? ` · ${(attachment.size / 1024).toFixed(1)} KB` : ''}</div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => openAttachment(attachment)}
-                                className="inline-flex items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-1.5 text-[11px] font-medium text-blue-300 hover:border-blue-400/50 hover:bg-blue-500/20 hover:text-white"
-                                title="Mở tệp"
-                              >
-                                Mở
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => removeAttachment(attachment.id)}
-                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-400/50 hover:bg-red-500/20 hover:text-white"
-                                title="Gỡ tệp"
-                              >
-                                ✕
-                              </button>
-                            </div>
+                    <div className="space-y-1.5">
+                      {checklists.map(item => (
+                        <div key={item.id} className="group flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-950/20 border border-gray-800/30 hover:border-gray-800 transition-all">
+                          <input type="checkbox" checked={!!item.done} onChange={e => handleChecklistToggle(item.id, e.target.checked)} className="w-4 h-4 rounded border-gray-700 text-blue-600 focus:ring-0 bg-transparent" />
+                          <span className={`text-xs flex-1 min-w-0 truncate ${item.done ? 'line-through text-gray-500 opacity-50' : 'text-slate-200'}`}>{item.content}</span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <select value={item.assignee_id || ''} onChange={e => handleChecklistAssigneeChange(item.id, e.target.value)} className="bg-transparent border-0 text-[10px] text-gray-400 hover:text-slate-200 cursor-pointer focus:outline-none w-20 truncate">
+                              <option value="" className="bg-gray-900 text-gray-500">Chưa gán</option>
+                              {assigneeOptions.map(opt => <option key={opt.employee_id} value={opt.employee_id} className="bg-gray-900 text-slate-300">{opt.display_name}</option>)}
+                            </select>
+                            <input type="date" value={item.due_date ? new Date(item.due_date).toISOString().split('T')[0] : ''} onChange={e => handleChecklistDueDateChange(item.id, e.target.value)} className="bg-transparent border-0 text-[10px] text-gray-400 hover:text-slate-200 cursor-pointer focus:outline-none w-24 text-right" />
+                            <button type="button" onClick={() => handleChecklistDelete(item.id)} className="w-5 h-5 flex items-center justify-center rounded text-gray-500 hover:text-red-400 hover:bg-gray-800 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
                           </div>
                         </div>
                       ))}
+                      <div className="flex items-center gap-3 px-3 py-2 rounded-xl border border-dashed border-gray-800 bg-gray-950/5">
+                        <span className="w-4 h-4 rounded-full border border-gray-700 flex-shrink-0" />
+                        <input value={subtaskContent} onChange={e => setSubtaskContent(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddSubtask()} placeholder="Nhấn Enter để tạo tác vụ con..." className="text-xs bg-transparent border-0 flex-1 focus:ring-0 focus:outline-none p-0 placeholder-gray-600" />
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <select value={subtaskAssignee} onChange={e => setSubtaskAssignee(e.target.value)} className="bg-transparent border-0 text-[10px] text-gray-500 hover:text-slate-300 cursor-pointer focus:outline-none w-20"><option value="" className="bg-gray-900">Gán...</option>{assigneeOptions.map(opt => <option key={opt.employee_id} value={opt.employee_id} className="bg-gray-900 text-slate-300">{opt.display_name}</option>)}</select>
+                          <input type="date" value={subtaskDueDate} onChange={e => setSubtaskDueDate(e.target.value)} className="bg-transparent border-0 text-[10px] text-gray-500 hover:text-slate-300 cursor-pointer focus:outline-none w-24 text-right" />
+                        </div>
+                      </div>
                     </div>
+                  </div>
+                )}
+                {taskId && (
+                  <div className="space-y-4 border-t border-gray-800/60 pt-5">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">Bình luận & Nhận xét</label>
+                    <div className="space-y-3.5 max-h-[300px] overflow-y-auto pr-1 erp-scroll-y">
+                      {(task?.comments || []).map(comm => (
+                        <div key={comm.id} className="flex gap-3 items-start">
+                          <EmployeeAvatar employeeId={comm.author_id} size={26} showName={false} />
+                          <div className="flex-1 bg-gray-950/20 border border-gray-800/40 rounded-2xl px-4 py-2.5 space-y-1">
+                            <div className="flex items-center justify-between"><span className="text-xs font-bold text-gray-300">{assigneeOptions.find(o => o.employee_id === comm.author_id)?.display_name || comm.author_id}</span><span className="text-[10px] text-gray-500">{new Date(comm.created_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span></div>
+                            <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">{comm.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {(task?.comments || []).length === 0 && <p className="text-xs text-gray-600 italic pl-1">Chưa có bình luận nào.</p>}
+                    </div>
+                    <div className="flex gap-3 items-start">
+                      <input value={comment} onChange={e => setComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAddComment())} placeholder="Viết nhận xét..." className="text-xs bg-gray-950/30 border border-gray-800 rounded-xl px-4 py-3 flex-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 text-gray-200 placeholder-gray-600" />
+                      <button onClick={handleAddComment} disabled={!comment.trim()} className="px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-all">Gửi</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="lg:col-span-2 overflow-y-auto p-6 space-y-6 erp-scroll-y h-full bg-gray-950/10">
+                <Field label="Dự án"><select value={form.project_id} onChange={event => setForm(current => ({ ...current, project_id: event.target.value }))} className="task-editor-select w-full bg-gray-800/80 border border-gray-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none"><option value="">Không thuộc dự án</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></Field>
+                <Field label="Trạng thái"><select value={form.status} onChange={event => setForm(current => ({ ...current, status: event.target.value as ErpTaskStatus }))} className="task-editor-select w-full bg-gray-800/80 border border-gray-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none">{STATUS_OPTS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
+                <Field label="Độ ưu tiên"><select value={form.priority} onChange={event => setForm(current => ({ ...current, priority: event.target.value as ErpTaskPriority }))} className="task-editor-select w-full bg-gray-800/80 border border-gray-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none">{PRIORITY_OPTS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
+                <Field label="Hạn hoàn thành"><input type="datetime-local" value={form.due_date} onChange={event => setForm(current => ({ ...current, due_date: event.target.value }))} className="task-editor-select w-full bg-gray-800/80 border border-gray-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none" /></Field>
+                <Field label="Người thực hiện"><TaskMultiSelect options={assigneeOptions.map((employee: any) => ({ value: employee.employee_id, label: employee.display_name }))} value={form.assignees} placeholder="Chọn người thực hiện" onChange={next => setForm(current => ({ ...current, assignees: next }))} /></Field>
+                <Field label="Người theo dõi"><TaskMultiSelect options={assigneeOptions.map((employee: any) => ({ value: employee.employee_id, label: employee.display_name }))} value={form.watchers} placeholder="Chọn người theo dõi" onChange={next => setForm(current => ({ ...current, watchers: next }))} tone="violet" /></Field>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between"><label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">Tệp đính kèm</label><button type="button" onClick={() => attachmentInputRef.current?.click()} className="text-[10px] font-semibold text-blue-400 hover:text-blue-300">+ Thêm tệp</button></div>
+                  <input ref={attachmentInputRef} type="file" multiple className="hidden" onChange={handleAttachmentFiles} />
+                  <input ref={editorImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleInlineImageSelected} />
+                  {attachments.length === 0 ? <div className="rounded-xl border border-dashed border-gray-800 bg-gray-900/10 px-4 py-5 text-center text-xs text-gray-500">Chưa có tệp đính kèm</div> : (
+                    <div className="space-y-2">{attachments.map(attachment => (
+                      <div key={attachment.id} className="rounded-xl border border-gray-800 bg-gray-900/30 p-2.5 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1"><div className="text-xs text-gray-200 font-medium truncate">{attachment.file_name}</div><div className="text-[10px] text-gray-500 mt-0.5 truncate">{attachment.mime_type || 'Tệp'}{attachment.size ? ` · ${(attachment.size / 1024).toFixed(1)} KB` : ''}</div></div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0"><button type="button" onClick={() => openAttachment(attachment)} className="px-2.5 py-1 rounded-lg border border-gray-800 hover:bg-gray-800 text-[10px] font-semibold text-gray-300 transition-all">Mở</button><button type="button" onClick={() => removeAttachment(attachment.id)} className="w-7 h-7 flex items-center justify-center rounded-lg border border-red-500/20 hover:bg-red-500/10 text-[10px] text-red-400 transition-all">✕</button></div>
+                      </div>
+                    ))}</div>
                   )}
                 </div>
               </div>
-
             </div>
           </div>
         )}
@@ -571,42 +464,9 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="text-xs text-gray-400 mb-1.5 block font-medium">{label}</label>
+    <div className="space-y-1.5">
+      <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">{label}</label>
       {children}
-    </div>
-  );
-}
-
-function PeopleChips({
-  ids,
-  emptyLabel,
-  tone,
-}: {
-  ids: string[];
-  emptyLabel: string;
-  tone: 'blue' | 'violet';
-}) {
-  if (!ids.length) {
-    return <span className="text-xs text-gray-500 italic">{emptyLabel}</span>;
-  }
-
-  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
-  if (!uniqueIds.length) {
-    return <span className="text-xs text-gray-500 italic">{emptyLabel}</span>;
-  }
-
-  const toneClass = tone === 'violet'
-    ? 'border-violet-500/20 bg-violet-500/5'
-    : 'border-blue-500/20 bg-blue-500/5';
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {uniqueIds.map(id => (
-        <div key={id} className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 ${toneClass}`}>
-          <EmployeeAvatar employeeId={id} size={22} showName />
-        </div>
-      ))}
     </div>
   );
 }

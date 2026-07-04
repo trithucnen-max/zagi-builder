@@ -411,26 +411,73 @@ export default class ErpTaskService {
 
   // ─── Checklist ─────────────────────────────────────────────────────────────
 
-  addChecklist(taskId: string, content: string): ErpChecklistItem {
+  addChecklist(taskId: string, content: string, assigneeId?: string | null, dueDate?: number | null): ErpChecklistItem {
     const now = Date.now();
     const sortOrderRow = this.db().queryOne<any>(
       `SELECT MAX(sort_order) as m FROM erp_task_checklist WHERE task_id = ?`, [taskId]
     );
     const sortOrder = (sortOrderRow?.m ?? 0) + 1;
     const newId = this.db().runInsert(
-      `INSERT INTO erp_task_checklist (task_id, content, done, sort_order, created_at) VALUES (?,?,0,?,?)`,
-      [taskId, content, sortOrder, now]
+      `INSERT INTO erp_task_checklist (task_id, content, done, sort_order, created_at, assignee_id, due_date) VALUES (?,?,0,?,?,?,?)`,
+      [taskId, content, sortOrder, now, assigneeId ?? null, dueDate ?? null]
     );
     const item = this.db().queryOne<ErpChecklistItem>(
       `SELECT * FROM erp_task_checklist WHERE id = ?`, [newId]
     )!;
     this._touchTask(taskId);
+    
+    // Broadcast real-time update
+    const task = this.getTaskDetail(taskId);
+    EventBroadcaster.emit('erp:event:taskUpdated', { taskId, patch: { checklist: 'added' }, task });
+
+    return item;
+  }
+
+  updateChecklist(id: number, patch: { content?: string; done?: boolean; assignee_id?: string | null; due_date?: number | null }): ErpChecklistItem {
+    const fields: string[] = [];
+    const vals: any[] = [];
+    if (patch.content !== undefined) { fields.push('content = ?'); vals.push(patch.content); }
+    if (patch.done !== undefined) { fields.push('done = ?'); vals.push(patch.done ? 1 : 0); }
+    if (patch.assignee_id !== undefined) { fields.push('assignee_id = ?'); vals.push(patch.assignee_id); }
+    if (patch.due_date !== undefined) { fields.push('due_date = ?'); vals.push(patch.due_date); }
+
+    if (fields.length > 0) {
+      vals.push(id);
+      this.db().run(`UPDATE erp_task_checklist SET ${fields.join(', ')} WHERE id = ?`, vals);
+    }
+
+    const item = this.db().queryOne<ErpChecklistItem>(`SELECT * FROM erp_task_checklist WHERE id = ?`, [id])!;
+    if (item) {
+      this._touchTask(item.task_id);
+      // Broadcast real-time update
+      const task = this.getTaskDetail(item.task_id);
+      EventBroadcaster.emit('erp:event:taskUpdated', { taskId: item.task_id, patch: { checklist: 'updated' }, task });
+    }
     return item;
   }
 
   toggleChecklist(id: number, done: boolean): ErpChecklistItem {
     this.db().run(`UPDATE erp_task_checklist SET done = ? WHERE id = ?`, [done ? 1 : 0, id]);
-    return this.db().queryOne<ErpChecklistItem>(`SELECT * FROM erp_task_checklist WHERE id = ?`, [id])!;
+    const item = this.db().queryOne<ErpChecklistItem>(`SELECT * FROM erp_task_checklist WHERE id = ?`, [id])!;
+    if (item) {
+      this._touchTask(item.task_id);
+      // Broadcast real-time update
+      const task = this.getTaskDetail(item.task_id);
+      EventBroadcaster.emit('erp:event:taskUpdated', { taskId: item.task_id, patch: { checklist: 'toggled' }, task });
+    }
+    return item;
+  }
+
+  deleteChecklist(id: number): void {
+    const item = this.db().queryOne<ErpChecklistItem>(`SELECT * FROM erp_task_checklist WHERE id = ?`, [id]);
+    if (!item) return;
+
+    this.db().run(`DELETE FROM erp_task_checklist WHERE id = ?`, [id]);
+    this._touchTask(item.task_id);
+
+    // Broadcast real-time update
+    const task = this.getTaskDetail(item.task_id);
+    EventBroadcaster.emit('erp:event:taskUpdated', { taskId: item.task_id, patch: { checklist: 'deleted' }, task });
   }
 
   // ─── Comments ──────────────────────────────────────────────────────────────

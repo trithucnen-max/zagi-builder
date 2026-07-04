@@ -55,6 +55,8 @@ export interface ErpChecklistItem {
   done: number;
   sort_order: number;
   created_at: number;
+  assignee_id?: string;
+  due_date?: number;
 }
 
 export interface ErpComment {

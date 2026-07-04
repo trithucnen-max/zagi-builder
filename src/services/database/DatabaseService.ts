@@ -2414,6 +2414,28 @@ class DatabaseService {
         } catch (err: any) {
             Logger.warn(`[DatabaseService] base_url migration: ${err.message}`);
         }
+
+        // ── erp_task_checklist.assignee_id / due_date ─────────────────────────
+        try {
+            const checklistCols = this.query<any>(`PRAGMA table_info(erp_task_checklist)`);
+            if (checklistCols.length > 0) {
+                const colNames = checklistCols.map((c: any) => c.name);
+                let needSave = false;
+                if (!colNames.includes('assignee_id')) {
+                    db!.exec(`ALTER TABLE erp_task_checklist ADD COLUMN assignee_id TEXT DEFAULT NULL`);
+                    needSave = true;
+                    Logger.log('[DatabaseService] Migration: added assignee_id to erp_task_checklist');
+                }
+                if (!colNames.includes('due_date')) {
+                    db!.exec(`ALTER TABLE erp_task_checklist ADD COLUMN due_date INTEGER DEFAULT NULL`);
+                    needSave = true;
+                    Logger.log('[DatabaseService] Migration: added due_date to erp_task_checklist');
+                }
+                if (needSave) this.save();
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] erp_task_checklist migration: ${err.message}`);
+        }
     }
 
     // ─── Account Operations ───────────────────────────────────────────────

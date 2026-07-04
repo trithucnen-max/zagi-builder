@@ -970,6 +970,14 @@ export default function App() {
       try {
         const { zaloId, threadId, msgType, content } = detail;
 
+        // [SECURITY] Verify zaloId thuộc danh sách accounts của session hiện tại.
+        // Lớp bảo vệ thứ 2 (lớp 1 đã check trong useZaloEvents).
+        const ownedAccount = accounts.find(a => a.zalo_id === zaloId);
+        if (!ownedAccount) {
+          console.warn('[ReminderNotification] Blocked: zaloId not owned by this session', zaloId);
+          return;
+        }
+
         // Kiểm tra xem có phải reminder không
         if (msgType !== 'chat.ecard' || !content?.params) return;
 
@@ -982,11 +990,10 @@ export default function App() {
 
         const reminderData = typeof actionData.data === 'string' ? JSON.parse(actionData.data) : actionData.data;
 
-        // Lấy thông tin account
-        const account = accounts.find(a => a.zalo_id === zaloId);
-        const accountName = account?.display_name || account?.phone || 'Tài khoản';
+        // Lấy thông tin account (đã verified ở trên)
+        const accountName = ownedAccount?.display_name || ownedAccount?.phone || 'Tài khoản';
 
-        // Lấy thông tin conversation
+        // Lấy thông tin conversation — chỉ dùng contacts của đúng zaloId
         const contactList = contacts[zaloId] || [];
         const contact = contactList.find(c => c.contact_id === threadId);
         const conversationName = contact?.display_name || 'Hội thoại';
@@ -1547,6 +1554,26 @@ export default function App() {
           data={reminderNotification}
           onClose={() => setReminderNotification(null)}
           onOpenThread={(zaloId, threadId, threadType) => {
+            // [SECURITY] Verify zaloId thuộc accounts của session trước khi mở hội thoại.
+            // Ngăn trường hợp payload bị giả mạo hoặc cross-account data access.
+            const { accounts: ownedAccounts } = useAccountStore.getState();
+            const isValidAccount = ownedAccounts.some(a => a.zalo_id === zaloId);
+            if (!isValidAccount) {
+              console.error('[ReminderNotification] onOpenThread blocked: zaloId not owned', zaloId);
+              setReminderNotification(null);
+              return;
+            }
+
+            // [SECURITY] Verify threadId thuộc contacts của zaloId đó.
+            const { contacts: allContacts } = useChatStore.getState();
+            const contactList = allContacts[zaloId] || [];
+            const isValidThread = contactList.some(c => c.contact_id === threadId);
+            if (!isValidThread) {
+              console.error('[ReminderNotification] onOpenThread blocked: threadId not in contacts of', zaloId);
+              setReminderNotification(null);
+              return;
+            }
+
             setReminderNotification(null);
             // Switch active thread
             const { setActiveThread, setMessages, clearUnread } = useChatStore.getState();

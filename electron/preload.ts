@@ -541,6 +541,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     taskDelete:         (params: any) => ipcRenderer.invoke('erp:task:delete', params),
     taskAddChecklist:   (params: any) => ipcRenderer.invoke('erp:task:addChecklist', params),
     taskToggleChecklist:(params: any) => ipcRenderer.invoke('erp:task:toggleChecklist', params),
+    taskUpdateChecklist:(params: any) => ipcRenderer.invoke('erp:task:updateChecklist', params),
+    taskDeleteChecklist:(params: any) => ipcRenderer.invoke('erp:task:deleteChecklist', params),
     taskAddComment:     (params: any) => ipcRenderer.invoke('erp:task:addComment', params),
     taskEditComment:    (params: any) => ipcRenderer.invoke('erp:task:editComment', params),
     taskDeleteComment:  (params: any) => ipcRenderer.invoke('erp:task:deleteComment', params),

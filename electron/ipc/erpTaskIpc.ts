@@ -105,12 +105,23 @@ export function registerErpTaskIpc(): void {
   ipcMain.handle('erp:task:addChecklist', withErpAuth('task.update', async (input: any) => {
     erpValidate.string(input?.taskId, 'taskId');
     erpValidate.string(input?.content, 'content', { max: 500 });
-    return { item: svc().addChecklist(input.taskId, input.content) };
+    return { item: svc().addChecklist(input.taskId, input.content, input.assigneeId, input.dueDate) };
   }));
 
   ipcMain.handle('erp:task:toggleChecklist', withErpAuth('task.update', async (input: any) => {
     erpValidate.int(input?.id, 'id');
     return { item: svc().toggleChecklist(Number(input.id), !!input.done) };
+  }));
+
+  ipcMain.handle('erp:task:updateChecklist', withErpAuth('task.update', async (input: any) => {
+    erpValidate.int(input?.id, 'id');
+    return { item: svc().updateChecklist(Number(input.id), input.patch ?? {}) };
+  }));
+
+  ipcMain.handle('erp:task:deleteChecklist', withErpAuth('task.update', async (input: any) => {
+    erpValidate.int(input?.id, 'id');
+    svc().deleteChecklist(Number(input.id));
+    return {};
   }));
 
   ipcMain.handle('erp:task:addComment', withErpAuth('task.comment', async (input: any, ctx) => {

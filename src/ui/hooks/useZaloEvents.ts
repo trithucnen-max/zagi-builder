@@ -1230,6 +1230,16 @@ export function useZaloEvents() {
       const { zaloId, threadId, msgType, content } = data;
       if (!zaloId || !threadId) return;
 
+      // [SECURITY] Chỉ dispatch nếu zaloId thuộc account của chính session này.
+      // Tránh trường hợp account 2 nhận được reminder của account 1 khi boss
+      // có nhiều Zalo accounts trong cùng 1 app instance.
+      const ownedAccounts = useAccountStore.getState().accounts;
+      const isOwned = ownedAccounts.some(a => a.zalo_id === zaloId);
+      if (!isOwned) {
+        Logger.warn(`[useZaloEvents] reminder from unowned account zaloId=${zaloId} — blocked`);
+        return;
+      }
+
       // Dispatch custom event để App component xử lý
       window.dispatchEvent(new CustomEvent('zalo:reminder', {
         detail: { zaloId, threadId, msgType, content }

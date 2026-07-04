@@ -565,6 +565,8 @@ declare global {
       taskDelete:          (params: any) => Promise<{ success: boolean; error?: string }>;
       taskAddChecklist:    (params: any) => Promise<{ success: boolean; item?: any; error?: string }>;
       taskToggleChecklist: (params: any) => Promise<{ success: boolean; item?: any; error?: string }>;
+      taskUpdateChecklist: (params: any) => Promise<{ success: boolean; item?: any; error?: string }>;
+      taskDeleteChecklist: (params: any) => Promise<{ success: boolean; error?: string }>;
       taskAddComment:      (params: any) => Promise<{ success: boolean; comment?: any; error?: string }>;
       taskEditComment:     (params: any) => Promise<{ success: boolean; comment?: any; error?: string }>;
       taskDeleteComment:   (params: any) => Promise<{ success: boolean; error?: string }>;
