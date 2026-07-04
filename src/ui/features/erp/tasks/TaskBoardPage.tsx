@@ -194,7 +194,7 @@ export default function TaskBoardPage() {
               <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
                 <button
                   onClick={() => setProjectArchiveConfirm(activeProjectId)}
-                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition-all border border-gray-800 bg-gray-950 text-gray-300 hover:bg-gray-850 hover:text-gray-100 shadow-sm"
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition-all border border-gray-800 bg-gray-900 text-gray-300 hover:bg-gray-800 hover:text-gray-100 shadow-sm"
                   title="Kết thúc dự án và lưu trữ"
                 >
                   <AppIcon name="check" size={12} />
@@ -212,7 +212,7 @@ export default function TaskBoardPage() {
             )}
           </div>
 
-          <div className="flex bg-gray-850 p-0.5 rounded-xl border border-gray-800">
+          <div className="flex bg-gray-900 p-0.5 rounded-xl border border-gray-800">
             <button
               onClick={() => setViewMode('list')}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
@@ -240,13 +240,13 @@ export default function TaskBoardPage() {
         <div className="flex items-center gap-3 px-5 py-2 border-b border-gray-800/40 flex-shrink-0 flex-wrap bg-gray-900/50">
           <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
             
-            <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="min-w-[150px] bg-gray-850 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500">
+            <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="appearance-none min-w-[150px] bg-gray-900 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 cursor-pointer">
               <option value="" className="bg-gray-950">Tất cả nhân viên</option>
               <option value="boss" className="bg-gray-950">Boss</option>
               {employees.map((employee: any) => <option key={employee.employee_id} value={employee.employee_id} className="bg-gray-950">{employee.display_name}</option>)}
             </select>
 
-            <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value as '' | ErpTaskPriority)} className="min-w-[140px] bg-gray-850 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500">
+            <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value as '' | ErpTaskPriority)} className="appearance-none min-w-[140px] bg-gray-900 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 cursor-pointer">
               <option value="" className="bg-gray-950">Mọi mức ưu tiên</option>
               <option value="low" className="bg-gray-950">Thấp</option>
               <option value="normal" className="bg-gray-950">Bình thường</option>
@@ -254,7 +254,7 @@ export default function TaskBoardPage() {
               <option value="urgent" className="bg-gray-950">Khẩn cấp</option>
             </select>
 
-            <select value={dateFilter} onChange={e => setDateFilter(e.target.value as '' | ErpDateFilterPreset)} className="min-w-[150px] bg-gray-850 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500">
+            <select value={dateFilter} onChange={e => setDateFilter(e.target.value as '' | ErpDateFilterPreset)} className="appearance-none min-w-[150px] bg-gray-900 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 cursor-pointer">
               <option value="" className="bg-gray-950">Tất cả hạn chót</option>
               {ERP_DATE_FILTER_OPTIONS.map(option => <option key={option.id} value={option.id} className="bg-gray-950">{option.label}</option>)}
             </select>
@@ -265,13 +265,13 @@ export default function TaskBoardPage() {
                   type="date"
                   value={customDateRange.from}
                   onChange={e => setCustomDateRange(current => ({ ...current, from: e.target.value }))}
-                  className="bg-gray-850 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-gray-200"
+                  className="bg-gray-900 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-gray-200"
                 />
                 <input
                   type="date"
                   value={customDateRange.to}
                   onChange={e => setCustomDateRange(current => ({ ...current, to: e.target.value }))}
-                  className="bg-gray-850 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-gray-200"
+                  className="bg-gray-900 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-gray-200"
                 />
               </>
             )}

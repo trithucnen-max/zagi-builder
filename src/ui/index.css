@@ -1269,7 +1269,29 @@ button.bg-orange-700 svg,
 
 /* Custom React Flow Animated Edges with Glow */
 /* ═══════════════════════════════════════════════════════════════════════════
+   ERP FILTER SELECT — DARK & LIGHT THEME
+   appearance-none select không được browser override background.
+   Phải khai báo explicit ở đây để đảm bảo dark/light đúng.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Dark mode (mặc định): selects có bg-gray-900 → dark background */
+select.appearance-none {
+  background-color: #111827; /* ~ gray-900 dark */
+  color: #e5e7eb;            /* gray-200 */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Light mode: selects chuyển sang màu sáng */
+html[data-theme="light"] select.appearance-none {
+  background-color: #ffffff;
+  color: #1a1917;
+  border-color: #e5e7eb;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    ERP TASK MODULE — LIGHT THEME OVERRIDES
+
    Priority badges, board background, kanban columns, drawer styles.
    Dark mode: các class opacity-based tự hiển thị đúng.
    Light mode: ghi đè cho contrast rõ ràng hơn trên nền sáng.
