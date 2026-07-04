@@ -41,6 +41,7 @@ export default function TaskBoardPage() {
   const [dragOverCol, setDragOverCol] = useState<ErpTaskStatus | null>(null);
   const [editorState, setEditorState] = useState<{ taskId?: string | null; status?: ErpTaskStatus } | null>(null);
   const [newProjectModal, setNewProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<'' | ErpTaskPriority>('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [dateFilter, setDateFilter] = useState<'' | ErpDateFilterPreset>('');
@@ -140,7 +141,7 @@ export default function TaskBoardPage() {
             onClick={() => setActiveProject(null)}
             className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
               activeProjectId === null
-                ? 'bg-blue-600/90 text-white font-semibold'
+                ? 'bg-blue-600 text-white font-semibold'
                 : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
             }`}
           >
@@ -162,7 +163,7 @@ export default function TaskBoardPage() {
                 onClick={() => setActiveProject(project.id)}
                 className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
                   isSelected
-                    ? 'bg-blue-600/90 text-white font-semibold'
+                    ? 'bg-blue-600 text-white font-semibold'
                     : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
                 }`}
               >
@@ -607,17 +608,49 @@ export default function TaskBoardPage() {
 
       {/* New Project Modal */}
       {newProjectModal && (
-        <PromptDialog
-          title="Tạo project mới"
-          placeholder="Tên project..."
-          onConfirm={(name) => {
-            createProject({ name }).then(project => {
-              if (project) setActiveProject(project.id);
-            });
-            setNewProjectModal(false);
-          }}
-          onCancel={() => setNewProjectModal(false)}
-        />
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[9999]" onClick={() => setNewProjectModal(false)}>
+          <div className="bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-gray-100 mb-3">Tạo project mới</h3>
+            <input
+              autoFocus
+              value={newProjectName}
+              onChange={e => setNewProjectName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && newProjectName.trim()) {
+                  createProject({ name: newProjectName.trim() }).then(project => {
+                    if (project) setActiveProject(project.id);
+                  });
+                  setNewProjectModal(false);
+                }
+                if (e.key === 'Escape') setNewProjectModal(false);
+              }}
+              placeholder="Tên project..."
+              className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-3"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (newProjectName.trim()) {
+                    createProject({ name: newProjectName.trim() }).then(project => {
+                      if (project) setActiveProject(project.id);
+                    });
+                    setNewProjectModal(false);
+                  }
+                }}
+                disabled={!newProjectName.trim()}
+                className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm rounded-lg transition-colors"
+              >
+                Tạo
+              </button>
+              <button
+                onClick={() => setNewProjectModal(false)}
+                className="px-4 py-1.5 text-gray-500 hover:text-gray-100 hover:bg-gray-800 rounded-lg text-sm transition-colors"
+              >
+                Huỷ
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
