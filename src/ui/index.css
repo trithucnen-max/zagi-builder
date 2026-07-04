@@ -1268,6 +1268,48 @@ button.bg-orange-700 svg,
 .text-\[32px\] { font-size: calc(32px * var(--zagi-font-scale)) !important; }
 
 /* Custom React Flow Animated Edges with Glow */
+/* ═══════════════════════════════════════════════════════════════════════════
+   ERP TASK MODULE — LIGHT THEME OVERRIDES
+   Priority badges, board background, kanban columns, drawer styles.
+   Dark mode: các class opacity-based tự hiển thị đúng.
+   Light mode: ghi đè cho contrast rõ ràng hơn trên nền sáng.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Priority badge light overrides ──────────────────────────────────────── */
+/* text-blue-300 → #2563eb (đủ tương phản trên nền sáng)  — đã có trong accent override trên */
+/* text-orange-300, text-red-300: bổ sung nếu chưa có */
+html[data-theme="light"] .text-orange-300 { color: #c2410c; }
+html[data-theme="light"] .hover\:text-orange-300:hover { color: #9a3412; }
+
+/* bg opacity-based priority badges trên nền sáng */
+html[data-theme="light"] .bg-blue-500\/20   { background-color: #dbeafe; }
+html[data-theme="light"] .bg-orange-500\/20 { background-color: #ffedd5; }
+html[data-theme="light"] .bg-red-500\/20    { background-color: #fee2e2; }
+html[data-theme="light"] .bg-red-500\/10    { background-color: #fef2f2; }
+html[data-theme="light"] .bg-orange-500\/10 { background-color: #fff7ed; }
+html[data-theme="light"] .bg-blue-500\/10   { background-color: #eff6ff; }
+
+/* border opacity-based */
+html[data-theme="light"] .border-blue-500\/30   { border-color: rgba(59,130,246,0.4); }
+html[data-theme="light"] .border-orange-500\/30 { border-color: rgba(234,88,12,0.4); }
+html[data-theme="light"] .border-red-500\/30    { border-color: rgba(239,68,68,0.4); }
+html[data-theme="light"] .border-gray-700\/60   { border-color: rgba(156,163,175,0.6); }
+
+/* ── Kanban / List board background ──────────────────────────────────────── */
+html[data-theme="light"] .bg-gray-900\/60 { background-color: rgba(244,245,247,0.8); }
+
+/* Kanban card */
+html[data-theme="light"] .bg-gray-950\/20 { background-color: rgba(255,255,255,0.95); }
+
+/* Checklist row */
+html[data-theme="light"] .bg-gray-900\/20 { background-color: rgba(244,245,247,0.6); }
+
+/* ── TaskEditorDrawer right column ───────────────────────────────────────── */
+html[data-theme="light"] .bg-gray-900\/30 { background-color: rgba(244,245,247,0.7); }
+
+/* ── task-editor-select (already handled in .task-editor-select above) ────── */
+
+
 .react-flow__edge-path.animated {
   stroke-dasharray: 8;
   animation: react-flow-dash 0.6s linear infinite;

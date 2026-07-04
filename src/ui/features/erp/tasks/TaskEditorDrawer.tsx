@@ -92,8 +92,21 @@ function emptyForm(defaultStatus: ErpTaskStatus, projectId?: string): TaskFormSt
 
 function toDateTimeInputValue(ts?: number | null) {
   if (!ts) return '';
-  const offset = new Date(ts).getTimezoneOffset() * 60000;
-  return new Date(ts - offset).toISOString().slice(0, 16);
+  try {
+    const offset = new Date(ts).getTimezoneOffset() * 60000;
+    return new Date(ts - offset).toISOString().slice(0, 16);
+  } catch {
+    return '';
+  }
+}
+
+function toDateInputValue(ts?: number | null) {
+  if (!ts) return '';
+  try {
+    return new Date(ts).toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
 }
 
 function toAttachmentDraft(attachment: ErpAttachment): AttachmentDraft {
@@ -432,11 +445,11 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
               <div className="lg:col-span-3 overflow-y-auto p-6 space-y-6 erp-scroll-y h-full border-r border-gray-800/60 bg-gray-950">
                 <div>
                   <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 mb-1.5 block">Tiêu đề</label>
-                  <input autoFocus={!taskId} value={form.title} onChange={event => setForm(current => ({ ...current, title: event.target.value }))} className="w-full bg-transparent border-b border-gray-850 hover:border-gray-700 focus:border-blue-500 py-2 text-base text-gray-100 font-semibold focus:outline-none transition-all placeholder-gray-650" placeholder="Nhập tiêu đề công việc..." />
+                  <input autoFocus={!taskId} value={form.title} onChange={event => setForm(current => ({ ...current, title: event.target.value }))} className="w-full bg-transparent border-b border-gray-700 hover:border-gray-600 focus:border-blue-500 py-2 text-base text-gray-100 font-semibold focus:outline-none transition-all placeholder-gray-500" placeholder="Nhập tiêu đề công việc..." />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-[10px] uppercase font-bold tracking-wider text-gray-550 block">Nội dung công việc</label>
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-gray-500 block">Nội dung công việc</label>
                     <button type="button" onClick={handleEditorImagePick} className="text-[10px] font-semibold text-blue-600 hover:text-blue-500">+ Chèn ảnh</button>
                   </div>
                   <div className="task-rich-editor-wrap rounded-xl border border-gray-800/80 overflow-hidden bg-gray-950/20">
@@ -478,7 +491,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                     {/* Hàng nhập nhanh nhiệm vụ con mới */}
                     <div className="flex items-center gap-3 px-3 py-2 rounded-xl border border-dashed border-gray-800 bg-gray-950/5">
                       <span className="w-4 h-4 rounded-full border border-gray-700 flex-shrink-0" />
-                      <input value={subtaskContent} onChange={e => setSubtaskContent(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddSubtask()} placeholder="Nhấn Enter để tạo nhiệm vụ con..." className="text-xs bg-transparent border-0 flex-1 focus:ring-0 focus:outline-none p-0 placeholder-gray-600 text-gray-250" />
+                      <input value={subtaskContent} onChange={e => setSubtaskContent(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddSubtask()} placeholder="Nhấn Enter để tạo nhiệm vụ con..." className="text-xs bg-transparent border-0 flex-1 focus:ring-0 focus:outline-none p-0 placeholder-gray-500 text-gray-200" />
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <select value={subtaskAssignee} onChange={e => setSubtaskAssignee(e.target.value)} className="bg-transparent border-0 text-[10px] text-gray-500 hover:text-gray-300 cursor-pointer focus:outline-none w-20">
                           <option value="" className="bg-gray-900">Gán...</option>
@@ -507,7 +520,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                       {(task?.comments || []).length === 0 && <p className="text-xs text-gray-600 italic pl-1">Chưa có bình luận nào.</p>}
                     </div>
                     <div className="flex gap-3 items-start">
-                      <input value={comment} onChange={e => setComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAddComment())} placeholder="Viết nhận xét..." className="text-xs bg-gray-950/30 border border-gray-800 rounded-xl px-4 py-3 flex-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 text-gray-250 placeholder-gray-600" />
+                      <input value={comment} onChange={e => setComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAddComment())} placeholder="Viết nhận xét..." className="text-xs bg-gray-900/30 border border-gray-800 rounded-xl px-4 py-3 flex-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 text-gray-200 placeholder-gray-500" />
                       <button onClick={handleAddComment} disabled={!comment.trim()} className="px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-all">Gửi</button>
                     </div>
                   </div>
@@ -557,8 +570,8 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                       {attachments.map(attachment => (
                         <div key={attachment.id} className="rounded-xl border border-gray-800 bg-gray-900/30 p-2.5 flex items-center justify-between gap-3 shadow-sm">
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs text-gray-250 font-semibold truncate">{attachment.file_name}</div>
-                            <div className="text-[10px] text-gray-550 mt-0.5 truncate">{attachment.mime_type || 'Tệp'}{attachment.size ? ` · ${(attachment.size / 1024).toFixed(1)} KB` : ''}</div>
+                            <div className="text-xs text-gray-200 font-semibold truncate">{attachment.file_name}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5 truncate">{attachment.mime_type || 'Tệp'}{attachment.size ? ` · ${(attachment.size / 1024).toFixed(1)} KB` : ''}</div>
                           </div>
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <button type="button" onClick={() => openAttachment(attachment)} className="px-2.5 py-1 rounded-lg border border-gray-800 bg-gray-800 hover:bg-gray-700 text-[10px] font-semibold text-gray-300 transition-all">Mở</button>
@@ -582,7 +595,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">{label}</label>
+      <label className="text-[10px] uppercase font-bold tracking-wider text-gray-400 block">{label}</label>
       {children}
     </div>
   );

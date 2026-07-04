@@ -11,17 +11,18 @@ import AppIcon from '@/components/common/AppIcon';
 
 const STATUS_COLS: { id: ErpTaskStatus; label: string; color: string }[] = [
   { id: 'todo',      label: 'Cần làm',    color: 'bg-gray-900/60 border-gray-800/40' },
-  { id: 'doing',     label: 'Đang làm',   color: 'bg-gray-900/60 border-gray-850/40' },
-  { id: 'review',    label: 'Xem xét',    color: 'bg-gray-900/60 border-gray-850/40' },
-  { id: 'done',      label: 'Hoàn thành', color: 'bg-gray-900/60 border-gray-850/40' },
+  { id: 'doing',     label: 'Đang làm',   color: 'bg-gray-900/60 border-gray-800/40' },
+  { id: 'review',    label: 'Xem xét',    color: 'bg-gray-900/60 border-gray-800/40' },
+  { id: 'done',      label: 'Hoàn thành', color: 'bg-gray-900/60 border-gray-800/40' },
   { id: 'cancelled', label: 'Huỷ',        color: 'bg-gray-900/60 border-gray-800/40' },
 ];
 
+// Priority badge: dùng opacity-based để hoạt động đúng cả dark & light theme
 const PRIORITY_META: Record<string, { color: string; label: string; icon: 'alert_circle' | 'zap' | 'alert_triangle' | 'x' }> = {
-  low: { color: 'text-slate-500 bg-slate-100 border border-slate-200', label: 'Thấp', icon: 'alert_circle' },
-  normal: { color: 'text-blue-600 bg-blue-50 border border-blue-200', label: 'Bình thường', icon: 'zap' },
-  high: { color: 'text-orange-600 bg-orange-50 border border-orange-200', label: 'Cao', icon: 'alert_triangle' },
-  urgent: { color: 'text-red-600 bg-red-50 border border-red-200', label: 'Khẩn cấp', icon: 'alert_circle' },
+  low:    { color: 'text-gray-400 bg-gray-800/40 border border-gray-700/60',         label: 'Thấp',      icon: 'alert_circle' },
+  normal: { color: 'text-blue-300 bg-blue-500/20 border border-blue-500/30',          label: 'Bình thường', icon: 'zap' },
+  high:   { color: 'text-orange-300 bg-orange-500/20 border border-orange-500/30',    label: 'Cao',       icon: 'alert_triangle' },
+  urgent: { color: 'text-red-300 bg-red-500/20 border border-red-500/30',             label: 'Khẩn cấp', icon: 'alert_circle' },
 };
 
 const STATUS_LABELS: Record<ErpTaskStatus, string> = {
@@ -105,12 +106,12 @@ export default function TaskBoardPage() {
     setDragOverCol(null);
   };
 
-  // Group tasks for List View by Priority
+  // Group tasks for List View by Priority — dùng opacity-based để tương thích dark/light
   const priorityGroups: { id: ErpTaskPriority; label: string; color: string }[] = [
-    { id: 'urgent', label: 'Khẩn cấp', color: 'text-red-600 border-red-200 bg-red-50' },
-    { id: 'high', label: 'Ưu tiên cao', color: 'text-orange-600 border-orange-200 bg-orange-50' },
-    { id: 'normal', label: 'Thông thường', color: 'text-blue-600 border-blue-200 bg-blue-50' },
-    { id: 'low', label: 'Thấp', color: 'text-slate-600 border-slate-200 bg-slate-50' },
+    { id: 'urgent', label: 'Khẩn cấp',    color: 'text-red-300 border-red-500/30 bg-red-500/10' },
+    { id: 'high',   label: 'Ưu tiên cao', color: 'text-orange-300 border-orange-500/30 bg-orange-500/10' },
+    { id: 'normal', label: 'Thông thường', color: 'text-blue-300 border-blue-500/30 bg-blue-500/10' },
+    { id: 'low',    label: 'Thấp',         color: 'text-gray-400 border-gray-700/60 bg-gray-800/40' },
   ];
 
   const tasksByPriority = (priority: ErpTaskPriority) =>
@@ -121,15 +122,15 @@ export default function TaskBoardPage() {
     : 'Tất cả dự án';
 
   return (
-    <div className="flex h-full overflow-hidden bg-gray-900 text-gray-250">
+    <div className="flex h-full overflow-hidden bg-gray-900 text-gray-100">
       
       {/* ── Sidebar Dự án bên trái (Chữ đen, nền trắng, viền xám) ──────── */}
       <div className="w-60 bg-gray-950 border-r border-gray-800 p-4 space-y-4 flex-shrink-0 flex flex-col h-full">
         <div className="flex items-center justify-between px-2 flex-shrink-0">
-          <span className="text-xs font-bold text-gray-500 tracking-wider uppercase">Dự án</span>
+          <span className="text-xs font-bold text-gray-400 tracking-wider uppercase">Dự án</span>
           <button
             onClick={() => { setNewProjectName(''); setNewProjectModal(true); setTimeout(() => newProjectInputRef.current?.focus(), 50); }}
-            className="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-850 hover:bg-gray-800 text-gray-400 hover:text-gray-100 transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition-colors"
             title="Tạo dự án mới"
           >
             +
@@ -142,7 +143,7 @@ export default function TaskBoardPage() {
             className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
               activeProjectId === null
                 ? 'bg-blue-600/90 text-white font-semibold'
-                : 'text-gray-400 hover:bg-gray-850/60 hover:text-gray-200'
+                : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
             }`}
           >
             <div className="flex items-center gap-2 truncate">
@@ -164,7 +165,7 @@ export default function TaskBoardPage() {
                 className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
                   isSelected
                     ? 'bg-blue-600/90 text-white font-semibold'
-                    : 'text-gray-400 hover:bg-gray-855/60 hover:text-gray-200'
+                    : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-2 truncate">
@@ -341,7 +342,7 @@ export default function TaskBoardPage() {
                               className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center border transition-all ${
                                 isCompleted
                                   ? 'bg-blue-600 border-blue-500 text-white'
-                                  : 'border-gray-650 hover:border-blue-500 text-transparent hover:text-blue-500'
+                                  : 'border-gray-600 hover:border-blue-500 text-transparent hover:text-blue-500'
                               }`}
                             >
                               ✓
