@@ -10,11 +10,11 @@ import type { ErpTask, ErpTaskPriority, ErpTaskStatus } from '../../../../models
 import AppIcon from '@/components/common/AppIcon';
 
 const STATUS_COLS: { id: ErpTaskStatus; label: string; color: string }[] = [
-  { id: 'todo',      label: 'Cần làm',    color: 'bg-gray-50 dark:bg-gray-950/20 border-slate-200 dark:border-gray-800/40' },
-  { id: 'doing',     label: 'Đang làm',   color: 'bg-blue-50/40 dark:bg-gray-950/20 border-blue-200/60 dark:border-gray-800/40' },
-  { id: 'review',    label: 'Xem xét',    color: 'bg-amber-50/40 dark:bg-gray-950/20 border-amber-200/60 dark:border-gray-800/40' },
-  { id: 'done',      label: 'Hoàn thành', color: 'bg-green-50/40 dark:bg-gray-950/20 border-green-200/60 dark:border-gray-800/40' },
-  { id: 'cancelled', label: 'Huỷ',        color: 'bg-slate-100/50 dark:bg-gray-950/20 border-slate-200 dark:border-gray-800/40' },
+  { id: 'todo',      label: 'Cần làm',    color: 'bg-gray-900/60 border-gray-800/40' },
+  { id: 'doing',     label: 'Đang làm',   color: 'bg-gray-900/60 border-gray-850/40' },
+  { id: 'review',    label: 'Xem xét',    color: 'bg-gray-900/60 border-gray-850/40' },
+  { id: 'done',      label: 'Hoàn thành', color: 'bg-gray-900/60 border-gray-850/40' },
+  { id: 'cancelled', label: 'Huỷ',        color: 'bg-gray-900/60 border-gray-800/40' },
 ];
 
 const PRIORITY_META: Record<string, { color: string; label: string; icon: 'alert_circle' | 'zap' | 'alert_triangle' | 'x' }> = {
@@ -121,15 +121,15 @@ export default function TaskBoardPage() {
     : 'Tất cả dự án';
 
   return (
-    <div className="flex h-full overflow-hidden bg-slate-50 dark:bg-gray-900 text-slate-800 dark:text-gray-200">
+    <div className="flex h-full overflow-hidden bg-gray-900 text-gray-250">
       
       {/* ── Sidebar Dự án bên trái (Chữ đen, nền trắng, viền xám) ──────── */}
-      <div className="w-60 bg-white dark:bg-gray-950 border-r border-slate-200 dark:border-gray-800 p-4 space-y-4 flex-shrink-0 flex flex-col h-full">
+      <div className="w-60 bg-gray-950 border-r border-gray-800 p-4 space-y-4 flex-shrink-0 flex flex-col h-full">
         <div className="flex items-center justify-between px-2 flex-shrink-0">
-          <span className="text-xs font-bold text-slate-400 dark:text-gray-500 tracking-wider uppercase">Dự án</span>
+          <span className="text-xs font-bold text-gray-500 tracking-wider uppercase">Dự án</span>
           <button
             onClick={() => { setNewProjectName(''); setNewProjectModal(true); setTimeout(() => newProjectInputRef.current?.focus(), 50); }}
-            className="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-white transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-850 hover:bg-gray-800 text-gray-400 hover:text-gray-100 transition-colors"
             title="Tạo dự án mới"
           >
             +
@@ -141,8 +141,8 @@ export default function TaskBoardPage() {
             onClick={() => setActiveProject(null)}
             className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
               activeProjectId === null
-                ? 'bg-blue-50 dark:bg-blue-600/90 text-blue-600 dark:text-white font-semibold'
-                : 'text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-850/60 hover:text-slate-900 dark:hover:text-slate-200'
+                ? 'bg-blue-600/90 text-white font-semibold'
+                : 'text-gray-400 hover:bg-gray-850/60 hover:text-gray-200'
             }`}
           >
             <div className="flex items-center gap-2 truncate">
@@ -150,7 +150,7 @@ export default function TaskBoardPage() {
               <span className="truncate">Tất cả dự án</span>
             </div>
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-              activeProjectId === null ? 'bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-white' : 'bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400'
+              activeProjectId === null ? 'bg-blue-700 text-white' : 'bg-gray-800 text-gray-400'
             }`}>{allTasks.length}</span>
           </button>
 
@@ -163,8 +163,8 @@ export default function TaskBoardPage() {
                 onClick={() => setActiveProject(project.id)}
                 className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
                   isSelected
-                    ? 'bg-blue-50 dark:bg-blue-600/90 text-blue-600 dark:text-white font-semibold'
-                    : 'text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-855/60 hover:text-slate-900 dark:hover:text-slate-200'
+                    ? 'bg-blue-600/90 text-white font-semibold'
+                    : 'text-gray-400 hover:bg-gray-855/60 hover:text-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-2 truncate">
@@ -172,7 +172,7 @@ export default function TaskBoardPage() {
                   <span className="truncate">{project.name}</span>
                 </div>
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                  isSelected ? 'bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-white' : 'bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400'
+                  isSelected ? 'bg-blue-700 text-white' : 'bg-gray-800 text-gray-400'
                 }`}>{count}</span>
               </button>
             );
@@ -184,16 +184,16 @@ export default function TaskBoardPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         
         {/* Header Tab View (Danh sách / Kanban) */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-gray-800/60 flex-shrink-0 bg-white dark:bg-gray-950/40">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800/60 flex-shrink-0 bg-gray-950/40">
           <div className="min-w-0 flex items-center gap-4">
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white truncate flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-gray-100 truncate flex items-center gap-2">
               <span className="text-base">🎯</span> {currentProjectName}
             </h2>
             {activeProjectId && (
               <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
                 <button
                   onClick={() => setProjectArchiveConfirm(activeProjectId)}
-                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition-all border border-slate-200 dark:border-gray-800 bg-white dark:bg-gray-850 text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700 hover:text-slate-800 dark:hover:text-white shadow-sm"
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition-all border border-gray-800 bg-gray-950 text-gray-300 hover:bg-gray-850 hover:text-gray-100 shadow-sm"
                   title="Kết thúc dự án và lưu trữ"
                 >
                   <AppIcon name="check" size={12} />
@@ -201,7 +201,7 @@ export default function TaskBoardPage() {
                 </button>
                 <button
                   onClick={() => setProjectDeleteConfirm(activeProjectId)}
-                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition-all border border-red-100 dark:border-red-950 bg-white dark:bg-gray-850 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-700 shadow-sm"
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition-all border border-red-950 bg-gray-950 text-red-400 hover:bg-red-950/30 hover:text-red-300 shadow-sm"
                   title="Xoá dự án khi làm sai"
                 >
                   <AppIcon name="trash" size={12} />
@@ -211,13 +211,13 @@ export default function TaskBoardPage() {
             )}
           </div>
 
-          <div className="flex bg-slate-100 dark:bg-gray-800/80 p-0.5 rounded-xl border border-slate-200 dark:border-gray-700/40">
+          <div className="flex bg-gray-850 p-0.5 rounded-xl border border-gray-800">
             <button
               onClick={() => setViewMode('list')}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
                 viewMode === 'list'
-                  ? 'bg-white dark:bg-gray-700 text-slate-800 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-gray-700 text-gray-100 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               <AppIcon name="list" size={13} /> Danh sách
@@ -226,8 +226,8 @@ export default function TaskBoardPage() {
               onClick={() => setViewMode('kanban')}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
                 viewMode === 'kanban'
-                  ? 'bg-white dark:bg-gray-700 text-slate-800 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-gray-700 text-gray-100 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               <AppIcon name="grid" size={13} /> Kanban
@@ -236,26 +236,26 @@ export default function TaskBoardPage() {
         </div>
 
         {/* Filters Bar */}
-        <div className="flex items-center gap-3 px-5 py-2 border-b border-slate-200 dark:border-gray-800/40 flex-shrink-0 flex-wrap bg-white dark:bg-gray-900/50">
+        <div className="flex items-center gap-3 px-5 py-2 border-b border-gray-800/40 flex-shrink-0 flex-wrap bg-gray-900/50">
           <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
             
-            <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="min-w-[150px] bg-white dark:bg-gray-850 border border-slate-200 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-gray-200 focus:outline-none focus:border-blue-500">
-              <option value="" className="dark:bg-gray-900">Tất cả nhân viên</option>
-              <option value="boss" className="dark:bg-gray-900">Boss</option>
-              {employees.map((employee: any) => <option key={employee.employee_id} value={employee.employee_id} className="dark:bg-gray-900">{employee.display_name}</option>)}
+            <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="min-w-[150px] bg-gray-850 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500">
+              <option value="" className="bg-gray-950">Tất cả nhân viên</option>
+              <option value="boss" className="bg-gray-950">Boss</option>
+              {employees.map((employee: any) => <option key={employee.employee_id} value={employee.employee_id} className="bg-gray-950">{employee.display_name}</option>)}
             </select>
 
-            <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value as '' | ErpTaskPriority)} className="min-w-[140px] bg-white dark:bg-gray-850 border border-slate-200 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-gray-200 focus:outline-none focus:border-blue-500">
-              <option value="" className="dark:bg-gray-900">Mọi mức ưu tiên</option>
-              <option value="low" className="dark:bg-gray-900">Thấp</option>
-              <option value="normal" className="dark:bg-gray-900">Bình thường</option>
-              <option value="high" className="dark:bg-gray-900">Cao</option>
-              <option value="urgent" className="dark:bg-gray-900">Khẩn cấp</option>
+            <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value as '' | ErpTaskPriority)} className="min-w-[140px] bg-gray-850 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500">
+              <option value="" className="bg-gray-950">Mọi mức ưu tiên</option>
+              <option value="low" className="bg-gray-950">Thấp</option>
+              <option value="normal" className="bg-gray-950">Bình thường</option>
+              <option value="high" className="bg-gray-950">Cao</option>
+              <option value="urgent" className="bg-gray-950">Khẩn cấp</option>
             </select>
 
-            <select value={dateFilter} onChange={e => setDateFilter(e.target.value as '' | ErpDateFilterPreset)} className="min-w-[150px] bg-white dark:bg-gray-850 border border-slate-200 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-gray-200 focus:outline-none focus:border-blue-500">
-              <option value="" className="dark:bg-gray-900">Tất cả hạn chót</option>
-              {ERP_DATE_FILTER_OPTIONS.map(option => <option key={option.id} value={option.id} className="dark:bg-gray-900">{option.label}</option>)}
+            <select value={dateFilter} onChange={e => setDateFilter(e.target.value as '' | ErpDateFilterPreset)} className="min-w-[150px] bg-gray-850 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500">
+              <option value="" className="bg-gray-950">Tất cả hạn chót</option>
+              {ERP_DATE_FILTER_OPTIONS.map(option => <option key={option.id} value={option.id} className="bg-gray-950">{option.label}</option>)}
             </select>
 
             {dateFilter === 'custom' && (
@@ -264,13 +264,13 @@ export default function TaskBoardPage() {
                   type="date"
                   value={customDateRange.from}
                   onChange={e => setCustomDateRange(current => ({ ...current, from: e.target.value }))}
-                  className="bg-white dark:bg-gray-850 border border-slate-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 dark:text-gray-200"
+                  className="bg-gray-850 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-gray-200"
                 />
                 <input
                   type="date"
                   value={customDateRange.to}
                   onChange={e => setCustomDateRange(current => ({ ...current, to: e.target.value }))}
-                  className="bg-white dark:bg-gray-850 border border-slate-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 dark:text-gray-200"
+                  className="bg-gray-850 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-gray-200"
                 />
               </>
             )}
@@ -284,7 +284,7 @@ export default function TaskBoardPage() {
                   setDateFilter('');
                   setCustomDateRange(getDefaultCustomRange());
                 }}
-                className="px-3 py-1.5 rounded-xl text-xs text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors"
+                className="px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-gray-100 hover:bg-gray-800 transition-colors"
               >
                 Xóa lọc
               </button>
@@ -318,18 +318,18 @@ export default function TaskBoardPage() {
                       <span className={`text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border ${group.color}`}>
                         {group.label}
                       </span>
-                      <span className="text-[11px] text-slate-500 dark:text-gray-500 font-medium">({groupTasks.length})</span>
+                      <span className="text-[11px] text-gray-400 font-medium">({groupTasks.length})</span>
                     </div>
 
                     {/* Danh sách Task */}
-                    <div className="bg-white dark:bg-gray-950/20 rounded-2xl border border-slate-200 dark:border-gray-800/40 divide-y divide-slate-100 dark:divide-gray-800/30 overflow-hidden shadow-sm">
+                    <div className="bg-gray-950/20 rounded-2xl border border-gray-800/40 divide-y divide-gray-800/30 overflow-hidden shadow-sm">
                       {groupTasks.map(task => {
                         const isCompleted = task.status === 'done';
                         return (
                           <div
                             key={task.id}
                             onClick={() => setEditorState({ taskId: task.id })}
-                            className="group flex items-center gap-4 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-gray-800/35 cursor-pointer transition-colors"
+                            className="group flex items-center gap-4 px-4 py-3.5 hover:bg-gray-800/35 cursor-pointer transition-colors"
                           >
                             {/* Checkbox hoàn thành */}
                             <button
@@ -341,7 +341,7 @@ export default function TaskBoardPage() {
                               className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center border transition-all ${
                                 isCompleted
                                   ? 'bg-blue-600 border-blue-500 text-white'
-                                  : 'border-slate-300 dark:border-gray-650 hover:border-blue-500 text-transparent hover:text-blue-500'
+                                  : 'border-gray-650 hover:border-blue-500 text-transparent hover:text-blue-500'
                               }`}
                             >
                               ✓
@@ -350,7 +350,7 @@ export default function TaskBoardPage() {
                             {/* Tiêu đề */}
                             <div className="flex-1 min-w-0">
                               <span className={`text-xs font-semibold block truncate transition-all ${
-                                isCompleted ? 'line-through text-slate-400 dark:text-gray-500 opacity-50' : 'text-slate-800 dark:text-gray-100'
+                                isCompleted ? 'line-through text-gray-500 opacity-50' : 'text-gray-100'
                               }`}>
                                 {task.title}
                               </span>
@@ -359,7 +359,7 @@ export default function TaskBoardPage() {
                             {/* Hạn chót */}
                             {task.due_date && (
                               <div className={`flex items-center gap-1 text-[11px] font-medium flex-shrink-0 ${
-                                task.due_date < Date.now() && !isCompleted ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-gray-400'
+                                task.due_date < Date.now() && !isCompleted ? 'text-red-400' : 'text-gray-450'
                               }`}>
                                 <span>📅</span>
                                 <span>
@@ -370,9 +370,9 @@ export default function TaskBoardPage() {
 
                             {/* Nhiệm vụ con progress */}
                             {task.checklist_total ? (
-                              <div className="flex items-center gap-1 text-[11px] text-slate-600 dark:text-gray-400 flex-shrink-0 bg-slate-50 dark:bg-gray-800/40 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-gray-800/20">
+                              <div className="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 bg-gray-850/40 px-2 py-0.5 rounded-lg border border-gray-800/20">
                                 <span>📋</span>
-                                <span className="font-semibold text-slate-700 dark:text-gray-300">
+                                <span className="font-semibold text-gray-300">
                                   {task.checklist_done}/{task.checklist_total}
                                 </span>
                               </div>
@@ -387,7 +387,7 @@ export default function TaskBoardPage() {
                                   </div>
                                 ))}
                                 {task.assignees.length > 3 && (
-                                  <span className="text-[10px] text-slate-500 dark:text-gray-500 mr-1">+{task.assignees.length - 3}</span>
+                                  <span className="text-[10px] text-gray-500 mr-1">+{task.assignees.length - 3}</span>
                                 )}
                               </div>
                             )}
@@ -396,7 +396,7 @@ export default function TaskBoardPage() {
                             <button
                               onClick={(e) => { e.stopPropagation(); setDeleteTarget(task); }}
                               title="Xoá task"
-                              className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-gray-800 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                              className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-400 hover:bg-gray-800 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                             >
                               ✕
                             </button>
@@ -411,10 +411,10 @@ export default function TaskBoardPage() {
               {projectTasks.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
                   <span className="text-4xl">📂</span>
-                  <p className="text-xs text-slate-500 dark:text-gray-400">Dự án này chưa có task nào được tạo</p>
+                  <p className="text-xs text-gray-400">Dự án này chưa có task nào được tạo</p>
                   <button
                     onClick={() => setEditorState({ status: 'todo' })}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-gray-800 hover:bg-gray-700 text-gray-300"
                   >
                     + Tạo task đầu tiên
                   </button>
@@ -435,15 +435,15 @@ export default function TaskBoardPage() {
                   return (
                     <div
                       key={col.id}
-                      className={`w-72 flex flex-col rounded-2xl border bg-slate-100/60 dark:bg-gray-950/20 ${col.color} ${dragOverCol === col.id ? 'ring-2 ring-blue-500' : ''}`}
+                      className={`w-72 flex flex-col rounded-2xl border bg-gray-950/20 ${col.color} ${dragOverCol === col.id ? 'ring-2 ring-blue-500' : ''}`}
                       onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id); }}
                       onDragLeave={() => setDragOverCol(null)}
                       onDrop={() => handleDrop(col.id)}
                     >
                       {/* Column Header */}
-                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 dark:border-gray-800/40 flex-shrink-0">
-                        <span className="text-xs font-bold text-slate-700 dark:text-gray-300 uppercase tracking-wide">{col.label}</span>
-                        <span className="text-[10px] font-bold bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-800 rounded-full px-2 py-0.5 text-slate-500 dark:text-gray-400">{colTasks.length}</span>
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/40 flex-shrink-0">
+                        <span className="text-xs font-bold text-gray-300 uppercase tracking-wide">{col.label}</span>
+                        <span className="text-[10px] font-bold bg-gray-850 border border-gray-800 rounded-full px-2 py-0.5 text-gray-400">{colTasks.length}</span>
                       </div>
 
                       {/* Lane Cards Container */}
@@ -457,13 +457,13 @@ export default function TaskBoardPage() {
                               onDragStart={() => setDraggingTaskId(task.id)}
                               onDragEnd={() => { setDraggingTaskId(null); setDragOverCol(null); }}
                               onClick={() => setEditorState({ taskId: task.id })}
-                              className="group relative bg-white dark:bg-gray-800/50 border border-slate-200 dark:border-gray-700/40 hover:border-slate-300 dark:hover:border-gray-500/70 rounded-xl p-3 cursor-pointer transition-all shadow-sm"
+                              className="group relative bg-gray-950 border border-gray-800/60 hover:border-gray-700/80 rounded-xl p-3 cursor-pointer transition-all shadow-sm"
                             >
                               {/* Xoá nhanh */}
                               <button
                                 onClick={(e) => { e.stopPropagation(); setDeleteTarget(task); }}
                                 title="Xoá task"
-                                className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded text-[11px] text-slate-400 dark:text-gray-500 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-gray-700/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded text-[11px] text-gray-500 hover:text-red-400 hover:bg-gray-800 opacity-0 group-hover:opacity-100 transition-opacity"
                               >✕</button>
 
                               <div className="flex items-start gap-2.5">
@@ -477,7 +477,7 @@ export default function TaskBoardPage() {
                                   className={`w-4 h-4 rounded-full mt-0.5 flex-shrink-0 flex items-center justify-center border transition-all text-[9px] ${
                                     isCompleted
                                       ? 'bg-blue-600 border-blue-500 text-white'
-                                      : 'border-slate-300 dark:border-gray-600 hover:border-blue-500 text-transparent hover:text-blue-500'
+                                      : 'border-gray-600 hover:border-blue-500 text-transparent hover:text-blue-500'
                                   }`}
                                 >
                                   ✓
@@ -485,23 +485,23 @@ export default function TaskBoardPage() {
 
                                 <div className="flex-1 min-w-0 pr-3">
                                   <p className={`text-xs font-semibold leading-snug mb-1.5 ${
-                                    isCompleted ? 'line-through text-slate-400 dark:text-gray-500 opacity-50' : 'text-slate-800 dark:text-gray-100'
+                                    isCompleted ? 'line-through text-gray-500 opacity-50' : 'text-gray-100'
                                   }`}>{task.title}</p>
                                   {task.description?.trim() && (
-                                    <div className="mb-2 rounded-lg border border-slate-100 dark:border-gray-800 bg-slate-50 dark:bg-gray-900/40 px-2 py-1">
-                                      <RichContentPreview source={task.description} compact className="text-[10px] text-slate-500 dark:text-gray-400" />
+                                    <div className="mb-2 rounded-lg border border-gray-800 bg-gray-900/40 px-2 py-1">
+                                      <RichContentPreview source={task.description} compact className="text-[10px] text-gray-400" />
                                     </div>
                                   )}
                                 </div>
                               </div>
 
-                              <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-gray-800/40 flex-wrap">
-                                <span className={`text-[9px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full flex items-center gap-0.5 ${PRIORITY_META[task.priority]?.color || 'text-slate-500 dark:text-gray-400'}`}>
+                              <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-gray-800/40 flex-wrap">
+                                <span className={`text-[9px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full flex items-center gap-0.5 ${PRIORITY_META[task.priority]?.color || 'text-gray-400'}`}>
                                   {PRIORITY_META[task.priority]?.label || task.priority}
                                 </span>
                                 
                                 {task.due_date && (
-                                  <span className={`text-[9px] font-semibold ${task.due_date < Date.now() && !isCompleted ? 'text-red-600 dark:text-red-400' : 'text-slate-400 dark:text-gray-500'}`}>
+                                  <span className={`text-[9px] font-semibold ${task.due_date < Date.now() && !isCompleted ? 'text-red-400' : 'text-gray-500'}`}>
                                     {new Date(task.due_date).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' })}
                                   </span>
                                 )}
@@ -509,9 +509,9 @@ export default function TaskBoardPage() {
 
                               {/* checklist progress & assignees */}
                               {(!!task.assignees?.length || !!task.checklist_total) && (
-                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-gray-850/60">
+                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-850/60">
                                   {task.checklist_total ? (
-                                    <div className="flex items-center gap-1.5 text-[9px] text-slate-500 dark:text-gray-500 bg-slate-50 dark:bg-gray-900/30 px-1.5 py-0.5 rounded border border-slate-200 dark:border-gray-800">
+                                    <div className="flex items-center gap-1.5 text-[9px] text-gray-400 bg-gray-900/30 px-1.5 py-0.5 rounded border border-gray-800">
                                       <span>📋</span>
                                       <span>{task.checklist_done}/{task.checklist_total}</span>
                                     </div>
@@ -535,7 +535,7 @@ export default function TaskBoardPage() {
                         {/* Thêm nhanh */}
                         <button
                           onClick={() => setEditorState({ status: col.id })}
-                          className="w-full text-left text-[11px] text-slate-500 dark:text-gray-500 hover:text-slate-800 dark:hover:text-gray-300 hover:bg-slate-200/50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-xl transition-all"
+                          className="w-full text-left text-[11px] text-gray-500 hover:text-gray-300 hover:bg-gray-800/40 px-3 py-2 rounded-xl transition-all"
                         >
                           + Thêm task
                         </button>
@@ -568,7 +568,7 @@ export default function TaskBoardPage() {
         />
       )}
 
-  {/* Cancel confirm */}
+      {/* Cancel confirm */}
       {cancelConfirm && (
         <ConfirmDialog
           message={`Chuyển task "${cancelConfirm.task.title}" sang cột "Huỷ"?`}
@@ -609,8 +609,8 @@ export default function TaskBoardPage() {
       {/* New Project Modal */}
       {newProjectModal && (
         <ErpOverlay onClose={() => setNewProjectModal(false)} className="z-50" backdropClassName="bg-black/50">
-          <ErpModalCard className="w-80 p-5 bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-2xl">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Tạo project mới</h3>
+          <ErpModalCard className="w-80 p-5 bg-gray-950 border border-gray-800 rounded-2xl">
+            <h3 className="text-sm font-semibold text-gray-100 mb-3">Tạo project mới</h3>
             <input
               ref={newProjectInputRef}
               value={newProjectName}
@@ -625,7 +625,7 @@ export default function TaskBoardPage() {
                 if (e.key === 'Escape') setNewProjectModal(false);
               }}
               placeholder="Tên project..."
-              className="w-full bg-white dark:bg-gray-850 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-gray-200 placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-3"
+              className="w-full bg-gray-850 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-3"
             />
             <div className="flex gap-2">
               <button
@@ -644,7 +644,7 @@ export default function TaskBoardPage() {
               </button>
               <button
                 onClick={() => setNewProjectModal(false)}
-                className="px-4 py-1.5 text-slate-500 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 rounded-lg text-sm transition-colors"
+                className="px-4 py-1.5 text-gray-500 hover:text-gray-100 hover:bg-gray-800 rounded-lg text-sm transition-colors"
               >
                 Huỷ
               </button>
