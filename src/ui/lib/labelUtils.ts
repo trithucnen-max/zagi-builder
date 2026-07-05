@@ -124,7 +124,7 @@ export async function syncZaloLabelsToLocalDB(opts: SyncZaloLabelsOptions): Prom
 
         if (labelId != null) {
             const zaloCleanedThreadIds = (zLabel.conversations && Array.isArray(zLabel.conversations))
-                ? zLabel.conversations.map((convId: string) => convId.startsWith('g') ? convId.slice(1) : convId)
+                ? zLabel.conversations.map((convId: any) => String(convId).startsWith('g') ? String(convId).slice(1) : String(convId))
                 : [];
 
             const existingThreadsForLabel = currentThreadsList

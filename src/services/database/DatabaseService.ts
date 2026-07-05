@@ -3260,6 +3260,17 @@ class DatabaseService {
         // ── Todo ──────────────────────────────────────────────────────────────
         if (mt === 'chat.todo') return '📝 Công việc';
 
+        // ── Location ──────────────────────────────────────────────────────────
+        if (mt === 'chat.location.new') {
+            try {
+                const p = JSON.parse(content);
+                if (p?.description) return `📍 ${p.description}`;
+                const params = typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {});
+                if (params?.latitude && params?.longitude) return `📍 ${String(params.latitude).slice(0, 8)}, ${String(params.longitude).slice(0, 8)}`;
+            } catch {}
+            return '📍 [Vị trí]';
+        }
+
         // ── JSON content: parse and detect type from fields ──────────────────
         try {
             const p = JSON.parse(content);
@@ -4651,6 +4662,119 @@ class DatabaseService {
              ORDER BY timestamp DESC LIMIT ?`,
             [ownerZaloId, threadId, msgType, limit]
         );
+    }
+
+    // ─── Call Log ──────────────────────────────────────────────────────────────
+
+    /**
+     * Lấy lịch sử cuộc gọi của một thread (khách hàng cụ thể).
+     * Trả về mảng đã parse: { id, timestamp, isSelf, duration, missed }
+     */
+    public getCallLogsForContact(ownerZaloId: string, threadId: string, limit: number = 300): any[] {
+        if (!this.initialized) return [];
+        const rows = this.query<any>(
+            `SELECT msg_id, timestamp, is_self, content, msg_type
+             FROM messages
+             WHERE owner_zalo_id=? AND thread_id=? AND is_recalled=0
+               AND (
+                 content LIKE '%recommened.calltime%'
+                 OR content LIKE '%recommened.misscall%'
+                 OR msg_type LIKE '%call%'
+               )
+             ORDER BY timestamp DESC LIMIT ?`,
+            [ownerZaloId, threadId, limit]
+        );
+        return rows.map((r: any) => {
+            let action = '', duration = 0;
+            try {
+                const p = JSON.parse(r.content);
+                action = String(p?.action || '');
+                const params = typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {});
+                duration = Number(params?.duration || 0);
+            } catch {}
+            const missed = action === 'recommened.misscall' || (action === 'recommened.calltime' && duration === 0);
+            return {
+                id: r.msg_id,
+                timestamp: r.timestamp,
+                isSelf: !!r.is_self,
+                duration,
+                missed,
+                action,
+            };
+        });
+    }
+
+    /**
+     * Báo cáo tổng hợp cuộc gọi theo khoảng thời gian — dùng cho Analytics tab.
+     * Trả về: byContact, byDay, totals
+     */
+    public getCallReport(ownerZaloId: string, fromTs: number, toTs: number): {
+        byContact: any[];
+        byDay: any[];
+        totals: { total: number; answered: number; missed: number; inbound: number; outbound: number; totalDuration: number };
+    } {
+        if (!this.initialized) return { byContact: [], byDay: [], totals: { total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 } };
+
+        const rows = this.query<any>(
+            `SELECT msg_id, thread_id, timestamp, is_self, content
+             FROM messages
+             WHERE owner_zalo_id=? AND timestamp BETWEEN ? AND ? AND is_recalled=0
+               AND (content LIKE '%recommened.calltime%' OR content LIKE '%recommened.misscall%')
+             ORDER BY timestamp ASC`,
+            [ownerZaloId, fromTs, toTs]
+        );
+
+        const parsed = rows.map((r: any) => {
+            let action = '', duration = 0;
+            try {
+                const p = JSON.parse(r.content);
+                action = String(p?.action || '');
+                const params = typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {});
+                duration = Number(params?.duration || 0);
+            } catch {}
+            const missed = action === 'recommened.misscall' || (action === 'recommened.calltime' && duration === 0);
+            return { threadId: r.thread_id, timestamp: r.timestamp, isSelf: !!r.is_self, duration, missed };
+        });
+
+        // Aggregate byContact
+        const contactMap = new Map<string, any>();
+        for (const row of parsed) {
+            let c = contactMap.get(row.threadId);
+            if (!c) {
+                c = { threadId: row.threadId, total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 };
+                contactMap.set(row.threadId, c);
+            }
+            c.total++;
+            if (row.missed) { c.missed++; } else { c.answered++; c.totalDuration += row.duration; }
+            if (row.isSelf) { c.outbound++; } else { c.inbound++; }
+        }
+        const byContact = Array.from(contactMap.values()).sort((a, b) => b.total - a.total);
+
+        // Aggregate byDay
+        const dayMap = new Map<string, any>();
+        for (const row of parsed) {
+            const d = new Date(row.timestamp);
+            const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            let entry = dayMap.get(dayKey);
+            if (!entry) {
+                entry = { day: dayKey, total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 };
+                dayMap.set(dayKey, entry);
+            }
+            entry.total++;
+            if (row.missed) { entry.missed++; } else { entry.answered++; entry.totalDuration += row.duration; }
+            if (row.isSelf) { entry.outbound++; } else { entry.inbound++; }
+        }
+        const byDay = Array.from(dayMap.values()).sort((a, b) => a.day.localeCompare(b.day));
+
+        // Totals
+        const totals = parsed.reduce((acc: any, r: any) => {
+            acc.total++;
+            if (r.missed) { acc.missed++; } else { acc.answered++; acc.totalDuration += r.duration; }
+            if (r.isSelf) { acc.outbound++; } else { acc.inbound++; }
+            return acc;
+        }, { total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 });
+
+        return { byContact, byDay, totals };
     }
 
     // ─── Local Quick Messages ──────────────────────────────────────────────

@@ -108,7 +108,7 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
 
   // Available = not already in campaign
   const available = useMemo(() =>
-    allContacts.filter(c => !existingContactIds.has(c.contact_id)),
+    allContacts.filter(c => !existingContactIds.has(String(c.contact_id))),
     [allContacts, existingContactIds]
   );
 
@@ -122,7 +122,7 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
       if (selectedZaloLabelIds.length > 0) {
         list = list.filter(c =>
           selectedZaloLabelIds.every(labelId =>
-            allLabels.find(l => l.id === labelId)?.conversations?.includes(c.contact_id)
+            allLabels.find(l => l.id === labelId)?.conversations?.some(convId => String(convId) === String(c.contact_id))
           )
         );
       }
@@ -143,7 +143,7 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
       list = list.filter(c =>
         (c.alias || c.display_name || '').toLowerCase().includes(q) ||
         (c.phone || '').includes(q) ||
-        c.contact_id.includes(q)
+        String(c.contact_id).includes(q)
       );
     }
     return list;
@@ -240,7 +240,7 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
         })
         .filter(c => {
           // Check both contact_id and phone: prefix to prevent duplicates
-          if (existingContactIds.has(c.contact_id)) return false;
+          if (existingContactIds.has(String(c.contact_id))) return false;
           if (c.phone && existingContactIds.has(`phone:${c.phone}`)) return false;
           return true;
         });
@@ -261,16 +261,17 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
           return { contact_id: uid, display_name: '', avatar: '', source: 'uid_pending' };
         })
         .filter(c => {
-          if (existingContactIds.has(c.contact_id)) return false;
+          if (existingContactIds.has(String(c.contact_id))) return false;
           return true;
         });
     }
-    if (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') return available.filter(c => manualSelected.has(c.contact_id));
+    if (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') return available.filter(c => manualSelected.has(String(c.contact_id)));
     return filtered;
   }, [mode, available, manualSelected, filtered, phoneList, phoneResolved, uidList, uidResolved, existingContactIds]);
 
-  const toggleManual = (id: string) => {
-    setManualSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleManual = (id: string | number) => {
+    const sId = String(id);
+    setManualSelected(prev => { const n = new Set(prev); n.has(sId) ? n.delete(sId) : n.add(sId); return n; });
   };
   const toggleZaloLabel = (id: number) => {
     setSelectedZaloLabelIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -279,16 +280,16 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
     setSelectedLocalLabelIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
   const allFilteredSelected = useMemo(() =>
-    filtered.length > 0 && filtered.every(c => manualSelected.has(c.contact_id)),
+    filtered.length > 0 && filtered.every(c => manualSelected.has(String(c.contact_id))),
     [filtered, manualSelected]
   );
   const selectAllFiltered = () => {
     setManualSelected(prev => {
       const next = new Set(prev);
       if (allFilteredSelected) {
-        filtered.forEach(c => next.delete(c.contact_id));
+        filtered.forEach(c => next.delete(String(c.contact_id)));
       } else {
-        filtered.forEach(c => next.add(c.contact_id));
+        filtered.forEach(c => next.add(String(c.contact_id)));
       }
       return next;
     });
@@ -316,7 +317,7 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
 
       for (const contact of selectedList) {
         // If contact is a group, expand it
-        if (contact.contact_type === 'group' || (contact.contact_id && contact.contact_id.startsWith('g'))) {
+        if (contact.contact_type === 'group' || (contact.contact_id && String(contact.contact_id).startsWith('g'))) {
           const gId = contact.contact_id;
           const res = await ipc.db?.getGroupMembers({ zaloId, groupId: gId }).catch(() => null);
           if (res?.success && Array.isArray(res.members)) {
@@ -752,9 +753,9 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
                 </p>
               ) : (
                 filtered.map(c => {
-                  const name = c.alias || c.display_name || c.contact_id;
-                  const isChecked = (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') ? manualSelected.has(c.contact_id) : true;
-                  const contactLabels = allLabels.filter(l => l.conversations?.includes(c.contact_id));
+                  const name = c.alias || c.display_name || String(c.contact_id);
+                  const isChecked = (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') ? manualSelected.has(String(c.contact_id)) : true;
+                  const contactLabels = allLabels.filter(l => l.conversations?.some(convId => String(convId) === String(c.contact_id)));
                   const contactLocalLabelIds = effectiveThreadMap[c.contact_id] || [];
                   const contactLocalLabels = effectiveLocalLabels.filter(l => contactLocalLabelIds.includes(l.id));
                   return (

@@ -3,7 +3,7 @@ module.exports = {
   preset: 'ts-jest', // Sử dụng preset của ts-jest
   testEnvironment: 'node', // Môi trường chạy test là Node.js
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", {}], // Biến đổi tệp TypeScript và TSX bằng ts-jest
+    "^.+\\.tsx?$": ["ts-jest", { isolatedModules: true }], // Biến đổi tệp TypeScript và TSX bằng ts-jest với isolatedModules để tránh OOM
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/ui/$1',

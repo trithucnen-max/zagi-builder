@@ -10,6 +10,7 @@ import LocalLabelSelector from '@/components/common/LocalLabelSelector';
 import type { LocalLabelItem } from '@/components/common/LocalLabelSelector';
 import PhoneDisplay from '@/components/common/PhoneDisplay';
 import type { PinnedNote } from '@/components/chat/PinnedMessages';
+import CRMCallLogTab from './CRMCallLogTab';
 
 function defaultSalutation(gender?: number | null): string {
   if (gender === 0) return 'Anh';
@@ -1279,7 +1280,40 @@ ${notesText}`;
             </div>
           )}
         </div>
+
+        {/* ── Cuộc gọi Section ────────────────────────────────── */}
+        <CallLogSection
+          contactId={contact.contact_id}
+          contactName={contact.display_name || contact.contact_id}
+          activeAccountId={activeAccountId || ''}
+        />
+
       </div>
+    </div>
+  );
+}
+
+// ── Collapsible Call Log Section ─────────────────────────────────────────
+function CallLogSection({ contactId, contactName, activeAccountId }: { contactId: string; contactName: string; activeAccountId: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-t border-gray-100 pt-3 pb-4">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-0 py-0 text-xs text-gray-700 font-semibold hover:text-gray-900 transition-colors group"
+      >
+        <span>📞 Cuộc gọi</span>
+        <span className={`text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+      {open && (
+        <div className="mt-2 -mx-3">
+          <CRMCallLogTab
+            contactId={contactId}
+            contactName={contactName}
+            activeAccountId={activeAccountId}
+          />
+        </div>
+      )}
     </div>
   );
 }

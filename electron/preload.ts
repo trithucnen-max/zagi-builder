@@ -195,7 +195,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAllCachedPackSummaries: (params?: any) => ipcRenderer.invoke('db:getAllCachedPackSummaries', params || {}),
     getPinnedMessages: (params: any) => ipcRenderer.invoke('db:getPinnedMessages', params),
     getMessagesByType: (params: any) => ipcRenderer.invoke('db:getMessagesByType', params),
+    getCallLogsForContact: (params: any) => ipcRenderer.invoke('db:getCallLogsForContact', params),
+    getCallReport: (params: any) => ipcRenderer.invoke('db:getCallReport', params),
     pinMessage: (params: any) => ipcRenderer.invoke('db:pinMessage', params),
+
     unpinMessage: (params: any) => ipcRenderer.invoke('db:unpinMessage', params),
     bringPinnedToTop: (params: any) => ipcRenderer.invoke('db:bringPinnedToTop', params),
     getLocalQuickMessages: (params: any) => ipcRenderer.invoke('db:getLocalQuickMessages', params),

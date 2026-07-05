@@ -2336,6 +2336,11 @@ function formatLastMessage(msg: string | undefined): string {
     }
     // File with title — only when msgType is file OR content has file-specific fields
     if (mt.includes('file') || mt === 'share.file') return p?.title ? `📂 ${p.title}` : '📂 [File]';
+    // Location
+    if (mt === 'chat.location.new') {
+      const desc = p?.description || '';
+      return desc ? `📍 ${desc}` : '📍 [Vị trí]';
+    }
     // Parse params for further checks
     const par = (() => { try { return typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {}); } catch { return {}; } })();
     // File heuristic: title + file-specific fields

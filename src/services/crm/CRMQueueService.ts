@@ -480,11 +480,27 @@ class CRMQueueService {
                         } else if (action === 'invite_to_groups' && mixedGroupIds.length > 0) {
                             const req = { type: 'inviteUserToGroups', userId: effectiveContactId, groupIds: mixedGroupIds };
                             const resp = await (conn.api as any).inviteUserToGroups(effectiveContactId, mixedGroupIds);
+                            let errorMsg: string | undefined = undefined;
+                            if (resp && resp.grid_message_map) {
+                                const errors: string[] = [];
+                                for (const gId of Object.keys(resp.grid_message_map)) {
+                                    const info = resp.grid_message_map[gId];
+                                    if (info && info.error_code !== 0) {
+                                        errors.push(`${gId}: ${info.error_message || `Lỗi ${info.error_code}`}`);
+                                    }
+                                }
+                                if (errors.length > 0) {
+                                    errorMsg = errors.join('; ');
+                                }
+                            }
+                            const finalStatus = errorMsg ? 'failed' : 'sent';
+                            if (errorMsg) anyFailed = true;
                             db.saveSendLog({ ...logBase,
                                 message: `[Hỗn hợp/Mời nhóm] Mời vào ${mixedGroupIds.length} nhóm: ${mixedGroupIds.join(', ')}`,
-                                status: 'sent', send_type: 'invite_to_group',
+                                status: finalStatus, send_type: 'invite_to_group',
+                                error: errorMsg || '',
                                 data_request: JSON.stringify(req), data_response: JSON.stringify(resp) });
-                            Logger.log(`[CRMQueue] Mixed/invite_to_groups ✅ → ${effectiveContactId} into ${mixedGroupIds.length} groups`);
+                            Logger.log(`[CRMQueue] Mixed/invite_to_groups ${errorMsg ? '❌' : '✅'} → ${effectiveContactId} into ${mixedGroupIds.length} groups`);
                         }
                     } catch (actionErr: any) {
                         const errCode = Number(actionErr?.errorCode ?? actionErr?.code ?? actionErr?.error_code ?? -1);
@@ -541,12 +557,27 @@ class CRMQueueService {
                 if (groupIds.length === 0) throw new Error('Không có nhóm nào được chỉ định trong chiến dịch');
                 const req = { type: 'inviteUserToGroups', userId: effectiveContactId, groupIds };
                 const resp = await (conn.api as any).inviteUserToGroups(effectiveContactId, groupIds);
-                db.updateCampaignContactStatus(item.id!, 'sent');
+                let errorMsg: string | undefined = undefined;
+                if (resp && resp.grid_message_map) {
+                    const errors: string[] = [];
+                    for (const gId of Object.keys(resp.grid_message_map)) {
+                        const info = resp.grid_message_map[gId];
+                        if (info && info.error_code !== 0) {
+                            errors.push(`${gId}: ${info.error_message || `Lỗi ${info.error_code}`}`);
+                        }
+                    }
+                    if (errors.length > 0) {
+                        errorMsg = errors.join('; ');
+                    }
+                }
+                const finalStatus = errorMsg ? 'failed' : 'sent';
+                db.updateCampaignContactStatus(item.id!, finalStatus, errorMsg);
                 db.saveSendLog({ ...logBase,
                     message: `[Mời nhóm] Mời vào ${groupIds.length} nhóm: ${groupIds.join(', ')}`,
-                    status: 'sent', send_type: 'invite_to_group',
+                    status: finalStatus, send_type: 'invite_to_group',
+                    error: errorMsg || '',
                     data_request: JSON.stringify(req), data_response: JSON.stringify(resp) });
-                Logger.log(`[CRMQueue] Invite ✅ → ${effectiveContactId} into ${groupIds.length} groups`);
+                Logger.log(`[CRMQueue] Invite ${errorMsg ? '❌' : '✅'} → ${effectiveContactId} into ${groupIds.length} groups`);
 
             } else {
                 // ── Tin nhắn only (default) ───────────────────────────────────────

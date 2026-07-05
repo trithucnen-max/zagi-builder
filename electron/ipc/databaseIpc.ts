@@ -702,7 +702,28 @@ export function registerDatabaseIpc() {
         }
     });
 
+    // ─── Call Log ─────────────────────────────────────────────────────────────
+
+    ipcMain.handle('db:getCallLogsForContact', async (_event, { zaloId, threadId, limit = 300 }: { zaloId: string; threadId: string; limit?: number }) => {
+        try {
+            const logs = DatabaseService.getInstance().getCallLogsForContact(zaloId, threadId, limit);
+            return { success: true, logs };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:getCallReport', async (_event, { zaloId, fromTs, toTs }: { zaloId: string; fromTs: number; toTs: number }) => {
+        try {
+            const report = DatabaseService.getInstance().getCallReport(zaloId, fromTs, toTs);
+            return { success: true, ...report };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
     // ─── Pinned Messages ──────────────────────────────────────────────────────
+
 
     ipcMain.handle('db:getPinnedMessages', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
         try {

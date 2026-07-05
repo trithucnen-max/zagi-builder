@@ -5,8 +5,11 @@ import {
 } from 'recharts';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
+import { useEmployeeStore } from '@/store/employeeStore';
 import AccountSelectorDropdown from '@/components/common/AccountSelectorDropdown';
 import EmployeeAnalyticsTab from './EmployeeAnalyticsTab';
+import CallAnalyticsTab from './CallAnalyticsTab';
+
 import AppIcon, { IconType } from '@/components/common/AppIcon';
 import ipc from '@/lib/ipc';
 
@@ -207,7 +210,7 @@ function SkeletonChart() {
 }
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
-type TabId = 'overview' | 'messages' | 'contacts' | 'labels' | 'campaigns' | 'workflow' | 'ai' | 'employees';
+type TabId = 'overview' | 'messages' | 'contacts' | 'labels' | 'campaigns' | 'workflow' | 'ai' | 'employees' | 'calls';
 const TABS: { id: TabId; icon: IconType; label: string }[] = [
   { id: 'overview', icon: 'overview', label: 'Tổng quan' },
   { id: 'messages', icon: 'messages', label: 'Tin nhắn' },
@@ -217,6 +220,7 @@ const TABS: { id: TabId; icon: IconType; label: string }[] = [
   { id: 'campaigns',icon: 'campaigns',label: 'Chiến dịch' },
   { id: 'workflow', icon: 'workflow',  label: 'Workflow' },
   { id: 'ai',       icon: 'ai',       label: 'AI' },
+  { id: 'calls',    icon: 'chart',    label: 'Cuộc gọi' },
 ];
 
 type TimePeriod = 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'custom';
@@ -315,6 +319,18 @@ const GUIDE_CONTENT: Record<TabId, { title: string; sections: Array<{ heading: s
       { heading: '🔍 Bộ lọc', content: 'Chọn từng nhân viên để xem chi tiết riêng hoặc "Tất cả" để so sánh toàn team. Kết hợp với bộ lọc thời gian ở header.' },
     ],
   },
+  calls: {
+    title: '📞 Hướng dẫn — Báo cáo Cuộc gọi',
+    sections: [
+      { heading: 'Tổng cuộc gọi', content: 'Tổng số cuộc gọi trong khoảng thời gian. Phân loại: Gọi đi (nhân viên chủ động gọi) và Gọi đến (khách gọi vào).' },
+      { heading: 'Tổng thời gian', content: 'Tổng thời lượng các cuộc gọi đã trả lời (không tính cuộc gọi nhỡ). Bao gồm thời gian trung bình mỗi cuộc.' },
+      { heading: 'Cuộc gọi nhỡ', content: 'Cuộc gọi không được bắt (action = recommened.misscall hoặc duration = 0). Tỷ lệ % so với tổng.' },
+      { heading: 'Khách gọi lại', content: 'Số khách hàng đã chủ động gọi vào ít nhất 1 lần và được trả lời. Dấu hiệu khách có quan tâm.' },
+      { heading: '📈 Biểu đồ theo ngày', content: 'Biểu đồ cột hiển thị số cuộc Gọi đi / Gọi đến / Nhỡ theo từng ngày. Nhận diện xấu nhất (ngày như cuộc gọi giảm).' },
+      { heading: '📋 Top khách hàng', content: 'Danh sách khách được gọi nhiều nhất. Badge "Gọi lại" = khách có gọi vào chủ động.' },
+      { heading: 'Tài khoản Zalo', content: 'Nhân viên chỉ xem được tài khoản của mình. Boss xem được tất cả nhân viên.' },
+    ],
+  },
 };
 
 function GuideModal({ activeTab, onClose }: { activeTab: TabId; onClose: () => void }) {
@@ -356,6 +372,10 @@ function GuideModal({ activeTab, onClose }: { activeTab: TabId; onClose: () => v
 export default function AnalyticsPage() {
   const { accounts, activeAccountId } = useAccountStore();
   const { analyticsInitialTab, setAnalyticsInitialTab } = useAppStore();
+  const empMode = useEmployeeStore(s => s.mode);
+  const assignedAccounts = useEmployeeStore(s => s.assignedAccounts);
+  const isBoss = empMode !== 'employee';
+
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>(activeAccountId || '');
   const [activeTab, setActiveTab] = useState<TabId>(() => {
@@ -640,6 +660,15 @@ export default function AnalyticsPage() {
       )}
       {activeTab === 'employees' && (
         <EmployeeAnalyticsTab sinceTs={from} untilTs={to} periodDays={periodDays} />
+      )}
+      {activeTab === 'calls' && (
+        <CallAnalyticsTab
+          sinceTs={from}
+          untilTs={to}
+          periodDays={periodDays}
+          isBoss={isBoss}
+          assignedAccounts={assignedAccounts}
+        />
       )}
     </div>
   );

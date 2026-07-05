@@ -836,7 +836,8 @@ export default class ZaloService {
         }
 
         try {
-            return await this.api.addUserToGroup(memberId, groupId);
+            const cleanGroupId = groupId.startsWith('g') ? groupId : `g${groupId}`;
+            return await this.api.addUserToGroup(memberId, cleanGroupId);
         } catch (error) {
             throw error;
         }
@@ -1855,7 +1856,8 @@ export default class ZaloService {
 
     public async inviteUserToGroups(userId: string, groupIds: string[]): Promise<any> {
         if (!this.api) throw new Error("API not initialized");
-        try { return await (this.api as any).inviteUserToGroups(userId, groupIds); } catch (error) { throw error; }
+        const cleanGroupIds = groupIds.map(g => g.startsWith('g') ? g : `g${g}`);
+        try { return await (this.api as any).inviteUserToGroups(userId, cleanGroupIds); } catch (error) { throw error; }
     }
 
     public async addUnreadMark(threadId: string, type?: ThreadType): Promise<AddUnreadMarkResponse> {

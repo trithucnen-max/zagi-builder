@@ -4,9 +4,14 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
-## [v27.2.4] - 2026-07-04
+## [v27.2.4] - 2026-07-06
 
 ### Thay đổi & Tính năng mới
+
+- **Thống kê & Báo cáo Cuộc gọi CRM Zalo (CRM Call Analytics & Logs):**
+  - **Tab "Cuộc gọi" tại chi tiết liên hệ:** Bổ sung tab collapsible hiển thị thống kê 6 chỉ số (Tổng cuộc gọi, Tổng thời lượng đàm thoại, Số cuộc gọi nhỡ, Gọi đi, Gọi đến, Khách gọi lại) và danh sách chi tiết lịch sử cuộc gọi với từng khách hàng kèm tính năng **Xuất CSV**.
+  - **Thống kê tổng hợp tại Báo cáo & Phân tích:** Bổ sung tab **Cuộc gọi** vào trang phân tích chung của Zagi, hỗ trợ vẽ biểu đồ xu hướng theo ngày bằng BarChart, danh sách top khách hàng gọi nhiều nhất, và xếp hạng theo nhân viên.
+  - **Phân quyền bảo mật:** Tự động lọc tài khoản Zalo theo phân quyền gán cho nhân viên (`assignedAccounts`) từ `useEmployeeStore`. Nhân viên chỉ xem được báo cáo cuộc gọi của mình, Boss xem được toàn bộ hệ thống.
 
 - **Hệ thống Icon SVG đơn giản cho Dự án ERP (Project SVG Icon System):**
   - Thay thế hoàn toàn bộ chọn emoji cũ (`📁`, `🚀`, `🎯`...) trong hộp thoại **Tạo project mới** bằng bộ **12 icon SVG tối giản** lấy cảm hứng từ Lucide Icons: `folder`, `rocket`, `target`, `code`, `palette`, `chart`, `home`, `fire`, `bulb`, `sparkles`, `phone`, `bag`.
@@ -25,6 +30,12 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Thêm nút **Sao chép mã lỗi** để dễ dàng copy stack trace gửi hỗ trợ.
 
 ### Sửa lỗi & Phòng ngừa (Bug Fixes & Prevention)
+
+- **Sửa lỗi crash khi chọn liên hệ cho chiến dịch (Target Selection Type Fix):**
+  - Khắc phục lỗi `TypeError: n.startsWith is not a function` khi chọn liên hệ gửi chiến dịch hoặc đồng bộ nhãn Zalo. Nguyên nhân do một số liên hệ có ID dạng số (`number`) khi được lấy từ Zalo API hoặc SQLite DB, khiến hàm xử lý chuỗi bị lỗi. Đã bổ sung ép kiểu chuỗi bằng `String()` trước khi gọi các hàm xử lý `.startsWith` và `.includes` trong [TargetSelector.tsx](file:///Users/kimtrungduong/Downloads/deplao/src/ui/components/crm/campaigns/TargetSelector.tsx), [CRMPage.tsx](file:///Users/kimtrungduong/Downloads/deplao/src/ui/components/crm/CRMPage.tsx), và [labelUtils.ts](file:///Users/kimtrungduong/Downloads/deplao/src/ui/lib/labelUtils.ts).
+
+- **Sửa lỗi hiển thị vị trí Zalo (Location Message display):**
+  - Khắc phục lỗi hiển thị tin nhắn vị trí `chat.location.new` dưới dạng `[Đính kèm]`. Bây giờ hiển thị đúng icon `📍 [Vị trí]` hoặc tên địa điểm cụ thể trong cuộc hội thoại và danh sách tin nhắn.
 
 - **Sửa lỗi màn hình trắng khi vào ERP Tasks (`useMemo is not defined`):**
   - Bổ sung import thiếu `useMemo` từ `'react'` trong [TaskBoardPage.tsx](file:///Users/kimtrungduong/Downloads/deplao/src/ui/features/erp/tasks/TaskBoardPage.tsx).

@@ -189,7 +189,7 @@ export default function CRMPage() {
     const selectedZaloLabelContactIds = store.filterLabelIds.length > 0
       ? store.filterLabelIds.flatMap(labelId => {
           const conversations = zaloLabels.find(l => l.id === labelId)?.conversations || [];
-          return conversations.map(cId => cId.startsWith('g') ? cId.slice(1) : cId);
+          return conversations.map(cId => String(cId).startsWith('g') ? String(cId).slice(1) : String(cId));
         })
       : undefined;
 
