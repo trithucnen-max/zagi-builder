@@ -631,6 +631,9 @@ export default function CampaignCreateModal({
   const [newLabelColor, setNewLabelColor] = useState(initAutoLabel.color || '#f97316');
   const [newLabelEmoji, setNewLabelEmoji] = useState(initAutoLabel.emoji || '🎯');
   const [isCreatingNewLabel, setIsCreatingNewLabel] = useState(!initAutoLabel.id && !!initAutoLabel.name);
+  const [showLabelSelectorPopup, setShowLabelSelectorPopup] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [localLabelsList, setLocalLabelsList] = useState<any[]>([]);
 
   useEffect(() => {
@@ -640,6 +643,37 @@ export default function CampaignCreateModal({
       setLocalLabelsList(activeLabels);
     }).catch(() => {});
   }, [zaloId]);
+
+  const handleCreateNewLabelInPopup = async () => {
+    if (!newLabelName.trim() || !zaloId) return;
+    try {
+      const res = await (ipc.db?.upsertLocalLabel as any)?.({
+        label: {
+          name: newLabelName.trim(),
+          color: newLabelColor,
+          emoji: newLabelEmoji,
+          pageIds: zaloId,
+          isActive: 1,
+          sortOrder: 0
+        }
+      });
+      if (res?.success) {
+        const labelsRes = await ipc.db?.getLocalLabels({ zaloId });
+        const activeLabels = (labelsRes?.labels || []).filter((l: any) => (l.is_active ?? 1) !== 0);
+        setLocalLabelsList(activeLabels);
+        
+        // Auto select the new label
+        const newId = res.id;
+        if (newId) {
+          setSelectedLabelId(newId);
+          setIsCreatingNewLabel(false);
+        }
+        setNewLabelName('');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // AI for friend request
   const [aiGeneratingFR, setAiGeneratingFR] = useState(false);
@@ -1148,124 +1182,7 @@ Yiêu cầu quan trọng:
               )}
             </div>
 
-            {/* Auto-Label on Success */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <label className="flex items-center gap-2 cursor-pointer mb-2">
-                <div onClick={() => setAutoLabelEnabled(!autoLabelEnabled)}
-                  className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-                    autoLabelEnabled ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-500 hover:border-blue-400'
-                  }`}>
-                  {autoLabelEnabled && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                </div>
-                <span className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider">🏷️ Gắn nhãn tự động khi gửi thành công</span>
-              </label>
 
-              {autoLabelEnabled && (
-                <div className="space-y-3.5 pl-6 animate-fadeIn">
-                  {/* Mode: Select existing or Create new */}
-                  <div className="flex gap-4 items-center">
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input type="radio" name="autoLabelMode" checked={!isCreatingNewLabel} onChange={() => setIsCreatingNewLabel(false)}
-                        className="text-blue-500 focus:ring-0 bg-transparent w-3 h-3" />
-                      <span className="text-xs text-gray-700 dark:text-gray-300">Chọn nhãn có sẵn</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input type="radio" name="autoLabelMode" checked={isCreatingNewLabel} onChange={() => setIsCreatingNewLabel(true)}
-                        className="text-blue-500 focus:ring-0 bg-transparent w-3 h-3" />
-                      <span className="text-xs text-gray-700 dark:text-gray-300">Tạo nhãn mới</span>
-                    </label>
-                  </div>
-
-                  {/* Input rendering */}
-                  {isCreatingNewLabel ? (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-[10px] text-gray-650 dark:text-gray-400 block mb-1">Tên nhãn mới</label>
-                        <input
-                          type="text"
-                          value={newLabelName}
-                          onChange={e => setNewLabelName(e.target.value)}
-                          placeholder="Nhập tên nhãn cần tạo..."
-                          className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-650 dark:text-gray-400 block mb-1">Emoji đại diện</label>
-                        <div className="flex gap-1.5 flex-wrap">
-                          {['🎯', '🏷️', '📞', '🔄', '🔥', '⭐', '✅', '❌', '💎', '👤'].map(em => (
-                            <button
-                              key={em}
-                              type="button"
-                              onClick={() => setNewLabelEmoji(em)}
-                              className={`w-7 h-7 flex items-center justify-center rounded-lg text-sm border transition-all ${
-                                newLabelEmoji === em ? 'bg-blue-600 border-blue-500 text-white font-bold' : 'bg-gray-900/30 border-gray-700 text-gray-400 hover:border-gray-600'
-                              }`}
-                            >
-                              {em}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-650 dark:text-gray-400 block mb-1">Màu sắc nhãn</label>
-                        <div className="flex gap-1.5 flex-wrap">
-                          {[
-                            { bg: '#ef4444' }, // Red
-                            { bg: '#f97316' }, // Orange
-                            { bg: '#eab308' }, // Yellow
-                            { bg: '#22c55e' }, // Green
-                            { bg: '#06b6d4' }, // Cyan
-                            { bg: '#3b82f6' }, // Blue
-                            { bg: '#8b5cf6' }, // Purple
-                            { bg: '#ec4899' }, // Pink
-                            { bg: '#6b7280' }, // Gray
-                          ].map(c => (
-                            <button
-                              key={c.bg}
-                              type="button"
-                              onClick={() => setNewLabelColor(c.bg)}
-                              className={`w-7 h-7 rounded-lg border-2 transition-transform hover:scale-110 ${
-                                newLabelColor === c.bg ? 'border-white ring-2 ring-blue-500/50' : 'border-transparent'
-                              }`}
-                              style={{ backgroundColor: c.bg }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="text-[10px] text-gray-650 dark:text-gray-400 block mb-1">Chọn nhãn</label>
-                      {localLabelsList.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-                          {localLabelsList.map(label => {
-                            const isActive = Number(selectedLabelId) === label.id;
-                            return (
-                              <button
-                                key={label.id}
-                                type="button"
-                                onClick={() => setSelectedLabelId(label.id)}
-                                className={`text-[11px] px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
-                                  isActive ? 'border-transparent font-semibold' : 'border-gray-700 bg-gray-900/30 text-gray-400 hover:border-gray-650'
-                                }`}
-                                style={isActive
-                                  ? { backgroundColor: (label.color || '#3b82f6') + '28', color: label.text_color || label.color || '#3b82f6', border: `1px solid ${label.color || '#3b82f6'}55` }
-                                  : {}}
-                              >
-                                {label.emoji && <span>{label.emoji}</span>}
-                                <span>{label.name}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-500 py-1">Chưa có nhãn local nào. Hãy chọn Tạo nhãn mới.</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
 
             {/* Warning */}
             <div className="border border-yellow-500/20 rounded-lg p-2.5 mt-auto">
@@ -1513,6 +1430,74 @@ Yiêu cầu quan trọng:
 
           {/* ── RIGHT: Preview ── */}
           <div className="w-60 flex-shrink-0 p-4 overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-855">
+            {/* Auto label on success */}
+            <div className="mb-4 pb-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoLabelEnabled}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    setAutoLabelEnabled(val);
+                    if (val) {
+                      setShowLabelSelectorPopup(true);
+                    }
+                  }}
+                  className="w-3.5 h-3.5 rounded border border-gray-300 dark:border-gray-600 text-blue-650 focus:ring-0 focus:ring-offset-0 bg-transparent cursor-pointer"
+                />
+                <span className="text-[10px] font-bold text-gray-750 dark:text-gray-300 uppercase tracking-wider">🏷️ Gắn nhãn tự động</span>
+              </label>
+              {autoLabelEnabled && (
+                <div className="mt-2 pl-5">
+                  {selectedLabelId || newLabelName ? (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border"
+                      style={isCreatingNewLabel
+                        ? { backgroundColor: newLabelColor + '18', color: newLabelColor, border: `1px solid ${newLabelColor}44` }
+                        : (() => {
+                            const label = localLabelsList.find(l => l.id === Number(selectedLabelId));
+                            const color = label?.color || '#3b82f6';
+                            return { backgroundColor: color + '18', color: label?.text_color || color, border: `1px solid ${color}44` };
+                          })()
+                      }
+                    >
+                      {isCreatingNewLabel ? (
+                        <>
+                          <span>{newLabelEmoji}</span>
+                          <span className="truncate max-w-[90px]">{newLabelName} (Mới)</span>
+                        </>
+                      ) : (() => {
+                          const label = localLabelsList.find(l => l.id === Number(selectedLabelId));
+                          return (
+                            <>
+                              {label?.emoji && <span>{label.emoji}</span>}
+                              <span className="truncate max-w-[90px]">{label?.name || 'Nhãn đã chọn'}</span>
+                            </>
+                          );
+                      })()}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowLabelSelectorPopup(true);
+                        }}
+                        className="text-[9px] underline ml-1 hover:text-opacity-80 font-medium"
+                      >
+                        Sửa
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowLabelSelectorPopup(true)}
+                      className="text-[10px] text-blue-500 hover:text-blue-400 font-semibold underline"
+                    >
+                      Chọn nhãn áp dụng
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
             <LivePreview
               blocks={contentConfig.blocks}
               activeIdx={activeBlock}
@@ -1542,6 +1527,244 @@ Yiêu cầu quan trọng:
             {saving ? (editMode ? 'Đang lưu...' : 'Đang tạo...') : (editMode ? 'Lưu thay đổi' : 'Tạo chiến dịch')}
           </button>
         </div>
+
+        {/* ── Chọn nhãn Popup Modal (Hình 2) ── */}
+        {showLabelSelectorPopup && (() => {
+          const { accounts } = useAppStore.getState ? { accounts: [] } : { accounts: [] }; // Fallback lookup if not needed
+          // Let's resolve active account details
+          const accountDisplayName = zaloId || 'Tài khoản';
+          const accountAvatar = '';
+          return (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setShowLabelSelectorPopup(false)}>
+              <div
+                className="bg-[#f4f5f7] dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-[680px] shadow-2xl flex flex-col overflow-hidden text-gray-900 dark:text-gray-100"
+                style={{ height: '420px' }}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-850">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white text-base shadow-sm">
+                      🏷️
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-[14px]">Chọn nhãn</h4>
+                      <p className="text-[10px] text-gray-500">Có thể chọn nhiều nhãn</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowLabelSelectorPopup(false)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Body split */}
+                <div className="flex-1 min-h-0 flex overflow-hidden">
+                  {/* Left Sidebar */}
+                  <div className="w-44 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-gray-850 p-3 gap-1">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider px-2 mb-1.5 block">TÀI KHOẢN</span>
+                    
+                    {/* All item */}
+                    <button
+                      type="button"
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs bg-blue-500/10 text-blue-500 font-semibold border border-blue-500/10"
+                    >
+                      <div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center text-[10px]">
+                        📋
+                      </div>
+                      <div>
+                        <p className="font-semibold">Tất cả</p>
+                        <p className="text-[9px] text-blue-500/70">{localLabelsList.length} nhãn</p>
+                      </div>
+                    </button>
+
+                    {/* Account profile item */}
+                    <div className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs text-gray-600 dark:text-gray-400">
+                      <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
+                        {accountDisplayName.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="truncate flex-1">
+                        <p className="font-semibold truncate">{accountDisplayName}</p>
+                        <p className="text-[9px] text-gray-505 truncate">{localLabelsList.length} nhãn</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right content panel */}
+                  <div className="flex-1 min-h-0 flex flex-col bg-gray-50 dark:bg-gray-900">
+                    {/* Tabs header */}
+                    <div className="flex border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-850 px-4 flex-shrink-0">
+                      <button
+                        type="button"
+                        className="px-4 py-2.5 text-xs font-semibold text-teal-600 dark:text-teal-400 border-b-2 border-teal-500 flex items-center gap-1.5"
+                      >
+                        💾 Nhãn Local <span className="bg-teal-500/15 text-teal-500 text-[10px] px-1.5 py-0.5 rounded-full font-bold">{localLabelsList.length}</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled
+                        className="px-4 py-2.5 text-xs font-semibold text-gray-450 flex items-center gap-1.5 cursor-not-allowed opacity-40"
+                      >
+                        ☁️ Nhãn Zalo
+                      </button>
+                    </div>
+
+                    {/* Selector body */}
+                    <div className="flex-1 min-h-0 p-4 overflow-y-auto flex flex-col gap-3">
+                      
+                      {/* Create Form */}
+                      <div className="bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={newLabelName}
+                            onChange={e => setNewLabelName(e.target.value)}
+                            placeholder="Tên nhãn local mới..."
+                            className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-450 focus:outline-none focus:border-teal-500 transition-colors"
+                          />
+                          
+                          {/* Emoji Trigger */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowColorPicker(false); }}
+                              className="bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-700 dark:text-gray-350 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-1 min-w-[44px]"
+                            >
+                              <span>{newLabelEmoji}</span>
+                              <span className="text-[9px] text-gray-500">▼</span>
+                            </button>
+                            {showEmojiPicker && (
+                              <div className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2 shadow-2xl z-50 grid grid-cols-5 gap-1 w-44">
+                                {['🎯', '🏷️', '📞', '🔄', '🔥', '⭐', '✅', '❌', '💎', '👤'].map(em => (
+                                  <button
+                                    key={em}
+                                    type="button"
+                                    onClick={() => { setNewLabelEmoji(em); setShowEmojiPicker(false); }}
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"
+                                  >
+                                    {em}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Color Selector Square */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => { setShowColorPicker(!showColorPicker); setShowEmojiPicker(false); }}
+                              className="w-7 h-7 rounded-lg border border-gray-300 dark:border-gray-700 transition-transform hover:scale-105 flex-shrink-0"
+                              style={{ backgroundColor: newLabelColor }}
+                            />
+                            {showColorPicker && (
+                              <div className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2 shadow-2xl z-50 grid grid-cols-3 gap-1.5 w-32">
+                                {['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'].map(bg => (
+                                  <button
+                                    key={bg}
+                                    type="button"
+                                    onClick={() => { setNewLabelColor(bg); setShowColorPicker(false); }}
+                                    className={`w-7 h-7 rounded-lg border transition-transform hover:scale-110 ${newLabelColor === bg ? 'border-white ring-2 ring-blue-500/50' : 'border-transparent'}`}
+                                    style={{ backgroundColor: bg }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleCreateNewLabelInPopup();
+                            }}
+                            disabled={!newLabelName.trim()}
+                            className="px-3 py-1.5 bg-[#4f9e8a] hover:bg-[#3f8472] disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-colors flex-shrink-0"
+                          >
+                            Tạo mới
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Labels List */}
+                      <div className="flex flex-col gap-2">
+                        {localLabelsList.map(label => {
+                          const isActive = Number(selectedLabelId) === label.id;
+                          return (
+                            <div
+                              key={label.id}
+                              onClick={() => {
+                                setSelectedLabelId(label.id);
+                                setIsCreatingNewLabel(false);
+                              }}
+                              className={`border rounded-xl p-2.5 flex items-center justify-between cursor-pointer transition-colors bg-white dark:bg-gray-850 hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                                isActive ? 'border-blue-600/50 bg-blue-500/5 dark:bg-blue-500/5' : 'border-gray-200 dark:border-gray-800/80'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                {/* Checkbox radio look */}
+                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                                  isActive ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-650'
+                                }`}>
+                                  {isActive && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                </div>
+                                {/* Label badge */}
+                                <span
+                                  className="text-xs px-2.5 py-1 rounded-full border font-semibold flex items-center gap-1"
+                                  style={{ backgroundColor: (label.color || '#3b82f6') + '20', color: label.text_color || label.color || '#3b82f6', border: `1px solid ${label.color || '#3b82f6'}40` }}
+                                >
+                                  {label.emoji && <span>{label.emoji}</span>}
+                                  <span>{label.name}</span>
+                                </span>
+                              </div>
+                              {/* Profile Owner */}
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                <div className="w-4.5 h-4.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">
+                                  {accountDisplayName.slice(0, 1).toUpperCase()}
+                                </div>
+                                <span>{accountDisplayName}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-5 py-3.5 border-t border-gray-200 dark:border-gray-850 flex items-center justify-between flex-shrink-0 bg-[#f4f5f7] dark:bg-gray-850">
+                  <span className="text-[11px] text-gray-550">Chọn nhãn để áp dụng</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowLabelSelectorPopup(false)}
+                      className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-transparent transition-colors font-semibold"
+                    >
+                      Đóng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedLabelId) {
+                          setAutoLabelEnabled(true);
+                        }
+                        setShowLabelSelectorPopup(false);
+                      }}
+                      className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors"
+                    >
+                      Xác nhận
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
