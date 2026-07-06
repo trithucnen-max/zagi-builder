@@ -351,6 +351,12 @@ class CRMQueueService {
                 }
                 const imgs = (block.images || []).filter(Boolean);
                 if (imgs.length > 0) {
+                    // Zalo API: attachment gửi qua sendMessage chỉ hoạt động khi đã kết bạn.
+                    // Nếu campaign là friend_request, ảnh sẽ không gửi được.
+                    Logger.log(`[CRMQueue] Sending ${imgs.length} image(s) to ${threadId} (threadType=${threadType})`);
+                    for (const p of imgs) {
+                        if (!fs.existsSync(p)) Logger.warn(`[CRMQueue] ⚠️ Image not found on disk: ${p}`);
+                    }
                     await new Promise(r => setTimeout(r, 500));
                     const attachments: any[] = [];
                     for (const filePath of imgs) {

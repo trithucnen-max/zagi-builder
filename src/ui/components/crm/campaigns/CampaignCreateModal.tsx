@@ -67,7 +67,17 @@ function parseContentConfig(raw?: string): ContentConfig {
   if (!raw) return { mode: 'random', blocks: [{ id: genId(), text: '', images: [] }] };
   try {
     const p = JSON.parse(raw);
-    if (p?.blocks && Array.isArray(p.blocks)) return p as ContentConfig;
+    if (p?.blocks && Array.isArray(p.blocks)) {
+      // Sanitize: ensure every block.images is string[]
+      const sanitized = (p.blocks as any[]).map((b: any) => ({
+        id: String(b.id ?? genId()),
+        text: String(b.text ?? ''),
+        images: Array.isArray(b.images)
+          ? (b.images as any[]).filter((img): img is string => typeof img === 'string')
+          : [],
+      }));
+      return { mode: p.mode === 'all' ? 'all' : 'random', blocks: sanitized };
+    }
   } catch {}
   return { mode: 'random', blocks: [{ id: genId(), text: raw, images: [] }] };
 }
@@ -224,7 +234,7 @@ function LivePreview({
                     : block.images.length <= 4 ? 'grid-cols-2'
                     : 'grid-cols-3'
                   }`} style={{ maxWidth: '11.25rem' }}>
-                    {block.images.map((p, i) => (
+                    {block.images.filter(p => typeof p === 'string').map((p, i) => (
                       <div key={i} className="aspect-square overflow-hidden rounded">
                         <img src={toLocalMediaUrl(p)} alt="" className="w-full h-full object-cover"
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -529,7 +539,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
       <div className="flex-shrink-0">
         {block.images.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-2">
-            {block.images.map((p, i) => (
+            {block.images.filter(p => typeof p === 'string').map((p, i) => (
               <div key={i} className="relative group/img w-14 h-14 rounded-lg overflow-hidden border border-gray-350 dark:border-gray-700 flex-shrink-0">
                 <img src={toLocalMediaUrl(p)} alt="" className="w-full h-full object-cover"
                   onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3'; }} />

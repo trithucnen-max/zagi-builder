@@ -7,7 +7,7 @@
  *   // e.g. local-media:///D:/path/to/img.jpg
  */
 export function toLocalMediaUrl(filePath: string): string {
-  if (!filePath) return '';
+  if (!filePath || typeof filePath !== 'string') return '';
   // Already a proper URL → return as-is
   if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('local-media://')) {
     return filePath;

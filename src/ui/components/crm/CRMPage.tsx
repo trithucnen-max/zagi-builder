@@ -488,7 +488,14 @@ export default function CRMPage() {
   };
 
   const handleBulkTagLocal = () => {
-    setBulkLocalLabelIds([]);
+    // Pre-load the union of label IDs that the selected contacts already have
+    const selectedIds = Array.from(store.selectedContactIds);
+    const existingLabelIdSet = new Set<number>();
+    for (const contactId of selectedIds) {
+      const labelIds = localLabelThreadMap[contactId] || [];
+      labelIds.forEach(id => existingLabelIdSet.add(id));
+    }
+    setBulkLocalLabelIds(Array.from(existingLabelIdSet));
     setShowBulkLocalModal(true);
   };
 
@@ -553,19 +560,39 @@ export default function CRMPage() {
     setApplyingBulkLabel(false);
   };
 
-  /** Bulk-assign local labels to all selected contacts via DB */
+  /** Bulk-sync local labels for all selected contacts (add new, remove old, empty = clear all) */
   const handleApplyBulkLocalLabel = async () => {
-    if (!activeAccountId || bulkLocalLabelIds.length === 0) return;
+    if (!activeAccountId) return;
     setApplyingBulkLabel(true);
     try {
       const selectedContactIds = [...store.selectedContactIds];
-      for (const labelId of bulkLocalLabelIds) {
-        for (const contactId of selectedContactIds) {
-          await ipc.db?.assignLocalLabelToThread({ zaloId: activeAccountId, labelId, threadId: contactId });
+      const targetLabelIds = new Set(bulkLocalLabelIds);
+
+      for (const contactId of selectedContactIds) {
+        const currentLabelIds = new Set(localLabelThreadMap[contactId] || []);
+
+        // Remove labels that are no longer selected
+        for (const oldId of currentLabelIds) {
+          if (!targetLabelIds.has(oldId)) {
+            await ipc.db?.removeLocalLabelFromThread({ zaloId: activeAccountId, labelId: oldId, threadId: contactId });
+          }
+        }
+
+        // Add newly selected labels
+        for (const newId of targetLabelIds) {
+          if (!currentLabelIds.has(newId)) {
+            await ipc.db?.assignLocalLabelToThread({ zaloId: activeAccountId, labelId: newId, threadId: contactId });
+          }
         }
       }
-      // Note: Workflow events are emitted by backend (databaseIpc.ts) to avoid duplicates
-      showNotification(`Đã gán Nhãn Local cho ${selectedContactIds.length} liên hệ`, 'success');
+
+      const isClearing = bulkLocalLabelIds.length === 0;
+      showNotification(
+        isClearing
+          ? `Đã xóa toàn bộ Nhãn Local cho ${selectedContactIds.length} liên hệ`
+          : `Đã cập nhật Nhãn Local cho ${selectedContactIds.length} liên hệ`,
+        'success'
+      );
       setShowBulkLocalModal(false);
       setBulkLocalLabelIds([]);
       store.clearSelection();
@@ -1038,13 +1065,13 @@ export default function CRMPage() {
         ) : null;
       })()}
 
-      {/* Bulk local label modal (multi-select) */}
+      {/* Bulk local label modal (multi-select, supports empty = clear all) */}
       {showBulkLocalModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
           onClick={() => setShowBulkLocalModal(false)}>
           <div className="bg-gray-800 border border-gray-600 rounded-2xl w-80 p-5 shadow-2xl"
             onClick={e => e.stopPropagation()}>
-            <h3 className="font-semibold text-white mb-1">💾 Gán Nhãn Local</h3>
+            <h3 className="font-semibold text-white mb-1">🏷️ Gán / Xóa Nhãn Local</h3>
             <p className="text-xs text-gray-400 mb-3">
               Áp dụng cho <span className="text-blue-400 font-medium">{store.selectedContactIds.size}</span> liên hệ đã chọn
               <span className="text-gray-500 ml-1">(chọn nhiều)</span>
@@ -1060,15 +1087,29 @@ export default function CRMPage() {
                 emptyText="Chưa có Nhãn Local nào"
               />
             )}
+            {bulkLocalLabelIds.length === 0 && localLabels.length > 0 && (
+              <p className="text-xs text-orange-400 mt-2 text-center">
+                ⚠️ Để trắng sẽ <strong>xóa toàn bộ nhãn</strong> của các liên hệ đã chọn
+              </p>
+            )}
             <div className="flex gap-2 mt-4">
               <button onClick={() => setShowBulkLocalModal(false)}
                 className="flex-1 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600">
                 Hủy
               </button>
               <button onClick={handleApplyBulkLocalLabel}
-                disabled={bulkLocalLabelIds.length === 0 || applyingBulkLabel}
-                className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-40">
-                {applyingBulkLabel ? 'Đang gán...' : 'Áp dụng'}
+                disabled={applyingBulkLabel}
+                className={`flex-1 py-2 rounded-xl text-white text-sm disabled:opacity-40 ${
+                  bulkLocalLabelIds.length === 0
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}>
+                {applyingBulkLabel
+                  ? 'Đang xử lý...'
+                  : bulkLocalLabelIds.length === 0
+                    ? 'Xóa tất cả nhãn'
+                    : 'Áp dụng'
+                }
               </button>
             </div>
           </div>
