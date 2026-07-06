@@ -954,7 +954,7 @@ class HttpRelayService {
      * Used when Employee's local file paths are invalid on Boss.
      */
     private handleMediaUpload(req: http.IncomingMessage, res: http.ServerResponse): void {
-        this.readBody(req, (body) => {
+        this.readBody(req, async (body) => {
             try {
                 const employee = this.authenticateRequest(req);
                 if (!employee) {
@@ -974,7 +974,7 @@ class HttpRelayService {
                 let bossPath: string;
                 if (zaloId) {
                     // Save to account media directory (media/zaloId/date/filename)
-                    bossPath = FileStorageService.saveBuffer(zaloId, buffer, filename);
+                    bossPath = await FileStorageService.saveBuffer(zaloId, buffer, filename);
                 } else {
                     // Fallback: save to a shared uploads directory
                     const dir = path.join(FileStorageService.getBaseDir(), '_uploads');

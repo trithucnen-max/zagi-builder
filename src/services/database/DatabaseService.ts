@@ -5539,10 +5539,9 @@ class DatabaseService {
         try {
             const sentAt = status === 'sent' ? Date.now() : 0;
             // First try matching contact_id directly
-            const result = this.run(
-                `UPDATE crm_campaign_contacts SET status=?, sent_at=CASE WHEN ?='sent' THEN ? ELSE sent_at END, error=? WHERE campaign_id=? AND contact_id=?`,
-                [status, status, sentAt, error || '', campaignId, contactId]
-            );
+            const result = db!.prepare(
+                `UPDATE crm_campaign_contacts SET status=?, sent_at=CASE WHEN ?='sent' THEN ? ELSE sent_at END, error=? WHERE campaign_id=? AND contact_id=?`
+            ).run(status, status, sentAt, error || '', campaignId, contactId);
             // If nothing updated, maybe it was a phone number that got resolved? Or check if there's a matching phone
             if (result.changes === 0) {
                 this.run(
