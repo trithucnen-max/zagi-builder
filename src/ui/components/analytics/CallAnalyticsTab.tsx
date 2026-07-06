@@ -343,12 +343,12 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
                       );
                     }}
                     className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 font-medium ${
-                      isActive ? 'border-transparent shadow-sm' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
+                      isActive ? 'border-transparent text-white shadow-sm font-semibold' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                     style={
                       isActive
-                        ? { backgroundColor: baseColor + '20', color: label.text_color || baseColor, border: `1px solid ${baseColor}50` }
-                        : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' } // 8% opacity background, 10% border for unselected state to preserve visual branding identity
+                        ? { backgroundColor: baseColor, color: label.text_color || '#ffffff' }
+                        : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' }
                     }
                   >
                     {label.emoji && <span>{label.emoji}</span>}
@@ -378,11 +378,11 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
                       );
                     }}
                     className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 font-medium ${
-                      isActive ? 'border-transparent shadow-sm' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
+                      isActive ? 'border-transparent text-white shadow-sm font-semibold' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                     style={
                       isActive
-                        ? { backgroundColor: baseColor + '20', color: baseColor, border: `1px solid ${baseColor}50` }
+                        ? { backgroundColor: baseColor, color: label.textColor || label.text_color || '#ffffff' }
                         : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' }
                     }
                   >
