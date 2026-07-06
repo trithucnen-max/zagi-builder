@@ -4692,7 +4692,7 @@ class DatabaseService {
     public getCallLogsForContact(ownerZaloId: string, threadId: string, limit: number = 300): any[] {
         if (!this.initialized) return [];
         const rows = this.query<any>(
-            `SELECT msg_id, timestamp, is_self, content, msg_type
+            `SELECT msg_id, timestamp, (sender_id = owner_zalo_id) as is_self, content, msg_type
              FROM messages
              WHERE owner_zalo_id=? AND thread_id=? AND is_recalled=0
                AND (
@@ -4735,7 +4735,7 @@ class DatabaseService {
         if (!this.initialized) return { byContact: [], byDay: [], totals: { total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 } };
 
         const rows = this.query<any>(
-            `SELECT msg_id, thread_id, timestamp, is_self, content
+            `SELECT msg_id, thread_id, timestamp, (sender_id = owner_zalo_id) as is_self, content
              FROM messages
              WHERE owner_zalo_id=? AND timestamp BETWEEN ? AND ? AND is_recalled=0
                AND (content LIKE '%recommened.calltime%' OR content LIKE '%recommened.misscall%')
