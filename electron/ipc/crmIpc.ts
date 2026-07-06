@@ -361,22 +361,42 @@ export function registerCRMIpc(): void {
 
     // ─── Send Log ──────────────────────────────────────────────────────────
     ipcMain.handle('crm:getSendLog', async (_e, { zaloId, opts }: { zaloId: string; opts?: any }) => {
-        try { return { success: true, logs: DatabaseService.getInstance().getSendLog(zaloId, opts || {}) }; }
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:getSendLog', { zaloId, opts });
+            }
+            return { success: true, logs: DatabaseService.getInstance().getSendLog(zaloId, opts || {}) };
+        }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
     ipcMain.handle('crm:getCampaignStats', async (_e, { zaloId, limit }: { zaloId: string; limit?: number }) => {
-        try { return { success: true, stats: DatabaseService.getInstance().getTopCampaignStats(zaloId, limit || 10) }; }
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:getCampaignStats', { zaloId, limit });
+            }
+            return { success: true, stats: DatabaseService.getInstance().getTopCampaignStats(zaloId, limit || 10) };
+        }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
     ipcMain.handle('crm:getCampaignSafetyStats', async (_e, { zaloId }: { zaloId?: string }) => {
-        try { return { success: true, data: DatabaseService.getInstance().getCampaignSafetyStats(zaloId) }; }
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:getCampaignSafetyStats', { zaloId });
+            }
+            return { success: true, data: DatabaseService.getInstance().getCampaignSafetyStats(zaloId) };
+        }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
     ipcMain.handle('crm:getActivityStats', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs?: number }) => {
-        try { return { success: true, ...DatabaseService.getInstance().getActivityStats(zaloId, sinceTs, untilTs) }; }
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:getActivityStats', { zaloId, sinceTs, untilTs });
+            }
+            return { success: true, ...DatabaseService.getInstance().getActivityStats(zaloId, sinceTs, untilTs) };
+        }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
