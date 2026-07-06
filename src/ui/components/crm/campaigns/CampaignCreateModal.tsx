@@ -621,13 +621,15 @@ export default function CampaignCreateModal({
       const cfg = JSON.parse(initialData?.mixed_config || '{}');
       if (cfg.auto_label) return cfg.auto_label;
     } catch {}
-    return { enabled: false, type: 'local', id: '', name: '' };
+    return { enabled: false, type: 'local', id: '', name: '', color: '#f97316', emoji: '🎯' };
   };
   const initAutoLabel = getInitialAutoLabel();
   const [autoLabelEnabled, setAutoLabelEnabled] = useState(initAutoLabel.enabled);
-  const [autoLabelType, setAutoLabelType] = useState<'local' | 'zalo'>(initAutoLabel.type ?? 'local');
+  const [autoLabelType, setAutoLabelType] = useState<'local' | 'zalo'>('local');
   const [selectedLabelId, setSelectedLabelId] = useState<string | number>(initAutoLabel.id ?? '');
   const [newLabelName, setNewLabelName] = useState(initAutoLabel.name ?? '');
+  const [newLabelColor, setNewLabelColor] = useState(initAutoLabel.color || '#f97316');
+  const [newLabelEmoji, setNewLabelEmoji] = useState(initAutoLabel.emoji || '🎯');
   const [isCreatingNewLabel, setIsCreatingNewLabel] = useState(!initAutoLabel.id && !!initAutoLabel.name);
   const [localLabelsList, setLocalLabelsList] = useState<any[]>([]);
 
@@ -638,9 +640,6 @@ export default function CampaignCreateModal({
       setLocalLabelsList(activeLabels);
     }).catch(() => {});
   }, [zaloId]);
-
-  const appLabels = useAppStore(s => s.labels);
-  const zaloLabelsList = zaloId ? (appLabels[zaloId] || []) : [];
 
   // AI for friend request
   const [aiGeneratingFR, setAiGeneratingFR] = useState(false);
@@ -768,9 +767,12 @@ Yiêu cầu quan trọng:
     if (autoLabelEnabled) {
       cfg.auto_label = {
         enabled: true,
-        type: autoLabelType,
-        id: isCreatingNewLabel ? undefined : selectedLabelId ? (autoLabelType === 'local' ? Number(selectedLabelId) : String(selectedLabelId)) : undefined,
+        type: 'local',
+        id: isCreatingNewLabel ? undefined : selectedLabelId ? Number(selectedLabelId) : undefined,
         name: isCreatingNewLabel ? newLabelName.trim() : undefined,
+        color: isCreatingNewLabel ? newLabelColor : undefined,
+        emoji: isCreatingNewLabel ? newLabelEmoji : undefined,
+        textColor: '#FFFFFF',
       };
     }
     return JSON.stringify(cfg);
@@ -877,22 +879,25 @@ Yiêu cầu quan trọng:
         onClick={e => e.stopPropagation()}
       >
         {/* ── Topbar ── */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-850">
-          <div>
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 text-[15px] flex items-center gap-1.5">
-              {editMode ? (
-                <>
-                  <AppIcon name="edit" className="text-blue-500" size={14} />
-                  <span>Chỉnh sửa chiến dịch</span>
-                </>
-              ) : (
-                <>
-                  <AppIcon name="rocket" className="text-blue-500" size={14} />
-                  <span>Tạo chiến dịch mới</span>
-                </>
-              )}
-            </h3>
-            <p className="text-[11px] text-gray-500 mt-0.5">Cấu hình nội dung và phương thức gửi</p>
+        <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-850">
+          <div className="flex items-center gap-4 flex-1">
+            {/* Campaign Name Input */}
+            <div className="flex items-center gap-2 flex-1 max-w-[360px]">
+              <span className="text-xs font-bold text-gray-700 dark:text-gray-300 flex-shrink-0">
+                {editMode ? 'Chỉnh sửa tên:' : 'Tên chiến dịch:'}
+              </span>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Nhập tên chiến dịch..."
+                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+              />
+            </div>
+            {/* Small Warning Text */}
+            <span className="text-[11px] text-amber-600 dark:text-amber-500 font-medium truncate hidden md:inline-block">
+              ⚠️ Tránh gửi link/spam cho người lạ để hạn chế bị khóa tài khoản.
+            </span>
           </div>
           <button onClick={onClose}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-750 transition-colors">
@@ -907,13 +912,6 @@ Yiêu cầu quan trọng:
 
           {/* ── LEFT: Settings ── */}
           <div className="w-52 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto p-4 gap-5 bg-gray-50 dark:bg-gray-850">
-            {/* Campaign name */}
-            <div>
-              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Tên chiến dịch *</label>
-              <input value={name} onChange={e => setName(e.target.value)}
-                placeholder="Nhập tên..."
-                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-2 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors" />
-            </div>
 
             {/* Type */}
             <div>
@@ -1086,20 +1084,10 @@ Yiêu cầu quan trọng:
                   />
                   <span className="text-[10px] text-gray-500 flex-shrink-0">liên hệ</span>
                 </div>
-                <div>
-                  <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Giờ bắt đầu chạy</label>
-                  <input
-                    type="time"
-                    value={dailyStartTime}
-                    onChange={e => setDailyStartTime(e.target.value || '08:00')}
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-2 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                  <p className="text-[10px] text-gray-600 mt-0.5">Nếu giờ này đã qua hôm nay, chiến dịch chạy ngay</p>
-                </div>
               </div>
               <p className="text-[10px] text-gray-600 mt-1">
                 {dailyLimit > 0
-                  ? `Gửi tối đa ${dailyLimit}/ngày từ ${dailyStartTime}`
+                  ? `Gửi tối đa ${dailyLimit}/ngày`
                   : 'Gửi không giới hạn (theo token bucket)'}
               </p>
               {isStrangerTarget && (
@@ -1173,27 +1161,7 @@ Yiêu cầu quan trọng:
               </label>
 
               {autoLabelEnabled && (
-                <div className="space-y-3 pl-6 animate-fadeIn">
-                  {/* Label Type */}
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => { setAutoLabelType('local'); setSelectedLabelId(''); }}
-                      className={`text-[10px] px-2.5 py-1 rounded-md border font-medium transition-colors ${
-                        autoLabelType === 'local'
-                          ? 'bg-blue-500/10 border-blue-500/50 text-blue-400'
-                          : 'border-gray-200 dark:border-gray-750 text-gray-500 hover:text-gray-300'
-                      }`}>
-                      Nhãn Local
-                    </button>
-                    <button type="button" onClick={() => { setAutoLabelType('zalo'); setSelectedLabelId(''); }}
-                      className={`text-[10px] px-2.5 py-1 rounded-md border font-medium transition-colors ${
-                        autoLabelType === 'zalo'
-                          ? 'bg-blue-500/10 border-blue-500/50 text-blue-400'
-                          : 'border-gray-200 dark:border-gray-750 text-gray-500 hover:text-gray-300'
-                      }`}>
-                      Nhãn Zalo
-                    </button>
-                  </div>
-
+                <div className="space-y-3.5 pl-6 animate-fadeIn">
                   {/* Mode: Select existing or Create new */}
                   <div className="flex gap-4 items-center">
                     <label className="flex items-center gap-1.5 cursor-pointer">
@@ -1210,34 +1178,89 @@ Yiêu cầu quan trọng:
 
                   {/* Input rendering */}
                   {isCreatingNewLabel ? (
-                    <div>
-                      <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Tên nhãn mới</label>
-                      <input
-                        type="text"
-                        value={newLabelName}
-                        onChange={e => setNewLabelName(e.target.value)}
-                        placeholder="Nhập tên nhãn cần tạo..."
-                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
-                      />
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[10px] text-gray-650 dark:text-gray-400 block mb-1">Tên nhãn mới</label>
+                        <input
+                          type="text"
+                          value={newLabelName}
+                          onChange={e => setNewLabelName(e.target.value)}
+                          placeholder="Nhập tên nhãn cần tạo..."
+                          className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-650 dark:text-gray-400 block mb-1">Emoji đại diện</label>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {['🎯', '🏷️', '📞', '🔄', '🔥', '⭐', '✅', '❌', '💎', '👤'].map(em => (
+                            <button
+                              key={em}
+                              type="button"
+                              onClick={() => setNewLabelEmoji(em)}
+                              className={`w-7 h-7 flex items-center justify-center rounded-lg text-sm border transition-all ${
+                                newLabelEmoji === em ? 'bg-blue-600 border-blue-500 text-white font-bold' : 'bg-gray-900/30 border-gray-700 text-gray-400 hover:border-gray-600'
+                              }`}
+                            >
+                              {em}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-650 dark:text-gray-400 block mb-1">Màu sắc nhãn</label>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {[
+                            { bg: '#ef4444' }, // Red
+                            { bg: '#f97316' }, // Orange
+                            { bg: '#eab308' }, // Yellow
+                            { bg: '#22c55e' }, // Green
+                            { bg: '#06b6d4' }, // Cyan
+                            { bg: '#3b82f6' }, // Blue
+                            { bg: '#8b5cf6' }, // Purple
+                            { bg: '#ec4899' }, // Pink
+                            { bg: '#6b7280' }, // Gray
+                          ].map(c => (
+                            <button
+                              key={c.bg}
+                              type="button"
+                              onClick={() => setNewLabelColor(c.bg)}
+                              className={`w-7 h-7 rounded-lg border-2 transition-transform hover:scale-110 ${
+                                newLabelColor === c.bg ? 'border-white ring-2 ring-blue-500/50' : 'border-transparent'
+                              }`}
+                              style={{ backgroundColor: c.bg }}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div>
-                      <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Chọn nhãn</label>
-                      <select
-                        value={selectedLabelId}
-                        onChange={e => setSelectedLabelId(e.target.value)}
-                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
-                      >
-                        <option value="">-- Chọn nhãn --</option>
-                        {autoLabelType === 'local'
-                          ? localLabelsList.map(l => (
-                              <option key={l.id} value={l.id}>{l.emoji ? `${l.emoji} ` : ''}{l.name}</option>
-                            ))
-                          : zaloLabelsList.map(l => (
-                              <option key={l.id} value={l.id}>{l.name}</option>
-                            ))
-                        }
-                      </select>
+                      <label className="text-[10px] text-gray-650 dark:text-gray-400 block mb-1">Chọn nhãn</label>
+                      {localLabelsList.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+                          {localLabelsList.map(label => {
+                            const isActive = Number(selectedLabelId) === label.id;
+                            return (
+                              <button
+                                key={label.id}
+                                type="button"
+                                onClick={() => setSelectedLabelId(label.id)}
+                                className={`text-[11px] px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
+                                  isActive ? 'border-transparent font-semibold' : 'border-gray-700 bg-gray-900/30 text-gray-400 hover:border-gray-650'
+                                }`}
+                                style={isActive
+                                  ? { backgroundColor: (label.color || '#3b82f6') + '28', color: label.text_color || label.color || '#3b82f6', border: `1px solid ${label.color || '#3b82f6'}55` }
+                                  : {}}
+                              >
+                                {label.emoji && <span>{label.emoji}</span>}
+                                <span>{label.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 py-1">Chưa có nhãn local nào. Hãy chọn Tạo nhãn mới.</p>
+                      )}
                     </div>
                   )}
                 </div>

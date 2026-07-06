@@ -621,9 +621,9 @@ class CRMQueueService {
                             try {
                                 labelId = db.upsertLocalLabel({
                                     name: autoLabel.name,
-                                    color: '#3b82f6',
-                                    textColor: '#FFFFFF',
-                                    emoji: '🏷️',
+                                    color: autoLabel.color || '#3b82f6',
+                                    textColor: autoLabel.textColor || '#FFFFFF',
+                                    emoji: autoLabel.emoji || '🏷️',
                                     pageIds: zaloId,
                                     isActive: 1,
                                     sortOrder: 0
