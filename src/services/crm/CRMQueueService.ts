@@ -341,11 +341,36 @@ class CRMQueueService {
                 blocksToSend = allBlocks;
             }
 
+            // ── Check if contact is a stranger (unfriended) ──
+            let isStranger = false;
+            if (!isGroup && effectiveContactId) {
+                try {
+                    const status = await (conn.api as any).getFriendRequestStatus(effectiveContactId);
+                    if (status && status.is_friend === false) {
+                        isStranger = true;
+                        Logger.log(`[CRMQueue] Target ${effectiveContactId} is confirmed to be a stranger.`);
+                    }
+                } catch (e: any) {
+                    Logger.warn(`[CRMQueue] getFriendRequestStatus failed for ${effectiveContactId}: ${e.message}`);
+                }
+            }
+
+            // Stranger optimization: restrict to sending only 1 block to fit 1-message stranger limit
+            if (isStranger && blocksToSend.length > 1) {
+                Logger.log(`[CRMQueue] Stranger target ${effectiveContactId} detected. Restricting to send only the first block to comply with Zalo stranger limit.`);
+                blocksToSend = [blocksToSend[0]];
+            }
+
             // Helper: send one block (text + images)
-            const sendBlock = async (block: ContentBlock, threadId: string, threadType: number): Promise<any[]> => {
+            const sendBlock = async (block: ContentBlock, threadId: string, threadType: number, isStrangerTarget: boolean): Promise<any[]> => {
                 const responses: any[] = [];
                 const text = substitute(block.text || '');
-                const imgs = (block.images || []).filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+                let imgs = (block.images || []).filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+
+                if (isStrangerTarget && imgs.length > 1) {
+                    Logger.log(`[CRMQueue] Stranger target ${threadId} detected. Sending only the first image with text caption to comply with Zalo stranger limit.`);
+                    imgs = [imgs[0]];
+                }
 
                 if (imgs.length > 0) {
                     Logger.log(`[CRMQueue] Sending ${imgs.length} image(s) with text to ${threadId} (threadType=${threadType})`);
@@ -414,7 +439,7 @@ class CRMQueueService {
             };
 
             // Helper: send multiple blocks with per-block error catching
-            const sendBlocks = async (blocks: ContentBlock[], threadId: string, threadType: number): Promise<{ sent: number; errors: string[]; responses: any[] }> => {
+            const sendBlocks = async (blocks: ContentBlock[], threadId: string, threadType: number, isStrangerTarget: boolean): Promise<{ sent: number; errors: string[]; responses: any[] }> => {
                 let sent = 0;
                 const errors: string[] = [];
                 const responses: any[] = [];
@@ -433,7 +458,7 @@ class CRMQueueService {
                         await new Promise(r => setTimeout(r, perContactDelayMs));
                     }
                     try {
-                        const resps = await sendBlock(blocks[bi], threadId, threadType);
+                        const resps = await sendBlock(blocks[bi], threadId, threadType, isStrangerTarget);
                         responses.push(...resps);
                         sent++;
                     } catch (blockErr: any) {
@@ -449,7 +474,7 @@ class CRMQueueService {
             if (isGroup) {
                 // ── Gửi vào nhóm ─────────────────────────────────────────────────
                 const threadType = 1;
-                const result = await sendBlocks(blocksToSend, effectiveContactId, threadType);
+                const result = await sendBlocks(blocksToSend, effectiveContactId, threadType, false);
                 const logMsg = sendMode === 'all'
                     ? `[Nhóm] ${result.sent}/${blocksToSend.length} nội dung: ${blocksToSend.map(describeBlock).join(' | ')}`
                     : `[Nhóm] ${message}`;
@@ -466,7 +491,7 @@ class CRMQueueService {
                     try {
                         if (action === 'message') {
                             const threadType = 0;
-                            const result = await sendBlocks(blocksToSend, effectiveContactId, threadType);
+                            const result = await sendBlocks(blocksToSend, effectiveContactId, threadType, isStranger);
                             const logMsg = sendMode === 'all'
                                 ? `[Hỗn hợp/Tin nhắn] ${result.sent}/${blocksToSend.length} nội dung: ${blocksToSend.map(describeBlock).join(' | ')}`
                                 : `[Hỗn hợp/Tin nhắn] ${message}`;
@@ -533,7 +558,7 @@ class CRMQueueService {
                 let actionLabel = 'message';
                 let mixedResp: any[] = [];
                 try {
-                    mixedResp = await sendBlock(blocksToSend[0] ?? { id: '', text: '', images: [] }, effectiveContactId, 0);
+                    mixedResp = await sendBlock(blocksToSend[0] ?? { id: '', text: '', images: [] }, effectiveContactId, 0, isStranger);
                 } catch (msgErr: any) {
                     if (isMixedFallbackError(msgErr)) {
                         Logger.log(`[CRMQueue] Mixed fallback → sendFriendRequest for ${effectiveContactId}`);
@@ -589,7 +614,7 @@ class CRMQueueService {
             } else {
                 // ── Tin nhắn only (default) ───────────────────────────────────────
                 const threadType = 0;
-                const result = await sendBlocks(blocksToSend, effectiveContactId, threadType);
+                const result = await sendBlocks(blocksToSend, effectiveContactId, threadType, isStranger);
                 const logMsg = sendMode === 'all'
                     ? `[${result.sent}/${blocksToSend.length} nội dung] ${blocksToSend.map(describeBlock).join(' | ')}`
                     : message;

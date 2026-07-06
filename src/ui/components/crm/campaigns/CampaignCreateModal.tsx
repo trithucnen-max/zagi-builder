@@ -459,7 +459,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
   const hasLink = /https?:\/\/[^\s]+/i.test(block.text);
 
   return (
-    <div className="flex flex-col gap-2 h-full min-h-0">
+    <div className="flex flex-col gap-2">
       {/* Variable chips & AI button */}
       <div className="flex items-center justify-between flex-shrink-0 flex-wrap gap-2">
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -523,13 +523,13 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
         </div>
       )}
 
-      {/* Textarea — takes most space */}
+      {/* Textarea */}
       <textarea
         ref={taRef}
         value={block.text}
         onChange={e => onUpdate({ text: e.target.value })}
         placeholder={'Soạn nội dung tin nhắn...\nDùng {name} để chèn tên người nhận'}
-        className="flex-1 min-h-[220px] w-full bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
+        className="min-h-[200px] h-[200px] w-full bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
       />
 
       {/* Warning on link */}
@@ -1270,7 +1270,7 @@ Yiêu cầu quan trọng:
 
               {/* Message block editor */}
               {hasMsg && currentBlock && (
-                <div className="flex-grow flex flex-col min-h-0">
+                <div className={`flex-shrink-0 flex flex-col`}>
                   <BlockEditor
                     block={currentBlock}
                     onUpdate={u => updateBlock(currentBlock.id, u)}
@@ -1421,13 +1421,14 @@ Yiêu cầu quan trọng:
                 </div>
               )}
 
-              {/* Warning Box */}
-              <div className="border border-yellow-500/20 bg-yellow-500/5 rounded-xl p-3 flex-shrink-0">
-                <p className="text-[10px] text-yellow-500 dark:text-yellow-400 font-semibold mb-1">⚠️ Cảnh báo</p>
-                <p className="text-[9px] text-yellow-600/70 dark:text-yellow-400/60 leading-relaxed">
-                  Hành động càng nhiều, nội dung càng dài, và delay càng ngắn sẽ làm tăng nguy cơ bị Zalo đánh spam. Hãy cân nhắc kỹ lưỡng khi cấu hình chiến dịch, và luôn tuân thủ nguyên tắc cộng đồng của Zalo.
-                </p>
-              </div>
+            </div>
+
+            {/* Warning Box — outside scroll area so it never overlaps BlockEditor buttons */}
+            <div className="flex-shrink-0 mx-4 mb-3 border border-yellow-500/20 bg-yellow-500/5 rounded-xl px-3 py-2">
+              <p className="text-[10px] text-yellow-500 dark:text-yellow-400 font-semibold mb-0.5">⚠️ Cảnh báo</p>
+              <p className="text-[9px] text-yellow-600/70 dark:text-yellow-400/60 leading-relaxed">
+                Hành động càng nhiều, nội dung càng dài, và delay càng ngắn sẽ làm tăng nguy cơ bị Zalo đánh spam. Hãy cân nhắc kỹ lưỡng khi cấu hình chiến dịch, và luôn tuân thủ nguyên tắc cộng đồng của Zalo.
+              </p>
             </div>
           </div>
 

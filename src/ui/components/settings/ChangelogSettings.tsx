@@ -73,6 +73,8 @@ const CHANGELOG: VersionEntry[] = [
       '🐛 Sửa lỗi crash khi mở chiến dịch có ảnh — Lỗi `n.startsWith is not a function` khiến toàn bộ màn hình chiến dịch bị trắng khi có ảnh đính kèm đã được khắc phục triệt để.',
       '🏷️ Cập nhật nhãn Local đồng loạt (Bulk Label Sync) — Bảng gán nhãn hàng loạt nay tự động nạp nhãn hiện có của các liên hệ đã chọn, hỗ trợ thêm/xóa/làm trống nhãn chỉ với một thao tác.',
       '🔍 Chẩn đoán gửi ảnh chiến dịch — Bổ sung log kiểm tra file ảnh tồn tại trên disk trước khi gửi, giúp phát hiện sớm ảnh bị di chuyển hoặc xóa.',
+      '🐛 Sửa lỗi không bấm được nút đính kèm ảnh — Cảnh báo spam bị chồng lên vùng click của nút ảnh trong modal tạo chiến dịch đã được khắc phục.',
+      '🐛 Sửa lỗi chèn nhau chiến dịch hỗn hợp — Phần "Lời nhắn kết bạn" và "Chọn nhóm" không còn bị render đè lên textarea tin nhắn.',
     ],
     changes: [
       {
@@ -81,6 +83,8 @@ const CHANGELOG: VersionEntry[] = [
           'Sửa lỗi crash `n.startsWith is not a function` khi mở CampaignCreateModal có ảnh: parseContentConfig nay sanitize toàn bộ block.images đảm bảo chỉ giữ lại string hợp lệ.',
           'Thêm bộ lọc `typeof p === "string"` tại cả 2 chỗ render ảnh trong CampaignCreateModal (preview + editor) để tránh crash khi data DB bị corrupt.',
           'Hàm toLocalMediaUrl bổ sung guard `typeof filePath !== "string"` trả về chuỗi rỗng thay vì throw runtime error.',
+          'Sửa lỗi Warning Box (Cảnh báo spam) đè lên nút "Đính kèm ảnh": di chuyển Warning Box ra ngoài vùng overflow-y-auto, đặt thành flex-shrink-0 footer cố định của CENTER panel, không còn chặn click vào nút ảnh.',
+          'Sửa lỗi layout hỗn hợp (Tin nhắn + Kết bạn / Mời nhóm): phần Lời nhắn kết bạn và danh sách nhóm mời bị render chồng lên textarea tin nhắn do flex-grow chiếm toàn bộ overflow container — nay dùng flex-shrink-0 và height cố định cho BlockEditor, các section stack đúng thứ tự.',
         ]
       },
       {
@@ -98,6 +102,7 @@ const CHANGELOG: VersionEntry[] = [
       }
     ]
   },
+
   {
     version: '27.2.4',
     date: '07/2026',
