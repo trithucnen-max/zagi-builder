@@ -4,7 +4,31 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v27.2.5] - 2026-07-06
+
+### Sửa lỗi nghiêm trọng (Critical Bug Fixes)
+
+- **Sửa lỗi crash `n.startsWith is not a function` khi mở chiến dịch có ảnh:**
+  - Lỗi xảy ra tại `CampaignCreateModal` khi parse `block.images` từ DB — nếu có giá trị non-string (null, object, ...) thì hàm `toLocalMediaUrl()` crash ngay tại `.startsWith()` làm toàn bộ màn hình chiến dịch bị trắng.
+  - `parseContentConfig` nay **sanitize** từng phần tử `block.images`, chỉ giữ lại các phần tử là `string` hợp lệ.
+  - Bổ sung filter `typeof p === 'string'` tại cả 2 chỗ render ảnh (preview + editor) trong `CampaignCreateModal.tsx`.
+  - `toLocalMediaUrl` bổ sung guard `typeof filePath !== 'string'` trả về `''` thay vì throw lỗi runtime.
+
+### Tính năng mới (New Features)
+
+- **Gán / Xóa nhãn Local đồng loạt (Bulk Local Label Sync):**
+  - Modal gán nhãn hàng loạt nay tự động **nạp trước** (pre-load) union nhãn hiện có của tất cả liên hệ đã chọn.
+  - Hỗ trợ **sync 2 chiều**: thêm nhãn mới + xóa nhãn không còn được tích chọn.
+  - **Để trắng** toàn bộ → nút đỏ **"Xóa tất cả nhãn"** + cảnh báo cam ⚠️ rõ ràng trước khi thực hiện.
+
+### Cải tiến (Improvements)
+
+- Bổ sung log chẩn đoán `[CRMQueue] ⚠️ Image not found on disk: /path/...` để phát hiện file ảnh chiến dịch không còn tồn tại trên disk trước khi gửi.
+
+---
+
 ## [v27.2.4] - 2026-07-06
+
 
 ### Thay đổi & Tính năng mới
 

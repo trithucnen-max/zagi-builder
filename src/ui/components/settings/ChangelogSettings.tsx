@@ -66,6 +66,75 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.2.5',
+    date: '07/2026',
+    type: 'patch',
+    highlights: [
+      '🐛 Sửa lỗi crash khi mở chiến dịch có ảnh — Lỗi `n.startsWith is not a function` khiến toàn bộ màn hình chiến dịch bị trắng khi có ảnh đính kèm đã được khắc phục triệt để.',
+      '🏷️ Cập nhật nhãn Local đồng loạt (Bulk Label Sync) — Bảng gán nhãn hàng loạt nay tự động nạp nhãn hiện có của các liên hệ đã chọn, hỗ trợ thêm/xóa/làm trống nhãn chỉ với một thao tác.',
+      '🔍 Chẩn đoán gửi ảnh chiến dịch — Bổ sung log kiểm tra file ảnh tồn tại trên disk trước khi gửi, giúp phát hiện sớm ảnh bị di chuyển hoặc xóa.',
+    ],
+    changes: [
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi crash `n.startsWith is not a function` khi mở CampaignCreateModal có ảnh: parseContentConfig nay sanitize toàn bộ block.images đảm bảo chỉ giữ lại string hợp lệ.',
+          'Thêm bộ lọc `typeof p === "string"` tại cả 2 chỗ render ảnh trong CampaignCreateModal (preview + editor) để tránh crash khi data DB bị corrupt.',
+          'Hàm toLocalMediaUrl bổ sung guard `typeof filePath !== "string"` trả về chuỗi rỗng thay vì throw runtime error.',
+        ]
+      },
+      {
+        category: 'new',
+        items: [
+          'Tính năng Gán / Xóa nhãn Local đồng loạt (Bulk Local Label Sync): mở modal tự động nạp nhãn hiện có của liên hệ đã chọn (union), hỗ trợ thêm nhãn mới, xóa nhãn cũ, hoặc xóa sạch toàn bộ bằng nút đỏ "Xóa tất cả nhãn".',
+          'Cảnh báo cam ⚠️ trên modal khi để trắng danh sách nhãn, thông báo rõ sẽ xóa toàn bộ nhãn đã gán.',
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Bổ sung log chẩn đoán `[CRMQueue] ⚠️ Image not found on disk` để phát hiện file ảnh chiến dịch không tồn tại trước khi gửi.',
+        ]
+      }
+    ]
+  },
+  {
+    version: '27.2.4',
+    date: '07/2026',
+    type: 'patch',
+    highlights: [
+      '📊 Thống kê & Báo cáo Cuộc gọi CRM — Tab Cuộc gọi tại chi tiết liên hệ và Báo cáo tổng hợp toàn hệ thống với phân quyền theo nhân viên.',
+      '🎨 Bộ Icon SVG ERP — Thay thế emoji bằng 12 icon SVG tối giản cho dự án ERP, tương thích ngược 100% với dữ liệu cũ.',
+      '🏷️ Chọn nhiều ảnh cùng lúc (Multi-Image) — Hỗ trợ chọn album ảnh native khi tạo chiến dịch.',
+      '🤖 Tự động gắn nhãn khi gửi chiến dịch thành công — Gán nhãn Local hoặc Zalo tự động sau khi gửi tin thành công.',
+      '🔒 Mã hóa di động dự phòng Local/Dev — Giữ lại cấu hình bảo mật khi nâng cấp phiên bản.',
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Tab Cuộc gọi tại chi tiết liên hệ: 6 chỉ số thống kê + lịch sử chi tiết + xuất CSV.',
+          'Tab Cuộc gọi trong Báo cáo & Phân tích: BarChart xu hướng theo ngày, top khách hàng, xếp hạng nhân viên.',
+          'Bộ 12 icon SVG tối giản cho dự án ERP (folder, rocket, target, code, palette...).',
+          'Hỗ trợ chọn nhiều ảnh cùng lúc (multiSelect) khi tạo nội dung chiến dịch.',
+          'Tự động gắn nhãn Local hoặc nhãn Zalo cho khách hàng sau khi chiến dịch gửi thành công.',
+          'Cơ chế mã hóa dự phòng XOR-Base64 với tiền tố `local:` khi chạy local/dev.',
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi crash khi chọn liên hệ chiến dịch: bổ sung ép kiểu String() cho contact_id từ DB/API.',
+          'Sửa lỗi hiển thị tin nhắn vị trí chat.location.new (nay hiển thị 📍 [Vị trí]).',
+          'Sửa lỗi màn hình trắng ERP Tasks do thiếu import useMemo.',
+          'Sửa lỗi tạo project bị nhân đôi do race condition giữa optimistic add và SSE event.',
+          'Sửa lỗi lời mời vào nhóm bị sai tiền tố group ID.',
+        ]
+      }
+    ]
+  },
+  {
+
     version: '27.2.3',
     date: '07/2026',
     type: 'patch',
