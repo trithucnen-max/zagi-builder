@@ -40,19 +40,58 @@ function createAdapter(config: IntegrationConfig): IntegrationAdapter {
   }
 }
 
+// ─── Portable Obfuscation Helpers ─────────────────────────────────────────────
+
+function portableEncrypt(str: string): string {
+  if (!str) return '';
+  const salt = 'zagi-secure-key-2026';
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    result += String.fromCharCode(str.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+  }
+  return 'local:' + Buffer.from(result, 'binary').toString('base64');
+}
+
+function portableDecrypt(raw: string): string {
+  if (!raw) return '';
+  if (raw.startsWith('local:')) {
+    try {
+      const bytes = Buffer.from(raw.slice(6), 'base64').toString('binary');
+      const salt = 'zagi-secure-key-2026';
+      let result = '';
+      for (let i = 0; i < bytes.length; i++) {
+        result += String.fromCharCode(bytes.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+      }
+      return result;
+    } catch {}
+  }
+  return raw;
+}
+
 // ─── Credential encryption/decryption ────────────────────────────────────────
 
 function encryptCredentials(creds: Record<string, string>): string {
   try {
-    if (!safeStorage.isEncryptionAvailable()) return JSON.stringify(creds);
-    const encrypted = safeStorage.encryptString(JSON.stringify(creds));
-    return encrypted.toString('base64');
-  } catch {
-    return JSON.stringify(creds);
-  }
+    const jsonStr = JSON.stringify(creds);
+    const isLocal = !app.isPackaged || process.env.NODE_ENV === 'development' || process.env.ZAGI_LOCAL === 'true';
+    if (isLocal) {
+      return portableEncrypt(jsonStr);
+    }
+    if (safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(jsonStr);
+      return encrypted.toString('base64');
+    }
+  } catch {}
+  return portableEncrypt(JSON.stringify(creds));
 }
 
 function decryptCredentials(raw: string): Record<string, string> {
+  if (!raw) return {};
+  if (raw.startsWith('local:')) {
+    try {
+      return JSON.parse(portableDecrypt(raw));
+    } catch {}
+  }
   try {
     // Try safeStorage first
     if (safeStorage.isEncryptionAvailable()) {

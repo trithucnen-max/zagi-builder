@@ -4,11 +4,40 @@
  * Data được mã hóa bởi OS (Windows Credential Manager / macOS Keychain).
  * Chỉ app này trên đúng máy này mới giải mã được.
  */
-import { safeStorage } from 'electron';
+import { safeStorage, app } from 'electron';
 import DatabaseService from '../database/DatabaseService';
 import Logger from '../../utils/Logger';
 
 const ENC_PREFIX = 'enc:';
+const LOCAL_PREFIX = 'local:';
+
+// ─── Portable Obfuscation Helpers ─────────────────────────────────────────────
+
+function portableEncrypt(str: string): string {
+    if (!str) return '';
+    const salt = 'zagi-secure-key-2026';
+    let result = '';
+    for (let i = 0; i < str.length; i++) {
+        result += String.fromCharCode(str.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+    }
+    return LOCAL_PREFIX + Buffer.from(result, 'binary').toString('base64');
+}
+
+function portableDecrypt(raw: string): string {
+    if (!raw) return '';
+    if (raw.startsWith(LOCAL_PREFIX)) {
+        try {
+            const bytes = Buffer.from(raw.slice(LOCAL_PREFIX.length), 'base64').toString('binary');
+            const salt = 'zagi-secure-key-2026';
+            let result = '';
+            for (let i = 0; i < bytes.length; i++) {
+                result += String.fromCharCode(bytes.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+            }
+            return result;
+        } catch {}
+    }
+    return raw;
+}
 
 /**
  * Lưu value được mã hóa bởi safeStorage vào SQLite settings.
@@ -18,20 +47,22 @@ export function secureSet(key: string, value: string): void {
         DatabaseService.getInstance().setSetting(key, '');
         return;
     }
-    if (!safeStorage.isEncryptionAvailable()) {
-        // Fallback: lưu plaintext với warning (hiếm gặp — OS không hỗ trợ keychain)
-        Logger.warn(`[SecureSettings] safeStorage unavailable — storing "${key}" as plaintext`);
-        DatabaseService.getInstance().setSetting(key, value);
-        return;
-    }
     try {
-        const encrypted = safeStorage.encryptString(value).toString('base64');
-        DatabaseService.getInstance().setSetting(key, `${ENC_PREFIX}${encrypted}`);
+        const isLocal = !app.isPackaged || process.env.NODE_ENV === 'development' || process.env.ZAGI_LOCAL === 'true';
+        if (isLocal) {
+            DatabaseService.getInstance().setSetting(key, portableEncrypt(value));
+            return;
+        }
+        if (safeStorage.isEncryptionAvailable()) {
+            const encrypted = safeStorage.encryptString(value).toString('base64');
+            DatabaseService.getInstance().setSetting(key, `${ENC_PREFIX}${encrypted}`);
+            return;
+        }
     } catch (err: any) {
         Logger.error(`[SecureSettings] Encrypt failed for "${key}": ${err.message}`);
-        // Fallback to plaintext rather than losing data
-        DatabaseService.getInstance().setSetting(key, value);
     }
+    // Fallback to portable encryption
+    DatabaseService.getInstance().setSetting(key, portableEncrypt(value));
 }
 
 /**
@@ -41,6 +72,10 @@ export function secureSet(key: string, value: string): void {
 export function secureGet(key: string): string | null {
     const raw = DatabaseService.getInstance().getSetting(key);
     if (!raw) return null;
+
+    if (raw.startsWith(LOCAL_PREFIX)) {
+        return portableDecrypt(raw);
+    }
 
     if (raw.startsWith(ENC_PREFIX)) {
         try {

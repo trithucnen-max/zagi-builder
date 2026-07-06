@@ -594,6 +594,80 @@ class CRMQueueService {
                     data_response: result.responses.length > 0 ? JSON.stringify(result.responses.length === 1 ? result.responses[0] : result.responses) : '' });
             }
 
+            // Auto Label on Success
+            const currentStatus = db.queryOne<{ status: string }>(
+                'SELECT status FROM crm_campaign_contacts WHERE id = ?',
+                [item.id!]
+            )?.status;
+
+            if (currentStatus === 'sent') {
+                let mixedConfig: any = {};
+                try {
+                    mixedConfig = JSON.parse((campaignData as any).mixed_config || '{}');
+                } catch {}
+
+                if (mixedConfig.auto_label && mixedConfig.auto_label.enabled) {
+                    const autoLabel = mixedConfig.auto_label;
+                    if (autoLabel.type === 'local') {
+                        let labelId = autoLabel.id;
+                        if (!labelId && autoLabel.name) {
+                            try {
+                                labelId = db.upsertLocalLabel({
+                                    name: autoLabel.name,
+                                    color: '#3b82f6',
+                                    textColor: '#FFFFFF',
+                                    emoji: '🏷️',
+                                    pageIds: zaloId,
+                                    isActive: 1,
+                                    sortOrder: 0
+                                });
+                            } catch (labelErr: any) {
+                                Logger.error(`[CRMQueue] Failed to create auto local label "${autoLabel.name}": ${labelErr.message}`);
+                            }
+                        }
+                        if (labelId && labelId > 0) {
+                            try {
+                                db.assignLocalLabelToThread(zaloId, labelId, effectiveContactId);
+                                Logger.log(`[CRMQueue] Automatically assigned local label ID ${labelId} to contact ${effectiveContactId}`);
+                            } catch (assignErr: any) {
+                                Logger.error(`[CRMQueue] Failed to assign local label ID ${labelId}: ${assignErr.message}`);
+                            }
+                        }
+                    } else if (autoLabel.type === 'zalo') {
+                        try {
+                            const labelsRes = await (conn.api as any).getLabels();
+                            if (labelsRes && Array.isArray(labelsRes.labelData)) {
+                                const labelData: any[] = labelsRes.labelData;
+                                const version = labelsRes.version;
+                                let targetLabel: any = labelData.find((l: any) => l.id === autoLabel.id || l.name === autoLabel.name);
+                                if (!targetLabel && autoLabel.name) {
+                                    // Create Zalo label
+                                    const newId = Date.now();
+                                    targetLabel = {
+                                        id: newId,
+                                        name: autoLabel.name,
+                                        color: '#3b82f6',
+                                        conversations: []
+                                    };
+                                    labelData.push(targetLabel);
+                                }
+                                if (targetLabel) {
+                                    if (!targetLabel.conversations) targetLabel.conversations = [];
+                                    const sId = String(effectiveContactId);
+                                    if (!targetLabel.conversations.includes(sId)) {
+                                        targetLabel.conversations.push(sId);
+                                        await (conn.api as any).updateLabels({ labelData, version });
+                                        Logger.log(`[CRMQueue] Automatically assigned Zalo label "${targetLabel.name}" to contact ${effectiveContactId}`);
+                                    }
+                                }
+                            }
+                        } catch (zaloLabelErr: any) {
+                            Logger.error(`[CRMQueue] Failed to assign Zalo label: ${zaloLabelErr.message}`);
+                        }
+                    }
+                }
+            }
+
             // Tiêu thụ 1 token
             this.tokens.set(zaloId, Math.max(0, (this.tokens.get(zaloId) ?? 1) - 1));
             this.lastSentAt.set(zaloId, Date.now());

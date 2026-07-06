@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ipc from '@/lib/ipc';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import AppIcon from '@/components/common/AppIcon';
+import { useAppStore } from '@/store/appStore';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -436,7 +437,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
   const pickImages = async () => {
     const r = await ipc.file?.openDialog({
       filters: [{ name: 'Hình ảnh', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }],
-      properties: ['openFile', 'multiSelections'],
+      multiSelect: true,
     });
     if (r?.filePaths?.length) onUpdate({ images: [...block.images, ...r.filePaths] });
   };
@@ -600,6 +601,33 @@ export default function CampaignCreateModal({
   const friendReqRef = useRef<HTMLTextAreaElement>(null);
   const isSavingRef = useRef(false);
 
+  // ── Auto-label states ──
+  const getInitialAutoLabel = () => {
+    try {
+      const cfg = JSON.parse(initialData?.mixed_config || '{}');
+      if (cfg.auto_label) return cfg.auto_label;
+    } catch {}
+    return { enabled: false, type: 'local', id: '', name: '' };
+  };
+  const initAutoLabel = getInitialAutoLabel();
+  const [autoLabelEnabled, setAutoLabelEnabled] = useState(initAutoLabel.enabled);
+  const [autoLabelType, setAutoLabelType] = useState<'local' | 'zalo'>(initAutoLabel.type ?? 'local');
+  const [selectedLabelId, setSelectedLabelId] = useState<string | number>(initAutoLabel.id ?? '');
+  const [newLabelName, setNewLabelName] = useState(initAutoLabel.name ?? '');
+  const [isCreatingNewLabel, setIsCreatingNewLabel] = useState(!initAutoLabel.id && !!initAutoLabel.name);
+  const [localLabelsList, setLocalLabelsList] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!zaloId) return;
+    ipc.db?.getLocalLabels({ zaloId }).then((res: any) => {
+      const activeLabels = (res?.labels || []).filter((l: any) => (l.is_active ?? 1) !== 0);
+      setLocalLabelsList(activeLabels);
+    }).catch(() => {});
+  }, [zaloId]);
+
+  const appLabels = useAppStore(s => s.labels);
+  const zaloLabelsList = zaloId ? (appLabels[zaloId] || []) : [];
+
   // AI for friend request
   const [aiGeneratingFR, setAiGeneratingFR] = useState(false);
   const [showAiInputFR, setShowAiInputFR] = useState(false);
@@ -714,10 +742,23 @@ Yiêu cầu quan trọng:
     setInviteGroupIds(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
 
   const buildMixedConfig = (): string => {
-    if (type === 'invite_to_group') return JSON.stringify({ group_ids: inviteGroupIds });
-    if (type !== 'mixed') return '{}';
-    const cfg: MixedConfig = { actions: mixedActions };
-    if (mixedActions.includes('invite_to_groups') && inviteGroupIds.length > 0) cfg.group_ids = inviteGroupIds;
+    let cfg: any = {};
+    if (type === 'invite_to_group') {
+      cfg.group_ids = inviteGroupIds;
+    } else if (type === 'mixed') {
+      cfg.actions = mixedActions;
+      if (mixedActions.includes('invite_to_groups') && inviteGroupIds.length > 0) {
+        cfg.group_ids = inviteGroupIds;
+      }
+    }
+    if (autoLabelEnabled) {
+      cfg.auto_label = {
+        enabled: true,
+        type: autoLabelType,
+        id: isCreatingNewLabel ? undefined : selectedLabelId ? (autoLabelType === 'local' ? Number(selectedLabelId) : String(selectedLabelId)) : undefined,
+        name: isCreatingNewLabel ? newLabelName.trim() : undefined,
+      };
+    }
     return JSON.stringify(cfg);
   };
 
@@ -732,6 +773,10 @@ Yiêu cầu quan trọng:
     } else {
       if (hasMsg && !contentConfig.blocks.some(b => b.text.trim() || b.images.length)) return false;
       if (hasFR && !friendReqMsg.trim()) return false;
+    }
+    if (autoLabelEnabled) {
+      if (isCreatingNewLabel && !newLabelName.trim()) return false;
+      if (!isCreatingNewLabel && !selectedLabelId) return false;
     }
     return true;
   };
@@ -1096,6 +1141,90 @@ Yiêu cầu quan trọng:
                     <p className={`text-[10px] mt-1 leading-relaxed ${getScheduleMessage().startsWith('⚠️') ? 'text-amber-500 font-semibold' : 'text-cyan-500 dark:text-cyan-400'}`}>
                       {getScheduleMessage()}
                     </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Auto-Label on Success */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <label className="flex items-center gap-2 cursor-pointer mb-2">
+                <div onClick={() => setAutoLabelEnabled(!autoLabelEnabled)}
+                  className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                    autoLabelEnabled ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-500 hover:border-blue-400'
+                  }`}>
+                  {autoLabelEnabled && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </div>
+                <span className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider">🏷️ Gắn nhãn tự động khi gửi thành công</span>
+              </label>
+
+              {autoLabelEnabled && (
+                <div className="space-y-3 pl-6 animate-fadeIn">
+                  {/* Label Type */}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => { setAutoLabelType('local'); setSelectedLabelId(''); }}
+                      className={`text-[10px] px-2.5 py-1 rounded-md border font-medium transition-colors ${
+                        autoLabelType === 'local'
+                          ? 'bg-blue-500/10 border-blue-500/50 text-blue-400'
+                          : 'border-gray-200 dark:border-gray-750 text-gray-500 hover:text-gray-300'
+                      }`}>
+                      Nhãn Local
+                    </button>
+                    <button type="button" onClick={() => { setAutoLabelType('zalo'); setSelectedLabelId(''); }}
+                      className={`text-[10px] px-2.5 py-1 rounded-md border font-medium transition-colors ${
+                        autoLabelType === 'zalo'
+                          ? 'bg-blue-500/10 border-blue-500/50 text-blue-400'
+                          : 'border-gray-200 dark:border-gray-750 text-gray-500 hover:text-gray-300'
+                      }`}>
+                      Nhãn Zalo
+                    </button>
+                  </div>
+
+                  {/* Mode: Select existing or Create new */}
+                  <div className="flex gap-4 items-center">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="radio" name="autoLabelMode" checked={!isCreatingNewLabel} onChange={() => setIsCreatingNewLabel(false)}
+                        className="text-blue-500 focus:ring-0 bg-transparent w-3 h-3" />
+                      <span className="text-xs text-gray-700 dark:text-gray-300">Chọn nhãn có sẵn</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="radio" name="autoLabelMode" checked={isCreatingNewLabel} onChange={() => setIsCreatingNewLabel(true)}
+                        className="text-blue-500 focus:ring-0 bg-transparent w-3 h-3" />
+                      <span className="text-xs text-gray-700 dark:text-gray-300">Tạo nhãn mới</span>
+                    </label>
+                  </div>
+
+                  {/* Input rendering */}
+                  {isCreatingNewLabel ? (
+                    <div>
+                      <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Tên nhãn mới</label>
+                      <input
+                        type="text"
+                        value={newLabelName}
+                        onChange={e => setNewLabelName(e.target.value)}
+                        placeholder="Nhập tên nhãn cần tạo..."
+                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Chọn nhãn</label>
+                      <select
+                        value={selectedLabelId}
+                        onChange={e => setSelectedLabelId(e.target.value)}
+                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                      >
+                        <option value="">-- Chọn nhãn --</option>
+                        {autoLabelType === 'local'
+                          ? localLabelsList.map(l => (
+                              <option key={l.id} value={l.id}>{l.emoji ? `${l.emoji} ` : ''}{l.name}</option>
+                            ))
+                          : zaloLabelsList.map(l => (
+                              <option key={l.id} value={l.id}>{l.name}</option>
+                            ))
+                        }
+                      </select>
+                    </div>
                   )}
                 </div>
               )}

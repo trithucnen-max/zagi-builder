@@ -7,27 +7,62 @@
  */
 
 import axios from 'axios';
-import { safeStorage } from 'electron';
+import { safeStorage, app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import DatabaseService from '../database/DatabaseService';
 import IntegrationRegistry from '../integrations/IntegrationRegistry';
 import Logger from '../../utils/Logger';
 import type { AIAssistant, AIAssistantFile, ChatMessage, AIPlatform } from '../../models';
 
+// ─── Portable Obfuscation Helpers ─────────────────────────────────────────────
+
+function portableEncrypt(key: string): string {
+  if (!key) return '';
+  const salt = 'zagi-secure-key-2026';
+  let result = '';
+  for (let i = 0; i < key.length; i++) {
+    result += String.fromCharCode(key.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+  }
+  return 'local:' + Buffer.from(result, 'binary').toString('base64');
+}
+
+function portableDecrypt(raw: string): string {
+  if (!raw) return '';
+  if (raw.startsWith('local:')) {
+    try {
+      const bytes = Buffer.from(raw.slice(6), 'base64').toString('binary');
+      const salt = 'zagi-secure-key-2026';
+      let result = '';
+      for (let i = 0; i < bytes.length; i++) {
+        result += String.fromCharCode(bytes.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+      }
+      return result;
+    } catch {}
+  }
+  return raw;
+}
+
 // ─── Encryption helpers ───────────────────────────────────────────────────────
 
 function encryptApiKey(key: string): string {
   if (!key) return '';
   try {
+    const isLocal = !app.isPackaged || process.env.NODE_ENV === 'development' || process.env.ZAGI_LOCAL === 'true';
+    if (isLocal) {
+      return portableEncrypt(key);
+    }
     if (safeStorage.isEncryptionAvailable()) {
       return 'enc:' + safeStorage.encryptString(key).toString('base64');
     }
   } catch {}
-  return key;
+  return portableEncrypt(key);
 }
 
 function decryptApiKey(raw: string): string {
   if (!raw) return '';
+  if (raw.startsWith('local:')) {
+    return portableDecrypt(raw);
+  }
   if (raw.startsWith('enc:')) {
     try {
       const buf = Buffer.from(raw.slice(4), 'base64');

@@ -46,6 +46,22 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 - **Thêm thông báo lỗi cho các thao tác dự án & nhiệm vụ ERP:**
   - `createProject`, `updateProject`, `deleteProject`, `deleteTask` nay hiển thị toast notification khi thất bại (thay vì fail âm thầm).
 
+- **Chọn ảnh đính kèm nhiều tệp cùng lúc (CRM Campaign Multi-Image Select):**
+  * Hỗ trợ cờ `multiSelect: true` giúp người dùng bôi đen chọn nhiều ảnh cùng lúc từ Finder/File Explorer khi tạo chiến dịch.
+  * Tự động gửi gộp Album ảnh native trên Zalo (thay vì tách gửi từng ảnh rời rạc).
+
+- **Tự động gắn nhãn khi chạy chiến dịch thành công (CRM Auto-Label on Success):**
+  * Thêm tùy chọn tự động gán nhãn Local hoặc nhãn Zalo cho khách hàng ngay sau khi gửi thành công tin nhắn chiến dịch.
+  * Hỗ trợ hai chế độ: **Chọn nhãn có sẵn** hoặc **Tạo nhãn mới trực tiếp ngay tại chỗ** (tự động khởi tạo khi chiến dịch chạy).
+
+- **Mã hóa di động dự phòng Local/Dev (Portable Encryption Fallback):**
+  * Hỗ trợ cơ chế mã hóa dự phòng XOR-Base64 với tiền tố `local:` khi chạy local/dev (`!app.isPackaged`).
+  * Giúp giữ lại API Key AI, thông tin Casso/SePay và cấu hình bảo mật khi nâng cấp phiên bản ứng dụng mà không bị lỗi Keychain hệ điều hành.
+
+- **Sửa lỗi mời bạn bè vào nhóm (Zalo Group Invitation Fixes):**
+  * Tự động chuẩn hóa tiền tố `g` cho ID nhóm từ cơ sở dữ liệu SQLite trước khi gọi Zalo API.
+  * Phân tích thuộc tính `grid_message_map` để cập nhật trạng thái lỗi thực tế (`failed` kèm chi tiết lỗi) thay vì hiển thị báo cáo trạng thái ảo `sent`.
+
 ---
 
 ## [v27.2.3] - 2026-07-03
