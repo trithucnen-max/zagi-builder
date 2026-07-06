@@ -345,19 +345,13 @@ class CRMQueueService {
             const sendBlock = async (block: ContentBlock, threadId: string, threadType: number): Promise<any[]> => {
                 const responses: any[] = [];
                 const text = substitute(block.text || '');
-                if (text.trim()) {
-                    const resp = await (conn.api as any).sendMessage({ msg: text }, threadId, threadType);
-                    responses.push(resp);
-                }
                 const imgs = (block.images || []).filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+
                 if (imgs.length > 0) {
-                    // Zalo API: attachment gửi qua sendMessage chỉ hoạt động khi đã kết bạn.
-                    // Nếu campaign là friend_request, ảnh sẽ không gửi được.
-                    Logger.log(`[CRMQueue] Sending ${imgs.length} image(s) to ${threadId} (threadType=${threadType})`);
+                    Logger.log(`[CRMQueue] Sending ${imgs.length} image(s) with text to ${threadId} (threadType=${threadType})`);
                     for (const p of imgs) {
                         if (!fs.existsSync(p)) Logger.warn(`[CRMQueue] ⚠️ Image not found on disk: ${p}`);
                     }
-                    await new Promise(r => setTimeout(r, 500));
                     const attachments: any[] = [];
                     for (const filePath of imgs) {
                         try {
@@ -374,7 +368,14 @@ class CRMQueueService {
                         }
                     }
                     if (attachments.length > 0) {
-                        const resp = await (conn.api as any).sendMessage({ msg: '', attachments }, threadId, threadType);
+                        // Gửi cả text và ảnh trong 1 tin nhắn duy nhất để vượt qua giới hạn chặn người lạ của Zalo (chỉ được gửi tối đa 1 tin nhắn)
+                        const resp = await (conn.api as any).sendMessage({ msg: text, attachments }, threadId, threadType);
+                        responses.push(resp);
+                    }
+                } else {
+                    // Không có ảnh -> Chỉ gửi tin nhắn văn bản
+                    if (text.trim()) {
+                        const resp = await (conn.api as any).sendMessage({ msg: text }, threadId, threadType);
                         responses.push(resp);
                     }
                 }
