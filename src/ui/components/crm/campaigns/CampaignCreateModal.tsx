@@ -529,7 +529,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
         value={block.text}
         onChange={e => onUpdate({ text: e.target.value })}
         placeholder={'Soạn nội dung tin nhắn...\nDùng {name} để chèn tên người nhận'}
-        className="flex-1 min-h-0 w-full bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
+        className="flex-1 min-h-[220px] w-full bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
       />
 
       {/* Warning on link */}
@@ -1270,7 +1270,7 @@ Yiêu cầu quan trọng:
 
               {/* Message block editor */}
               {hasMsg && currentBlock && (
-                <div className="flex-shrink-0 flex flex-col">
+                <div className="flex-grow flex flex-col min-h-0">
                   <BlockEditor
                     block={currentBlock}
                     onUpdate={u => updateBlock(currentBlock.id, u)}
