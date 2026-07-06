@@ -493,14 +493,15 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
                 <div ref={labelScrollRef} className="flex gap-1.5 overflow-x-auto pb-1 flex-wrap" style={{ scrollbarWidth: 'thin' }}>
                   {effectiveLocalLabels.map(label => {
                     const isActive = selectedLocalLabelIds.includes(label.id);
+                    const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
                     return (
                       <button key={`local-${label.id}`} onClick={() => toggleLocalLabel(label.id)}
-                        className={`text-xs px-2.5 py-1 rounded-full border transition-all whitespace-nowrap flex-shrink-0 ${
-                          isActive ? 'border-transparent' : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-all whitespace-nowrap flex-shrink-0 font-medium ${
+                          isActive ? 'border-transparent text-white shadow-sm font-semibold' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                         style={isActive
-                          ? { backgroundColor: (label.color || '#3b82f6') + '28', color: label.text_color || label.color || '#3b82f6', border: `1px solid ${label.color || '#3b82f6'}55` }
-                          : {}}>
+                          ? { backgroundColor: baseColor, color: label.text_color || '#ffffff' }
+                          : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' }}>
                         {label.emoji && <span className="mr-0.5">{label.emoji}</span>}{label.name}
                       </button>
                     );
@@ -517,14 +518,15 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
                 <div className="flex gap-1.5 overflow-x-auto pb-1 flex-wrap" style={{ scrollbarWidth: 'thin' }}>
                   {allLabels.map(label => {
                     const isActive = selectedZaloLabelIds.includes(label.id);
+                    const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
                     return (
                       <button key={`zalo-${label.id}`} onClick={() => toggleZaloLabel(label.id)}
-                        className={`text-xs px-2.5 py-1 rounded-full border transition-all whitespace-nowrap flex-shrink-0 ${
-                          isActive ? 'border-transparent' : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-all whitespace-nowrap flex-shrink-0 font-medium ${
+                          isActive ? 'border-transparent text-white shadow-sm font-semibold' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                         style={isActive
-                          ? { backgroundColor: (label.color || '#3b82f6') + '28', color: label.color || '#3b82f6', border: `1px solid ${label.color || '#3b82f6'}55` }
-                          : {}}>
+                          ? { backgroundColor: baseColor, color: label.textColor || label.text_color || '#ffffff' }
+                          : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' }}>
                         {label.emoji} {label.text}
                       </button>
                     );

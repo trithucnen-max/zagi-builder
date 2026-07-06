@@ -287,29 +287,31 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
       </div>
 
       {/* ── Label Filters ────────────────────────────────────────── */}
-      <div className="bg-gray-800/20 border border-gray-700/50 rounded-xl p-3 flex flex-col gap-2.5">
-        <div className="flex gap-2 border-b border-gray-700/50 pb-1.5 flex-wrap items-center">
+      <div className="bg-gray-50 dark:bg-gray-800/20 border border-gray-200 dark:border-gray-700/50 rounded-xl p-3 flex flex-col gap-2.5">
+        <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700/50 pb-1.5 flex-wrap items-center">
           <button
             type="button"
             onClick={() => setLabelTab('local')}
-            className={`text-xs px-3 py-1 rounded-md font-medium transition-colors border ${
+            className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors border flex items-center gap-1.5 ${
               labelTab === 'local'
-                ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                : 'text-gray-500 hover:text-gray-300 border-transparent'
+                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border-transparent'
             }`}
           >
-            🏷️ Nhãn Local {selectedLocalLabelIds.length > 0 ? `(${selectedLocalLabelIds.length})` : ''}
+            <span>🏷️</span>
+            <span>Nhãn Local {selectedLocalLabelIds.length > 0 ? `(${selectedLocalLabelIds.length})` : ''}</span>
           </button>
           <button
             type="button"
             onClick={() => setLabelTab('zalo')}
-            className={`text-xs px-3 py-1 rounded-md font-medium transition-colors border ${
+            className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors border flex items-center gap-1.5 ${
               labelTab === 'zalo'
-                ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                : 'text-gray-500 hover:text-gray-300 border-transparent'
+                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border-transparent'
             }`}
           >
-            💬 Nhãn Zalo {selectedZaloLabelIds.length > 0 ? `(${selectedZaloLabelIds.length})` : ''}
+            <span>💬</span>
+            <span>Nhãn Zalo {selectedZaloLabelIds.length > 0 ? `(${selectedZaloLabelIds.length})` : ''}</span>
           </button>
           {(selectedLocalLabelIds.length > 0 || selectedZaloLabelIds.length > 0) && (
             <button
@@ -318,7 +320,7 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
                 setSelectedLocalLabelIds([]);
                 setSelectedZaloLabelIds([]);
               }}
-              className="ml-auto text-xs text-blue-500 hover:text-blue-400 font-semibold"
+              className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold"
             >
               Đặt lại lọc nhãn
             </button>
@@ -330,6 +332,7 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
             <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
               {localLabels.map(label => {
                 const isActive = selectedLocalLabelIds.includes(label.id);
+                const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
                 return (
                   <button
                     key={`local-${label.id}`}
@@ -339,15 +342,17 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
                         prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id]
                       );
                     }}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                      isActive ? 'border-transparent' : 'border-gray-700 bg-gray-800/40 text-gray-400 hover:border-gray-600'
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 font-medium ${
+                      isActive ? 'border-transparent shadow-sm' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
-                    style={isActive
-                      ? { backgroundColor: (label.color || '#3b82f6') + '28', color: label.text_color || label.color || '#3b82f6', border: `1px solid ${label.color || '#3b82f6'}55` }
-                      : {}}
+                    style={
+                      isActive
+                        ? { backgroundColor: baseColor + '20', color: label.text_color || baseColor, border: `1px solid ${baseColor}50` }
+                        : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' } // 8% opacity background, 10% border for unselected state to preserve visual branding identity
+                    }
                   >
-                    {label.emoji && <span className="mr-0.5">{label.emoji}</span>}
-                    {label.name}
+                    {label.emoji && <span>{label.emoji}</span>}
+                    <span>{label.name}</span>
                   </button>
                 );
               })}
@@ -362,6 +367,7 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
             <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
               {availableZaloLabels.map(label => {
                 const isActive = selectedZaloLabelIds.includes(label.id);
+                const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '10b981'}`;
                 return (
                   <button
                     key={`zalo-${label.id}`}
@@ -371,15 +377,18 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
                         prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id]
                       );
                     }}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                      isActive ? 'border-transparent' : 'border-gray-700 bg-gray-800/40 text-gray-400 hover:border-gray-600'
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 font-medium ${
+                      isActive ? 'border-transparent shadow-sm' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
-                    style={isActive
-                      ? { backgroundColor: (label.color || '#10b981') + '28', color: label.color || '#10b981', border: `1px solid ${label.color || '#10b981'}55` }
-                      : {}}
+                    style={
+                      isActive
+                        ? { backgroundColor: baseColor + '20', color: baseColor, border: `1px solid ${baseColor}50` }
+                        : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' }
+                    }
                   >
-                    {label.emoji && <span className="mr-0.5">{label.emoji}</span>}
-                    {label.text} {label.conversations ? `(${label.conversations.length})` : ''}
+                    {label.emoji && <span>{label.emoji}</span>}
+                    <span>{label.text}</span>
+                    <span className="text-[10px] opacity-60">({label.conversations ? label.conversations.length : 0})</span>
                   </button>
                 );
               })}

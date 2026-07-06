@@ -1450,13 +1450,13 @@ Yiêu cầu quan trọng:
               {autoLabelEnabled && (
                 <div className="mt-2 pl-5">
                   {selectedLabelId || newLabelName ? (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border"
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold text-white shadow-sm"
                       style={isCreatingNewLabel
-                        ? { backgroundColor: newLabelColor + '18', color: newLabelColor, border: `1px solid ${newLabelColor}44` }
+                        ? { backgroundColor: newLabelColor, color: '#ffffff' }
                         : (() => {
                             const label = localLabelsList.find(l => l.id === Number(selectedLabelId));
                             const color = label?.color || '#3b82f6';
-                            return { backgroundColor: color + '18', color: label?.text_color || color, border: `1px solid ${color}44` };
+                            return { backgroundColor: color, color: label?.text_color || '#ffffff' };
                           })()
                       }
                     >
@@ -1712,8 +1712,8 @@ Yiêu cầu quan trọng:
                                 </div>
                                 {/* Label badge */}
                                 <span
-                                  className="text-xs px-2.5 py-1 rounded-full border font-semibold flex items-center gap-1"
-                                  style={{ backgroundColor: (label.color || '#3b82f6') + '20', color: label.text_color || label.color || '#3b82f6', border: `1px solid ${label.color || '#3b82f6'}40` }}
+                                  className="text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 text-white shadow-sm"
+                                  style={{ backgroundColor: label.color || '#3b82f6', color: label.text_color || '#ffffff' }}
                                 >
                                   {label.emoji && <span>{label.emoji}</span>}
                                   <span>{label.name}</span>
