@@ -120,7 +120,7 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
   // Account selector — boss thấy all, employee chỉ thấy tài khoản được gán
   const availableAccounts = useMemo(() => {
     if (!isBoss && assignedAccounts) {
-      return accounts.filter(a => assignedAccounts.includes(a.id));
+      return accounts.filter(a => assignedAccounts.includes(a.zalo_id));
     }
     return accounts;
   }, [accounts, isBoss, assignedAccounts]);
@@ -132,7 +132,7 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
       }
       return assignedAccounts[0];
     }
-    return activeAccountId || (accounts[0]?.id ?? '');
+    return activeAccountId || (accounts[0]?.zalo_id ?? '');
   });
 
 
@@ -189,7 +189,7 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
             className="bg-gray-800 border border-gray-600 rounded-lg text-xs text-white px-3 py-1.5 focus:outline-none focus:border-blue-500 disabled:opacity-60"
           >
             {availableAccounts.map(a => (
-              <option key={a.id} value={a.id}>{a.name || a.id}</option>
+              <option key={a.zalo_id} value={a.zalo_id}>{a.display_name || a.full_name || a.zalo_id}</option>
             ))}
           </select>
         </div>

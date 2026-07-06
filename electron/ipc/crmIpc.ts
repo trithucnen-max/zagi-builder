@@ -412,8 +412,8 @@ export function registerCRMIpc(): void {
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:campaignComparison', async (_e, { zaloId }: { zaloId: string }) => {
-        try { return { success: true, data: DatabaseService.getInstance().getCampaignComparison(zaloId) }; }
+    ipcMain.handle('analytics:campaignComparison', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs?: number; untilTs?: number }) => {
+        try { return { success: true, data: DatabaseService.getInstance().getCampaignComparison(zaloId, sinceTs, untilTs) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 

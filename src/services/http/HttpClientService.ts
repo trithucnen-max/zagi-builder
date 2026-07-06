@@ -827,6 +827,33 @@ class HttpClientService {
                 return;
             }
 
+            if (channel === 'crm:queueUpdate' && data) {
+                runOnWsDb(() => {
+                    if (data.campaignId && data.contactId) {
+                        db.updateCampaignContactStatusByContactId(data.campaignId, data.contactId, data.status, data.error);
+                        const contacts = db.getCampaignContacts(data.campaignId);
+                        const hasPending = contacts.some((c: any) => c.status === 'pending' || c.status === 'sending');
+                        if (!hasPending && contacts.length > 0) {
+                            db.updateCRMCampaignStatus(data.campaignId, 'done');
+                            db.save();
+                            EventBroadcaster.sendDirect('crm:campaignChanged', { action: 'status', ownerZaloId: data.zaloId || '', campaignId: data.campaignId, status: 'done' });
+                        }
+                    }
+                });
+                return;
+            }
+
+            if (channel === 'crm:campaignDone' && data) {
+                runOnWsDb(() => {
+                    if (data.campaignId) {
+                        db.updateCRMCampaignStatus(data.campaignId, 'done');
+                        db.save();
+                        EventBroadcaster.sendDirect('crm:campaignChanged', { action: 'status', ownerZaloId: data.zaloId || '', campaignId: data.campaignId, status: 'done' });
+                    }
+                });
+                return;
+            }
+
             // ── Pinned conversations ──
             if (channel === 'db:pinnedConversationChanged' && data) {
                 runOnWsDb(() => {

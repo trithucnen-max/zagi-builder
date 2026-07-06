@@ -715,8 +715,23 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getCallReport', async (_event, { zaloId, fromTs, toTs }: { zaloId: string; fromTs: number; toTs: number }) => {
         try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('db:getCallReport', { zaloId, fromTs, toTs });
+            }
             const report = DatabaseService.getInstance().getCallReport(zaloId, fromTs, toTs);
             return { success: true, ...report };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:getContactNamesBatch', async (_event, { zaloId, contactIds }: { zaloId: string; contactIds: string[] }) => {
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('db:getContactNamesBatch', { zaloId, contactIds });
+            }
+            const names = DatabaseService.getInstance().getContactNamesBatch(zaloId, contactIds);
+            return { success: true, names };
         } catch (error: any) {
             return { success: false, error: error.message };
         }

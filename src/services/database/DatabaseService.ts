@@ -3795,6 +3795,25 @@ class DatabaseService {
         );
     }
 
+    public getContactNamesBatch(ownerZaloId: string, contactIds: string[]): Record<string, string> {
+        if (!this.initialized || !contactIds.length) return {};
+        try {
+            const placeholders = contactIds.map(() => '?').join(',');
+            const rows = this.query<any>(
+                `SELECT contact_id, display_name FROM contacts WHERE owner_zalo_id = ? AND contact_id IN (${placeholders})`,
+                [ownerZaloId, ...contactIds]
+            );
+            const result: Record<string, string> = {};
+            for (const r of rows) {
+                result[r.contact_id] = r.display_name;
+            }
+            return result;
+        } catch (err: any) {
+            Logger.error(`[DB] getContactNamesBatch: ${err.message}`);
+            return {};
+        }
+    }
+
     /** Lấy danh sách bạn bè đã cache từ DB */
     public getFriends(ownerZaloId: string): Array<{ userId: string; displayName: string; avatar: string; phoneNumber: string; updatedAt: number }> {
         if (!this.initialized) return [];
@@ -5515,6 +5534,26 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] updateCampaignContactId: ${err.message}`); }
     }
 
+    public updateCampaignContactStatusByContactId(campaignId: number, contactId: string, status: 'pending' | 'sending' | 'sent' | 'failed', error?: string): void {
+        if (!this.initialized) return;
+        try {
+            const sentAt = status === 'sent' ? Date.now() : 0;
+            // First try matching contact_id directly
+            const result = this.run(
+                `UPDATE crm_campaign_contacts SET status=?, sent_at=CASE WHEN ?='sent' THEN ? ELSE sent_at END, error=? WHERE campaign_id=? AND contact_id=?`,
+                [status, status, sentAt, error || '', campaignId, contactId]
+            );
+            // If nothing updated, maybe it was a phone number that got resolved? Or check if there's a matching phone
+            if (result.changes === 0) {
+                this.run(
+                    `UPDATE crm_campaign_contacts SET status=?, sent_at=CASE WHEN ?='sent' THEN ? ELSE sent_at END, error=?, contact_id=CASE WHEN contact_id=phone THEN ? ELSE contact_id END WHERE campaign_id=? AND phone=?`,
+                    [status, status, sentAt, error || '', contactId, campaignId, contactId]
+                );
+            }
+        } catch (err: any) { Logger.error(`[DB] updateCampaignContactStatusByContactId: ${err.message}`); }
+    }
+
+
     /** Lấy item tiếp theo cần gửi cho account này */
     public getNextPendingCampaignContact(ownerZaloId: string): CRMCampaignContact | null {
         if (!this.initialized) return null;
@@ -6521,13 +6560,18 @@ class DatabaseService {
     /**
      * Campaign comparison: all campaigns with detailed metrics
      */
-    public getCampaignComparison(zaloId: string): Array<{
+    public getCampaignComparison(zaloId: string, sinceTs?: number, untilTs?: number): Array<{
         id: number; name: string; type: string; status: string; created_at: number;
         total: number; sent: number; failed: number; pending: number; replied: number;
         deliveryRate: number; replyRate: number;
     }> {
         if (!this.initialized || !zaloId) return [];
         try {
+            const params: any[] = [zaloId];
+            let timeFilter = '';
+            if (sinceTs && sinceTs > 0) { timeFilter += ' AND c.created_at >= ?'; params.push(sinceTs); }
+            if (untilTs && untilTs > 0) { timeFilter += ' AND c.created_at <= ?'; params.push(untilTs); }
+
             const rows = this.query<any>(`
                 SELECT
                     c.id, c.name, c.campaign_type, c.status, c.created_at,
@@ -6548,10 +6592,10 @@ class DatabaseService {
                     ) as replied_count
                 FROM crm_campaigns c
                 LEFT JOIN crm_campaign_contacts cc ON cc.campaign_id = c.id
-                WHERE c.owner_zalo_id = ?
+                WHERE c.owner_zalo_id = ?${timeFilter}
                 GROUP BY c.id
                 ORDER BY c.created_at DESC
-            `, [zaloId]);
+            `, params);
 
             return rows.map((r: any) => {
                 const total = r.total_contacts || 0;

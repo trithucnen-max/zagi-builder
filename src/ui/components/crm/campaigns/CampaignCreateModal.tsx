@@ -449,7 +449,11 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
       filters: [{ name: 'Hình ảnh', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }],
       multiSelect: true,
     });
-    if (r?.filePaths?.length) onUpdate({ images: [...block.images, ...r.filePaths] });
+    if (r?.filePaths?.length) {
+      const cleanExisting = block.images.filter((p): p is string => typeof p === 'string' && p.length > 0);
+      const newPaths = r.filePaths.filter((p: any): p is string => typeof p === 'string' && p.length > 0);
+      onUpdate({ images: [...cleanExisting, ...newPaths] });
+    }
   };
 
   const hasLink = /https?:\/\/[^\s]+/i.test(block.text);

@@ -210,6 +210,23 @@ export default function SendHistoryLog(_props: SendHistoryLogProps) {
     setFilterCampaignName(val); setSelectedCampaignId(null); setShowSuggestions(true); setPage(0);
   };
 
+  // Parse local date strictly without UTC shifts
+  const parseLocalDate = (dateStr: string, isEnd = false) => {
+    if (!dateStr) return 0;
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return 0;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    const dt = new Date(y, m, d);
+    if (isEnd) {
+      dt.setHours(23, 59, 59, 999);
+    } else {
+      dt.setHours(0, 0, 0, 0);
+    }
+    return dt.getTime();
+  };
+
   // ── Filter logic (dùng log.send_type trực tiếp, không còn case 'mixed') ──
   const filtered = logs.filter(log => {
     if (filterStatus !== 'all' && log.status !== filterStatus) return false;
@@ -225,18 +242,20 @@ export default function SendHistoryLog(_props: SendHistoryLogProps) {
     if (selectedCampaignId !== null) {
       if (log.campaign_id !== selectedCampaignId) return false;
     } else if (filterCampaignName.trim()) {
-      const name = campaignMap[log.campaign_id ?? -1]?.name || '';
-      if (!name.toLowerCase().includes(filterCampaignName.toLowerCase())) return false;
+      const displayName = campaignMap[log.campaign_id ?? -1]?.name || (log.campaign_id ? `#${log.campaign_id} - Đã xoá` : '—');
+      if (!displayName.toLowerCase().includes(filterCampaignName.toLowerCase())) return false;
     }
     if (filterSendType !== 'all') {
       const st = log.send_type || 'message';
       if (st !== filterSendType) return false;
     }
     if (dateFrom) {
-      if (log.sent_at < new Date(dateFrom).setHours(0, 0, 0, 0)) return false;
+      const fromTs = parseLocalDate(dateFrom, false);
+      if (fromTs && log.sent_at < fromTs) return false;
     }
     if (dateTo) {
-      if (log.sent_at > new Date(dateTo).setHours(23, 59, 59, 999)) return false;
+      const toTs = parseLocalDate(dateTo, true);
+      if (toTs && log.sent_at > toTs) return false;
     }
     return true;
   });

@@ -197,6 +197,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getMessagesByType: (params: any) => ipcRenderer.invoke('db:getMessagesByType', params),
     getCallLogsForContact: (params: any) => ipcRenderer.invoke('db:getCallLogsForContact', params),
     getCallReport: (params: any) => ipcRenderer.invoke('db:getCallReport', params),
+    getContactNamesBatch: (params: any) => ipcRenderer.invoke('db:getContactNamesBatch', params),
     pinMessage: (params: any) => ipcRenderer.invoke('db:pinMessage', params),
 
     unpinMessage: (params: any) => ipcRenderer.invoke('db:unpinMessage', params),

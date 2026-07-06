@@ -349,7 +349,7 @@ class CRMQueueService {
                     const resp = await (conn.api as any).sendMessage({ msg: text }, threadId, threadType);
                     responses.push(resp);
                 }
-                const imgs = (block.images || []).filter(Boolean);
+                const imgs = (block.images || []).filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
                 if (imgs.length > 0) {
                     // Zalo API: attachment gửi qua sendMessage chỉ hoạt động khi đã kết bạn.
                     // Nếu campaign là friend_request, ảnh sẽ không gửi được.

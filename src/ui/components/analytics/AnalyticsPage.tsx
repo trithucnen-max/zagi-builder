@@ -468,7 +468,7 @@ export default function AnalyticsPage() {
         ipc?.messageVolume({ zaloId: selectedAccountId, sinceTs: from, untilTs: to, granularity: periodDays <= 2 ? 'hour' : 'day', threadType: tt }),
         ipc?.peakHours({ zaloId: selectedAccountId, sinceTs: from, untilTs: to, threadType: tt }),
         ipc?.contactSegmentation({ zaloId: selectedAccountId }),
-        ipc?.campaignComparison({ zaloId: selectedAccountId }),
+        ipc?.campaignComparison({ zaloId: selectedAccountId, sinceTs: from, untilTs: to }),
         ipc?.friendRequests({ zaloId: selectedAccountId, sinceTs: from, untilTs: to }),
         ipc?.contactGrowth({ zaloId: selectedAccountId, sinceTs: from, untilTs: to }),
         ipc?.workflowAnalytics({ zaloId: selectedAccountId, sinceTs: from, untilTs: to }),

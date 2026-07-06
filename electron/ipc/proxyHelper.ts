@@ -127,11 +127,11 @@ export async function uploadEmployeeMedia(filePaths: string[], zaloId?: string):
 
     // Upload parallel all files để giảm thời gian chờ
     const uploadTasks = filePaths.map(async (fp, index) => {
-        if (!fp) { bossPaths[index] = fp; return; }
+        if (!fp || typeof fp !== 'string') { bossPaths[index] = ''; return; }
         const absPath = FileStorageService.resolveAbsolutePath(fp);
         if (!absPath || !fs.existsSync(absPath)) {
             Logger.warn(`[uploadEmployeeMedia] File not found on Employee: ${absPath || fp}`);
-            bossPaths[index] = fp;
+            bossPaths[index] = '';
             return;
         }
         const buffer = fs.readFileSync(absPath);
