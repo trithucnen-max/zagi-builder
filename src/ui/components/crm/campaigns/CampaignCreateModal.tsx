@@ -1099,98 +1099,11 @@ Yiêu cầu quan trọng:
               </div>
             )}
 
-            {/* Daily Send Limit */}
-            <div>
-              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
-                <AppIcon name="chart" className="text-gray-500" size={10} />
-                Giới hạn/ngày
-              </label>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    step={10}
-                    value={dailyLimit || ''}
-                    onChange={e => setDailyLimit(Math.max(0, parseInt(e.target.value) || 0))}
-                    placeholder="Không giới hạn"
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-2 text-xs text-gray-955 dark:text-gray-250 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                  <span className="text-[10px] text-gray-500 flex-shrink-0">liên hệ</span>
-                </div>
-              </div>
-              <p className="text-[10px] text-gray-600 mt-1">
-                {dailyLimit > 0
-                  ? `Gửi tối đa ${dailyLimit}/ngày`
-                  : 'Gửi không giới hạn (theo token bucket)'}
-              </p>
-              {isStrangerTarget && (
-                dailyLimit === 0 ? (
-                  <p className="text-[10px] text-red-500 dark:text-red-400 font-semibold mt-1.5 leading-relaxed">
-                    ⚠️ Cảnh báo: Không nên để không giới hạn khi gửi người lạ/kết bạn. Zalo giới hạn tối đa 50 người/ngày cho tài khoản cá nhân.
-                  </p>
-                ) : dailyLimit > 50 ? (
-                  <p className="text-[10px] text-red-600 dark:text-red-500 font-semibold mt-1.5 leading-relaxed">
-                    ⚠️ Cảnh báo nguy hiểm: Hạn mức ngày vượt quá giới hạn 50 người/ngày của Zalo cá nhân. Tài khoản có nguy cơ bị khóa cao!
-                  </p>
-                ) : dailyLimit > 20 ? (
-                  <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-1.5 leading-relaxed">
-                    ⚠️ Khuyến nghị: Nên đặt hạn mức từ 10 - 20 người/ngày để đảm bảo tài khoản hoạt động an toàn tối đa.
-                  </p>
-                ) : null
-              )}
-            </div>
-
-            {/* Precise Scheduling */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <label className="flex items-center gap-2 cursor-pointer mb-2">
-                <div onClick={() => setIsScheduled(!isScheduled)}
-                  className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-                    isScheduled ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-500 hover:border-blue-400'
-                  }`}>
-                  {isScheduled && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                </div>
-                <span className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider">🗓 Hẹn giờ chạy</span>
-              </label>
-
-              {isScheduled && (
-                <div className="space-y-2 pl-6 animate-fadeIn">
-                  <div>
-                    <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Ngày chạy</label>
-                    <input
-                      type="date"
-                      value={schedDate}
-                      onChange={e => setSchedDate(e.target.value)}
-                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-gray-600 dark:text-gray-400 block mb-1">Giờ chạy</label>
-                    <input
-                      type="time"
-                      value={schedTime}
-                      onChange={e => setSchedTime(e.target.value)}
-                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
-                    />
-                  </div>
-                  {getScheduleMessage() && (
-                    <p className={`text-[10px] mt-1 leading-relaxed ${getScheduleMessage().startsWith('⚠️') ? 'text-amber-500 font-semibold' : 'text-cyan-500 dark:text-cyan-400'}`}>
-                      {getScheduleMessage()}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
 
 
 
-            {/* Warning */}
-            <div className="border border-yellow-500/20 rounded-lg p-2.5 mt-auto">
-              <p className="text-[10px] text-yellow-400 font-semibold mb-1">⚠️ Cảnh báo</p>
-              <p className="text-[9px] text-yellow-300/60 leading-relaxed">
-                Hành động càng nhiều, nội dung càng dài, và delay càng ngắn sẽ làm tăng nguy cơ bị Zalo đánh spam. Hãy cân nhắc kỹ lưỡng khi cấu hình chiến dịch, và luôn tuân thủ nguyên tắc cộng đồng của Zalo.
-              </p>
-            </div>
+
+
           </div>
 
           {/* ── CENTER: Editor ── */}
@@ -1272,10 +1185,92 @@ Yiêu cầu quan trọng:
             </div>
 
             {/* Center content area */}
-            <div className="flex-1 min-h-0 p-4 overflow-y-auto flex flex-col gap-3">
+            <div className="flex-1 min-h-0 p-4 overflow-y-auto flex flex-col gap-3.5">
+              
+              {/* ── Config Panel: Giới hạn/Ngày & Hẹn giờ chạy ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700/60 rounded-xl flex-shrink-0">
+                {/* Giới hạn ngày */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <AppIcon name="chart" className="text-gray-500" size={10} />
+                    Giới hạn gửi trong ngày
+                  </label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={dailyLimit || ''}
+                      onChange={e => setDailyLimit(Math.max(0, parseInt(e.target.value) || 0))}
+                      placeholder="Không giới hạn"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-250 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                    <span className="text-[10px] text-gray-500 flex-shrink-0">liên hệ</span>
+                  </div>
+                  {isStrangerTarget && (
+                    dailyLimit === 0 ? (
+                      <p className="text-[9px] text-red-500 dark:text-red-400 font-semibold mt-1 leading-relaxed">
+                        ⚠️ Không nên để không giới hạn khi gửi người lạ/kết bạn. Zalo giới hạn 50 người/ngày.
+                      </p>
+                    ) : dailyLimit > 50 ? (
+                      <p className="text-[9px] text-red-600 dark:text-red-500 font-semibold mt-1 leading-relaxed">
+                        ⚠️ Nguy hiểm: Vượt quá giới hạn 50 người/ngày của Zalo. Tài khoản dễ bị khóa!
+                      </p>
+                    ) : dailyLimit > 20 ? (
+                      <p className="text-[9px] text-amber-600 dark:text-amber-500 font-medium mt-1 leading-relaxed">
+                        ⚠️ Khuyến nghị: Nên đặt hạn mức từ 10 - 20 người/ngày để an toàn tối đa.
+                      </p>
+                    ) : null
+                  )}
+                </div>
+
+                {/* Hẹn giờ chạy */}
+                <div className="flex flex-col gap-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div onClick={() => setIsScheduled(!isScheduled)}
+                      className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                        isScheduled ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-500 hover:border-blue-400'
+                      }`}>
+                      {isScheduled && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider">🗓 Hẹn giờ chạy</span>
+                  </label>
+
+                  {isScheduled ? (
+                    <div className="grid grid-cols-2 gap-2 mt-1 animate-fadeIn">
+                      <div>
+                        <input
+                          type="date"
+                          value={schedDate}
+                          onChange={e => setSchedDate(e.target.value)}
+                          className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2 py-1 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="time"
+                          value={schedTime}
+                          onChange={e => setSchedTime(e.target.value)}
+                          className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2 py-1 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-gray-500 mt-1.5">
+                      Chạy ngay khi kích hoạt chiến dịch
+                    </p>
+                  )}
+                  {isScheduled && getScheduleMessage() && (
+                    <p className={`text-[9px] mt-1 leading-relaxed ${getScheduleMessage().startsWith('⚠️') ? 'text-amber-500 font-semibold' : 'text-cyan-500 dark:text-cyan-400'}`}>
+                      {getScheduleMessage()}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Message block editor */}
               {hasMsg && currentBlock && (
-                <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-shrink-0 flex flex-col">
                   <BlockEditor
                     block={currentBlock}
                     onUpdate={u => updateBlock(currentBlock.id, u)}
@@ -1338,7 +1333,7 @@ Yiêu cầu quan trọng:
 
               {/* Standalone friend request */}
               {hasFR && !hasMsg && (
-                <div className="flex-1 min-h-0 flex flex-col gap-2">
+                <div className="flex-shrink-0 flex flex-col gap-2">
                   {/* Header row: variable chips + AI button */}
                   <div className="flex items-center justify-between flex-wrap gap-1.5 flex-shrink-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -1377,7 +1372,7 @@ Yiêu cầu quan trọng:
                             }
                           }}
                           placeholder="Yêu cầu AI viết lời nhắn kết bạn..."
-                          className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                          className="flex-1 bg-white dark:bg-gray-900 border border-gray-350 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                         />
                         <button
                           type="button"
@@ -1399,7 +1394,7 @@ Yiêu cầu quan trọng:
 
                   <textarea ref={friendReqRef} value={friendReqMsg} onChange={e => setFriendReqMsg(e.target.value.slice(0, 150))}
                     placeholder="Xin chào {name}, tôi muốn kết nối với bạn!"
-                    className="flex-1 min-h-0 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
+                    className="h-28 min-h-[90px] w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
                   {hasFRMsgLink && (
                     <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium px-1 leading-relaxed">
                       ⚠️ Cảnh báo: Tránh gửi đường link kèm theo lời mời kết bạn.
@@ -1413,7 +1408,7 @@ Yiêu cầu quan trọng:
 
               {/* Invite to groups */}
               {hasInvite && !hasMsg && (
-                <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                <div className="flex-shrink-0 overflow-hidden flex flex-col">
                   <GroupPicker zaloId={zaloId} inviteGroupIds={inviteGroupIds} onToggle={toggleGroupId} />
                 </div>
               )}
@@ -1425,6 +1420,14 @@ Yiêu cầu quan trọng:
                   <GroupPicker zaloId={zaloId} inviteGroupIds={inviteGroupIds} onToggle={toggleGroupId} />
                 </div>
               )}
+
+              {/* Warning Box */}
+              <div className="border border-yellow-500/20 bg-yellow-500/5 rounded-xl p-3 flex-shrink-0">
+                <p className="text-[10px] text-yellow-500 dark:text-yellow-400 font-semibold mb-1">⚠️ Cảnh báo</p>
+                <p className="text-[9px] text-yellow-600/70 dark:text-yellow-400/60 leading-relaxed">
+                  Hành động càng nhiều, nội dung càng dài, và delay càng ngắn sẽ làm tăng nguy cơ bị Zalo đánh spam. Hãy cân nhắc kỹ lưỡng khi cấu hình chiến dịch, và luôn tuân thủ nguyên tắc cộng đồng của Zalo.
+                </p>
+              </div>
             </div>
           </div>
 
