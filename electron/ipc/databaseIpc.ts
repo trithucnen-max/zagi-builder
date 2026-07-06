@@ -713,12 +713,12 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getCallReport', async (_event, { zaloId, fromTs, toTs }: { zaloId: string; fromTs: number; toTs: number }) => {
+    ipcMain.handle('db:getCallReport', async (_event, { zaloId, fromTs, toTs, localLabelIds, zaloLabelThreadIds }: { zaloId: string; fromTs: number; toTs: number; localLabelIds?: number[]; zaloLabelThreadIds?: string[] }) => {
         try {
             if (AppModeManager.getInstance().getMode() === 'employee') {
-                return await proxyToBossAsync('db:getCallReport', { zaloId, fromTs, toTs });
+                return await proxyToBossAsync('db:getCallReport', { zaloId, fromTs, toTs, localLabelIds, zaloLabelThreadIds });
             }
-            const report = DatabaseService.getInstance().getCallReport(zaloId, fromTs, toTs);
+            const report = DatabaseService.getInstance().getCallReport(zaloId, fromTs, toTs, localLabelIds, zaloLabelThreadIds);
             return { success: true, ...report };
         } catch (error: any) {
             return { success: false, error: error.message };

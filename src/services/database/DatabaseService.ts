@@ -4727,29 +4727,71 @@ class DatabaseService {
      * Báo cáo tổng hợp cuộc gọi theo khoảng thời gian — dùng cho Analytics tab.
      * Trả về: byContact, byDay, totals
      */
-    public getCallReport(ownerZaloId: string, fromTs: number, toTs: number): {
+    public getCallReport(
+        ownerZaloId: string,
+        fromTs: number,
+        toTs: number,
+        localLabelIds?: number[],
+        zaloLabelThreadIds?: string[]
+    ): {
         byContact: any[];
         byDay: any[];
         totals: { total: number; answered: number; missed: number; inbound: number; outbound: number; totalDuration: number };
     } {
         if (!this.initialized) return { byContact: [], byDay: [], totals: { total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 } };
 
-        const rows = this.query<any>(
-            `SELECT msg_id, thread_id, timestamp, (sender_id = owner_zalo_id) as is_self, content
-             FROM messages
-             WHERE owner_zalo_id=? AND timestamp BETWEEN ? AND ? AND is_recalled=0
-               AND (content LIKE '%recommened.calltime%' OR content LIKE '%recommened.misscall%')
-             ORDER BY timestamp ASC`,
-            [ownerZaloId, fromTs, toTs]
-        );
+        const hasLocalFilter = localLabelIds && localLabelIds.length > 0;
+        const hasZaloFilter = zaloLabelThreadIds !== undefined;
+        const hasZaloThreads = zaloLabelThreadIds && zaloLabelThreadIds.length > 0;
+
+        // Nếu người dùng chọn lọc nhãn Zalo nhưng danh sách thread trống (không có liên hệ nào gắn nhãn),
+        // và không chọn lọc nhãn Local, thì lập tức trả về rỗng để tối ưu, tránh query vô nghĩa.
+        if (hasZaloFilter && !hasZaloThreads && !hasLocalFilter) {
+            return { byContact: [], byDay: [], totals: { total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 } };
+        }
+
+        let sql = `
+            SELECT msg_id, thread_id, timestamp, (sender_id = owner_zalo_id) as is_self, content
+            FROM messages
+            WHERE owner_zalo_id=? AND timestamp BETWEEN ? AND ? AND is_recalled=0
+              AND (content LIKE '%recommened.calltime%' OR content LIKE '%recommened.misscall%')
+        `;
+        const params: any[] = [ownerZaloId, fromTs, toTs];
+
+        if (hasLocalFilter || hasZaloThreads) {
+            sql += ` AND (`;
+            const conditions: string[] = [];
+
+            if (hasLocalFilter) {
+                const placeholders = localLabelIds.map(() => '?').join(',');
+                conditions.push(`thread_id IN (
+                    SELECT thread_id FROM local_label_threads 
+                    WHERE owner_zalo_id = ? AND label_id IN (${placeholders})
+                )`);
+                params.push(ownerZaloId, ...localLabelIds);
+            }
+
+            if (hasZaloThreads) {
+                const placeholders = zaloLabelThreadIds.map(() => '?').join(',');
+                conditions.push(`thread_id IN (${placeholders})`);
+                params.push(...zaloLabelThreadIds);
+            }
+
+            sql += conditions.join(' OR ');
+            sql += `)`;
+        }
+
+        sql += ` ORDER BY timestamp ASC`;
+
+        const rows = this.query<any>(sql, params);
 
         const parsed = rows.map((r: any) => {
             let action = '', duration = 0;
             try {
                 const p = JSON.parse(r.content);
                 action = String(p?.action || '');
-                const params = typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {});
-                duration = Number(params?.duration || 0);
+                const paramsJson = typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {});
+                duration = Number(paramsJson?.duration || 0);
             } catch {}
             const missed = action === 'recommened.misscall' || (action === 'recommened.calltime' && duration === 0);
             return { threadId: r.thread_id, timestamp: r.timestamp, isSelf: !!r.is_self, duration, missed };

@@ -244,6 +244,8 @@ declare global {
         // CRM Import
         checkPhonesDuplicate: (params: { zaloId: string; phones: string[] }) => Promise<{ success: boolean; duplicates: string[]; error?: string }>;
         updateContactExtraData: (params: { zaloId: string; contactId: string; extraData: Record<string, any> }) => Promise<{ success: boolean; error?: string }>;
+        getCallReport: (params: { zaloId: string; fromTs: number; toTs: number; localLabelIds?: number[]; zaloLabelThreadIds?: string[] }) => Promise<any>;
+        getContactNamesBatch: (params: { zaloId: string; contactIds: string[] }) => Promise<any>;
       };
 
       crm: {

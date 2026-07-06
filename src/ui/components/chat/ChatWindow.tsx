@@ -5619,6 +5619,26 @@ async function sendOneForward(
   // Zalo path
   if (channel === 'zalo' || !channel) {
     const isTempId = String(msg.msg_id).startsWith('temp_');
+    const isAttachment = isFile || isVideo || isImage;
+    let fileExists = false;
+    if (isAttachment && localPath) {
+      try {
+        fileExists = await ipc.file?.exists?.(localPath) ?? false;
+      } catch {}
+    }
+
+    if (isAttachment && fileExists) {
+      if (isFile || isVideo) {
+        await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
+      } else if (isImage) {
+        await ipc.zalo?.sendImage({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType, message: '' });
+      }
+      if (composeText && composeText.trim()) {
+        await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
+      }
+      return;
+    }
+
     if (!isTempId && msg.msg_id) {
       const payload = {
         message: extractMsgText(msg),

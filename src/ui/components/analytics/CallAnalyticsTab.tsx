@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { useAccountStore } from '@/store/accountStore';
+import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -140,12 +141,78 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
   const [loading, setLoading] = useState(false);
   const [contactNames, setContactNames] = useState<Record<string, string>>({});
 
+  // Label Filtering States
+  const [localLabels, setLocalLabels] = useState<any[]>([]);
+  const [selectedLocalLabelIds, setSelectedLocalLabelIds] = useState<number[]>([]);
+  const [selectedZaloLabelIds, setSelectedZaloLabelIds] = useState<number[]>([]);
+  const [labelTab, setLabelTab] = useState<'local' | 'zalo'>('local');
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 50;
+
+  // Access Zalo Labels from appStore
+  const { labels: appLabels, fetchLabelsWithCache } = useAppStore();
+  const availableZaloLabels = useMemo(() => {
+    return appLabels[selectedAccountId] || [];
+  }, [appLabels, selectedAccountId]);
+
+  // Fetch Zalo Labels
+  useEffect(() => {
+    if (!selectedAccountId) return;
+    const auth = accounts.find(a => a.zalo_id === selectedAccountId)?.auth;
+    if (auth) {
+      fetchLabelsWithCache(selectedAccountId, auth).catch(() => {});
+    }
+  }, [selectedAccountId, accounts, fetchLabelsWithCache]);
+
+  // Fetch Local Labels
+  useEffect(() => {
+    if (!selectedAccountId) {
+      setLocalLabels([]);
+      return;
+    }
+    ipc.db?.getLocalLabels({ zaloId: selectedAccountId }).then(res => {
+      if (res?.success && res.labels) {
+        setLocalLabels(res.labels);
+      } else if (Array.isArray(res)) {
+        setLocalLabels(res);
+      }
+    }).catch(() => {});
+  }, [selectedAccountId]);
+
+  // Get Zalo label thread IDs
+  const selectedZaloLabelThreadIds = useMemo(() => {
+    const threadIds = new Set<string>();
+    for (const labelId of selectedZaloLabelIds) {
+      const label = availableZaloLabels.find(l => l.id === labelId);
+      if (label?.conversations) {
+        for (const tid of label.conversations) {
+          threadIds.add(tid);
+        }
+      }
+    }
+    return Array.from(threadIds);
+  }, [selectedZaloLabelIds, availableZaloLabels]);
+
+  // Reset pagination on filter changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [selectedAccountId, sinceTs, untilTs, selectedLocalLabelIds, selectedZaloLabelIds]);
+
   // Load report
   const load = useCallback(async () => {
     if (!selectedAccountId) return;
     setLoading(true);
     try {
-      const res = await ipc.db?.getCallReport({ zaloId: selectedAccountId, fromTs: sinceTs, toTs: untilTs });
+      const zaloLabelThreadIds = selectedZaloLabelIds.length > 0 ? selectedZaloLabelThreadIds : undefined;
+      const res = await ipc.db?.getCallReport({
+        zaloId: selectedAccountId,
+        fromTs: sinceTs,
+        toTs: untilTs,
+        localLabelIds: selectedLocalLabelIds,
+        zaloLabelThreadIds
+      });
       if (res?.success) {
         setData({ byContact: res.byContact || [], byDay: res.byDay || [], totals: res.totals || {} as CallTotals });
         // Resolve contact names from conversations list
@@ -157,7 +224,7 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
       }
     } catch {}
     finally { setLoading(false); }
-  }, [selectedAccountId, sinceTs, untilTs]);
+  }, [selectedAccountId, sinceTs, untilTs, selectedLocalLabelIds, selectedZaloLabelIds, selectedZaloLabelThreadIds]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -175,6 +242,13 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
   const totals = data?.totals ?? { total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 };
   const missedPct = totals.total > 0 ? Math.round((totals.missed / totals.total) * 100) : 0;
   const callbackCount = data?.byContact.reduce((sum, c) => sum + (c.inbound > 0 && !c.missed ? 1 : 0), 0) ?? 0;
+
+  const totalItems = data?.byContact.length || 0;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const pagedContacts = useMemo(() => {
+    if (!data) return [];
+    return data.byContact.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage);
+  }, [data, currentPage]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -209,6 +283,110 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
           >
             ↓ Xuất CSV
           </button>
+        )}
+      </div>
+
+      {/* ── Label Filters ────────────────────────────────────────── */}
+      <div className="bg-gray-800/20 border border-gray-700/50 rounded-xl p-3 flex flex-col gap-2.5">
+        <div className="flex gap-2 border-b border-gray-700/50 pb-1.5 flex-wrap items-center">
+          <button
+            type="button"
+            onClick={() => setLabelTab('local')}
+            className={`text-xs px-3 py-1 rounded-md font-medium transition-colors border ${
+              labelTab === 'local'
+                ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                : 'text-gray-500 hover:text-gray-300 border-transparent'
+            }`}
+          >
+            🏷️ Nhãn Local {selectedLocalLabelIds.length > 0 ? `(${selectedLocalLabelIds.length})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLabelTab('zalo')}
+            className={`text-xs px-3 py-1 rounded-md font-medium transition-colors border ${
+              labelTab === 'zalo'
+                ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                : 'text-gray-500 hover:text-gray-300 border-transparent'
+            }`}
+          >
+            💬 Nhãn Zalo {selectedZaloLabelIds.length > 0 ? `(${selectedZaloLabelIds.length})` : ''}
+          </button>
+          {(selectedLocalLabelIds.length > 0 || selectedZaloLabelIds.length > 0) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLocalLabelIds([]);
+                setSelectedZaloLabelIds([]);
+              }}
+              className="ml-auto text-xs text-blue-500 hover:text-blue-400 font-semibold"
+            >
+              Đặt lại lọc nhãn
+            </button>
+          )}
+        </div>
+
+        {labelTab === 'local' && (
+          localLabels.length > 0 ? (
+            <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+              {localLabels.map(label => {
+                const isActive = selectedLocalLabelIds.includes(label.id);
+                return (
+                  <button
+                    key={`local-${label.id}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedLocalLabelIds(prev =>
+                        prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id]
+                      );
+                    }}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                      isActive ? 'border-transparent' : 'border-gray-700 bg-gray-800/40 text-gray-400 hover:border-gray-600'
+                    }`}
+                    style={isActive
+                      ? { backgroundColor: (label.color || '#3b82f6') + '28', color: label.text_color || label.color || '#3b82f6', border: `1px solid ${label.color || '#3b82f6'}55` }
+                      : {}}
+                  >
+                    {label.emoji && <span className="mr-0.5">{label.emoji}</span>}
+                    {label.name}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 py-1">Chưa có Nhãn Local nào.</p>
+          )
+        )}
+
+        {labelTab === 'zalo' && (
+          availableZaloLabels.length > 0 ? (
+            <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+              {availableZaloLabels.map(label => {
+                const isActive = selectedZaloLabelIds.includes(label.id);
+                return (
+                  <button
+                    key={`zalo-${label.id}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedZaloLabelIds(prev =>
+                        prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id]
+                      );
+                    }}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                      isActive ? 'border-transparent' : 'border-gray-700 bg-gray-800/40 text-gray-400 hover:border-gray-600'
+                    }`}
+                    style={isActive
+                      ? { backgroundColor: (label.color || '#10b981') + '28', color: label.color || '#10b981', border: `1px solid ${label.color || '#10b981'}55` }
+                      : {}}
+                  >
+                    {label.emoji && <span className="mr-0.5">{label.emoji}</span>}
+                    {label.text} {label.conversations ? `(${label.conversations.length})` : ''}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 py-1">Chưa có Nhãn Zalo nào.</p>
+          )
         )}
       </div>
 
@@ -270,12 +448,13 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
                 </tr>
               </thead>
               <tbody>
-                {data.byContact.slice(0, 20).map((row, i) => {
+                {pagedContacts.map((row, i) => {
                   const name = contactNames[row.threadId] || row.threadId;
                   const hasCallback = row.inbound > 0;
+                  const globalIndex = currentPage * itemsPerPage + i + 1;
                   return (
                     <tr key={row.threadId} className="border-b border-gray-700/30 hover:bg-gray-700/20 transition-colors">
-                      <td className="px-4 py-2 text-gray-600">{i + 1}</td>
+                      <td className="px-4 py-2 text-gray-600">{globalIndex}</td>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-1.5">
                           <span className="text-gray-200 font-medium truncate max-w-[150px]">{name}</span>
@@ -297,9 +476,55 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
               </tbody>
             </table>
           </div>
-          {data.byContact.length > 20 && (
-            <div className="px-4 py-2 text-center text-[11px] text-gray-600 border-t border-gray-700/50">
-              Hiển thị 20 / {data.byContact.length} khách. Xuất CSV để xem toàn bộ.
+          {totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-gray-700/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
+              <span>Hiển thị {currentPage * itemsPerPage + 1} - {Math.min((currentPage + 1) * itemsPerPage, totalItems)} trong tổng số {totalItems} khách hàng</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  disabled={currentPage === 0}
+                  onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                  className="px-2.5 py-1.5 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 transition-colors"
+                >
+                  Trước
+                </button>
+                {Array.from({ length: totalPages }).map((_, idx) => {
+                  const isCurrent = idx === currentPage;
+                  // Show current page, first page, last page, and pages around current
+                  if (idx === 0 || idx === totalPages - 1 || Math.abs(idx - currentPage) <= 1) {
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setCurrentPage(idx)}
+                        className={`w-7 h-7 rounded-lg font-medium transition-colors ${
+                          isCurrent
+                            ? 'bg-blue-600 text-white font-bold'
+                            : 'border border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
+                        }`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  }
+                  if (idx === 1 || idx === totalPages - 2) {
+                    return <span key={idx} className="text-gray-600 px-0.5">...</span>;
+                  }
+                  return null;
+                }).filter((el, index, arr) => {
+                  // Filter double ellipses
+                  if (el?.type === 'span' && arr[index - 1]?.type === 'span') return false;
+                  return true;
+                })}
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages - 1}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                  className="px-2.5 py-1.5 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 transition-colors"
+                >
+                  Sau
+                </button>
+              </div>
             </div>
           )}
         </div>
