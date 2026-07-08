@@ -1013,7 +1013,9 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getLocalLabelThreads', async (_event, { zaloId }) => {
         try {
-            if (isEmployeeMode()) return { success: true, threads: [] };
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('db:getLocalLabelThreads', { zaloId });
+            }
             const threads = DatabaseService.getInstance().getLocalLabelThreads(zaloId);
             return { success: true, threads };
         } catch (error: any) {
@@ -1136,6 +1138,24 @@ export function registerDatabaseIpc() {
             DatabaseService.getInstance().setContactAlias(zaloId, contactId, alias);
             DatabaseService.getInstance().save();
             EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: zaloId, contactId, alias });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:patchContactFields', async (_event, { zaloId, contactId, fields }: { zaloId: string; contactId: string; fields: any }) => {
+        try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:patchContactFields', { zaloId, contactId, fields });
+                if (res?.success) {
+                    DatabaseService.getInstance().patchContactFields(zaloId, contactId, fields);
+                    DatabaseService.getInstance().save();
+                }
+                return res || { success: false, error: 'Không thể cập nhật thông tin liên hệ trên máy chủ BOSS' };
+            }
+            DatabaseService.getInstance().patchContactFields(zaloId, contactId, fields);
+            DatabaseService.getInstance().save();
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
