@@ -70,8 +70,7 @@ export function registerDatabaseIpc() {
         try {
             const _isEmp = isEmployeeMode();
             if (_isEmp) {
-                Logger.warn(`[databaseIpc] db:getMessages BLOCKED by employee mode (activeWs=${WorkspaceManager.getInstance().getActiveWorkspace()?.type || 'none'})`);
-                return { success: true };
+                return await proxyToBossAsync('db:getMessages', { zaloId, threadId, limit, offset, before });
             }
             Logger.log(`[databaseIpc] db:getMessages zaloId=${zaloId} threadId=${threadId} limit=${limit} offset=${offset} before=${before}`);
             const messages = DatabaseService.getInstance().getMessages(zaloId, threadId, limit, offset, before > 0 ? before : undefined);
@@ -84,7 +83,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getMessagesAround', async (_event, { zaloId, threadId, timestamp, limit = 50 }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getMessagesAround', { zaloId, threadId, timestamp, limit });
             const messages = DatabaseService.getInstance().getMessagesAround(zaloId, threadId, timestamp, limit);
             return { success: true, messages };
         } catch (error: any) {
@@ -94,7 +93,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getContacts', async (_event, { zaloId }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getContacts', { zaloId });
             const contacts = DatabaseService.getInstance().getContacts(zaloId);
             return { success: true, contacts };
         } catch (error: any) {
@@ -104,7 +103,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:searchContactByPhone', async (_event, { zaloId, phone }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:searchContactByPhone', { zaloId, phone });
             const contact = DatabaseService.getInstance().searchContactByPhone(zaloId, phone);
             return { success: true, contact: contact || null };
         } catch (error: any) {
@@ -114,7 +113,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:searchMessages', async (_event, { zaloId, query }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:searchMessages', { zaloId, query });
             const results = DatabaseService.getInstance().searchMessages(zaloId, query);
             return { success: true, results };
         } catch (error: any) {
@@ -124,7 +123,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getMediaMessages', async (_event, { zaloId, threadId, limit, offset }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getMediaMessages', { zaloId, threadId, limit, offset });
             const messages = threadId
                 ? DatabaseService.getInstance().getMediaMessages(zaloId, threadId, limit ?? 50, offset ?? 0)
                 : DatabaseService.getInstance().getAllLocalMediaMessages(zaloId);
@@ -136,7 +135,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getFileMessages', async (_event, { zaloId, threadId, limit, offset }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getFileMessages', { zaloId, threadId, limit, offset });
             const messages = DatabaseService.getInstance().getFileMessages(zaloId, threadId, limit ?? 50, offset ?? 0);
             return { success: true, messages };
         } catch (error: any) {
@@ -146,7 +145,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getUnreadCount', async (_event, { zaloId }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getUnreadCount', { zaloId });
             const total = DatabaseService.getInstance().getTotalUnread(zaloId);
             return { success: true, total };
         } catch (error: any) {
@@ -225,7 +224,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getMessageById', async (_event, { zaloId, msgId }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getMessageById', { zaloId, msgId });
             const message = DatabaseService.getInstance().getMessageById(zaloId, String(msgId));
             return { success: true, message: message || null };
         } catch (error: any) {
@@ -730,7 +729,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getMessagesByType', async (_event, { zaloId, threadId, msgType, limit = 100 }: { zaloId: string; threadId: string; msgType: string; limit?: number }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getMessagesByType', { zaloId, threadId, msgType, limit });
             const messages = DatabaseService.getInstance().getMessagesByType(zaloId, threadId, msgType, limit);
             return { success: true, messages };
         } catch (error: any) {
@@ -742,7 +741,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getPinnedMessages', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getPinnedMessages', { zaloId, threadId });
             const pins = DatabaseService.getInstance().getPinnedMessages(zaloId, threadId);
             return { success: true, pins };
         } catch (error: any) {
@@ -877,7 +876,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getLocalLabels', async (_event, { zaloId }) => {
         try {
-            if (isEmployeeMode()) return { success: true, labels: [] };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getLocalLabels', { zaloId });
             const labels = DatabaseService.getInstance().getLocalLabels(zaloId);
             return { success: true, labels };
         } catch (error: any) { return { success: false, error: error.message }; }
@@ -1022,7 +1021,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getContactsWithFlags', async (_event, { zaloId }: { zaloId: string }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getContactsWithFlags', { zaloId });
             const rows = DatabaseService.getInstance().getContactsWithFlags(zaloId);
             return { success: true, rows };
         } catch (error: any) {
