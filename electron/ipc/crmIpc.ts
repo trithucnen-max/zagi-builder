@@ -5,17 +5,37 @@ import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import AppModeManager from '../../src/utils/AppModeManager';
 import Logger from '../../src/utils/Logger';
 import { proxyToBoss, uploadEmployeeMedia, proxyToBossAsync } from './proxyHelper';
+import WorkspaceManager from '../../src/utils/WorkspaceManager';
+
+function isEmployeeMode(): boolean {
+    try {
+        const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+        if (activeWs?.type === 'remote') return true;
+    } catch {}
+    return false;
+}
+
+const CUSTOM_EMPLOYEE_CHANNELS = new Set(['crm:saveNote', 'crm:saveCampaign', 'crm:cloneCampaign']);
+
+function ipcHandle(channel: string, handler: any) {
+    ipcMain.handle(channel, async (event: any, ...args: any[]) => {
+        if (isEmployeeMode() && !CUSTOM_EMPLOYEE_CHANNELS.has(channel)) {
+            return await proxyToBossAsync(channel, args[0]);
+        }
+        return handler(event, ...args);
+    });
+}
 
 export function registerCRMIpc(): void {
 
 
     // ─── Notes ─────────────────────────────────────────────────────────────
-    ipcMain.handle('crm:getNotes', async (_e, { zaloId, contactId }: { zaloId: string; contactId: string }) => {
+    ipcHandle('crm:getNotes', async (_e, { zaloId, contactId }: { zaloId: string; contactId: string }) => {
         try { return { success: true, notes: DatabaseService.getInstance().getCRMNotes(zaloId, contactId) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:saveNote', async (_e, { zaloId, note }: { zaloId: string; note: any }) => {
+    ipcHandle('crm:saveNote', async (_e, { zaloId, note }: { zaloId: string; note: any }) => {
         try {
             if (AppModeManager.getInstance().getMode() === 'employee') {
                 const res = await proxyToBossAsync('crm:saveNote', { zaloId, note });
@@ -36,7 +56,7 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:deleteNote', async (_e, { zaloId, noteId }: { zaloId: string; noteId: number }) => {
+    ipcHandle('crm:deleteNote', async (_e, { zaloId, noteId }: { zaloId: string; noteId: number }) => {
         try {
             DatabaseService.getInstance().deleteCRMNote(noteId, zaloId);
             DatabaseService.getInstance().save();
@@ -47,12 +67,12 @@ export function registerCRMIpc(): void {
     });
 
     // ─── Contacts ──────────────────────────────────────────────────────────
-    ipcMain.handle('crm:getContacts', async (_e, { zaloId, opts }: { zaloId: string; opts?: any }) => {
+    ipcHandle('crm:getContacts', async (_e, { zaloId, opts }: { zaloId: string; opts?: any }) => {
         try { return { success: true, ...DatabaseService.getInstance().getCRMContacts(zaloId, opts || {}) }; }
         catch (e: any) { return { success: false, error: e.message, contacts: [], total: 0 }; }
     });
 
-    ipcMain.handle('crm:previewWorkflowContacts', async (_e, { zaloId, cfg }: { zaloId: string; cfg: any }) => {
+    ipcHandle('crm:previewWorkflowContacts', async (_e, { zaloId, cfg }: { zaloId: string; cfg: any }) => {
         try {
             let sql = `
               SELECT contact_id, display_name, avatar_url as avatar, phone, is_friend, contact_type, gender, birthday, pipeline_stage_id, channel, salutation, alias, ai_profile, extra_data
@@ -202,18 +222,18 @@ export function registerCRMIpc(): void {
         }
     });
 
-    ipcMain.handle('crm:getContactStats', async (_e, { zaloId }: { zaloId: string }) => {
+    ipcHandle('crm:getContactStats', async (_e, { zaloId }: { zaloId: string }) => {
         try { return { success: true, ...DatabaseService.getInstance().getContactStats(zaloId) }; }
         catch (e: any) { return { success: false, error: e.message, total: 0, friendCount: 0, noteCount: 0 }; }
     });
 
     // ─── Campaigns ─────────────────────────────────────────────────────────
-    ipcMain.handle('crm:getCampaigns', async (_e, { zaloId }: { zaloId: string }) => {
+    ipcHandle('crm:getCampaigns', async (_e, { zaloId }: { zaloId: string }) => {
         try { return { success: true, campaigns: DatabaseService.getInstance().getCRMCampaigns(zaloId) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:saveCampaign', async (_e, { zaloId, campaign }: { zaloId: string; campaign: any }) => {
+    ipcHandle('crm:saveCampaign', async (_e, { zaloId, campaign }: { zaloId: string; campaign: any }) => {
         try {
             if (AppModeManager.getInstance().getMode() === 'employee') {
                 // Upload embedded campaign images to Boss first so they exist on Boss filesystem and rewrite local paths
@@ -263,7 +283,7 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:deleteCampaign', async (_e, { zaloId, campaignId }: { zaloId: string; campaignId: number }) => {
+    ipcHandle('crm:deleteCampaign', async (_e, { zaloId, campaignId }: { zaloId: string; campaignId: number }) => {
         try {
             DatabaseService.getInstance().deleteCRMCampaign(campaignId, zaloId);
             DatabaseService.getInstance().save();
@@ -273,7 +293,7 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:cloneCampaign', async (_e, { zaloId, campaignId, includeContacts, newName }: { zaloId: string; campaignId: number; includeContacts: boolean; newName?: string }) => {
+    ipcHandle('crm:cloneCampaign', async (_e, { zaloId, campaignId, includeContacts, newName }: { zaloId: string; campaignId: number; includeContacts: boolean; newName?: string }) => {
         try {
             if (AppModeManager.getInstance().getMode() === 'employee') {
                 const res = await proxyToBossAsync('crm:cloneCampaign', { zaloId, campaignId, includeContacts, newName });
@@ -297,7 +317,7 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:restartCampaign', async (_e, { zaloId, campaignId }: { zaloId: string; campaignId: number }) => {
+    ipcHandle('crm:restartCampaign', async (_e, { zaloId, campaignId }: { zaloId: string; campaignId: number }) => {
         try {
             const db = DatabaseService.getInstance();
             db.restartCRMCampaign(campaignId);
@@ -308,7 +328,7 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:retryFailedContacts', async (_e, { zaloId, campaignId }: { zaloId: string; campaignId: number }) => {
+    ipcHandle('crm:retryFailedContacts', async (_e, { zaloId, campaignId }: { zaloId: string; campaignId: number }) => {
         try {
             const db = DatabaseService.getInstance();
             db.retryFailedCampaignContacts(campaignId);
@@ -319,7 +339,7 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:updateCampaignStatus', async (_e, { campaignId, status }: { campaignId: number; status: string }) => {
+    ipcHandle('crm:updateCampaignStatus', async (_e, { campaignId, status }: { campaignId: number; status: string }) => {
         try {
             const db = DatabaseService.getInstance();
             db.updateCRMCampaignStatus(campaignId, status as any);
@@ -336,7 +356,7 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:addCampaignContacts', async (_e, { zaloId, campaignId, contacts }: { zaloId: string; campaignId: number; contacts: any[] }) => {
+    ipcHandle('crm:addCampaignContacts', async (_e, { zaloId, campaignId, contacts }: { zaloId: string; campaignId: number; contacts: any[] }) => {
         try {
             const res = DatabaseService.getInstance().addCampaignContacts(campaignId, zaloId, contacts);
             DatabaseService.getInstance().save();
@@ -346,7 +366,7 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:removeCampaignContacts', async (_e, { zaloId, campaignId, contactIds }: { zaloId: string; campaignId: number; contactIds: string[] }) => {
+    ipcHandle('crm:removeCampaignContacts', async (_e, { zaloId, campaignId, contactIds }: { zaloId: string; campaignId: number; contactIds: string[] }) => {
         try {
             DatabaseService.getInstance().removeCampaignContacts(campaignId, contactIds);
             EventBroadcaster.emit('crm:campaignChanged', { action: 'contactsRemoved', ownerZaloId: zaloId, campaignId });
@@ -354,13 +374,13 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:getCampaignContacts', async (_e, { campaignId }: { campaignId: number }) => {
+    ipcHandle('crm:getCampaignContacts', async (_e, { campaignId }: { campaignId: number }) => {
         try { return { success: true, contacts: DatabaseService.getInstance().getCampaignContacts(campaignId) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
     // ─── Send Log ──────────────────────────────────────────────────────────
-    ipcMain.handle('crm:getSendLog', async (_e, { zaloId, opts }: { zaloId: string; opts?: any }) => {
+    ipcHandle('crm:getSendLog', async (_e, { zaloId, opts }: { zaloId: string; opts?: any }) => {
         try {
             if (AppModeManager.getInstance().getMode() === 'employee') {
                 return await proxyToBossAsync('crm:getSendLog', { zaloId, opts });
@@ -370,7 +390,7 @@ export function registerCRMIpc(): void {
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:getCampaignStats', async (_e, { zaloId, limit }: { zaloId: string; limit?: number }) => {
+    ipcHandle('crm:getCampaignStats', async (_e, { zaloId, limit }: { zaloId: string; limit?: number }) => {
         try {
             if (AppModeManager.getInstance().getMode() === 'employee') {
                 return await proxyToBossAsync('crm:getCampaignStats', { zaloId, limit });
@@ -380,7 +400,7 @@ export function registerCRMIpc(): void {
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:getCampaignSafetyStats', async (_e, { zaloId }: { zaloId?: string }) => {
+    ipcHandle('crm:getCampaignSafetyStats', async (_e, { zaloId }: { zaloId?: string }) => {
         try {
             if (AppModeManager.getInstance().getMode() === 'employee') {
                 return await proxyToBossAsync('crm:getCampaignSafetyStats', { zaloId });
@@ -390,7 +410,7 @@ export function registerCRMIpc(): void {
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('crm:getActivityStats', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs?: number }) => {
+    ipcHandle('crm:getActivityStats', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs?: number }) => {
         try {
             if (AppModeManager.getInstance().getMode() === 'employee') {
                 return await proxyToBossAsync('crm:getActivityStats', { zaloId, sinceTs, untilTs });
@@ -401,63 +421,63 @@ export function registerCRMIpc(): void {
     });
 
     // ─── Queue status ──────────────────────────────────────────────────────────
-    ipcMain.handle('crm:getQueueStatus', async (_e, { zaloId }: { zaloId: string }) => {
+    ipcHandle('crm:getQueueStatus', async (_e, { zaloId }: { zaloId: string }) => {
         try { return { success: true, status: CRMQueueService.getInstance().getStatus(zaloId) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
     // ─── Analytics / Reporting ─────────────────────────────────────────────────
-    ipcMain.handle('analytics:dashboardOverview', async (_e, { zaloId }: { zaloId: string }) => {
+    ipcHandle('analytics:dashboardOverview', async (_e, { zaloId }: { zaloId: string }) => {
         try { return { success: true, ...DatabaseService.getInstance().getDashboardOverview(zaloId) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:messageVolume', async (_e, { zaloId, sinceTs, untilTs, granularity, threadType }: { zaloId: string; sinceTs: number; untilTs: number; granularity: 'hour' | 'day'; threadType?: number }) => {
+    ipcHandle('analytics:messageVolume', async (_e, { zaloId, sinceTs, untilTs, granularity, threadType }: { zaloId: string; sinceTs: number; untilTs: number; granularity: 'hour' | 'day'; threadType?: number }) => {
         try { return { success: true, data: DatabaseService.getInstance().getMessageVolume(zaloId, sinceTs, untilTs, granularity, threadType) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:peakHours', async (_e, { zaloId, sinceTs, untilTs, threadType }: { zaloId: string; sinceTs: number; untilTs: number; threadType?: number }) => {
+    ipcHandle('analytics:peakHours', async (_e, { zaloId, sinceTs, untilTs, threadType }: { zaloId: string; sinceTs: number; untilTs: number; threadType?: number }) => {
         try { return { success: true, data: DatabaseService.getInstance().getPeakHoursHeatmap(zaloId, sinceTs, untilTs, threadType) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:contactGrowth', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs: number }) => {
+    ipcHandle('analytics:contactGrowth', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs: number }) => {
         try { return { success: true, data: DatabaseService.getInstance().getContactGrowth(zaloId, sinceTs, untilTs) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:contactSegmentation', async (_e, { zaloId }: { zaloId: string }) => {
+    ipcHandle('analytics:contactSegmentation', async (_e, { zaloId }: { zaloId: string }) => {
         try { return { success: true, ...DatabaseService.getInstance().getContactSegmentation(zaloId) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:campaignComparison', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs?: number; untilTs?: number }) => {
+    ipcHandle('analytics:campaignComparison', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs?: number; untilTs?: number }) => {
         try { return { success: true, data: DatabaseService.getInstance().getCampaignComparison(zaloId, sinceTs, untilTs) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:friendRequests', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs: number }) => {
+    ipcHandle('analytics:friendRequests', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs: number }) => {
         try { return { success: true, ...DatabaseService.getInstance().getFriendRequestAnalytics(zaloId, sinceTs, untilTs) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:workflowAnalytics', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs: number }) => {
+    ipcHandle('analytics:workflowAnalytics', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs: number }) => {
         try { return { success: true, ...DatabaseService.getInstance().getWorkflowAnalytics(zaloId, sinceTs, untilTs) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:aiAnalytics', async (_e, { sinceTs, untilTs }: { sinceTs: number; untilTs: number }) => {
+    ipcHandle('analytics:aiAnalytics', async (_e, { sinceTs, untilTs }: { sinceTs: number; untilTs: number }) => {
         try { return { success: true, ...DatabaseService.getInstance().getAIAnalytics(sinceTs, untilTs) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:responseTime', async (_e, { zaloId, sinceTs, untilTs, threadType }: { zaloId: string; sinceTs: number; untilTs: number; threadType?: number }) => {
+    ipcHandle('analytics:responseTime', async (_e, { zaloId, sinceTs, untilTs, threadType }: { zaloId: string; sinceTs: number; untilTs: number; threadType?: number }) => {
         try { return { success: true, ...DatabaseService.getInstance().getResponseTimeStats(zaloId, sinceTs, untilTs, threadType) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcMain.handle('analytics:labelUsage', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs: number }) => {
+    ipcHandle('analytics:labelUsage', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs: number }) => {
         try { return { success: true, ...DatabaseService.getInstance().getLabelUsageAnalytics(zaloId, sinceTs, untilTs) }; }
         catch (e: any) { return { success: false, error: e.message }; }
     });
