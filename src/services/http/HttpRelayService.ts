@@ -282,8 +282,11 @@ class HttpRelayService {
             if (!emp) return null;
 
             const assignedAccounts = emp.assigned_accounts || [];
-            const onlineAccounts = assignedAccounts.filter((zaloId) => ConnectionManager.isConnected(zaloId));
             const allAccounts = db.getAccounts();
+            const onlineAccounts = assignedAccounts.filter((zaloId) => {
+                const acc = allAccounts.find(a => a.zalo_id === zaloId);
+                return acc ? acc.listener_active === 1 : false;
+            });
             const profile = db.queryOne<{ erp_role?: string; extra_json?: string }>(
                 `SELECT erp_role, extra_json FROM erp_employee_profiles WHERE employee_id = ?`,
                 [employeeId],
@@ -307,7 +310,7 @@ class HttpRelayService {
                     phone: a.phone || '',
                     is_business: a.is_business || 0,
                     is_active: a.is_active,
-                    listener_active: ConnectionManager.isConnected(a.zalo_id) ? 1 : 0,
+                    listener_active: a.listener_active,
                 }));
 
             return {
