@@ -185,8 +185,16 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:updateContactProfile', async (_event, { zaloId, contactId, displayName, avatarUrl, phone, contactType, gender, birthday }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss('db:updateContactProfile', { zaloId, contactId });
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:updateContactProfile', { zaloId, contactId, displayName, avatarUrl, phone, contactType, gender, birthday });
+                if (res?.success) {
+                    DatabaseService.getInstance().updateContactProfile(zaloId, contactId, displayName || '', avatarUrl || '', phone || '', contactType || '', gender ?? null, birthday ?? null);
+                    DatabaseService.getInstance().save();
+                }
+                return res || { success: false, error: 'Không thể cập nhật thông tin liên hệ trên máy chủ BOSS' };
+            }
             DatabaseService.getInstance().updateContactProfile(zaloId, contactId, displayName || '', avatarUrl || '', phone || '', contactType || '', gender ?? null, birthday ?? null);
+            DatabaseService.getInstance().save();
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -894,27 +902,55 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:upsertLocalLabel', async (_event, { label }) => {
         try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:upsertLocalLabel', { label });
+                if (res?.success && res.id) {
+                    DatabaseService.getInstance().upsertLocalLabel({ ...label, id: res.id });
+                    DatabaseService.getInstance().save();
+                    EventBroadcaster.emit('db:localLabelChanged', { action: 'upsert', label: { ...label, id: res.id } });
+                    return res;
+                }
+                return res || { success: false, error: 'Không thể cập nhật nhãn trên máy chủ BOSS' };
+            }
             const id = DatabaseService.getInstance().upsertLocalLabel(label);
+            DatabaseService.getInstance().save();
             EventBroadcaster.emit('db:localLabelChanged', { action: 'upsert', label: { ...label, id } });
-            proxyToBoss('db:upsertLocalLabel', { label: { ...label, id } });
             return { success: true, id };
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
     ipcMain.handle('db:deleteLocalLabel', async (_event, { id }) => {
         try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:deleteLocalLabel', { id });
+                if (res?.success) {
+                    DatabaseService.getInstance().deleteLocalLabel(id);
+                    DatabaseService.getInstance().save();
+                    EventBroadcaster.emit('db:localLabelChanged', { action: 'delete', labelId: id });
+                }
+                return res || { success: false, error: 'Không thể xóa nhãn trên máy chủ BOSS' };
+            }
             DatabaseService.getInstance().deleteLocalLabel(id);
+            DatabaseService.getInstance().save();
             EventBroadcaster.emit('db:localLabelChanged', { action: 'delete', labelId: id });
-            proxyToBoss('db:deleteLocalLabel', { id });
             return { success: true };
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
     ipcMain.handle('db:setLocalLabelActive', async (_event, { id, isActive }: { id: number; isActive: number }) => {
         try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:setLocalLabelActive', { id, isActive });
+                if (res?.success) {
+                    DatabaseService.getInstance().setLocalLabelActive(id, isActive);
+                    DatabaseService.getInstance().save();
+                    EventBroadcaster.emit('db:localLabelChanged', { action: 'active', labelId: id, isActive });
+                }
+                return res || { success: false, error: 'Không thể cập nhật trạng thái nhãn trên máy chủ BOSS' };
+            }
             DatabaseService.getInstance().setLocalLabelActive(id, isActive);
+            DatabaseService.getInstance().save();
             EventBroadcaster.emit('db:localLabelChanged', { action: 'active', labelId: id, isActive });
-            proxyToBoss('db:setLocalLabelActive', { id, isActive });
             return { success: true };
         } catch (error: any) { return { success: false, error: error.message }; }
     });
@@ -1009,7 +1045,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getThreadLocalLabels', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getThreadLocalLabels', { zaloId, threadId });
             const labels = DatabaseService.getInstance().getThreadLocalLabels(zaloId, threadId);
             return { success: true, labels };
         } catch (error: any) {
@@ -1020,9 +1056,18 @@ export function registerDatabaseIpc() {
     // ─── Contact Flags (mute / others) ───────────────────────────────────
     ipcMain.handle('db:setContactFlags', async (_event, { zaloId, contactId, flags }: { zaloId: string; contactId: string; flags: { is_muted?: number; mute_until?: number; is_in_others?: number } }) => {
         try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:setContactFlags', { zaloId, contactId, flags });
+                if (res?.success) {
+                    DatabaseService.getInstance().setContactFlags(zaloId, contactId, flags);
+                    DatabaseService.getInstance().save();
+                    EventBroadcaster.emit('db:contactFlagsChanged', { ownerZaloId: zaloId, contactId, flags });
+                }
+                return res || { success: false, error: 'Không thể cập nhật nhãn liên hệ trên máy chủ BOSS' };
+            }
             DatabaseService.getInstance().setContactFlags(zaloId, contactId, flags);
+            DatabaseService.getInstance().save();
             EventBroadcaster.emit('db:contactFlagsChanged', { ownerZaloId: zaloId, contactId, flags });
-            proxyToBoss('db:setContactFlags', { zaloId, contactId, flags });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -1041,9 +1086,18 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:setContactAlias', async (_event, { zaloId, contactId, alias }: { zaloId: string; contactId: string; alias: string }) => {
         try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:setContactAlias', { zaloId, contactId, alias });
+                if (res?.success) {
+                    DatabaseService.getInstance().setContactAlias(zaloId, contactId, alias);
+                    DatabaseService.getInstance().save();
+                    EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: zaloId, contactId, alias });
+                }
+                return res || { success: false, error: 'Không thể cập nhật bí danh liên hệ trên máy chủ BOSS' };
+            }
             DatabaseService.getInstance().setContactAlias(zaloId, contactId, alias);
+            DatabaseService.getInstance().save();
             EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: zaloId, contactId, alias });
-            proxyToBoss('db:setContactAlias', { zaloId, contactId, alias });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };
@@ -1177,5 +1231,111 @@ export function registerDatabaseIpc() {
         } catch (error: any) {
             return { success: false, error: error.message };
         }
+    });
+
+    ipcMain.handle('db:getPipelineStages', async () => {
+        try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:getPipelineStages', {});
+                return res || { success: false, error: 'Không thể tải bước quy trình từ máy chủ BOSS' };
+            }
+            const stages = DatabaseService.getInstance().getPipelineStages();
+            return { success: true, stages };
+        } catch (error: any) { return { success: false, error: error.message }; }
+    });
+
+    ipcMain.handle('db:savePipelineStage', async (_event, { stage }: { stage: any }) => {
+        try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:savePipelineStage', { stage });
+                if (res?.success) {
+                    DatabaseService.getInstance().savePipelineStage({ stage });
+                    DatabaseService.getInstance().save();
+                }
+                return res || { success: false, error: 'Không thể lưu bước quy trình trên máy chủ BOSS' };
+            }
+            const res = DatabaseService.getInstance().savePipelineStage({ stage });
+            DatabaseService.getInstance().save();
+            return res;
+        } catch (error: any) { return { success: false, error: error.message }; }
+    });
+
+    ipcMain.handle('db:deletePipelineStage', async (_event, { id }: { id: number }) => {
+        try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:deletePipelineStage', { id });
+                if (res?.success) {
+                    DatabaseService.getInstance().deletePipelineStage({ id });
+                    DatabaseService.getInstance().save();
+                }
+                return res || { success: false, error: 'Không thể xóa bước quy trình trên máy chủ BOSS' };
+            }
+            const res = DatabaseService.getInstance().deletePipelineStage({ id });
+            DatabaseService.getInstance().save();
+            return res;
+        } catch (error: any) { return { success: false, error: error.message }; }
+    });
+
+    ipcMain.handle('db:updateContactPipelineStage', async (_event, { ownerZaloId, contactId, stageId }: { ownerZaloId: string; contactId: string; stageId: number | null }) => {
+        try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:updateContactPipelineStage', { ownerZaloId, contactId, stageId });
+                if (res?.success) {
+                    DatabaseService.getInstance().updateContactPipelineStage({ ownerZaloId, contactId, stageId });
+                    DatabaseService.getInstance().save();
+                }
+                return res || { success: false, error: 'Không thể cập nhật bước quy trình trên máy chủ BOSS' };
+            }
+            const res = DatabaseService.getInstance().updateContactPipelineStage({ ownerZaloId, contactId, stageId });
+            DatabaseService.getInstance().save();
+            return res;
+        } catch (error: any) { return { success: false, error: error.message }; }
+    });
+
+    ipcMain.handle('db:updateContactAIProfile', async (_event, { ownerZaloId, contactId, aiProfile }: { ownerZaloId: string; contactId: string; aiProfile: string | null }) => {
+        try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:updateContactAIProfile', { ownerZaloId, contactId, aiProfile });
+                if (res?.success) {
+                    DatabaseService.getInstance().updateContactAIProfile({ ownerZaloId, contactId, aiProfile });
+                    DatabaseService.getInstance().save();
+                }
+                return res || { success: false, error: 'Không thể cập nhật hồ sơ AI trên máy chủ BOSS' };
+            }
+            const res = DatabaseService.getInstance().updateContactAIProfile({ ownerZaloId, contactId, aiProfile });
+            DatabaseService.getInstance().save();
+            return res;
+        } catch (error: any) { return { success: false, error: error.message }; }
+    });
+
+    ipcMain.handle('db:updateContactAIConfig', async (_event, { ownerZaloId, contactId, assistantId, autoSummary, threshold }: {
+        ownerZaloId: string;
+        contactId: string;
+        assistantId: string | null;
+        autoSummary?: number;
+        threshold?: number;
+    }) => {
+        try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:updateContactAIConfig', { ownerZaloId, contactId, assistantId, autoSummary, threshold });
+                if (res?.success) {
+                    DatabaseService.getInstance().updateContactAIConfig({ ownerZaloId, contactId, assistantId, autoSummary, threshold });
+                    DatabaseService.getInstance().save();
+                }
+                return res || { success: false, error: 'Không thể cập nhật cấu hình AI trên máy chủ BOSS' };
+            }
+            const res = DatabaseService.getInstance().updateContactAIConfig({ ownerZaloId, contactId, assistantId, autoSummary, threshold });
+            DatabaseService.getInstance().save();
+            return res;
+        } catch (error: any) { return { success: false, error: error.message }; }
+    });
+
+    ipcMain.handle('db:getCalendarEventsByContact', async (_event, { contactId }: { contactId: string }) => {
+        try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('db:getCalendarEventsByContact', { contactId });
+            }
+            return DatabaseService.getInstance().getCalendarEventsByContact({ contactId });
+        } catch (error: any) { return { success: false, error: error.message }; }
     });
 }

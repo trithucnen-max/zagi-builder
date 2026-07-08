@@ -22,6 +22,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ipc from '../../../lib/ipc';
 import * as channelIpc from '../../../lib/channelIpc';
 import DataAccessor, { refreshLibraryCache } from '../../../lib/data/DataAccessor';
+import { useEmployeeStore } from '../../../store/employeeStore';
 import { BookIcon, ChartIcon, CloseIcon, EditIcon, FileTextIcon, FolderIcon, ImageIcon, MonitorIcon, RefreshIcon, SearchIcon, SendIcon, StarIcon, TrashIcon } from '@/components/common/icons';
 
 interface LibraryItem {
@@ -367,9 +368,7 @@ export default function LibraryPickerModal({
         if (acc?.cookies) return { cookies: acc.cookies, imei: acc.imei || '', userAgent: acc.user_agent || '' };
       }
     } catch {}
-    // Fallback: thử qua employeeStore
     try {
-      const { useEmployeeStore } = require('../../../store/employeeStore');
       const mode = useEmployeeStore.getState().mode;
       if (mode === 'employee') return {}; // employee mode: proxy action tự inject auth
     } catch {}

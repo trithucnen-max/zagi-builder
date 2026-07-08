@@ -2,6 +2,7 @@ import DatabaseService from '../database/DatabaseService';
 import ConnectionManager from '../../utils/ConnectionManager';
 import EventBroadcaster from '../event/EventBroadcaster';
 import Logger from '../../utils/Logger';
+import ZaloService from '../zalo/ZaloService';
 import * as fs from 'fs';
 import * as path from 'path';
 import imageSize from 'image-size';
@@ -28,9 +29,93 @@ class CRMQueueService {
     private readonly MIN_DELAY_MS = 5 * 1000;          // tối thiểu 5s
     private readonly PHONE_RESOLVE_TIMEOUT_MS = 15_000; // timeout resolve phone → tránh treo vô hạn
 
+    private constructor() {
+        this.startWeeklyFriendRequestWithdrawalScheduler();
+    }
+
     public static getInstance(): CRMQueueService {
         if (!CRMQueueService.instance) CRMQueueService.instance = new CRMQueueService();
         return CRMQueueService.instance;
+    }
+
+    public startWeeklyFriendRequestWithdrawalScheduler(): void {
+        const getMsUntilNextSunday23 = () => {
+            const now = new Date();
+            const target = new Date();
+            
+            // Set target to Sunday (0) at 23:00:00
+            target.setDate(now.getDate() + (7 - now.getDay()) % 7);
+            target.setHours(23, 0, 0, 0);
+            
+            // If Sunday 23:00 has already passed today, set to next Sunday
+            if (target.getTime() <= now.getTime()) {
+                target.setDate(target.getDate() + 7);
+            }
+            
+            return target.getTime() - now.getTime();
+        };
+
+        const delay = getMsUntilNextSunday23();
+        Logger.log(`[CRMQueue] Weekly friend request withdrawal job scheduled in ${Math.round(delay / 60000)} minutes (next Sunday 23:00)`);
+        
+        setTimeout(() => {
+            this.checkAndWithdrawExpiredFriendRequests().catch((err: any) => {
+                Logger.error(`[CRMQueue] checkAndWithdrawExpiredFriendRequests error: ${err.message}`);
+            });
+            
+            // Repeat every 7 days (7 * 24 * 3600 * 1000 ms)
+            setInterval(() => {
+                this.checkAndWithdrawExpiredFriendRequests().catch((err: any) => {
+                    Logger.error(`[CRMQueue] checkAndWithdrawExpiredFriendRequests error: ${err.message}`);
+                });
+            }, 7 * 24 * 60 * 60 * 1000);
+        }, delay);
+    }
+
+    public async checkAndWithdrawExpiredFriendRequests(): Promise<void> {
+        try {
+            Logger.log('[CRMQueue] 🔍 Checking for sent friend requests older than 6 days...');
+            const db = DatabaseService.getInstance();
+            const sixDaysAgo = Date.now() - 6 * 24 * 60 * 60 * 1000;
+            
+            const rows = db.query<any>(
+                `SELECT owner_zalo_id, user_id, display_name FROM friend_requests WHERE direction = 'sent' AND created_at < ?`,
+                [sixDaysAgo]
+            );
+
+            if (rows.length === 0) {
+                Logger.log('[CRMQueue] No sent friend requests older than 6 days found.');
+                return;
+            }
+
+            Logger.log(`[CRMQueue] Found ${rows.length} expired sent friend requests. Auto-withdrawing...`);
+            for (const row of rows) {
+                const { owner_zalo_id: zaloId, user_id: userId, display_name: displayName } = row;
+                
+                const conn = ConnectionManager.getAllConnections().get(zaloId);
+                if (!conn) {
+                    Logger.warn(`[CRMQueue] Zalo account ${zaloId} is not connected. Skipping auto-withdrawal for user ${displayName} (${userId}).`);
+                    continue;
+                }
+
+                try {
+                    const zaloService = await ZaloService.getInstance(conn.auth);
+                    await zaloService.undoFriendRequest(userId);
+                    
+                    db.run(
+                        `DELETE FROM friend_requests WHERE owner_zalo_id = ? AND user_id = ? AND direction = 'sent'`,
+                        [zaloId, userId]
+                    );
+                    db.save();
+
+                    Logger.log(`[CRMQueue] ✅ Auto-withdrew sent friend request to ${displayName} (${userId}) for owner ${zaloId}`);
+                } catch (err: any) {
+                    Logger.error(`[CRMQueue] ❌ Failed to auto-withdraw sent friend request to ${displayName} (${userId}): ${err.message}`);
+                }
+            }
+        } catch (err: any) {
+            Logger.error(`[CRMQueue] checkAndWithdrawExpiredFriendRequests error: ${err.message}`);
+        }
     }
 
     /** Bắt đầu dispatcher cho account */

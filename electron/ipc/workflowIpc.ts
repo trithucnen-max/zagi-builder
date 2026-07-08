@@ -7,6 +7,16 @@ import { v4 as uuidv4 } from 'uuid';
 import Logger from '../../src/utils/Logger';
 import WebhookGatewayService from '../../src/services/workflow/WebhookGatewayService';
 import TunnelService from '../../src/services/tunnel/TunnelService';
+import WorkspaceManager from '../../src/utils/WorkspaceManager';
+import { proxyToBossAsync } from './proxyHelper';
+
+function isEmployeeMode(): boolean {
+    try {
+        const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+        if (activeWs?.type === 'remote') return true;
+    } catch {}
+    return false;
+}
 
 /** Generate a fresh UUID webhook token */
 function generateWebhookToken(): string {
@@ -76,6 +86,10 @@ export function registerWorkflowIpc(): void {
     // ─── List ─────────────────────────────────────────────────────────────────
     ipcMain.handle('workflow:list', async () => {
         try {
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('workflow:list', {});
+                return res || { success: false, error: 'Không thể tải danh sách kịch bản từ máy chủ BOSS', workflows: [] };
+            }
             const rows = DatabaseService.getInstance().getWorkflows();
             let workflows = rows.map(rowToWorkflow);
 
@@ -100,6 +114,9 @@ export function registerWorkflowIpc(): void {
     // ─── Get single ───────────────────────────────────────────────────────────
     ipcMain.handle('workflow:get', async (_e, { id }: { id: string }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:get', { id });
+            }
             const row = DatabaseService.getInstance().getWorkflowById(id);
             if (!row) return { success: false, error: 'Not found' };
             return { success: true, workflow: rowToWorkflow(row) };
@@ -111,6 +128,9 @@ export function registerWorkflowIpc(): void {
     // ─── Save ─────────────────────────────────────────────────────────────────
     const saveHandler = async (_e: any, { workflow }: { workflow: Partial<Workflow> }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:save', { workflow });
+            }
             const now = Date.now();
             // Normalise pageIds: accept both pageIds[] and legacy pageId string
             const pageIds: string[] = Array.isArray(workflow.pageIds)
@@ -164,6 +184,9 @@ export function registerWorkflowIpc(): void {
     // ─── Delete ───────────────────────────────────────────────────────────────
     const deleteHandler = async (_e: any, { id }: { id: string }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:delete', { id });
+            }
             DatabaseService.getInstance().deleteWorkflow(id);
             DatabaseService.getInstance().save();
             WorkflowEngineService.getInstance().removeWorkflow(id);
@@ -192,6 +215,9 @@ export function registerWorkflowIpc(): void {
     // ─── Toggle ───────────────────────────────────────────────────────────────
     const toggleHandler = async (_e: any, { id, enabled }: { id: string; enabled: boolean }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:toggle', { id, enabled });
+            }
             if (enabled) {
                 const row = DatabaseService.getInstance().getWorkflowById(id);
                 if (!row) return { success: false, error: 'Not found' };
@@ -224,6 +250,9 @@ export function registerWorkflowIpc(): void {
     // ─── Run manual ───────────────────────────────────────────────────────────
     ipcMain.handle('workflow:runManual', async (_e, { id, triggerData, isSandbox }: { id: string; triggerData?: any; isSandbox?: boolean }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:runManual', { id, triggerData, isSandbox });
+            }
             const row = DatabaseService.getInstance().getWorkflowById(id);
             if (!row) return { success: false, error: 'Not found' };
             const wf = rowToWorkflow(row);
@@ -237,6 +266,9 @@ export function registerWorkflowIpc(): void {
     // ─── Clone workflow → target page ─────────────────────────────────────────
     ipcMain.handle('workflow:clone', async (_e, { id, targetZaloId }: { id: string; targetZaloId: string }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:clone', { id, targetZaloId });
+            }
             const row = DatabaseService.getInstance().getWorkflowById(id);
             if (!row) return { success: false, error: 'Không tìm thấy workflow gốc' };
             const wf = rowToWorkflow(row);
@@ -266,6 +298,9 @@ export function registerWorkflowIpc(): void {
     // ─── Clone ALL workflows from one page → another ──────────────────────────
     ipcMain.handle('workflow:cloneAll', async (_e, { sourceZaloId, targetZaloId }: { sourceZaloId: string; targetZaloId: string }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:cloneAll', { sourceZaloId, targetZaloId });
+            }
             const count = DatabaseService.getInstance().cloneAllWorkflows(sourceZaloId, targetZaloId);
             DatabaseService.getInstance().save();
             // Reload engine for newly cloned workflows
@@ -286,6 +321,9 @@ export function registerWorkflowIpc(): void {
     // ─── Get logs ─────────────────────────────────────────────────────────────
     ipcMain.handle('workflow:getLogs', async (_e, { id, limit }: { id: string; limit?: number }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:getLogs', { id, limit });
+            }
             const logs = DatabaseService.getInstance().getWorkflowRunLogs(id, limit || 50);
             return { success: true, logs };
         } catch (e: any) {
@@ -296,6 +334,9 @@ export function registerWorkflowIpc(): void {
     // ─── Delete logs ──────────────────────────────────────────────────────────
     ipcMain.handle('workflow:deleteLogs', async (_e, { id }: { id: string }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:deleteLogs', { id });
+            }
             const db = DatabaseService.getInstance() as any;
             db['run'](`DELETE FROM workflow_run_logs WHERE workflow_id=?`, [id]);
             DatabaseService.getInstance().save();
@@ -308,6 +349,9 @@ export function registerWorkflowIpc(): void {
     // ─── Webhook: Get webhook URL ────────────────────────────────────────
     ipcMain.handle('workflow:getWebhookUrl', async (_e, { id }: { id: string }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:getWebhookUrl', { id });
+            }
             const row = DatabaseService.getInstance().getWorkflowById(id);
             if (!row) return { success: false, error: 'Not found' };
             const wf = rowToWorkflow(row);
@@ -326,6 +370,9 @@ export function registerWorkflowIpc(): void {
     // ─── Webhook: Gateway Tunnel ───────────────────────────────────────
     ipcMain.handle('workflow:startTunnel', async () => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:startTunnel', {});
+            }
             const result = await WebhookGatewayService.getInstance().startTunnel();
             return result;
         } catch (e: any) {
@@ -334,8 +381,12 @@ export function registerWorkflowIpc(): void {
         }
     });
 
+    // ─── Webhook: stopTunnel ───────────────────────────────────────
     ipcMain.handle('workflow:stopTunnel', async () => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:stopTunnel', {});
+            }
             const result = await WebhookGatewayService.getInstance().stopTunnel();
             return result;
         } catch (e: any) {
@@ -346,6 +397,9 @@ export function registerWorkflowIpc(): void {
 
     ipcMain.handle('workflow:getTunnelStatus', async () => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:getTunnelStatus', {});
+            }
             return { success: true, ...WebhookGatewayService.getInstance().getStatus() };
         } catch (e: any) {
             return { success: false, error: e.message };
@@ -355,6 +409,9 @@ export function registerWorkflowIpc(): void {
     // ─── Webhook: Regenerate token ─────────────────────────────────────────
     ipcMain.handle('workflow:regenerateWebhookToken', async (_e, { id }: { id: string }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:regenerateWebhookToken', { id });
+            }
             const row = DatabaseService.getInstance().getWorkflowById(id);
             if (!row) return { success: false, error: 'Not found' };
             const wf = rowToWorkflow(row);
@@ -379,6 +436,9 @@ export function registerWorkflowIpc(): void {
     // ─── Webhook: Get/Set port config ─────────────────────────────────────
     ipcMain.handle('workflow:getPortConfig', async () => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:getPortConfig', {});
+            }
             const db = DatabaseService.getInstance();
             const intPort = db.getSetting('webhook_port_integration');
             const wfPort = db.getSetting('webhook_port_workflow');
@@ -390,6 +450,9 @@ export function registerWorkflowIpc(): void {
 
     ipcMain.handle('workflow:setPortConfig', async (_e, { key, port }: { key: string; port: number }) => {
         try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('workflow:setPortConfig', { key, port });
+            }
             DatabaseService.getInstance().setSetting(key, String(port));
             DatabaseService.getInstance().save();
 

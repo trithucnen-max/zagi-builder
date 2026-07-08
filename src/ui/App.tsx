@@ -41,6 +41,7 @@ import AddAccountModal from "@/components/auth/AddAccountModal";
 import EmployeeConnectionBanner from "@/components/common/EmployeeConnectionBanner";
 import { useWorkspaceStore } from './store/workspaceStore';
 import { useEmployeeStore } from './store/employeeStore';
+import RestQueryService from '../services/http/RestQueryService';
 import LockScreen from './components/auth/LockScreen';
 import { Spinner } from '@/components/common/PageLoading';
 import { GlobeIcon } from '@/components/common/icons';
@@ -190,11 +191,8 @@ export default function App() {
         const wsRes = await ipc.workspace?.getActive();
         const ws = wsRes?.workspace;
         if (ws?.type === 'remote' && ws.bossUrl && ws.token) {
-          const mod = require('../services/http/RestQueryService');
-          if (mod?.default?.getInstance) {
-            mod.default.getInstance().init(ws.bossUrl, ws.token);
-            console.log(`[App] ⚡ Early RestQueryService init: ${ws.bossUrl}`);
-          }
+          RestQueryService.getInstance().init(ws.bossUrl, ws.token);
+          console.log(`[App] ⚡ Early RestQueryService init: ${ws.bossUrl}`);
         }
       } catch {}
     })();
@@ -585,10 +583,7 @@ export default function App() {
         // Init RestQueryService để employee có thể gọi REST API
         if (ws.bossUrl && ws.token) {
           try {
-            const mod = require('../services/http/RestQueryService');
-            if (mod?.default?.getInstance) {
-              mod.default.getInstance().init(ws.bossUrl, ws.token);
-            }
+            RestQueryService.getInstance().init(ws.bossUrl, ws.token);
           } catch {}
         }
 
@@ -762,41 +757,6 @@ export default function App() {
       } else {
         setAccounts([]);
         console.log(`[App] No accountsData in initialState`);
-      }
-
-      // ── Auto full-sync on first connection (no previous sync) ─────────────
-      const syncAccountIds = assignedAccounts;
-      if (syncAccountIds.length > 0) {
-        try {
-          const syncStatus = await ipc.sync?.getStatus();
-          if (!syncStatus?.lastSyncTs) {
-            // Retry up to 3 lần nếu full sync thất bại (timeout với 100k+ messages)
-            const maxRetries = 3;
-            const doSync = async (attempt: number) => {
-              try {
-                const res = await ipc.sync?.requestFullSync(syncAccountIds);
-                if (res?.success) {
-                  console.log(`[App] ✅ Full sync thành công (attempt ${attempt + 1})`);
-                } else if (attempt < maxRetries - 1) {
-                  console.warn(`[App] ⚠️ Full sync thất bại (attempt ${attempt + 1}): ${res?.error}. Retry sau 10s...`);
-                  await new Promise(r => setTimeout(r, 10000));
-                  return doSync(attempt + 1);
-                } else {
-                  console.error(`[App] ❌ Full sync thất bại sau ${maxRetries} lần: ${res?.error}`);
-                }
-              } catch (err) {
-                if (attempt < maxRetries - 1) {
-                  console.warn(`[App] ⚠️ Full sync exception (attempt ${attempt + 1}): ${err}. Retry sau 10s...`);
-                  await new Promise(r => setTimeout(r, 10000));
-                  return doSync(attempt + 1);
-                } else {
-                  console.error(`[App] ❌ Full sync exception sau ${maxRetries} lần:`, err);
-                }
-              }
-            };
-            doSync(0);
-          }
-        } catch { /* ignore sync status check failure */ }
       }
     });
     return () => unsub?.();
@@ -1159,18 +1119,13 @@ export default function App() {
             // Init RestQueryService
             if (activeWs.bossUrl && activeWs.token) {
               try {
-                const mod = require('../services/http/RestQueryService');
-                if (mod?.default?.getInstance) {
-                  const rqs = mod.default.getInstance();
-                  rqs.init(activeWs.bossUrl, activeWs.token);
-                  rqs.setOnStatusChange((connected: boolean, latency: number) => {
-                    useEmployeeStore.getState().setBossConnected(connected);
-                    if (latency > 0) useEmployeeStore.getState().setLatency(latency);
-                  });
-                  console.log(`[App] ✅ RestQueryService initialized: ${activeWs.bossUrl}`);
-                } else {
-                  console.warn('[App] ❌ RestQueryService not available');
-                }
+                const rqs = RestQueryService.getInstance();
+                rqs.init(activeWs.bossUrl, activeWs.token);
+                rqs.setOnStatusChange((connected: boolean, latency: number) => {
+                  useEmployeeStore.getState().setBossConnected(connected);
+                  if (latency > 0) useEmployeeStore.getState().setLatency(latency);
+                });
+                console.log(`[App] ✅ RestQueryService initialized: ${activeWs.bossUrl}`);
               } catch (e) {
                 console.warn('[App] ❌ RestQueryService init error:', e);
               }

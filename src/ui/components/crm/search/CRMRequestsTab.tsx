@@ -142,6 +142,35 @@ export default function CRMRequestsTab() {
     } catch (err: any) { showNotification(extractApiError(err, 'Hủy lời mời thất bại'), 'error'); }
   };
 
+  const handleCancelAllSentRequests = async () => {
+    if (sentRequests.length === 0) return;
+    const confirm = window.confirm(`Bạn có chắc muốn thu hồi toàn bộ ${sentRequests.length} lời mời kết bạn đã gửi không?`);
+    if (!confirm) return;
+
+    const auth = getAuth();
+    if (!auth || !activeAccountId) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const req of sentRequests) {
+      const userId = req.userId || req.uid;
+      if (!userId) continue;
+      try {
+        await ipc.zalo?.undoFriendRequest({ auth, userId });
+        await ipc.db?.removeFriendRequest({ zaloId: activeAccountId, userId, direction: 'sent' });
+        successCount++;
+      } catch (err) {
+        failCount++;
+      }
+    }
+
+    showNotification(`Đã thu hồi thành công ${successCount} lời mời kết bạn` + (failCount > 0 ? `, thất bại ${failCount} lời mời` : ''), 'info');
+    
+    const count = await loadRequestsFromDb();
+    if (count === 0) refreshRequestsFromApi();
+  };
+
   // ─── Mount: load from DB ─────────────────────────────────────────────
   useEffect(() => {
     if (!activeAccountId || initialLoaded) return;
@@ -257,6 +286,12 @@ export default function CRMRequestsTab() {
               placeholder="Tên, SĐT, UID..."
               className="w-full bg-gray-700 border border-gray-600 rounded-full pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
           </div>
+          {requestSubTab === 'sent' && sentRequests.length > 0 && (
+            <button onClick={handleCancelAllSentRequests} disabled={requestsRefreshing}
+              className="bg-red-950/80 hover:bg-red-900 border border-red-800/80 hover:border-red-700 text-red-200 text-xs px-2.5 py-1.5 rounded-lg transition-colors font-medium flex-shrink-0">
+              Thu hồi tất cả
+            </button>
+          )}
           <span className="text-xs text-gray-500 flex-shrink-0">
             {requestsLoading ? '...' : (requestSubTab === 'received' ? requests.length : sentRequests.length)} lời mời
           </span>
