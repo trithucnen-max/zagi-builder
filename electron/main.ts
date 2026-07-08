@@ -1048,7 +1048,13 @@ async function startupAfterLicenseCheck(): Promise<void> {
 
   // Auto-reconnect Facebook accounts
   setTimeout(() => reconnectAllFBAccounts(), 4000);
-  // Ordered startup: relay + Zalo for all local workspaces FIRST, then remote workspaces
+  // Phase A: Kết nối remote workspaces SỚM (500ms) → tránh lỗi "Chưa kết nối tới BOSS" khi vừa mở app
+  setTimeout(() => {
+    HttpConnectionManager.getInstance().connectAutoWorkspaces().catch((err: any) => {
+      console.warn('[main] Early remote connect error:', err.message);
+    });
+  }, 500);
+  // Phase B: Relay + Zalo local workspaces (cần DB init xong, chờ 3s)
   setTimeout(() => startupAllWorkspaces().catch(err => {
     console.error('[main] startupAllWorkspaces error:', err.message);
   }), 3000);

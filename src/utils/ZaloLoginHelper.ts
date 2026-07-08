@@ -1,7 +1,7 @@
 import { API, CloseReason, Credentials, LoginQRCallbackEventType, ThreadType, Zalo } from "zca-js";
 import ConnectionManager from "./ConnectionManager";
 import Logger from "./Logger";
-import EventBroadcaster, { registerGroupCacheInvalidator } from "../services/event/EventBroadcaster";
+import EventBroadcaster, { registerGroupCacheInvalidator, registerMemberInfoFetcher } from "../services/event/EventBroadcaster";
 import DatabaseService from "../services/database/DatabaseService";
 import * as fs from "fs";
 import { imageSize } from "image-size";
@@ -1117,6 +1117,32 @@ class ZaloLoginHelper {
 // (tránh circular import: EventBroadcaster không import ZaloLoginHelper)
 registerGroupCacheInvalidator((zaloId: string, groupId: string) => {
     ZaloLoginHelper.invalidateGroupCache(zaloId, groupId);
+});
+
+// Tự động làm giàu thông tin thành viên mới tham gia nhóm bằng getUserInfo
+// Chạy bất đồng bộ — không block luồng xử lý event
+registerMemberInfoFetcher(async (zaloId: string, groupId: string, memberIds: string[]) => {
+    const connection = ConnectionManager.getConnection(zaloId);
+    if (!connection?.api) return;
+    const db = DatabaseService.getInstance();
+    for (const uid of memberIds) {
+        try {
+            const userInfoRes = await connection.api.getUserInfo(uid);
+            const profile = userInfoRes?.changed_profiles?.[uid]
+                || (userInfoRes as any)?.data?.[uid];
+            if (!profile) continue;
+            const { displayName, avatar, phone, gender, birthday } = extractUserProfile(profile);
+            // Chỉ cập nhật nếu có dữ liệu mới hơn
+            if (displayName || avatar) {
+                db.upsertGroupMember(zaloId, groupId, { memberId: uid, displayName, avatar, role: 0 });
+                // Cập nhật luôn vào bảng contacts nếu đã tồn tại
+                db.updateContactProfile(zaloId, uid, displayName, avatar, phone, '', gender, birthday);
+                Logger.log(`[ZaloLoginHelper] ✅ Enriched new group member ${uid} (${displayName}) in group ${groupId}`);
+            }
+        } catch (err: any) {
+            Logger.warn(`[ZaloLoginHelper] fetchMemberInfo(${uid}) failed: ${err.message}`);
+        }
+    }
 });
 
 export default ZaloLoginHelper;

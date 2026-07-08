@@ -11,6 +11,16 @@ export function registerGroupCacheInvalidator(fn: (zaloId: string, groupId: stri
 }
 
 /**
+ * Callback để tự động fetch thông tin chi tiết (getUserInfo) cho thành viên mới gia nhập nhóm.
+ * Được inject bởi ZaloLoginHelper sau khi setup listener — tránh circular import.
+ * Tham số: (zaloId, groupId, memberIds[])
+ */
+let _fetchMemberInfoFn: ((zaloId: string, groupId: string, memberIds: string[]) => void) | null = null;
+export function registerMemberInfoFetcher(fn: (zaloId: string, groupId: string, memberIds: string[]) => void) {
+    _fetchMemberInfoFn = fn;
+}
+
+/**
  * EventBroadcaster - Thay thế ApiService webhook bằng Electron IPC events
  * Broadcast Zalo events từ main process → renderer process
  */
@@ -1099,6 +1109,17 @@ class EventBroadcaster {
                         }
                     }
                 });
+
+                // Tự động làm giàu thông tin thành viên mới (fetch avatar HD + tên thật qua getUserInfo)
+                if (eventType === 'join' && _fetchMemberInfoFn) {
+                    const newMemberIds = updateMembers
+                        .map((um: any) => um.id || '')
+                        .filter((id: string) => !!id);
+                    if (newMemberIds.length > 0) {
+                        // Chạy bất đồng bộ, không block luồng chính
+                        setImmediate(() => _fetchMemberInfoFn!(zaloId, groupId, newMemberIds));
+                    }
+                }
             } catch (err: any) { Logger.warn(`[EventBroadcaster] Surgical member DB update failed: ${err.message}`); }
         }
 

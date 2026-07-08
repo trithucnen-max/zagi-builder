@@ -49,6 +49,68 @@ export default function TopBar() {
   const { mode: empMode, currentEmployee, bossConnected, previewEmployeeId, employees } = useEmployeeStore();
   const previewEmployee = previewEmployeeId ? employees.find((e: any) => e.employee_id === previewEmployeeId) : null;
 
+  // Boss connection popup (Employee mode)
+  const [bossPopupOpen, setBossPopupOpen] = useState(false);
+  const [bossReconnecting, setBossReconnecting] = useState(false);
+  const [bossLatency, setBossLatency] = useState<number | null>(null);
+  const bossPopupRef = useRef<HTMLDivElement>(null);
+
+  // Lấy latency khi mở popup
+  useEffect(() => {
+    if (!bossPopupOpen || empMode !== 'employee') return;
+    ipc.employee?.getConnectionStatus?.().then(s => {
+      if (s?.latency != null) setBossLatency(s.latency);
+    }).catch(() => {});
+  }, [bossPopupOpen, empMode]);
+
+  // Đóng popup khi click ra ngoài
+  useEffect(() => {
+    if (!bossPopupOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (bossPopupRef.current && !bossPopupRef.current.contains(e.target as Node)) setBossPopupOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [bossPopupOpen]);
+
+  const handleBossReconnect = useCallback(async () => {
+    setBossReconnecting(true);
+    try {
+      const activeWs = await ipc.workspace?.getActive?.();
+      if (activeWs?.success && activeWs.workspace?.type === 'remote') {
+        const ws = activeWs.workspace;
+        const loginRes = await ipc.workspace?.loginRemote?.(ws.bossUrl, ws.employeeUsername || '', ws.employeePassword || '');
+        if (loginRes?.success && loginRes.token) {
+          await ipc.workspace?.connectRemote?.(ws.id, ws.bossUrl, loginRes.token);
+          showNotification('Kết nối lại thành công', 'success');
+        } else {
+          // Fallback: reconnect với token cũ (autoConnect)
+          await ipc.workspace?.connectRemote?.(ws.id, ws.bossUrl, ws.token || '');
+          showNotification('Kết nối lại…', 'success');
+        }
+      }
+    } catch (err: any) {
+      showNotification('Lỗi kết nối: ' + err.message, 'error');
+    } finally {
+      setBossReconnecting(false);
+      setBossPopupOpen(false);
+    }
+  }, [showNotification]);
+
+  const handleBossDisconnect = useCallback(async () => {
+    try {
+      const activeWs = await ipc.workspace?.getActive?.();
+      if (activeWs?.success && activeWs.workspace?.id) {
+        await ipc.workspace?.disconnectRemote?.(activeWs.workspace.id);
+      }
+      showNotification('Dắt kết nối Boss', 'success');
+    } catch (err: any) {
+      showNotification('Lỗi: ' + err.message, 'error');
+    } finally {
+      setBossPopupOpen(false);
+    }
+  }, [showNotification]);
+
   // ERP notifications + attendance
   const erpPerms = useErpPermissions();
   const erpEid = useCurrentEmployeeId();
@@ -202,12 +264,95 @@ export default function TopBar() {
         {/* Workspace switcher — only shows when multiple workspaces exist */}
         <WorkspaceSwitcher />
 
-        {/* Employee mode indicator */}
+        {/* Employee mode indicator — click to open Boss connection popup */}
         {empMode === 'employee' && currentEmployee && (
-          <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-full bg-gray-800 border border-gray-600">
-            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${bossConnected ? 'bg-green-400' : 'bg-red-400 animate-pulse'}`} />
-            <span className="text-[11px] text-gray-300">{bossConnected ? 'Connected' : 'Disconnected'}</span>
-            <span className="text-[11px] text-gray-300">- {currentEmployee.display_name}</span>
+          <div className="relative ml-2" ref={bossPopupRef}>
+            <button
+              onClick={() => setBossPopupOpen(v => !v)}
+              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                bossConnected
+                  ? 'bg-gray-800 border-gray-600 hover:border-green-500/60 hover:bg-gray-750'
+                  : 'bg-red-900/20 border-red-600/50 hover:border-red-400'
+              }`}
+              title="Quản lý kết nối Boss"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${bossConnected ? 'bg-green-400' : 'bg-red-400 animate-pulse'}`} />
+              <span className="text-[11px] text-gray-300">{bossConnected ? 'Connected' : 'Disconnected'}</span>
+              <span className="text-[11px] text-gray-500">- {currentEmployee.display_name}</span>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-500 ml-0.5">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {/* Boss connection dropdown */}
+            {bossPopupOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-64 bg-gray-850 border border-gray-700 rounded-xl shadow-2xl z-[9999] overflow-hidden" style={{ background: '#1a1f2e' }}>
+                {/* Header */}
+                <div className="px-3.5 py-2.5 border-b border-gray-700/80">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-xs font-semibold text-gray-200">Kết nối Boss</span>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                      bossConnected ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                    }`}>
+                      {bossConnected ? '● Online' : '● Offline'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500">{currentEmployee.display_name}</p>
+                  {bossConnected && bossLatency != null && (
+                    <p className="text-[10px] text-gray-600 mt-0.5">⚡ Latency: {bossLatency}ms</p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="py-1">
+                  {/* Reconnect */}
+                  <button
+                    onClick={handleBossReconnect}
+                    disabled={bossReconnecting}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs text-gray-300 hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    {bossReconnecting ? (
+                      <svg className="animate-spin w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-400 flex-shrink-0">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      </svg>
+                    )}
+                    <span>{bossReconnecting ? 'Đang kết nối lại...' : 'Kết nối lại'}</span>
+                  </button>
+
+                  {/* Disconnect */}
+                  <button
+                    onClick={handleBossDisconnect}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    <span>Ngắt kết nối</span>
+                  </button>
+
+                  <div className="my-1 border-t border-gray-700/60" />
+
+                  {/* Open settings */}
+                  <button
+                    onClick={() => { setBossPopupOpen(false); setView('settings'); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs text-gray-400 hover:bg-white/5 hover:text-gray-200 transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    <span>Cài đặt kết nối</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
