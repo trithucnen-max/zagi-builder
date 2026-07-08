@@ -725,6 +725,44 @@ export function registerDatabaseIpc() {
         }
     });
 
+    // ─── Call Log ─────────────────────────────────────────────────────────────
+
+    ipcMain.handle('db:getCallLogsForContact', async (_event, { zaloId, threadId, limit = 300 }: { zaloId: string; threadId: string; limit?: number }) => {
+        try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('db:getCallLogsForContact', { zaloId, threadId, limit });
+            }
+            const logs = DatabaseService.getInstance().getCallLogsForContact(zaloId, threadId, limit);
+            return { success: true, logs };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:getCallReport', async (_event, { zaloId, fromTs, toTs }: { zaloId: string; fromTs: number; toTs: number }) => {
+        try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('db:getCallReport', { zaloId, fromTs, toTs });
+            }
+            const report = DatabaseService.getInstance().getCallReport(zaloId, fromTs, toTs);
+            return { success: true, ...report };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:getContactNamesBatch', async (_event, { zaloId, contactIds }: { zaloId: string; contactIds: string[] }) => {
+        try {
+            if (isEmployeeMode()) {
+                return await proxyToBossAsync('db:getContactNamesBatch', { zaloId, contactIds });
+            }
+            const names = DatabaseService.getInstance().getContactNamesBatch(zaloId, contactIds);
+            return { success: true, names };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle('db:addFriend', async (_event, { zaloId, friend }: { zaloId: string; friend: any }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:addFriend', { zaloId, friend });

@@ -1,11 +1,31 @@
 import { ipcMain } from 'electron';
+import WorkspaceManager from '../../src/utils/WorkspaceManager';
+import { proxyToBossAsync } from './proxyHelper';
+
+function isEmployeeMode(): boolean {
+  try {
+    const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+    if (activeWs?.type === 'remote') return true;
+  } catch {}
+  return false;
+}
+
+function ipcHandle(channel: string, handler: any) {
+  ipcMain.handle(channel, async (event: any, ...args: any[]) => {
+    if (isEmployeeMode()) {
+      return await proxyToBossAsync(channel, args[0]);
+    }
+    return handler(event, ...args);
+  });
+}
+
 import ErpCalendarService from '../../src/services/erp/ErpCalendarService';
 import { withErpAuth, erpValidate } from './erpIpcMiddleware';
 
 export function registerErpCalendarIpc(): void {
   const svc = () => ErpCalendarService.getInstance();
 
-  ipcMain.handle('erp:calendar:listEvents', withErpAuth('calendar.view', async (input: any, ctx) => {
+  ipcHandle('erp:calendar:listEvents', withErpAuth('calendar.view', async (input: any, ctx) => {
     erpValidate.int(input?.from, 'from');
     erpValidate.int(input?.to,   'to');
     return { events: svc().listEventsForEmployee(ctx.employeeId, {
@@ -16,7 +36,7 @@ export function registerErpCalendarIpc(): void {
     }) };
   }));
 
-  ipcMain.handle('erp:calendar:createEvent', withErpAuth('calendar.create_personal', async (input: any, ctx) => {
+  ipcHandle('erp:calendar:createEvent', withErpAuth('calendar.create_personal', async (input: any, ctx) => {
     erpValidate.string(input?.input?.title, 'title', { max: 300 });
     erpValidate.int(input?.input?.start_at, 'start_at');
     if (input?.input?.end_at !== undefined && input?.input?.end_at !== null && input?.input?.end_at !== '') {
@@ -25,18 +45,18 @@ export function registerErpCalendarIpc(): void {
     return { event: svc().createEvent(input.input, ctx.employeeId) };
   }));
 
-  ipcMain.handle('erp:calendar:updateEvent', withErpAuth('calendar.update', async (input: any, ctx) => {
+  ipcHandle('erp:calendar:updateEvent', withErpAuth('calendar.update', async (input: any, ctx) => {
     erpValidate.string(input?.id, 'id');
     return { event: svc().updateEventForEmployee(input.id, input.patch ?? {}, ctx.employeeId) };
   }));
 
-  ipcMain.handle('erp:calendar:deleteEvent', withErpAuth('calendar.delete', async (input: any, ctx) => {
+  ipcHandle('erp:calendar:deleteEvent', withErpAuth('calendar.delete', async (input: any, ctx) => {
     erpValidate.string(input?.id, 'id');
     svc().deleteEventForEmployee(input.id, ctx.employeeId);
     return {};
   }));
 
-  ipcMain.handle('erp:calendar:checkConflict', withErpAuth('calendar.view', async (input: any, ctx) => {
+  ipcHandle('erp:calendar:checkConflict', withErpAuth('calendar.view', async (input: any, ctx) => {
     const requestedEmployeeIds: string[] = Array.isArray(input?.employeeIds)
       ? input.employeeIds
       : (Array.isArray(input?.organizerIds) ? input.organizerIds : []);
@@ -53,7 +73,7 @@ export function registerErpCalendarIpc(): void {
     ) };
   }));
 
-  ipcMain.handle('erp:calendar:respond', withErpAuth('calendar.update', async (input: any, ctx) => {
+  ipcHandle('erp:calendar:respond', withErpAuth('calendar.update', async (input: any, ctx) => {
     erpValidate.string(input?.eventId, 'eventId');
     erpValidate.enum(input?.status, 'status', ['accepted', 'declined', 'tentative'] as const);
     svc().respondToEvent(input.eventId, ctx.employeeId, input.status);
