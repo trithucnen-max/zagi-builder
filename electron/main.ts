@@ -1026,24 +1026,55 @@ async function startupAfterLicenseCheck(): Promise<void> {
   registerLibraryIpc();
   registerLicenseIpc(); // Tab Bản quyền trong Settings cũng cần (re-register safe — ipcMain dùng Map)
 
-  // Listen to OS sleep/resume and unlock events to instantly reconnect
+  // Lắng nghe sự kiện ngủ / thức dậy của hệ thống — reconnect ngay lập tức
+  const restartZaloListeners = async () => {
+    try {
+      const { default: LoginService } = await import('./ipc/loginIpc').then(m => ({ default: m.getLoginServiceInstance?.() })).catch(() => ({ default: null }));
+      // Dùng startupAllWorkspaces lại — nó kiểm tra isListenerStarted() nên bỏ qua các account đã kết nối
+      const wsMgr = (await import('../src/utils/WorkspaceManager')).default.getInstance();
+      const db = (await import('../src/services/database/DatabaseService')).default.getInstance();
+      const { default: LoginSvc } = await import('../src/services/login/LoginService');
+      const svc = new LoginSvc();
+      const allWs = wsMgr.listWorkspaces().filter(w => w.type === 'local');
+      for (const ws of allWs) {
+        try {
+          const dbPath = wsMgr.resolveDbPath(ws.dbPath || 'zagi-tool.db');
+          if (!dbPath || !require('fs').existsSync(dbPath)) continue;
+          const accounts = db.queryOtherDb<any[]>(dbPath, (otherDb) => otherDb.prepare('SELECT * FROM accounts WHERE is_active = 1').all());
+          for (const acc of accounts) {
+            const ConnMgr = (await import('../src/utils/ConnectionManager')).default;
+            if (ConnMgr.isListenerStarted(acc.zalo_id)) continue; // đã hoạt động, bỏ qua
+            console.log(`[main] ➡️ Restarting Zalo listener for ${acc.zalo_id} after resume`);
+            svc.connectUser({ cookies: acc.cookies || '', imei: acc.imei || '', userAgent: acc.user_agent || '' }).catch(() => {});
+          }
+        } catch {}
+      }
+    } catch (err: any) {
+      console.warn('[main] restartZaloListeners error:', err.message);
+    }
+  };
+
   powerMonitor.on('resume', () => {
     console.log('[main.ts] 🔋 System woke up from sleep — forcing immediate reconnect...');
     HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
     HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
+    // Chờ mạng ổn định sau khi máy thức dậy (5s) rồi mới restart Zalo listener
+    setTimeout(() => restartZaloListeners(), 5000);
   });
 
   powerMonitor.on('unlock-screen', () => {
     console.log('[main.ts] 🔑 System unlocked — forcing immediate reconnect...');
     HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
     HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
+    setTimeout(() => restartZaloListeners(), 3000);
   });
 
-  // Listen to Renderer window online notification
+  // Lắng nghe tín hiệu mạng từ Renderer — restart cả Boss HTTP lẫn Zalo listener
   ipcMain.on('workspace:network-online', () => {
     console.log('[main.ts] 🌐 Network online signal received from Renderer — forcing reconnect...');
     HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
     HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
+    setTimeout(() => restartZaloListeners(), 2000);
   });
 
   // Auto-reconnect Facebook accounts

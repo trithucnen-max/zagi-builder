@@ -39,6 +39,7 @@ declare global {
         checkHealth: (zaloIds: string | string[]) => Promise<{ success: boolean; results: Array<{ zaloId: string; healthy: boolean; readyState: number | null; reason?: string }>; error?: string }>;
         checkAndRefreshAvatar: (zaloId: string) => Promise<{ success: boolean; refreshed: boolean; avatar_url?: string; full_name?: string; reason?: string; error?: string }>;
         requestOldMessages: (zaloId: string) => Promise<{ success: boolean; error?: string }>;
+        reconnect: (zaloId: string) => Promise<{ success: boolean; error?: string }>;
       };
       zalo: {
         sendMessage: (params: any) => Promise<any>;

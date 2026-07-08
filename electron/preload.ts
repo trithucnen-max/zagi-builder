@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     checkHealth: (zaloIds: string | string[]) => ipcRenderer.invoke('login:checkHealth', { zaloIds }),
     checkAndRefreshAvatar: (zaloId: string) => ipcRenderer.invoke('login:checkAndRefreshAvatar', { zaloId }),
     requestOldMessages: (zaloId: string) => ipcRenderer.invoke('login:requestOldMessages', { zaloId }),
+    reconnect: (zaloId: string) => ipcRenderer.invoke('login:reconnect', zaloId),
   },
 
   // ─── Zalo API ────────────────────────────────────────────────────

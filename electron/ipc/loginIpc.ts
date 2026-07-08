@@ -183,6 +183,25 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
         }
     });
 
+    // ─── Kết nối lại 1 tài khoản cụ thể bằng credentials đã lưu ─────────
+    // Dùng khi listener chết (max_retries) và cần thử lại tự động từ renderer
+    ipcMain.handle('login:reconnect', async (_event, zaloId: string) => {
+        try {
+            const accounts = DatabaseService.getInstance().getAccounts();
+            const acc = accounts.find((a: any) => a.zalo_id === zaloId);
+            if (!acc?.cookies) return { success: false, error: 'Account not found or no credentials' };
+            const success = await loginService.connectUser({
+                cookies: acc.cookies,
+                imei: acc.imei || '',
+                userAgent: acc.user_agent || '',
+            });
+            return { success };
+        } catch (error: any) {
+            Logger.error(`[loginIpc] reconnect error: ${error.message}`);
+            return { success: false, error: error.message };
+        }
+    });
+
     // ─── Ngắt kết nối tài khoản ───────────────────────────────────────────
     ipcMain.handle('login:disconnect', async (_event, { zaloId }) => {
         try {

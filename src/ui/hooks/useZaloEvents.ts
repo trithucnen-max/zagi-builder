@@ -1342,8 +1342,27 @@ export function useZaloEvents() {
       const { zaloId, reason } = data;
       updateAccountStatus(zaloId, false, false);
       updateListenerActive(zaloId, false);
-      const reasonText = reason === 'max_retries' ? 'Không thể tự kết nối lại' : `Lỗi: ${reason}`;
-      showNotification(`⚠️ Tài khoản ${zaloId} mất kết nối. ${reasonText}. Vui lòng kết nối lại thủ công.`, 'error');
+
+      if (reason === 'max_retries') {
+        // Thử 1 lần nữa sau 10s (sau khi mạng có thể đã ổn định lại)
+        const acc = useAccountStore.getState().accounts.find(a => a.zalo_id === zaloId);
+        const name = acc?.display_name || zaloId;
+        showNotification(`⚠️ ${name} mất kết nối — đang thử lại sau 10 giây...`, 'warning');
+        setTimeout(async () => {
+          try {
+            const res = await ipc.login?.reconnect?.(zaloId);
+            if (!res?.success) {
+              showNotification(`❌ ${name} không thể tự kết nối lại. Vui lòng quét QR lại.`, 'error');
+            }
+          } catch {
+            showNotification(`❌ ${name} không thể tự kết nối lại. Vui lòng quét QR lại.`, 'error');
+          }
+        }, 10_000);
+      } else {
+        const acc = useAccountStore.getState().accounts.find(a => a.zalo_id === zaloId);
+        const name = acc?.display_name || zaloId;
+        showNotification(`❌ ${name} mất kết nối (${reason}). Vui lòng quét QR lại.`, 'error');
+      }
     });
 
     // ─── Typing events ────────────────────────────────────────────────────
