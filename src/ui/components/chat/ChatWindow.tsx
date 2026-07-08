@@ -2129,10 +2129,10 @@ export default function ChatWindow() {
 
                         return (
                           <div
-                            className={`border-l-2 quote-container rounded pl-2 pr-1 py-1 mb-1 text-xs opacity-90 cursor-pointer hover:opacity-100 overflow-hidden min-w-0 max-w-full ${isSent ? '' : 'border-gray-400 bg-gray-600/50'}`}
+                            className="border-l-[3px] border-slate-400/70 bg-slate-100/90 rounded pl-2 pr-1 py-1 mb-1 text-xs opacity-90 cursor-pointer hover:opacity-100 overflow-hidden min-w-0 max-w-full"
                             onClick={() => q.msgId && handleScrollToMsg(String(q.msgId))}
                           >
-                            {q.fromD && <p className={`font-semibold truncate quote-sender ${isSent ? '' : 'text-gray-200'}`}>{q.fromD}</p>}
+                            {q.fromD && <p className="font-semibold truncate text-slate-800">{q.fromD}</p>}
                             {isQuotedSticker ? (
                               <QuotedStickerPreview content={quotedStickerContent} />
                             ) : finalImgUrl ? (
