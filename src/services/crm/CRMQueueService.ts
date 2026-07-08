@@ -238,33 +238,7 @@ class CRMQueueService {
             }
         }
 
-        // ── Daily start time (tách riêng, không phụ thuộc daily_send_limit) ──
-        // Nếu daily_start_time đã qua hôm nay → chạy luôn
-        // Nếu chưa đến → đợi
-        if (campaignData && campaignData.daily_start_time) {
-            // Nếu có hẹn giờ và hôm nay là ngày bắt đầu hẹn giờ, bỏ qua check daily_start_time của ngày hôm nay
-            let skipDailyCheck = false;
-            if (campaignData.scheduled_start_at > 0) {
-                const startDayStr = new Date(campaignData.scheduled_start_at).toDateString();
-                const todayStr = new Date().toDateString();
-                if (startDayStr === todayStr) {
-                    skipDailyCheck = true;
-                }
-            }
-
-            if (!skipDailyCheck) {
-                const now = new Date();
-                const [hh, mm] = campaignData.daily_start_time.split(':').map(Number);
-                if (!isNaN(hh) && !isNaN(mm)) {
-                    const todayStartTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
-                    if (now < todayStartTime) {
-                        Logger.log(`[CRMQueue] Campaign ${item.campaign_id}: before daily start time ${campaignData.daily_start_time}`);
-                        this.broadcastStatus(zaloId, 'waiting_for_start_time');
-                        return;
-                    }
-                }
-            }
-        }
+        // ── Daily start time check is bypassed to allow immediate manual runs or exact scheduling ──
 
         // ── Daily limit (chỉ áp dụng nếu có giới hạn, kiểm tra riêng cho từng tài khoản Zalo) ───────────────────
         if (campaignData && campaignData.daily_send_limit && campaignData.daily_send_limit > 0) {

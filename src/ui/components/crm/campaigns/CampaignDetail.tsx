@@ -246,20 +246,21 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
                 <AppIcon name="users" className="text-gray-500" size={10} />
                 {campaign.total_contacts} liên hệ
               </span>
-              {campaign.daily_send_limit > 0 ? (
+              {campaign.daily_send_limit > 0 && (
                 <>
                   <span>·</span>
                   <span className="flex items-center gap-0.5">
                     <AppIcon name="chart" className="text-gray-500" size={10} />
-                    {campaign.daily_send_limit}/ngày từ {campaign.daily_start_time}
+                    {campaign.daily_send_limit}/ngày
                   </span>
                 </>
-              ) : (
+              )}
+              {campaign.scheduled_start_at > 0 && (
                 <>
                   <span>·</span>
                   <span className="flex items-center gap-0.5">
                     <AppIcon name="clock" className="text-gray-500" size={10} />
-                    Chạy từ {campaign.daily_start_time}
+                    Hẹn giờ: {new Date(campaign.scheduled_start_at).toLocaleString('vi-VN', { hour12: false })}
                   </span>
                 </>
               )}
