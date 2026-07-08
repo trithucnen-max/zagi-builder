@@ -86,6 +86,12 @@ export default class ErpNotificationService {
    * Start due-soon (1m) + overdue (hourly) crons. Idempotent — safe to call twice.
    */
   startSchedulers(): void {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const AppModeManager = require('../../utils/AppModeManager').default;
+    if (AppModeManager.getInstance().isEmployeeMode()) {
+      return;
+    }
+
     if (this.dueSoonTimer) clearInterval(this.dueSoonTimer);
     if (this.overdueTimer) clearInterval(this.overdueTimer);
     this.dueSoonTimer = setInterval(() => this._runDueSoonScan(), 60_000);

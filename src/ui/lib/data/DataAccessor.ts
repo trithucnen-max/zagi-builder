@@ -1055,13 +1055,14 @@ export class DataAccessor {
 
   static async getLibraryItems(params: {
     zaloId: string; type?: string; search?: string;
-    folderId?: number | null; page?: number; limit?: number;
+    folderId?: number | null; tagIds?: number[]; page?: number; limit?: number;
   }) {
     if (isEmployee()) {
-      const cacheKey = 'items:' + params.zaloId + ':' + (params.type || '') + ':' + (params.folderId ?? '') + ':' + (params.search || '') + ':' + (params.page || 1);
+      const tagIdsStr = params.tagIds ? params.tagIds.join(',') : '';
+      const cacheKey = 'items:' + params.zaloId + ':' + (params.type || '') + ':' + (params.folderId ?? '') + ':' + (params.search || '') + ':' + (params.page || 1) + ':' + tagIdsStr;
       const cached = getCachedLibrary(cacheKey);
       if (cached) return cached;
-      const res = await rest().get('/api/library/items', params);
+      const res = await rest().get('/api/library/items', { ...params, tagIds: tagIdsStr });
       const result = { success: true, items: Array.isArray(res.data) ? res.data : (res.data?.items || []), total: res.pagination?.total || 0 };
       setCachedLibrary(cacheKey, result);
       return result;
@@ -1126,6 +1127,48 @@ export class DataAccessor {
   }) {
     if (isEmployee()) { return rest().patch('/api/library/item/' + uuid, params); }
     try { return await window.electronAPI.library.updateItem?.(uuid, params); }
+    catch { return { success: false }; }
+  }
+
+  static async getLibraryTags(params: { zaloId: string }) {
+    if (isEmployee()) {
+      const cacheKey = 'tags:' + params.zaloId;
+      const cached = getCachedLibrary(cacheKey);
+      if (cached) return cached;
+      const res = await rest().get('/api/library/tags', params);
+      const result = { success: true, items: Array.isArray(res.data) ? res.data : [] };
+      setCachedLibrary(cacheKey, result);
+      return result;
+    }
+    try { return await window.electronAPI.library.getTags(params); }
+    catch { return { success: false, items: [] }; }
+  }
+
+  static async createLibraryTag(params: { name: string; zaloId: string; color?: string }) {
+    invalidateLibraryCache();
+    if (isEmployee()) { return rest().post('/api/library/tags', params); }
+    try { return await window.electronAPI.library.createTag(params); }
+    catch { return { success: false }; }
+  }
+
+  static async updateLibraryTag(id: number, params: { name: string; color?: string }) {
+    invalidateLibraryCache();
+    if (isEmployee()) { return rest().patch('/api/library/tags/' + id, params); }
+    try { return await window.electronAPI.library.updateTag({ ...params, id }); }
+    catch { return { success: false }; }
+  }
+
+  static async deleteLibraryTag(id: number) {
+    invalidateLibraryCache();
+    if (isEmployee()) { return rest().delete('/api/library/tags/' + id); }
+    try { return await window.electronAPI.library.deleteTag(id); }
+    catch { return { success: false }; }
+  }
+
+  static async assignTagsToLibraryItem(itemUuid: string, tagIds: number[], zaloId: string) {
+    invalidateLibraryCache();
+    if (isEmployee()) { return rest().post('/api/library/item/tags', { itemUuid, tagIds, zaloId }); }
+    try { return await window.electronAPI.library.assignTags({ itemUuid, tagIds, zaloId }); }
     catch { return { success: false }; }
   }
 

@@ -166,11 +166,22 @@ export const libraryHandlers = {
 
     const page = parseInt(params.page) || 1;
     const limit = Math.min(parseInt(params.limit) || 50, 200);
+
+    let tagIds: number[] | undefined = undefined;
+    if (params.tagIds) {
+      if (Array.isArray(params.tagIds)) {
+        tagIds = params.tagIds.map((x: any) => parseInt(x));
+      } else if (typeof params.tagIds === 'string') {
+        tagIds = params.tagIds.split(',').map((x: any) => parseInt(x)).filter((x: any) => !isNaN(x));
+      }
+    }
+
     const result = lib().getItems({
       zaloId,
       type: params.type || params.type,
       search: params.search,
       folderId: params.folderId !== undefined ? parseInt(params.folderId) : undefined,
+      tagIds,
       page,
       limit,
     });
@@ -193,6 +204,45 @@ export const libraryHandlers = {
       })),
       { page, limit, total: result.total, hasMore: page * limit < result.total }
     );
+  },
+
+  getTags(employee: any, params: any): JsonResponse {
+    const zaloId = params.zaloId || employee.assigned_accounts?.[0] || '';
+    if (!zaloId) return error('Missing zaloId');
+    const items = lib().getTags(zaloId);
+    return success(items);
+  },
+
+  createTag(employee: any, params: any): JsonResponse {
+    const zaloId = params.zaloId || employee.assigned_accounts?.[0] || '';
+    if (!zaloId) return error('Missing zaloId');
+    if (!params.name) return error('Missing name');
+    const id = lib().createTag({ name: params.name, zaloId, color: params.color });
+    return success({ id });
+  },
+
+  updateTag(employee: any, params: any): JsonResponse {
+    const id = parseInt(params.id);
+    if (!id) return error('Missing id');
+    if (!params.name) return error('Missing name');
+    lib().updateTag(id, params);
+    return success({ id });
+  },
+
+  deleteTag(employee: any, params: any): JsonResponse {
+    const id = parseInt(params.id);
+    if (!id) return error('Missing id');
+    lib().deleteTag(id);
+    return success({ id });
+  },
+
+  assignTags(employee: any, params: any): JsonResponse {
+    const itemUuid = params.itemUuid || params.uuid || '';
+    if (!itemUuid) return error('Missing itemUuid');
+    const tagIds = Array.isArray(params.tagIds) ? params.tagIds.map((x: any) => parseInt(x)) : [];
+    const zaloId = params.zaloId || employee.assigned_accounts?.[0] || '';
+    lib().assignTagsToItem(itemUuid, tagIds, zaloId);
+    return success({ success: true });
   },
 
   getItem(employee: any, params: any): JsonResponse {

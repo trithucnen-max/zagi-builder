@@ -99,9 +99,21 @@ export default function LibraryPickerModal({
   const [moveFolderTarget, setMoveFolderTarget] = useState<string | null>(null);
   const [folderPos, setFolderPos] = useState<{ top: number; left: number } | null>(null);
 
+  // Tags
+  const [tags, setTags] = useState<any[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
+  const [showTagMenu, setShowTagMenu] = useState<number | null>(null);
+  const [tagInput, setTagInput] = useState<{ mode: 'create' | 'rename'; id?: number; value: string; color?: string } | null>(null);
+
+  // Edit tags for single item (popover)
+  const [editTagsTarget, setEditTagsTarget] = useState<string | null>(null); // item uuid
+  const [editTagsPos, setEditTagsPos] = useState<{ top: number; left: number } | null>(null);
+
   const closeMenus = useCallback(() => {
     setMenuTarget(null); setMenuPos(null);
     setMoveFolderTarget(null); setFolderPos(null);
+    setEditTagsTarget(null); setEditTagsPos(null);
+    setShowTagMenu(null);
   }, []);
 
   const handleMenuClick = useCallback((e: React.MouseEvent, uuid: string) => {
@@ -134,6 +146,63 @@ export default function LibraryPickerModal({
 
   useEffect(() => { loadFolders(); }, [loadFolders]);
 
+  // ── Load tags ───────────────────────────────────────────────
+
+  const loadTags = useCallback(async () => {
+    try {
+      const result = await DataAccessor.getLibraryTags({ zaloId });
+      if (result.success) {
+        setTags(result.items || []);
+      }
+    } catch {}
+  }, [zaloId]);
+
+  useEffect(() => { loadTags(); }, [loadTags]);
+
+  const handleCreateTag = (name?: string) => {
+    setTagInput({ mode: 'create', value: name || '', color: '#3b82f6' });
+  };
+
+  const handleRenameTag = (id: number) => {
+    const t = tags.find(x => x.id === id);
+    if (t) {
+      setTagInput({ mode: 'rename', id, value: t.name, color: t.color });
+    }
+  };
+
+  const handleDeleteTag = async (id: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa thẻ này?')) return;
+    try {
+      const res = await DataAccessor.deleteLibraryTag(id);
+      if (res.success) {
+        loadTags();
+        if (selectedTagIds.has(id)) {
+          const next = new Set(selectedTagIds);
+          next.delete(id);
+          setSelectedTagIds(next);
+        }
+        loadItems(1);
+      }
+    } catch {}
+    setShowTagMenu(null);
+  };
+
+  const submitTagInput = async () => {
+    if (!tagInput || !tagInput.value.trim()) { setTagInput(null); return; }
+    const name = tagInput.value.trim();
+    const color = tagInput.color || '#3b82f6';
+    try {
+      if (tagInput.mode === 'create') {
+        await DataAccessor.createLibraryTag({ name, zaloId, color });
+      } else if (tagInput.mode === 'rename' && tagInput.id) {
+        await DataAccessor.updateLibraryTag(tagInput.id, { name, color });
+      }
+      loadTags();
+    } catch {}
+    setTagInput(null);
+    setShowTagMenu(null);
+  };
+
   // ── Load items ──────────────────────────────────────────────
 
   const loadItems = useCallback(async (pageNum = 1, append = false) => {
@@ -146,6 +215,7 @@ export default function LibraryPickerModal({
         limit: 50,
         search: search || undefined,
         folderId: activeFolderId === -1 ? undefined : activeFolderId,
+        tagIds: selectedTagIds.size > 0 ? Array.from(selectedTagIds) : undefined,
       });
       if (result.success) {
         const newItems = result.items || [];
@@ -166,12 +236,12 @@ export default function LibraryPickerModal({
       }
     } catch {}
     setLoading(false);
-  }, [zaloId, initialType, search, activeFolderId]);
+  }, [zaloId, initialType, search, activeFolderId, selectedTagIds]);
 
   useEffect(() => {
     setPage(1);
     loadItems(1);
-  }, [search, activeFolderId]);
+  }, [search, activeFolderId, selectedTagIds]);
 
   const handleLoadMore = () => {
     const next = page + 1;
@@ -664,7 +734,7 @@ export default function LibraryPickerModal({
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700/50">
           <h2 className="text-lg font-semibold text-white">{typeLabel}</h2>
           <span className="text-xs text-gray-400">{total} file</span>
-          <button onClick={() => { refreshLibraryCache(); loadItems(1); loadFolders(); }} className="p-1.5 text-gray-400 hover:text-white transition-colors" title="Làm mới"><RefreshIcon className="w-4 h-4" /></button>
+          <button onClick={() => { refreshLibraryCache(); loadItems(1); loadFolders(); loadTags(); }} className="p-1.5 text-gray-400 hover:text-white transition-colors" title="Làm mới"><RefreshIcon className="w-4 h-4" /></button>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white transition-colors ml-auto">✕</button>
         </div>
 
@@ -707,9 +777,83 @@ export default function LibraryPickerModal({
                 </div>
               )}
               {rootFolders.map(f => renderFolderItem(f))}
-              {rootFolders.length === 0 && !folderInput && (
+               {rootFolders.length === 0 && !folderInput && (
                 <p className="text-xs text-gray-400 text-center py-4">Chưa có thư mục</p>
               )}
+
+              {/* Tags Section */}
+              <div className="h-px bg-gray-700/50 my-3" />
+              <div className="flex items-center justify-between px-3 py-1">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nhãn dán</span>
+                <button onClick={() => handleCreateTag()}
+                  className="w-5 h-5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white flex items-center justify-center transition-colors text-xs font-bold"
+                  title="Tạo nhãn mới">＋</button>
+              </div>
+
+              {tagInput && (tagInput.mode === 'create' || tagInput.mode === 'rename') && (
+                <div className="px-2 py-1 flex items-center gap-1.5 bg-gray-705/30 rounded-lg border border-gray-600/30 my-1">
+                  <input autoFocus
+                    value={tagInput.value}
+                    onChange={e => setTagInput({ ...tagInput, value: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') submitTagInput(); if (e.key === 'Escape') setTagInput(null); }}
+                    onBlur={() => setTimeout(() => submitTagInput(), 250)}
+                    placeholder="Tên nhãn..."
+                    className="flex-1 px-1.5 py-0.5 text-xs bg-gray-800 border border-gray-600 rounded text-gray-200 outline-none animate-fade-in"
+                  />
+                  <input type="color" value={tagInput.color || '#3b82f6'}
+                    onChange={e => setTagInput({ ...tagInput, color: e.target.value })}
+                    className="w-5 h-5 border-0 bg-transparent cursor-pointer rounded p-0 outline-none shrink-0"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-0.5 mt-1">
+                {tags.map(tag => {
+                  const isSelected = selectedTagIds.has(tag.id);
+                  return (
+                    <div key={tag.id}
+                      onContextMenu={(e) => { e.preventDefault(); setShowTagMenu(showTagMenu === tag.id ? null : tag.id); }}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer text-sm transition-all group relative ${
+                        isSelected
+                          ? 'bg-blue-600/30 text-blue-300'
+                          : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                      }`}
+                    >
+                      <span onClick={() => {
+                        const next = new Set(selectedTagIds);
+                        if (isSelected) {
+                          next.delete(tag.id);
+                        } else {
+                          next.add(tag.id);
+                        }
+                        setSelectedTagIds(next);
+                      }} className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: tag.color || '#3b82f6' }} />
+                        <span className="truncate">{tag.name}</span>
+                      </span>
+
+                      {/* ⋯ menu button */}
+                      <div className="relative">
+                        <button onClick={(e) => { e.stopPropagation(); setShowTagMenu(showTagMenu === tag.id ? null : tag.id); }}
+                          className="p-1 rounded-md text-gray-400 hover:text-gray-200 opacity-0 group-hover:opacity-100 transition-all text-sm leading-none">⋯</button>
+
+                        {showTagMenu === tag.id && (
+                          <div className="absolute right-0 top-full mt-1 bg-gray-700 border border-gray-600 rounded-xl shadow-2xl z-50 py-1 w-28"
+                            onClick={e => e.stopPropagation()}>
+                            <button onClick={() => { handleRenameTag(tag.id); }}
+                              className="w-full text-left px-3 py-1 text-xs text-gray-200 hover:bg-gray-600 flex items-center gap-1.5"><EditIcon className="w-3 h-3" /> Đổi tên</button>
+                            <button onClick={() => handleDeleteTag(tag.id)}
+                              className="w-full text-left px-3 py-1 text-xs text-red-400 hover:bg-gray-600 flex items-center gap-1.5"><TrashIcon className="w-3.5 h-3.5 inline" /> Xoá</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {tags.length === 0 && !tagInput && (
+                  <p className="text-xs text-gray-500 text-center py-2">Chưa có nhãn dán</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -789,7 +933,24 @@ export default function LibraryPickerModal({
                               className="text-green-400 hover:text-green-300 text-xs">✓</button>
                           </div>
                         ) : (
-                          <span className="block text-[10px] text-gray-400 truncate">{item.name}</span>
+                          <>
+                            <span className="block text-[10px] text-gray-400 truncate">{item.name}</span>
+                            {item.tags && (
+                              <div className="flex flex-wrap gap-0.5 mt-0.5 max-h-[28px] overflow-hidden">
+                                {item.tags.split(',').map((name: string) => {
+                                  const trimmed = name.trim();
+                                  if (!trimmed) return null;
+                                  const tagObj = tags.find(t => t.name === trimmed);
+                                  return (
+                                    <span key={trimmed} className="px-1 rounded text-[7px] text-white font-medium"
+                                      style={{ backgroundColor: tagObj?.color || '#4b5563' }}>
+                                      {trimmed}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
 
@@ -842,7 +1003,24 @@ export default function LibraryPickerModal({
                                 className="text-green-400 hover:text-green-300 text-xs">✓</button>
                             </div>
                           ) : (
-                            <span className="block text-xs text-white truncate">{item.name}</span>
+                            <div>
+                              <span className="block text-xs text-white truncate">{item.name}</span>
+                              {item.tags && (
+                                <div className="flex flex-wrap gap-0.5 mt-0.5 max-h-[28px] overflow-hidden">
+                                  {item.tags.split(',').map((name: string) => {
+                                    const trimmed = name.trim();
+                                    if (!trimmed) return null;
+                                    const tagObj = tags.find(t => t.name === trimmed);
+                                    return (
+                                      <span key={trimmed} className="px-1 rounded text-[7px] text-white font-medium"
+                                        style={{ backgroundColor: tagObj?.color || '#4b5563' }}>
+                                        {trimmed}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
 
@@ -882,7 +1060,24 @@ export default function LibraryPickerModal({
                         ) : (
                           <>
                             <p className="text-sm text-gray-200 truncate">{item.name}</p>
-                            <p className="text-xs text-gray-400">{(item.size / 1024).toFixed(1)} KB</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-gray-400">{(item.size / 1024).toFixed(1)} KB</span>
+                              {item.tags && (
+                                <div className="flex flex-wrap gap-1">
+                                  {item.tags.split(',').map((name: string) => {
+                                    const trimmed = name.trim();
+                                    if (!trimmed) return null;
+                                    const tagObj = tags.find(t => t.name === trimmed);
+                                    return (
+                                      <span key={trimmed} className="px-1 rounded text-[8px] text-white font-medium"
+                                        style={{ backgroundColor: tagObj?.color || '#4b5563' }}>
+                                        {trimmed}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </>
                         )}
                       </div>
@@ -948,6 +1143,10 @@ export default function LibraryPickerModal({
                 className="w-full text-left px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-700 flex items-center gap-2">
                 <EditIcon className="w-3.5 h-3.5 inline" /> Đổi tên
               </button>
+              <button onClick={() => { setEditTagsTarget(item.uuid); setEditTagsPos(menuPos); setMenuTarget(null); setMenuPos(null); }}
+                className="w-full text-left px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-700 flex items-center gap-2">
+                🏷️ Gán nhãn/thẻ
+              </button>
               {item.folder_id !== null && (
                 <>
                   <div className="h-px bg-gray-600 mx-2" />
@@ -985,6 +1184,67 @@ export default function LibraryPickerModal({
                 <button onClick={() => handleMoveToFolder(item.uuid, null)}
                   className="w-full text-left px-3 py-1.5 text-xs text-gray-400 hover:bg-gray-700 flex items-center gap-2">✕ Bỏ khỏi thư mục</button></>
               )}
+            </div>
+          </>
+        );
+      })()}
+
+      {/*** Tag picker dropdown — fixed positioning ***/(() => {
+        const item = editTagsTarget ? items.find(i => i.uuid === editTagsTarget) : null;
+        if (!item || !editTagsPos) return null;
+
+        const activeTagNames = new Set((item.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean));
+
+        const handleToggleTag = async (tagId: number, tagName: string) => {
+          const currentTagNames = (item.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+          let newTagIds: number[] = [];
+
+          const tagNameToIdMap = new Map(tags.map(t => [t.name, t.id]));
+          const currentTagIds = currentTagNames.map(name => tagNameToIdMap.get(name)).filter(Boolean) as number[];
+
+          const hasTag = currentTagNames.includes(tagName);
+          if (hasTag) {
+            newTagIds = currentTagIds.filter(id => id !== tagId);
+          } else {
+            newTagIds = [...currentTagIds, tagId];
+          }
+
+          try {
+            const res = await DataAccessor.assignTagsToLibraryItem(item.uuid, newTagIds, zaloId);
+            if (res.success) {
+              loadItems(page);
+            }
+          } catch {}
+        };
+
+        return (
+          <>
+            <div className="fixed inset-0 z-[99]" onClick={closeMenus} />
+            <div className="fixed z-[100] bg-gray-800 border border-gray-600 rounded-xl shadow-2xl py-1 min-w-[200px] max-h-[300px] overflow-y-auto animate-scale-up"
+              style={{ top: editTagsPos.top, left: editTagsPos.left }} onClick={e => e.stopPropagation()}>
+              <div className="px-3 py-1.5 text-[10px] text-gray-400 uppercase tracking-wider flex justify-between items-center">
+                <span>Gán nhãn</span>
+                <button onClick={() => { handleCreateTag(); closeMenus(); }} className="text-blue-400 hover:text-blue-300 text-xs">＋ Tạo mới</button>
+              </div>
+              <div className="h-px bg-gray-700/50 mb-1" />
+              {tags.length === 0 && (
+                <p className="px-3 py-2 text-xs text-gray-400">Chưa có nhãn</p>
+              )}
+              {tags.map(tag => {
+                const isActive = activeTagNames.has(tag.name);
+                return (
+                  <button key={tag.id} onClick={() => handleToggleTag(tag.id, tag.name)}
+                    className="w-full text-left px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-700/50 flex items-center gap-2 transition-colors">
+                    <span className="w-3.5 h-3.5 rounded flex items-center justify-center border border-gray-500 text-[10px]"
+                      style={{ backgroundColor: isActive ? tag.color : 'transparent', borderColor: tag.color }}>
+                      {isActive && '✓'}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] text-white" style={{ backgroundColor: tag.color || '#3b82f6' }}>
+                      {tag.name}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </>
         );

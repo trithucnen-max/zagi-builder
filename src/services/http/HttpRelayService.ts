@@ -1759,6 +1759,36 @@ class HttpRelayService {
                 const id = pathname.split('/').pop() || '';
                 return this.json(res, 200, libraryHandlers.deleteFolder(employee, { ...params, id }));
             }
+            // Tags
+            if (method === 'GET' && pathname === '/api/library/tags') {
+                return this.json(res, 200, libraryHandlers.getTags(employee, params));
+            }
+            if (method === 'POST' && pathname === '/api/library/tags') {
+                this.readBody(req, (body) => {
+                    const parsed = JSON.parse(body);
+                    return this.json(res, 200, libraryHandlers.createTag(employee, { ...params, ...parsed }));
+                });
+                return;
+            }
+            if (method === 'PATCH' && pathname.match(/^\/api\/library\/tags\/\d+$/)) {
+                const id = pathname.split('/').pop() || '';
+                this.readBody(req, (body) => {
+                    const parsed = JSON.parse(body);
+                    return this.json(res, 200, libraryHandlers.updateTag(employee, { ...params, ...parsed, id }));
+                });
+                return;
+            }
+            if (method === 'DELETE' && pathname.match(/^\/api\/library\/tags\/\d+$/)) {
+                const id = pathname.split('/').pop() || '';
+                return this.json(res, 200, libraryHandlers.deleteTag(employee, { ...params, id }));
+            }
+            if (method === 'POST' && pathname === '/api/library/item/tags') {
+                this.readBody(req, (body) => {
+                    const parsed = JSON.parse(body);
+                    return this.json(res, 200, libraryHandlers.assignTags(employee, { ...params, ...parsed }));
+                });
+                return;
+            }
             // Serve media files
             if (method === 'GET' && pathname.match(/^\/api\/library\/file\/[a-f0-9-]+$/)) {
                 const uuid = pathname.split('/').pop() || '';

@@ -66,6 +66,33 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.2.8',
+    date: '09/2026',
+    type: 'patch',
+    highlights: [
+      '🛡️ Kiến trúc Thin Client bảo mật dữ liệu tuyệt đối — Loại bỏ hoàn toàn cơ sở dữ liệu SQLite cục bộ trên máy Nhân viên, đảm bảo zero-footprint dữ liệu.',
+      '📡 Màn hình khóa mất kết nối thông minh — Tích hợp nút kết nối lại và form đăng nhập/đổi IP BOSS thủ công ngay trên giao diện khóa để tự cấu hình phục hồi.',
+      '⚡ Đồng bộ Socket.IO thời gian thực — Chuyển sang sử dụng Socket.IO làm giao thức truyền tải chính thức thay thế hoàn toàn cho SSE.',
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Chuyển đổi hoàn toàn máy Nhân viên thành Thin Client không tạo/sử dụng file SQLite cục bộ.',
+          'Tải liên hệ/cuộc hội thoại trực tiếp qua REST API (DataAccessor.getConversations) thay vì SQLite local.',
+          'Tích hợp giao diện overlay khóa màn hình khi mất kết nối BOSS, hỗ trợ nút Thử lại và form Đổi IP/Đăng nhập lại.',
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Chặn các timers/crons ERP chạy ngầm trên máy nhân viên để tránh spam log DB rỗng.',
+          'Vô hiệu hóa tiến trình đồng bộ dữ liệu syncIpc.ts trên máy nhân viên.',
+        ]
+      }
+    ]
+  },
+  {
     version: '27.2.7',
     date: '08/2026',
     type: 'patch',

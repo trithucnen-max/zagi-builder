@@ -37,84 +37,14 @@ function notifySyncComplete(workspaceId: string, syncType: 'full' | 'delta', syn
 export function registerSyncIpc() {
     // ─── Full Sync (Employee requests from Boss) ────────────────────
     ipcMain.handle('sync:requestFullSync', async (_event, params: { zaloIds: string[] }) => {
-        try {
-            if (!isRemoteMode()) {
-                return { success: false, error: 'Chỉ dùng ở chế độ Nhân viên' };
-            }
-            const { zaloIds } = params;
-            if (!zaloIds || zaloIds.length === 0) {
-                return { success: false, error: 'Không có tài khoản được gán' };
-            }
-
-            const client = getActiveHttpClient();
-            const result = await client.performFullSync(zaloIds);
-            if (result.success) {
-                const appliedSyncTs = result.syncTs || Date.now();
-                try {
-                    DatabaseService.getInstance().run(
-                        `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('employee_last_sync_ts', ?, ?)`,
-                        [String(appliedSyncTs), new Date(appliedSyncTs).toISOString()]
-                    );
-                } catch {}
-                // Also persist to workspace config for auto delta sync on reconnect
-                try {
-                    const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
-                    if (activeWs) {
-                        WorkspaceManager.getInstance().updateWorkspace(activeWs.id, { lastSyncTs: appliedSyncTs } as any);
-                        notifySyncComplete(activeWs.id, 'full', appliedSyncTs);
-                    }
-                } catch {}
-            }
-            return result;
-        } catch (err: any) {
-            Logger.error(`[syncIpc] requestFullSync error: ${err.message}`);
-            return { success: false, error: err.message };
-        }
+        Logger.log('[syncIpc] requestFullSync bypassed (running in Thin Client mode)');
+        return { success: true, syncTs: Date.now() };
     });
 
     // ─── Delta Sync (Employee requests incremental from Boss) ───────
     ipcMain.handle('sync:requestDeltaSync', async (_event, params?: { sinceTs?: number }) => {
-        try {
-            if (!isRemoteMode()) {
-                return { success: false, error: 'Chỉ dùng ở chế độ Nhân viên' };
-            }
-
-            let sinceTs = params?.sinceTs || 0;
-            if (!sinceTs) {
-                const row = DatabaseService.getInstance().query<any>(
-                    `SELECT value FROM app_settings WHERE key = 'employee_last_sync_ts'`
-                );
-                sinceTs = row[0]?.value ? Number(row[0].value) : 0;
-            }
-
-            if (!sinceTs) {
-                return { success: false, error: 'Chưa đồng bộ lần đầu, cần Full Sync trước' };
-            }
-
-            const client = getActiveHttpClient();
-            const result = await client.performDeltaSync(sinceTs);
-            if (result.success) {
-                const appliedSyncTs = result.syncTs || Date.now();
-                try {
-                    DatabaseService.getInstance().run(
-                        `INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('employee_last_sync_ts', ?, ?)`,
-                        [String(appliedSyncTs), new Date(appliedSyncTs).toISOString()]
-                    );
-                } catch {}
-                // Also persist to workspace config for auto delta sync on reconnect
-                try {
-                    const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
-                    if (activeWs) {
-                        WorkspaceManager.getInstance().updateWorkspace(activeWs.id, { lastSyncTs: appliedSyncTs } as any);
-                        notifySyncComplete(activeWs.id, 'delta', appliedSyncTs);
-                    }
-                } catch {}
-            }
-            return result;
-        } catch (err: any) {
-            Logger.error(`[syncIpc] requestDeltaSync error: ${err.message}`);
-            return { success: false, error: err.message };
-        }
+        Logger.log('[syncIpc] requestDeltaSync bypassed (running in Thin Client mode)');
+        return { success: true, syncTs: Date.now() };
     });
 
     // ─── Reset Employee DB ──────────────────────────────────────────

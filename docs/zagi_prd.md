@@ -1,7 +1,7 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
 > **Phiên bản tài liệu:** 1.2  
-> **Ngày cập nhật:** 06/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v27.2.5 (Stable)  
+> **Ngày cập nhật:** 09/07/2026  
+> **Trạng thái sản phẩm hiện tại:** v27.2.8 (Stable)  
 > **Chủ quản:** Product Management Team  
 
 
@@ -41,7 +41,7 @@ flowchart TB
         BZ["📱 Kết nối Zalo / FB\n(Tài khoản gốc)"]
         BSV["🔧 Động cơ xử lý\nCRM · AI · Workflow · Sync"]
         BSD[("🗄️ SQLite Cục bộ\n(WAL Mode & File Media)")]
-        BRL["🔁 Relay Server nội bộ\n(Express + WebSocket: 9900)"]
+        BRL["🔁 Relay Server nội bộ\n(Express + Socket.IO: 9900)"]
     end
     subgraph NET["🌐 Phương thức Kết nối"]
         LAN("🏠 Mạng LAN nội bộ\n(192.168.x.x:9900)")
@@ -62,7 +62,8 @@ flowchart TB
 
 ### 2.1. Ngăn xếp Công nghệ (Technology Stack)
 *   **Framework chính:** Electron 41 + React 18 + Vite 6 + TypeScript 5.
-*   **Lưu trữ:** SQLite thông qua thư viện `better-sqlite3` chạy ở chế độ WAL (Write-Ahead Logging) cho tốc độ đọc ghi song song cao.
+*   **Lưu trữ:** SQLite thông qua thư viện `better-sqlite3` chạy ở chế độ WAL cho máy Boss/Standalone. Đối với máy Nhân viên (Remote Workspace), hệ thống vận hành theo cơ chế Thin Client (Zero-SQLite) không tạo tệp dữ liệu cục bộ.
+*   **Giao tiếp Real-time:** Socket.IO v4 (transport duy nhất truyền tải sự kiện thời gian thực từ Boss đến Nhân viên).
 *   **Tương tác Nền tảng:** `zca-js` (đối với Zalo API) và `fbchat-v2` kết hợp bridge E2EE tự viết bằng Go (`fbchat-bridge-e2ee.exe`) để xử lý tin nhắn mã hóa đầu cuối trên Facebook.
 *   **Quản lý trạng thái:** Zustand Store.
 *   **Giao diện:** Tailwind CSS v4, React Flow (thiết kế Canvas Workflow), Recharts (biểu đồ báo cáo).
@@ -148,10 +149,11 @@ graph TD
 ---
 
 ## 5. LỊCH SỬ CẬP NHẬT CÁC PHIÊN BẢN (CHANGELOG)
-Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.7`:
+Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.8`:
 
 | Phiên bản | Ngày cập nhật | Loại cập nhật | Điểm nhấn chính (Highlights) |
 | :--- | :--- | :--- | :--- |
+| **v27.2.8** | 09/07/2026 | Minor | **Thin Client & Socket.IO:** Loại bỏ hoàn toàn SQLite cục bộ trên máy Nhân viên (Zero SQLite); Thay thế hoàn toàn SSE bằng Socket.IO v4 làm transport thời gian thực chính; Tích hợp form đổi cấu hình kết nối trực tiếp trên màn hình khóa. |
 | **v27.2.7** | 08/07/2026 | Patch | **Tự động tối ưu kết nối & Khôi phục nhanh:** Tự phát hiện IP LAN của Boss và chuyển đổi luồng kết nối active/SSE sang cục bộ; Tự động kết nối lại tức thì khi Sleep/Wake-up (powerMonitor) hoặc khôi phục WiFi. |
 | **v27.2.6** | 08/07/2026 | Patch | **Nâng cấp hạ tầng mạng Boss–Nhân viên:** Chunked Upload file lớn (phân đoạn 2MB, không OOM), SSE Last-Event-ID Recovery (phục hồi sự kiện bị lỡ khi mất mạng), AI Assistant Read-Only cho Nhân viên, Đồng bộ 2 chiều phân hệ Facebook, Workflow Real-time 2 chiều Boss ↔ Nhân viên. |
 | **v27.2.5** | 06/07/2026 | Patch | Sửa lỗi crash `n.startsWith is not a function` khi mở chiến dịch có ảnh; Gán/Xóa nhãn Local đồng loạt (Bulk Local Label Sync) hỗ trợ sync 2 chiều và cảnh báo xóa trắng nhãn. |
@@ -174,6 +176,15 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 ---
 
 ### Chi tiết các cập nhật từng phiên bản
+
+#### 🚀 v27.2.8 — Kiến trúc Thin Client (Zero SQLite) & Giao thức Socket.IO
+*   **Tính năng mới (New):**
+    *   **Kiến trúc Thin Client (Zero SQLite) trên máy Nhân viên:** Loại bỏ hoàn toàn tệp SQLite `zagi-tool.db` và quá trình ghi đĩa đồng bộ dữ liệu ngầm trên máy nhân viên. Chuyển sang cơ chế truy vấn API REST trực tiếp (gọi `DataAccessor.getConversations`) từ máy Boss cho các thông tin danh sách hội thoại, liên hệ và nhãn.
+    *   **Socket.IO làm Transport truyền tải Real-time chính thức:** Thay thế hoàn toàn SSE truyền thống bằng thư viện Socket.IO v4. Cả máy Boss (`SocketIOService`) và Nhân viên (`SocketIOClient`) đều giao tiếp song công bền bỉ qua giao thức WebSocket Socket.IO, hỗ trợ tự động kết nối lại ngầm và phân loại room nhân viên.
+    *   **Màn hình khóa mất kết nối thông minh:** Tích hợp nút kết nối lại thủ công và form cấu hình địa chỉ BOSS/Đăng nhập lại trực tiếp trên giao diện màn hình khóa overlay khi bị mất kết nối mạng hoặc đổi thông tin BOSS, tránh tình trạng bị treo cứng màn hình.
+*   **Cải tiến & Sửa lỗi (Improved & Fixed):**
+    *   **Tắt Timers ERP ngầm:** Chặn chạy các bộ ghim lịch hẹn và quét công việc overdue ngầm trên máy nhân viên để tránh spam cảnh báo lỗi ghi nhật ký DB rỗng.
+    *   **Vô hiệu hóa IPC Sync:** Bỏ qua các lệnh IPC gọi đồng bộ toàn bộ và đồng bộ delta, trả về success ngay lập tức.
 
 #### 🚀 v27.2.7 — Tự động tối ưu kết nối & Tự động kết nối lại tức thì
 *   **Tính năng mới (New):**

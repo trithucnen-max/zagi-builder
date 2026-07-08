@@ -31,12 +31,22 @@ export interface LibraryItem {
   created_by: string;
   created_at: number;
   updated_at: number;
+  tagsList?: { id: number; name: string; color: string }[];
 }
 
 export interface LibraryFolder {
   id: number;
   name: string;
   parent_id: number | null;
+  owner_zalo_id: string;
+  color: string;
+  sort_order: number;
+  item_count?: number;
+}
+
+export interface LibraryTag {
+  id: number;
+  name: string;
   owner_zalo_id: string;
   color: string;
   sort_order: number;
@@ -180,10 +190,11 @@ class LibraryService {
     type?: string;
     search?: string;
     folderId?: number | null;
+    tagIds?: number[];
     page?: number;
     limit?: number;
   }): { items: LibraryItem[]; total: number } {
-    const { zaloId, type, search, folderId, page = 1, limit = 50 } = params;
+    const { zaloId, type, search, folderId, tagIds, page = 1, limit = 50 } = params;
     const db = DatabaseService.getInstance();
     const conditions: string[] = ['owner_zalo_id = ?'];
     const values: any[] = [zaloId];
@@ -208,6 +219,16 @@ class LibraryService {
       }
     }
 
+    if (tagIds && tagIds.length > 0) {
+      conditions.push(`uuid IN (
+        SELECT item_uuid FROM media_library_item_tags
+        WHERE tag_id IN (${tagIds.map(() => '?').join(',')})
+        GROUP BY item_uuid
+        HAVING COUNT(DISTINCT tag_id) = ?
+      )`);
+      values.push(...tagIds, tagIds.length);
+    }
+
     const where = conditions.join(' AND ');
     const offset = (page - 1) * limit;
 
@@ -216,6 +237,29 @@ class LibraryService {
       `SELECT * FROM media_library_items WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...values, limit, offset]
     ) || [];
+
+    // Batch query to attach tagsList to each item
+    if (items.length > 0) {
+      const uuids = items.map(item => item.uuid);
+      const placeholders = uuids.map(() => '?').join(',');
+      const itemTags = db.query<any>(
+        `SELECT it.item_uuid, t.id, t.name, t.color 
+         FROM media_library_item_tags it
+         JOIN media_library_tags t ON it.tag_id = t.id
+         WHERE it.item_uuid IN (${placeholders})`,
+        uuids
+      ) || [];
+      
+      const tagsByUuid: Record<string, { id: number; name: string; color: string }[]> = {};
+      for (const row of itemTags) {
+        if (!tagsByUuid[row.item_uuid]) tagsByUuid[row.item_uuid] = [];
+        tagsByUuid[row.item_uuid].push({ id: row.id, name: row.name, color: row.color });
+      }
+      
+      for (const item of items) {
+        item.tagsList = tagsByUuid[item.uuid] || [];
+      }
+    }
 
     return { items, total };
   }
@@ -259,6 +303,9 @@ class LibraryService {
     try { if (fs.existsSync(item.file_path)) fs.unlinkSync(item.file_path); } catch {}
     try { if (item.thumb_path && fs.existsSync(item.thumb_path)) fs.unlinkSync(item.thumb_path); } catch {}
 
+    // Xóa liên kết nhãn dán tag
+    db.run('DELETE FROM media_library_item_tags WHERE item_uuid = ?', [uuid]);
+
     db.run('DELETE FROM media_library_items WHERE uuid = ?', [uuid]);
     EventBroadcaster.emit('library:itemDeleted', { uuid, zaloId: item.owner_zalo_id });
     return true;
@@ -300,6 +347,74 @@ class LibraryService {
     const db = DatabaseService.getInstance();
     db.run('UPDATE media_library_items SET folder_id = NULL WHERE folder_id = ?', [id]);
     db.run('DELETE FROM media_library_folders WHERE id = ?', [id]);
+    return true;
+  }
+
+  // ─── Tags ────────────────────────────────────────────────────────
+
+  public getTags(zaloId: string): LibraryTag[] {
+    const db = DatabaseService.getInstance();
+    return db.query<any>(
+      `SELECT t.*,
+        (SELECT COUNT(*) FROM media_library_item_tags it WHERE it.tag_id = t.id) as item_count
+       FROM media_library_tags t WHERE t.owner_zalo_id = ? ORDER BY t.sort_order ASC`,
+      [zaloId]
+    ) || [];
+  }
+
+  public createTag(params: { name: string; zaloId: string; color?: string }): number {
+    const db = DatabaseService.getInstance();
+    const sort = (db.queryOne<any>('SELECT MAX(sort_order) as m FROM media_library_tags WHERE owner_zalo_id=?', [params.zaloId])?.m || 0) + 1;
+    const id = db.runInsert(
+      'INSERT INTO media_library_tags (name, owner_zalo_id, color, sort_order) VALUES (?,?,?,?)',
+      [params.name, params.zaloId, params.color || '#6366f1', sort]
+    );
+    return id;
+  }
+
+  public updateTag(id: number, params: { name: string; color?: string }): boolean {
+    const db = DatabaseService.getInstance();
+    db.run(
+      'UPDATE media_library_tags SET name=?, color=? WHERE id=?',
+      [params.name, params.color || '#6366f1', id]
+    );
+    return true;
+  }
+
+  public deleteTag(id: number): boolean {
+    const db = DatabaseService.getInstance();
+    db.run('DELETE FROM media_library_item_tags WHERE tag_id = ?', [id]);
+    db.run('DELETE FROM media_library_tags WHERE id = ?', [id]);
+    return true;
+  }
+
+  public assignTagsToItem(itemUuid: string, tagIds: number[], zaloId: string): boolean {
+    const db = DatabaseService.getInstance();
+    
+    // Xóa liên kết cũ
+    db.run('DELETE FROM media_library_item_tags WHERE item_uuid = ?', [itemUuid]);
+    
+    // Thêm liên kết mới
+    if (tagIds.length > 0) {
+      for (const tagId of tagIds) {
+        db.run(
+          'INSERT OR IGNORE INTO media_library_item_tags (item_uuid, tag_id, owner_zalo_id) VALUES (?,?,?)',
+          [itemUuid, tagId, zaloId]
+        );
+      }
+    }
+    
+    // Cập nhật trường tags văn bản trong media_library_items để tương thích ngược
+    let tagNames = '';
+    if (tagIds.length > 0) {
+      const tags = db.query<any>(
+        `SELECT name FROM media_library_tags WHERE id IN (${tagIds.map(() => '?').join(',')})`,
+        tagIds
+      ) || [];
+      tagNames = tags.map((t: any) => t.name).join(',');
+    }
+    db.run('UPDATE media_library_items SET tags=? WHERE uuid=?', [tagNames, itemUuid]);
+
     return true;
   }
 
@@ -366,10 +481,30 @@ class LibraryService {
           sort_order INTEGER DEFAULT 0
         )
       `);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS media_library_tags (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          owner_zalo_id TEXT NOT NULL,
+          color TEXT DEFAULT '#6366f1',
+          sort_order INTEGER DEFAULT 0,
+          UNIQUE(owner_zalo_id, name)
+        )
+      `);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS media_library_item_tags (
+          item_uuid TEXT NOT NULL,
+          tag_id INTEGER NOT NULL,
+          owner_zalo_id TEXT NOT NULL,
+          PRIMARY KEY (item_uuid, tag_id)
+        )
+      `);
       // Thêm cột type nếu chưa có (migration)
       try { db.exec(`ALTER TABLE media_library_folders ADD COLUMN type TEXT DEFAULT NULL`); } catch {}
       db.exec(`CREATE INDEX IF NOT EXISTS idx_library_owner ON media_library_items(owner_zalo_id, type, created_at)`);
       db.exec(`CREATE INDEX IF NOT EXISTS idx_library_folder ON media_library_items(folder_id)`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_library_item_tags_uuid ON media_library_item_tags(item_uuid)`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_library_item_tags_id ON media_library_item_tags(tag_id)`);
       Logger.log('[LibraryService] ✅ Tables migrated');
     } catch (err: any) {
       Logger.warn(`[LibraryService] Migration error: ${err.message}`);

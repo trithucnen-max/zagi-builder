@@ -370,6 +370,11 @@ declare global {
         renameFolder:(id: number, name: string) => Promise<any>;
         deleteFolder:(id: number) => Promise<any>;
         updateItem:  (uuid: string, params: any) => Promise<any>;
+        getTags:      (params: { zaloId: string }) => Promise<any>;
+        createTag:    (params: { name: string; zaloId: string; color?: string }) => Promise<any>;
+        updateTag:    (params: { id: number; name: string; color?: string }) => Promise<any>;
+        deleteTag:    (id: number) => Promise<any>;
+        assignTags:   (params: { itemUuid: string; tagIds: number[]; zaloId: string }) => Promise<any>;
       };
 
       on: (channel: string, callback: (...args: any[]) => void) => () => void;

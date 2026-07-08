@@ -32,6 +32,9 @@ const SYNCABLE_TABLES_BY_ZALO = [
     { table: 'message_drafts',       zaloCol: 'owner_zalo_id',  tsCol: 'updated_at' },
     // Employee message log (for the assigned accounts)
     { table: 'employee_message_log', zaloCol: 'zalo_id',        tsCol: 'timestamp' },
+    // Media library tags
+    { table: 'media_library_tags',      zaloCol: 'owner_zalo_id',  tsCol: null },
+    { table: 'media_library_item_tags', zaloCol: 'owner_zalo_id',  tsCol: null },
 ];
 
 /** Tables synced fully (device-wide, no zaloId filter) */

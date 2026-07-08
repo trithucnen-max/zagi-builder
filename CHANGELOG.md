@@ -4,6 +4,26 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v27.2.8] - 2026-07-09
+
+### Kiến trúc Thin Client (Zero SQLite) cho máy Nhân viên & Tích hợp Socket.IO
+
+- **Kiến trúc Thin Client bảo mật dữ liệu tuyệt đối (Zero SQLite):**
+  - Chuyển đổi máy nhân viên thành dạng Thin Client hoàn toàn không tạo hoặc sử dụng cơ sở dữ liệu SQLite cục bộ (`zagi-tool.db`).
+  - Dữ liệu cuộc trò chuyện và liên hệ được truy vấn trực tiếp thời gian thực từ Boss qua REST API (`DataAccessor.getConversations`) thay vì đọc từ DB SQLite local.
+  - Loại bỏ hoàn toàn các tiến trình đồng bộ dữ liệu ngầm và ghi đĩa để đạt tiêu chuẩn bảo mật zero-footprint trên thiết bị nhân viên.
+  - Vô hiệu hóa hoàn toàn các bộ timers/crons ERP chạy ngầm trên máy nhân viên để tránh ghi log DB rỗng.
+
+- **Nâng cấp Giao thức Truyền tải Socket.IO:**
+  - Thiết lập Socket.IO (`SocketIOService` trên Boss và `SocketIOClient` trên Employee) làm giao thức truyền tải thời gian thực chính thức cho các sự kiện (real-time event delivery), thay thế hoàn toàn cho SSE (Server-Sent Events) ở các phiên bản cũ.
+  - Hỗ trợ cơ chế tự động kết nối lại (auto-reconnect) bền bỉ của Socket.IO, tự động join room nhân viên để nhận các sự kiện chat và ERP tức thời.
+
+- **Màn hình khóa mất kết nối thông minh & tương tác (Connection Lost Lock Screen):**
+  - Tích hợp nút **"Thử lại ngay"** để người dùng chủ động gửi tín hiệu kết nối lại.
+  - Tích hợp form cấu hình đăng nhập nhanh/thay đổi IP BOSS ngay trên màn hình khóa. Khi mất kết nối hoặc đổi IP/mật khẩu, nhân viên có thể cập nhật thông tin và kết nối lại trực tiếp mà không bị treo cứng màn hình.
+
+---
+
 ## [v27.2.7] - 2026-07-08
 
 ### Tính năng mới & Cải tiến tối ưu hóa kết nối & Tự động kết nối lại

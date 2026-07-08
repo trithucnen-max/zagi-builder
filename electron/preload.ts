@@ -314,6 +314,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
     captureScreenshot: () => ipcRenderer.invoke('file:captureScreenshot'),
   },
 
+  // ─── Media Library ───────────────────────────────────────────────
+  library: {
+    getItems:     (params: any) => ipcRenderer.invoke('library:getItems', params),
+    upload:       (params: any) => ipcRenderer.invoke('library:upload', params),
+    deleteItem:   (uuid: string) => ipcRenderer.invoke('library:deleteItem', uuid),
+    getFolders:   (params: { zaloId: string; type?: string }) => ipcRenderer.invoke('library:getFolders', params),
+    createFolder: (params: any) => ipcRenderer.invoke('library:createFolder', params),
+    renameFolder: (id: number, name: string) => ipcRenderer.invoke('library:renameFolder', { id, name }),
+    deleteFolder: (id: number) => ipcRenderer.invoke('library:deleteFolder', id),
+    updateItem:   (uuid: string, params: any) => ipcRenderer.invoke('library:updateItem', { uuid, ...params }),
+    getTags:      (params: { zaloId: string }) => ipcRenderer.invoke('library:getTags', params),
+    createTag:    (params: { name: string; zaloId: string; color?: string }) => ipcRenderer.invoke('library:createTag', params),
+    updateTag:    (params: { id: number; name: string; color?: string }) => ipcRenderer.invoke('library:updateTag', params),
+    deleteTag:    (id: number) => ipcRenderer.invoke('library:deleteTag', id),
+    assignTags:   (params: { itemUuid: string; tagIds: number[]; zaloId: string }) => ipcRenderer.invoke('library:assignTags', params),
+  },
+
 
   // ─── Workflow Engine ─────────────────────────────────────────────
     workflow: {

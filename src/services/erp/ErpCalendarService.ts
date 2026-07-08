@@ -297,6 +297,12 @@ export default class ErpCalendarService {
 
   /** Load and schedule all upcoming reminders on app start + kick off safety-net cron. */
   initSchedulers(): void {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const AppModeManager = require('../../utils/AppModeManager').default;
+    if (AppModeManager.getInstance().isEmployeeMode()) {
+      return;
+    }
+
     const now = Date.now();
     const lookahead = now + 24 * 60 * 60_000; // 24h lookahead
     const events = this.listEvents({ from: now, to: lookahead });

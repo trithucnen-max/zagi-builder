@@ -78,6 +78,14 @@ class DatabaseService {
 
     public async initialize(): Promise<void> {
         try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const AppModeManager = require('../../utils/AppModeManager').default;
+            if (AppModeManager.getInstance().isEmployeeMode()) {
+                Logger.log('[DatabaseService] Running in Employee Mode - Bypassing local database file initialization');
+                this.initialized = true;
+                return;
+            }
+
             const userDataPath = app.getPath('userData');
             Logger.log(`[DatabaseService] INIT STEP 1: userData path: ${userDataPath}`);
 
@@ -188,6 +196,20 @@ class DatabaseService {
      * WAL checkpoint — ensures all writes are flushed to main DB file.
      * Call before copy/move DB file, switch workspace, or app quit.
      */
+    public checkpoint(): void {
+        if (!db) return;
+        try {
+            db.pragma('wal_checkpoint(TRUNCATE)');
+            Logger.log(`[DatabaseService] WAL checkpoint completed successfully.`);
+        } catch (error: any) {
+            Logger.error(`[DatabaseService] WAL checkpoint failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * WAL checkpoint — ensures all writes are flushed to main DB file.
+     * Call before copy/move DB file, switch workspace, or app quit.
+     */
     public forceFlush(): void {
         try {
             if (db) {
@@ -242,6 +264,13 @@ class DatabaseService {
     private switchQueue: Array<{ resolve: (v: any) => void; fn: () => any }> = [];
 
     public async switchToWorkspaceDb(newDbPath: string): Promise<void> {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const AppModeManager = require('../../utils/AppModeManager').default;
+        if (AppModeManager.getInstance().isEmployeeMode()) {
+            Logger.log(`[DatabaseService] Running in Employee Mode - Bypassing switch to workspace DB: ${newDbPath}`);
+            return;
+        }
+
         Logger.log(`[DatabaseService] Switching DB to: ${newDbPath}`);
 
         const targetDbPath = path.resolve(newDbPath);

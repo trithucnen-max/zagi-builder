@@ -45,6 +45,7 @@ import RestQueryService from '../services/http/RestQueryService';
 import LockScreen from './components/auth/LockScreen';
 import { Spinner } from '@/components/common/PageLoading';
 import { GlobeIcon } from '@/components/common/icons';
+import DataAccessor from './lib/data/DataAccessor';
 
 const HEALTH_CHECK_INTERVAL_MS = 60 * 1000; // 1 phút
 const NETWORK_RECONNECT_COOLDOWN_MS = 15 * 1000; // 15 giây
@@ -122,11 +123,106 @@ export default function App() {
   const { setContacts } = useChatStore();
   const { activeThreadId, activeThreadType, contacts } = useChatStore();
   const { activeAccountId } = useAccountStore();
+  const { mode: empMode, bossConnected } = useEmployeeStore();
   const [initializing, setInitializing] = useState(true);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const isMobile = useIsMobile();
   const { mobileShowChat, setMobileShowChat } = useAppStore();
+
+  const [showConfigForm, setShowConfigForm] = useState(false);
+  const [bossUrlInput, setBossUrlInput] = useState('');
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState('');
+
+  // Pre-fill inputs when showConfigForm is opened
+  useEffect(() => {
+    if (showConfigForm) {
+      const activeWs = useWorkspaceStore.getState().activeWorkspace();
+      if (activeWs && activeWs.type === 'remote') {
+        setBossUrlInput(activeWs.bossUrl || '');
+        setUsernameInput(activeWs.employeeUsername || '');
+      }
+    }
+  }, [showConfigForm]);
+
+  const handleManualReconnect = async () => {
+    const activeWs = useWorkspaceStore.getState().activeWorkspace();
+    if (activeWs && activeWs.type === 'remote') {
+      try {
+        useAppStore.getState().showNotification('🔄 Đang thử kết nối lại...', 'info');
+        const res = await ipc.workspace?.connectRemote(activeWs.id, activeWs.bossUrl || '', activeWs.token || '');
+        if (res?.success) {
+          useAppStore.getState().showNotification('🟢 Kết nối lại thành công!', 'success');
+        } else {
+          useAppStore.getState().showNotification(res?.error || 'Kết nối lại thất bại', 'error');
+        }
+      } catch (err: any) {
+        useAppStore.getState().showNotification(err.message || 'Lỗi kết nối lại', 'error');
+      }
+    }
+  };
+
+  const handleConfigLogin = async () => {
+    setLoginError('');
+    if (!bossUrlInput.trim()) { setLoginError('Vui lòng nhập địa chỉ BOSS'); return; }
+    if (!usernameInput.trim()) { setLoginError('Vui lòng nhập tên đăng nhập'); return; }
+    if (!passwordInput.trim()) { setLoginError('Vui lòng nhập mật khẩu'); return; }
+
+    setIsLoggingIn(true);
+    try {
+      const activeWs = useWorkspaceStore.getState().activeWorkspace();
+      if (!activeWs || activeWs.type !== 'remote') {
+        throw new Error('Workspace hiện tại không phải Remote Workspace');
+      }
+
+      // Step 1: Login to boss
+      const loginRes = await ipc.workspace?.loginRemote(bossUrlInput.trim(), usernameInput.trim(), passwordInput.trim());
+      if (!loginRes?.success) {
+        throw new Error(loginRes?.error || 'Đăng nhập thất bại. Kiểm tra lại thông tin.');
+      }
+
+      const { token, employee } = loginRes || {};
+      if (!token || !employee) {
+        throw new Error('Phản hồi từ BOSS không hợp lệ');
+      }
+
+      // Step 2: Update workspace config
+      const updateRes = await ipc.workspace?.update(activeWs.id, {
+        bossUrl: bossUrlInput.trim(),
+        token,
+        employeeId: employee.employee_id,
+        employeeName: employee.display_name || usernameInput.trim(),
+        employeeUsername: usernameInput.trim(),
+      });
+
+      if (!updateRes?.success) {
+        throw new Error(updateRes?.error || 'Cập nhật cấu hình workspace thất bại');
+      }
+
+      // Step 3: Reconnect with new config
+      const connRes = await ipc.workspace?.connectRemote(activeWs.id, bossUrlInput.trim(), token);
+      if (!connRes?.success) {
+        throw new Error(connRes?.error || 'Kết nối tới Boss thất bại');
+      }
+
+      // Sync active state local copy
+      const listRes = await ipc.workspace?.list();
+      if (listRes?.success) {
+        useWorkspaceStore.getState().setWorkspaces(listRes.workspaces);
+      }
+
+      useAppStore.getState().showNotification('🟢 Cấu hình mới đã kết nối thành công!', 'success');
+      setShowConfigForm(false);
+      setPasswordInput('');
+    } catch (err: any) {
+      setLoginError(err.message || 'Lỗi không xác định');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   // ─── Sync theme to <html> element ────────────────────────────────────────
   useEffect(() => {
@@ -743,12 +839,20 @@ export default function App() {
         // Load contacts from DB for each account
         for (const acc of cachedAccounts) {
           try {
-            console.log(`[App] Requesting contacts for ${acc.zalo_id} from DB...`);
-            const contactsRes = await ipc.db?.getContacts(acc.zalo_id);
-            console.log(`[App] getContacts response for ${acc.zalo_id}:`, contactsRes);
-            if (contactsRes?.contacts) {
-              setContacts(acc.zalo_id, contactsRes.contacts);
-              console.log(`[App] Loaded ${contactsRes.contacts.length} contacts for account ${acc.zalo_id} from DB`);
+            const isEmpMode = useEmployeeStore.getState().mode === 'employee';
+            console.log(`[App] Requesting contacts for ${acc.zalo_id} (isEmployeeMode=${isEmpMode})...`);
+            
+            const contactsRes = isEmpMode
+              ? await DataAccessor.getConversations(acc.zalo_id)
+              : await ipc.db?.getContacts(acc.zalo_id);
+              
+            const contactsList = isEmpMode
+              ? (contactsRes as any)?.items
+              : (contactsRes as any)?.contacts ?? contactsRes;
+              
+            if (contactsList) {
+              setContacts(acc.zalo_id, contactsList);
+              console.log(`[App] Loaded ${contactsList.length} contacts for account ${acc.zalo_id}`);
             }
           } catch (err: any) {
             console.error(`[App] Failed to load contacts for account ${acc.zalo_id}:`, err);
@@ -854,17 +958,25 @@ export default function App() {
       const empStore = useEmployeeStore.getState();
       const accounts = empStore.assignedAccounts || [];
       if (accounts.length > 0) {
+        const isEmp = empStore.mode === 'employee';
         for (const zaloId of accounts) {
           try {
-            console.log(`[App] syncComplete: Requesting contacts for ${zaloId} from DB...`);
-            const contactsRes = await Promise.race([
-              ipc.db?.getContacts(zaloId),
-              new Promise(r => setTimeout(() => r(null), 5000)),
-            ]) as any;
-            console.log(`[App] syncComplete: getContacts response for ${zaloId}:`, contactsRes);
-            if (contactsRes?.contacts) {
-              setContacts(zaloId, contactsRes.contacts);
-              console.log(`[App] syncComplete: Loaded ${contactsRes.contacts.length} contacts for account ${zaloId} from DB`);
+            console.log(`[App] syncComplete: Requesting contacts for ${zaloId} (isEmployeeMode=${isEmp})...`);
+            const contactsRes = isEmp
+              ? await Promise.race([
+                  DataAccessor.getConversations(zaloId),
+                  new Promise(r => setTimeout(() => r(null), 5000)),
+                ])
+              : await Promise.race([
+                  ipc.db?.getContacts(zaloId),
+                  new Promise(r => setTimeout(() => r(null), 5000)),
+                ]);
+            const contactsList = isEmp
+              ? (contactsRes as any)?.items
+              : (contactsRes as any)?.contacts ?? contactsRes;
+            if (contactsList) {
+              setContacts(zaloId, contactsList);
+              console.log(`[App] syncComplete: Loaded ${contactsList.length} contacts for account ${zaloId}`);
             }
           } catch (err: any) {
             console.error(`[App] syncComplete: Failed to load contacts for account ${zaloId}:`, err);
@@ -1268,6 +1380,114 @@ export default function App() {
       <TopBar />
       <LicenseExpiryBanner />
       <EmployeeConnectionBanner />
+
+      {empMode === 'employee' && !bossConnected && (
+        <div className="fixed inset-0 z-[9999] bg-gray-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl transition-all duration-300">
+            {!showConfigForm ? (
+              <>
+                <span className="text-6xl mb-4 block animate-pulse">📡</span>
+                <h2 className="text-xl font-bold text-white mb-2">Mất kết nối tới Boss</h2>
+                <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                  Đang cố gắng tự động thiết lập lại đường truyền kết nối với máy chủ Boss...
+                </p>
+                <div className="flex justify-center items-center gap-2 mb-8 bg-gray-950/40 py-2.5 px-4 rounded-xl border border-gray-800/40 inline-flex mx-auto">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                  <span className="text-xs text-gray-500 font-semibold tracking-wider uppercase">Đang kết nối lại</span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={handleManualReconnect}
+                    className="px-5 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold transition-all duration-200 active:scale-95 border border-gray-700/50"
+                  >
+                    🔄 Thử lại ngay
+                  </button>
+                  <button
+                    onClick={() => setShowConfigForm(true)}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all duration-200 active:scale-95 shadow-md shadow-blue-600/10"
+                  >
+                    🔑 Đổi IP / Đăng nhập lại
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-left">
+                <div className="flex items-center gap-2.5 mb-5">
+                  <span className="text-2xl">⚙️</span>
+                  <h2 className="text-lg font-bold text-white">Cấu hình kết nối BOSS</h2>
+                </div>
+                
+                {loginError && (
+                  <div className="mb-4 p-3 bg-red-950/40 border border-red-900/50 rounded-xl text-red-200 text-xs flex items-start gap-2 animate-pulse">
+                    <span className="mt-0.5">⚠️</span>
+                    <span className="flex-1">{loginError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Địa chỉ máy BOSS</label>
+                    <input
+                      type="text"
+                      value={bossUrlInput}
+                      onChange={(e) => setBossUrlInput(e.target.value)}
+                      placeholder="Ví dụ: 192.168.1.100:9900 hoặc relay.domain.com"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/80 transition-all duration-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Tên đăng nhập</label>
+                    <input
+                      type="text"
+                      value={usernameInput}
+                      onChange={(e) => setUsernameInput(e.target.value)}
+                      placeholder="Nhập tên đăng nhập"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/80 transition-all duration-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Mật khẩu</label>
+                    <input
+                      type="password"
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/80 transition-all duration-200"
+                      onKeyDown={(e) => e.key === 'Enter' && handleConfigLogin()}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowConfigForm(false)}
+                    disabled={isLoggingIn}
+                    className="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-sm font-semibold transition-all duration-200 border border-gray-700/50"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleConfigLogin}
+                    disabled={isLoggingIn}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold transition-all duration-200 shadow-md shadow-blue-600/10 flex items-center justify-center gap-1.5"
+                  >
+                    {isLoggingIn ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Đang kết nối...
+                      </>
+                    ) : (
+                      'Lưu & Kết nối'
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar: account list + nav */}

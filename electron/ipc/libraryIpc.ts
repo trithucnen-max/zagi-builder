@@ -23,7 +23,7 @@ export function registerLibraryIpc(): void {
 
   // ── Get items ──────────────────────────────────────────────
   ipcMain.handle('library:getItems', async (_event, params: {
-    zaloId: string; type?: string; search?: string; folderId?: number; page?: number; limit?: number;
+    zaloId: string; type?: string; search?: string; folderId?: number; tagIds?: number[]; page?: number; limit?: number;
   }) => {
     try {
       const result = lib().getItems({
@@ -31,6 +31,7 @@ export function registerLibraryIpc(): void {
         type: params.type,
         search: params.search,
         folderId: params.folderId !== undefined ? params.folderId : undefined,
+        tagIds: params.tagIds,
         page: params.page || 1,
         limit: Math.min(params.limit || 50, 200),
       });
@@ -149,6 +150,56 @@ export function registerLibraryIpc(): void {
       return { success: result };
     } catch (err: any) {
       Logger.error(`[libraryIpc] updateItem error: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ── Get Tags ───────────────────────────────────────────────
+  ipcMain.handle('library:getTags', async (_event, params: { zaloId: string }) => {
+    try {
+      const items = lib().getTags(params.zaloId);
+      return { success: true, items };
+    } catch (err: any) {
+      return { success: false, error: err.message, items: [] };
+    }
+  });
+
+  // ── Create Tag ──────────────────────────────────────────────
+  ipcMain.handle('library:createTag', async (_event, params: { name: string; zaloId: string; color?: string }) => {
+    try {
+      const id = lib().createTag(params);
+      return { success: true, id };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ── Update Tag ──────────────────────────────────────────────
+  ipcMain.handle('library:updateTag', async (_event, params: { id: number; name: string; color?: string }) => {
+    try {
+      lib().updateTag(params.id, params);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ── Delete Tag ──────────────────────────────────────────────
+  ipcMain.handle('library:deleteTag', async (_event, id: number) => {
+    try {
+      lib().deleteTag(id);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ── Assign Tags to Item ─────────────────────────────────────
+  ipcMain.handle('library:assignTags', async (_event, params: { itemUuid: string; tagIds: number[]; zaloId: string }) => {
+    try {
+      lib().assignTagsToItem(params.itemUuid, params.tagIds, params.zaloId);
+      return { success: true };
+    } catch (err: any) {
       return { success: false, error: err.message };
     }
   });
