@@ -260,6 +260,14 @@ export const libraryHandlers = {
     return success({ id });
   },
 
+  renameFolder(employee: any, params: any): JsonResponse {
+    const id = parseInt(params.id);
+    if (!id) return error('Missing id');
+    if (!params.name) return error('Missing name');
+    DatabaseService.getInstance().run('UPDATE media_library_folders SET name=? WHERE id=?', [params.name, id]);
+    return success({ id });
+  },
+
   // ── Serve file (không phải JSON) ────────────────────────────────
 
   serveFile(req: http.IncomingMessage, res: http.ServerResponse, uuid: string): void {

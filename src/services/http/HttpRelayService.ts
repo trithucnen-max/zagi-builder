@@ -1725,9 +1725,10 @@ class HttpRelayService {
                 return this.json(res, 200, libraryHandlers.getItem(employee, { ...params, uuid, _bossUrl: `${proto}://${host}` }));
             }
             if (method === 'PATCH' && pathname.match(/^\/api\/library\/item\/[a-f0-9-]+$/)) {
+                const uuid = pathname.split('/').pop() || '';
                 this.readBody(req, (body) => {
                     const parsed = JSON.parse(body);
-                    return this.json(res, 200, libraryHandlers.updateItem(employee, { ...params, ...parsed }));
+                    return this.json(res, 200, libraryHandlers.updateItem(employee, { ...params, ...parsed, uuid }));
                 });
                 return;
             }
@@ -1743,6 +1744,14 @@ class HttpRelayService {
                 this.readBody(req, (body) => {
                     const parsed = JSON.parse(body);
                     return this.json(res, 200, libraryHandlers.createFolder(employee, { ...params, ...parsed }));
+                });
+                return;
+            }
+            if (method === 'PATCH' && pathname.match(/^\/api\/library\/folders\/\d+$/)) {
+                const id = pathname.split('/').pop() || '';
+                this.readBody(req, (body) => {
+                    const parsed = JSON.parse(body);
+                    return this.json(res, 200, libraryHandlers.renameFolder(employee, { ...params, ...parsed, id }));
                 });
                 return;
             }

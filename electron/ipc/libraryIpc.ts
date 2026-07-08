@@ -14,6 +14,13 @@ import Logger from '../../src/utils/Logger';
 const lib = () => LibraryService.getInstance();
 
 export function registerLibraryIpc(): void {
+  // Run DB schema migrations for media library tables
+  try {
+    LibraryService.getInstance().migrate();
+  } catch (err: any) {
+    Logger.error(`[libraryIpc] Migration failed: ${err.message}`);
+  }
+
   // ── Get items ──────────────────────────────────────────────
   ipcMain.handle('library:getItems', async (_event, params: {
     zaloId: string; type?: string; search?: string; folderId?: number; page?: number; limit?: number;
