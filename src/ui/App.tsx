@@ -833,13 +833,13 @@ export default function App() {
           empStore.setIsUsingLan(!!data.isUsingLan);
           
           if (data.isUsingLan && !wasUsingLan) {
-            showNotification('🚀 Đã tự động kết nối qua LAN (Mạng nội bộ)', 'success');
+            useAppStore.getState().showNotification('🚀 Đã tự động kết nối qua LAN (Mạng nội bộ)', 'success');
           }
         }
       }
     });
     return () => unsub?.();
-  }, [showNotification]);
+  }, []);
 
   // ─── Handle sync completion — reload data after full/delta sync ────────────
   useEffect(() => {
