@@ -5001,97 +5001,81 @@ function CardBubble({ msg, isSent, onOpenProfile }: { msg: any; isSent: boolean;
 }
 
 // ─── LinkBubble — hiển thị tin nhắn link preview như Zalo ────────────────────
+// ─── LinkBubble — hiển thị tin nhắn link preview như Zalo ────────────────────
 function LinkBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
   const href = String(parsed.href || parsed.title || '');
   const params = (() => { try { const p = parsed.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
-  const rawTitle = String(parsed.title || '').trim();
-  const mediaTitle = String(params.mediaTitle || '').trim();
-  const domain = String(params.src || '').trim();
-  const description = String(parsed.description || '').trim();
+  const title = String(params.mediaTitle || parsed.title || href);
+  const domain = String(params.src || '');
   const thumb = String(parsed.thumb || '');
+  const description = String(params.mediaDesc || parsed.description || '');
 
-  // chat.recommended có thể chứa "text + url" trong title.
-  // Ưu tiên tách phần text user nhập để hiển thị đúng ý nghĩa tin nhắn.
-  const stripKnownLinks = (txt: string): string => {
-    let out = txt;
-    if (href) out = out.split(href).join(' ');
-    if (mediaTitle) out = out.split(mediaTitle).join(' ');
-    out = out.replace(/https?:\/\/\S+/gi, ' ');
-    return out.replace(/\s+/g, ' ').trim();
-  };
-
-  const userCaption = stripKnownLinks(rawTitle);
-  const displayTitle = userCaption || rawTitle || mediaTitle || href;
-  const primaryUrl = (href || mediaTitle || description).trim();
-  const urlLine = primaryUrl && primaryUrl !== displayTitle ? primaryUrl : '';
-  const derivedDomain = (() => {
-    if (domain) return domain;
-    if (!primaryUrl) return '';
-    try { return new URL(primaryUrl).hostname || ''; } catch { return ''; }
-  })();
-
-  // Shorten description if too long
-  const descriptionIsDuplicate =
-    !!description &&
-    (description === href || description === mediaTitle || description === displayTitle);
-  const displayDesc = descriptionIsDuplicate ? '' : description;
-  const shortDesc = displayDesc.length > 100 ? displayDesc.substring(0, 100) + '...' : displayDesc;
-  const previewTitle = mediaTitle && mediaTitle !== displayTitle ? mediaTitle : (derivedDomain || href);
-
-  return (
-    <div
-      className={`flex flex-col overflow-hidden rounded-2xl min-w-[260px] max-w-sm text-left shadow-lg ${isSent ? 'bg-gray-750' : 'bg-gray-800'} border ${isSent ? 'border-gray-700' : 'border-gray-700'}`}
-    >
-      {/* Message content: text + link — hiển thị bình thường, không bấm mở link */}
-      <div className="px-3 py-2.5 space-y-1.5 select-text cursor-text">
-        {displayTitle && (
-          <p className="text-sm text-white leading-snug">
-            {displayTitle}
-          </p>
-        )}
-
-        {urlLine && (
-          <p className="text-xs text-blue-500 leading-relaxed line-clamp-2 break-all">
-            {urlLine}
-          </p>
-        )}
-
-        {/* Description */}
-        {shortDesc && (
-          <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">
-            {shortDesc}
-          </p>
-        )}
-      </div>
-
-      {/* Preview section — CHỈ bấm vào đây mới mở link */}
-      <button
-        onClick={() => href && ipc.shell?.openExternal(href)}
-        className="mx-2 mb-2 border border-gray-700/80 rounded-xl overflow-hidden bg-gray-900/60 text-left cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
-        title={href}
-      >
-        {thumb && (
-          <div className="w-full h-36 overflow-hidden bg-gray-900 flex-shrink-0">
-            <img
-              src={thumb}
-              alt={previewTitle}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                (e.target as HTMLImageElement).parentElement!.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
-        <div className="px-2.5 py-2 space-y-1">
-          {previewTitle && (
-            <p className="text-xs text-white leading-snug line-clamp-2">{previewTitle}</p>
+  if (thumb) {
+    return (
+      <div className="w-full max-w-sm bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col p-3 gap-2.5 text-left">
+        <a
+          href="#"
+          onClick={(e) => { e.preventDefault(); ipc.shell?.openExternal(href); }}
+          className="text-[13px] text-blue-600 hover:underline break-all leading-tight"
+        >
+          {href}
+        </a>
+        <div
+          onClick={() => href && ipc.shell?.openExternal(href)}
+          className="w-full aspect-[16/9] rounded-lg overflow-hidden bg-gray-100 cursor-pointer border border-gray-100"
+        >
+          <img src={thumb} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div
+          onClick={() => href && ipc.shell?.openExternal(href)}
+          className="flex flex-col gap-1 cursor-pointer"
+        >
+          <h4 className="text-sm font-semibold text-slate-900 leading-snug break-words">
+            {title}
+          </h4>
+          {description && (
+            <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed break-words">
+              {description}
+            </p>
           )}
-          {derivedDomain && (
-            <p className="text-[11px] text-gray-500 truncate">{derivedDomain}</p>
+          {domain && (
+            <span className="text-xs text-blue-500 font-medium mt-0.5">
+              {domain}
+            </span>
           )}
         </div>
-      </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-w-[220px] max-w-xs overflow-hidden bg-white border border-gray-200 rounded-xl shadow-sm text-left">
+      <div className="flex items-center gap-3 px-3 py-2.5 select-text cursor-text">
+        <div className="w-11 h-11 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center bg-gray-100 border border-gray-200">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.5">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium leading-tight break-words text-slate-900">{title}</p>
+          {domain && <p className="text-xs mt-0.5 truncate text-slate-500">{domain}</p>}
+        </div>
+      </div>
+      {href && (
+        <button
+          onClick={() => ipc.shell?.openExternal(href)}
+          className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs truncate border-t border-gray-100 text-blue-600 hover:bg-slate-50 transition-colors"
+          title={href}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          <span className="truncate">{href}</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -5103,39 +5087,80 @@ function CallBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
   const reason: number = params.reason || 0;
   const isCaller: boolean = params.isCaller === 1;
   const isVideo: boolean = params.calltype === 1;
-  const callTypeLabel = isVideo ? 'Cuộc gọi video' : 'Cuộc gọi thoại';
   const action = String(parsed.action || '');
   const isMissed = action === 'recommened.misscall';
 
-  let statusLabel = 'Cuộc gọi nhỡ';
-  let statusRed = true;
+  let title = 'Cuộc gọi thoại';
+  let isRed = false;
+
+  if (isMissed) {
+    title = isCaller ? 'Đối phương bỏ lỡ' : 'Bạn bị nhỡ';
+    isRed = true;
+  } else if (duration > 0) {
+    title = isCaller
+      ? (isVideo ? 'Cuộc gọi video đi' : 'Cuộc gọi thoại đi')
+      : (isVideo ? 'Cuộc gọi video đến' : 'Cuộc gọi thoại đến');
+  } else {
+    if (reason === 4 && isCaller) {
+      title = 'Bạn đã hủy';
+    } else if (reason === 2) {
+      title = isCaller ? 'Đã từ chối' : 'Bạn đã từ chối';
+      isRed = true;
+    } else {
+      title = isCaller ? 'Cuộc gọi không thành công' : 'Cuộc gọi nhỡ';
+      isRed = true;
+    }
+  }
+
+  let subtitle = isVideo ? 'Cuộc gọi video' : 'Cuộc gọi thoại';
   if (!isMissed && duration > 0) {
-    const m = Math.floor(duration / 60), s = duration % 60;
-    statusLabel = `Đã kết thúc · ${m > 0 ? `${m}p ` : ''}${s}s`;
-    statusRed = false;
-  } else if (!isMissed && duration === 0) {
-    // calltime nhưng duration=0 → cuộc gọi rất ngắn / vừa kết thúc
-    statusLabel = 'Đã kết thúc';
-    statusRed = false;
-  } else if (reason === 4 && isCaller) {
-    statusLabel = 'Bạn đã hủy'; statusRed = false;
-  } else if (reason === 2) {
-    statusLabel = isCaller ? 'Đã từ chối' : 'Bạn đã từ chối';
+    const m = Math.floor(duration / 60);
+    const s = duration % 60;
+    subtitle = `${m} phút ${s} giây`;
   }
 
   return (
-    <div className={`flex flex-col px-3 py-2.5 min-w-[200px] max-w-xs ${isSent ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-black/15">
-          {isVideo ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+    <div className="flex flex-col px-3 py-2.5 min-w-[200px] max-w-xs bg-white border border-gray-200 rounded-xl shadow-sm text-left">
+      <div className="flex flex-col gap-1.5">
+        <span className={`text-[15px] font-bold ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
+          {title}
+        </span>
+        <div className="flex items-center gap-2 mt-0.5">
+          {isMissed ? (
+            <div className="relative w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+              <div className="absolute top-[-3px] right-[-3px] bg-white rounded-full p-[0.5px]">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6h-8a2 2 0 0 0-2 2v8"/>
+                  <polyline points="14 10 18 6 14 2"/>
+                </svg>
+              </div>
+            </div>
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <div className="relative w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+              <div className="absolute top-[-3px] right-[-3px] bg-white rounded-full p-[0.5px]">
+                {isCaller ? (
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="6" y1="18" x2="18" y2="6" />
+                    <polyline points="8 6 18 6 18 16" />
+                  </svg>
+                ) : (
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <polyline points="16 18 6 18 6 8" />
+                  </svg>
+                )}
+              </div>
+            </div>
           )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold ${statusRed ? 'text-red-400' : isSent ? 'bubble-title' : 'text-gray-200'}`}>{statusLabel}</p>
-          <p className={`text-xs mt-0.5 bubble-subtext`}>{callTypeLabel}</p>
+          <span className="text-[14px] text-slate-500 font-medium">
+            {subtitle}
+          </span>
         </div>
       </div>
     </div>
