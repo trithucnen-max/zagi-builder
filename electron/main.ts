@@ -1029,7 +1029,6 @@ async function startupAfterLicenseCheck(): Promise<void> {
   // Lắng nghe sự kiện ngủ / thức dậy của hệ thống — reconnect ngay lập tức
   const restartZaloListeners = async () => {
     try {
-      const { default: LoginService } = await import('./ipc/loginIpc').then(m => ({ default: m.getLoginServiceInstance?.() })).catch(() => ({ default: null }));
       // Dùng startupAllWorkspaces lại — nó kiểm tra isListenerStarted() nên bỏ qua các account đã kết nối
       const wsMgr = (await import('../src/utils/WorkspaceManager')).default.getInstance();
       const db = (await import('../src/services/database/DatabaseService')).default.getInstance();
