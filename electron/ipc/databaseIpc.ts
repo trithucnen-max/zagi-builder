@@ -519,6 +519,16 @@ export function registerDatabaseIpc() {
         }
     });
 
+    ipcMain.handle('db:mergeGroupMembers', async (_event, { zaloId, groupId, members }: { zaloId: string; groupId: string; members: any[] }) => {
+        try {
+            if (isEmployeeMode()) proxyToBoss('db:mergeGroupMembers', { zaloId, groupId, members });
+            DatabaseService.getInstance().mergeGroupMembers(zaloId, groupId, members);
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle('db:upsertGroupMember', async (_event, { zaloId, groupId, member }: { zaloId: string; groupId: string; member: any }) => {
         try {
             if (isEmployeeMode()) proxyToBoss("upsertGroupMember", { zaloId, groupId, member });
