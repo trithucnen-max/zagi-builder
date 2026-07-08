@@ -501,6 +501,7 @@ export function registerDatabaseIpc() {
     // ─── Group Member Cache ───────────────────────────────────────────────
     ipcMain.handle('db:getGroupMembers', async (_event, { zaloId, groupId }: { zaloId: string; groupId: string }) => {
         try {
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getGroupMembers', { zaloId, groupId });
             const members = DatabaseService.getInstance().getGroupMembers(zaloId, groupId);
             return { success: true, members };
         } catch (error: any) {
@@ -510,6 +511,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getAllGroupMembers', async (_event, { zaloId }: { zaloId: string }) => {
         try {
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getAllGroupMembers', { zaloId });
             const rows = DatabaseService.getInstance().getAllGroupMembers(zaloId);
             return { success: true, rows };
         } catch (error: any) {

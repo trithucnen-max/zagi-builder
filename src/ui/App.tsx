@@ -720,14 +720,23 @@ export default function App() {
         }
 
         // Reload contacts from local DB (non-blocking, with timeout)
+        const isEmp = ws.type === 'remote';
         for (const acc of nextAccounts) {
           try {
-            const contactsRes = await Promise.race([
-              ipc.db?.getContacts(acc.zalo_id),
-              new Promise(r => setTimeout(() => r(null), 5000)),
-            ]) as any;
-            if (contactsRes?.contacts) {
-              setContacts(acc.zalo_id, contactsRes.contacts);
+            const contactsRes = isEmp
+              ? await Promise.race([
+                  DataAccessor.getConversations(acc.zalo_id),
+                  new Promise(r => setTimeout(() => r(null), 5000)),
+                ])
+              : await Promise.race([
+                  ipc.db?.getContacts(acc.zalo_id),
+                  new Promise(r => setTimeout(() => r(null), 5000)),
+                ]);
+            const contactsList = isEmp
+              ? (contactsRes as any)?.items
+              : (contactsRes as any)?.contacts ?? contactsRes;
+            if (contactsList) {
+              setContacts(acc.zalo_id, contactsList);
             }
           } catch {}
         }

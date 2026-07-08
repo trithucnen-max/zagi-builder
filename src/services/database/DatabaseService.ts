@@ -268,6 +268,16 @@ class DatabaseService {
         const AppModeManager = require('../../utils/AppModeManager').default;
         if (AppModeManager.getInstance().isEmployeeMode()) {
             Logger.log(`[DatabaseService] Running in Employee Mode - Bypassing switch to workspace DB: ${newDbPath}`);
+            if (global.db) {
+                try {
+                    global.db.close();
+                } catch (err: any) {
+                    Logger.error(`[DatabaseService] Failed to close database: ${err.message}`);
+                }
+                global.db = null;
+                global.db_initialized = false;
+            }
+            this.dbPath = '';
             return;
         }
 
