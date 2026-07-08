@@ -323,7 +323,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
     const empId = currentEmployee.employee_id;
     if (empId === 'boss') return false; // Boss has full access
 
-    const isCreator = task.creator_id === empId;
+    const isCreator = (task as any).creator_id === empId;
     const isAssignee = task.assignees?.includes(empId);
 
     return !isCreator && !isAssignee;

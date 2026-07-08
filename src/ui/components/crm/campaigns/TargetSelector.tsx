@@ -525,7 +525,7 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
                           isActive ? 'border-transparent text-white shadow-sm font-semibold' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                         style={isActive
-                          ? { backgroundColor: baseColor, color: label.textColor || label.text_color || '#ffffff' }
+                          ? { backgroundColor: baseColor, color: (label as any).textColor || (label as any).text_color || '#ffffff' }
                           : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' }}>
                         {label.emoji} {label.text}
                       </button>

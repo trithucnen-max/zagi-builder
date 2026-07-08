@@ -357,6 +357,29 @@ class DatabaseService {
     }
 
     /**
+     * Async variant of withDbPath — awaits the callback before restoring the DB.
+     * Use this when fn() is async (contains await), otherwise withDbPath restores
+     * the DB before the async operations complete, causing writes to go to the
+     * wrong database.
+     */
+    public async withDbPathAsync<T>(targetDbPath: string, fn: () => Promise<T>): Promise<T> {
+        const currentPath = this.dbPath;
+        const currentDb = db;
+        if (currentPath === targetDbPath) {
+            return fn();
+        }
+        try {
+            db = getCachedSecondaryDb(targetDbPath);
+            this.dbPath = targetDbPath;
+            const result = await fn();
+            return result;
+        } finally {
+            db = currentDb;
+            this.dbPath = currentPath;
+        }
+    }
+
+    /**
      * Execute a callback against a SEPARATE DB instance — does NOT swap the global db.
      * Safe for use from relay/socket handlers that may run concurrently with IPC.
      */

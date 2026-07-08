@@ -140,6 +140,7 @@ declare global {
         getMessagesAround: (params: { zaloId: string; threadId: string; timestamp: number; limit?: number }) => Promise<any>;
         patchContactFields: (params: { zaloId: string; contactId: string; fields: Record<string, any> }) => Promise<{ success: boolean; error?: string }>;
         getContacts: (zaloId: string) => Promise<any>;
+        getCallLogsForContact: (params: { zaloId: string; threadId: string; limit?: number }) => Promise<{ success: boolean; data: any[]; error?: string }>;
         searchContactByPhone: (params: { zaloId: string; phone: string }) => Promise<{ success: boolean; contact: any | null }>;
         searchMessages: (params: any) => Promise<any>;
         getMediaMessages: (params: { zaloId: string; threadId?: string; limit?: number; offset?: number }) => Promise<any>;
@@ -290,7 +291,7 @@ declare global {
           success: boolean; byType: Array<{ type: string; count: number }>;
           tagged: number; untagged: number; withNotes: number; withoutNotes: number;
         }>;
-        campaignComparison: (params: { zaloId: string }) => Promise<{
+        campaignComparison: (params: { zaloId: string; sinceTs?: number; untilTs?: number }) => Promise<{
           success: boolean; data: Array<{
             id: number; name: string; type: string; status: string; created_at: number;
             total: number; sent: number; failed: number; pending: number; replied: number;
@@ -358,6 +359,16 @@ declare global {
         getRecoveryKey: (params: { password: string }) => Promise<{ success: boolean; recoveryKey?: string; error?: string }>;
         setBiometric: (params: { enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
         biometricUnlock: () => Promise<{ success: boolean; error?: string }>;
+      };
+      library: {
+        getItems:    (params: any) => Promise<any>;
+        upload:      (params: any) => Promise<any>;
+        deleteItem:  (uuid: string) => Promise<any>;
+        getFolders:  (params: { zaloId: string; type?: string }) => Promise<any>;
+        createFolder:(params: any) => Promise<any>;
+        renameFolder:(id: number, name: string) => Promise<any>;
+        deleteFolder:(id: number) => Promise<any>;
+        updateItem:  (uuid: string, params: any) => Promise<any>;
       };
 
       on: (channel: string, callback: (...args: any[]) => void) => () => void;
@@ -713,6 +724,7 @@ export const ipc = {
 
   erp,
   lockScreen: window.electronAPI?.lockScreen,
+  library: window.electronAPI?.library,
   on: window.electronAPI?.on,
   removeAllListeners: window.electronAPI?.removeAllListeners,
 };

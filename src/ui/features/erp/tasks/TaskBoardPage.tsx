@@ -455,7 +455,7 @@ export default function TaskBoardPage() {
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              <AppIcon name="list" size={13} /> Danh sách
+              <AppIcon name={"list" as any} size={13} /> Danh sách
             </button>
             <button
               onClick={() => setViewMode('kanban')}
@@ -465,7 +465,7 @@ export default function TaskBoardPage() {
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              <AppIcon name="grid" size={13} /> Kanban
+              <AppIcon name={"grid" as any} size={13} /> Kanban
             </button>
           </div>
         </div>

@@ -25,6 +25,7 @@ import { registerErpNoteIpc } from './ipc/erpNoteIpc';
 import { registerErpNotificationIpc } from './ipc/erpNotificationIpc';
 import { registerErpHrmIpc } from './ipc/erpHrmIpc';
 import { registerLockScreenIpc } from './ipc/lockScreenIpc';
+import { registerLibraryIpc } from './ipc/libraryIpc';
 import { registerLicenseIpc, loadLicenseConfig, createLicenseWindow } from './ipc/licenseIpc';
 import licenseManager from '../src/services/license/LicenseManager';
 import WorkspaceManager from '../src/utils/WorkspaceManager';
@@ -1022,6 +1023,7 @@ async function startupAfterLicenseCheck(): Promise<void> {
   registerErpNotificationIpc();
   registerErpHrmIpc();
   registerLockScreenIpc();
+  registerLibraryIpc();
   registerLicenseIpc(); // Tab Bản quyền trong Settings cũng cần (re-register safe — ipcMain dùng Map)
 
   // Listen to OS sleep/resume and unlock events to instantly reconnect

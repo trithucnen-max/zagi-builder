@@ -42,6 +42,8 @@ import EmployeeConnectionBanner from "@/components/common/EmployeeConnectionBann
 import { useWorkspaceStore } from './store/workspaceStore';
 import { useEmployeeStore } from './store/employeeStore';
 import LockScreen from './components/auth/LockScreen';
+import { Spinner } from '@/components/common/PageLoading';
+import { GlobeIcon } from '@/components/common/icons';
 
 const HEALTH_CHECK_INTERVAL_MS = 60 * 1000; // 1 phút
 const NETWORK_RECONNECT_COOLDOWN_MS = 15 * 1000; // 15 giây
@@ -176,6 +178,26 @@ export default function App() {
         setIsLocked(true);
       }
     });
+  }, []);
+
+  // ─── Early init RestQueryService (employee mode) — trước workspace:switched ──
+  // UI components mount và gọi REST API ngay lập tức, nhưng workspace:switched
+  // event có độ trễ → RestQueryService chưa init → request bị "blocked".
+  // Fix: init ngay từ mount effect với thông tin workspace hiện tại.
+  useEffect(() => {
+    (async () => {
+      try {
+        const wsRes = await ipc.workspace?.getActive();
+        const ws = wsRes?.workspace;
+        if (ws?.type === 'remote' && ws.bossUrl && ws.token) {
+          const mod = require('../services/http/RestQueryService');
+          if (mod?.default?.getInstance) {
+            mod.default.getInstance().init(ws.bossUrl, ws.token);
+            console.log(`[App] ⚡ Early RestQueryService init: ${ws.bossUrl}`);
+          }
+        }
+      } catch {}
+    })();
   }, []);
 
   // Listen for lock screen event from TopBar
@@ -554,9 +576,21 @@ export default function App() {
         empStore.setMode('employee');
         empStore.setCurrentEmployee(buildCurrentEmployeeFromWorkspace(ws));
         empStore.setBossUrl(ws.bossUrl || '');
+        empStore.setToken(ws.token || '');
+        console.log(`[App] 🪙 Token from workspace: ${ws.token ? ws.token.slice(0, 20) + '...' : 'EMPTY!'} bossUrl=${ws.bossUrl}`);
         empStore.setPermissions(buildPermissionsMap(ws.cachedPermissions));
         empStore.setAssignedAccounts(ws.cachedAssignedAccounts || []);
         empStore.setEmployees(ws.cachedEmployeesData || []);
+
+        // Init RestQueryService để employee có thể gọi REST API
+        if (ws.bossUrl && ws.token) {
+          try {
+            const mod = require('../services/http/RestQueryService');
+            if (mod?.default?.getInstance) {
+              mod.default.getInstance().init(ws.bossUrl, ws.token);
+            }
+          } catch {}
+        }
 
         // Use snapshot from event payload (merged by main process) — no IPC needed
         const snapshot = ws._snapshot;
@@ -1120,6 +1154,29 @@ export default function App() {
             empStore.setMode('employee');
             empStore.setCurrentEmployee(buildCurrentEmployeeFromWorkspace(activeWs));
             empStore.setBossUrl(activeWs.bossUrl || '');
+            empStore.setToken(activeWs.token || '');
+            console.log(`[App] 🪙 Recovery token: ${activeWs.token ? activeWs.token.slice(0, 20) + '...' : 'EMPTY!'}`);
+            // Init RestQueryService
+            if (activeWs.bossUrl && activeWs.token) {
+              try {
+                const mod = require('../services/http/RestQueryService');
+                if (mod?.default?.getInstance) {
+                  const rqs = mod.default.getInstance();
+                  rqs.init(activeWs.bossUrl, activeWs.token);
+                  rqs.setOnStatusChange((connected: boolean, latency: number) => {
+                    useEmployeeStore.getState().setBossConnected(connected);
+                    if (latency > 0) useEmployeeStore.getState().setLatency(latency);
+                  });
+                  console.log(`[App] ✅ RestQueryService initialized: ${activeWs.bossUrl}`);
+                } else {
+                  console.warn('[App] ❌ RestQueryService not available');
+                }
+              } catch (e) {
+                console.warn('[App] ❌ RestQueryService init error:', e);
+              }
+            } else {
+              console.warn(`[App] ⚠️ Cannot init RestQueryService: bossUrl=${!!activeWs.bossUrl} token=${!!activeWs.token}`);
+            }
             // Query actual connection status instead of hardcoding false
             // (connectAutoWorkspaces may have already connected by the time init reaches here)
             const connStatus = await ipc.workspace?.getConnectionStatus?.(activeWs.id).catch(() => null);
@@ -1236,10 +1293,7 @@ export default function App() {
         <TopBar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <svg className="animate-spin w-10 h-10 text-blue-400 mx-auto mb-3" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
+            <Spinner size={10} className="mx-auto mb-3" />
             <p className="text-gray-400 text-sm">Đang khởi động...</p>
           </div>
         </div>

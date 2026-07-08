@@ -48,6 +48,8 @@
     "react-zoom-pan-pinch": "^3.7.0",
     "reactflow": "^11.11.4",
     "recharts": "^3.8.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "socks-proxy-agent": "^10.0.0",
     "tough-cookie": "^5.0.0",
     "uuid": "^13.0.0",

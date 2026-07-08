@@ -3,6 +3,8 @@ import {useChatStore} from '@/store/chatStore';
 import {useAccountStore} from '@/store/accountStore';
 import {useAppStore} from '@/store/appStore';
 import ipc from '@/lib/ipc';
+import LibraryPickerModal from './library/LibraryPickerModal';
+import { useEmployeeStore } from '@/store/employeeStore';
 import AccountAssignmentPopup from './AccountAssignmentPopup';
 import {SendCardModal} from './GroupModals';
 import {CreatePollDialog, NoteViewModal} from './ChatWindow';
@@ -117,6 +119,9 @@ const QUICK_EMOJIS = Object.values(EMOJI_CATEGORIES).flat();
 export default function MessageInput() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false);
+  const [libraryPickerType, setLibraryPickerType] = useState<'image' | 'video' | 'file' | 'all'>('all');
+  const hasChatPermission = useEmployeeStore(s => s.mode !== 'employee' || !!s.permissions['chat']);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [showSendCard, setShowSendCard] = useState(false);
@@ -3081,8 +3086,8 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         )}
 
         {/* Gửi ảnh */}
-        {channelCap.supportsImage && (
-        <ToolbarBtn onClick={handleSendImage} title="Gửi ảnh" disabled={sending}>
+        {channelCap.supportsImage && hasChatPermission && (
+        <ToolbarBtn onClick={() => { setLibraryPickerType('image'); setShowLibraryPicker(true); }} title="Gửi ảnh" disabled={sending}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
           </svg>
@@ -3090,8 +3095,8 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         )}
 
         {/* Gửi file */}
-        {channelCap.supportsFile && (
-        <ToolbarBtn onClick={handleSendFile} title="Gửi file" disabled={sending}>
+        {channelCap.supportsFile && hasChatPermission && (
+        <ToolbarBtn onClick={() => { setLibraryPickerType('file'); setShowLibraryPicker(true); }} title="Gửi file" disabled={sending}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
           </svg>
@@ -3099,8 +3104,8 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         )}
 
         {/* Gửi video */}
-        {channelCap.supportsVideo && (
-        <ToolbarBtn onClick={handleSendVideo} title="Gửi video" disabled={sending || isRecording}>
+        {channelCap.supportsVideo && hasChatPermission && (
+        <ToolbarBtn onClick={() => { setLibraryPickerType('video'); setShowLibraryPicker(true); }} title="Gửi video" disabled={sending || isRecording}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polygon points="23 7 16 12 23 17 23 7"/>
             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
@@ -3479,6 +3484,17 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           isGroup={isGroupThread}
           activeAccountId={activeAccountId || ''}
           onClose={() => setShowCreateNote(false)}
+        />
+      )}
+
+      {/* Library picker modal - mở khi bấm nút ảnh/file/video */}
+      {showLibraryPicker && activeAccountId && activeThreadId && (
+        <LibraryPickerModal
+          zaloId={activeAccountId}
+          threadId={activeThreadId}
+          threadType={activeThreadType}
+          initialType={libraryPickerType}
+          onClose={() => setShowLibraryPicker(false)}
         />
       )}
 

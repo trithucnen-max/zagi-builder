@@ -157,11 +157,16 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
     return appLabels[selectedAccountId] || [];
   }, [appLabels, selectedAccountId]);
 
-  // Fetch Zalo Labels
   useEffect(() => {
     if (!selectedAccountId) return;
-    const auth = accounts.find(a => a.zalo_id === selectedAccountId)?.auth;
-    if (auth) {
+    const acc = accounts.find(a => a.zalo_id === selectedAccountId);
+    if (acc) {
+      const auth = {
+        zaloId: acc.zalo_id,
+        cookies: acc.cookies,
+        imei: acc.imei,
+        userAgent: acc.user_agent,
+      };
       fetchLabelsWithCache(selectedAccountId, auth).catch(() => {});
     }
   }, [selectedAccountId, accounts, fetchLabelsWithCache]);
@@ -382,7 +387,7 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
                     }`}
                     style={
                       isActive
-                        ? { backgroundColor: baseColor, color: label.textColor || label.text_color || '#ffffff' }
+                        ? { backgroundColor: baseColor, color: (label as any).textColor || (label as any).text_color || '#ffffff' }
                         : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' }
                     }
                   >

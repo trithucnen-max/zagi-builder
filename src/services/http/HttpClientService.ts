@@ -1,7 +1,8 @@
 import * as http from 'http';
-import { StringDecoder } from 'string_decoder';
+import * as os from 'os';
 import Logger from '../../utils/Logger';
 import EventBroadcaster from '../event/EventBroadcaster';
+import SocketIOClient from '../socket/SocketIOClient';
 import DataSyncService, { SyncPayload } from '../employee/DataSyncService';
 
 /**
@@ -10,7 +11,6 @@ import DataSyncService, { SyncPayload } from '../employee/DataSyncService';
  *
  * - Runs a lightweight HTTP server to receive pushed events from Boss
  * - Sends proxy actions to Boss via HTTP POST
- * - Pulls sync data via HTTP GET
  * - Heartbeat every 15s to keep registration alive
  */
 class HttpClientService {
@@ -27,42 +27,19 @@ class HttpClientService {
     private localPort = 9901;
     private workspaceId = '';
 
-    /** SSE connection to boss (replaces local server push model) */
-    private sseReq: any = null;
-    private sseConnected = false;
-    private sseReconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    /** SSE reconnect attempt counter for exponential backoff (3s → 6s → 12s → 24s → 30s cap) */
-    private sseReconnectAttempt = 0;
-    private static SSE_MAX_RECONNECT_DELAY = 30_000;
-    /** Track consecutive heartbeat failures to trigger SSE reconnect */
     private consecutiveHeartbeatFailures = 0;
-
-    /** SSE watchdog — detect silent TCP drops that res.on('end') never fires for */
-    private lastSseDataAt = 0;
-    private sseWatchdogTimer: ReturnType<typeof setInterval> | null = null;
-    private static SSE_WATCHDOG_INTERVAL = 30_000; // check every 30s
-    private static SSE_STALE_THRESHOLD = 60_000;   // 60s without data = stale
-
-    /** Track if SSE was previously connected (for reconnect vs first-connect detection) */
-    private sseWasConnected = false;
-
-    /** Dedicated HTTP agent for SSE connections (keep-alive, isolated from other requests) */
-    private sseAgent: any = null;
-
-    /** Last successful sync timestamp (for auto delta sync on reconnect) */
-    private lastSyncTs = 0;
-
-    /** CallbackUrl for LAN fallback push from boss */
-    private callbackUrl = '';
-
-    /** Max consecutive heartbeat failures before marking disconnected */
     private static MAX_HEARTBEAT_FAILURES = 5;
+    private callbackUrl = '';
 
     private onStatusChange: ((connected: boolean, latency: number) => void) | null = null;
     private onInitialState: ((data: any) => void) | null = null;
     private onAccountAccessUpdate: ((data: any) => void) | null = null;
     private onSyncProgress: ((phase: string, percent: number) => void) | null = null;
     private onSSEReconnected: (() => void) | null = null;
+    private lastSyncTs = 0;
+
+    /** Socket.IO client - transport duy nhất cho real-time event */
+    private socketIOClient = new SocketIOClient();
 
     /** Channels to forward to local EventBroadcaster */
     private static FORWARD_CHANNELS = [
@@ -187,10 +164,17 @@ class HttpClientService {
             this.onStatusChange?.(true, 0);
             this.startHeartbeat();
 
-            // 4. Start SSE connection for real-time event stream (primary method)
-            this.connectSSE();
+            // 4. Start Socket.IO for real-time event delivery (primary transport)
+            this.socketIOClient.setWorkspaceId(this.workspaceId);
+            this.socketIOClient.setOnEvent((channel, eventData) => {
+                this.handlePushedEvent(channel, eventData);
+            });
+            this.socketIOClient.setOnStatusChange((connected) => {
+                Logger.log(`[HttpClientService] Socket.IO ${connected ? '🟢' : '🔴'} (workspace=${this.workspaceId})`);
+            });
+            this.socketIOClient.connect(this.bossUrl, this.token);
 
-            // 5. Fetch initial snapshot (SSE will also push it, but fetch as early warmup)
+            // 5. Fetch initial snapshot
             try {
                 const snapshot = await this.httpGet(
                     `${this.bossUrl}/api/sync/snapshot`,
@@ -200,7 +184,7 @@ class HttpClientService {
                     this.onInitialState?.(snapshot.snapshot);
                 }
             } catch (_) {
-                // Non-critical — snapshot comes via SSE push
+                // Non-critical
             }
 
             // 6. Trigger LAN probe if we connected via a Tunnel (WAN) address and Boss returned local IPs
@@ -219,13 +203,11 @@ class HttpClientService {
     public disconnect(): void {
         this.stopHeartbeat();
         this.stopLocalServer();
-        this.disconnectSSE();
-        this.stopSSEWatchdog();
+        this.socketIOClient.disconnect();
         this.onStatusChange = null;
         this.onInitialState = null;
         this.onAccountAccessUpdate = null;
         this.onSyncProgress = null;
-        this.onSSEReconnected = null;
         this.connected = false;
         this.callbackUrl = '';
         
@@ -1303,256 +1285,7 @@ class HttpClientService {
 
     // ─── SSE client (receive events from Boss) ──────────────────────
 
-    private connectSSE(): void {
-        if (!this.connected) return;
-        if (this.sseReq) {
-            Logger.warn(`[HttpClientService] connectSSE() called while existing SSE request active — destroying old`);
-            try { this.sseReq.destroy(); } catch {}
-            this.sseReq = null;
-        } else {
-            Logger.log(`[HttpClientService] connectSSE() called (attempt=${this.sseReconnectAttempt})`);
-        }
-        if (this.sseReconnectTimer) {
-            try { this.sseReq.destroy(); } catch {}
-            this.sseReq = null;
-        }
-        if (this.sseReconnectTimer) {
-            clearTimeout(this.sseReconnectTimer);
-            this.sseReconnectTimer = null;
-        }
 
-        try {
-            const urlObj = new URL('/api/events/stream', this.bossUrl);
-            const lastId = this.getLastEventId();
-            if (lastId !== null) {
-                urlObj.searchParams.set('lastEventId', String(lastId));
-            }
-            const isHttps = urlObj.protocol === 'https:';
-            const httpModule = isHttps ? require('https') : require('http');
-
-            // Dedicated agent with keepAlive to prevent socket reuse with other requests
-            if (!this.sseAgent) {
-                const AgentClass = isHttps ? httpModule.Agent : httpModule.Agent;
-                this.sseAgent = new AgentClass({ keepAlive: true, keepAliveMsecs: 30000 });
-            }
-
-            const req = httpModule.request(
-                {
-                    hostname: urlObj.hostname,
-                    port: urlObj.port || (isHttps ? 443 : 80),
-                    path: urlObj.pathname + urlObj.search,
-                    method: 'GET',
-                    agent: this.sseAgent,
-                    headers: {
-                        Authorization: `Bearer ${this.token}`,
-                        Accept: 'text/event-stream',
-                        'Cache-Control': 'no-cache',
-                        Connection: 'keep-alive',
-                        ...this.getTunnelBypassHeaders(),
-                    },
-                },
-                (res: any) => {
-                    if (res.statusCode !== 200) {
-                        Logger.warn(`[HttpClientService] SSE connect failed: HTTP ${res.statusCode}`);
-                        res.resume();
-                        this.sseConnected = false;
-                        // Schedule reconnect (non-200 was a dead end before)
-                        if (this.connected) {
-                            const delay = Math.min(
-                                5000 * Math.pow(2, this.sseReconnectAttempt),
-                                HttpClientService.SSE_MAX_RECONNECT_DELAY
-                            );
-                            this.sseReconnectAttempt++;
-                            Logger.log(`[HttpClientService] SSE reconnect in ${delay}ms (attempt ${this.sseReconnectAttempt})`);
-                            this.sseReconnectTimer = setTimeout(() => this.connectSSE(), delay);
-                        }
-                        return;
-                    }
-
-                    this.sseConnected = true;
-                    this.sseReconnectAttempt = 0; // Reset backoff on successful connection
-                    this.lastSseDataAt = Date.now();
-                    this.startSSEWatchdog();
-                    Logger.log('[HttpClientService] 📡 SSE stream connected');
-
-                    if (this.sseWasConnected) {
-                        Logger.log('[HttpClientService] 🔄 SSE reconnected — waiting for Event ID recovery check');
-                    }
-                    this.sseWasConnected = true;
-
-                    const decoder = new StringDecoder('utf8');
-                    let buffer = '';
-                    let eventData = '';
-                    let currentEventId = '';
-
-                    res.on('data', (chunk: any) => {
-                        this.lastSseDataAt = Date.now(); // Watchdog: mark SSE alive
-                        if (typeof chunk === 'string') {
-                            buffer += chunk;
-                        } else {
-                            buffer += decoder.write(chunk);
-                        }
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop() || ''; // keep incomplete line
-
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                eventData += line.slice(6);
-                            } else if (line.startsWith('id: ')) {
-                                currentEventId = line.slice(4).trim();
-                            } else if (line === '' && eventData) {
-                                // Empty line = end of SSE event
-                                try {
-                                    const { channel, data } = JSON.parse(eventData);
-                                    if (currentEventId) {
-                                        this.saveLastEventId(Number(currentEventId));
-                                    }
-                                    this.handlePushedEvent(channel, data);
-                                } catch { /* ignore malformed events */ }
-                                eventData = '';
-                                currentEventId = '';
-                            }
-                            // Lines starting with ':' are comments/keepalive — also mark alive
-                            else if (line.startsWith(':')) {
-                                this.lastSseDataAt = Date.now();
-                            }
-                        }
-                    });
-
-                    res.on('end', () => {
-                        buffer += decoder.end();
-                        if (buffer) {
-                            const lines = buffer.split('\n');
-                            for (const line of lines) {
-                                if (line.startsWith('data: ')) {
-                                    eventData += line.slice(6);
-                                } else if (line.startsWith('id: ')) {
-                                    currentEventId = line.slice(4).trim();
-                                } else if (line === '' && eventData) {
-                                    try {
-                                        const { channel, data } = JSON.parse(eventData);
-                                        if (currentEventId) {
-                                            this.saveLastEventId(Number(currentEventId));
-                                        }
-                                        this.handlePushedEvent(channel, data);
-                                    } catch {}
-                                    eventData = '';
-                                    currentEventId = '';
-                                }
-                            }
-                        }
-                        const aliveMs = this.lastSseDataAt > 0 ? Date.now() - this.lastSseDataAt : -1;
-                        this.sseConnected = false;
-                        this.sseReq = null;
-                        this.stopSSEWatchdog();
-                        Logger.warn(`[HttpClientService] SSE stream ended (alive=${aliveMs}ms, attempt=${this.sseReconnectAttempt})`);
-                        if (this.connected) {
-                            const delay = Math.min(
-                                3000 * Math.pow(2, this.sseReconnectAttempt),
-                                HttpClientService.SSE_MAX_RECONNECT_DELAY
-                            );
-                            this.sseReconnectAttempt++;
-                            this.sseReconnectTimer = setTimeout(() => this.connectSSE(), delay);
-                        }
-                    });
-
-                    res.on('error', (err: Error) => {
-                        this.sseConnected = false;
-                        this.sseReq = null;
-                        this.stopSSEWatchdog();
-                        Logger.warn(`[HttpClientService] SSE stream error: ${err.message}`);
-                        if (this.connected) {
-                            const delay = Math.min(
-                                5000 * Math.pow(2, this.sseReconnectAttempt),
-                                HttpClientService.SSE_MAX_RECONNECT_DELAY
-                            );
-                            this.sseReconnectAttempt++;
-                            this.sseReconnectTimer = setTimeout(() => this.connectSSE(), delay);
-                        }
-                    });
-                }
-            );
-
-            req.on('error', (err: Error) => {
-                this.sseConnected = false;
-                this.sseReq = null;
-                this.stopSSEWatchdog();
-                Logger.warn(`[HttpClientService] SSE request error: ${err.message}`);
-                if (this.connected) {
-                    const delay = Math.min(
-                        5000 * Math.pow(2, this.sseReconnectAttempt),
-                        HttpClientService.SSE_MAX_RECONNECT_DELAY
-                    );
-                    this.sseReconnectAttempt++;
-                    this.sseReconnectTimer = setTimeout(() => this.connectSSE(), delay);
-                }
-            });
-
-            req.end();
-            this.sseReq = req;
-        } catch (err: any) {
-            Logger.error(`[HttpClientService] SSE connect error: ${err.message}`);
-            if (this.connected) {
-                const delay = Math.min(
-                    5000 * Math.pow(2, this.sseReconnectAttempt),
-                    HttpClientService.SSE_MAX_RECONNECT_DELAY
-                );
-                this.sseReconnectAttempt++;
-                this.sseReconnectTimer = setTimeout(() => this.connectSSE(), delay);
-            }
-        }
-    }
-
-    private disconnectSSE(): void {
-        if (this.sseReconnectTimer) {
-            clearTimeout(this.sseReconnectTimer);
-            this.sseReconnectTimer = null;
-        }
-        this.stopSSEWatchdog();
-        if (this.sseReq) {
-            try { this.sseReq.destroy(); } catch {}
-            this.sseReq = null;
-        }
-        if (this.sseAgent) {
-            try { this.sseAgent.destroy(); } catch {}
-            this.sseAgent = null;
-        }
-        this.sseConnected = false;
-        this.sseWasConnected = false;
-        this.sseReconnectAttempt = 0;
-    }
-
-    // ─── SSE Watchdog ────────────────────────────────────────────────
-
-    /**
-     * Start SSE watchdog that detects silent TCP drops.
-     * If no SSE data received for 60s, forces reconnect.
-     * Catches scenarios where res.on('end') never fires (common with tunnels).
-     */
-    private startSSEWatchdog(): void {
-        this.stopSSEWatchdog();
-        this.sseWatchdogTimer = setInterval(() => {
-            if (!this.sseConnected || !this.connected) return;
-            if (this.lastSseDataAt > 0 && Date.now() - this.lastSseDataAt > HttpClientService.SSE_STALE_THRESHOLD) {
-                Logger.warn(`[HttpClientService] ⏰ SSE watchdog: no data for ${Math.round((Date.now() - this.lastSseDataAt) / 1000)}s — forcing reconnect`);
-                this.sseConnected = false;
-                if (this.sseReq) {
-                    try { this.sseReq.destroy(); } catch {}
-                    this.sseReq = null;
-                }
-                // Force immediate reconnect
-                this.sseReconnectAttempt = 0;
-                this.connectSSE();
-            }
-        }, HttpClientService.SSE_WATCHDOG_INTERVAL);
-    }
-
-    private stopSSEWatchdog(): void {
-        if (this.sseWatchdogTimer) {
-            clearInterval(this.sseWatchdogTimer);
-            this.sseWatchdogTimer = null;
-        }
-    }
 
     // ─── Heartbeat ────────────────────────────────────────────────────
 
@@ -1748,7 +1481,7 @@ class HttpClientService {
 
             const start = Date.now();
             try {
-                // Send callbackUrl for LAN fallback — boss can push via HTTP POST if SSE is down
+                // Send callbackUrl for LAN fallback — boss can push via HTTP POST if Socket.IO is down
                 const result = await this.httpPost(
                     `${this.bossUrl}/api/auth/heartbeat`,
                     { callbackUrl: this.callbackUrl },
@@ -1768,12 +1501,6 @@ class HttpClientService {
                 } else {
                     this.consecutiveHeartbeatFailures++;
                     this.onStatusChange?.(false, 0);
-                    // After 2 consecutive failures, force SSE reconnect if stream is down
-                    if (this.consecutiveHeartbeatFailures >= 2 && !this.sseConnected) {
-                        Logger.log(`[HttpClientService] ${this.consecutiveHeartbeatFailures} heartbeat failures, forcing SSE reconnect`);
-                        this.sseReconnectAttempt = 0; // Reset backoff for fresh reconnect attempt
-                        this.connectSSE();
-                    }
                     // After MAX failures, mark as disconnected so health check can trigger full reconnect
                     if (this.consecutiveHeartbeatFailures >= HttpClientService.MAX_HEARTBEAT_FAILURES) {
                         Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures — marking disconnected`);
@@ -1793,12 +1520,6 @@ class HttpClientService {
                 this.latencyMs = 0;
                 this.consecutiveHeartbeatFailures++;
                 this.onStatusChange?.(false, 0);
-                // After 2 consecutive failures, force SSE reconnect if stream is down
-                if (this.consecutiveHeartbeatFailures >= 2 && !this.sseConnected) {
-                    Logger.log(`[HttpClientService] ${this.consecutiveHeartbeatFailures} heartbeat failures (error), forcing SSE reconnect`);
-                    this.sseReconnectAttempt = 0;
-                    this.connectSSE();
-                }
                 // After MAX failures, mark as disconnected so health check can trigger full reconnect
                 if (this.consecutiveHeartbeatFailures >= HttpClientService.MAX_HEARTBEAT_FAILURES) {
                     Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures (error) — marking disconnected`);
@@ -2030,25 +1751,7 @@ class HttpClientService {
         return '127.0.0.1';
     }
 
-    private getLastEventId(): number | null {
-        try {
-            const DatabaseService = require('../database/DatabaseService').default;
-            const db = DatabaseService.getInstance();
-            const val = db.getSetting(`last_sse_event_id_${this.workspaceId}`);
-            return val ? Number(val) : null;
-        } catch {
-            return null;
-        }
-    }
 
-    private saveLastEventId(id: number): void {
-        try {
-            const DatabaseService = require('../database/DatabaseService').default;
-            const db = DatabaseService.getInstance();
-            db.setSetting(`last_sse_event_id_${this.workspaceId}`, String(id));
-            db.save();
-        } catch {}
-    }
 
     private isLocalAddress(url: string): boolean {
         try {
@@ -2094,9 +1797,16 @@ class HttpClientService {
                 this.isUsingLan = true;
                 this.bossUrl = activeLanUrl;
 
-                // Restart SSE to active local IP stream
-                this.disconnectSSE();
-                this.connectSSE();
+                // Restart Socket.IO to active local IP stream
+                this.socketIOClient.connect(this.bossUrl, this.token);
+
+                // Update RestQueryService too
+                try {
+                    const RestQueryService = require('./RestQueryService').default;
+                    RestQueryService.getInstance().init(this.bossUrl, this.token);
+                } catch (err: any) {
+                    Logger.warn(`[HttpClientService] Failed to reinit RestQueryService: ${err.message}`);
+                }
 
                 // Notify Boss of our callbackUrl with the new local IP endpoint
                 this.httpPost(
