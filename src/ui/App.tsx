@@ -828,11 +828,18 @@ export default function App() {
         if (empStore.mode === 'employee') {
           empStore.setBossConnected(!!data.connected);
           if (data.latency !== undefined) empStore.setLatency(data.latency);
+          
+          const wasUsingLan = empStore.isUsingLan;
+          empStore.setIsUsingLan(!!data.isUsingLan);
+          
+          if (data.isUsingLan && !wasUsingLan) {
+            showNotification('🚀 Đã tự động kết nối qua LAN (Mạng nội bộ)', 'success');
+          }
         }
       }
     });
     return () => unsub?.();
-  }, []);
+  }, [showNotification]);
 
   // ─── Handle sync completion — reload data after full/delta sync ────────────
   useEffect(() => {

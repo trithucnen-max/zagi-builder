@@ -24,6 +24,7 @@ export interface Workspace {
     employeeId?: string;
     employeeName?: string;
     employeeUsername?: string; // login username (for auto re-login)
+    employeePassword?: string; // login password (encrypted simple, for auto re-login)
     autoConnect?: boolean;    // auto-connect on app start
     lastSyncTs?: number;      // last successful sync timestamp (for auto delta sync on SSE reconnect)
 

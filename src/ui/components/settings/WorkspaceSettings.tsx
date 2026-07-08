@@ -486,6 +486,8 @@ function EditWorkspaceForm({ workspace, connectionStatus, onSaved, onCancel }: {
                 updates.bossUrl = ip.trim() ? buildBossUrl(ip.trim(), port.trim()) : workspace.bossUrl;
                 updates.employeeUsername = username.trim();
                 updates.autoConnect = autoConnect;
+                // Lưu password nếu user có nhập (để autoConnect lần sau tự đại login lạy token mới)
+                if (password.trim()) updates.employeePassword = password.trim();
             }
             const res = await ipc.workspace?.update(workspace.id, updates);
             if (res?.success) {
@@ -522,13 +524,14 @@ function EditWorkspaceForm({ workspace, connectionStatus, onSaved, onCancel }: {
                 return;
             }
 
-            // Step 2: Update workspace with new connection info
+            // Step 2: Update workspace with new connection info (including password for autoConnect)
             await ipc.workspace?.update(workspace.id, {
                 bossUrl,
                 token: loginRes.token,
                 employeeId: loginRes.employee?.employee_id,
                 employeeName: loginRes.employee?.display_name || username.trim(),
                 employeeUsername: username.trim(),
+                employeePassword: password.trim(), // Lưu password để autoConnect tự login lại khi token hết hạn
             });
 
             // Step 3: Connect via Socket.IO

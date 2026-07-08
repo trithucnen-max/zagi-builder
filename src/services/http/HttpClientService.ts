@@ -31,7 +31,7 @@ class HttpClientService {
     private static MAX_HEARTBEAT_FAILURES = 5;
     private callbackUrl = '';
 
-    private onStatusChange: ((connected: boolean, latency: number) => void) | null = null;
+    private onStatusChange: ((connected: boolean, latency: number, isUsingLan?: boolean) => void) | null = null;
     private onInitialState: ((data: any) => void) | null = null;
     private onAccountAccessUpdate: ((data: any) => void) | null = null;
     private onSyncProgress: ((phase: string, percent: number) => void) | null = null;
@@ -161,7 +161,7 @@ class HttpClientService {
 
             this.connected = true;
             Logger.log('[HttpClientService] ✅ Connected to Boss');
-            this.onStatusChange?.(true, 0);
+            this.onStatusChange?.(true, 0, this.isUsingLan);
             this.startHeartbeat();
 
             // 4. Start Socket.IO for real-time event delivery (primary transport)
@@ -233,8 +233,8 @@ class HttpClientService {
         return this.token;
     }
 
-    public getStatus(): { connected: boolean; bossUrl: string; latency: number } {
-        return { connected: this.connected, bossUrl: this.bossUrl, latency: this.latencyMs };
+    public getStatus(): { connected: boolean; bossUrl: string; latency: number; isUsingLan: boolean } {
+        return { connected: this.connected, bossUrl: this.bossUrl, latency: this.latencyMs, isUsingLan: this.isUsingLan };
     }
 
     // ─── Proxy actions through Boss ──────────────────────────────────
@@ -343,7 +343,7 @@ class HttpClientService {
 
     // ─── Callbacks ────────────────────────────────────────────────────
 
-    public setOnStatusChange(cb: (connected: boolean, latency: number) => void): void {
+    public setOnStatusChange(cb: (connected: boolean, latency: number, isUsingLan?: boolean) => void): void {
         this.onStatusChange = cb;
     }
     public setOnInitialState(cb: (data: any) => void): void {
@@ -1492,7 +1492,7 @@ class HttpClientService {
                 if (result.success) {
                     this.latencyMs = Date.now() - start;
                     this.consecutiveHeartbeatFailures = 0;
-                    this.onStatusChange?.(true, this.latencyMs);
+                    this.onStatusChange?.(true, this.latencyMs, this.isUsingLan);
 
                     // Periodically probe for LAN if currently connected via Tunnel (WAN)
                     if (!this.isUsingLan && !this.isLocalAddress(this.bossUrl) && Array.isArray(result.localIps) && result.port) {
@@ -1799,6 +1799,9 @@ class HttpClientService {
 
                 // Restart Socket.IO to active local IP stream
                 this.socketIOClient.connect(this.bossUrl, this.token);
+
+                // Notify manager and UI of status change to LAN
+                this.onStatusChange?.(true, this.latencyMs, true);
 
                 // Update RestQueryService too
                 try {

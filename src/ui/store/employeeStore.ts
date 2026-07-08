@@ -49,6 +49,8 @@ interface EmployeeStore {
     setBossUrl: (url: string) => void;
     latency: number;
     setLatency: (ms: number) => void;
+    isUsingLan: boolean;
+    setIsUsingLan: (v: boolean) => void;
 
     // ─── Auth token ────────────────────────────────────────────────
     token: string;
@@ -96,6 +98,7 @@ const initialState = {
     bossConnected: false,
     bossUrl: '',
     latency: 0,
+    isUsingLan: false,
     token: '',
     relayRunning: false,
     relayPort: 9900,
@@ -131,6 +134,7 @@ export const useEmployeeStore = create<EmployeeStore>((set, get) => ({
     setBossConnected: (v) => set({ bossConnected: v }),
     setBossUrl: (url) => set({ bossUrl: url }),
     setLatency: (ms) => set({ latency: ms }),
+    setIsUsingLan: (v) => set({ isUsingLan: v }),
     setToken: (token) => set({ token }),
     setRelayRunning: (v) => set({ relayRunning: v }),
     setRelayPort: (port) => set({ relayPort: port }),

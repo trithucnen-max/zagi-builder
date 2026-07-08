@@ -2,6 +2,77 @@ import HttpClientService from './HttpClientService';
 import WorkspaceManager from '../../utils/WorkspaceManager';
 import Logger from '../../utils/Logger';
 import { BrowserWindow } from 'electron';
+import * as http from 'http';
+import * as https from 'https';
+
+function httpPost(url: string, body: any, timeoutMs = 15000): Promise<any> {
+    return new Promise((resolve, reject) => {
+        let parsed: URL;
+        try {
+            parsed = new URL(url);
+        } catch {
+            reject(new Error('URL không hợp lệ'));
+            return;
+        }
+        const data = JSON.stringify(body);
+        const isHttps = parsed.protocol === 'https:';
+        const transport = isHttps ? https : http;
+        const isTunnel = parsed.hostname.includes('loca.lt') ||
+                         parsed.hostname.includes('localtunnel') ||
+                         parsed.hostname.includes('ngrok') ||
+                         parsed.hostname.includes('serveo');
+
+        const req = (transport as typeof https).request({
+            hostname: parsed.hostname,
+            port: parsed.port || (isHttps ? '443' : '80'),
+            path: parsed.pathname + (parsed.search || ''),
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(data),
+                ...(isTunnel ? { 'bypass-tunnel-reminder': 'true' } : {}),
+            },
+            timeout: timeoutMs,
+        }, (res) => {
+            const responseChunks: any[] = [];
+            res.on('data', (chunk: any) => { responseChunks.push(chunk); });
+            res.on('end', () => {
+                let responseBody = '';
+                if (responseChunks.length > 0) {
+                    if (typeof responseChunks[0] === 'string') {
+                        responseBody = responseChunks.join('');
+                    } else {
+                        responseBody = Buffer.concat(responseChunks).toString('utf8');
+                    }
+                }
+                try {
+                    resolve(JSON.parse(responseBody));
+                } catch {
+                    const preview = responseBody.slice(0, 200);
+                    reject(new Error(`Phản hồi không hợp lệ từ boss server: ${preview}`));
+                }
+            });
+        });
+
+        req.on('error', (err: any) => {
+            if (err.code === 'ECONNREFUSED') {
+                reject(new Error('Không thể kết nối — kiểm tra lại IP và Port, đảm bảo boss đã bật Relay Server'));
+            } else if (err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') {
+                reject(new Error('Hết thời gian kết nối — kiểm tra lại mạng'));
+            } else {
+                reject(new Error(`Lỗi kết nối: ${err.message}`));
+            }
+        });
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error(`Hết thời gian kết nối (${timeoutMs / 1000}s) — kiểm tra lại địa chỉ Boss`));
+        });
+
+        req.write(data);
+        req.end();
+    });
+}
+
 
 interface WorkspaceClient {
     workspaceId: string;
@@ -70,8 +141,8 @@ class HttpConnectionManager {
         service.setWorkspaceId(workspaceId);
         this.clients.set(workspaceId, { workspaceId, service });
 
-        service.setOnStatusChange((connected: boolean, latency: number) => {
-            this.sendToRenderer('workspace:connectionStatus', { workspaceId, connected, latency });
+        service.setOnStatusChange((connected: boolean, latency: number, isUsingLan?: boolean) => {
+            this.sendToRenderer('workspace:connectionStatus', { workspaceId, connected, latency, isUsingLan: !!isUsingLan });
         });
 
         service.setOnInitialState((data: any) => {
@@ -149,17 +220,17 @@ class HttpConnectionManager {
         return this.clients.get(workspaceId)?.service.isConnected() ?? false;
     }
 
-    public getStatus(workspaceId: string): { connected: boolean; bossUrl: string; latency: number } {
+    public getStatus(workspaceId: string): { connected: boolean; bossUrl: string; latency: number; isUsingLan: boolean } {
         const client = this.clients.get(workspaceId);
         if (!client) {
-            if (this.connecting.has(workspaceId)) return { connected: true, bossUrl: '', latency: 0 };
-            return { connected: false, bossUrl: '', latency: 0 };
+            if (this.connecting.has(workspaceId)) return { connected: true, bossUrl: '', latency: 0, isUsingLan: false };
+            return { connected: false, bossUrl: '', latency: 0, isUsingLan: false };
         }
         return client.service.getStatus();
     }
 
-    public getAllStatuses(): Record<string, { connected: boolean; bossUrl: string; latency: number }> {
-        const result: Record<string, { connected: boolean; bossUrl: string; latency: number }> = {};
+    public getAllStatuses(): Record<string, { connected: boolean; bossUrl: string; latency: number; isUsingLan: boolean }> {
+        const result: Record<string, { connected: boolean; bossUrl: string; latency: number; isUsingLan: boolean }> = {};
         for (const [wsId, client] of this.clients) result[wsId] = client.service.getStatus();
         return result;
     }
@@ -210,10 +281,43 @@ class HttpConnectionManager {
 
         Logger.log(`[HttpConnectionManager] Auto-connecting ${autoConnects.length} remote workspace(s)...`);
         for (const ws of autoConnects) {
-            if (!ws.bossUrl || !ws.token) continue;
+            if (!ws.bossUrl) continue;
             if (this.isConnected(ws.id)) continue;
             try {
-                await this.connect(ws.id, ws.bossUrl, ws.token);
+                // Thử kết nối với token đã lưu
+                let token = ws.token || '';
+                if (token) {
+                    const result = await this.connect(ws.id, ws.bossUrl, token);
+                    if (result.success) continue;
+                }
+
+                // Token thất bại hoặc không có — thử login lại nếu có password đã lưu
+                if (ws.employeeUsername && ws.employeePassword) {
+                    Logger.log(`[HttpConnectionManager] Token expired for "${ws.name}" — re-logging in with saved credentials...`);
+                    try {
+                        let url = ws.bossUrl.trim();
+                        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                            url = `http://${url}`;
+                        }
+                        url = url.replace(/\/+$/, '');
+
+                        const loginRes = await httpPost(`${url}/api/auth/login`, {
+                            username: ws.employeeUsername,
+                            password: ws.employeePassword
+                        });
+
+                        if (loginRes?.success && loginRes.token) {
+                            // Lưu token mới vào workspace
+                            WorkspaceManager.getInstance().updateWorkspace(ws.id, { token: loginRes.token });
+                            await this.connect(ws.id, ws.bossUrl, loginRes.token);
+                            Logger.log(`[HttpConnectionManager] ✅ Re-login success for "${ws.name}"`);
+                        } else {
+                            Logger.warn(`[HttpConnectionManager] Re-login failed for "${ws.name}": ${loginRes?.error || 'Unknown'}`);
+                        }
+                    } catch (err: any) {
+                        Logger.warn(`[HttpConnectionManager] Re-login error for "${ws.name}": ${err.message}`);
+                    }
+                }
             } catch (err: any) {
                 Logger.warn(`[HttpConnectionManager] Auto-connect failed for "${ws.name}": ${err.message}`);
             }

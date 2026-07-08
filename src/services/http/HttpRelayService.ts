@@ -493,7 +493,12 @@ class HttpRelayService {
         // ── Healthcheck ───────────────────────────────────────────────
         if (req.method === 'GET' && (url === '/api/health' || url === '/')) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ status: 'ok', relay: this.running, port: this.port }));
+            res.end(JSON.stringify({
+                status: 'ok',
+                relay: this.running,
+                port: this.port,
+                localIps: this.getLocalIps(),
+            }));
             return;
         }
 
@@ -635,7 +640,12 @@ class HttpRelayService {
                     }
                 }
 
-                this.json(res, 200, { success: true, ts: Date.now() });
+                this.json(res, 200, {
+                    success: true,
+                    ts: Date.now(),
+                    localIps: this.getLocalIps(),
+                    port: this.port,
+                });
             } catch (err: any) {
                 this.json(res, 400, { success: false, error: err.message });
             }

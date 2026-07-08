@@ -46,7 +46,7 @@ export default function TopBar() {
   const macDropdownRef = useRef<HTMLDivElement>(null);
 
   // Employee store
-  const { mode: empMode, currentEmployee, bossConnected, previewEmployeeId, employees } = useEmployeeStore();
+  const { mode: empMode, currentEmployee, bossConnected, isUsingLan, previewEmployeeId, employees } = useEmployeeStore();
   const previewEmployee = previewEmployeeId ? employees.find((e: any) => e.employee_id === previewEmployeeId) : null;
 
   // Boss connection popup (Employee mode)
@@ -82,6 +82,8 @@ export default function TopBar() {
         const loginRes = await ipc.workspace?.loginRemote?.(ws.bossUrl, ws.employeeUsername || '', ws.employeePassword || '');
         if (loginRes?.success && loginRes.token) {
           await ipc.workspace?.connectRemote?.(ws.id, ws.bossUrl, loginRes.token);
+          // Lưu token mới vào workspace để lần sau autoConnect không hết hạn
+          ipc.workspace?.update?.(ws.id, { token: loginRes.token }).catch(() => {});
           showNotification('Kết nối lại thành công', 'success');
         } else {
           // Fallback: reconnect với token cũ (autoConnect)
@@ -277,7 +279,9 @@ export default function TopBar() {
               title="Quản lý kết nối Boss"
             >
               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${bossConnected ? 'bg-green-400' : 'bg-red-400 animate-pulse'}`} />
-              <span className="text-[11px] text-gray-300">{bossConnected ? 'Connected' : 'Disconnected'}</span>
+              <span className="text-[11px] text-gray-300">
+                {bossConnected ? (isUsingLan ? 'LAN' : 'Connected') : 'Disconnected'}
+              </span>
               <span className="text-[11px] text-gray-500">- {currentEmployee.display_name}</span>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-500 ml-0.5">
                 <polyline points="6 9 12 15 18 9" />
@@ -299,7 +303,7 @@ export default function TopBar() {
                   </div>
                   <p className="text-[11px] text-gray-500">{currentEmployee.display_name}</p>
                   {bossConnected && bossLatency != null && (
-                    <p className="text-[10px] text-gray-600 mt-0.5">⚡ Latency: {bossLatency}ms</p>
+                    <p className="text-[10px] text-gray-600 mt-0.5">⚡ Latency: {bossLatency}ms {isUsingLan && '(Mạng LAN)'}</p>
                   )}
                 </div>
 
