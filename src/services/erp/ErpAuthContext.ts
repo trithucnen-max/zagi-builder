@@ -77,7 +77,7 @@ export default class ErpAuthContext {
   }
 
   /** Best-effort access lookup from `erp_employee_profiles` (Phase 2 — may not exist). */
-  private static _lookupAccess(employeeId: string): { role: ErpRole | null; permissionOverrides: ErpPermissionOverrides } {
+  public static _lookupAccess(employeeId: string): { role: ErpRole | null; permissionOverrides: ErpPermissionOverrides } {
     try {
       const activeWorkspace = WorkspaceManager.getInstance().getActiveWorkspace();
       if (activeWorkspace?.type === 'remote' && activeWorkspace.employeeId === employeeId) {

@@ -666,6 +666,25 @@ class HttpRelayService {
     }
 
     private async executeProxyAction(employee: RegisteredEmployee, channel: string, params: any): Promise<any> {
+        let mockEvent: any = null;
+        if (channel.startsWith('erp:') || channel === 'db:getCallReport') {
+            try {
+                const ErpAuthContext = require('../erp/ErpAuthContext').default;
+                const empId = employee.employee_id;
+                const access = ErpAuthContext._lookupAccess(empId);
+                mockEvent = {
+                    ctx: {
+                        employeeId: empId,
+                        role: access.role ?? 'member',
+                        permissionOverrides: access.permissionOverrides,
+                        mode: 'employee'
+                    }
+                };
+            } catch (err: any) {
+                Logger.error(`[HttpRelayService] Failed to build ERP auth context: ${err.message}`);
+            }
+        }
+
         let zaloId = params?.zaloId || params?.zalo_id || '';
 
         if (!zaloId && employee.assigned_accounts.length > 0) {
@@ -907,7 +926,7 @@ class HttpRelayService {
                     }
                 }
                 Logger.log(`[HttpRelayService] 🔄 Calling handler ${channel}: filePath=${params.filePath?.substring?.(0, 50) || '(empty)'}, filePathType=${typeof params.filePath}`);
-                const result = await handler(null, params);
+                const result = await handler(mockEvent, params);
 
                 // Log send actions + broadcast sender info to all workspaces
                 if ((channel.includes('send') || channel.includes('Send')) && !channel.includes('Seen') && !channel.includes('seen') && !channel.includes('Typing') && !channel.includes('typing')) {
@@ -1041,7 +1060,7 @@ class HttpRelayService {
             const { ipcMain } = require('electron');
             const internalHandlers: Map<string, Function> | undefined = (ipcMain as any)._invokeHandlers;
             if (internalHandlers && internalHandlers.has(channel)) {
-                return await internalHandlers.get(channel)!(null, params);
+                return await internalHandlers.get(channel)!(mockEvent, params);
             }
 
             return { success: false, error: `No handler for channel: ${channel}` };
