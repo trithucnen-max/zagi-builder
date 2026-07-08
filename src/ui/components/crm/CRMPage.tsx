@@ -124,28 +124,6 @@ export default function CRMPage() {
     }).catch(() => {});
   }, []);
 
-  const loadOnlineFriends = useCallback(async () => {
-    if (!activeAccountId) return;
-    try {
-      const acc = useAccountStore.getState().getActiveAccount();
-      if (!acc) return;
-      const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
-      const res = await ipc.zalo?.getFriendOnlines({ auth });
-      const onlinesList = res?.response?.onlines || res?.onlines;
-      if (Array.isArray(onlinesList)) {
-        const uids = new Set(onlinesList.map((o: any) => o.uid || o.zaloUid || ''));
-        store.setOnlineUids(uids);
-      }
-    } catch (err) {
-      console.error('[CRMPage] Failed to load online friends:', err);
-    }
-  }, [activeAccountId]);
-
-  useEffect(() => {
-    loadOnlineFriends();
-    const interval = setInterval(loadOnlineFriends, 60000);
-    return () => clearInterval(interval);
-  }, [loadOnlineFriends]);
 
   // ── Local labels state ──────────────────────────────────────────────────
   const [localLabels, setLocalLabels] = useState<Array<{ id: number; name: string; color: string; text_color?: string; emoji?: string }>>([]);
@@ -182,8 +160,8 @@ export default function CRMPage() {
   const loadContacts = useCallback(async () => {
     if (!activeAccountId) return;
     store.setContactsLoading(true);
-    // Strip client-only filters (has_phone, has_notes, online) before sending to backend
-    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes' && t !== 'online');
+    // Strip client-only filters (has_phone, has_notes) before sending to backend
+    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes');
 
     // Compute allowed contact IDs for selected Zalo labels
     const selectedZaloLabelContactIds = store.filterLabelIds.length > 0
@@ -611,7 +589,7 @@ export default function CRMPage() {
   /** Select ALL contacts across all pages (not just current page) */
   const handleSelectAllPages = useCallback(async () => {
     if (!activeAccountId) return;
-    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes' && t !== 'online');
+    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes');
     const res = await ipc.crm?.getContacts({
       zaloId: activeAccountId,
       opts: {
@@ -632,7 +610,7 @@ export default function CRMPage() {
   /** Fetch toàn bộ liên hệ theo bộ lọc hiện tại (không phân trang) để xuất CSV */
   const handleExportAll = useCallback(async (): Promise<any[]> => {
     if (!activeAccountId) return [];
-    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes' && t !== 'online');
+    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes');
     const res = await ipc.crm?.getContacts({
       zaloId: activeAccountId,
       opts: {
@@ -672,10 +650,6 @@ export default function CRMPage() {
       result = result.filter(c => c.note_count > 0);
     }
 
-    // Client-side filter: online
-    if (store.filterContactTypes.includes('online')) {
-      result = result.filter(c => store.onlineUids.has(c.contact_id));
-    }
 
     // Client-side filter: gender
     if (store.filterGender === 'male') {

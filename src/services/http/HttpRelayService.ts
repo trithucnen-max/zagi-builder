@@ -22,6 +22,7 @@ interface RegisteredEmployee {
     consecutiveFailures: number;
     /** Timestamp until which a heavy sync is in progress - offline check skips during this window */
     syncingUntil?: number;
+    lastEventSeq?: number;
 }
 
 interface EmployeeSnapshot {
@@ -76,7 +77,7 @@ class HttpRelayService {
      * When pushViaSSE fails and there is no callbackUrl fallback, events are
      * queued here and flushed the next time the employee's SSE stream reconnects.
      */
-    private sseEventQueue = new Map<string, Array<{ channel: string; data: any; ts: number }>>();
+    private sseEventQueue = new Map<string, Array<{ id: number; channel: string; data: any; ts: number }>>();
     private static SSE_QUEUE_TTL_MS = 600_000; // 10-minute TTL (was 2 min - WAN reconnect can take longer)
     private static SSE_QUEUE_MAX = 500;        // max queued events per employee (was 300)
 
@@ -232,6 +233,8 @@ class HttpRelayService {
         'crm:queueStatus',
         'crm:campaignDone',
         'workflow:executed',
+        'db:workflowChanged',
+        'db:integrationChanged',
         'integration:payment',
         'integration:webhook',
     ];
@@ -358,7 +361,11 @@ class HttpRelayService {
             }
             // End all active employee sessions in DB
             for (const [empId] of this.employees) {
-                try { this.runOnPinnedDb((db) => db.endEmployeeSession(empId)); } catch {}
+                try { 
+                    this.runOnPinnedDb((db) => db.endEmployeeSession(empId)); 
+                } catch (err: any) {
+                    Logger.warn(`[HttpRelayService] Failed to end employee session during stop: ${err.message}`);
+                }
             }
             this.employees.clear();
             this.running = false;
@@ -413,7 +420,11 @@ class HttpRelayService {
             this.employees.delete(employeeId);
             this.sseEventQueue.delete(employeeId); // clear any pending queue
             // End session in DB for online time tracking
-            try { this.runOnPinnedDb((db) => db.endEmployeeSession(employeeId)); } catch {}
+            try { 
+                this.runOnPinnedDb((db) => db.endEmployeeSession(employeeId)); 
+            } catch (err: any) {
+                Logger.warn(`[HttpRelayService] Failed to end employee session during kick: ${err.message}`);
+            }
             Logger.log(`[HttpRelayService] Kicked employee: ${emp.display_name}`);
             this.broadcastEmployeeList();
         }
@@ -467,6 +478,9 @@ class HttpRelayService {
         if (req.method === 'POST' && url === '/api/media/upload') {
             return this.handleMediaUpload(req, res);
         }
+        if (req.method === 'POST' && url === '/api/media/upload-chunk') {
+            return this.handleMediaUploadChunk(req, res);
+        }
 
         // ── Healthcheck ───────────────────────────────────────────────
         if (req.method === 'GET' && (url === '/api/health' || url === '/')) {
@@ -502,13 +516,22 @@ class HttpRelayService {
                 const emp = result.employee;
                 const clientIp = req.socket.remoteAddress || '';
 
+                let validatedCallbackUrl = '';
+                if (callbackUrl) {
+                    if (this.isValidCallbackUrl(callbackUrl)) {
+                        validatedCallbackUrl = callbackUrl;
+                    } else {
+                        Logger.warn(`[HttpRelayService] Blocked unsafe callbackUrl during login for ${emp.display_name}: ${callbackUrl}`);
+                    }
+                }
+
                 // Register employee
                 const registered: RegisteredEmployee = {
                     employee_id: emp.employee_id,
                     display_name: emp.display_name,
                     avatar_url: emp.avatar_url,
                     username,
-                    callbackUrl: callbackUrl || '', // employee provides their local server URL
+                    callbackUrl: validatedCallbackUrl, // employee provides their local server URL
                     token: result.token || '',
                     lastSeen: Date.now(),
                     assigned_accounts: emp.assigned_accounts || [],
@@ -541,12 +564,14 @@ class HttpRelayService {
 
                 this.broadcastEmployeeList();
 
-                // Return token + snapshot (strip password_hash)
+                // Return token + snapshot + LAN connection details (strip password_hash)
                 this.json(res, 200, {
                     success: true,
                     token: result.token,
                     employee: { ...emp, password_hash: '' },
                     snapshot,
+                    localIps: this.getLocalIps(),
+                    port: this.port,
                 });
             } catch (err: any) {
                 Logger.error(`[HttpRelayService] Login error: ${err.message}`);
@@ -567,10 +592,19 @@ class HttpRelayService {
                 employee.lastSeen = Date.now();
                 employee.consecutiveFailures = 0;
                 if (callbackUrl) {
-                    employee.callbackUrl = callbackUrl;
+                    if (this.isValidCallbackUrl(callbackUrl)) {
+                        employee.callbackUrl = callbackUrl;
+                    } else {
+                        Logger.warn(`[HttpRelayService] Blocked unsafe callbackUrl during heartbeat for ${employee.display_name}: ${callbackUrl}`);
+                    }
                 }
 
-                this.json(res, 200, { success: true, ts: Date.now() });
+                this.json(res, 200, {
+                    success: true,
+                    ts: Date.now(),
+                    localIps: this.getLocalIps(),
+                    port: this.port,
+                });
             } catch (err: any) {
                 this.json(res, 400, { success: false, error: err.message });
             }
@@ -778,12 +812,21 @@ class HttpRelayService {
                         };
                         // Push to all connected employees
                         for (const emp of this.employees.values()) {
-                            if (!this.pushViaSSE(emp.employee_id, 'relay:messageSentByEmployee', senderPayload)) {
+                            emp.lastEventSeq = (emp.lastEventSeq || 0) + 1;
+                            const eventId = emp.lastEventSeq;
+
+                            let queue = this.sseEventQueue.get(emp.employee_id) || [];
+                            const now = Date.now();
+                            queue = queue.filter(e => now - e.ts < HttpRelayService.SSE_QUEUE_TTL_MS);
+                            if (queue.length >= HttpRelayService.SSE_QUEUE_MAX) queue.shift();
+                            queue.push({ id: eventId, channel: 'relay:messageSentByEmployee', data: senderPayload, ts: now });
+                            this.sseEventQueue.set(emp.employee_id, queue);
+
+                            if (!this.pushViaSSE(emp.employee_id, 'relay:messageSentByEmployee', senderPayload, eventId)) {
                                 if (emp.callbackUrl) {
                                     this.pushToEmployee(emp, 'relay:messageSentByEmployee', senderPayload).catch(() => {});
                                 } else {
-                                    // WAN mode - queue for delivery on reconnect
-                                    this.queueSseEvent(emp.employee_id, 'relay:messageSentByEmployee', senderPayload);
+                                    Logger.log(`[HttpRelayService] 📥 Queued relay:messageSentByEmployee for offline employee ${emp.display_name}: eventId=${eventId}`);
                                 }
                             }
                         }
@@ -925,7 +968,7 @@ class HttpRelayService {
                 const resolved = FileStorageService.resolveAbsolutePath(filePath);
                 const mediaBase = FileStorageService.getBaseDir();
 
-                if (mediaBase && !resolved.startsWith(mediaBase)) {
+                if (mediaBase && !resolved.toLowerCase().startsWith(mediaBase.toLowerCase())) {
                     return this.json(res, 403, { success: false, error: 'Access denied' });
                 }
 
@@ -968,23 +1011,61 @@ class HttpRelayService {
 
                 const fs = require('fs');
                 const path = require('path');
+
+                // Sanitize filename to prevent path traversal (P0-B)
+                const safeName = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+                if (!safeName) {
+                    return this.json(res, 400, { success: false, error: 'Tên file không hợp lệ sau khi loại bỏ kí tự đặc biệt' });
+                }
+
                 const buffer = Buffer.from(base64, 'base64');
                 const FileStorageService = require('../file/FileStorageService').default;
 
                 let bossPath: string;
                 if (zaloId) {
                     // Save to account media directory (media/zaloId/date/filename)
-                    bossPath = await FileStorageService.saveBuffer(zaloId, buffer, filename);
+                    bossPath = await FileStorageService.saveBuffer(zaloId, buffer, safeName);
                 } else {
                     // Fallback: save to a shared uploads directory
                     const dir = path.join(FileStorageService.getBaseDir(), '_uploads');
                     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-                    bossPath = path.join(dir, filename);
+                    bossPath = path.join(dir, safeName);
                     fs.writeFileSync(bossPath, buffer);
                 }
 
                 this.json(res, 200, { success: true, bossPath });
             } catch (err: any) {
+                this.json(res, 500, { success: false, error: err.message });
+            }
+        });
+    }
+
+    private handleMediaUploadChunk(req: http.IncomingMessage, res: http.ServerResponse): void {
+        this.readBody(req, async (body) => {
+            try {
+                const employee = this.authenticateRequest(req);
+                if (!employee) {
+                    return this.json(res, 401, { success: false, error: 'Unauthorized' });
+                }
+
+                const { uploadId, chunkIndex, totalChunks, filename, zaloId, chunkBase64 } = JSON.parse(body);
+                if (!uploadId || chunkIndex === undefined || !totalChunks || !filename || !chunkBase64) {
+                    return this.json(res, 400, { success: false, error: 'Missing required chunk fields' });
+                }
+
+                const buffer = Buffer.from(chunkBase64, 'base64');
+                const UploadChunkService = require('../file/UploadChunkService').default;
+                
+                UploadChunkService.getInstance().saveChunk(uploadId, chunkIndex, totalChunks, buffer);
+
+                if (chunkIndex === totalChunks - 1) {
+                    const bossPath = await UploadChunkService.getInstance().mergeChunks(uploadId, totalChunks, filename, zaloId);
+                    return this.json(res, 200, { success: true, completed: true, bossPath });
+                }
+
+                this.json(res, 200, { success: true, completed: false });
+            } catch (err: any) {
+                Logger.error(`[HttpRelayService] handleMediaUploadChunk error: ${err.message}`);
                 this.json(res, 500, { success: false, error: err.message });
             }
         });
@@ -1002,6 +1083,11 @@ class HttpRelayService {
 
         employee.lastSeen = Date.now();
         employee.consecutiveFailures = 0;
+
+        // Read lastEventId from query string
+        const urlObj = new URL(req.url || '', `http://localhost:${this.port}`);
+        const lastEventIdStr = urlObj.searchParams.get('lastEventId');
+        const lastEventId = lastEventIdStr ? Number(lastEventIdStr) : null;
 
         // SSE headers
         res.writeHead(200, {
@@ -1027,24 +1113,53 @@ class HttpRelayService {
         }
         this.sseClients.set(employee.employee_id, res);
 
-        // ── Flush any events queued while SSE was disconnected ──
-        const queued = this.sseEventQueue.get(employee.employee_id) || [];
-        if (queued.length > 0) {
-            this.sseEventQueue.delete(employee.employee_id);
-            const now = Date.now();
-            let flushed = 0;
-            for (const ev of queued) {
-                if (now - ev.ts >= HttpRelayService.SSE_QUEUE_TTL_MS) continue; // expired
+        // ── Recovery Logic ──
+        const queue = this.sseEventQueue.get(employee.employee_id) || [];
+        
+        if (lastEventId !== null && lastEventId !== undefined && !isNaN(lastEventId)) {
+            // Find if lastEventId is in the queue
+            const index = queue.findIndex(ev => ev.id === lastEventId);
+            if (index !== -1) {
+                // Hit! Flush missed events after lastEventId
+                const missed = queue.slice(index + 1);
+                let flushed = 0;
+                const now = Date.now();
+                for (const ev of missed) {
+                    if (now - ev.ts >= HttpRelayService.SSE_QUEUE_TTL_MS) continue; // expired
+                    try {
+                        res.write(`id: ${ev.id}\n`);
+                        res.write(`data: ${JSON.stringify({ channel: ev.channel, data: ev.data })}\n\n`);
+                        flushed++;
+                    } catch {
+                        break;
+                    }
+                }
+                if (missed.length > 0) {
+                    Logger.log(`[HttpRelayService] 📬 Recovered & flushed ${flushed}/${missed.length} missed SSE events to ${employee.display_name} starting from event ID ${lastEventId + 1}`);
+                }
+            } else {
+                // Miss! Event ID not found in queue (overflowed, expired or new session)
+                Logger.warn(`[HttpRelayService] 🚨 SSE recovery miss for ${employee.display_name} lastEventId=${lastEventId} (queue length=${queue.length}). Triggering fallback delta sync.`);
                 try {
+                    res.write(`data: ${JSON.stringify({ channel: 'relay:fallbackDeltaSync', data: { lastEventId } })}\n\n`);
+                } catch {}
+            }
+        } else {
+            // No lastEventId provided (first connection or full reload) Just flush
+            let flushed = 0;
+            const now = Date.now();
+            for (const ev of queue) {
+                if (now - ev.ts >= HttpRelayService.SSE_QUEUE_TTL_MS) continue;
+                try {
+                    res.write(`id: ${ev.id}\n`);
                     res.write(`data: ${JSON.stringify({ channel: ev.channel, data: ev.data })}\n\n`);
                     flushed++;
                 } catch {
-                    // SSE already broken again - stop flushing
                     break;
                 }
             }
             if (flushed > 0) {
-                Logger.log(`[HttpRelayService] 📬 Flushed ${flushed}/${queued.length} queued SSE events to ${employee.display_name}`);
+                Logger.log(`[HttpRelayService] 📬 Flushed ${flushed}/${queue.length} queued events to ${employee.display_name}`);
             }
         }
 
@@ -1081,10 +1196,13 @@ class HttpRelayService {
     }
 
     /** Push an event via SSE to an employee. Returns true if SSE was available. */
-    private pushViaSSE(employeeId: string, channel: string, data: any): boolean {
+    private pushViaSSE(employeeId: string, channel: string, data: any, eventId?: number): boolean {
         const res = this.sseClients.get(employeeId);
         if (!res) return false;
         try {
+            if (eventId !== undefined) {
+                res.write(`id: ${eventId}\n`);
+            }
             res.write(`data: ${JSON.stringify({ channel, data })}\n\n`);
             return true;
         } catch {
@@ -1097,20 +1215,16 @@ class HttpRelayService {
 
     /**
      * Queue an event for an employee when SSE is temporarily unavailable.
-     * Events are flushed when the employee's SSE stream reconnects.
      */
-    private queueSseEvent(employeeId: string, channel: string, data: any): void {
-        // Only queue if the employee is still registered
+    private queueSseEvent(employeeId: string, channel: string, data: any, eventId: number): void {
         if (!this.employees.has(employeeId)) return;
         let queue = this.sseEventQueue.get(employeeId) || [];
         const now = Date.now();
-        // Expire stale entries first
         queue = queue.filter(e => now - e.ts < HttpRelayService.SSE_QUEUE_TTL_MS);
-        // Cap queue size - drop oldest if full
         if (queue.length >= HttpRelayService.SSE_QUEUE_MAX) queue.shift();
-        queue.push({ channel, data, ts: now });
+        queue.push({ id: eventId, channel, data, ts: now });
         this.sseEventQueue.set(employeeId, queue);
-        Logger.log(`[HttpRelayService] 📥 Queued SSE event for ${employeeId}: channel=${channel}, queueLen=${queue.length}`);
+        Logger.log(`[HttpRelayService] 📥 Queued SSE event for ${employeeId}: channel=${channel}, eventId=${eventId}, queueLen=${queue.length}`);
     }
 
     // ─── Tunnel management ────────────────────────────────────────────
@@ -1189,13 +1303,24 @@ class HttpRelayService {
         for (const emp of this.employees.values()) {
             if (!this.shouldRelayErpEventToEmployee(channel, data, emp.employee_id)) continue;
 
-            // Prefer SSE (works over tunnel/WAN); fall back to callbackUrl push (LAN only)
-            if (!this.pushViaSSE(emp.employee_id, channel, data)) {
+            // 1. Assign sequential ID and append to history queue
+            emp.lastEventSeq = (emp.lastEventSeq || 0) + 1;
+            const eventId = emp.lastEventSeq;
+
+            let queue = this.sseEventQueue.get(emp.employee_id) || [];
+            const now = Date.now();
+            queue = queue.filter(e => now - e.ts < HttpRelayService.SSE_QUEUE_TTL_MS);
+            if (queue.length >= HttpRelayService.SSE_QUEUE_MAX) queue.shift();
+            queue.push({ id: eventId, channel, data, ts: now });
+            this.sseEventQueue.set(emp.employee_id, queue);
+
+            // 2. Prefer SSE (works over tunnel/WAN); fall back to callbackUrl push (LAN only)
+            if (!this.pushViaSSE(emp.employee_id, channel, data, eventId)) {
                 if (emp.callbackUrl) {
                     this.pushToEmployee(emp, channel, data).catch(() => {});
                 } else {
-                    // WAN/SSE mode: no callbackUrl fallback - queue for delivery on reconnect
-                    this.queueSseEvent(emp.employee_id, channel, data);
+                    // WAN/SSE mode: no callbackUrl fallback - already queued above
+                    Logger.log(`[HttpRelayService] 📥 Queued SSE event for offline employee ${emp.display_name}: channel=${channel}, eventId=${eventId}`);
                 }
             }
         }
@@ -1310,8 +1435,23 @@ class HttpRelayService {
                     Logger.log(`[HttpRelayService] 🔴 Employee offline (heartbeat timeout): ${emp.display_name}`);
                     this.employees.delete(empId);
                     // End session in DB for online time tracking
-                    try { this.runOnPinnedDb((db) => db.endEmployeeSession(empId)); } catch {}
+                    try { 
+                        this.runOnPinnedDb((db) => db.endEmployeeSession(empId)); 
+                    } catch (err: any) {
+                        Logger.warn(`[HttpRelayService] Failed to end session in offline check: ${err.message}`);
+                    }
                     this.broadcastEmployeeList();
+                }
+            }
+
+            // Clean up stale SSE events queue (P2-B)
+            const ttl = HttpRelayService.SSE_QUEUE_TTL_MS;
+            for (const [empId, queue] of this.sseEventQueue) {
+                const filtered = queue.filter(e => now - e.ts < ttl);
+                if (filtered.length === 0) {
+                    this.sseEventQueue.delete(empId);
+                } else {
+                    this.sseEventQueue.set(empId, filtered);
                 }
             }
         }, 15_000);
@@ -1321,6 +1461,34 @@ class HttpRelayService {
         if (this.offlineCheckTimer) {
             clearInterval(this.offlineCheckTimer);
             this.offlineCheckTimer = null;
+        }
+    }
+
+    private isValidCallbackUrl(urlStr: string): boolean {
+        if (!urlStr) return false;
+        try {
+            const parsed = new URL(urlStr);
+            const hostname = parsed.hostname;
+            
+            // Allow LAN IPs
+            if (
+                hostname === 'localhost' ||
+                hostname === '127.0.0.1' ||
+                /^192\.168\.\d+\.\d+$/.test(hostname) ||
+                /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+                /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)
+            ) {
+                return true;
+            }
+            
+            // Allow dev tunnels (Cloudflared, localtunnel)
+            if (hostname.endsWith('.trycloudflare.com') || hostname.endsWith('.locallt.me')) {
+                return true;
+            }
+            
+            return false;
+        } catch {
+            return false;
         }
     }
 
@@ -1483,6 +1651,23 @@ class HttpRelayService {
     private json(res: http.ServerResponse, status: number, data: any): void {
         res.writeHead(status, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(data));
+    }
+
+    private getLocalIps(): string[] {
+        const localIps: string[] = [];
+        try {
+            const nets = os.networkInterfaces();
+            for (const name of Object.keys(nets)) {
+                for (const net of nets[name] || []) {
+                    if (net.family === 'IPv4' && !net.internal) {
+                        localIps.push(net.address);
+                    }
+                }
+            }
+        } catch (err: any) {
+            Logger.warn(`[HttpRelayService] Failed to fetch local IPs: ${err.message}`);
+        }
+        return localIps;
     }
 }
 

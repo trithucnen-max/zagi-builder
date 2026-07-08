@@ -83,7 +83,7 @@ export interface PipelineStage {
 
 export type CRMTabView = 'contacts' | 'campaigns' | 'history' | 'groups' | 'search' | 'requests' | 'scan' | 'scan_history' | 'scan_stats' | 'pipeline';
 
-export type ContactTypeFilter = 'friend' | 'group' | 'non_friend' | 'has_phone' | 'has_notes' | 'online';
+export type ContactTypeFilter = 'friend' | 'group' | 'non_friend' | 'has_phone' | 'has_notes';
 
 /** 'all' = tất cả, 'male' = Nam (gender=0), 'female' = Nữ (gender=1), 'unknown' = chưa xác định */
 export type GenderFilter = 'all' | 'male' | 'female' | 'unknown';
@@ -124,7 +124,6 @@ interface CRMStore {
   queueStatus: Record<string, { running: boolean; tokens: number; maxTokens: number; lastSentAt: number; dailyPaused?: boolean; type?: string }>;
   groupCount: number;
   requestCount: number;
-  onlineUids: Set<string>;
 
   setTab: (tab: CRMTabView) => void;
   setContacts: (contacts: CRMContact[], total: number) => void;
@@ -143,7 +142,6 @@ interface CRMStore {
   updateCampaignInList: (campaign: Partial<CRMCampaign> & { id: number }) => void;
   setGroupCount: (n: number) => void;
   setRequestCount: (n: number) => void;
-  setOnlineUids: (uids: Set<string>) => void;
   reset: () => void;
 }
 
@@ -173,7 +171,6 @@ export const useCRMStore = create<CRMStore>((set) => ({
   queueStatus: {},
   groupCount: 0,
   requestCount: 0,
-  onlineUids: new Set(),
 
   setTab: (tab) => set({ tab }),
   setContacts: (contacts, totalContacts) => set({ contacts, totalContacts }),
@@ -198,7 +195,6 @@ export const useCRMStore = create<CRMStore>((set) => ({
   })),
   setGroupCount: (n) => set({ groupCount: n }),
   setRequestCount: (n) => set({ requestCount: n }),
-  setOnlineUids: (onlineUids) => set({ onlineUids }),
   reset: () => set({
     tab: 'contacts',
     contacts: [],
@@ -225,7 +221,6 @@ export const useCRMStore = create<CRMStore>((set) => ({
     queueStatus: {},
     groupCount: 0,
     requestCount: 0,
-    onlineUids: new Set(),
   }),
 }));
 

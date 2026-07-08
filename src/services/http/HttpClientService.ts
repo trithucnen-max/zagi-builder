@@ -17,6 +17,9 @@ class HttpClientService {
     private static instance: HttpClientService;
     private connected = false;
     private bossUrl = '';
+    private configuredBossUrl = '';
+    private isUsingLan = false;
+    private lanProbing = false;
     private token = '';
     private latencyMs = 0;
     private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -145,6 +148,7 @@ class HttpClientService {
         }
         // Remove trailing slash
         this.bossUrl = url.replace(/\/+$/, '');
+        this.configuredBossUrl = this.bossUrl; // Store the original configured URL
 
         Logger.log(`[HttpClientService] Connecting to Boss at ${this.bossUrl}...`);
 
@@ -199,6 +203,11 @@ class HttpClientService {
                 // Non-critical — snapshot comes via SSE push
             }
 
+            // 6. Trigger LAN probe if we connected via a Tunnel (WAN) address and Boss returned local IPs
+            if (!this.isLocalAddress(this.bossUrl) && Array.isArray(hbResult.localIps) && hbResult.port) {
+                this.probeAndSwitchToLan(hbResult.localIps, hbResult.port).catch(() => {});
+            }
+
             return { success: true };
         } catch (err: any) {
             Logger.error(`[HttpClientService] Connect error: ${err.message}`);
@@ -219,6 +228,14 @@ class HttpClientService {
         this.onSSEReconnected = null;
         this.connected = false;
         this.callbackUrl = '';
+        
+        // Revert active bossUrl to configured URL on disconnect
+        if (this.isUsingLan) {
+            Logger.log(`[HttpClientService] Disconnecting LAN: reverting bossUrl to configured WAN URL: ${this.configuredBossUrl}`);
+            this.bossUrl = this.configuredBossUrl;
+            this.isUsingLan = false;
+        }
+        
         Logger.log('[HttpClientService] Disconnected');
     }
 
@@ -283,16 +300,63 @@ class HttpClientService {
             return { success: false, error: 'Not connected' };
         }
 
-        try {
-            return await this.httpPost(
-                `${this.bossUrl}/api/media/upload`,
-                { base64, filename, zaloId },
-                { Authorization: `Bearer ${this.token}` },
-                120000 // 2 phút cho ảnh lớn qua tunnel
-            );
-        } catch (err: any) {
-            return { success: false, error: err.message };
+        // 2MB chunk size in characters for base64 (around 1.5MB binary)
+        const CHUNK_SIZE = 2 * 1024 * 1024;
+        
+        // If file is small, use legacy upload directly to maintain compatibility and speed
+        if (base64.length <= CHUNK_SIZE) {
+            try {
+                return await this.httpPost(
+                    `${this.bossUrl}/api/media/upload`,
+                    { base64, filename, zaloId },
+                    { Authorization: `Bearer ${this.token}` },
+                    120000 // 2 phút cho ảnh lớn qua tunnel
+                );
+            } catch (err: any) {
+                return { success: false, error: err.message };
+            }
         }
+
+        // Otherwise, split into chunks and upload via /api/media/upload-chunk
+        const { v4: uuidv4 } = require('uuid');
+        const uploadId = uuidv4();
+        const totalChunks = Math.ceil(base64.length / CHUNK_SIZE);
+
+        Logger.log(`[HttpClientService] Starting chunked upload for ${filename}: size=${base64.length} chars, totalChunks=${totalChunks}, uploadId=${uploadId}`);
+
+        let bossPath = '';
+        for (let i = 0; i < totalChunks; i++) {
+            const chunkBase64 = base64.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+            try {
+                const res = await this.httpPost(
+                    `${this.bossUrl}/api/media/upload-chunk`,
+                    {
+                        uploadId,
+                        chunkIndex: i,
+                        totalChunks,
+                        filename,
+                        zaloId,
+                        chunkBase64,
+                    },
+                    { Authorization: `Bearer ${this.token}` },
+                    120000
+                );
+                if (!res || !res.success) {
+                    return { success: false, error: res?.error || `Chunk ${i} upload failed` };
+                }
+                if (res.completed && res.bossPath) {
+                    bossPath = res.bossPath;
+                }
+            } catch (err: any) {
+                return { success: false, error: `Chunk ${i} failed: ${err.message}` };
+            }
+        }
+
+        if (!bossPath) {
+            return { success: false, error: 'Chunked upload finished but bossPath was not returned' };
+        }
+
+        return { success: true, bossPath };
     }
 
     // ─── Callbacks ────────────────────────────────────────────────────
@@ -558,6 +622,112 @@ class HttpClientService {
             Logger.log(`[HttpClientService] Kicked by boss: ${data?.reason}`);
             this.disconnect();
             this.onStatusChange?.(false, 0);
+            return;
+        }
+        if (channel === 'relay:fallbackDeltaSync') {
+            Logger.warn(`[HttpClientService] SSE recovery miss! Triggering fallback delta sync.`);
+            try { this.onSSEReconnected?.(); } catch {}
+            return;
+        }
+        if (channel === 'db:workflowChanged') {
+            Logger.log(`[HttpClientService] Received workflow changed event: action=${data?.action} id=${data?.id || data?.workflow?.id}`);
+            try {
+                const DatabaseService = require('../database/DatabaseService').default;
+                const WorkflowEngineService = require('../workflow/WorkflowEngineService').default;
+                const db = DatabaseService.getInstance();
+                
+                // Resolve target DB path for this workspace
+                const WorkspaceManager = require('../../utils/WorkspaceManager').default;
+                let targetDbPath: string | null = null;
+                if (this.workspaceId) {
+                    const ws = WorkspaceManager.getInstance().getWorkspaceById(this.workspaceId);
+                    if (ws) targetDbPath = WorkspaceManager.getInstance().resolveDbPath(ws.dbPath || 'zagi-tool.db');
+                }
+                const activeDbPath = db.getDbPath();
+
+                const updateLocalDb = () => {
+                    if (data.action === 'save' && data.workflow) {
+                        db.saveWorkflow(data.workflow);
+                        WorkflowEngineService.getInstance().reloadWorkflow(data.workflow.id);
+                    } else if (data.action === 'delete' && data.id) {
+                        db.deleteWorkflow(data.id);
+                        WorkflowEngineService.getInstance().removeWorkflow(data.id);
+                    } else if (data.action === 'toggle' && data.id) {
+                        db.toggleWorkflow(data.id, data.enabled);
+                        WorkflowEngineService.getInstance().reloadWorkflow(data.id);
+                    }
+                };
+
+                if (targetDbPath && targetDbPath !== activeDbPath) {
+                    db.withDbPath(targetDbPath, () => {
+                        updateLocalDb();
+                        db.save();
+                    });
+                } else {
+                    updateLocalDb();
+                    db.save();
+                }
+
+                // Forward to renderer so store merges changes
+                const activeWsId = WorkspaceManager.getInstance().getActiveWorkspaceId();
+                if (activeWsId === this.workspaceId) {
+                    const EventBroadcaster = require('../event/EventBroadcaster').default;
+                    EventBroadcaster.sendDirect(channel, data);
+                }
+            } catch (err: any) {
+                Logger.warn(`[HttpClientService] db:workflowChanged sync error: ${err.message}`);
+            }
+            return;
+        }
+
+        if (channel === 'db:integrationChanged') {
+            Logger.log(`[HttpClientService] Received integration changed event: action=${data?.action} id=${data?.id || data?.integration?.id}`);
+            try {
+                const DatabaseService = require('../database/DatabaseService').default;
+                const IntegrationRegistry = require('../integrations/IntegrationRegistry').IntegrationRegistry;
+                const db = DatabaseService.getInstance();
+                
+                // Resolve target DB path for this workspace
+                const WorkspaceManager = require('../../utils/WorkspaceManager').default;
+                let targetDbPath: string | null = null;
+                if (this.workspaceId) {
+                    const ws = WorkspaceManager.getInstance().getWorkspaceById(this.workspaceId);
+                    if (ws) targetDbPath = WorkspaceManager.getInstance().resolveDbPath(ws.dbPath || 'zagi-tool.db');
+                }
+                const activeDbPath = db.getDbPath();
+
+                const updateLocalDb = () => {
+                    if (data.action === 'save' && data.integration) {
+                        db.upsertIntegration(data.integration);
+                        IntegrationRegistry.reloadAdapter(data.integration.id);
+                    } else if (data.action === 'delete' && data.id) {
+                        db.deleteIntegration(data.id);
+                        IntegrationRegistry.reloadAdapter(data.id);
+                    } else if (data.action === 'toggle' && data.id) {
+                        db.toggleIntegration(data.id, data.enabled);
+                        IntegrationRegistry.reloadAdapter(data.id);
+                    }
+                };
+
+                if (targetDbPath && targetDbPath !== activeDbPath) {
+                    db.withDbPath(targetDbPath, () => {
+                        updateLocalDb();
+                        db.save();
+                    });
+                } else {
+                    updateLocalDb();
+                    db.save();
+                }
+
+                // Forward to renderer so store merges changes
+                const activeWsId = WorkspaceManager.getInstance().getActiveWorkspaceId();
+                if (activeWsId === this.workspaceId) {
+                    const EventBroadcaster = require('../event/EventBroadcaster').default;
+                    EventBroadcaster.sendDirect(channel, data);
+                }
+            } catch (err: any) {
+                Logger.warn(`[HttpClientService] db:integrationChanged sync error: ${err.message}`);
+            }
             return;
         }
 
@@ -911,6 +1081,11 @@ class HttpClientService {
             if ((channel === 'erp:event:projectCreated' || channel === 'erp:event:projectUpdated') && data?.project) {
                 runOnWsDb(() => {
                     this.upsertRow(db, 'erp_projects', data.project);
+                    if (data.project.status === 'archived') {
+                        db.run('UPDATE erp_tasks SET archived = 1, updated_at = ? WHERE project_id = ?', [Date.now(), data.project.id]);
+                    } else if (data.project.status === 'active') {
+                        db.run('UPDATE erp_tasks SET archived = 0, updated_at = ? WHERE project_id = ?', [Date.now(), data.project.id]);
+                    }
                 });
                 return;
             }
@@ -1148,6 +1323,10 @@ class HttpClientService {
 
         try {
             const urlObj = new URL('/api/events/stream', this.bossUrl);
+            const lastId = this.getLastEventId();
+            if (lastId !== null) {
+                urlObj.searchParams.set('lastEventId', String(lastId));
+            }
             const isHttps = urlObj.protocol === 'https:';
             const httpModule = isHttps ? require('https') : require('http');
 
@@ -1161,7 +1340,7 @@ class HttpClientService {
                 {
                     hostname: urlObj.hostname,
                     port: urlObj.port || (isHttps ? 443 : 80),
-                    path: urlObj.pathname,
+                    path: urlObj.pathname + urlObj.search,
                     method: 'GET',
                     agent: this.sseAgent,
                     headers: {
@@ -1196,16 +1375,15 @@ class HttpClientService {
                     this.startSSEWatchdog();
                     Logger.log('[HttpClientService] 📡 SSE stream connected');
 
-                    // Fire reconnect callback (not on first connect, only on reconnect)
                     if (this.sseWasConnected) {
-                        Logger.log('[HttpClientService] 🔄 SSE reconnected — notifying for delta sync');
-                        try { this.onSSEReconnected?.(); } catch {}
+                        Logger.log('[HttpClientService] 🔄 SSE reconnected — waiting for Event ID recovery check');
                     }
                     this.sseWasConnected = true;
 
                     const decoder = new StringDecoder('utf8');
                     let buffer = '';
                     let eventData = '';
+                    let currentEventId = '';
 
                     res.on('data', (chunk: any) => {
                         this.lastSseDataAt = Date.now(); // Watchdog: mark SSE alive
@@ -1220,13 +1398,19 @@ class HttpClientService {
                         for (const line of lines) {
                             if (line.startsWith('data: ')) {
                                 eventData += line.slice(6);
+                            } else if (line.startsWith('id: ')) {
+                                currentEventId = line.slice(4).trim();
                             } else if (line === '' && eventData) {
                                 // Empty line = end of SSE event
                                 try {
                                     const { channel, data } = JSON.parse(eventData);
+                                    if (currentEventId) {
+                                        this.saveLastEventId(Number(currentEventId));
+                                    }
                                     this.handlePushedEvent(channel, data);
                                 } catch { /* ignore malformed events */ }
                                 eventData = '';
+                                currentEventId = '';
                             }
                             // Lines starting with ':' are comments/keepalive — also mark alive
                             else if (line.startsWith(':')) {
@@ -1242,12 +1426,18 @@ class HttpClientService {
                             for (const line of lines) {
                                 if (line.startsWith('data: ')) {
                                     eventData += line.slice(6);
+                                } else if (line.startsWith('id: ')) {
+                                    currentEventId = line.slice(4).trim();
                                 } else if (line === '' && eventData) {
                                     try {
                                         const { channel, data } = JSON.parse(eventData);
+                                        if (currentEventId) {
+                                            this.saveLastEventId(Number(currentEventId));
+                                        }
                                         this.handlePushedEvent(channel, data);
                                     } catch {}
                                     eventData = '';
+                                    currentEventId = '';
                                 }
                             }
                         }
@@ -1570,6 +1760,11 @@ class HttpClientService {
                     this.latencyMs = Date.now() - start;
                     this.consecutiveHeartbeatFailures = 0;
                     this.onStatusChange?.(true, this.latencyMs);
+
+                    // Periodically probe for LAN if currently connected via Tunnel (WAN)
+                    if (!this.isUsingLan && !this.isLocalAddress(this.bossUrl) && Array.isArray(result.localIps) && result.port) {
+                        this.probeAndSwitchToLan(result.localIps, result.port).catch(() => {});
+                    }
                 } else {
                     this.consecutiveHeartbeatFailures++;
                     this.onStatusChange?.(false, 0);
@@ -1583,6 +1778,14 @@ class HttpClientService {
                     if (this.consecutiveHeartbeatFailures >= HttpClientService.MAX_HEARTBEAT_FAILURES) {
                         Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures — marking disconnected`);
                         this.connected = false;
+                        
+                        // Rollback to original WAN/Tunnel URL
+                        if (this.isUsingLan) {
+                            Logger.log(`[HttpClientService] LAN connection lost, reverting bossUrl to: ${this.configuredBossUrl}`);
+                            this.bossUrl = this.configuredBossUrl;
+                            this.isUsingLan = false;
+                        }
+                        
                         this.onStatusChange?.(false, 0);
                     }
                 }
@@ -1600,6 +1803,14 @@ class HttpClientService {
                 if (this.consecutiveHeartbeatFailures >= HttpClientService.MAX_HEARTBEAT_FAILURES) {
                     Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures (error) — marking disconnected`);
                     this.connected = false;
+                    
+                    // Rollback to original WAN/Tunnel URL
+                    if (this.isUsingLan) {
+                        Logger.log(`[HttpClientService] LAN connection lost (error), reverting bossUrl to: ${this.configuredBossUrl}`);
+                        this.bossUrl = this.configuredBossUrl;
+                        this.isUsingLan = false;
+                    }
+                    
                     this.onStatusChange?.(false, 0);
                 }
             }
@@ -1817,6 +2028,90 @@ class HttpClientService {
             }
         }
         return '127.0.0.1';
+    }
+
+    private getLastEventId(): number | null {
+        try {
+            const DatabaseService = require('../database/DatabaseService').default;
+            const db = DatabaseService.getInstance();
+            const val = db.getSetting(`last_sse_event_id_${this.workspaceId}`);
+            return val ? Number(val) : null;
+        } catch {
+            return null;
+        }
+    }
+
+    private saveLastEventId(id: number): void {
+        try {
+            const DatabaseService = require('../database/DatabaseService').default;
+            const db = DatabaseService.getInstance();
+            db.setSetting(`last_sse_event_id_${this.workspaceId}`, String(id));
+            db.save();
+        } catch {}
+    }
+
+    private isLocalAddress(url: string): boolean {
+        try {
+            const u = new URL(url);
+            const hostname = u.hostname;
+            if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+            // IPv4 LAN ranges
+            if (hostname.startsWith('192.168.')) return true;
+            if (hostname.startsWith('10.')) return true;
+            if (hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) return true;
+            return false;
+        } catch {
+            return false;
+        }
+    }
+
+    private async probeAndSwitchToLan(localIps: string[], port: number): Promise<void> {
+        if (this.lanProbing || this.isUsingLan) return;
+        this.lanProbing = true;
+
+        Logger.log(`[HttpClientService] Start probing ${localIps.length} LAN IP(s) on port ${port}...`);
+
+        const probePromises = localIps.map(async (ip) => {
+            const url = `http://${ip}:${port}`;
+            try {
+                // Short timeout for LAN checks
+                const res = await this.httpGet(`${url}/api/health`, {}, 1500);
+                if (res?.status === 'ok') {
+                    return url;
+                }
+            } catch {}
+            return null;
+        });
+
+        try {
+            const results = await Promise.all(probePromises);
+            const activeLanUrl = results.find(Boolean);
+
+            if (activeLanUrl) {
+                Logger.log(`[HttpClientService] 🚀 Found reachable LAN IP: ${activeLanUrl}. Switching connection from WAN to LAN.`);
+                
+                // Set LAN flag and update bossUrl
+                this.isUsingLan = true;
+                this.bossUrl = activeLanUrl;
+
+                // Restart SSE to active local IP stream
+                this.disconnectSSE();
+                this.connectSSE();
+
+                // Notify Boss of our callbackUrl with the new local IP endpoint
+                this.httpPost(
+                    `${this.bossUrl}/api/auth/heartbeat`,
+                    { callbackUrl: this.callbackUrl },
+                    { Authorization: `Bearer ${this.token}` }
+                ).catch(() => {});
+            } else {
+                Logger.log('[HttpClientService] No LAN IPs are reachable. Remaining on WAN/Tunnel.');
+            }
+        } catch (err: any) {
+            Logger.warn(`[HttpClientService] LAN probing error: ${err.message}`);
+        } finally {
+            this.lanProbing = false;
+        }
     }
 }
 

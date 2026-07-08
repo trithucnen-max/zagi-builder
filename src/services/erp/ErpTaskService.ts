@@ -57,7 +57,14 @@ export default class ErpTaskService {
     if (patch.department_id !== undefined) { fields.push('department_id = ?'); vals.push(patch.department_id); }
     if (!fields.length) return this.getProject(id)!;
     fields.push('updated_at = ?'); vals.push(now); vals.push(id);
-    this.db().run(`UPDATE erp_projects SET ${fields.join(', ')} WHERE id = ?`, vals);
+    this.db().transaction(() => {
+        this.db().run(`UPDATE erp_projects SET ${fields.join(', ')} WHERE id = ?`, vals);
+        if (patch.status === 'archived') {
+            this.db().run(`UPDATE erp_tasks SET archived = 1, updated_at = ? WHERE project_id = ?`, [now, id]);
+        } else if (patch.status === 'active') {
+            this.db().run(`UPDATE erp_tasks SET archived = 0, updated_at = ? WHERE project_id = ?`, [now, id]);
+        }
+    });
     const project = this.getProject(id)!;
     EventBroadcaster.emit('erp:event:projectUpdated', { project });
     return project;

@@ -211,6 +211,9 @@ class DataSyncService {
         // Workflows — filter by page_ids matching assigned accounts
         this.exportWorkflowsFiltered(db, zaloIds, tables);
 
+        // Facebook — filter by facebook_id matching assigned accounts
+        this.exportFacebookDataFiltered(db, zaloIds, tables);
+
         if (employeeId) this.appendPrivateErpTables(tables, employeeId);
 
         const totalRows = Object.values(tables).reduce((sum, arr) => sum + arr.length, 0);
@@ -282,6 +285,9 @@ class DataSyncService {
 
         // Workflows — filter by page_ids matching assigned accounts
         this.exportWorkflowsFiltered(db, zaloIds, tables, sinceTs);
+
+        // Facebook — filter by facebook_id matching assigned accounts
+        this.exportFacebookDataFiltered(db, zaloIds, tables, sinceTs);
 
         // Export erp_notifications for this specific employeeId (delta)
         if (employeeId) {
@@ -447,6 +453,18 @@ class DataSyncService {
             db.exec(`DELETE FROM accounts WHERE zalo_id IN (${inClause})`);
         } catch {}
 
+        try {
+            // Find fb_accounts matching assigned facebook_ids
+            const fbAccounts = db.query<any>(`SELECT id FROM fb_accounts WHERE facebook_id IN (${inClause})`);
+            if (fbAccounts.length > 0) {
+                const fbAccountIds = fbAccounts.map(acc => `'${this.esc(acc.id)}'`).join(',');
+                db.exec(`DELETE FROM fb_threads WHERE account_id IN (${fbAccountIds})`);
+                db.exec(`DELETE FROM fb_messages WHERE account_id IN (${fbAccountIds})`);
+                db.exec(`DELETE FROM fb_crm_contacts WHERE fb_account_id IN (${fbAccountIds})`);
+                db.exec(`DELETE FROM fb_accounts WHERE id IN (${fbAccountIds})`);
+            }
+        } catch {}
+
         db.forceFlush();
         Logger.log(`[DataSyncService] Employee DB reset for ${zaloIds.length} accounts`);
     }
@@ -477,6 +495,64 @@ class DataSyncService {
             }
         } catch (err: any) {
             Logger.warn(`[DataSyncService] Export skip workflows: ${err.message}`);
+        }
+    }
+
+    /**
+     * Export Facebook data filtered by facebook_id matching the assigned accounts.
+     */
+    private exportFacebookDataFiltered(db: DatabaseService, zaloIds: string[], tables: Record<string, any[]>, sinceTs?: number): void {
+        try {
+            if (zaloIds.length === 0) return;
+            const placeholders = zaloIds.map(() => '?').join(',');
+            const fbAccounts = db.query<any>(
+                `SELECT * FROM fb_accounts WHERE facebook_id IN (${placeholders})`,
+                zaloIds
+            );
+            if (fbAccounts.length === 0) return;
+
+            tables.fb_accounts = fbAccounts;
+            const fbAccountIds = fbAccounts.map(acc => acc.id);
+            const fbPlaceholders = fbAccountIds.map(() => '?').join(',');
+
+            // Export fb_threads
+            let threadsQuery = `SELECT * FROM fb_threads WHERE account_id IN (${fbPlaceholders})`;
+            let threadsParams = [...fbAccountIds];
+            if (sinceTs) {
+                threadsQuery += ` AND synced_at > ?`;
+                threadsParams.push(sinceTs);
+            }
+            const threads = db.query<any>(threadsQuery, threadsParams);
+            if (threads.length > 0) {
+                tables.fb_threads = threads;
+            }
+
+            // Export fb_messages (limit messages to avoid huge size)
+            let msgsQuery = `SELECT * FROM fb_messages WHERE account_id IN (${fbPlaceholders})`;
+            let msgsParams = [...fbAccountIds];
+            if (sinceTs) {
+                msgsQuery += ` AND timestamp > ?`;
+                msgsParams.push(sinceTs);
+            } else {
+                // Limit to last 30 days of messages during full sync to avoid huge payload
+                msgsQuery += ` AND timestamp > ?`;
+                msgsParams.push(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            }
+            const messages = db.query<any>(msgsQuery, msgsParams);
+            if (messages.length > 0) {
+                tables.fb_messages = messages;
+            }
+
+            // Export fb_crm_contacts
+            const crmContacts = db.query<any>(
+                `SELECT * FROM fb_crm_contacts WHERE fb_account_id IN (${fbPlaceholders})`,
+                fbAccountIds
+            );
+            if (crmContacts.length > 0) {
+                tables.fb_crm_contacts = crmContacts;
+            }
+        } catch (err: any) {
+            Logger.warn(`[DataSyncService] Export skip facebook data: ${err.message}`);
         }
     }
 

@@ -80,79 +80,151 @@ export function registerIntegrationIpc(): void {
     });
 
     // ─── Save (create or update) ──────────────────────────────────────────────
-    ipcMain.handle('integration:save', async (_e, { integration }: { integration: any }) => {
+    const saveHandler = async (_e: any, params: { integration: any; _fromRelay?: boolean }) => {
         try {
-            const id = IntegrationRegistry.saveConfig(integration);
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('integration:save', params);
+            }
+            const id = IntegrationRegistry.saveConfig(params.integration);
             return { success: true, id };
         } catch (e: any) {
             Logger.error(`[IntegrationIpc] save: ${e.message}`);
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('integration:save', saveHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('integration:save', saveHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register integration:save in registry: ${err.message}`);
+    }
 
     // ─── Delete ───────────────────────────────────────────────────────────────
-    ipcMain.handle('integration:delete', async (_e, { id }: { id: string }) => {
+    const deleteHandler = async (_e: any, params: { id: string; _fromRelay?: boolean }) => {
         try {
-            IntegrationRegistry.deleteConfig(id);
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('integration:delete', params);
+            }
+            IntegrationRegistry.deleteConfig(params.id);
             return { success: true };
         } catch (e: any) {
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('integration:delete', deleteHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('integration:delete', deleteHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register integration:delete in registry: ${err.message}`);
+    }
 
     // ─── Toggle enabled ───────────────────────────────────────────────────────
-    ipcMain.handle('integration:toggle', async (_e, { id, enabled }: { id: string; enabled: boolean }) => {
+    const toggleHandler = async (_e: any, params: { id: string; enabled: boolean; _fromRelay?: boolean }) => {
         try {
-            IntegrationRegistry.toggleEnabled(id, enabled);
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('integration:toggle', params);
+            }
+            IntegrationRegistry.toggleEnabled(params.id, params.enabled);
             return { success: true };
         } catch (e: any) {
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('integration:toggle', toggleHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('integration:toggle', toggleHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register integration:toggle in registry: ${err.message}`);
+    }
 
     // ─── Test connection ──────────────────────────────────────────────────────
-    ipcMain.handle('integration:test', async (_e, { id }: { id: string }) => {
+    const testHandler = async (_e: any, params: { id: string; _fromRelay?: boolean }) => {
         try {
-            const result = await IntegrationRegistry.testConnection(id);
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('integration:test', params);
+            }
+            const result = await IntegrationRegistry.testConnection(params.id);
             return { success: true, ...result };
         } catch (e: any) {
             return { success: false, message: e.message };
         }
-    });
+    };
+    ipcMain.handle('integration:test', testHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('integration:test', testHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register integration:test in registry: ${err.message}`);
+    }
 
     // ─── Execute action ───────────────────────────────────────────────────────
-    ipcMain.handle('integration:execute', async (_e, { id, action, params }: { id: string; action: string; params: any }) => {
+    const executeHandler = async (_e: any, params: { id: string; action: string; params: any; _fromRelay?: boolean }) => {
         try {
-            const data = await IntegrationRegistry.executeAction(id, action, params || {});
-            Logger.info(`[IntegrationIpc] execute ${action} response: ${JSON.stringify(data)?.slice(0, 1200)}`);
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('integration:execute', params);
+            }
+            const data = await IntegrationRegistry.executeAction(params.id, params.action, params.params || {});
+            Logger.info(`[IntegrationIpc] execute ${params.action} response: ${JSON.stringify(data)?.slice(0, 1200)}`);
             const nestedError = extractActionError(data);
             if (nestedError) {
-                Logger.warn(`[IntegrationIpc] execute ${action} (nested error): ${nestedError}`);
+                Logger.warn(`[IntegrationIpc] execute ${params.action} (nested error): ${nestedError}`);
                 return { success: false, error: nestedError, data };
             }
             return { success: true, data };
         } catch (e: any) {
-            Logger.error(`[IntegrationIpc] execute ${action}: ${e.message}`);
+            Logger.error(`[IntegrationIpc] execute ${params.action}: ${e.message}`);
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('integration:execute', executeHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('integration:execute', executeHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register integration:execute in registry: ${err.message}`);
+    }
 
     // ─── Execute by type ──────────────────────────────────────────────────────
-    ipcMain.handle('integration:executeByType', async (_e, { type, action, params }: { type: string; action: string; params: any }) => {
+    const executeByTypeHandler = async (_e: any, params: { type: string; action: string; params: any; _fromRelay?: boolean }) => {
         try {
-            const data = await IntegrationRegistry.executeActionByType(type, action, params || {});
-            Logger.info(`[IntegrationIpc] executeByType ${type}.${action} response: ${JSON.stringify(data)?.slice(0, 1200)}`);
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('integration:executeByType', params);
+            }
+            const data = await IntegrationRegistry.executeActionByType(params.type, params.action, params.params || {});
+            Logger.info(`[IntegrationIpc] executeByType ${params.type}.${params.action} response: ${JSON.stringify(data)?.slice(0, 1200)}`);
             const nestedError = extractActionError(data);
             if (nestedError) {
-                Logger.warn(`[IntegrationIpc] executeByType ${type}.${action} (nested error): ${nestedError}`);
+                Logger.warn(`[IntegrationIpc] executeByType ${params.type}.${params.action} (nested error): ${nestedError}`);
                 return { success: false, error: nestedError, data };
             }
             return { success: true, data };
         } catch (e: any) {
-            Logger.error(`[IntegrationIpc] executeByType ${type}.${action}: ${e.message}`);
+            Logger.error(`[IntegrationIpc] executeByType ${params.type}.${params.action}: ${e.message}`);
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('integration:executeByType', executeByTypeHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('integration:executeByType', executeByTypeHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register integration:executeByType in registry: ${err.message}`);
+    }
 
     // ─── Get webhook port ─────────────────────────────────────────────────────
     ipcMain.handle('integration:getWebhookPort', async () => {

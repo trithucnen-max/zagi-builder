@@ -712,11 +712,17 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                     onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)} 
                     className="flex items-center gap-2 hover:text-gray-100 py-1 px-2 rounded-lg hover:bg-gray-900/60 transition-colors disabled:opacity-75 disabled:hover:bg-transparent"
                   >
-                    {currentAssignee ? (
-                      <>
-                        <EmployeeAvatar employeeId={currentAssignee.employee_id} size={18} showName={false} />
-                        <span className="text-gray-200 font-medium">{currentAssignee.display_name}</span>
-                      </>
+                    {form.assignees.length > 0 ? (
+                      <div className="flex items-center -space-x-1.5 overflow-hidden">
+                        {form.assignees.map(id => (
+                          <EmployeeAvatar key={id} employeeId={id} size={18} showName={false} />
+                        ))}
+                        <span className="text-gray-200 font-medium ml-2">
+                          {form.assignees.length === 1 
+                            ? (assigneeOptions.find(o => o.employee_id === form.assignees[0])?.display_name || form.assignees[0])
+                            : `${form.assignees.length} người thực hiện`}
+                        </span>
+                      </div>
                     ) : (
                       <span className="text-gray-400">Chọn người thực hiện</span>
                     )}
@@ -725,21 +731,35 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                   {showAssigneeDropdown && !isOnlyWatcher && (
                     <div className="absolute left-0 mt-1.5 w-60 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl py-1.5 z-[1000] max-h-56 overflow-y-auto erp-scroll-y">
                       <div 
-                        onClick={() => { setForm(curr => ({ ...curr, assignees: [] })); setShowAssigneeDropdown(false); }}
-                        className="px-3 py-1.5 hover:bg-gray-800 text-xs text-gray-400 cursor-pointer"
+                        onClick={() => { setForm(curr => ({ ...curr, assignees: [] })); }}
+                        className="px-3 py-1.5 hover:bg-gray-800 text-xs text-gray-400 cursor-pointer flex items-center justify-between"
                       >
-                        Không gán ai
+                        <span>Không gán ai</span>
+                        {form.assignees.length === 0 && <span className="text-blue-500 font-bold">✓</span>}
                       </div>
-                      {assigneeOptions.map(emp => (
-                        <div 
-                          key={emp.employee_id} 
-                          onClick={() => { setForm(curr => ({ ...curr, assignees: [emp.employee_id] })); setShowAssigneeDropdown(false); }}
-                          className="px-3 py-1.5 hover:bg-gray-800 text-xs text-gray-200 cursor-pointer flex items-center gap-2"
-                        >
-                          <EmployeeAvatar employeeId={emp.employee_id} size={18} showName={false} />
-                          <span>{emp.display_name}</span>
-                        </div>
-                      ))}
+                      {assigneeOptions.map(emp => {
+                        const isSelected = form.assignees.includes(emp.employee_id);
+                        return (
+                          <div 
+                            key={emp.employee_id} 
+                            onClick={() => {
+                              setForm(curr => ({
+                                ...curr,
+                                assignees: isSelected
+                                  ? curr.assignees.filter(id => id !== emp.employee_id)
+                                  : [...curr.assignees, emp.employee_id]
+                              }));
+                            }}
+                            className="px-3 py-1.5 hover:bg-gray-800 text-xs text-gray-200 cursor-pointer flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2">
+                              <EmployeeAvatar employeeId={emp.employee_id} size={18} showName={false} />
+                              <span>{emp.display_name}</span>
+                            </div>
+                            {isSelected && <span className="text-blue-500 font-bold">✓</span>}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

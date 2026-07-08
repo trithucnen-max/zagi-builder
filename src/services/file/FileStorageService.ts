@@ -67,7 +67,10 @@ class FileStorageService {
         const configDir = mediaDir.substring(0, mediaDir.lastIndexOf('/'));
         const base = configDir + '/';
         const normalized = absPath.replace(/\\/g, '/');
-        if (normalized.startsWith(base)) {
+        
+        const normLower = normalized.toLowerCase();
+        const baseLower = base.toLowerCase();
+        if (normLower.startsWith(baseLower)) {
             return normalized.slice(base.length); // → "media/zaloId/date/img.jpg"
         }
         // Not under configFolder → return as-is (already relative or different root)
@@ -90,7 +93,7 @@ class FileStorageService {
         if (fs.existsSync(relOrAbsPath)) return relOrAbsPath;
         // File not found (old drive/folder after move) — remap via /media/ marker
         const normalized = relOrAbsPath.replace(/\\/g, '/');
-        const mediaIdx = normalized.lastIndexOf('/media/');
+        const mediaIdx = normalized.toLowerCase().lastIndexOf('/media/');
         if (mediaIdx >= 0) {
             const configFolder = path.dirname(this.getBaseDir());
             const relativePart = normalized.slice(mediaIdx + 1); // "media/zaloId/..."

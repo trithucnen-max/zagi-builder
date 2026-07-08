@@ -20,13 +20,13 @@ export default function CRMRequestsTab() {
   const [profilePopup, setProfilePopup] = useState<{ userId: string; x: number; y: number } | null>(null);
   const [initialLoaded, setInitialLoaded] = useState(false);
 
-  const { getActiveAccount } = useAccountStore();
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
-  const { showNotification, clearCRMRequestUnseen } = useAppStore();
+  const showNotification = useAppStore((s) => s.showNotification);
+  const clearCRMRequestUnseen = useAppStore((s) => s.clearCRMRequestUnseen);
   const setRequestCount = useCRMStore((s) => s.setRequestCount);
 
   const getAuth = () => {
-    const acc = getActiveAccount();
+    const acc = useAccountStore.getState().getActiveAccount();
     return acc ? { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
   };
 

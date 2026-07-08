@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, protocol, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, protocol, Notification, powerMonitor } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as cron from 'node-cron';
@@ -67,16 +67,44 @@ const ERP_READ_ONLY_CHANNELS = new Set([
   'erp:license:seatStatus'
 ]);
 
+const FB_READ_ONLY_CHANNELS = new Set([
+  'fb:getAccounts',
+  'fb:getThreads',
+  'fb:getMessages',
+  'fb:getE2EEStatus',
+  'fb:scanGetTabs',
+  'fb:scanGetTab',
+  'fb:getScanLogs',
+]);
+
+const AI_WRITE_CHANNELS = new Set([
+  'ai:saveAssistant',
+  'ai:deleteAssistant',
+  'ai:uploadFile',
+  'ai:removeFile',
+  'ai:setAccountAssistant',
+]);
+
 const originalHandle = ipcMain.handle.bind(ipcMain);
 ipcMain.handle = (channel: string, listener: any) => {
-  if (channel.startsWith('erp:') && !ERP_READ_ONLY_CHANNELS.has(channel)) {
+  if (
+    (channel.startsWith('erp:') && !ERP_READ_ONLY_CHANNELS.has(channel)) ||
+    (channel.startsWith('fb:') && !FB_READ_ONLY_CHANNELS.has(channel)) ||
+    channel === 'workflow:save' ||
+    channel === 'workflow:delete' ||
+    channel === 'workflow:toggle' ||
+    AI_WRITE_CHANNELS.has(channel)
+  ) {
     const wrappedListener = async (event: any, ...args: any[]) => {
       const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
       if (activeWs?.type === 'remote' && !(args[0]?._fromRelay)) {
+        if (AI_WRITE_CHANNELS.has(channel)) {
+          return { success: false, error: 'Chế độ nhân viên (Remote): Cấu hình Trợ lý AI chỉ có thể thực hiện trên máy BOSS' };
+        }
         try {
           return await HttpConnectionManager.getInstance().proxyAction(activeWs.id, channel, args[0] || {});
         } catch (err: any) {
-          console.error(`[erpProxy] Error forwarding ${channel} to Boss:`, err.message);
+          console.error(`[ipcProxy] Error forwarding ${channel} to Boss:`, err.message);
           return { success: false, error: err.message };
         }
       }
@@ -762,10 +790,12 @@ async function startupAllWorkspaces(): Promise<void> {
 
 app.whenReady().then(async () => {
   protocol.handle('local-media', async (request) => {
-    let filePath = decodeURIComponent(new URL(request.url).pathname);
-    // Windows: strip leading slash → "D:/..." or "media/..."
-    if (process.platform === 'win32' && filePath.startsWith('/')) {
-      filePath = filePath.slice(1);
+    let filePath = decodeURIComponent(request.url.replace(/^local-media:\/\//, ''));
+    // Windows: strip leading slash if followed by drive letter → "/D:/..." or "/media/..."
+    if (process.platform === 'win32') {
+      if (filePath.startsWith('/') && filePath.match(/^\/[a-zA-Z]:/)) {
+        filePath = filePath.slice(1);
+      }
     }
 
     const configFolder = path.dirname(FileStorageService.getBaseDir());
@@ -993,6 +1023,26 @@ async function startupAfterLicenseCheck(): Promise<void> {
   registerErpHrmIpc();
   registerLockScreenIpc();
   registerLicenseIpc(); // Tab Bản quyền trong Settings cũng cần (re-register safe — ipcMain dùng Map)
+
+  // Listen to OS sleep/resume and unlock events to instantly reconnect
+  powerMonitor.on('resume', () => {
+    console.log('[main.ts] 🔋 System woke up from sleep — forcing immediate reconnect...');
+    HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
+    HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
+  });
+
+  powerMonitor.on('unlock-screen', () => {
+    console.log('[main.ts] 🔑 System unlocked — forcing immediate reconnect...');
+    HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
+    HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
+  });
+
+  // Listen to Renderer window online notification
+  ipcMain.on('workspace:network-online', () => {
+    console.log('[main.ts] 🌐 Network online signal received from Renderer — forcing reconnect...');
+    HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
+    HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
+  });
 
   // Auto-reconnect Facebook accounts
   setTimeout(() => reconnectAllFBAccounts(), 4000);

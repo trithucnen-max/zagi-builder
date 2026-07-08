@@ -914,17 +914,6 @@ export default class ZaloService {
         }
     }
 
-    public async getFriendOnlines(): Promise<any> {
-        if (!this.api) {
-            throw new Error("API not initialized. Please ensure you've called initialize() first.");
-        }
-
-        try {
-            return await (this.api as any).getFriendOnlines();
-        } catch (error: any) {
-            throw new Error(error.message || error);
-        }
-    }
 
     /**
      * Gửi nhiều danh thiếp (cards) đến một hoặc nhiều người dùng hoặc nhóm

@@ -424,11 +424,17 @@ export default function TaskCreateModal({ defaultStatus, projectId, onClose, onS
                 onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)} 
                 className="flex items-center gap-2 hover:text-gray-100 py-1 px-2 rounded-lg hover:bg-gray-900/60 transition-colors"
               >
-                {currentAssignee ? (
-                  <>
-                    <EmployeeAvatar employeeId={currentAssignee.employee_id} size={18} showName={false} />
-                    <span className="text-gray-200 font-medium">{currentAssignee.display_name}</span>
-                  </>
+                {selectedAssignees.length > 0 ? (
+                  <div className="flex items-center -space-x-1.5 overflow-hidden">
+                    {selectedAssignees.map(id => (
+                      <EmployeeAvatar key={id} employeeId={id} size={18} showName={false} />
+                    ))}
+                    <span className="text-gray-200 font-medium ml-2">
+                      {selectedAssignees.length === 1 
+                        ? (employeeOptions.find(o => o.employee_id === selectedAssignees[0])?.display_name || selectedAssignees[0])
+                        : `${selectedAssignees.length} người thực hiện`}
+                    </span>
+                  </div>
                 ) : (
                   <span className="text-gray-400">Chọn người thực hiện</span>
                 )}
@@ -437,21 +443,34 @@ export default function TaskCreateModal({ defaultStatus, projectId, onClose, onS
               {showAssigneeDropdown && (
                 <div className="absolute left-0 mt-1.5 w-60 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl py-1.5 z-[1000] max-h-56 overflow-y-auto erp-scroll-y">
                   <div 
-                    onClick={() => { setSelectedAssignees([]); setShowAssigneeDropdown(false); }}
-                    className="px-3 py-1.5 hover:bg-gray-800 text-xs text-gray-400 cursor-pointer"
+                    onClick={() => { setSelectedAssignees([]); }}
+                    className="px-3 py-1.5 hover:bg-gray-800 text-xs text-gray-400 cursor-pointer flex items-center justify-between"
                   >
-                    Không gán ai
+                    <span>Không gán ai</span>
+                    {selectedAssignees.length === 0 && <span className="text-blue-500 font-bold">✓</span>}
                   </div>
-                  {employeeOptions.map(emp => (
-                    <div 
-                      key={emp.employee_id} 
-                      onClick={() => { setSelectedAssignees([emp.employee_id]); setShowAssigneeDropdown(false); }}
-                      className="px-3 py-1.5 hover:bg-gray-800 text-xs text-gray-200 cursor-pointer flex items-center gap-2"
-                    >
-                      <EmployeeAvatar employeeId={emp.employee_id} size={18} showName={false} />
-                      <span>{emp.display_name}</span>
-                    </div>
-                  ))}
+                  {employeeOptions.map(emp => {
+                    const isSelected = selectedAssignees.includes(emp.employee_id);
+                    return (
+                      <div 
+                        key={emp.employee_id} 
+                        onClick={() => {
+                          setSelectedAssignees(prev => 
+                            isSelected 
+                              ? prev.filter(id => id !== emp.employee_id) 
+                              : [...prev, emp.employee_id]
+                          );
+                        }}
+                        className="px-3 py-1.5 hover:bg-gray-800 text-xs text-gray-200 cursor-pointer flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2">
+                          <EmployeeAvatar employeeId={emp.employee_id} size={18} showName={false} />
+                          <span>{emp.display_name}</span>
+                        </div>
+                        {isSelected && <span className="text-blue-500 font-bold">✓</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

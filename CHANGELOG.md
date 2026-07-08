@@ -4,7 +4,55 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v27.2.7] - 2026-07-08
+
+### Tính năng mới & Cải tiến tối ưu hóa kết nối & Tự động kết nối lại
+
+- **Tự động tối ưu hóa kết nối LAN (LAN Auto-Switching):**
+  - Boss Server tự động phát danh sách IP nội bộ (`localIps`) và port LAN hoạt động của mình trong phản hồi API đăng nhập và heartbeat.
+  - Client tự động dò quét các IP cục bộ này trong nền bằng các gói tin ping nhanh (`GET /api/health` với timeout 1.5s).
+  - Tự động chuyển luồng kết nối active và SSE sang mạng LAN để đạt tốc độ truyền tải file/đồng bộ tối đa khi nhân viên làm việc cùng văn phòng với Boss.
+  - Tự động fallback về địa chỉ Tunnel (WAN) khi ngắt kết nối hoặc mất mạng LAN cục bộ.
+
+- **Tự động kết nối lại tức thì (Instant Reconnect):**
+  - Đăng ký lắng nghe các sự kiện hệ điều hành thông qua `powerMonitor` của Electron (`resume`, `unlock-screen`) để kích hoạt kết nối lại lập tức cho tất cả remote workspaces ngay khi mở máy/mở khóa màn hình.
+  - Lắng nghe trạng thái mạng `online` của trình duyệt ở Renderer để thực hiện gửi tín hiệu IPC và kích hoạt kết nối lại ngay lập tức khi khôi phục WiFi.
+
+---
+
+## [v27.2.6] - 2026-07-08
+
+### Tính năng mới & Cải tiến hạ tầng mạng Boss–Nhân viên
+
+- **Tải file lớn phân đoạn (Chunked Upload) — Option A:**
+  - Thêm dịch vụ `UploadChunkService.ts` mới trên máy Boss để tiếp nhận, quản lý và tự động ghép nối các phân đoạn file (chunk 2MB mỗi phần). Dọn dẹp thư mục tạm (`_temp_uploads/`) sau khi ghép xong.
+  - Bổ sung endpoint `POST /api/media/upload-chunk` trên `HttpRelayService`. Nhân viên có thể gửi file lớn (video, PDF…) mà không bị tràn bộ nhớ (Out of Memory).
+  - `HttpClientService.uploadMedia()` tự động phân tách file > 2MB thành nhiều chunk Base64 và gửi lần lượt; file nhỏ hơn tiếp tục sử dụng endpoint `/api/media/upload` cũ để tối ưu tốc độ (tương thích ngược 100%).
+
+- **Phục hồi sự kiện SSE bằng Last-Event-ID — Option C:**
+  - Mỗi sự kiện SSE đẩy từ Boss đến Nhân viên được đánh số thứ tự tăng dần (Sequence ID) duy nhất theo từng nhân viên, gắn kèm theo trường `id:` theo chuẩn SSE spec.
+  - Boss duy trì **Event History Queue** tối đa 500 sự kiện / 10 phút cho từng nhân viên (Circular Buffer).
+  - Khi Nhân viên reconnect SSE, client tự gửi `?lastEventId=xxx` — Boss kiểm tra:
+    - **Hit (Trúng):** Boss đẩy bù ngay lập tức các sự kiện bị lỡ từ `lastEventId + 1`, không cần query DB.
+    - **Miss (Trượt — tràn buffer / tắt máy lâu):** Boss gửi sự kiện đặc biệt `relay:fallbackDeltaSync` để Nhân viên tự động kích hoạt Delta Sync, khôi phục trạng thái DB an toàn.
+  - `HttpClientService` lưu `lastEventId` vào SQLite local (key `last_sse_event_id_{workspaceId}`) sau mỗi sự kiện nhận thành công.
+
+- **AI Assistant chế độ Read-only trên máy Nhân viên:**
+  - Các IPC ghi của AI (`ai:saveAssistant`, `ai:deleteAssistant`, `ai:uploadFile`, `ai:removeFile`, `ai:setAccountAssistant`) bị chặn trực tiếp trên máy Nhân viên.
+  - Nhân viên chỉ sử dụng Trợ lý do Boss cấu hình sẵn. Cấu hình Prompt, API Key và tài liệu nội bộ chỉ quản lý tập trung tại Boss.
+
+- **Đồng bộ 2 chiều phân hệ Facebook (Boss ↔ Nhân viên):**
+  - **Đọc (Boss → Nhân viên):** Thêm hàm `exportFacebookDataFiltered` trong `DataSyncService`, đồng bộ 4 bảng (`fb_accounts`, `fb_threads`, `fb_messages`, `fb_crm_contacts`) theo tài khoản được giao cho nhân viên. Full sync giới hạn tin nhắn FB 30 ngày gần nhất.
+  - **Ghi (Nhân viên → Boss):** Toàn bộ IPC thao tác Facebook (gửi tin, upload, kết nối…) tự động proxy lên Boss qua `ipcHandlerRegistry`. Nhân viên chỉ giữ quyền đọc local.
+
+- **Workflow Real-time 2 chiều (Boss ↔ Nhân viên):**
+  - IPC ghi kịch bản (`workflow:save`, `workflow:delete`, `workflow:toggle`) trên máy Nhân viên proxy thẳng lên Boss.
+  - Sau khi Boss lưu thành công, Boss phát sự kiện `db:workflowChanged` qua SSE đến tất cả Nhân viên — nhân viên tự cập nhật DB local và reload WorkflowEngine theo thời gian thực.
+
+---
+
 ## [v27.2.5] - 2026-07-06
+
 
 ### Sửa lỗi nghiêm trọng (Critical Bug Fixes)
 

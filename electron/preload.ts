@@ -77,7 +77,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getFriendRequestStatus: (params: any) => ipcRenderer.invoke('zalo:getFriendRequestStatus', params),
     getFriendRecommendations: (auth: any) => ipcRenderer.invoke('zalo:getFriendRecommendations', { auth }),
     getAliasList: (params: any) => ipcRenderer.invoke('zalo:getAliasList', params),
-    getFriendOnlines: (params: any) => ipcRenderer.invoke('zalo:getFriendOnlines', params),
     blockUser: (params: any) => ipcRenderer.invoke('zalo:blockUser', params),
     unblockUser: (params: any) => ipcRenderer.invoke('zalo:unblockUser', params),
     getRelatedFriendGroup: (params: any) => ipcRenderer.invoke('zalo:getRelatedFriendGroup', params),
@@ -447,6 +446,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAllStatuses:        () => ipcRenderer.invoke('workspace:getAllStatuses'),
     loginRemote:          (bossUrl: string, username: string, password: string) =>
                             ipcRenderer.invoke('workspace:loginRemote', { bossUrl, username, password }),
+    notifyNetworkOnline:  () => ipcRenderer.send('workspace:network-online'),
   },
 
   // ─── Relay Server (Boss) ──────────────────────────────────────────

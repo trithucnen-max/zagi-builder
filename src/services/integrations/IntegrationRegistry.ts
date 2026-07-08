@@ -228,7 +228,29 @@ export const IntegrationRegistry = {
       adapterInstances.delete(id);
     }
 
+    // Broadcast the change
+    try {
+      const EventBroadcaster = require('../event/EventBroadcaster').default;
+      EventBroadcaster.emit('db:integrationChanged', { action: 'save', integration: this.getConfig(id) });
+    } catch (err: any) {
+      Logger.error(`[IntegrationRegistry] saveConfig broadcast error: ${err.message}`);
+    }
+
     return id;
+  },
+
+  /** Reload single adapter */
+  reloadAdapter(id: string): void {
+    adapterInstances.delete(id);
+    const cfg = this.getConfigWithCredentials(id);
+    if (cfg?.enabled) {
+      try {
+        const adapter = createAdapter(cfg);
+        adapterInstances.set(id, adapter);
+      } catch (e: any) {
+        Logger.warn(`[IntegrationRegistry] Cannot load adapter ${id}: ${e.message}`);
+      }
+    }
   },
 
   /** Delete integration */
@@ -236,6 +258,14 @@ export const IntegrationRegistry = {
     DatabaseService.getInstance().deleteIntegration(id);
     DatabaseService.getInstance().save();
     adapterInstances.delete(id);
+
+    // Broadcast the change
+    try {
+      const EventBroadcaster = require('../event/EventBroadcaster').default;
+      EventBroadcaster.emit('db:integrationChanged', { action: 'delete', id });
+    } catch (err: any) {
+      Logger.error(`[IntegrationRegistry] deleteConfig broadcast error: ${err.message}`);
+    }
   },
 
   /** Toggle enabled state */
@@ -251,6 +281,14 @@ export const IntegrationRegistry = {
       } catch { adapterInstances.delete(id); }
     } else {
       adapterInstances.delete(id);
+    }
+
+    // Broadcast the change
+    try {
+      const EventBroadcaster = require('../event/EventBroadcaster').default;
+      EventBroadcaster.emit('db:integrationChanged', { action: 'toggle', id, enabled });
+    } catch (err: any) {
+      Logger.error(`[IntegrationRegistry] toggleEnabled broadcast error: ${err.message}`);
     }
   },
 

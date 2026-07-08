@@ -109,7 +109,7 @@ export function registerWorkflowIpc(): void {
     });
 
     // ─── Save ─────────────────────────────────────────────────────────────────
-    ipcMain.handle('workflow:save', async (_e, { workflow }: { workflow: Partial<Workflow> }) => {
+    const saveHandler = async (_e: any, { workflow }: { workflow: Partial<Workflow> }) => {
         try {
             const now = Date.now();
             // Normalise pageIds: accept both pageIds[] and legacy pageId string
@@ -138,42 +138,88 @@ export function registerWorkflowIpc(): void {
             DatabaseService.getInstance().saveWorkflow(wf);
             DatabaseService.getInstance().save();
             WorkflowEngineService.getInstance().reloadWorkflow(wf.id);
+
+            // Broadcast the change (Task 2)
+            try {
+              const EventBroadcaster = require('../../src/services/event/EventBroadcaster').default;
+              EventBroadcaster.emit('db:workflowChanged', { action: 'save', workflow: wf });
+            } catch (err: any) {
+              Logger.error(`[WorkflowIpc] save broadcast error: ${err.message}`);
+            }
+
             return { success: true, id: wf.id, webhookToken };
         } catch (e: any) {
             Logger.error(`[WorkflowIpc] save error: ${e.message}`);
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('workflow:save', saveHandler);
+    try {
+      const { ipcHandlerRegistry } = require('./zaloIpc');
+      ipcHandlerRegistry.set('workflow:save', saveHandler);
+    } catch (err: any) {
+      Logger.error(`[WorkflowIpc] Failed to register workflow:save in registry: ${err.message}`);
+    }
 
     // ─── Delete ───────────────────────────────────────────────────────────────
-    ipcMain.handle('workflow:delete', async (_e, { id }: { id: string }) => {
+    const deleteHandler = async (_e: any, { id }: { id: string }) => {
         try {
             DatabaseService.getInstance().deleteWorkflow(id);
             DatabaseService.getInstance().save();
             WorkflowEngineService.getInstance().removeWorkflow(id);
+
+            // Broadcast the change (Task 2)
+            try {
+              const EventBroadcaster = require('../../src/services/event/EventBroadcaster').default;
+              EventBroadcaster.emit('db:workflowChanged', { action: 'delete', id });
+            } catch (err: any) {
+              Logger.error(`[WorkflowIpc] delete broadcast error: ${err.message}`);
+            }
+
             return { success: true };
         } catch (e: any) {
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('workflow:delete', deleteHandler);
+    try {
+      const { ipcHandlerRegistry } = require('./zaloIpc');
+      ipcHandlerRegistry.set('workflow:delete', deleteHandler);
+    } catch (err: any) {
+      Logger.error(`[WorkflowIpc] Failed to register workflow:delete in registry: ${err.message}`);
+    }
 
     // ─── Toggle ───────────────────────────────────────────────────────────────
-    ipcMain.handle('workflow:toggle', async (_e, { id, enabled }: { id: string; enabled: boolean }) => {
+    const toggleHandler = async (_e: any, { id, enabled }: { id: string; enabled: boolean }) => {
         try {
             if (enabled) {
                 const row = DatabaseService.getInstance().getWorkflowById(id);
                 if (!row) return { success: false, error: 'Not found' };
-                const wf = rowToWorkflow(row);
-                // FB workflows are now supported — no channel check needed
             }
             DatabaseService.getInstance().toggleWorkflow(id, enabled);
             DatabaseService.getInstance().save();
             WorkflowEngineService.getInstance().reloadWorkflow(id);
+
+            // Broadcast the change (Task 2)
+            try {
+              const EventBroadcaster = require('../../src/services/event/EventBroadcaster').default;
+              EventBroadcaster.emit('db:workflowChanged', { action: 'toggle', id, enabled });
+            } catch (err: any) {
+              Logger.error(`[WorkflowIpc] toggle broadcast error: ${err.message}`);
+            }
+
             return { success: true };
         } catch (e: any) {
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('workflow:toggle', toggleHandler);
+    try {
+      const { ipcHandlerRegistry } = require('./zaloIpc');
+      ipcHandlerRegistry.set('workflow:toggle', toggleHandler);
+    } catch (err: any) {
+      Logger.error(`[WorkflowIpc] Failed to register workflow:toggle in registry: ${err.message}`);
+    }
 
     // ─── Run manual ───────────────────────────────────────────────────────────
     ipcMain.handle('workflow:runManual', async (_e, { id, triggerData, isSandbox }: { id: string; triggerData?: any; isSandbox?: boolean }) => {

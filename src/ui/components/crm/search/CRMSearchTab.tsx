@@ -12,6 +12,8 @@ import AddFriendModal from '../../common/AddFriendModal';
  * CRM Search Tab — tìm kiếm người dùng theo SĐT + gợi ý kết bạn.
  * Tách từ FriendList để dùng trong CRMPage.
  */
+const EMPTY_ARRAY: any[] = [];
+
 export default function CRMSearchTab() {
   const [searchPhone, setSearchPhone] = useState('');
   const [searchResult, setSearchResult] = useState<any>(null);
@@ -24,13 +26,13 @@ export default function CRMSearchTab() {
   const [profilePopup, setProfilePopup] = useState<{ userId: string; x: number; y: number } | null>(null);
   const [friends, setFriends] = useState<any[]>([]);
 
-  const { getActiveAccount } = useAccountStore();
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
-  const { showNotification, openQuickChat } = useAppStore();
-  const contactList = useChatStore((s) => s.contacts[activeAccountId || ''] || []);
+  const showNotification = useAppStore((s) => s.showNotification);
+  const openQuickChat = useAppStore((s) => s.openQuickChat);
+  const contactList = useChatStore((s) => s.contacts[activeAccountId || ''] || EMPTY_ARRAY);
 
   const getAuth = () => {
-    const acc = getActiveAccount();
+    const acc = useAccountStore.getState().getActiveAccount();
     return acc ? { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
   };
 
@@ -55,12 +57,14 @@ export default function CRMSearchTab() {
     }).catch(() => {});
   }, [activeAccountId]);
 
-  // Load recommendations on mount
+  // Load recommendations when active account changes or on mount
   useEffect(() => {
-    if (recommendations.length === 0 && !recsLoading) {
+    setRecommendations([]);
+    setDismissedRecs(new Set());
+    if (activeAccountId) {
       loadRecommendations();
     }
-  }, []);
+  }, [activeAccountId]);
 
   const handleSearch = async () => {
     const auth = getAuth();

@@ -66,6 +66,69 @@ interface VersionEntry {
 // ─── Changelog data — thêm entry mới vào ĐẦU mảng khi có bản cập nhật ────────
 const CHANGELOG: VersionEntry[] = [
   {
+    version: '27.2.7',
+    date: '08/2026',
+    type: 'patch',
+    highlights: [
+      '🚀 Tự động tối ưu mạng LAN cục bộ — Dò quét IP LAN của Boss và chuyển luồng SSE/Heartbeat sang mạng nội bộ để tăng tốc độ kết nối và tiết kiệm WAN bandwidth.',
+      '🔄 Kết nối lại tức thì — Khôi phục kết nối trong vòng 3 giây ngay khi mở máy tính dậy (Sleep/Resume) hoặc khi trình duyệt khôi phục WiFi.',
+    ],
+    changes: [
+      {
+        category: 'new',
+        items: [
+          'Boss server tự phát danh sách IP nội bộ (localIps) và port hoạt động trong auth/heartbeat responses.',
+          'Client tự động quét IP LAN bằng ping nhanh ngầm (GET /api/health) và chuyển đổi kết nối cục bộ khi khả dụng.',
+          'Lắng nghe sự kiện powerMonitor của Electron (resume, unlock-screen) để tự động reconnect tức thì.',
+          'Lắng nghe sự kiện online ở Renderer để tự động gửi tín hiệu reconnect khi có WiFi.',
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Tự động rollback về địa chỉ Tunnel WAN nếu đứt kết nối mạng LAN cục bộ.',
+        ]
+      }
+    ]
+  },
+  {
+    version: '27.2.6',
+    date: '07/2026',
+    type: 'patch',
+    highlights: [
+      '🛡️ Vá lỗi bảo mật & Sửa lỗi Workflow Proxy — Khắc phục triệt để lỗi không gửi được ảnh/file qua Workflow từ máy nhân viên.',
+      '🔒 Bảo mật tải lên file & callbackUrl — Ngăn chặn tấn công path traversal khi nhân viên tải file lên Boss và validate callbackUrl chỉ cho phép LAN hoặc Dev tunnels.',
+      '🔄 Đồng bộ Workflow Cron — Ngăn chặn tự động chạy cron job trên máy nhân viên gây trùng lặp gửi tin.',
+    ],
+    changes: [
+      {
+        category: 'security',
+        items: [
+          'Sanitize tên file tải lên trong handleMediaUpload để ngăn chặn tấn công Path Traversal.',
+          'Validate callbackUrl trong handleHeartbeat và handleLogin chỉ chấp nhận dải LAN IP hoặc subdomains của trycloudflare.com / locallt.me.',
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Sửa lỗi zalo.sendImage/sendFile không gửi được file từ máy nhân viên do proxy sendMessage bị thiếu trường attachments.',
+          'Bổ sung cơ chế tự động upload file từ máy nhân viên lên Boss trước khi gửi tin nhắn dạng file.',
+          'Thêm đầy đủ các hàm proxy API thiếu trong getApi(): sendFile, sendImage, sendImages, getLabels, updateLabels, forwardMessage.',
+          'Sửa lỗi lặp nhóm addUserToGroup/removeUserFromGroup chỉ xử lý thành viên đầu tiên.',
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Không đăng ký cron schedule cho workflow trên máy nhân viên để tránh trùng lặp gửi tin nhắn.',
+          'Bổ sung dọn dẹp định kỳ cho hàng đợi sự kiện SSE để tránh rò rỉ bộ nhớ.',
+          'Logger cảnh báo thay vì nuốt lỗi âm thầm trong HttpRelayService.',
+        ]
+      }
+    ]
+  },
+
+  {
     version: '27.2.5',
     date: '07/2026',
     type: 'patch',

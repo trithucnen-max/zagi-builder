@@ -1,0 +1,69 @@
+# Database
+
+> DatabaseService là singleton SQLite, toàn bộ schema trong 1 file ~400KB. Dùng better-sqlite3 (sync API).
+
+## Access Pattern
+
+```typescript
+const db = DatabaseService.getInstance();
+
+// Query nhiều rows
+const rows = db.query<Contact>('SELECT * FROM contacts WHERE zalo_id = ?', [zaloId]);
+
+// Query 1 row
+const msg = db.queryOne<Message>('SELECT * FROM messages WHERE id = ?', [id]);
+
+// Ghi
+db.run('INSERT INTO messages (...) VALUES (?)', [value]);
+
+// Switch DB path tạm thời (multi-workspace)
+db.withDbPath('/path/to/other.db', () => {
+  db.run('INSERT ...');
+});
+```
+
+## Multi-Workspace DB
+
+Mỗi workspace có thể có DB riêng. `WorkspaceManager.resolveDbPath(ws.dbPath)` trả về absolute path.
+
+Boss pin DB path khi khởi động RelayService:
+```typescript
+EmployeeService.getInstance().pinToCurrentDb();
+// → đảm bảo Boss luôn đọc/ghi đúng DB dù có workspace switch
+```
+
+## Key Tables (inferred from code)
+
+| Table | Purpose |
+|---|---|
+| `messages` | Tin nhắn Zalo/Facebook. Fields: id, owner_zalo_id, thread_id, is_sent, timestamp, content |
+| `threads` | Hội thoại. Fields: thread_id, owner_zalo_id, thread_type, name, avatar |
+| `contacts` | CRM contacts. Fields: zalo_id, display_name, phone, salutation, labels |
+| `accounts` | Zalo accounts. Fields: zalo_id, full_name, avatar_url, phone, is_business, is_active |
+| `workflows` | Workflow definitions. Fields: id, name, enabled, channel, pageIds, nodes_json, edges_json |
+| `workflow_run_logs` | Lịch sử chạy workflow. Fields: id, workflow_id, status, node_results_json |
+| `employees` | Nhân viên. Fields: employee_id, username, display_name, role, permissions, assigned_accounts |
+| `employee_sessions` | Online sessions của nhân viên (analytics) |
+| `employee_actions` | Log hành động: sent, replied, session_start... |
+| `erp_employee_profiles` | ERP role và extra JSON config per employee |
+| `local_labels` | Nhãn local (không sync Zalo). Fields: id, name, color, emoji |
+| `local_label_threads` | Map label → thread |
+| `integrations` | Config tích hợp: KiotViet, GHN, Sapo... |
+| `crm_campaigns` | CRM campaigns |
+| `crm_campaign_contacts` | Contacts trong campaign, status gửi |
+
+## Query Pattern for Multi-Account
+
+Hầu hết query đều filter theo `owner_zalo_id`:
+```sql
+SELECT * FROM messages
+WHERE owner_zalo_id = ? AND thread_id = ?
+ORDER BY timestamp DESC LIMIT 50
+```
+
+## Gotchas
+
+- **Sync API only**: better-sqlite3 chỉ hỗ trợ sync — không dùng `await` với db calls
+- **Single writer**: SQLite không hỗ trợ concurrent writes — đảm bảo không write song song từ nhiều processes
+- **No migration system**: Schema thay đổi trực tiếp trong DatabaseService (không có migration files)
+- **withDbPath is not thread-safe**: gọi trong serial, không concurrent

@@ -148,6 +148,20 @@ class WorkflowEngineService {
     this.registerZaloEventListeners();
     this.registerFacebookEventListeners();
     this.registerCronJobs();
+    
+    // Cleanup stale debounce entries every 5 minutes
+    setInterval(() => {
+      try {
+        for (const key of this.debounceTimers.keys()) {
+          if (!this.debounceBuffers.has(key)) {
+            this.debounceTimers.delete(key);
+          }
+        }
+      } catch (err: any) {
+        Logger.warn(`[WorkflowEngine] Debounce timers cleanup error: ${err.message}`);
+      }
+    }, 5 * 60 * 1000);
+
     Logger.log(`[WorkflowEngine] Initialized — ${this.workflows.size} workflows loaded`);
   }
 
@@ -390,6 +404,16 @@ class WorkflowEngineService {
   // ─── Cron ─────────────────────────────────────────────────────────────────
 
   private registerCronJobs(): void {
+    try {
+      const WorkspaceManager = require('../../utils/WorkspaceManager').default;
+      const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+      if (activeWs?.type === 'remote') {
+        Logger.log('[WorkflowEngine] Remote workspace (employee side) — skipping cron registration to prevent duplicate triggers');
+        return;
+      }
+    } catch (e) {
+      // Safe default: continue cron registration
+    }
     for (const wf of this.workflows.values()) {
       if (wf.enabled && this.isRunnableWorkflow(wf)) this.registerCronForWorkflow(wf);
     }
@@ -1750,8 +1774,9 @@ class WorkflowEngineService {
         }
         return {
           msgId: (lastResult as any)?.attachment?.[0]?.msgId || '',
-          success: true,
+          success: lastResult && lastResult.success !== false,
           _targetCount: targetThreadIds.length,
+          error: lastResult?.error
         };
       }
 
@@ -3360,10 +3385,42 @@ class WorkflowEngineService {
         const targetZaloId = pageId || fallbackPageId || '';
         return {
           sendMessage: async (p1: any, p2: any, p3: any, p4: any) => {
+            let messageParam = p1;
+            if (p1 && typeof p1 === 'object' && p1.attachments && p1.attachments.length > 0) {
+              const clientService = HttpConnectionManager.getInstance().getServiceForWorkspace(activeWs.id);
+              if (clientService) {
+                const fs = require('fs');
+                const path = require('path');
+                const uploadedPaths = [];
+                for (const filePath of p1.attachments) {
+                  try {
+                    if (typeof filePath === 'string' && !filePath.startsWith('http://') && !filePath.startsWith('https://') && fs.existsSync(filePath)) {
+                      const buffer = fs.readFileSync(filePath);
+                      const base64 = buffer.toString('base64');
+                      const filename = path.basename(filePath);
+                      const uploadRes = await clientService.uploadMedia(base64, filename, targetZaloId);
+                      if (uploadRes?.success && uploadRes.bossPath) {
+                        uploadedPaths.push(uploadRes.bossPath);
+                      } else {
+                        Logger.warn(`[WorkflowEngine] Proxy uploadMedia failed for ${filePath}: ${uploadRes?.error}`);
+                        uploadedPaths.push(filePath);
+                      }
+                    } else {
+                      uploadedPaths.push(filePath);
+                    }
+                  } catch (err: any) {
+                    Logger.error(`[WorkflowEngine] Proxy upload read error for ${filePath}: ${err.message}`);
+                    uploadedPaths.push(filePath);
+                  }
+                }
+                messageParam = { ...p1, attachments: uploadedPaths };
+              }
+            }
+
             const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendMessage', {
               zaloId: targetZaloId,
               auth: {},
-              message: p1?.msg || '',
+              message: messageParam,
               threadId: p2,
               type: p3,
               typeMessage: p4 || 'text'
@@ -3394,12 +3451,22 @@ class WorkflowEngineService {
             return res?.success ? res.response : res;
           },
           addUserToGroup: async (p: any) => {
-            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:addToGroup', { zaloId: targetZaloId, auth: {}, groupId: p.groupId, userId: p.members?.[0] });
-            return res?.success ? res.response : res;
+            const members = Array.isArray(p.members) ? p.members : [p.members].filter(Boolean);
+            const results = [];
+            for (const userId of members) {
+              const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:addUserToGroup', { zaloId: targetZaloId, auth: {}, groupId: p.groupId, userId });
+              results.push(res);
+            }
+            return { success: results.every(r => r?.success), results };
           },
           removeUserFromGroup: async (p: any) => {
-            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:removeFromGroup', { zaloId: targetZaloId, auth: {}, groupId: p.groupId, userId: p.members?.[0] });
-            return res?.success ? res.response : res;
+            const members = Array.isArray(p.members) ? p.members : [p.members].filter(Boolean);
+            const results = [];
+            for (const userId of members) {
+              const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:removeUserFromGroup', { zaloId: targetZaloId, auth: {}, groupId: p.groupId, userId });
+              results.push(res);
+            }
+            return { success: results.every(r => r?.success), results };
           },
           undo: async (p: any) => {
             const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:undoMessage', { zaloId: targetZaloId, auth: {}, msgId: p.msgId, threadId: p.threadId, type: p.threadType });
@@ -3437,11 +3504,129 @@ class WorkflowEngineService {
             const card = cardsInfo[0] || {};
             const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendCard', { zaloId: targetZaloId, auth: {}, options: card.options, threadId: card.threadId, type: card.type, quote: card.quote });
             return res?.success ? res.response : res;
+          },
+          sendFile: async (filePath: string, threadId: string, type: any, quote: any = null) => {
+            const clientService = HttpConnectionManager.getInstance().getServiceForWorkspace(activeWs.id);
+            let bossPath = filePath;
+            if (clientService) {
+              const fs = require('fs');
+              const path = require('path');
+              try {
+                if (filePath && !filePath.startsWith('http://') && !filePath.startsWith('https://') && fs.existsSync(filePath)) {
+                  const buffer = fs.readFileSync(filePath);
+                  const base64 = buffer.toString('base64');
+                  const filename = path.basename(filePath);
+                  const uploadRes = await clientService.uploadMedia(base64, filename, targetZaloId);
+                  if (uploadRes?.success && uploadRes.bossPath) {
+                    bossPath = uploadRes.bossPath;
+                  } else {
+                    Logger.warn(`[WorkflowEngine] Proxy sendFile upload failed for ${filePath}: ${uploadRes?.error}`);
+                  }
+                }
+              } catch (err: any) {
+                Logger.error(`[WorkflowEngine] Proxy sendFile error for ${filePath}: ${err.message}`);
+              }
+            }
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendFile', {
+              zaloId: targetZaloId,
+              auth: {},
+              filePath: bossPath,
+              threadId,
+              type,
+              quote
+            });
+            return res?.success ? res.response : res;
+          },
+          sendImage: async (filePath: string, threadId: string, type: any, message: string = '', quote: any = null) => {
+            const clientService = HttpConnectionManager.getInstance().getServiceForWorkspace(activeWs.id);
+            let bossPath = filePath;
+            if (clientService) {
+              const fs = require('fs');
+              const path = require('path');
+              try {
+                if (filePath && !filePath.startsWith('http://') && !filePath.startsWith('https://') && fs.existsSync(filePath)) {
+                  const buffer = fs.readFileSync(filePath);
+                  const base64 = buffer.toString('base64');
+                  const filename = path.basename(filePath);
+                  const uploadRes = await clientService.uploadMedia(base64, filename, targetZaloId);
+                  if (uploadRes?.success && uploadRes.bossPath) {
+                    bossPath = uploadRes.bossPath;
+                  } else {
+                    Logger.warn(`[WorkflowEngine] Proxy sendImage upload failed: ${uploadRes?.error}`);
+                  }
+                }
+              } catch (err: any) {
+                Logger.error(`[WorkflowEngine] Proxy sendImage upload error: ${err.message}`);
+              }
+            }
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendImage', {
+              zaloId: targetZaloId,
+              auth: {},
+              filePath: bossPath,
+              threadId,
+              type,
+              message,
+              quote
+            });
+            return res?.success ? res.response : res;
+          },
+          sendImages: async (filePaths: string[], threadId: string, type: any, quote: any = null) => {
+            const clientService = HttpConnectionManager.getInstance().getServiceForWorkspace(activeWs.id);
+            const bossPaths = [];
+            if (clientService) {
+              const fs = require('fs');
+              const path = require('path');
+              for (const filePath of (filePaths || [])) {
+                try {
+                  if (filePath && !filePath.startsWith('http://') && !filePath.startsWith('https://') && fs.existsSync(filePath)) {
+                    const buffer = fs.readFileSync(filePath);
+                    const base64 = buffer.toString('base64');
+                    const filename = path.basename(filePath);
+                    const uploadRes = await clientService.uploadMedia(base64, filename, targetZaloId);
+                    if (uploadRes?.success && uploadRes.bossPath) {
+                      bossPaths.push(uploadRes.bossPath);
+                    } else {
+                      Logger.warn(`[WorkflowEngine] Proxy sendImages upload failed: ${uploadRes?.error}`);
+                      bossPaths.push(filePath);
+                    }
+                  } else {
+                    bossPaths.push(filePath);
+                  }
+                } catch (err: any) {
+                  Logger.error(`[WorkflowEngine] Proxy sendImages upload error: ${err.message}`);
+                  bossPaths.push(filePath);
+                }
+              }
+            } else {
+              bossPaths.push(...(filePaths || []));
+            }
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendImages', {
+              zaloId: targetZaloId,
+              auth: {},
+              filePaths: bossPaths,
+              threadId,
+              type,
+              quote
+            });
+            return res?.success ? res.response : res;
+          },
+          getLabels: async () => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:getLabels', { zaloId: targetZaloId, auth: {} });
+            return res?.success ? res.response : res;
+          },
+          updateLabels: async (params: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:updateLabels', { zaloId: targetZaloId, auth: {}, ...params });
+            return res?.success ? res.response : res;
+          },
+          forwardMessage: async (payload: any, threadIds: string[], type: any) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:forwardMessage', { zaloId: targetZaloId, auth: {}, payload, threadIds, type });
+            return res?.success ? res.response : res;
           }
         };
       }
     } catch (e: any) {
       Logger.error(`[WorkflowEngine] Proxy init error: ${e.message}`);
+      throw new Error(`[WorkflowEngine] Không thể khởi tạo proxy API Zalo: ${e.message}`);
     }
 
     // Try to find connection by pageId or use any connected account

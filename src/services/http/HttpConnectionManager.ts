@@ -291,6 +291,21 @@ class HttpConnectionManager {
     }
 
 
+    public async forceReconnectAll(): Promise<void> {
+        Logger.log(`[HttpConnectionManager] ⚡ Force reconnect triggered for all workspaces...`);
+        for (const [wsId, client] of this.clients) {
+            const bossUrl = client.service.getBossUrl();
+            const token = client.service.getToken();
+            if (!bossUrl || !token) continue;
+            
+            Logger.log(`[HttpConnectionManager] ⚡ Force reconnecting "${wsId}" to ${bossUrl}...`);
+            this.connecting.delete(wsId);
+            this.connect(wsId, bossUrl, token).catch((err: any) => {
+                Logger.warn(`[HttpConnectionManager] Force reconnect failed for "${wsId}": ${err.message}`);
+            });
+        }
+    }
+
     public stopHealthCheck(): void {
         if (this.healthCheckTimer) {
             clearInterval(this.healthCheckTimer);

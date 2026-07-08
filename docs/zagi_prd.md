@@ -148,10 +148,13 @@ graph TD
 ---
 
 ## 5. LỊCH SỬ CẬP NHẬT CÁC PHIÊN BẢN (CHANGELOG)
-Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.4`:
+Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.7`:
 
 | Phiên bản | Ngày cập nhật | Loại cập nhật | Điểm nhấn chính (Highlights) |
 | :--- | :--- | :--- | :--- |
+| **v27.2.7** | 08/07/2026 | Patch | **Tự động tối ưu kết nối & Khôi phục nhanh:** Tự phát hiện IP LAN của Boss và chuyển đổi luồng kết nối active/SSE sang cục bộ; Tự động kết nối lại tức thì khi Sleep/Wake-up (powerMonitor) hoặc khôi phục WiFi. |
+| **v27.2.6** | 08/07/2026 | Patch | **Nâng cấp hạ tầng mạng Boss–Nhân viên:** Chunked Upload file lớn (phân đoạn 2MB, không OOM), SSE Last-Event-ID Recovery (phục hồi sự kiện bị lỡ khi mất mạng), AI Assistant Read-Only cho Nhân viên, Đồng bộ 2 chiều phân hệ Facebook, Workflow Real-time 2 chiều Boss ↔ Nhân viên. |
+| **v27.2.5** | 06/07/2026 | Patch | Sửa lỗi crash `n.startsWith is not a function` khi mở chiến dịch có ảnh; Gán/Xóa nhãn Local đồng loạt (Bulk Local Label Sync) hỗ trợ sync 2 chiều và cảnh báo xóa trắng nhãn. |
 | **v27.2.4** | 04/07/2026 | Patch | **ERP Task UX Upgrade:** Thay thế bộ chọn emoji bằng hệ thống 12 icon SVG tối giản (Project SVG Icon System), sidebar dự án luôn hiển thị màu nền liên tục (Always-colored sidebar), chữ & icon trắng tương phản chuẩn. Sửa lỗi màn hình trắng khi vào ERP Tasks (`useMemo is not defined`), sửa lỗi tạo project bị nhân đôi (race condition), cải tiến ErrorBoundary hiển thị lỗi rõ ràng hơn. |
 | **v27.2.3** | 03/07/2026 | Patch | Đồng bộ trạng thái trực tuyến CRM, nâng cấp quét nhóm ẩn (PSS) với 3 luồng quét sâu, sửa lỗi ERP & Nhãn 2 chiều. **Bổ sung ẩn danh Ghost Mode (Online/Read), gửi đa phương tiện nâng cao (Voice, Bank Card, Card), gộp Album ảnh tự động, tự động phát hiện video và 4 Node Workflow mới.** |
 | **v27.2.2** | 01/07/2026 | Patch | Nâng cấp Workflow Editor nâng cao: phím nóng và nút bấm Hoàn tác/Làm lại (Undo/Redo), nút ✨ Căn chỉnh node (BFS Layout), kiểm tra vòng lặp vô hạn (Cycle Detection), tự động lưu ngầm (Silent Auto-save), xem nhanh biến động (Tooltip preview), tối ưu hóa nhãn chào CRM Zalo-native và mở rộng 3 kịch bản mẫu nâng cao (AI Lead Scoring, Event Followup BĐS, POS Appointment Reminder). Fix lỗi Smart Connect (định vị điểm nhả qua elementFromPoint). |
@@ -172,7 +175,20 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 
 ### Chi tiết các cập nhật từng phiên bản
 
-#### 🎨 v27.2.4 — ERP Task UX Upgrade: Project SVG Icons & Always-colored Sidebar
+#### 🚀 v27.2.7 — Tự động tối ưu kết nối & Tự động kết nối lại tức thì
+*   **Tính năng mới (New):**
+    *   **Tự động chuyển kết nối mạng LAN (LAN Auto-Switching):** Boss server cung cấp thông tin LAN IPs và port. Client tự động dò quét các IP LAN và chuyển luồng SSE/requests sang cục bộ khi cùng mạng để đạt băng thông tối đa. Tự động rollback về Tunnel WAN khi mất kết nối LAN.
+    *   **Kết nối lại lập tức (Instant Reconnect):** Lắng nghe OS Sleep/Resume (`resume`, `unlock-screen`) và Window Online status ở Renderer để thực thi kết nối lại lập tức cho remote workspaces, tránh độ trễ.
+
+#### 🚀 v27.2.6 — Nâng cấp hạ tầng mạng Boss–Nhân viên (Chunked Upload, SSE Recovery, Facebook Sync)
+*   **Tính năng mới (New):**
+    *   **Chunked Upload (Tải file lớn phân đoạn):** Thêm `UploadChunkService.ts` trên Boss và endpoint `POST /api/media/upload-chunk`. `HttpClientService.uploadMedia()` tự động phân đoạn file > 2MB thành chunk 2MB và gửi tuần tự. File nhỏ tiếp tục dùng `/api/media/upload` (tương thích ngược).
+    *   **SSE Last-Event-ID Recovery:** Mỗi sự kiện SSE có Sequence ID tăng dần. Boss duy trì Event History Queue (max 500, TTL 10 phút). Nhân viên reconnect SSE gửi `?lastEventId=N`: Hit → Boss replay sự kiện bị lỡ; Miss → Boss gửi `relay:fallbackDeltaSync` → nhân viên tự Delta Sync.
+    *   **AI Assistant Read-Only trên Nhân viên:** Chặn hoàn toàn các IPC ghi AI (`ai:saveAssistant`, `ai:deleteAssistant`, `ai:uploadFile`, `ai:removeFile`, `ai:setAccountAssistant`) trên workspace remote.
+    *   **Đồng bộ 2 chiều phân hệ Facebook:** Đọc: `exportFacebookDataFiltered` đồng bộ 4 bảng FB theo tài khoản được giao. Ghi: Toàn bộ IPC thao tác FB của nhân viên proxy lên Boss.
+    *   **Workflow Real-time 2 chiều:** IPC ghi kịch bản trên Nhân viên proxy lên Boss. Boss phát `db:workflowChanged` qua SSE → Nhân viên cập nhật DB local và reload WorkflowEngine.
+
+#### 🔧 v27.2.5 — Critical Bug Fixes & Bulk Label Sync
 *   **Tính năng mới (New):**
     *   **Hệ thống Icon SVG cho Dự án ERP (Project SVG Icon System):** Thay thế bộ chọn emoji bằng 12 icon SVG tối giản Lucide-style (`folder`, `rocket`, `target`, `code`, `palette`, `chart`, `home`, `fire`, `bulb`, `sparkles`, `phone`, `bag`). Tên dự án lưu theo định dạng `[slug] Tên dự án`. Hàm `getProjectDisplay` nhận dạng cả 2 định dạng (tương thích ngược 100%).
     *   **Sidebar Dự án luôn hiển thị màu (Always-colored Project Sidebar):** Mỗi dự án trong thanh sidebar ERP Task luôn hiển thị màu nền liên tục. Active = `opacity:1` + viền highlight; Inactive = `opacity:0.6`. Chữ và icon SVG dùng màu trắng tinh (`color:#ffffff`) để đảm bảo tương phản cao nhất.

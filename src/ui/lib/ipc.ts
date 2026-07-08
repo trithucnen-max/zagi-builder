@@ -69,7 +69,6 @@ declare global {
         getFriendRequestStatus: (params: any) => Promise<any>;
         getFriendRecommendations: (auth: any) => Promise<any>;
         getAliasList: (params: any) => Promise<any>;
-        getFriendOnlines: (params: { auth: any }) => Promise<any>;
         blockUser: (params: any) => Promise<any>;
         unblockUser: (params: any) => Promise<any>;
         getRelatedFriendGroup: (params: any) => Promise<any>;
@@ -467,6 +466,7 @@ declare global {
         getConnectionStatus: (id: string) => Promise<{ success: boolean; connected: boolean; bossUrl: string; latency: number; error?: string }>;
         getAllStatuses: () => Promise<{ success: boolean; statuses: Record<string, { connected: boolean; bossUrl: string; latency: number }>; error?: string }>;
         loginRemote: (bossUrl: string, username: string, password: string) => Promise<{ success: boolean; token?: string; employee?: any; error?: string }>;
+        notifyNetworkOnline: () => void;
       };
       relay: {
         startServer: (port?: number) => Promise<{ success: boolean; port?: number; error?: string }>;

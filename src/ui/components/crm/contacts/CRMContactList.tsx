@@ -166,6 +166,7 @@ function LabelFilterDropdown({ allLabels, filterLabelIds, filterLocalLabelIds, o
 }
 
 /** Multi-select dropdown for contact type filter */
+
 function ContactTypeFilterDropdown({ filterContactTypes, onChange }: {
   filterContactTypes: ContactTypeFilter[];
   onChange: (types: ContactTypeFilter[]) => void;
@@ -189,7 +190,6 @@ function ContactTypeFilterDropdown({ filterContactTypes, onChange }: {
     { key: 'non_friend', label: 'Chưa là bạn bè', icon: '👻' },
     { key: 'has_phone', label: 'Có SĐT', icon: '📞' },
     { key: 'has_notes', label: 'Có ghi chú', icon: '📝' },
-    { key: 'online', label: 'Online', icon: '🟢' },
   ];
 
   const activeCount = filterContactTypes.length;
@@ -540,7 +540,6 @@ export default function CRMContactList({
 }: CRMContactListProps) {
   const totalPages = Math.ceil(total / pageSize);
   const groupInfoCache = useAppStore(s => s.groupInfoCache);
-  const onlineUids = useCRMStore(s => s.onlineUids);
 
   const [avatarPopup, setAvatarPopup] = useState<{ userId: string; x: number; y: number } | null>(null);
   const [selectingAllPages, setSelectingAllPages] = useState(false);
@@ -908,9 +907,6 @@ export default function CRMContactList({
                       </svg>
                     </div>
                   </div>
-                  {contact.contact_type !== 'group' && onlineUids.has(contact.contact_id) && (
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-gray-900 rounded-full z-10" />
-                  )}
                 </div>
                 {/* Name + Labels underneath */}
                 <div className="flex-1 ml-2 min-w-0">

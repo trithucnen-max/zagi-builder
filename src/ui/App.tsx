@@ -187,6 +187,16 @@ export default function App() {
     return () => window.removeEventListener('lockScreen:lock', handleLock);
   }, []);
 
+  // Listen for online status to trigger fast reconnect
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('[App.tsx] 🌐 Browser/Window network status changed to ONLINE — notifying Main process');
+      ipc.workspace?.notifyNetworkOnline();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   useEffect(() => {
     const ctrlHeldRef = { current: false };
 

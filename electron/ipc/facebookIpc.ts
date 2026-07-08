@@ -16,6 +16,16 @@ import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import Logger from '../../src/utils/Logger';
 import FacebookService from "../../src/services/facebook/FacebookService";
 
+const originalHandle = ipcMain.handle.bind(ipcMain);
+ipcMain.handle = (channel: string, listener: any) => {
+  originalHandle(channel, listener);
+  try {
+    const { ipcHandlerRegistry } = require('./zaloIpc');
+    ipcHandlerRegistry.set(channel, listener);
+  } catch {}
+  return ipcMain;
+};
+
 // ─── Cookie secure storage helpers ───────────────────────────────────────────
 
 function fbCookieKey(accountId: string): string {
@@ -2043,4 +2053,6 @@ export async function reconnectAllFBAccounts(): Promise<void> {
     Logger.warn(`[facebookIpc] reconnectAllFBAccounts error: ${err.message}`);
   }
 }
+
+ipcMain.handle = originalHandle;
 
