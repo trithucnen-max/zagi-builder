@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ipc from '../../lib/ipc';
 import { useAppStore } from '@/store/appStore';
+import { useAccountStore } from '@/store/accountStore';
 import { v4 as uuidv4 } from 'uuid';
 import { showConfirm } from '../common/ConfirmDialog';
 import { FacebookIcon, ZaloIcon } from '../common/ChannelBadge';
@@ -687,7 +688,7 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
   const { showNotification } = useAppStore();
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [accounts, setAccounts] = useState<PageAccount[]>([]);
+  const { accounts } = useAccountStore();
   const [cloningWf, setCloningWf] = useState<any | null>(null);
   const [cloneAllSource, setCloneAllSource] = useState<string | null>(null);
   const [filterPages, setFilterPages] = useState<string[]>([]);  // empty = all
@@ -697,7 +698,7 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
   const [testRunWf, setTestRunWf] = useState<any | null>(null);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
-
+ 
   const load = async () => {
     setLoading(true);
     try {
@@ -707,19 +708,9 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
       setLoading(false);
     }
   };
-
+ 
   useEffect(() => {
     load();
-    ipc.login?.getAccounts().then((res: any) => {
-      if (res?.success) setAccounts((res.accounts || [])
-        .map((a: any) => ({
-        zalo_id: a.zalo_id,
-        full_name: a.full_name || '',
-        avatar_url: a.avatar_url || '',
-        phone: a.phone || '',
-        channel: a.channel || 'zalo',
-      })));
-    }).catch(() => {});
   }, []);
 
   const createNew = async (channel: Channel) => {

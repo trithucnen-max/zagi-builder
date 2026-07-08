@@ -15,6 +15,7 @@ import { nodeTypeGroup, getNodeLabel, GROUP_COLORS } from './workflowConfig';
 import { TriggerNode, ActionNode, LogicNode, DataNode, OutputNode, IntegrationNode } from './nodes/WorkflowNodes';
 import ipc from '../../lib/ipc';
 import { useAppStore } from '@/store/appStore';
+import { useAccountStore } from '@/store/accountStore';
 
 const nodeTypes = {
   trigger: TriggerNode,
@@ -488,20 +489,7 @@ export default function WorkflowTemplateStore({ onBack, onEdit }: Props) {
   const [channelFilter, setChannelFilter] = useState<'all' | 'zalo' | 'facebook'>('all');
   const [previewTpl, setPreviewTpl] = useState<WorkflowTemplate | null>(null);
   const [installTpl, setInstallTpl] = useState<WorkflowTemplate | null>(null);
-  const [accounts, setAccounts] = useState<PageAccount[]>([]);
-
-  useEffect(() => {
-    ipc.login?.getAccounts().then((res: any) => {
-      if (res?.success) setAccounts((res.accounts || [])
-        .map((a: any) => ({
-        zalo_id: a.zalo_id,
-        full_name: a.full_name || '',
-        avatar_url: a.avatar_url || '',
-        phone: a.phone || '',
-        channel: a.channel || 'zalo',
-      })));
-    }).catch(() => {});
-  }, []);
+  const { accounts } = useAccountStore();
 
   const filtered = useMemo(() => {
     let list = ALL_TEMPLATES;

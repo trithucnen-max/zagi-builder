@@ -15,6 +15,7 @@ import WorkflowAIDialog from './WorkflowAIDialog';
 import { DEFAULT_CONFIGS, nodeTypeGroup, getNodeLabel } from './workflowConfig';
 import ipc from '../../lib/ipc';
 import { useAppStore } from '@/store/appStore';
+import { useAccountStore } from '@/store/accountStore';
 import type { Channel } from '../../../configs/channelConfig';
 
 // Use node types from registry (centralized node component mapping)
@@ -394,7 +395,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
   });
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
-  const [accounts, setAccounts] = useState<{ zalo_id: string; full_name: string; avatar_url: string; phone?: string; channel?: string }[]>([]);
+  const { accounts } = useAccountStore();
   const [showPagePicker, setShowPagePicker] = useState(false);
   const [showTestRunModal, setShowTestRunModal] = useState(false);
   const [showAIDialog, setShowAIDialog] = useState(false);
@@ -567,13 +568,6 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
       }, 0);
     }
   }, [onEdgesChange, setEdges, setNodes, recordState, autoSave]);
-
-  // Load connected accounts for page selector
-  useEffect(() => {
-    ipc.login?.getAccounts().then((res: any) => {
-      if (res?.success) setAccounts(res.accounts || []);
-    }).catch(() => {});
-  }, []);
 
   const toRFNode = useCallback((n: any, debugLog?: any) => {
     const debugResult = debugLog?.nodeResults?.find((r: any) => r.nodeId === n.id);
