@@ -7,6 +7,16 @@ import FacebookConnectionManager from '../../src/utils/FacebookConnectionManager
 import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import Logger from '../../src/utils/Logger';
 import ZaloLoginHelper from '../../src/utils/ZaloLoginHelper';
+import WorkspaceManager from '../../src/utils/WorkspaceManager';
+
+function isEmployeeMode(): boolean {
+    try {
+        const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+        if (activeWs?.type === 'remote') return true;
+    } catch {}
+    return false;
+}
+
 function postLoginSetup(_zaloId: string, _mainWindow: BrowserWindow | null, _name?: string, _phone?: string) {
     // No-op in open-source build.
 }
@@ -471,7 +481,7 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
 
     // ─── Tải tin nhắn cũ của phiên đăng nhập (requestOldMessages) ────────
     // Gọi listener.requestOldMessages cho cả User và Group threads
-    ipcMain.handle('login:requestOldMessages', async (_event, { zaloId }) => {
+    const requestOldMessagesHandler = async (_event: any, { zaloId }: { zaloId: string }) => {
         try {
             const conn = ConnectionManager.getConnection(zaloId);
             if (!conn || !conn.connected) {
@@ -486,6 +496,30 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
             Logger.error(`[loginIpc] requestOldMessages error: ${error.message}`);
             return { success: false, error: error.message };
         }
+    };
+
+    ipcMain.handle('login:requestOldMessages', async (event, params) => {
+        if (isEmployeeMode()) {
+            try {
+                const HttpConnectionManager = require('../../src/services/http/HttpConnectionManager').default;
+                const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+                if (activeWs) {
+                    Logger.log(`[loginIpc] Proxy requestOldMessages to Boss for workspace: ${activeWs.id}, account: ${params?.zaloId}`);
+                    return await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'login:requestOldMessages', params);
+                }
+            } catch (err: any) {
+                Logger.error(`[loginIpc] Failed to proxy requestOldMessages: ${err.message}`);
+            }
+        }
+        return await requestOldMessagesHandler(event, params);
     });
+
+    // Đăng ký vào registry để Boss có thể nhận proxy từ Employee
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('login:requestOldMessages', (event: any, params: any) => requestOldMessagesHandler(event, params));
+    } catch (err: any) {
+        Logger.warn(`[loginIpc] Failed to register requestOldMessages in registry: ${err.message}`);
+    }
 }
 
