@@ -110,6 +110,7 @@ class HttpConnectionManager {
     private mainWindow: BrowserWindow | null = null;
     private connecting: Set<string> = new Set();
     private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
+    private lastForceReconnectTime = 0;
 
     public static getInstance(): HttpConnectionManager {
         if (!HttpConnectionManager.instance) {
@@ -366,6 +367,13 @@ class HttpConnectionManager {
 
 
     public async forceReconnectAll(): Promise<void> {
+        const now = Date.now();
+        if (now - this.lastForceReconnectTime < 10_000) {
+            Logger.log(`[HttpConnectionManager] ⚡ Force reconnect throttled (last run was ${Math.round((now - this.lastForceReconnectTime) / 1000)}s ago)`);
+            return;
+        }
+        this.lastForceReconnectTime = now;
+
         Logger.log(`[HttpConnectionManager] ⚡ Force reconnect triggered for all workspaces...`);
         for (const [wsId, client] of this.clients) {
             const bossUrl = client.service.getBossUrl();
