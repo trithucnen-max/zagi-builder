@@ -1345,10 +1345,12 @@ export default function App() {
   // ─── Network online/offline handling ─────────────────────────────────────
   useEffect(() => {
     const handleOffline = () => {
+      console.log('[App.tsx] 🔴 Browser/Window network status changed to OFFLINE — notifying Main process');
       useAppStore.getState().showNotification(
         '🌐 Mất kết nối internet — ứng dụng sẽ thử kết nối lại khi mạng trở lại',
         'warning',
       );
+      ipc.workspace?.notifyNetworkOffline();
     };
 
     const handleOnline = () => {

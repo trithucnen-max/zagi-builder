@@ -484,6 +484,7 @@ declare global {
         getAllStatuses: () => Promise<{ success: boolean; statuses: Record<string, { connected: boolean; bossUrl: string; latency: number }>; error?: string }>;
         loginRemote: (bossUrl: string, username: string, password: string) => Promise<{ success: boolean; token?: string; employee?: any; error?: string }>;
         notifyNetworkOnline: () => void;
+        notifyNetworkOffline: () => void;
       };
       relay: {
         startServer: (port?: number) => Promise<{ success: boolean; port?: number; error?: string }>;

@@ -1056,8 +1056,16 @@ async function startupAfterLicenseCheck(): Promise<void> {
   };
 
   powerMonitor.on('resume', () => {
-    console.log('[main.ts] 🔋 System woke up from sleep — waiting for network to stabilize before reconnecting...');
-    // Trì hoãn 5 giây để card mạng có đủ thời gian nhận IP mới ổn định trước khi DNS query
+    console.log('[main.ts] 🔋 System woke up from sleep — marking connections degraded immediately...');
+    // Đánh dấu người dùng mất kết nối ngay (hiện UI overlay “Mất kết nối”), không đợi heartbeat
+    try {
+      const mgr = HttpConnectionManager.getInstance();
+      for (const [wsId] of (mgr as any).clients ?? new Map()) {
+        const svc = mgr.getServiceForWorkspace(wsId);
+        svc?.markDisconnectedImmediately?.();
+      }
+    } catch {}
+    // Sau 5s mới thử kết nối lại (để card mạng kịp nhận IP mới)
     setTimeout(() => {
       console.log('[main.ts] 🔋 System woke up from sleep (delayed) — executing reconnect...');
       HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
@@ -1067,7 +1075,14 @@ async function startupAfterLicenseCheck(): Promise<void> {
   });
 
   powerMonitor.on('unlock-screen', () => {
-    console.log('[main.ts] 🔑 System unlocked — waiting for network to stabilize before reconnecting...');
+    console.log('[main.ts] 🔑 System unlocked — marking connections degraded immediately...');
+    try {
+      const mgr = HttpConnectionManager.getInstance();
+      for (const [wsId] of (mgr as any).clients ?? new Map()) {
+        const svc = mgr.getServiceForWorkspace(wsId);
+        svc?.markDisconnectedImmediately?.();
+      }
+    } catch {}
     setTimeout(() => {
       console.log('[main.ts] 🔑 System unlocked (delayed) — executing reconnect...');
       HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
@@ -1079,9 +1094,29 @@ async function startupAfterLicenseCheck(): Promise<void> {
   // Lắng nghe tín hiệu mạng từ Renderer — restart cả Boss HTTP lẫn Zalo listener
   ipcMain.on('workspace:network-online', () => {
     console.log('[main.ts] 🌐 Network online signal received from Renderer — forcing reconnect...');
+    // Đánh dấu degraded người dùng trước để hiện overlay ngay
+    try {
+      const mgr = HttpConnectionManager.getInstance();
+      for (const [wsId] of (mgr as any).clients ?? new Map()) {
+        const svc = mgr.getServiceForWorkspace(wsId);
+        svc?.markDisconnectedImmediately?.();
+      }
+    } catch {}
     HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
     HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
     setTimeout(() => restartZaloListeners(), 2000);
+  });
+
+  // Lắng nghe tín hiệu mạng tắt từ Renderer — đánh dấu mất kết nối người dùng
+  ipcMain.on('workspace:network-offline', () => {
+    console.log('[main.ts] 🔴 Network offline signal received from Renderer — marking all connections degraded...');
+    try {
+      const mgr = HttpConnectionManager.getInstance();
+      for (const [wsId] of (mgr as any).clients ?? new Map()) {
+        const svc = mgr.getServiceForWorkspace(wsId);
+        svc?.markDisconnectedImmediately?.();
+      }
+    } catch {}
   });
 
   // Auto-reconnect Facebook accounts

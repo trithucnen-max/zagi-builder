@@ -16,6 +16,8 @@ import DataSyncService, { SyncPayload } from '../employee/DataSyncService';
 class HttpClientService {
     private static instance: HttpClientService;
     private connected = false;
+    /** True khi đã chủ động đánh dấu mất kết nối (sleep/wake) — proxyAction trả lỗi mềm thay vì throw */
+    private degraded = false;
     private bossUrl = '';
     private configuredBossUrl = '';
     private isUsingLan = false;
@@ -240,8 +242,9 @@ class HttpClientService {
     // ─── Proxy actions through Boss ──────────────────────────────────
 
     public async proxyAction(channel: string, params: any): Promise<any> {
-        if (!this.connected) {
-            throw new Error('Chưa kết nối tới BOSS');
+        if (!this.connected || this.degraded) {
+            // Trả về lỗi mềm thay vì throw để tránh Unhandled Rejection crash app
+            return { success: false, error: 'Mất kết nối tới Boss. Đang chờ kết nối lại...' };
         }
 
         return this.httpPost(
@@ -250,6 +253,26 @@ class HttpClientService {
             { Authorization: `Bearer ${this.token}` },
             30000
         );
+    }
+
+    /**
+     * Đánh dấu ngay lập tức là đã mất kết nối (không chờ heartbeat thất bại).
+     * Dùng khi nhận powerMonitor.resume hoặc network-offline.
+     * Heartbeat sẽ tiếp tục chạy ngầm, khi kết nối lại thành công sẽ tự clear degraded.
+     */
+    public markDisconnectedImmediately(): void {
+        if (!this.connected && this.degraded) return; // Đã ở trạng thái này rồi
+        Logger.log('[HttpClientService] ⚡ Marking connection as degraded immediately (sleep/network change detected)');
+        this.connected = false;
+        this.degraded = true;
+        this.consecutiveHeartbeatFailures = 0;
+        // Rollback sang WAN URL nếu đang dùng LAN
+        if (this.isUsingLan) {
+            Logger.log(`[HttpClientService] LAN reverted to WAN on degraded: ${this.configuredBossUrl}`);
+            this.bossUrl = this.configuredBossUrl;
+            this.isUsingLan = false;
+        }
+        this.onStatusChange?.(false, 0, false);
     }
 
     // ─── Media request ────────────────────────────────────────────────
@@ -1486,12 +1509,15 @@ class HttpClientService {
                     `${this.bossUrl}/api/auth/heartbeat`,
                     { callbackUrl: this.callbackUrl },
                     { Authorization: `Bearer ${this.token}` },
-                    10000
+                    5000 // Giảm từ 10s xuống 5s để phát hiện mất kết nối nhanh hơn
                 );
 
                 if (result.success) {
                     this.latencyMs = Date.now() - start;
                     this.consecutiveHeartbeatFailures = 0;
+                    // Kết nối thành công — xóa trạng thái degraded
+                    this.connected = true;
+                    this.degraded = false;
                     this.onStatusChange?.(true, this.latencyMs, this.isUsingLan);
 
                     // Periodically probe for LAN if currently connected via Tunnel (WAN)

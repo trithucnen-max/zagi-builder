@@ -464,7 +464,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAllStatuses:        () => ipcRenderer.invoke('workspace:getAllStatuses'),
     loginRemote:          (bossUrl: string, username: string, password: string) =>
                             ipcRenderer.invoke('workspace:loginRemote', { bossUrl, username, password }),
-    notifyNetworkOnline:  () => ipcRenderer.send('workspace:network-online'),
+     notifyNetworkOnline:  () => ipcRenderer.send('workspace:network-online'),
+    notifyNetworkOffline: () => ipcRenderer.send('workspace:network-offline'),
   },
 
   // ─── Relay Server (Boss) ──────────────────────────────────────────
