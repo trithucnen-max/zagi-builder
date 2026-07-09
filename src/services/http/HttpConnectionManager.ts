@@ -151,7 +151,22 @@ class HttpConnectionManager {
         this.clients.set(workspaceId, { workspaceId, service });
 
         service.setOnStatusChange((connected: boolean, latency: number, isUsingLan?: boolean) => {
-            this.sendToRenderer('workspace:connectionStatus', { workspaceId, connected, latency, isUsingLan: !!isUsingLan });
+            this.sendToRenderer('workspace:connectionStatus', { 
+                workspaceId, 
+                connected, 
+                latency, 
+                isUsingLan: !!isUsingLan,
+                bossUrl: service.getBossUrl() 
+            });
+        });
+
+        // Gửi ngay trạng thái mất kết nối ban đầu cho renderer
+        this.sendToRenderer('workspace:connectionStatus', { 
+            workspaceId, 
+            connected: false, 
+            latency: 0, 
+            isUsingLan: service.getStatus().isUsingLan,
+            bossUrl: service.getBossUrl()
         });
 
         service.setOnInitialState((data: any) => {
@@ -380,8 +395,11 @@ class HttpConnectionManager {
             const token = client.service.getToken();
             if (!bossUrl || !token) continue;
             
+            if (this.connecting.has(wsId)) {
+                Logger.log(`[HttpConnectionManager] ⚡ Force reconnect: "${wsId}" is already connecting — skipping to avoid race condition`);
+                continue;
+            }
             Logger.log(`[HttpConnectionManager] ⚡ Force reconnecting "${wsId}" to ${bossUrl}...`);
-            this.connecting.delete(wsId);
             this.connect(wsId, bossUrl, token).catch((err: any) => {
                 Logger.warn(`[HttpConnectionManager] Force reconnect failed for "${wsId}": ${err.message}`);
             });

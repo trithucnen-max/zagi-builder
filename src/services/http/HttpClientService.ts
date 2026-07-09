@@ -206,6 +206,11 @@ class HttpClientService {
         this.stopHeartbeat();
         this.stopLocalServer();
         this.socketIOClient.disconnect();
+        
+        try {
+            this.onStatusChange?.(false, 0, false);
+        } catch {}
+
         this.onStatusChange = null;
         this.onInitialState = null;
         this.onAccountAccessUpdate = null;

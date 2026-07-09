@@ -1092,8 +1092,11 @@ async function startupAfterLicenseCheck(): Promise<void> {
   });
 
   // Lắng nghe tín hiệu mạng từ Renderer — restart cả Boss HTTP lẫn Zalo listener
+  let onlineDebounceTimer: NodeJS.Timeout | null = null;
   ipcMain.on('workspace:network-online', () => {
-    console.log('[main.ts] 🌐 Network online signal received from Renderer — forcing reconnect...');
+    console.log('[main.ts] 🌐 Network online signal received from Renderer — debouncing reconnect...');
+    if (onlineDebounceTimer) clearTimeout(onlineDebounceTimer);
+    
     // Đánh dấu degraded người dùng trước để hiện overlay ngay
     try {
       const mgr = HttpConnectionManager.getInstance();
@@ -1102,21 +1105,31 @@ async function startupAfterLicenseCheck(): Promise<void> {
         svc?.markDisconnectedImmediately?.();
       }
     } catch {}
-    HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
-    HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
-    setTimeout(() => restartZaloListeners(), 2000);
+
+    onlineDebounceTimer = setTimeout(() => {
+      console.log('[main.ts] 🌐 Network online (debounced) — executing reconnect...');
+      HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
+      HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
+      setTimeout(() => restartZaloListeners(), 2000);
+    }, 4000); // Trì hoãn 4 giây để card mạng ổn định IP trước khi truy vấn DNS / kết nối
   });
 
   // Lắng nghe tín hiệu mạng tắt từ Renderer — đánh dấu mất kết nối người dùng
+  let offlineDebounceTimer: NodeJS.Timeout | null = null;
   ipcMain.on('workspace:network-offline', () => {
-    console.log('[main.ts] 🔴 Network offline signal received from Renderer — marking all connections degraded...');
-    try {
-      const mgr = HttpConnectionManager.getInstance();
-      for (const [wsId] of (mgr as any).clients ?? new Map()) {
-        const svc = mgr.getServiceForWorkspace(wsId);
-        svc?.markDisconnectedImmediately?.();
-      }
-    } catch {}
+    console.log('[main.ts] 🔴 Network offline signal received from Renderer — debouncing degraded state...');
+    if (offlineDebounceTimer) clearTimeout(offlineDebounceTimer);
+    
+    offlineDebounceTimer = setTimeout(() => {
+      console.log('[main.ts] 🔴 Network offline (debounced) — marking all connections degraded...');
+      try {
+        const mgr = HttpConnectionManager.getInstance();
+        for (const [wsId] of (mgr as any).clients ?? new Map()) {
+          const svc = mgr.getServiceForWorkspace(wsId);
+          svc?.markDisconnectedImmediately?.();
+        }
+      } catch {}
+    }, 500);
   });
 
   // Auto-reconnect Facebook accounts

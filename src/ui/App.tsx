@@ -951,6 +951,19 @@ export default function App() {
           } else if (!data.isUsingLan && wasUsingLan && data.connected) {
             useAppStore.getState().showNotification('🌐 Đã chuyển sang kết nối qua WAN/Tunnel', 'info');
           }
+
+          // Khởi tạo lại RestQueryService của Renderer với bossUrl thực tế đang chạy
+          if (data.connected && data.bossUrl) {
+            try {
+              const activeWs = useWorkspaceStore.getState().activeWorkspace();
+              if (activeWs && activeWs.token) {
+                RestQueryService.getInstance().init(data.bossUrl, activeWs.token);
+                console.log(`[App] 🔄 Renderer RestQueryService updated to active bossUrl: ${data.bossUrl}`);
+              }
+            } catch (err: any) {
+              console.warn('[App] ❌ Failed to update RestQueryService with active bossUrl:', err.message);
+            }
+          }
         }
       }
     });
