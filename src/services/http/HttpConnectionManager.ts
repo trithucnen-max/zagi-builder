@@ -192,10 +192,7 @@ class HttpConnectionManager {
         if (result.success) {
             Logger.log(`[HttpConnectionManager] ✅ Connected workspace "${workspaceId}"`);
         } else {
-            const current = this.clients.get(workspaceId);
-            if (current?.service === service) {
-                this.clients.delete(workspaceId);
-            }
+            // Do NOT delete the client from this.clients so that health check can monitor and retry it in the background!
             Logger.warn(`[HttpConnectionManager] ❌ Failed: ${result.error}`);
         }
 
@@ -280,15 +277,15 @@ class HttpConnectionManager {
         if (autoConnects.length === 0) return;
 
         Logger.log(`[HttpConnectionManager] Auto-connecting ${autoConnects.length} remote workspace(s)...`);
-        for (const ws of autoConnects) {
-            if (!ws.bossUrl) continue;
-            if (this.isConnected(ws.id)) continue;
+        await Promise.all(autoConnects.map(async (ws) => {
+            if (!ws.bossUrl) return;
+            if (this.isConnected(ws.id)) return;
             try {
                 // Thử kết nối với token đã lưu
                 let token = ws.token || '';
                 if (token) {
                     const result = await this.connect(ws.id, ws.bossUrl, token);
-                    if (result.success) continue;
+                    if (result.success) return;
                 }
 
                 // Token thất bại hoặc không có — thử login lại nếu có password đã lưu
@@ -321,7 +318,7 @@ class HttpConnectionManager {
             } catch (err: any) {
                 Logger.warn(`[HttpConnectionManager] Auto-connect failed for "${ws.name}": ${err.message}`);
             }
-        }
+        }));
     }
 
     /**

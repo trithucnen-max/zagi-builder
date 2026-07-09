@@ -784,9 +784,11 @@ async function startupAllWorkspaces(): Promise<void> {
   // ── Phase 3: Connect remote/employee workspaces (Boss must be ready first) ──
   if (remoteWorkspaces.length > 0) {
     console.log(`[startupAllWorkspaces] Connecting ${remoteWorkspaces.length} remote workspace(s)...`);
-    await HttpConnectionManager.getInstance().connectAutoWorkspaces();
+    HttpConnectionManager.getInstance().connectAutoWorkspaces().catch((err: any) => {
+      console.warn('[startupAllWorkspaces] connectAutoWorkspaces error:', err.message);
+    });
   }
-  HttpConnectionManager.getInstance().startHealthCheck(60_000);
+  HttpConnectionManager.getInstance().startHealthCheck(30_000);
 }
 
 app.whenReady().then(async () => {

@@ -1162,9 +1162,13 @@ export default function App() {
 
           // 2. Load contacts for each account
           for (const acc of accountsRes.accounts) {
-            const contactsRes = await ipc.db?.getContacts(acc.zalo_id);
-            if (contactsRes?.contacts) {
-              setContacts(acc.zalo_id, contactsRes.contacts);
+            try {
+              const contactsRes = await ipc.db?.getContacts(acc.zalo_id);
+              if (contactsRes?.contacts) {
+                setContacts(acc.zalo_id, contactsRes.contacts);
+              }
+            } catch (err) {
+              console.warn(`[init] Failed to load contacts for Zalo account ${acc.zalo_id}:`, err);
             }
           }
 
@@ -1172,7 +1176,11 @@ export default function App() {
           //     (nếu không, isInOthers/isMuted luôn trả false → badge sai)
           const { loadFlags } = useAppStore.getState();
           for (const acc of accountsRes.accounts) {
-            await loadFlags(acc.zalo_id);
+            try {
+              await loadFlags(acc.zalo_id);
+            } catch (err) {
+              console.warn(`[init] Failed to load flags for Zalo account ${acc.zalo_id}:`, err);
+            }
           }
 
           // Sync badge
