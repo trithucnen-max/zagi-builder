@@ -177,6 +177,69 @@ export default function TaskCreateModal({ defaultStatus, projectId, onClose, onS
   const subtaskAssigneeRef = useRef<HTMLDivElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const savingRef = useRef(false);
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
+
+  const isDirty = useMemo(() => {
+    return title.trim().length > 0 || 
+           description.trim().length > 0 || 
+           selectedAssignees.length > 0 || 
+           dueDate !== '' || 
+           subtasks.length > 0 || 
+           attachments.length > 0;
+  }, [title, description, selectedAssignees, dueDate, subtasks, attachments]);
+
+  const handleCloseRequest = () => {
+    if (isDirty) {
+      setShowConfirmClose(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    let draftTitle = title.trim();
+    if (!draftTitle) {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('vi-VN');
+      const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      draftTitle = `Nhiệm vụ nháp ${dateStr} ${timeStr}`;
+    }
+    if (savingRef.current) return;
+    savingRef.current = true;
+
+    try {
+      const attachmentPayload = attachments.map(({ file_name, file_path, mime_type, size }) => ({ file_name, file_path, mime_type, size }));
+      const created = await createTask({
+        title: draftTitle,
+        description: description.trim(),
+        project_id: selectedProjectId || undefined,
+        status: 'todo', // Draft defaults to todo status
+        priority,
+        due_date: dueDate ? new Date(dueDate).getTime() : undefined,
+        assignees: selectedAssignees,
+        watchers: selectedWatchers,
+        attachments: attachmentPayload,
+      });
+
+      if (created) {
+        for (const sub of subtasks) {
+          await ipc.erp?.taskAddChecklist({
+            taskId: created.id,
+            content: sub.content,
+            assigneeId: sub.assignee_id,
+            dueDate: sub.due_date,
+          });
+        }
+        showNotification('Đã lưu nháp nhiệm vụ thành công', 'success');
+        onSaved?.(created);
+        onClose();
+      }
+    } catch (err: any) {
+      showNotification(err.message || 'Lỗi khi lưu nháp', 'error');
+    } finally {
+      savingRef.current = false;
+    }
+  };
 
   useEffect(() => {
     loadEmployees();
@@ -370,7 +433,7 @@ export default function TaskCreateModal({ defaultStatus, projectId, onClose, onS
   }, [selectedProjectId, projects]);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-[2px]" onClick={handleCloseRequest}>
       <div 
         className="w-full max-w-[620px] bg-gray-950 border border-gray-800/50 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-gray-200 animate-fade-in mx-4" 
         onClick={e => e.stopPropagation()}
@@ -379,7 +442,7 @@ export default function TaskCreateModal({ defaultStatus, projectId, onClose, onS
         <div className="flex justify-end p-3 flex-shrink-0">
           <button 
             type="button" 
-            onClick={onClose} 
+            onClick={handleCloseRequest} 
             className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-900 rounded-lg transition-all"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -923,7 +986,7 @@ export default function TaskCreateModal({ defaultStatus, projectId, onClose, onS
           <div className="flex items-center gap-2">
             <button 
               type="button" 
-              onClick={onClose} 
+              onClick={handleCloseRequest} 
               className="px-4.5 py-1.5 text-gray-400 hover:text-gray-200 hover:bg-gray-900 rounded-xl text-xs font-semibold transition-all"
             >
               Hủy
@@ -940,6 +1003,38 @@ export default function TaskCreateModal({ defaultStatus, projectId, onClose, onS
         </div>
 
       </div>
+
+      {showConfirmClose && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-[1px]" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center mx-4">
+            <span className="text-4xl mb-3 block animate-pulse">💾</span>
+            <h3 className="text-base font-bold text-white mb-2">Lưu thay đổi?</h3>
+            <p className="text-gray-400 text-xs mb-6 leading-relaxed">
+              Bạn chưa lưu nhiệm vụ này. Bạn có muốn lưu vào nháp để tiếp tục chỉnh sửa sau không?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleSaveDraft}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all duration-200 active:scale-95"
+              >
+                💾 Lưu vào nháp
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-all duration-200 active:scale-95"
+              >
+                🗑️ Không lưu (Hủy bỏ)
+              </button>
+              <button
+                onClick={() => setShowConfirmClose(false)}
+                className="w-full py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold transition-all duration-200 active:scale-95"
+              >
+                Quay lại chỉnh sửa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

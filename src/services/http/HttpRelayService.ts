@@ -490,6 +490,16 @@ class HttpRelayService {
             return this.handleMediaUploadMultipart(req, res);
         }
 
+        // ── Media request (binary download) ───────────────────────────
+        if (req.method === 'POST' && url === '/api/media/request') {
+            return this.handleMediaRequest(req, res);
+        }
+
+        // ── Media chunk upload ────────────────────────────────────────
+        if (req.method === 'POST' && url === '/api/media/upload-chunk') {
+            return this.handleMediaUploadChunk(req, res);
+        }
+
         // ── Healthcheck ───────────────────────────────────────────────
         if (req.method === 'GET' && (url === '/api/health' || url === '/')) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1205,9 +1215,7 @@ class HttpRelayService {
     // ═════════════════════════════════════════════════════════════════
 
     /**
-     * Handle media upload via raw binary (Content-Type: application/octet-stream).
-     * Employee sends file binary directly (không base64).
-     * Headers: X-Filename (required), X-Zalo-Id (optional)
+     * Handle media upload via raw binary OR base64 JSON payload.
      * Boss saves to media storage, returns absolute path.
      */
     private handleMediaUploadMultipart(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -1216,40 +1224,163 @@ class HttpRelayService {
             return this.json(res, 401, { success: false, error: 'Unauthorized' });
         }
 
-        const filename = req.headers['x-filename'] as string;
-        if (!filename) {
-            return this.json(res, 400, { success: false, error: 'Missing X-Filename header' });
+        const contentType = req.headers['content-type'] || '';
+        if (contentType.includes('application/json')) {
+            // Base64 JSON upload
+            this.readBody(req, async (bodyStr) => {
+                try {
+                    const { base64, filename, zaloId } = JSON.parse(bodyStr);
+                    if (!base64 || !filename) {
+                        return this.json(res, 400, { success: false, error: 'Missing base64 or filename' });
+                    }
+
+                    const buffer = Buffer.from(base64, 'base64');
+                    const FileStorageService = require('../file/FileStorageService').default;
+
+                    let bossPath: string;
+                    if (zaloId) {
+                        bossPath = await FileStorageService.saveBuffer(zaloId, buffer, filename);
+                    } else {
+                        const fs = require('fs');
+                        const path = require('path');
+                        const dir = path.join(FileStorageService.getBaseDir(), '_uploads');
+                        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                        bossPath = path.join(dir, filename);
+                        fs.writeFileSync(bossPath, buffer);
+                    }
+
+                    Logger.log(`[HttpRelayService] JSON Base64 upload: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) → ${bossPath}`);
+                    this.json(res, 200, { success: true, bossPath });
+                } catch (err: any) {
+                    Logger.error(`[HttpRelayService] JSON upload error: ${err.message}`);
+                    this.json(res, 500, { success: false, error: err.message });
+                }
+            });
+        } else {
+            // Raw binary upload
+            const filename = req.headers['x-filename'] as string;
+            if (!filename) {
+                return this.json(res, 400, { success: false, error: 'Missing X-Filename header' });
+            }
+            const zaloId = (req.headers['x-zalo-id'] as string) || employee.assigned_accounts[0] || '';
+
+            const FileStorageService = require('../file/FileStorageService').default;
+            const chunks: Buffer[] = [];
+
+            req.on('data', (chunk: Buffer) => chunks.push(chunk));
+            req.on('end', async () => {
+                try {
+                    const buffer = Buffer.concat(chunks);
+                    if (buffer.length === 0) {
+                        return this.json(res, 400, { success: false, error: 'Empty file' });
+                    }
+
+                    // Save to Boss storage
+                    let bossPath: string;
+                    if (zaloId) {
+                        bossPath = await FileStorageService.saveBuffer(zaloId, buffer, filename);
+                    } else {
+                        const fs = require('fs');
+                        const path = require('path');
+                        const dir = path.join(FileStorageService.getBaseDir(), '_uploads');
+                        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                        bossPath = path.join(dir, filename);
+                        fs.writeFileSync(bossPath, buffer);
+                    }
+
+                    Logger.log(`[HttpRelayService] Binary upload: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) → ${bossPath}`);
+                    this.json(res, 200, { success: true, bossPath });
+                } catch (err: any) {
+                    Logger.error(`[HttpRelayService] Upload error: ${err.message}`);
+                    this.json(res, 500, { success: false, error: err.message });
+                }
+            });
         }
-        const zaloId = (req.headers['x-zalo-id'] as string) || employee.assigned_accounts[0] || '';
+    }
 
-        const FileStorageService = require('../file/FileStorageService').default;
-        const chunks: Buffer[] = [];
+    private handleMediaUploadChunk(req: http.IncomingMessage, res: http.ServerResponse): void {
+        const employee = this.authenticateRequest(req);
+        if (!employee) {
+            return this.json(res, 401, { success: false, error: 'Unauthorized' });
+        }
 
-        req.on('data', (chunk: Buffer) => chunks.push(chunk));
-        req.on('end', async () => {
+        this.readBody(req, async (bodyStr) => {
             try {
-                const buffer = Buffer.concat(chunks);
-                if (buffer.length === 0) {
-                    return this.json(res, 400, { success: false, error: 'Empty file' });
+                const { uploadId, chunkIndex, totalChunks, filename, zaloId, chunkBase64 } = JSON.parse(bodyStr);
+                if (!uploadId || chunkIndex === undefined || !totalChunks || !chunkBase64) {
+                    return this.json(res, 400, { success: false, error: 'Missing chunk parameters' });
                 }
 
-                // Save to Boss storage
-                let bossPath: string;
-                if (zaloId) {
-                    bossPath = await FileStorageService.saveBuffer(zaloId, buffer, filename);
-                } else {
-                    const fs = require('fs');
-                    const path = require('path');
-                    const dir = path.join(FileStorageService.getBaseDir(), '_uploads');
-                    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-                    bossPath = path.join(dir, filename);
-                    fs.writeFileSync(bossPath, buffer);
+                const buffer = Buffer.from(chunkBase64, 'base64');
+                const chunkService = require('../file/UploadChunkService').default.getInstance();
+                chunkService.saveChunk(uploadId, chunkIndex, totalChunks, buffer);
+
+                if (chunkIndex === totalChunks - 1) {
+                    const bossPath = await chunkService.mergeChunks(uploadId, totalChunks, filename, zaloId);
+                    return this.json(res, 200, { success: true, completed: true, bossPath });
                 }
 
-                Logger.log(`[HttpRelayService] Binary upload: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) → ${bossPath}`);
-                this.json(res, 200, { success: true, bossPath });
+                this.json(res, 200, { success: true });
             } catch (err: any) {
-                Logger.error(`[HttpRelayService] Upload error: ${err.message}`);
+                Logger.error(`[HttpRelayService] Chunk upload error: ${err.message}`);
+                this.json(res, 500, { success: false, error: err.message });
+            }
+        });
+    }
+
+    private handleMediaRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
+        const employee = this.authenticateRequest(req);
+        if (!employee) {
+            return this.json(res, 401, { success: false, error: 'Unauthorized' });
+        }
+
+        this.readBody(req, (bodyStr) => {
+            try {
+                const { filePath } = JSON.parse(bodyStr);
+                if (!filePath) {
+                    return this.json(res, 400, { success: false, error: 'Missing filePath parameter' });
+                }
+
+                // Resolve file path relative to Boss's media base path
+                const FileStorageService = require('../file/FileStorageService').default;
+                let mediaBasePath = '';
+                try {
+                    const WorkspaceManager = require('../../utils/WorkspaceManager').default;
+                    const wm = WorkspaceManager.getInstance();
+                    const defaultWs = wm.getWorkspaceById('default');
+                    if (defaultWs && defaultWs.dbPath) {
+                        const dbFolder = path.dirname(wm.resolveDbPath(defaultWs.dbPath));
+                        mediaBasePath = path.join(dbFolder, 'media');
+                    }
+                } catch {}
+                if (!mediaBasePath) {
+                    mediaBasePath = FileStorageService.getBaseDir() || '';
+                }
+
+                if (!mediaBasePath) {
+                    return this.json(res, 500, { success: false, error: 'Media path not configured' });
+                }
+
+                // Safe path resolution - prevent directory traversal!
+                const resolvedPath = path.resolve(mediaBasePath, filePath);
+                if (!resolvedPath.startsWith(path.resolve(mediaBasePath))) {
+                    return this.json(res, 403, { success: false, error: 'Access denied: invalid file path' });
+                }
+
+                const fs = require('fs');
+                if (!fs.existsSync(resolvedPath)) {
+                    return this.json(res, 404, { success: false, error: 'File not found' });
+                }
+
+                // Read file and send binary
+                const data = fs.readFileSync(resolvedPath);
+                res.writeHead(200, {
+                    'Content-Type': 'application/octet-stream', // Force octet-stream for HttpClientService.requestMedia
+                    'Content-Length': data.length,
+                    'Content-Disposition': `attachment; filename="${path.basename(resolvedPath)}"`,
+                });
+                res.end(data);
+            } catch (err: any) {
                 this.json(res, 500, { success: false, error: err.message });
             }
         });
