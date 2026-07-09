@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v27.2.1** — [View all versions](#changelog)
+> **Latest version: v27.2.8** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-x64.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.8-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20Window.exe)
 
-**[Zagi-Setup-27.2.1-x64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-x64.exe)**
+**[Zagi v27.2.8 Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20Window.exe)**
 
 NSIS Installer · ~195 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~195 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.1-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.8-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20MacOS%20M1%2B%20arm64.dmg)
 
-**[Zagi-27.2.1-arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.dmg)**
+**[Zagi v27.2.8 MacOS M1+ arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20MacOS%20M1%2B%20arm64.dmg)**
 
 Apple Silicon DMG · ~257 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · ~257 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.1-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.8-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20MacOS%20Intel.dmg)
 
-**[Zagi-27.2.1.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1.dmg)**
+**[Zagi v27.2.8 MacOS Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20MacOS%20Intel.dmg)**
 
 Intel x64 DMG · ~265 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · ~265 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.1-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.8-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20Linux.AppImage)
 
-**[Zagi-27.2.1-arm64.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-27.2.1-arm64.AppImage)**  
-**[zagi_27.2.1_arm64.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/zagi_27.2.1_arm64.deb)**
+**[Zagi v27.2.8 Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20Linux.AppImage)**  
+**[Zagi v27.2.8 Linux Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20Linux%20Debian.deb)**
 
 AppImage + .deb · ~239 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~239 MB
 > 
 > Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-arm64.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.8-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20Surface.exe)
 
-**[Zagi-Setup-27.2.1-arm64.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi-Setup-27.2.1-arm64.exe)**
+**[Zagi v27.2.8 Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.8%20Surface.exe)**
 
 NSIS Installer ARM64 · ~196 MB · Native performance on Surface ARM
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.2.0-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.2.8-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.2.0-x64.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.2.8-x64.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.2.0.AppImage
-./Zagi-27.2.0.AppImage
+chmod +x Zagi-27.2.8.AppImage
+./Zagi-27.2.8.AppImage
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i zagi_27.2.0_amd64.deb
+sudo dpkg -i zagi_27.2.8_amd64.deb
 ```
 
 </details>
@@ -381,7 +381,39 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.2.1</strong> — 2026-07-01 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.2.8</strong> — 2026-07-09 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights
+
+- 🌐 **Seamless Network Switch (LAN / WAN)**: Automatically scans Boss LAN IP when connected via WAN/Tunnel, switching connection paths seamlessly for optimal speed.
+- ⚡ **Network Stability (No c-ares crashes)**: Switched main process HTTP requests to Electron `net.request`, completely resolving c-ares name resolution crashes (`ares_dns_rr_get_ttl` SIGTRAP) on WiFi changes.
+- ⏱️ **Connection Storm Protection (Throttling)**: Implemented 10s throttling for forced reconnections, preventing endless loops when network connection fluctuates.
+- 📢 **UI Status Notifications**: Real-time visual toast notifications on network recovery, LAN auto-switch, and WAN rollback.
+- 📝 **Advanced ERP Task Permissions**: Creators and assignees can double-click tasks/subtasks to edit title, description, assignee, and dates directly.
+- 💾 **Draft Auto-drawer**: Automatically opens the detail editor drawer on the right after saving a task draft for quick follow-up edits.
+- 📁 **Minimalist Project Sidebar**: Redesigned the project navigation sidebar with clean colored dots, presenting a simple and professional look.
+
+</details>
+
+
+<details>
+<summary><strong>v27.2.3</strong> — 2026-07-03</summary>
+
+### 🚀 Key Highlights
+
+- 👻 **Ghost Mode (Online/Read Privacy)**: Toggle online presence with a 5-minute ping loop; read messages silently without triggering "seen" receipt (clients only see "received").
+- ⚡ **Advanced Rich Media Send**: Quick action panel to send voice notes, bank card templates (30+ Vietnamese banks), and Zalo contact cards.
+- 📦 **Auto-album Grouping & Rich Video**: Auto-group simultaneously sent images into a single Album. Auto-convert sent videos into Rich Videos with metadata extracted via ffmpeg.
+- 🤖 **4 New Workflow Nodes**: Added `zalo.sendVideo`, `zalo.sendVoice`, `zalo.sendBankCard`, and `zalo.sendCard` supporting dynamic variables and Boss-Employee proxies.
+- ⚡ **High-speed Phone Import**: Query up to 100 phone numbers at once via `getMultiUsersByPhones` API, accelerating CSV check to under 5 seconds.
+- 🟢 **Online Status & PSS Deep Scanning**: Filter online customers and deep-scan hidden group members using 3 streams (Reactions, Mentions, System Messages).
+- 🔄 **Two-way ERP & Labels Sync**: Auto-routing proxy for Employee and SQLite local upsert for 19 `erp:event:*` events from SSE.
+
+</details>
+
+
+<details>
+<summary><strong>v27.2.1</strong> — 2026-07-01</summary>
 
 ### 🚀 Key Highlights
 
