@@ -537,10 +537,7 @@ class HttpRelayService {
             && url.startsWith('/api/command/')) {
             return this.handleRestApi(req, res);
         }
-        if (req.method === 'GET' && url.startsWith('/api/library/')) {
-            return this.handleRestApi(req, res);
-        }
-        if (req.method === 'POST' && url.startsWith('/api/library/')) {
+        if (url.startsWith('/api/library/')) {
             return this.handleRestApi(req, res);
         }
 

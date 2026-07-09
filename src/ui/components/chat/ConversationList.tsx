@@ -1405,6 +1405,18 @@ export default function ConversationList() {
         )}
         <CtxItem icon={isLocalPinned ? '🔖' : '📎'} label={isLocalPinned ? 'Bỏ ghim trong app' : 'Ghim trong app'} onClick={() => handleToggleLocalPin(contact.contact_id)} />
 
+        {ctxChannelCap.supportsLabel && (
+          <CtxItem icon="🏷️" label="Phân loại (Gán nhãn Zalo)" onClick={() => {
+            setCtxMenu(null);
+            setInlineLabelPicker({
+              contactId: contact.contact_id,
+              zaloId: ctxZaloId,
+              x: ctxMenu.x,
+              y: ctxMenu.y
+            });
+          }} />
+        )}
+
         <div className="border-t border-gray-700 my-1" />
 
         {ctxOthers.has(contact.contact_id) ? (
@@ -2006,6 +2018,16 @@ export default function ConversationList() {
                   <div className="flex-shrink-0 w-14 flex items-center justify-end gap-1">
                     {isHovered ? (
                       <>
+                        {channelSupports((contact.channel || 'zalo') as Channel, 'supportsLabel') && (
+                          <button onClick={(e) => { e.stopPropagation(); setInlineLabelPicker({ contactId: contact.contact_id, zaloId: contactZaloId, x: e.clientX, y: e.clientY }); }}
+                            title="Phân loại (Gán nhãn Zalo)"
+                            className="w-6 h-4 flex items-center justify-center rounded-md hover:bg-gray-600 text-gray-400 hover:text-white mr-0.5">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+                              <line x1="7" y1="7" x2="7.01" y2="7"/>
+                            </svg>
+                          </button>
+                        )}
                         <button onClick={(e) => { e.stopPropagation(); setCtxMenu({ contactId: contact.contact_id, zaloId: contactZaloId, x: e.clientX, y: e.clientY }); setLabelPickerId(null); }}
                           className="w-6 h-4 flex items-center justify-center rounded-md hover:bg-gray-600 text-gray-400 hover:text-white">
                           {/* Horizontal 3-dot (⋯) */}
@@ -2024,9 +2046,18 @@ export default function ConversationList() {
                     {/* Zalo label icon before lastMessage */}
                     {contactLabels.length > 0 && (
                       <span
-                        className="inline-flex items-center justify-center w-4 h-4 rounded flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setInlineLabelPicker({
+                            contactId: contact.contact_id,
+                            zaloId: contactZaloId,
+                            x: e.clientX,
+                            y: e.clientY
+                          });
+                        }}
+                        className="inline-flex items-center justify-center w-4 h-4 rounded flex-shrink-0 cursor-pointer hover:scale-115 transition-transform"
                         style={{ backgroundColor: contactLabels[0].color || '#3b82f6' }}
-                        title={contactLabels[0].text}
+                        title={`Nhãn Zalo: ${contactLabels[0].text} — Nhấp để chỉnh sửa`}
                       >
                         {contactLabels[0].emoji
                           ? <span className="text-[7px] leading-none">{contactLabels[0].emoji}</span>
