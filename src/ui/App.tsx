@@ -307,6 +307,7 @@ export default function App() {
   useEffect(() => {
     const handleOnline = () => {
       console.log('[App.tsx] 🌐 Browser/Window network status changed to ONLINE — notifying Main process');
+      useAppStore.getState().showNotification('🌐 Phát hiện mạng có lại — đang kết nối lại...', 'info');
       ipc.workspace?.notifyNetworkOnline();
     };
     window.addEventListener('online', handleOnline);
@@ -947,6 +948,8 @@ export default function App() {
           
           if (data.isUsingLan && !wasUsingLan) {
             useAppStore.getState().showNotification('🚀 Đã tự động kết nối qua LAN (Mạng nội bộ)', 'success');
+          } else if (!data.isUsingLan && wasUsingLan && data.connected) {
+            useAppStore.getState().showNotification('🌐 Đã chuyển sang kết nối qua WAN/Tunnel', 'info');
           }
         }
       }

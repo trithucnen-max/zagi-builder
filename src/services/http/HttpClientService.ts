@@ -1501,8 +1501,9 @@ class HttpClientService {
                 } else {
                     this.consecutiveHeartbeatFailures++;
                     this.onStatusChange?.(false, 0);
-                    // After MAX failures, mark as disconnected so health check can trigger full reconnect
-                    if (this.consecutiveHeartbeatFailures >= HttpClientService.MAX_HEARTBEAT_FAILURES) {
+                    // After MAX failures (fewer for LAN to rollback faster), mark as disconnected so health check can trigger full reconnect
+                    const maxFailures = this.isUsingLan ? 2 : HttpClientService.MAX_HEARTBEAT_FAILURES;
+                    if (this.consecutiveHeartbeatFailures >= maxFailures) {
                         Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures — marking disconnected`);
                         this.connected = false;
                         
@@ -1520,8 +1521,9 @@ class HttpClientService {
                 this.latencyMs = 0;
                 this.consecutiveHeartbeatFailures++;
                 this.onStatusChange?.(false, 0);
-                // After MAX failures, mark as disconnected so health check can trigger full reconnect
-                if (this.consecutiveHeartbeatFailures >= HttpClientService.MAX_HEARTBEAT_FAILURES) {
+                // After MAX failures (fewer for LAN to rollback faster), mark as disconnected so health check can trigger full reconnect
+                const maxFailures = this.isUsingLan ? 2 : HttpClientService.MAX_HEARTBEAT_FAILURES;
+                if (this.consecutiveHeartbeatFailures >= maxFailures) {
                     Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures (error) — marking disconnected`);
                     this.connected = false;
                     
