@@ -128,15 +128,20 @@ Khi nhân viên proxy action:
 **Khởi tạo bởi:** `HttpConnectionManager`
 
 ### Purpose
-Kết nối nhân viên tới Boss. Authenticate, thiết lập kênh Socket.IO nhận sự kiện, thực hiện proxy actions và upload media.
+Kết nối nhân viên tới Boss. Thực hiện xác thực, thiết lập kênh Socket.IO để nhận sự kiện real-time, thực hiện proxy actions lên Boss và upload media. Quản lý chuyển đổi mạng LAN/WAN thông minh và phục hồi kết nối.
 
 ### Key Methods
-- `authenticate(bossUrl, username, password)` → lấy token + snapshot
-- `proxyAction(channel, params)` → POST `/api/proxy/action`
-- `uploadMedia(base64, filename, zaloId)` → tự động chọn: nếu file > 2MB dùng Chunked Upload qua `/api/media/upload-chunk`, nếu nhỏ hơn dùng `/api/media/upload` — **timeout 120s/chunk**
-- `requestMedia(filePath)` → lấy file binary từ Boss
-- `triggerWorkflowEngine(channel, data)` → khi nhận sự kiện qua Socket.IO → trigger workflow local
-- `getLastEventId() / saveLastEventId(id)` → đọc/ghi ID sự kiện Socket.IO cuối cùng vào SQLite local (`last_sse_event_id_{workspaceId}`) nhằm phục vụ việc catch-up.
+- `connect(bossUrl, token)` — Thiết lập kết nối, khởi động local callback server, gửi heartbeat đăng ký, kết nối Socket.IO và bắt đầu luồng Heartbeat định kỳ.
+- `proxyAction(channel, params)` — POST `/api/proxy/action` lên Boss. Khi mất kết nối hoặc ở trạng thái `degraded`, phương thức này trả về lỗi mềm thay vì ném ngoại lệ (`throw Error`), tránh gây crash/treo Renderer do Unhandled Rejections.
+- `markDisconnectedImmediately()` — Đánh dấu trạng thái kết nối là suy hao (`degraded = true`, `connected = false`) tức thì khi phát hiện máy tính Sleep/Wake hoặc thay đổi WiFi, đồng thời buộc rollback từ LAN về WAN URL.
+- `uploadMedia(base64, filename, zaloId)` — Tự động chọn: nếu file > 2MB dùng Chunked Upload qua `/api/media/upload-chunk`, nếu nhỏ hơn dùng `/api/media/upload` — **timeout 120s/chunk**.
+- `requestMedia(filePath)` — Lấy file binary từ Boss.
+- `triggerWorkflowEngine(channel, data)` — Khi nhận sự kiện qua Socket.IO → trigger workflow local.
+
+### Network Resilience (Độ bền bỉ đường truyền)
+- **Heartbeat & LAN Auto-Switching:** Định kỳ gửi heartbeat (mỗi 15s với timeout 5s). Nếu phát hiện Boss chạy cùng mạng LAN, client sẽ tự động chuyển đổi `bossUrl` sang IP cục bộ để tối ưu băng thông. Nếu mất kết nối LAN hoặc heartbeat thất bại liên tiếp (2 lần với LAN, 5 lần với WAN), client tự động rollback về cấu hình WAN ban đầu.
+- **Debounce Reconnect:** Hệ thống lắng nghe sự kiện `workspace:network-online` và `powerMonitor.on('resume')` để tự động kết nối lại, tích hợp bộ chống Flapping mạng (debounce 4s) để tránh việc card mạng chưa nhận xong IP đã gửi kết nối dồn dập gây treo.
+- **Renderer Sync:** Khi trạng thái kết nối thay đổi, địa chỉ `bossUrl` đang hoạt động sẽ được gửi lên Renderer qua sự kiện `workspace:connectionStatus`. Renderer sẽ đồng bộ hóa địa chỉ này vào `RestQueryService` để đảm bảo các truy vấn REST API luôn chạy đúng cổng.
 
 ---
 

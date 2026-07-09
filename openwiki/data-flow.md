@@ -74,7 +74,7 @@ CRMQueueService.startCampaign(id)
         ZaloService.sendMessage() / sendImage() / sendImages()
 ```
 
-## Flow 4: Boss → Nhân viên SSE Event Push (v27.2.6 — Sequence ID)
+## Flow 4: Boss → Nhân viên Socket.IO Event Push (v27.2.8)
 
 ```
 [Zalo event on Boss]
@@ -84,15 +84,12 @@ EventBroadcaster.broadcast(channel, data)
     │
     ▼
 HttpRelayService.relayEventToEmployees(channel, data)
-    │ gán eventId = ++emp.lastEventSeq
-    │ lưu vào Event History Queue (max 500, TTL 10phút)
-    ▼
-SSE push → tất cả connected employees (kèm `id: {eventId}`)
     │
     ▼
-[Nhân viên machine] HttpClientService receives SSE
-    ├── saveLastEventId(eventId) → SQLite local
-    ├── persistRelayConversationEvent() → lưu vào local DB
+SocketIOService.emitToEmployeeRoom(employeeId, channel, data)
+    │
+    ▼
+[Nhân viên machine] HttpClientService (via SocketIOClient) receives event
     ├── triggerWorkflowEngine(channel, data) → trigger workflow local
     └── ipcRenderer.emit(channel, data) → renderer update UI
 ```
@@ -157,21 +154,26 @@ Nhân viên: uploadMedia(base64, filename)
               ▼ trả về: { success: true, bossPath }
 ```
 
-## Flow 8: SSE Last-Event-ID Recovery (v27.2.6)
+## Flow 8: Tự động phục hồi mạng & Đồng bộ địa chỉ kết nối (v27.2.8)
 
 ```
-Nhân viên mất mạng/reconnect SSE
-    │ đọc lastEventId từ SQLite local
+[Nhân viên gập máy / đổi WiFi / mất mạng]
     │
-    ▼
-GET /api/events/stream?lastEventId={N}
+    ├── Browser phát hiện offline → App.tsx gọi ipc.workspace.notifyNetworkOffline()
+    ├── Main process nhận tín hiệu → Đánh dấu ngay các kết nối là degraded (connected=false)
+    └── Giao diện lập tức hiện màn hình Lock Screen mất kết nối
     │
-    ▼ Boss kiểm tra Event History Queue:
-    ├── [HIT] tìm thấy ID N trong queue:
-    │       replay các sự kiện N+1..hiện tại
-    │       Nhân viên nhận được và cập nhật DB local ✅
-    └── [MISS] ID quá cũ/tràn buffer:
-            gửi sự kiện: relay:fallbackDeltaSync
-            Nhân viên chạy onSSEReconnected()
-            → Delta Sync → DB local được phục hồi toàn vẹn ✅
+[Mạng có lại / Thức dậy]
+    │
+    ├── Browser phát hiện online → App.tsx gọi ipc.workspace.notifyNetworkOnline()
+    ├── Main process kích hoạt Debounce 4 giây để mạng ổn định IP
+    ├── Hết 4s: HttpConnectionManager.forceReconnectAll()
+    │     └── Kiểm tra nếu không bận kết nối → service.connect()
+    │
+[Tái kết nối thành công]
+    │
+    ├── Gửi event 'workspace:connectionStatus' (kèm connected, isUsingLan, bossUrl)
+    ├── Renderer nhận status → Đóng màn hình Lock Screen cảnh báo
+    └── Renderer tự động re-initialize RestQueryService(bossUrl, token)
+          └─► Đảm bảo mọi request REST API tiếp theo đi đúng địa chỉ LAN/WAN mới ✅
 ```

@@ -6,9 +6,16 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v27.2.8] - 2026-07-09
 
-### Kiến trúc Thin Client (Zero SQLite) cho máy Nhân viên & Tích hợp Socket.IO
+### Tăng cường độ bền bỉ đường truyền (Network Resilience) & Trải nghiệm Gán nhãn
 
-- **Kiến trúc Thin Client bảo mật dữ liệu tuyệt đối (Zero SQLite):**
+- **Sửa lỗi crash & Tối ưu hóa tự phục hồi kết nối khi Sleep/Wakeup và đổi WiFi:**
+  - Tích hợp bộ lọc chống rung (debounce) **4 giây** cho sự kiện khôi phục kết nối mạng `workspace:network-online`. Khi WiFi đang trong quá trình kết nối hoặc thay đổi (Network Flapping), hệ thống sẽ đợi mạng ổn định hoàn toàn rồi mới tiến hành tái kết nối duy nhất 1 lần, tránh việc gửi truy vấn dồn dập gây treo ứng dụng.
+  - Đồng bộ hóa địa chỉ `bossUrl` từ Main Process xuống Renderer. Khi Main Process tự động chuyển đổi giữa LAN và WAN/Tunnel, Renderer sẽ lập tức cập nhật lại `RestQueryService` theo URL mới, giải quyết triệt để lỗi gọi API REST vào cổng cũ bị ngắt kết nối.
+  - Tối ưu hóa sự kiện ngủ/thức dậy (`resume` và `unlock-screen` của `powerMonitor`): Đánh dấu mất kết nối ngay lập tức (`markDisconnectedImmediately`) để hiển thị màn hình khóa cảnh báo mà không cần chờ timeout của heartbeat, ngăn chặn người dùng gửi tiếp request trong thời gian mạng đang phục hồi.
+  - Xử lý lỗi mềm trong `proxyAction()` khi kết nối bị ngắt quãng, trả về lỗi thay vì `throw` lỗi nghiêm trọng để tránh Unhandled Promise Rejections gây crash ứng dụng.
+  - Giải quyết xung đột luồng kết nối song song bằng cách bỏ qua yêu cầu Reconnect nếu Workspace đó đã có sẵn tiến trình kết nối đang hoạt động trong hàng đợi.
+
+- **Kiến trúc Thin Client bảo mật dữ liệu tuyệt đối (Zero SQLite) cho máy Nhân viên:**
   - Chuyển đổi máy nhân viên thành dạng Thin Client hoàn toàn không tạo hoặc sử dụng cơ sở dữ liệu SQLite cục bộ (`zagi-tool.db`).
   - Dữ liệu cuộc trò chuyện và liên hệ được truy vấn trực tiếp thời gian thực từ Boss qua REST API (`DataAccessor.getConversations`) thay vì đọc từ DB SQLite local.
   - Loại bỏ hoàn toàn các tiến trình đồng bộ dữ liệu ngầm và ghi đĩa để đạt tiêu chuẩn bảo mật zero-footprint trên thiết bị nhân viên.
@@ -21,6 +28,12 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 - **Màn hình khóa mất kết nối thông minh & tương tác (Connection Lost Lock Screen):**
   - Tích hợp nút **"Thử lại ngay"** để người dùng chủ động gửi tín hiệu kết nối lại.
   - Tích hợp form cấu hình đăng nhập nhanh/thay đổi IP BOSS ngay trên màn hình khóa. Khi mất kết nối hoặc đổi IP/mật khẩu, nhân viên có thể cập nhật thông tin và kết nối lại trực tiếp mà không bị treo cứng màn hình.
+
+- **Cải tiến trải nghiệm gắn nhãn Zalo & Quản lý thư viện:**
+  - Hỗ trợ click trực tiếp vào nhãn Zalo trên danh sách hội thoại để thay đổi hoặc gỡ nhãn nhanh.
+  - Bổ sung biểu tượng thẻ nhãn (tag icon) khi hover vào hội thoại chưa có nhãn để thao tác nhanh.
+  - Thêm mục "Phân loại (Gán nhãn Zalo)" vào menu chuột phải (context menu) của danh sách hội thoại.
+  - Sửa lỗi CRUD thư mục thư viện ảnh/file trên máy nhân viên hoạt động không chính xác khi giao tiếp qua Boss HTTP relay router.
 
 ---
 
