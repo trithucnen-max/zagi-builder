@@ -140,6 +140,12 @@ jobs:
       - name: 📦 Build Windows installer (x64)
         run: npx electron-builder --win --x64 --publish never
 
+      - name: 🏷️ Rename Windows x64 installer
+        shell: bash
+        run: |
+          VERSION="${{ needs.resolve-tag.outputs.version }}"
+          mv "dist-electron-build/Zagi-Setup-${VERSION}-x64.exe" "dist-electron-build/Zagi v${VERSION} Window.exe"
+
       - name: 🚀 Upload Windows x64 → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
@@ -149,8 +155,7 @@ jobs:
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
-            dist-electron-build/Zagi-Setup-*-x64.exe
-            dist-electron-build/Zagi-Setup-*-x64.exe.blockmap
+            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} Window.exe
             dist-electron-build/latest.yml
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
@@ -203,6 +208,12 @@ jobs:
       - name: 📦 Build Windows installer (ARM64 — Surface)
         run: npx electron-builder --win --arm64 --publish never
 
+      - name: 🏷️ Rename Windows ARM64 installer
+        shell: bash
+        run: |
+          VERSION="${{ needs.resolve-tag.outputs.version }}"
+          mv "dist-electron-build/Zagi-Setup-${VERSION}-arm64.exe" "dist-electron-build/Zagi v${VERSION} Surface.exe"
+
       - name: 🚀 Upload Windows ARM64 → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
@@ -212,8 +223,7 @@ jobs:
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
-            dist-electron-build/Zagi-Setup-*-arm64.exe
-            dist-electron-build/Zagi-Setup-*-arm64.exe.blockmap
+            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} Surface.exe
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
@@ -268,6 +278,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: 🏷️ Rename macOS installers
+        shell: bash
+        run: |
+          VERSION="${{ needs.resolve-tag.outputs.version }}"
+          mv "dist-electron-build/Zagi-${VERSION}-arm64.dmg" "dist-electron-build/Zagi v${VERSION} MacOS M1+ arm64.dmg"
+          mv "dist-electron-build/Zagi-${VERSION}.dmg" "dist-electron-build/Zagi v${VERSION} MacOS Intel.dmg"
+
       - name: 🚀 Upload macOS → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
@@ -277,8 +294,8 @@ jobs:
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
-            dist-electron-build/*.dmg
-            dist-electron-build/*.dmg.blockmap
+            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} MacOS M1+ arm64.dmg
+            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} MacOS Intel.dmg
             dist-electron-build/latest-mac.yml
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
@@ -336,6 +353,17 @@ jobs:
       - name: 📦 Build Linux app (x64 — AppImage + .deb)
         run: npx electron-builder --linux --x64 --publish never
 
+      - name: 🏷️ Rename Linux installers
+        shell: bash
+        run: |
+          VERSION="${{ needs.resolve-tag.outputs.version }}"
+          if [ -f "dist-electron-build/Zagi-${VERSION}-x86_64.AppImage" ]; then
+            mv "dist-electron-build/Zagi-${VERSION}-x86_64.AppImage" "dist-electron-build/Zagi v${VERSION} Linux.AppImage"
+          else
+            mv "dist-electron-build/Zagi-${VERSION}.AppImage" "dist-electron-build/Zagi v${VERSION} Linux.AppImage"
+          fi
+          mv "dist-electron-build/zagi_${VERSION}_amd64.deb" "dist-electron-build/Zagi v${VERSION} Linux Debian.deb"
+
       - name: 🚀 Upload Linux → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
@@ -345,8 +373,8 @@ jobs:
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
-            dist-electron-build/*.AppImage
-            dist-electron-build/*.deb
+            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} Linux.AppImage
+            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} Linux Debian.deb
             dist-electron-build/latest-linux.yml
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false

@@ -6,7 +6,9 @@ const axios = require('axios');
 const TOKEN = process.env.GH_TOKEN || '';
 const OWNER = 'trithucnen-max';
 const REPO = 'zagi-builder';
-const TAG = 'v27.2.3';
+const pkg = require('../package.json');
+const version = pkg.version;
+const TAG = `v${version}`;
 
 const headers = {
   Authorization: `token ${TOKEN}`,
@@ -16,12 +18,12 @@ const headers = {
 const distDir = path.resolve(__dirname, '..', 'dist-electron-build');
 
 const filesToUpload = [
-  'Zagi v27.2.3 Window.exe',
-  'Zagi v27.2.3 Surface.exe',
-  'Zagi v27.2.3 MacOS M1+ arm64.dmg',
-  'Zagi v27.2.3 MacOS Intel.dmg',
-  'Zagi v27.2.3 Linux.AppImage',
-  'Zagi v27.2.3 Linux Debian.deb'
+  `Zagi v${version} Window.exe`,
+  `Zagi v${version} Surface.exe`,
+  `Zagi v${version} MacOS M1+ arm64.dmg`,
+  `Zagi v${version} MacOS Intel.dmg`,
+  `Zagi v${version} Linux.AppImage`,
+  `Zagi v${version} Linux Debian.deb`
 ];
 
 async function main() {
