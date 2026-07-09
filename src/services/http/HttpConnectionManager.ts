@@ -2,8 +2,7 @@ import HttpClientService from './HttpClientService';
 import WorkspaceManager from '../../utils/WorkspaceManager';
 import Logger from '../../utils/Logger';
 import { BrowserWindow } from 'electron';
-import * as http from 'http';
-import * as https from 'https';
+import { net } from 'electron';
 
 function httpPost(url: string, body: any, timeoutMs = 15000): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -15,25 +14,34 @@ function httpPost(url: string, body: any, timeoutMs = 15000): Promise<any> {
             return;
         }
         const data = JSON.stringify(body);
-        const isHttps = parsed.protocol === 'https:';
-        const transport = isHttps ? https : http;
         const isTunnel = parsed.hostname.includes('loca.lt') ||
                          parsed.hostname.includes('localtunnel') ||
                          parsed.hostname.includes('ngrok') ||
                          parsed.hostname.includes('serveo');
 
-        const req = (transport as typeof https).request({
-            hostname: parsed.hostname,
-            port: parsed.port || (isHttps ? '443' : '80'),
-            path: parsed.pathname + (parsed.search || ''),
+        let timeoutTimer: NodeJS.Timeout | null = null;
+
+        const req = net.request({
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(data),
-                ...(isTunnel ? { 'bypass-tunnel-reminder': 'true' } : {}),
-            },
-            timeout: timeoutMs,
-        }, (res) => {
+            url: url,
+            useSessionCookies: false
+        });
+
+        req.setHeader('Content-Type', 'application/json');
+        if (isTunnel) {
+            req.setHeader('bypass-tunnel-reminder', 'true');
+        }
+
+        timeoutTimer = setTimeout(() => {
+            req.abort();
+            reject(new Error(`Hết thời gian kết nối (${timeoutMs / 1000}s) — kiểm tra lại địa chỉ Boss`));
+        }, timeoutMs);
+
+        req.on('response', (res) => {
+            if (timeoutTimer) {
+                clearTimeout(timeoutTimer);
+                timeoutTimer = null;
+            }
             const responseChunks: any[] = [];
             res.on('data', (chunk: any) => { responseChunks.push(chunk); });
             res.on('end', () => {
@@ -55,17 +63,17 @@ function httpPost(url: string, body: any, timeoutMs = 15000): Promise<any> {
         });
 
         req.on('error', (err: any) => {
-            if (err.code === 'ECONNREFUSED') {
+            if (timeoutTimer) {
+                clearTimeout(timeoutTimer);
+                timeoutTimer = null;
+            }
+            if (err.code === 'ECONNREFUSED' || err.message?.includes('ERR_CONNECTION_REFUSED')) {
                 reject(new Error('Không thể kết nối — kiểm tra lại IP và Port, đảm bảo boss đã bật Relay Server'));
-            } else if (err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') {
+            } else if (err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT' || err.message?.includes('ERR_TIMED_OUT')) {
                 reject(new Error('Hết thời gian kết nối — kiểm tra lại mạng'));
             } else {
                 reject(new Error(`Lỗi kết nối: ${err.message}`));
             }
-        });
-        req.on('timeout', () => {
-            req.destroy();
-            reject(new Error(`Hết thời gian kết nối (${timeoutMs / 1000}s) — kiểm tra lại địa chỉ Boss`));
         });
 
         req.write(data);

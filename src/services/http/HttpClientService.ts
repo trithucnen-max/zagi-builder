@@ -1636,41 +1636,51 @@ class HttpClientService {
     private httpGet(url: string, headers: Record<string, string> = {}, timeout = 15000): Promise<any> {
         return new Promise((resolve, reject) => {
             try {
-                const urlObj = new URL(url);
-                const isHttps = urlObj.protocol === 'https:';
-                const httpModule = isHttps ? require('https') : require('http');
+                const { net } = require('electron');
+                const req = net.request({
+                    method: 'GET',
+                    url: url,
+                    useSessionCookies: false
+                });
 
-                const req = httpModule.request(
-                    {
-                        hostname: urlObj.hostname,
-                        port: urlObj.port,
-                        path: urlObj.pathname + urlObj.search,
-                        method: 'GET',
-                        headers: {
-                            ...this.getTunnelBypassHeaders(),
-                            ...headers,
-                        },
-                        timeout,
-                    },
-                    (res: http.IncomingMessage) => {
-                        const chunks: any[] = [];
-                        res.on('data', (chunk: any) => { chunks.push(chunk); });
-                        res.on('end', () => {
-                            let data = '';
-                            if (chunks.length > 0) {
-                                if (typeof chunks[0] === 'string') {
-                                    data = chunks.join('');
-                                } else {
-                                    data = Buffer.concat(chunks).toString('utf8');
-                                }
-                            }
-                            resolve(this.parseJsonResponse(data));
-                        });
+                const bypassHeaders = this.getTunnelBypassHeaders();
+                for (const [k, v] of Object.entries({ ...bypassHeaders, ...headers })) {
+                    req.setHeader(k, v);
+                }
+
+                let timeoutTimer: NodeJS.Timeout | null = setTimeout(() => {
+                    req.abort();
+                    reject(new Error('Request timeout'));
+                }, timeout);
+
+                req.on('response', (res) => {
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
                     }
-                );
+                    const chunks: any[] = [];
+                    res.on('data', (chunk: any) => { chunks.push(chunk); });
+                    res.on('end', () => {
+                        let data = '';
+                        if (chunks.length > 0) {
+                            if (typeof chunks[0] === 'string') {
+                                data = chunks.join('');
+                            } else {
+                                data = Buffer.concat(chunks).toString('utf8');
+                            }
+                        }
+                        resolve(this.parseJsonResponse(data));
+                    });
+                });
 
-                req.on('error', (err: Error) => reject(err));
-                req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+                req.on('error', (err: Error) => {
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
+                    }
+                    reject(err);
+                });
+
                 req.end();
             } catch (err) {
                 reject(err);
@@ -1681,56 +1691,67 @@ class HttpClientService {
     private httpPostRaw(url: string, body: any, headers: Record<string, string> = {}, timeout = 60000): Promise<any> {
         return new Promise((resolve, reject) => {
             try {
-                const urlObj = new URL(url);
+                const { net } = require('electron');
                 const payload = JSON.stringify(body);
-                const isHttps = urlObj.protocol === 'https:';
-                const httpModule = isHttps ? require('https') : require('http');
+                const req = net.request({
+                    method: 'POST',
+                    url: url,
+                    useSessionCookies: false
+                });
 
-                const req = httpModule.request(
-                    {
-                        hostname: urlObj.hostname,
-                        port: urlObj.port,
-                        path: urlObj.pathname + urlObj.search,
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Content-Length': Buffer.byteLength(payload),
-                            ...this.getTunnelBypassHeaders(),
-                            ...headers,
-                        },
-                        timeout,
-                    },
-                    (res: http.IncomingMessage) => {
-                        const contentType = res.headers['content-type'] || '';
-                        if (contentType.includes('application/octet-stream')) {
-                            const chunks: Buffer[] = [];
-                            res.on('data', (chunk: Buffer) => chunks.push(chunk));
-                            res.on('end', () => {
-                                const buffer = Buffer.concat(chunks);
-                                const fileName = (res.headers['content-disposition'] || '')
-                                    .match(/filename="?([^"]+)"?/)?.[1] || 'file';
-                                resolve({ success: true, data: buffer, fileName });
-                            });
-                        } else {
-                            const stringChunks: any[] = [];
-                            res.on('data', (chunk: any) => { stringChunks.push(chunk); });
-                            res.on('end', () => {
-                                let data = '';
-                                if (stringChunks.length > 0) {
-                                    if (typeof stringChunks[0] === 'string') {
-                                        data = stringChunks.join('');
-                                    } else {
-                                        data = Buffer.concat(stringChunks).toString('utf8');
-                                    }
-                                }
-                                resolve(this.parseJsonResponse(data));
-                            });
-                        }
+                req.setHeader('Content-Type', 'application/json');
+                const bypassHeaders = this.getTunnelBypassHeaders();
+                for (const [k, v] of Object.entries({ ...bypassHeaders, ...headers })) {
+                    req.setHeader(k, v);
+                }
+
+                let timeoutTimer: NodeJS.Timeout | null = setTimeout(() => {
+                    req.abort();
+                    reject(new Error('Request timeout'));
+                }, timeout);
+
+                req.on('response', (res) => {
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
                     }
-                );
+                    const contentType = res.headers['content-type'] || '';
+                    const contentTypeStr = Array.isArray(contentType) ? contentType.join('') : contentType;
+                    if (contentTypeStr.includes('application/octet-stream')) {
+                        const chunks: Buffer[] = [];
+                        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+                        res.on('end', () => {
+                            const buffer = Buffer.concat(chunks);
+                            const contentDisposition = res.headers['content-disposition'] || '';
+                            const contentDispositionStr = Array.isArray(contentDisposition) ? contentDisposition.join('') : contentDisposition;
+                            const fileName = contentDispositionStr.match(/filename="?([^"]+)"?/)?.[1] || 'file';
+                            resolve({ success: true, data: buffer, fileName });
+                        });
+                    } else {
+                        const stringChunks: any[] = [];
+                        res.on('data', (chunk: any) => { stringChunks.push(chunk); });
+                        res.on('end', () => {
+                            let data = '';
+                            if (stringChunks.length > 0) {
+                                if (typeof stringChunks[0] === 'string') {
+                                    data = stringChunks.join('');
+                                } else {
+                                    data = Buffer.concat(stringChunks).toString('utf8');
+                                }
+                            }
+                            resolve(this.parseJsonResponse(data));
+                        });
+                    }
+                });
 
-                req.on('error', (err: Error) => reject(err));
-                req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+                req.on('error', (err: Error) => {
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
+                    }
+                    reject(err);
+                });
+
                 req.write(payload);
                 req.end();
             } catch (err) {
