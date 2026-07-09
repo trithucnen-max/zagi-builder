@@ -1,26 +1,28 @@
 # UI Components & Stores
 
 > UI là React SPA chạy trong Electron renderer. App.tsx (~70KB) là file lớn nhất — chứa router + layout.
+> **Theme:** tuân theo Mục 22 — Theme Resolution (Design Standard v27.2.9). Dùng `data-theme` trên `<html>`, đọc qua `useResolvedTheme()`.
 
 ## Store Architecture (Zustand)
 
 | Store | File | State |
 |---|---|---|
-| `appStore` | `src/ui/store/appStore.ts` (35KB) | App-wide state: active account, settings, notifications, sidebar |
+| `appStore` | `src/ui/store/appStore.ts` (35KB) | App-wide: active account, settings, notifications, sidebar, **theme** |
 | `chatStore` | `src/ui/store/chatStore.ts` (27KB) | Messages, threads, typing, unread counts |
 | `crmStore` | `src/ui/store/crmStore.ts` (8KB) | CRM contacts, campaigns, labels |
-| `accountStore` | `src/ui/store/accountStore.ts` (4KB) | Danh sách Zalo accounts đang connected |
-| `employeeStore` | `src/ui/store/employeeStore.ts` (9KB) | Employee list, permissions (dành cho Boss UI) |
+| `accountStore` | `src/ui/store/accountStore.ts` (4KB) | Zalo accounts đang connected |
+| `employeeStore` | `src/ui/store/employeeStore.ts` (9KB) | Employee list, permissions (Boss UI) |
 | `workspaceStore` | `src/ui/store/workspaceStore.ts` (4KB) | Workspace config: local/remote |
 | `updateStore` | `src/ui/store/updateStore.ts` (2KB) | Auto-update state |
 
 ### appStore — important state
 ```typescript
-// Các state quan trọng trong appStore:
-activeZaloId: string          // zaloId đang active
-selectedThreadId: string      // thread đang mở
-isBossMode: boolean           // Boss hay nhân viên?
-accountPermissions: Permission[] // quyền của nhân viên hiện tại
+activeZaloId: string              // zaloId đang active
+selectedThreadId: string          // thread đang mở
+isBossMode: boolean               // Boss hay nhân viên?
+accountPermissions: Permission[]  // quyền của nhân viên hiện tại
+theme: ThemePreference            // 'light' | 'dark' | 'system' (persist: zagi-theme)
+resolvedTheme: ResolvedTheme      // 'light' | 'dark' (đã resolve, xem Mục 22)
 ```
 
 ### Multi-account Event Isolation (Security Pattern)
@@ -40,34 +42,24 @@ Khi Boss có nhiều tài khoản Zalo, events PHẢI được verify trước k
 
 | Folder | Purpose |
 |---|---|
-| `chat/` | Chat UI: MessageList, MessageInput, ThreadList, TypingIndicator |
-| `crm/` | CRM: ContactList, CampaignManager, LabelManager |
-| `workflow/` | Workflow editor: NodeConfigPanel, WorkflowEditor (ReactFlow), NodePicker |
-| `settings/` | Settings pages: AccountSettings, ChangelogSettings, EmployeeSettings |
+| `chat/` | MessageList, MessageInput, ThreadList, TypingIndicator |
+| `crm/` | ContactList, CampaignManager, LabelManager |
+| `workflow/` | NodeConfigPanel, WorkflowEditor (ReactFlow), NodePicker |
+| `settings/` | AccountSettings, ChangelogSettings, EmployeeSettings |
 | `analytics/` | Dashboard charts (Recharts) |
 | `auth/` | Login screens |
 | `layout/` | Sidebar, Topbar, MainLayout |
-| `common/` | Shared: Modal, Button, Input, SmartTextarea, Avatar |
-| `integration/` | Integration settings: Webhook, KiotViet, GHN, Sapo... |
+| `common/` | Modal, Button, Input, SmartTextarea, Avatar |
+| `integration/` | Webhook, KiotViet, GHN, Sapo... |
 | `dashboard/` | Dashboard overview |
 
 ### Key Large Components
 
-**`WorkflowEditor`** (`src/ui/components/workflow/`)
-- Dùng ReactFlow cho drag-drop
-- `NodeConfigPanel.tsx` — cấu hình từng node (500+ lines per node type)
-- `workflowConfig.ts` — default config cho mỗi NodeType
-- Hỗ trợ: Undo/Redo (useRef guard), Auto-align BFS, Cycle detection, Silent auto-save
-- `SmartTextarea` — textarea hỗ trợ template variables `{{ $trigger.xxx }}`
+**`WorkflowEditor`** — ReactFlow drag-drop. `NodeConfigPanel.tsx` (500+ lines/node type), `workflowConfig.ts` (default config). Hỗ trợ Undo/Redo (useRef guard), Auto-align BFS, Cycle detection, Silent auto-save. `SmartTextarea` hỗ trợ `{{ $trigger.xxx }}`.
 
-**`App.tsx`** (`src/ui/App.tsx`, 70KB)
-- Router chính (react-router-dom v6)
-- Layout: Sidebar + Main content
-- Khởi tạo: kết nối Zalo, load initial data, setup IPC listeners
+**`App.tsx`** (70KB) — Router (react-router-dom v6), layout Sidebar + Main, khởi tạo Zalo/IPC. **Gọi `useResolvedTheme()` một lần tại đây.**
 
-**`CampaignCreateModal`** (`src/ui/components/crm/campaigns/CampaignCreateModal.tsx`)
-- Tạo campaign gửi hàng loạt
-- Cấu hình: danh sách contacts, message template, delay, sendMode
+**`CampaignCreateModal`** — Tạo campaign gửi hàng loạt: contacts, message template, delay, sendMode.
 
 ---
 
@@ -75,25 +67,20 @@ Khi Boss có nhiều tài khoản Zalo, events PHẢI được verify trước k
 
 ### Gọi IPC từ renderer
 ```typescript
-// Qua preload bridge:
+// CHUẨN: qua preload bridge
 const result = await window.api.zalo.sendMessage({ message, threadId, type });
-
-// Hoặc qua ipcRenderer trực tiếp (ít dùng):
-const { ipcRenderer } = window.require('electron');
-await ipcRenderer.invoke('zalo:sendMessage', params);
 ```
+> **MUST NOT** dùng `window.require('electron')` trực tiếp — vi phạm contextIsolation, rủi ro bảo mật với dữ liệu chat khách hàng. Chỉ dùng preload bridge `window.api`.
 
 ### useRef guard (Double-save prevention)
 ```typescript
-// BUG đã gặp: async handlers gọi 2 lần
-// FIX: dùng useRef thay useState làm guard
 const isSubmittingRef = useRef(false);
 if (isSubmittingRef.current) return;
 isSubmittingRef.current = true;
 try { await save(); } finally { isSubmittingRef.current = false; }
 ```
 
-### SmartTextarea Variable Syntax
+### SmartTextarea Variable Syntax (ngữ cảnh Workflow)
 ```
 {{ $trigger.threadId }}        ← thread trigger
 {{ $trigger.message }}         ← tin nhắn trigger
@@ -101,30 +88,35 @@ try { await save(); } finally { isSubmittingRef.current = false; }
 {{ $item.display_name }}       ← CRM contact field
 {{ $item.salutation }}         ← xưng hô (Anh/Chị)
 ```
+> Lưu ý: cú pháp `{{ $... }}` dùng cho Workflow node. Biến soạn tin CRM dạng `{gender_greeting}`/`{alias}` (pill, xem Design Standard Mục 15) là ngữ cảnh KHÁC — không trộn lẫn parser.
 
 ---
 
 ## Routing Structure (App.tsx)
-
 ```
-/                    → Dashboard
-/chat                → Chat UI (ThreadList + MessageView)
-/crm                 → CRM contacts + campaigns
-/workflow            → Workflow list + editor
-/analytics           → Analytics dashboard
-/settings            → Settings (account, employee, integrations)
-/integration         → Integration management
+/            → Dashboard
+/chat        → Chat UI
+/crm         → CRM contacts + campaigns
+/workflow    → Workflow list + editor
+/analytics   → Analytics dashboard
+/settings    → Settings
+/integration → Integration management
 ```
 
 ---
 
 ## UI Coding Patterns
 
-### Hybrid Theme Detection
-When checking the active theme dynamically (e.g. context menus, popovers, dropdown backgrounds) inside a React modal, simply checking `theme === 'light'` does not cover the `'system'` theme setting when the user's OS is in Light Mode.
+### Theme Detection — TUÂN THEO MỤC 22
+Theme resolution tuân theo **Mục 22 — Theme Resolution** (Design Standard v27.2.9).
 
-**Best Practice:**
+Vấn đề với `theme === 'light'`: không cover `'system'` khi OS ở Light Mode. **Giải pháp chuẩn** là resolve `'system'` sẵn trong `appStore` và đọc qua hook:
+
 ```typescript
-const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
+import { useResolvedTheme } from '@/ui/theme/useResolvedTheme';
+
+const resolved = useResolvedTheme(); // 'light' | 'dark'
+const isLight = resolved === 'light';
 ```
-Using `document.documentElement`'s `data-theme` attribute guarantees the correct visual background color is applied in Dark, Light, and System settings.
+
+> **MUST NOT** đọc `document.documentElement.getAttribute('data-theme')` trực tiếp trong render — DOM không trigger re-render, gây bug "đổi theme phải đóng mở lại mới cập nhật". `data-theme` chỉ là đầu ra cho Tailwind, không phải nguồn đọc cho React.

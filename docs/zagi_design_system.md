@@ -1,187 +1,262 @@
-# HỆ THỐNG THIẾT KẾ GIAO DIỆN (DESIGN SYSTEM) - ZAGI DESKTOP
-> **Chủ đề thiết kế:** Chuyên nghiệp (Professional) · Tin cậy (Trustworthy) · Tốc độ (High-speed)  
-> **Nguyên tắc cốt lõi:** Kế thừa trải nghiệm thân quen (Zalo UI) - Giữ nguyên cấu trúc bố cục (No Layout Shift)  
-> **Ngày ban hành:** 25/06/2026 | **Cập nhật lần cuối:** 04/07/2026 (v27.2.4)  
+# ZAGI DESKTOP — CHUẨN THIẾT KẾ HỢP NHẤT (UNIFIED DESIGN STANDARD)
+
+> **Phiên bản:** v27.2.9 | **Cập nhật:** 09/07/2026
+> **Tài liệu này là nguồn chân lý duy nhất (Single Source of Truth).** Khi có mâu thuẫn với bất kỳ ghi chú cũ nào, tài liệu này thắng.
+> **Từ khóa định hướng:** Chuyên nghiệp (Professional) · Tin cậy (Trustworthy) · Tốc độ (High-speed)
+> **Nguyên tắc cốt lõi:** Kế thừa trải nghiệm Zalo PC · Giữ nguyên bố cục (No Layout Shift) · Nói KHÔNG với màu tím (Purple Ban)
+> **Stack:** React + TypeScript · Tailwind CSS v3.4.16 (`data-theme`) · `lucide-react`
 
 ---
 
-## 1. TINH THẦN THIẾT KẾ & TỪ KHÓA PHONG CÁCH
+## 0. QUY TẮC BẮT BUỘC (HARD RULES — dành cho người & agent)
 
-Zagi là một phần mềm ERP & CRM vận hành trên nền tảng Zalo. Để giúp người dùng (nhân viên trực chat, chủ doanh nghiệp) không mất thời gian làm quen và tạo sự tin tưởng tuyệt đối ngay từ cái nhìn đầu tiên, giao diện của Zagi được tái thiết kế dựa trên 3 từ khóa:
+**MUST NOT**
+1. **KHÔNG** dùng màu có Hue trong dải **255°–330°** (tím, violet, magenta, fuchsia, indigo tươi). Áp dụng mọi thành phần: nút, icon AI, avatar, nhãn, node, biểu đồ, gradient.
+2. **KHÔNG** lặp lại giá trị HEX trong phần Component — chỉ tham chiếu tên token ở Tầng A.
+3. **KHÔNG** dùng emoji cho icon chức năng — chỉ dùng Lucide đơn sắc.
+4. **KHÔNG** thay đổi vị trí, thứ tự hay grid của các cột layout (No Layout Shift).
+5. **KHÔNG** dùng font ngoài (Google Fonts…) — chỉ System Font Stack.
 
-*   **Chuyên nghiệp (Professional):** Sử dụng các đường nét mảnh tinh tế, khoảng cách (spacing) đồng đều, loại bỏ các chi tiết màu mè bừa bãi. Giao diện phẳng hiện đại, tương phản cao và hỗ trợ đầy đủ chế độ Sáng/Tối (Light/Dark Mode).
-*   **Tin cậy (Trustworthy):** Sử dụng tông màu xanh dương đậm (Zagi Navy) kết hợp với xanh Zalo chính thống. Không sử dụng các màu sắc sặc sỡ hoặc các màu tím/hồng (tuân thủ quy tắc **Purple Ban**).
-*   **Tốc độ (High-speed):** Thiết kế tối giản, loại bỏ các hiệu ứng chuyển động (transition) rườm rà gây trễ mắt. Chỉ sử dụng các micro-animations nhẹ (150ms) ở hover states để tăng phản hồi trực quan mà không làm chậm ứng dụng.
+**MUST**
+6. **PHẢI** đạt WCAG 2.1 AA: text thường ≥ 4.5:1, text lớn/icon nghĩa ≥ 3:1.
+7. **PHẢI** có focus ring bàn phím: `outline: 2px solid var(--color-blue-primary); outline-offset: 2px`.
+8. **PHẢI** tôn trọng `prefers-reduced-motion: reduce` (tắt mọi transition).
+9. **PHẢI** dùng token blue trầm thay indigo: `navy-secondary` hoặc `blue-700`.
+10. **PHẢI** dùng skeleton (không spinner) cho loading danh sách để giữ bố cục.
 
----
-
-## 2. HỆ THỐNG MÀU SẮC THƯƠNG HIỆU (COLOR TOKENS)
-
-Màu sắc của Zagi được lấy cảm hứng trực tiếp từ logo chính thức (chữ `zagi` xanh navy đậm và bong bóng chat `Zalo` màu xanh dương tươi).
-
-```
-🔴 QUY TẮC CỐT LÕI: Không sử dụng màu tím (Purple Ban) trong bất kỳ linh hồn thiết kế nào của Zagi.
-```
-
-### 2.1. Màu sắc chủ đạo (Primary & Brand Colors)
-
-| Token Màu | Mã HEX | Vai trò trên giao diện | Trạng thái sử dụng |
-| :--- | :--- | :--- | :--- |
-| **Zalo Blue** (Primary) | `#0068FF` | Màu thương hiệu chính, nút hành động nổi bật, thẻ biến động. | Default |
-| **Zalo Blue Hover** | `#005AE0` | Trạng thái hover của nút bấm màu xanh chính. | Hover |
-| **Zalo Light Blue** | `#E5F0FF` | Nền mờ của tin nhắn của tôi, nền hội thoại đang chọn (Light Mode). | Active / Highlight |
-| **Zagi Navy** (Secondary) | `#0A3064` | Màu thương hiệu phụ, thanh tiêu đề lớn, text quan trọng. | Brand Default |
-| **Zagi Dark Blue** | `#072247` | Thanh trạng thái hoặc các chi tiết đặc biệt (Dark Mode). | Dark Background |
-
-### 2.2. Màu trung tính & Nền (Neutral Colors)
-
-#### Chế độ Sáng (Light Mode):
-*   **Nền ứng dụng chính:** `#F4F5F7` (Xám rất nhẹ)
-*   **Nền nội dung (Card, Chat Window):** `#FFFFFF` (Trắng tinh)
-*   **Đường viền/Phân cách (Border):** `#E5E7EB` (Xám nhạt mảnh)
-*   **Chữ tiêu đề chính:** `#0F172A` (Slate 900 - Tương phản cực cao)
-*   **Chữ nội dung phụ:** `#475569` (Slate 600 - Rõ ràng, dễ đọc)
-
-#### Chế độ Tối (Dark Mode):
-*   **Nền ứng dụng chính:** `#111827` (Gray 900)
-*   **Nền nội dung (Card, Chat Window):** `#1F2937` (Gray 800)
-*   **Đường viền/Phân cách (Border):** `#374151` (Gray 700)
-*   **Chữ tiêu đề chính:** `#F9FAFB` (Trắng xám nhẹ)
-*   **Chữ nội dung phụ:** `#9CA3AF` (Xám trung tính)
-
-Để hiển thị các thương hiệu liên kết một cách tự nhiên và sinh động nhất, Zagi áp dụng các màu sắc đặc trưng của từng thương hiệu làm nền cho biểu tượng SVG màu trắng:
-*   **KiotViet:** `#F15A24` (Cam đặc trưng)
-*   **Haravan:** `#4F46E5` (Xanh chàm/Indigo)
-*   **Sapo:** `#10B981` (Xanh lá/Emerald)
-*   **Pancake POS & Casso:** `#3B82F6` (Xanh dương)
-*   **Nhanh.vn:** `#E11D48` (Đỏ hồng/Rose)
-*   **Giao Hàng Nhanh (GHN):** `#F97316` (Cam đất)
-*   **Giao Hàng Tiết Kiệm (GHTK):** `#15803D` (Xanh lá đậm)
-*   **SePay:** `#EF4444` (Đỏ tươi)
-*   **AI (OpenAI, Gemini, Claude, DeepSeek, Grok, OpenRouter):** Sử dụng nền màu sắc tương ứng của từng hãng (ví dụ OpenAI màu xanh lá, Gemini màu xanh dương, DeepSeek màu xanh trời để tuân thủ Purple Ban).
-
-**Quy tắc hiển thị (Visual Tile Rule):** Tất cả logo thương hiệu tích hợp và trợ lý AI đều được hiển thị dưới dạng biểu tượng SVG màu trắng tinh khiết đặt trên ô vuông nền màu sắc đặc trưng của thương hiệu đó (solid brand-colored backgrounds) để đảm bảo tính đồng bộ, thẩm mỹ hiện đại và cao cấp. Riêng nền tảng DeepSeek được cấu hình sử dụng màu nền xanh bầu trời (`bg-sky-600`) và màu text (`text-sky-500`) thay vì màu tím để tuân thủ quy tắc cấm màu tím (Purple Ban) của hệ thống.
+**DANH SÁCH ĐEN HEX (Purple Ban — chặn tuyệt đối):**
+`#8B5CF6` · `#7C3AED` · `#6D28D9` · `#6366F1` · `#4F46E5` · `#4338CA` · `#A855F7` · `#9333EA` · `#D946EF` · `#C026D3` · `#DB2777` và mọi biến thể violet/indigo/fuchsia của Tailwind.
 
 ---
 
-## 3. PHÔNG CHỮ & KIỂU DÁNG (TYPOGRAPHY)
+# TẦNG A — FOUNDATION (TOKENS)
 
-Để tạo sự đồng điệu 100% với giao diện Zalo, Zagi sử dụng hệ thống font mặc định của hệ điều hành (System Font Stack), đảm bảo tốc độ tải tức thì (không tốn thời gian tải font từ Google Fonts) và hiển thị sắc nét nhất trên cả Windows và macOS:
+## 1. MÀU SẮC (COLOR TOKENS)
 
-```css
-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-```
+### 1.1. Brand & Primary
 
-### 3.1. Các thông số Typography chuẩn:
-*   **Tên cuộc hội thoại / Tiêu đề card:** `font-weight: 600` (Semi-bold), kích thước `14px` (`text-sm`) hoặc `15px`.
-*   **Nội dung tin nhắn / Ghi chú:** `font-weight: 400` (Regular), kích thước `14px` (`text-sm`), khoảng cách dòng `line-height: 1.5`.
-*   **Thời gian / Số lượng tin nhắn chưa đọc:** `font-weight: 500`, kích thước `12px` (`text-xs`).
-*   **Đoạn trích tin nhắn mới nhất trong danh sách chat:** `font-weight: 400`, màu `#657786` (Light) / `#8899A6` (Dark) để tạo sự tương phản nhẹ so với tên người gửi.
+| Token | HEX | Vai trò |
+|---|---|---|
+| `blue-primary` | `#0068FF` | Màu chính: sidebar, nút chính, link, icon active |
+| `blue-hover` | `#005AE0` | Hover nút xanh |
+| `blue-active` | `#0052CC` | Active (sidebar item, nút nhấn) |
+| `blue-bubble-dark` | `#0A5BE0` | Nền bubble tin của tôi ở Dark Mode (đạt AA) |
+| `blue-light` | `#E5F0FF` | Nền tin của tôi, hội thoại đang chọn (Light) |
+| `blue-light-dark` | `#1A3B66` | Nền tin của tôi, hội thoại đang chọn (Dark) |
+| `navy-secondary` | `#0A3064` | Thương hiệu phụ, tiêu đề lớn, tông trầm sang |
+| `navy-dark` | `#072247` | Thanh trạng thái, chi tiết Dark Mode |
+| `blue-700` | `#1D4ED8` | Tông blue đậm thay thế indigo |
+| `blue-600` | `#2563EB` | Trigger Node, Haravan, nhãn Local |
+
+### 1.2. Semantic / Status
+
+| Token | Light | Dark | Nền mờ Light | Nền mờ Dark | Vai trò |
+|---|---|---|---|---|---|
+| `success` | `#16A34A` | `#22C55E` | `#F0FDF4` | `#052E16` | Gửi OK, đơn hoàn tất |
+| `warning` | `#D97706` | `#F59E0B` | `#FFFBEB` | `#451A03` | Sắp hết hạn, cảnh báo |
+| `danger` | `#DC2626` | `#F87171` | `#FEF2F2` | `#450A0A` | Lỗi, xóa, validation |
+| `info` | `#0068FF` | `#3B82F6` | `#EFF6FF` | `#172554` | Thông báo trung tính |
+
+### 1.3. Neutral, Surface & Text
+
+| Vai trò | Light | Dark |
+|---|---|---|
+| Nền cửa sổ chat giữa (`app`) | `#F4F5F7` | `#111827` |
+| Nền cột bên / header / input (`surface`) | `#FFFFFF` | `#1F2937` |
+| Nền bubble tin của khách (`recipient`) | `#FFFFFF` | `#374151` |
+| Border chính | `#E5E7EB` | `#374151` |
+| Border phụ (nhẹ) | `#F1F2F4` | `#2D3748` |
+| Text tiêu đề chính | `#0F172A` | `#F9FAFB` |
+| Text nội dung phụ | `#475569` | `#9CA3AF` |
+| Text trích đoạn (snippet) | `#5B6B7B` | `#8899A6` |
+| Text disabled | `#94A3B8` | `#6B7280` |
+| Text trên nền brand/blue | `#FFFFFF` | `#FFFFFF` |
+
+### 1.4. Màu nền thương hiệu tích hợp (Tile — giữ nguyên cả 2 mode)
+
+| Thương hiệu | Token | HEX |
+|---|---|---|
+| KiotViet | `brand-kiotviet` | `#F15A24` |
+| Haravan | `brand-haravan` | `#2563EB` *(bỏ indigo)* |
+| Sapo | `brand-sapo` | `#10B981` |
+| Pancake POS / Casso | `brand-pancake` | `#3B82F6` |
+| Nhanh.vn | `brand-nhanh` | `#E11D48` |
+| GHN | `brand-ghn` | `#F97316` |
+| GHTK | `brand-ghtk` | `#15803D` |
+| SePay | `brand-sepay` | `#EF4444` |
+| OpenAI | `brand-openai` | `#10A37F` |
+| Gemini | `brand-gemini` | `#3B82F6` |
+| Claude | `brand-claude` | `#C15F3C` |
+| DeepSeek | `brand-deepseek` | `#0284C7` *(sky, không tím)* |
+| Grok | `brand-grok` | `#0F172A` |
+| OpenRouter | `brand-openrouter` | `#0068FF` |
+
+Icon SVG bên trong tile luôn `text-white`. Tile GIỮ NGUYÊN màu brand ở cả Light/Dark.
+
+## 2. TYPOGRAPHY
+
+Font stack (`font-system`): `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`
+
+| Token | Size | Weight | Line-height | Dùng cho |
+|---|---|---|---|---|
+| `title` | 15px | 600 | 1.4 | Tên hội thoại, tiêu đề card |
+| `body` | 14px | 400 | 1.5 | Nội dung tin nhắn, ghi chú |
+| `snippet` | 13px | 400 | 1.4 | Trích đoạn tin mới nhất |
+| `caption` | 12px | 500 | 1.4 | Thời gian, số tin chưa đọc |
+
+## 3. SPACING / RADIUS / ELEVATION / MOTION / Z-INDEX
+
+**Spacing (base 4px):** `1:4 · 2:8 · 3:12 · 4:16 · 5:20 · 6:24 · 8:32 · 10:40 · 12:48`
+
+**Cột cố định (No Layout Shift):** Sidebar nav `64px` · Sidebar dự án `240px` · Chat list `320px` · Chat window `flex:1`
+
+**Radius:** `sm:6px` · `md:8px` · `lg:12px` · `full:9999px`. Bubble bo 12px, góc đuôi 4px.
+
+**Elevation:** `sm:0 1px 2px rgba(0,0,0,.05)` · `md:0 4px 8px rgba(0,0,0,.08)` · `lg:0 10px 24px rgba(0,0,0,.12)`
+
+**Motion:** `fast:150ms` · `base:200ms` · easing `standard = cubic-bezier(0.4,0,0.2,1)`. Tôn trọng `prefers-reduced-motion`.
+
+**Z-index:** `dropdown:1000 · sticky:1100 · modal-overlay:1200 · modal:1300 · toast:1400 · tooltip:1500`
+
+## 4. ACCESSIBILITY BASELINE
+WCAG 2.1 AA. Icon sidebar inactive `text-white/80`. Bubble Dark dùng `blue-bubble-dark`. Snippet dùng `snippet-light` (`#5B6B7B`).
+
+## 4.1. DARK MODE — BẢNG CHUẨN HÓA
+
+**Kích hoạt:** ghi `data-theme="dark"` lên `<html>` (xem **Mục 22 — Theme Resolution**). Mọi component PHẢI khai báo cặp Light/Dark.
+
+### 4.1.1. Surface & Neutral
+
+| Vai trò | Light | Dark |
+|---|---|---|
+| Nền chat giữa | `#F4F5F7` | `#111827` |
+| Nền cột bên / header / input | `#FFFFFF` | `#1F2937` |
+| Nền popover / dropdown / menu / modal | `#FFFFFF` | `#1F2937` |
+| Modal overlay | `rgba(15,23,42,0.45)` | `rgba(0,0,0,0.60)` |
+| Border chính | `#E5E7EB` | `#374151` |
+| Border phụ | `#F1F2F4` | `#2D3748` |
+
+### 4.1.2. Interaction States
+
+| Vai trò | Light | Dark |
+|---|---|---|
+| Hover dòng list | `#F1F2F4` | `#2D3748` |
+| Active hội thoại | `#E5F0FF` | `#1A3B66` |
+| Bubble tin của tôi | nền `#E5F0FF` / chữ `#0F172A` | nền `#0A5BE0` / chữ `#FFFFFF` |
+| Bubble tin của khách | nền `#FFFFFF` + viền `#E5E7EB` / chữ `#0F172A` | nền `#374151` / chữ `#F9FAFB` |
+| Popup AI | nền `#EFF6FF` / viền `#BFDBFE` | nền `#172554` / viền `#1E3A8A` |
+| Sidebar nav nền | `#0068FF` | `#0068FF` |
+| Sidebar item active | `#0052CC` | `#0052CC` |
+
+### 4.1.3. Component nền tối cụ thể
+
+| Component | Light | Dark |
+|---|---|---|
+| Kanban card | nền `#FFFFFF` viền `#E5E7EB` | nền `#1F2937` viền `#374151` |
+| Kanban column bg | `#F4F5F7` | `#111827` |
+| Node config panel | `#FFFFFF` | `#1F2937` |
+| Preview grid item | `#F4F5F7` | `#374151` |
+| Pill biến động | `bg-pill-bg-light text-pill-fg-light` | `bg-pill-bg-dark text-pill-fg-dark` |
+| Icon chức năng inactive | nền `#E5E7EB` icon `#64748B` | nền `#374151` icon `#9CA3AF` |
+| Icon chức năng active | nền `#0068FF` icon `#FFFFFF` | nền `#0068FF` icon `#FFFFFF` |
+| Tile logo thương hiệu | *giữ màu brand* | *giữ màu brand* |
+
+## 4.2. QUY CHUẨN ICON — LUCIDE
+
+Toàn bộ icon dùng **Lucide** (`lucide-react`). KHÔNG trộn bộ khác, KHÔNG emoji cho icon chức năng.
+
+**Thông số:** mặc định `20px` (`w-5 h-5`); nhỏ `16px`; sidebar `22px`. `strokeWidth: 2` (icon ≥28px có thể `1.5`). Màu luôn `stroke="currentColor"`.
+
+**Ánh xạ icon chức năng**
+
+| Chức năng | Lucide | Chức năng | Lucide |
+|---|---|---|---|
+| Trang chủ | `Home` | Xóa preview | `X` |
+| Chat | `MessageCircle` | Trợ lý AI | `Sparkles` |
+| CRM | `KanbanSquare` | Cảnh báo | `AlertTriangle` |
+| Workflow | `Workflow` | Thành công | `CheckCircle2` |
+| Cài đặt | `Settings` | Xem trước | `Eye` |
+| Thêm mới | `Plus` | Gửi ảnh/tệp | `ImagePlus` |
+| Bật/Tắt thông báo | `Bell`/`BellOff` | Ghim | `Pin` |
+| Tạo nhóm | `Users` | Sửa thông tin | `Pencil` |
+
+**Ánh xạ 12 icon dự án**
+
+| Slug | Lucide | Slug | Lucide |
+|---|---|---|---|
+| `folder` | `Folder` | `home` | `Home` |
+| `rocket` | `Rocket` | `fire` | `Flame` |
+| `target` | `Target` | `bulb` | `Lightbulb` |
+| `code` | `Code2` | `sparkles` | `Sparkles` |
+| `palette` | `Palette` | `phone` | `Phone` |
+| `chart` | `BarChart3` | `bag` | `ShoppingBag` |
+
+Dữ liệu cũ dạng emoji: `getProjectDisplay()` fallback emoji (tương thích ngược 100%); component mới render Lucide qua map.
 
 ---
 
-## 4. HIỆU ỨNG TƯƠNG TÁC GẦN GIỐNG ZALO NHẤT (INTERACTION & EFFECTS)
+# TẦNG B — COMPONENT & PATTERN SPECS
 
-Các hiệu ứng tương tác được thiết kế nhằm mô phỏng hoàn hảo trải nghiệm trên Zalo PC:
+## 5. LAYOUT SHELL
+Giữ nguyên khung: Sidebar nav (`64px`) → Chat list (`320px`) → Chat window (`flex:1`) → Info panel (phải).
 
-*   **Hiệu ứng Hover trên Danh sách hội thoại:**
-    *   *Light Mode:* Khi di chuột qua item, nền đổi nhẹ sang màu `#F1F2F4` (Gray 100), chuyển tiếp mượt trong `150ms`.
-    *   *Dark Mode:* Nền đổi nhẹ sang màu `#2D3748` (Gray 750).
-    *   *Con trỏ:* Luôn hiển thị `cursor-pointer`.
-*   **Hiệu ứng Active (Hội thoại đang chọn):**
-    *   Nền hội thoại đổi sang màu `#E5F0FF` (Light Blue) ở Light Mode, hoặc `#1A3B66` ở Dark Mode.
-*   **Bong bóng chat (Chat Bubbles):**
-    *   **Tin nhắn của tôi (Sender):** Nền màu xanh `#E5F0FF` (Zalo Light Blue) với chữ màu đen đen ở Light Mode; hoặc nền màu xanh `#0068FF` với chữ màu trắng ở Dark Mode. Góc bo tròn nhẹ `12px` ở tất cả các góc, riêng góc dưới bên phải bo sát lại `4px`.
-    *   **Tin nhắn của khách (Recipient):** Nền màu trắng tinh `#FFFFFF` với viền xám mỏng `#E5E7EB` (Light Mode), hoặc nền `#374151` (Dark Mode). Chữ màu đen hoặc trắng xám.
-*   **Thẻ Pill Biến động (Smart Variables):**
-    *   Được định dạng bo tròn hoàn toàn (`rounded-full`), nền xám mờ nền nhe (`bg-blue-50 text-blue-600` hoặc `bg-gray-100 text-gray-700`) để nổi bật biến động dạng `{gender_greeting}` hoặc `{alias}` trong khung soạn thảo mà không làm rối mắt.
+## 6. SIDEBAR ĐIỀU HƯỚNG
+Nền `blue-primary`. Icon Lucide `text-white/80` (inactive). Hover: `bg-white/10`, icon trắng 100%. Active: nền `blue-active`, icon trắng.
 
----
+## 7. DANH SÁCH HỘI THOẠI
+Nền `surface`, border phân cách 1px. Hover: `hover-row`, `cursor-pointer`, `duration-fast`. Active: `blue-light`/`blue-light-dark`. Avatar tròn; nhóm dùng `GroupAvatar`. Loading: skeleton, không spinner.
 
-## 5. HƯỚNG DẪN ÁP DỤNG CHI TIẾT (BỐ CỤC GIỮ NGUYÊN)
+## 8. KHUNG CHAT & BUBBLE
+Nền khung `app`. Tin của tôi: Light `blue-light`/chữ tối; Dark `blue-bubble-dark`/chữ trắng; bo `lg`, góc dưới phải 4px. Tin của khách: `recipient`, Light thêm viền 1px; bo `lg`, góc dưới trái 4px. Nút AI (`Sparkles`) Lucide; hover popup nền AI-popup, `shadow-md`, z `dropdown`.
 
-Chúng ta thực hiện thay đổi toàn bộ visual style nhưng **tuyệt đối giữ nguyên vị trí, thứ tự và lưới chia (grid layout) của các màn hình**:
+## 9. MỐC THỜI GIAN TIN NHẮN
+Hiển thị trên bubble. Nhóm: `Tên   HH:mm`; 1-1: `HH:mm`; tin đi: `HH:mm` căn phải; màu text-secondary. Pill giữa chỉ khi sang ngày mới hoặc gián đoạn > 15 phút.
 
-```mermaid
-graph TD
-    subgraph AppShell["📱 Giao diện Zagi (Giữ nguyên khung Layout)"]
-        Sidebar["⬅️ Sidebar Trái: Xanh Zalo Blue / Icon Đơn sắc"]
-        ConvList["📋 List Chat: Trạng thái Hover / Active (Không vạch xanh)"]
-        ChatWindow["💬 Khung Chat: Bong bóng chat bo góc / Nút Trợ lý AI Xanh"]
-        CRM_Kanban["📊 CRM Pipeline: Tone Xanh Navy & Dương (Không màu tím)"]
-    end
-```
+## 10. NÚT BẤM
+Primary: `blue-primary` hover `blue-hover` chữ trắng, icon `Plus`. Secondary: xám. Danger: `red-600` hover `red-700` chữ trắng.
 
-### 5.1. Sidebar Điều hướng (Thanh Menu Trái)
-*   *Bố cục:* Giữ nguyên cột hẹp bên trái ngoài cùng.
-*   *Visual:* Nền màu **Zalo Blue (`#0068FF`)**. Các icon điều hướng (Home, Chat, CRM, Workflow, Settings) sử dụng màu trắng mờ 70% (`text-white/70`).
-*   *Hover:* Khi di chuột, icon sáng lên 100% và nền chuyển sang màu xanh dương nhạt mờ (`bg-white/10`).
-*   *Active:* Icon được chọn sẽ đổi sang màu trắng sáng 100%, nền đổi sang màu xanh đậm thương hiệu `bg-zalo-blue-dark` (`#0052CC`) để tạo độ tương phản rõ rệt và chiều sâu đẹp mắt.
+## 11. TAB LỌC & NHÃN
+Bộ lọc Active: `blue-600`. Nhãn Local: `blue-600` (không indigo).
 
-### 5.2. Danh sách hội thoại (Conversation List)
-*   *Bố cục:* Giữ nguyên cột giữa.
-*   *Visual:* Nền màu `#FFFFFF` (Sáng) / `#111827` (Tối). Đường phân cách giữa các hội thoại là đường border mảnh `1px` màu `#E5E7EB` (Sáng) / `#374151` (Tối).
-*   *Avatar:* Giữ nguyên avatar tròn. Nhóm Zalo sử dụng ảnh ghép avatar thành viên (Composite Avatar) dạng lưới bo tròn tinh tế.
-*   *Tiêu đề:* Chữ tiêu đề dùng font chuẩn hệ điều hành hiển thị sắc nét.
+## 12. ICON CHỨC NĂNG (Lucide tròn)
+Inactive: nền tròn xám, icon xám. Active: nền `blue-primary`, icon trắng.
 
-### 5.3. Khung Chat & Trình soạn thảo (Chat Window)
-*   *Bố cục:* Giữ nguyên cột phải bên trong.
-*   *Visual:* Nền khung chat màu xám siêu nhẹ `#F4F5F7` để làm nổi bật các bong bóng chat màu trắng và xanh dương.
-*   *Nút Trợ lý AI:* Nút biểu tượng chiếc đũa thần `🪄` kế bên emoji được thiết kế tinh gọn dạng icon SVG đơn sắc, không sử dụng màu tím, khi di chuột hiển thị popup gợi ý AI với màu nền xanh dương mờ chàm lịch sự.
+## 13. CRM KANBAN & WORKFLOW
+Kanban card: `radius-md`, `shadow-sm`. Workflow Nodes: Trigger → `blue-600`; Action → `blue-primary`; Logic/Filter → `warning`. Canvas grid xám mảnh.
 
-### 5.4. Giao diện CRM Kanban & Sơ đồ Workflow Canvas
-*   *Bố cục:* Giữ nguyên lưới Kanban và vị trí các Node kéo thả.
-*   *Visual:* Thay thế toàn bộ các chi tiết thiết kế liên quan đến màu tím bằng màu xanh dương thương hiệu.
-*   *Kanban Stages:* Các cột phễu CRM sử dụng các thẻ border nhẹ bo góc `8px`, không đổ bóng quá dày để giữ độ mượt (tốc độ tải).
-*   *Workflow Nodes:* Trigger Node đổi sang màu xanh chàm (`indigo`), Action Node đổi sang màu xanh dương (`blue`), Logic Node đổi sang màu vàng cam (`amber`). Toàn bộ canvas React Flow sử dụng grid xám mảnh tối giản nhất.
+## 14. NODE CONFIG PANEL
+Form: bắt buộc `min-h-0` + `overflow-y-auto`. Node truy vấn (`crm.getContacts`): nút Preview cuối form; modal dùng `GroupAvatar`; trường việt hóa kèm icon.
 
-### 5.5. Trình cấu hình Gửi ảnh/tệp trong Workflow
-*   *Bố cục:* Tích hợp trực tiếp tại thanh cấu hình bên phải của Node `zalo.sendImage`.
-*   *Trình chọn ảnh (`MultiImageSelector`):*
-    *   **Nút Thêm ảnh:** Thiết kế nút bấm `Chọn ảnh từ máy` màu xanh dương (`bg-blue-600 hover:bg-blue-700`) và trường nhập link URL thủ công có nút `Thêm URL`.
-    *   **Lưới Preview:** Lưới ảnh thu nhỏ (Grid Preview) bo góc `6px`, có nút xóa (icon `x` nền đỏ mờ) đặt ở góc trên bên phải của từng ảnh để người dùng dễ dàng xóa bớt.
-    *   **Checkbox tùy chọn:** Checkbox "Gửi ngẫu nhiên 1 ảnh" nằm dưới lưới preview, sử dụng màu xanh Zalo Blue khi được tick chọn.
-    *   *Visual:* Đồng bộ tuyệt đối theo quy tắc Purple Ban.
+## 15. GỬI ẢNH/TỆP (MultiImageSelector)
+Nút "Chọn ảnh": `blue-600`. Dialog `multiSelect:true` + URL thủ công. Preview grid `radius-sm`, nút xóa icon `X` nền `danger` mờ. Checkbox "Gửi ngẫu nhiên 1 ảnh": tick `blue-primary`, đổi `sendMode`.
 
-### 5.6. Vị trí & Bố cục Trung tâm Hướng dẫn sử dụng
-*   *Bố cục:* Nằm hoàn toàn trong trang **Cài đặt → Giới thiệu** dưới dạng tab phụ `"userguide"`.
-*   *Thanh tab phụ:* Thiết kế thanh điều hướng ngang gồm 5 tab (Tổng quan, CRM, Workflow, Tích hợp, Kết hợp) sử dụng font phông hệ thống, khi tab active hiển thị chữ đen đậm (hoặc trắng xám ở Dark Mode) kèm đường viền dưới màu xanh Zalo Blue dày `2px`.
-*   *Visual:* Nền trắng tinh `#FFFFFF` (Sáng) / `#1F2937` (Tối), viền mảnh phân cách rõ ràng, văn bản markdown được render định dạng sắc nét, dễ đọc.
+## 16. GLOBAL UI ZOOM
+Điều chỉnh `fontSize` root `html` (rem) + CSS var `--zagi-font-scale` ghi đè `text-[Xpx]`. Scale `0.75x`–`1.5x`, không tràn khung.
+
+## 17. STATE PATTERNS
+Empty: icon xám + tiêu đề + 1 nút chính. Loading: skeleton khớp layout. Error tích hợp: banner nền `danger` mờ + nút "Kết nối lại". Dot trạng thái: `success`/`warning`/`danger`.
+
+## 18. USER GUIDE
+Tab `"userguide"` trong Cài đặt → Giới thiệu. 5 tab ngang. Tab active: chữ đậm + vạch chân `blue-primary` 2px. Render GitHub alert. Nền `surface`.
+
+## 19. PROJECT ICON SYSTEM
+Tên: `[slug] Tên dự án`. Regex `^\[([a-zA-Z0-9_-]+)\]\s*(.*)$`, fallback emoji. `renderProjectIcon()` + `React.cloneElement`. Sidebar icon `#FFFFFF`; dropdown `#9CA3AF`. Sidebar dự án always-colored: active `opacity:1` weight 600 viền `2px rgba(255,255,255,.4)`; inactive `opacity:0.6`.
 
 ---
 
-## 6. HỆ THỐNG ICON SVG DỰ ÁN ERP (PROJECT ICON SYSTEM) — v27.2.4
+# TẦNG C — PHỤ LỤC THỰC THI
 
-> **Mục tiêu:** Thay thế emoji (phụ thuộc font hệ điều hành) bằng bộ icon SVG thuần khiết đảm bảo hiển thị nhất quán trên mọi nền tảng (Windows, macOS, Linux).
+Xem file riêng: `02-TAILWIND-CONFIG.md` (Mục 20) và `03-REFERENCE-IMPLEMENTATION.md` (Mục 21 + Mục 22 Theme Resolution).
 
-### 6.1. Bộ 12 Icon chuẩn
+---
 
-| Slug | Biểu tượng | Mô tả | Trường hợp sử dụng |
-| :--- | :---: | :--- | :--- |
-| `folder` | 📂 | Thư mục | Dự án tổng hợp, thư mục chứa tài liệu |
-| `rocket` | 🚀 | Tên lửa | Dự án ra mắt, đẩy mạnh sản phẩm |
-| `target` | 🎯 | Mục tiêu | Dự án mục tiêu / OKR |
-| `code` | 💻 | Lập trình | Dự án kỹ thuật, phát triển phần mềm |
-| `palette` | 🎨 | Bảng màu | Dự án thiết kế, sáng tạo |
-| `chart` | 📊 | Biểu đồ | Dự án báo cáo, phân tích dữ liệu |
-| `home` | 🏠 | Ngôi nhà | Dự án nội bộ, vận hành văn phòng |
-| `fire` | 🔥 | Ngọn lửa | Dự án khẩn cấp / hot |
-| `bulb` | 💡 | Bóng đèn | Dự án ý tưởng, sáng kiến |
-| `sparkles` | ✨ | Lấp lánh | Dự án đặc biệt, AI |
-| `phone` | 📞 | Điện thoại | Dự án CSKH, telesales |
-| `bag` | 🛍️ | Giỏ hàng | Dự án thương mại, bán hàng |
+## CHANGELOG
 
-### 6.2. Quy tắc kỹ thuật
+**v27.2.9 (09/07/2026)**
+- Hợp nhất Design System + Interface Note thành Single Source of Truth.
+- Sửa toàn bộ vi phạm Purple Ban (indigo → blue).
+- Sửa 3 lỗi tương phản WCAG AA.
+- Bổ sung Foundation tokens + chuẩn hóa Dark Mode đầy đủ.
+- Thống nhất icon sang Lucide.
+- **Đổi cơ chế Dark Mode sang `data-theme` (Mục 22 Theme Resolution).**
 
-- **Định dạng lưu tên:** `[slug] Tên dự án` (ví dụ: `[rocket] Q3 Campaign`).
-- **Nhận dạng:** Hàm `getProjectDisplay(name)` nhận dạng regex `^\[([a-zA-Z0-9_-]+)\]\s*(.*)$`, fallback sang emoji cũ nếu không khớp (tương thích ngược 100%).
-- **Render:** Hàm `renderProjectIcon(iconKey)` tra cứu `PROJECT_ICONS` map và dùng `React.cloneElement` để ép màu/kích thước động.
-- **Màu icon trong sidebar:** Luôn `color: #ffffff` trên nền màu dự án. Không dùng màu tím (Purple Ban).
-- **Trong dropdown chọn dự án:** Icon màu `#9ca3af` (gray-400) trên nền tối.
-
-### 6.3. Quy tắc hiển thị Sidebar Dự án (Always-colored)
-
-- Mọi dự án hiển thị màu nền **liên tục** (không chỉ khi active).
-- **Active state:** `opacity: 1`, `font-weight: 600`, viền highlight `2px solid rgba(255,255,255,0.4)`.
-- **Inactive state:** `opacity: 0.6`, không viền, ảnh hưởng nhẹ để phân cấp thao tác.
-- Tất cả text và SVG icon trong sidebar dùng `color: #ffffff` (force white) bằng inline style để override Tailwind dark/light mode.

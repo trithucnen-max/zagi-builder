@@ -24,6 +24,7 @@ import * as channelIpc from '../../../lib/channelIpc';
 import DataAccessor, { refreshLibraryCache } from '../../../lib/data/DataAccessor';
 import { useEmployeeStore } from '../../../store/employeeStore';
 import { useAppStore } from '../../../store/appStore';
+import { useResolvedTheme } from '@/theme/useResolvedTheme';
 import { BookIcon, ChartIcon, CloseIcon, EditIcon, FileTextIcon, FolderIcon, ImageIcon, MonitorIcon, RefreshIcon, SearchIcon, SendIcon, StarIcon, TrashIcon } from '@/components/common/icons';
 
 interface LibraryItem {
@@ -101,8 +102,8 @@ function getContrastTextColor(hexColor: string): string {
 export default function LibraryPickerModal({
   zaloId, threadId, threadType, initialType = 'all', onClose, onSelect,
 }: Props) {
-  const { theme } = useAppStore();
-  const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
+  const resolvedTheme = useResolvedTheme();
+  const isLightTheme = resolvedTheme === 'light';
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [quickTagName, setQuickTagName] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());

@@ -3,6 +3,7 @@ import { useAccountStore } from '@/store/accountStore';
 
 type AppView = 'chat' | 'friends' | 'settings' | 'dashboard' | 'crm' | 'workflow' | 'integration' | 'analytics' | 'erp';
 export type AppTheme = 'dark' | 'light' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
 
 export interface GroupMember {
   userId: string;
@@ -111,7 +112,9 @@ interface AppStore {
   othersConversations: Record<string, Set<string>>;
 
   theme: AppTheme;
+  resolvedTheme: ResolvedTheme;
   setTheme: (theme: AppTheme) => void;
+  setResolvedTheme: (theme: ResolvedTheme) => void;
   fontSizeScale: number;
   setFontSizeScale: (scale: number) => void;
 
@@ -370,6 +373,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
   notifSettings: loadNotifSettings(),
   notifSettingsOverrides: {},
   theme: loadTheme(),
+  resolvedTheme: (() => {
+    const t = loadTheme();
+    if (t === 'system') {
+      try {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } catch {
+        return 'light';
+      }
+    }
+    return t;
+  })(),
   fontSizeScale: loadFontSizeScale(),
   groupInfoCache: {},
   othersConversations: {},
@@ -666,7 +680,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setTheme: (theme) => {
     try { localStorage.setItem('app_theme', theme); } catch {}
-    set({ theme });
+    const resolvedTheme = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+    set({ theme, resolvedTheme });
+  },
+
+  setResolvedTheme: (resolvedTheme) => {
+    set({ resolvedTheme });
   },
 
   setFontSizeScale: (scale) => {

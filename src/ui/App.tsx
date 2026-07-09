@@ -117,7 +117,7 @@ export default function App() {
     showIntegrationQuickPanel, toggleIntegrationQuickPanel,
     showAIQuickPanel, toggleAIQuickPanel,
     openQuickChat, quickChatOpen, theme, fontSizeScale,
-    sidebarExpanded
+    sidebarExpanded, setResolvedTheme
   } = useAppStore();
   const { setAccounts, updateListenerActive, accounts } = useAccountStore();
   const { setContacts } = useChatStore();
@@ -227,12 +227,13 @@ export default function App() {
   // ─── Sync theme to <html> element ────────────────────────────────────────
   useEffect(() => {
     const applyTheme = (currentTheme: AppTheme) => {
-      let resolvedTheme = currentTheme;
+      let resolved = currentTheme;
       if (currentTheme === 'system') {
         const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        resolvedTheme = systemPrefersDark ? 'dark' : 'light';
+        resolved = systemPrefersDark ? 'dark' : 'light';
       }
-      document.documentElement.dataset.theme = resolvedTheme;
+      document.documentElement.dataset.theme = resolved;
+      setResolvedTheme(resolved);
     };
 
     applyTheme(theme);
@@ -240,7 +241,9 @@ export default function App() {
     if (theme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
       const listener = (e: MediaQueryListEvent) => {
-        document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
+        const resolved = e.matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = resolved;
+        setResolvedTheme(resolved);
       };
       
       if (mediaQuery.addEventListener) {
@@ -257,7 +260,7 @@ export default function App() {
         }
       };
     }
-  }, [theme]);
+  }, [theme, setResolvedTheme]);
 
   // ─── Sync font size scale to <html> element ──────────────────────────────
   useEffect(() => {
