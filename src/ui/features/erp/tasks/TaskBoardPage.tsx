@@ -320,29 +320,18 @@ export default function TaskBoardPage() {
             onClick={() => setActiveProject(null)}
             className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
               activeProjectId === null
-                ? 'text-white font-semibold shadow-md ring-1 ring-white/10'
-                : 'text-white/80 hover:text-white'
+                ? 'bg-gray-800 border border-gray-700/80 text-white font-semibold shadow-sm'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-900/30'
             }`}
-            style={{
-              backgroundColor: '#0068FF',
-              opacity: activeProjectId === null ? 1 : 0.6
-            }}
           >
             <div className="flex items-center gap-2 truncate">
-              {activeProjectId === null ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white flex-shrink-0 text-white-important">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white flex-shrink-0 text-white-important">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                </svg>
-              )}
-              <span className="truncate" style={{ color: '#ffffff' }}>Tất cả dự án</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-blue-500 flex-shrink-0">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+              </svg>
+              <span className="truncate">Tất cả dự án</span>
             </div>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 text-white`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-gray-900 text-gray-400 border border-gray-800`}>
               {allTasks.length}
             </span>
           </button>
@@ -358,19 +347,15 @@ export default function TaskBoardPage() {
                 onClick={() => setActiveProject(project.id)}
                 className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
                   isSelected
-                    ? 'text-white font-semibold shadow-md ring-1 ring-white/10'
-                    : 'text-white/80 hover:text-white'
+                    ? 'bg-gray-800 border border-gray-700/80 text-white font-semibold shadow-sm'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-900/30'
                 }`}
-                style={{
-                  backgroundColor: project.color || '#3b82f6',
-                  opacity: isSelected ? 1 : 0.6
-                }}
               >
                 <div className="flex items-center gap-2 truncate">
-                  {renderProjectIcon(icon)}
-                  <span className="truncate" style={{ color: '#ffffff' }}>{cleanName}</span>
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: project.color || '#3b82f6' }} />
+                  <span className="truncate">{cleanName}</span>
                 </div>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 text-white`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-gray-900 text-gray-400 border border-gray-800`}>
                   {count}
                 </span>
               </button>
@@ -392,19 +377,15 @@ export default function TaskBoardPage() {
                     onClick={() => setActiveProject(project.id)}
                     className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
                       isSelected
-                        ? 'text-white font-semibold shadow-md ring-1 ring-white/10'
-                        : 'text-white/80 hover:text-white'
+                        ? 'bg-gray-800 border border-gray-700/80 text-white font-semibold shadow-sm'
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-900/30'
                     }`}
-                    style={{
-                      backgroundColor: project.color || '#64748b',
-                      opacity: isSelected ? 1 : 0.6
-                    }}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      {renderProjectIcon(icon)}
-                      <span className="truncate" style={{ color: '#ffffff' }}>{cleanName}</span>
+                      <span className="w-2 h-2 rounded-full flex-shrink-0 opacity-50" style={{ backgroundColor: project.color || '#64748b' }} />
+                      <span className="truncate line-through text-gray-500">{cleanName}</span>
                     </div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 text-white`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-gray-900 text-gray-500 border border-gray-800`}>
                       {count}
                     </span>
                   </button>
@@ -812,7 +793,13 @@ export default function TaskBoardPage() {
             defaultStatus={editorState.status ?? 'todo'}
             projectId={activeProjectId ?? undefined}
             onClose={() => setEditorState(null)}
-            onSaved={() => undefined}
+            onSaved={(created) => {
+              if (created?.id) {
+                setEditorState({ taskId: created.id, status: created.status });
+              } else {
+                setEditorState(null);
+              }
+            }}
           />
         )
       )}

@@ -289,6 +289,8 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
 
   // Hỗ trợ lưu trữ nhiệm vụ con khi tạo mới (chưa có taskId)
   const [localSubtasks, setLocalSubtasks] = useState<{ id: string; content: string; assignee_id: string | null; due_date: number | null; done: boolean }[]>([]);
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskValue, setEditingSubtaskValue] = useState('');
 
   const assigneeOptions = useMemo(() => {
     const employeeItems = (employees || []).filter(Boolean).map((employee: any) => ({
@@ -558,6 +560,32 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
       await refresh(taskId);
     } else {
       setLocalSubtasks(current => current.filter(item => item.id !== String(itemId)));
+    }
+  };
+
+  const handleStartEditSubtask = (id: string, content: string) => {
+    if (isOnlyWatcher) return;
+    setEditingSubtaskId(id);
+    setEditingSubtaskValue(content);
+  };
+
+  const handleSaveSubtaskContent = async (id: string) => {
+    const trimmed = editingSubtaskValue.trim();
+    if (!trimmed) {
+      setEditingSubtaskId(null);
+      return;
+    }
+    try {
+      if (taskId) {
+        await ipc.erp?.taskUpdateChecklist({ id: Number(id), patch: { content: trimmed } });
+        await refresh(taskId);
+      } else {
+        setLocalSubtasks(current => current.map(item => item.id === id ? { ...item, content: trimmed } : item));
+      }
+    } catch (err: any) {
+      showNotification(err.message || 'Lỗi khi cập nhật nhiệm vụ con', 'error');
+    } finally {
+      setEditingSubtaskId(null);
     }
   };
 
@@ -1039,9 +1067,28 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                           onChange={e => handleChecklistToggle(item.id, e.target.checked)} 
                           className="w-3.5 h-3.5 rounded border-gray-700 text-blue-600 focus:ring-0 bg-transparent cursor-pointer disabled:opacity-50"
                         />
-                        <span className={`text-[11px] flex-1 min-w-0 truncate ${item.done ? 'line-through text-gray-500 opacity-50' : 'text-gray-200'}`}>
-                          {item.content}
-                        </span>
+                        {editingSubtaskId === item.id ? (
+                          <input
+                            type="text"
+                            value={editingSubtaskValue}
+                            onChange={e => setEditingSubtaskValue(e.target.value)}
+                            onBlur={() => handleSaveSubtaskContent(item.id)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSaveSubtaskContent(item.id);
+                              if (e.key === 'Escape') setEditingSubtaskId(null);
+                            }}
+                            className="flex-1 bg-gray-900 border border-gray-700 rounded px-2 py-0.5 text-[11px] text-gray-100 focus:outline-none focus:border-blue-500"
+                            autoFocus
+                          />
+                        ) : (
+                          <span 
+                            onDoubleClick={() => handleStartEditSubtask(item.id, item.content)}
+                            className={`text-[11px] flex-1 min-w-0 truncate cursor-pointer hover:text-blue-400 select-none ${item.done ? 'line-through text-gray-500 opacity-50' : 'text-gray-200'}`}
+                            title="Nhấp đúp chuột để sửa nội dung"
+                          >
+                            {item.content}
+                          </span>
+                        )}
                         
                         {/* Subtask Assignee and Date Selectors */}
                         <div className="flex items-center gap-1.5 flex-shrink-0">
