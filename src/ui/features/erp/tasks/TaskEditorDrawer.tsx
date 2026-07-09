@@ -1033,7 +1033,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                     {checklists.map(item => (
                       <div key={item.id} className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-transparent border border-gray-800/30 hover:border-gray-800/60 hover:bg-gray-900/10 transition-all">
                         <input 
-                          disabled={isOnlyWatcher}
+                          disabled={isOnlyWatcher && item.assignee_id !== currentEmployee?.employee_id}
                           type="checkbox" 
                           checked={!!item.done} 
                           onChange={e => handleChecklistToggle(item.id, e.target.checked)} 
@@ -1046,7 +1046,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                         {/* Subtask Assignee and Date Selectors */}
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           <select 
-                            disabled={isOnlyWatcher}
+                            disabled={isOnlyWatcher && item.assignee_id !== currentEmployee?.employee_id}
                             value={item.assignee_id || ''} 
                             onChange={e => handleChecklistAssigneeChange(item.id, e.target.value)} 
                             className="bg-transparent border-0 p-0 text-[9px] text-gray-400 hover:text-gray-200 cursor-pointer focus:outline-none w-16 truncate disabled:opacity-50"
@@ -1055,7 +1055,7 @@ export default function TaskEditorDrawer({ taskId, defaultStatus = 'todo', proje
                             {assigneeOptions.map(opt => <option key={opt.employee_id} value={opt.employee_id} className="bg-gray-900 text-gray-300">{opt.display_name.split(' ').pop()}</option>)}
                           </select>
                           <input 
-                            disabled={isOnlyWatcher}
+                            disabled={isOnlyWatcher && item.assignee_id !== currentEmployee?.employee_id}
                             type="date" 
                             value={item.due_date ? new Date(item.due_date).toISOString().split('T')[0] : ''} 
                             onChange={e => handleChecklistDueDateChange(item.id, e.target.value)} 
