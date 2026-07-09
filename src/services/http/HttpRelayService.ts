@@ -2549,42 +2549,46 @@ class HttpRelayService {
             }
 
             try {
+                const { net } = require('electron');
                 const url = new URL('/event', emp.callbackUrl);
                 const payload = JSON.stringify({ channel, data });
-                const isHttps = url.protocol === 'https:';
-                const httpModule = isHttps ? require('https') : require('http');
 
-                const req = httpModule.request(
-                    {
-                        hostname: url.hostname,
-                        port: url.port,
-                        path: url.pathname,
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Content-Length': Buffer.byteLength(payload),
-                            'X-Boss-Token': emp.token,
-                        },
-                        timeout: HttpRelayService.PUSH_TIMEOUT_MS,
-                    },
-                    (res: http.IncomingMessage) => {
-                        res.resume(); // drain response
+                const req = net.request({
+                    method: 'POST',
+                    url: url.toString(),
+                    useSessionCookies: false
+                });
+
+                req.setHeader('Content-Type', 'application/json');
+                req.setHeader('X-Boss-Token', emp.token);
+
+                let timeoutTimer: NodeJS.Timeout | null = setTimeout(() => {
+                    req.abort();
+                    emp.consecutiveFailures++;
+                    resolve();
+                }, HttpRelayService.PUSH_TIMEOUT_MS);
+
+                req.on('response', (res) => {
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
+                    }
+                    res.on('data', () => {}); // drain response
+                    res.on('end', () => {
                         emp.consecutiveFailures = 0;
                         resolve();
-                    }
-                );
+                    });
+                });
 
                 req.on('error', () => {
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
+                    }
                     emp.consecutiveFailures++;
                     if (emp.consecutiveFailures >= HttpRelayService.MAX_FAILURES) {
                         Logger.warn(`[HttpRelayService] Employee ${emp.display_name} unreachable (${emp.consecutiveFailures} failures)`);
                     }
-                    resolve();
-                });
-
-                req.on('timeout', () => {
-                    req.destroy();
-                    emp.consecutiveFailures++;
                     resolve();
                 });
 

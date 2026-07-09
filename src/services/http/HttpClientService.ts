@@ -1589,44 +1589,53 @@ class HttpClientService {
     private httpPost(url: string, body: any, headers: Record<string, string> = {}, timeout = 15000): Promise<any> {
         return new Promise((resolve, reject) => {
             try {
-                const urlObj = new URL(url);
+                const { net } = require('electron');
                 const payload = JSON.stringify(body);
-                const isHttps = urlObj.protocol === 'https:';
-                const httpModule = isHttps ? require('https') : require('http');
+                const req = net.request({
+                    method: 'POST',
+                    url: url,
+                    useSessionCookies: false
+                });
 
-                const req = httpModule.request(
-                    {
-                        hostname: urlObj.hostname,
-                        port: urlObj.port,
-                        path: urlObj.pathname + urlObj.search,
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Content-Length': Buffer.byteLength(payload),
-                            ...this.getTunnelBypassHeaders(),
-                            ...headers,
-                        },
-                        timeout,
-                    },
-                    (res: http.IncomingMessage) => {
-                        const chunks: any[] = [];
-                        res.on('data', (chunk: any) => { chunks.push(chunk); });
-                        res.on('end', () => {
-                            let data = '';
-                            if (chunks.length > 0) {
-                                if (typeof chunks[0] === 'string') {
-                                    data = chunks.join('');
-                                } else {
-                                    data = Buffer.concat(chunks).toString('utf8');
-                                }
-                            }
-                            resolve(this.parseJsonResponse(data));
-                        });
+                req.setHeader('Content-Type', 'application/json');
+                const bypassHeaders = this.getTunnelBypassHeaders();
+                for (const [k, v] of Object.entries({ ...bypassHeaders, ...headers })) {
+                    req.setHeader(k, v);
+                }
+
+                let timeoutTimer: NodeJS.Timeout | null = setTimeout(() => {
+                    req.abort();
+                    reject(new Error('Request timeout'));
+                }, timeout);
+
+                req.on('response', (res) => {
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
                     }
-                );
+                    const chunks: any[] = [];
+                    res.on('data', (chunk: any) => { chunks.push(chunk); });
+                    res.on('end', () => {
+                        let data = '';
+                        if (chunks.length > 0) {
+                            if (typeof chunks[0] === 'string') {
+                                data = chunks.join('');
+                            } else {
+                                data = Buffer.concat(chunks).toString('utf8');
+                            }
+                        }
+                        resolve(this.parseJsonResponse(data));
+                    });
+                });
 
-                req.on('error', (err: Error) => reject(err));
-                req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+                req.on('error', (err: Error) => {
+                    if (timeoutTimer) {
+                        clearTimeout(timeoutTimer);
+                        timeoutTimer = null;
+                    }
+                    reject(err);
+                });
+
                 req.write(payload);
                 req.end();
             } catch (err) {
