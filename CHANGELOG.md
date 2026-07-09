@@ -30,6 +30,14 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Giải quyết triệt để lỗi `No handler for channel: crm:scheduleMessage` (và các kênh CRM khác) khi máy Nhân viên gửi yêu cầu proxy về Boss.
   - Ngăn `MessageSchedulerService` khởi động trên máy Nhân viên (máy không có SQLite local), loại bỏ hàng loạt cảnh báo `Query aborted: database is not initialized` trong console log.
 
+- **Đại tu Thư viện Ảnh/Tệp theo Zagi Design System:**
+  - Hỗ trợ thích ứng tốt với cả Light theme (giao diện sáng) và Dark theme (giao diện tối). Sử dụng tông màu xám/trắng nền solid thay vì bị trong suốt hoặc đen xì khó đọc.
+  - Thêm nút gán nhãn dán trực tiếp trên Ảnh/Tệp tin (nút 🏷️ ở góc thẻ ảnh hoặc kế bên menu 3 chấm của tệp tin).
+  - Tích hợp Popover checklist gán nhãn nhanh trực quan (chọn nhiều nhãn dán) kèm ô nhập tạo nhanh nhãn mới với màu ngẫu nhiên nền sẫm chữ trắng tự gán ngay lập tức.
+  - Sidebar tags cải tiến: Nhấp đúp chuột (Double click) để đổi tên nhãn inline ngay tại thanh bên, và hiển thị biểu tượng `✕` khi hover giúp xóa nhãn dán trực tiếp sau khi xác nhận.
+  - Khôi phục chữ và biểu tượng màu trắng trên các nút màu xanh chủ đạo (`#0068ff`) trong cả 2 chế độ sáng và tối.
+  - Sửa lỗi runtime `ReferenceError: theme is not defined` và `getContrastTextColor is not defined`.
+
 ---
 
 ## [v27.2.8] - 2026-07-09

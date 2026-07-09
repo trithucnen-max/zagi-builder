@@ -251,7 +251,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
 
   const { activeThreadId, activeThreadType, addMessage, removeMessage, replyTo, setReplyTo, markReplied, setDraft, clearDraft } = useChatStore();
   const { activeAccountId, getActiveAccount, accounts: allAccounts } = useAccountStore();
-  const { showNotification, groupInfoCache, mergedInboxMode, toggleIntegrationQuickPanel, pinnedIntegrationShortcuts, unpinIntegrationShortcut, editPinnedShortcutIcon, openIntegrationPanelTo, aiSuggestionsEnabled, aiSuggestions, aiSuggestionsLoading, setAiSuggestionsEnabled, setAiSuggestions, setAiSuggestionsLoading, isAiSuggestDisabled, toggleAiDisableForThread, toggleAiDisableForAccount, aiSuggestDisabledThreads, aiSuggestDisabledAccounts } = useAppStore();
+  const { showNotification, groupInfoCache, mergedInboxMode, toggleIntegrationQuickPanel, pinnedIntegrationShortcuts, unpinIntegrationShortcut, editPinnedShortcutIcon, openIntegrationPanelTo, aiSuggestionsEnabled, aiSuggestions, aiSuggestionsLoading, setAiSuggestionsEnabled, setAiSuggestions, setAiSuggestionsLoading, isAiSuggestDisabled, toggleAiDisableForThread, toggleAiDisableForAccount, aiSuggestDisabledThreads, aiSuggestDisabledAccounts, theme } = useAppStore();
 
   // Channel capability for active thread
   const activeContact = useChatStore(s => (s.contacts[activeAccountId || ''] || []).find(c => c.contact_id === activeThreadId));
@@ -3004,16 +3004,28 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
                   className={`inline-flex items-center gap-1 px-3 text-[12px] py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-150 border ${
                     isToggling ? 'scale-95 opacity-60' : 'hover:scale-[1.03]'
                   } ${active ? 'shadow-sm' : ''}`}
-                  style={active ? {
-                    backgroundColor: label.color || '#3b82f6',
-                    color: label.text_color || '#fff',
-                    borderColor: label.color,
-                  } : {
-                    backgroundColor: `${label.color || '#3b82f6'}85`,
-                    color: label.text_color || '#93c5fd',
-                    borderColor: `${label.color || '#3b82f6'}80`,
-                    opacity: 0.75,
-                  }}
+                  style={(() => {
+                    const labelColor = label.color || '#3b82f6';
+                    const isLightTheme = theme === 'light';
+                    if (active) {
+                      return {
+                        backgroundColor: labelColor,
+                        color: getContrastTextColor(labelColor),
+                        borderColor: labelColor,
+                      };
+                    } else {
+                      return isLightTheme ? {
+                        backgroundColor: labelColor + '15',
+                        color: labelColor,
+                        borderColor: labelColor + '30',
+                      } : {
+                        backgroundColor: labelColor + '20',
+                        color: getContrastTextColor(labelColor) === '#1f2937' ? labelColor : '#93c5fd',
+                        borderColor: labelColor + '30',
+                        opacity: 0.85
+                      };
+                    }
+                  })()}
                   title={active ? `✓ ${label.name} — nhấn để gỡ` : `Gắn nhãn "${label.name}"`}
                 >
                   {label.emoji ? (
@@ -4941,5 +4953,19 @@ function MoreMenuDropdown({ isGroup, onCreatePoll, onCreateNote, onCreateReminde
       ))}
     </div>
   );
+}
+
+function getContrastTextColor(hexColor: string): string {
+  if (!hexColor) return '#ffffff';
+  let color = hexColor.replace('#', '');
+  if (color.length === 3) {
+    color = color[0] + color[0] + color[1] + color[1] + color[2] + color[2];
+  }
+  if (color.length !== 6) return '#ffffff';
+  const r = parseInt(color.substring(0, 2), 16);
+  const g = parseInt(color.substring(2, 4), 16);
+  const b = parseInt(color.substring(4, 6), 16);
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return (yiq >= 128) ? '#1f2937' : '#ffffff';
 }
 

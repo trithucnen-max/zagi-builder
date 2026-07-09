@@ -23,6 +23,7 @@ import ipc from '../../../lib/ipc';
 import * as channelIpc from '../../../lib/channelIpc';
 import DataAccessor, { refreshLibraryCache } from '../../../lib/data/DataAccessor';
 import { useEmployeeStore } from '../../../store/employeeStore';
+import { useAppStore } from '../../../store/appStore';
 import { BookIcon, ChartIcon, CloseIcon, EditIcon, FileTextIcon, FolderIcon, ImageIcon, MonitorIcon, RefreshIcon, SearchIcon, SendIcon, StarIcon, TrashIcon } from '@/components/common/icons';
 
 interface LibraryItem {
@@ -69,10 +70,41 @@ const TYPE_LABELS: Record<MediaType, string> = {
   file: 'File',
 };
 
+/** Băm tên nhãn thành mã màu ngẫu nhiên nền sẫm hài hòa */
+function getRandomTagColor(name: string): string {
+  const hash = Array.from(name).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const colors = [
+    '#0068ff', // Blue
+    '#0d9488', // Teal
+    '#16a34a', // Green
+    '#ca8a04', // Yellow/Gold
+    '#ea580c', // Orange
+    '#dc2626', // Red
+    '#2563eb', // Indigo
+    '#7c3aed', // Purple
+    '#db2777', // Pink
+  ];
+  return colors[hash % colors.length];
+}
+
+/** Tính độ tương phản và trả về màu chữ phù hợp (#ffffff hoặc #181a2e) */
+function getContrastTextColor(hexColor: string): string {
+  if (!hexColor) return '#ffffff';
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 150 ? '#181a2e' : '#ffffff';
+}
+
 export default function LibraryPickerModal({
   zaloId, threadId, threadType, initialType = 'all', onClose, onSelect,
 }: Props) {
+  const { theme } = useAppStore();
+  const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
   const [items, setItems] = useState<LibraryItem[]>([]);
+  const [quickTagName, setQuickTagName] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -842,12 +874,13 @@ export default function LibraryPickerModal({
               <div className="flex items-center justify-between px-3 py-1">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nhãn dán</span>
                 <button onClick={() => handleCreateTag()}
-                  className="w-5 h-5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white flex items-center justify-center transition-colors text-xs font-bold"
+                  className="w-6 h-6 rounded-md flex items-center justify-center !text-white text-sm font-bold transition-all hover:scale-110"
+                  style={{ background: '#0068ff', color: '#fff' }}
                   title="Tạo nhãn mới">＋</button>
               </div>
 
-              {tagInput && (tagInput.mode === 'create' || tagInput.mode === 'rename') && (
-                <div className="px-2 py-1 flex items-center gap-1.5 bg-gray-705/30 rounded-lg border border-gray-600/30 my-1">
+              {tagInput && tagInput.mode === 'create' && (
+                <div className="px-2 py-1 flex items-center gap-1.5 bg-gray-800 rounded-lg border border-gray-600/30 my-1">
                   <input autoFocus
                     value={tagInput.value}
                     onChange={e => setTagInput({ ...tagInput, value: e.target.value })}
@@ -856,24 +889,41 @@ export default function LibraryPickerModal({
                     placeholder="Tên nhãn..."
                     className="flex-1 px-1.5 py-0.5 text-xs bg-gray-800 border border-gray-600 rounded text-gray-200 outline-none animate-fade-in"
                   />
-                  <input type="color" value={tagInput.color || '#3b82f6'}
-                    onChange={e => setTagInput({ ...tagInput, color: e.target.value })}
-                    className="w-5 h-5 border-0 bg-transparent cursor-pointer rounded p-0 outline-none shrink-0"
-                  />
                 </div>
               )}
 
               <div className="space-y-0.5 mt-1">
                 {tags.map(tag => {
                   const isSelected = selectedTagIds.has(tag.id);
+                  
+                  // Chế độ sửa tên inline khi nháy đúp
+                  if (tagInput && tagInput.mode === 'rename' && tagInput.id === tag.id) {
+                    return (
+                      <div key={tag.id} className="px-3 py-1">
+                        <input
+                          autoFocus
+                          value={tagInput.value}
+                          onChange={e => setTagInput({ ...tagInput, value: e.target.value })}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') submitTagInput();
+                            if (e.key === 'Escape') setTagInput(null);
+                          }}
+                          onBlur={() => setTimeout(() => submitTagInput(), 200)}
+                          className="w-full px-2 py-1 text-xs bg-gray-800 border border-[#0068ff]/70 rounded text-gray-200 outline-none"
+                        />
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={tag.id}
-                      onContextMenu={(e) => { e.preventDefault(); setShowTagMenu(showTagMenu === tag.id ? null : tag.id); }}
+                      onDoubleClick={() => handleRenameTag(tag.id)}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer text-sm transition-all group relative ${
                         isSelected
                           ? 'bg-blue-600/30 text-blue-300'
                           : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
                       }`}
+                      title="Nhấp đúp chuột để đổi tên"
                     >
                       <span onClick={() => {
                         const next = new Set(selectedTagIds);
@@ -884,25 +934,18 @@ export default function LibraryPickerModal({
                         }
                         setSelectedTagIds(next);
                       }} className="flex items-center gap-2 flex-1 min-w-0">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: tag.color || '#3b82f6' }} />
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color || '#3b82f6' }} />
                         <span className="truncate">{tag.name}</span>
                       </span>
 
-                      {/* ⋯ menu button */}
-                      <div className="relative">
-                        <button onClick={(e) => { e.stopPropagation(); setShowTagMenu(showTagMenu === tag.id ? null : tag.id); }}
-                          className="p-1 rounded-md text-gray-400 hover:text-gray-200 opacity-0 group-hover:opacity-100 transition-all text-sm leading-none">⋯</button>
-
-                        {showTagMenu === tag.id && (
-                          <div className="absolute right-0 top-full mt-1 bg-gray-700 border border-gray-600 rounded-xl shadow-2xl z-50 py-1 w-28"
-                            onClick={e => e.stopPropagation()}>
-                            <button onClick={() => { handleRenameTag(tag.id); }}
-                              className="w-full text-left px-3 py-1 text-xs text-gray-200 hover:bg-gray-600 flex items-center gap-1.5"><EditIcon className="w-3 h-3" /> Đổi tên</button>
-                            <button onClick={() => handleDeleteTag(tag.id)}
-                              className="w-full text-left px-3 py-1 text-xs text-red-400 hover:bg-gray-600 flex items-center gap-1.5"><TrashIcon className="w-3.5 h-3.5 inline" /> Xoá</button>
-                          </div>
-                        )}
-                      </div>
+                      {/* Nút xóa nhãn dán xuất hiện khi hover */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteTag(tag.id); }}
+                        className="p-1 rounded text-gray-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-xs font-bold leading-none ml-auto"
+                        title="Xóa nhãn dán"
+                      >
+                        ✕
+                      </button>
                     </div>
                   );
                 })}
@@ -962,6 +1005,21 @@ export default function LibraryPickerModal({
                           </div>
                         </div>
 
+                        {/*** Tag assign (below Star) ***/}
+                        <div className="absolute top-[30px] left-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="bg-black/50 backdrop-blur-sm rounded-lg p-1 shadow-lg">
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setEditTagsPos({ top: rect.bottom + 4, left: rect.left - 160 });
+                              setEditTagsTarget(item.uuid);
+                            }}
+                              className="text-[11px] leading-none block text-gray-300 hover:text-white font-bold" title="Gán nhãn dán">
+                              🏷️
+                            </button>
+                          </div>
+                        </div>
+
                         {/*** ⋮ button (top-right, hover) — menu ở modal level fixed ***/}
                         <div className="absolute top-1 right-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={(e) => handleMenuClick(e, item.uuid)}
@@ -997,9 +1055,11 @@ export default function LibraryPickerModal({
                                   const trimmed = name.trim();
                                   if (!trimmed) return null;
                                   const tagObj = tags.find(t => t.name === trimmed);
+                                  const bgColor = tagObj?.color || '#4b5563';
+                                  const textColor = getContrastTextColor(bgColor);
                                   return (
-                                    <span key={trimmed} className="px-1 rounded text-[7px] text-white font-medium"
-                                      style={{ backgroundColor: tagObj?.color || '#4b5563' }}>
+                                    <span key={trimmed} className="px-1 rounded text-[7px] font-medium"
+                                      style={{ backgroundColor: bgColor, color: textColor }}>
                                       {trimmed}
                                     </span>
                                   );
@@ -1040,6 +1100,21 @@ export default function LibraryPickerModal({
                           </div>
                         </div>
 
+                        {/*** Tag assign (below Star) ***/}
+                        <div className="absolute top-[30px] left-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="bg-black/50 backdrop-blur-sm rounded-lg p-1 shadow-lg">
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setEditTagsPos({ top: rect.bottom + 4, left: rect.left - 160 });
+                              setEditTagsTarget(item.uuid);
+                            }}
+                              className="text-[11px] leading-none block text-gray-300 hover:text-white font-bold" title="Gán nhãn dán">
+                              🏷️
+                            </button>
+                          </div>
+                        </div>
+
                         {/*** ⋮ button ***/}
                         <div className="absolute top-1 right-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={(e) => handleMenuClick(e, item.uuid)}
@@ -1067,9 +1142,11 @@ export default function LibraryPickerModal({
                                     const trimmed = name.trim();
                                     if (!trimmed) return null;
                                     const tagObj = tags.find(t => t.name === trimmed);
+                                    const bgColor = tagObj?.color || '#4b5563';
+                                    const textColor = getContrastTextColor(bgColor);
                                     return (
-                                      <span key={trimmed} className="px-1 rounded text-[7px] text-white font-medium"
-                                        style={{ backgroundColor: tagObj?.color || '#4b5563' }}>
+                                      <span key={trimmed} className="px-1 rounded text-[7px] font-medium"
+                                        style={{ backgroundColor: bgColor, color: textColor }}>
                                         {trimmed}
                                       </span>
                                     );
@@ -1124,9 +1201,11 @@ export default function LibraryPickerModal({
                                     const trimmed = name.trim();
                                     if (!trimmed) return null;
                                     const tagObj = tags.find(t => t.name === trimmed);
+                                    const bgColor = tagObj?.color || '#4b5563';
+                                    const textColor = getContrastTextColor(bgColor);
                                     return (
-                                      <span key={trimmed} className="px-1 rounded text-[8px] text-white font-medium"
-                                        style={{ backgroundColor: tagObj?.color || '#4b5563' }}>
+                                      <span key={trimmed} className="px-1.5 py-0.5 rounded text-[8px] font-medium"
+                                        style={{ backgroundColor: bgColor, color: textColor }}>
                                         {trimmed}
                                       </span>
                                     );
@@ -1137,8 +1216,17 @@ export default function LibraryPickerModal({
                           </>
                         )}
                       </div>
-                      {/*** ⋮ Menu button ***/}
-                      <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/*** Tag & ⋮ Menu buttons ***/}
+                      <div className="relative opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
+                        <button onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setEditTagsPos({ top: rect.bottom + 4, left: rect.left - 160 });
+                          setEditTagsTarget(item.uuid);
+                        }}
+                          className="bg-black/40 hover:bg-black/60 rounded-lg px-2 py-1 text-xs text-gray-300 hover:text-white"
+                          title="Gán nhãn dán"
+                        >🏷️</button>
                         <button onClick={(e) => handleMenuClick(e, item.uuid)}
                           className="bg-black/40 hover:bg-black/60 rounded-lg px-1.5 py-1 text-sm text-gray-300 hover:text-white">⋮</button>
                       </div>
@@ -1188,8 +1276,12 @@ export default function LibraryPickerModal({
         return (
           <>
             <div className="fixed inset-0 z-[99]" onClick={closeMenus} />
-            <div className="fixed z-[100] bg-gray-800 border border-gray-600 rounded-xl shadow-2xl py-1 w-48"
-              style={{ top: menuPos.top, left: menuPos.left }} onClick={e => e.stopPropagation()}>
+            <div className="fixed z-[100] border border-gray-600 rounded-xl shadow-2xl py-1 w-48 animate-scale-up"
+              style={{
+                backgroundColor: isLightTheme ? '#ffffff' : '#1f2937',
+                top: menuPos.top,
+                left: menuPos.left
+              }} onClick={e => e.stopPropagation()}>
               <button onClick={() => { handleToggleFavorite(item.uuid, item.is_favorite); closeMenus(); }}
                 className="w-full text-left px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-700 flex items-center gap-2">
                 {item.is_favorite ? <><StarIcon className="w-3.5 h-3.5 inline" /> Bỏ yêu thích</> : '☆ Yêu thích'}
@@ -1230,8 +1322,12 @@ export default function LibraryPickerModal({
         return (
           <>
             <div className="fixed inset-0 z-[99]" onClick={closeMenus} />
-            <div className="fixed z-[100] bg-gray-800 border border-gray-600 rounded-xl shadow-2xl py-1 min-w-[180px] max-h-[260px] overflow-y-auto"
-              style={{ top: folderPos.top, left: folderPos.left }} onClick={e => e.stopPropagation()}>
+            <div className="fixed z-[100] border border-gray-600 rounded-xl shadow-2xl py-1 min-w-[180px] max-h-[260px] overflow-y-auto animate-scale-up"
+              style={{
+                backgroundColor: isLightTheme ? '#ffffff' : '#1f2937',
+                top: folderPos.top,
+                left: folderPos.left
+              }} onClick={e => e.stopPropagation()}>
               <div className="px-3 py-1.5 text-[10px] text-gray-400 uppercase tracking-wider">Chuyển đến</div>
               {rootFolders.length === 0 && (
                 <p className="px-3 py-2 text-xs text-gray-400">Chưa có thư mục</p>
@@ -1255,18 +1351,10 @@ export default function LibraryPickerModal({
 
         const handleToggleTag = async (tagId: number, tagName: string) => {
           const currentTagNames = (item.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-          let newTagIds: number[] = [];
-
           const tagNameToIdMap = new Map(tags.map(t => [t.name, t.id]));
           const currentTagIds = currentTagNames.map(name => tagNameToIdMap.get(name)).filter(Boolean) as number[];
-
           const hasTag = currentTagNames.includes(tagName);
-          if (hasTag) {
-            newTagIds = currentTagIds.filter(id => id !== tagId);
-          } else {
-            newTagIds = [...currentTagIds, tagId];
-          }
-
+          const newTagIds = hasTag ? currentTagIds.filter(id => id !== tagId) : [...currentTagIds, tagId];
           try {
             const res = await DataAccessor.assignTagsToLibraryItem(item.uuid, newTagIds, zaloId);
             if (res.success) {
@@ -1275,34 +1363,103 @@ export default function LibraryPickerModal({
           } catch {}
         };
 
+        const handleQuickCreateTag = async () => {
+          if (!quickTagName.trim()) return;
+          const name = quickTagName.trim();
+          const color = getRandomTagColor(name);
+          try {
+            const res = await DataAccessor.createLibraryTag({ name, zaloId, color });
+            if (res.success) {
+              await loadTags();
+              const result = await DataAccessor.getLibraryTags({ zaloId });
+              if (result.success && result.items) {
+                const newTag = (result.items || []).find((t: any) => t.name === name);
+                if (newTag) {
+                  const currentTagNames = (item.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+                  const tagNameToIdMap = new Map((result.items || []).map((t: any) => [t.name, t.id]));
+                  const currentTagIds = currentTagNames.map(n => tagNameToIdMap.get(n)).filter(Boolean) as number[];
+                  const newTagIds = [...currentTagIds, newTag.id];
+                  await DataAccessor.assignTagsToLibraryItem(item.uuid, newTagIds, zaloId);
+                  loadItems(page);
+                }
+              }
+              setQuickTagName('');
+            }
+          } catch (err) {
+            console.error('Failed to quick create tag:', err);
+          }
+        };
+
         return (
           <>
             <div className="fixed inset-0 z-[99]" onClick={closeMenus} />
-            <div className="fixed z-[100] bg-gray-800 border border-gray-600 rounded-xl shadow-2xl py-1 min-w-[200px] max-h-[300px] overflow-y-auto animate-scale-up"
-              style={{ top: editTagsPos.top, left: editTagsPos.left }} onClick={e => e.stopPropagation()}>
-              <div className="px-3 py-1.5 text-[10px] text-gray-400 uppercase tracking-wider flex justify-between items-center">
+            <div
+              className="fixed z-[100] border border-gray-600 rounded-xl shadow-2xl py-1.5 min-w-[220px] max-h-[320px] overflow-y-auto flex flex-col animate-scale-up"
+              style={{
+                backgroundColor: isLightTheme ? '#ffffff' : '#1f2937',
+                top: editTagsPos.top,
+                left: editTagsPos.left
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="px-3.5 py-1.5 text-[10px] text-gray-400 uppercase tracking-wider flex justify-between items-center">
                 <span>Gán nhãn</span>
-                <button onClick={() => { handleCreateTag(); closeMenus(); }} className="text-blue-400 hover:text-blue-300 text-xs">＋ Tạo mới</button>
+                <span className="text-[9px] text-gray-500 font-normal">Tự gán khi tạo</span>
               </div>
               <div className="h-px bg-gray-700/50 mb-1" />
-              {tags.length === 0 && (
-                <p className="px-3 py-2 text-xs text-gray-400">Chưa có nhãn</p>
-              )}
-              {tags.map(tag => {
-                const isActive = activeTagNames.has(tag.name);
-                return (
-                  <button key={tag.id} onClick={() => handleToggleTag(tag.id, tag.name)}
-                    className="w-full text-left px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-700/50 flex items-center gap-2 transition-colors">
-                    <span className="w-3.5 h-3.5 rounded flex items-center justify-center border border-gray-500 text-[10px]"
-                      style={{ backgroundColor: isActive ? tag.color : 'transparent', borderColor: tag.color }}>
-                      {isActive && '✓'}
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] text-white" style={{ backgroundColor: tag.color || '#3b82f6' }}>
-                      {tag.name}
-                    </span>
-                  </button>
-                );
-              })}
+              <div className="flex-1 overflow-y-auto max-h-[180px]">
+                {tags.length === 0 && <p className="px-3.5 py-2 text-xs text-gray-500 font-normal">Chưa có nhãn</p>}
+                {tags.map(tag => {
+                  const isActive = activeTagNames.has(tag.name);
+                  return (
+                    <button
+                      key={tag.id}
+                      onClick={() => handleToggleTag(tag.id, tag.name)}
+                      className="w-full text-left px-3.5 py-2 text-xs text-gray-300 hover:text-gray-100 hover:bg-gray-700/50 flex items-center gap-2.5 transition-colors"
+                    >
+                      <span
+                        className="w-4 h-4 rounded flex items-center justify-center border text-[10px] font-bold shrink-0 transition-all"
+                        style={{
+                          backgroundColor: isActive ? tag.color : 'transparent',
+                          borderColor: tag.color,
+                          color: getContrastTextColor(tag.color)
+                        }}
+                      >
+                        {isActive && '✓'}
+                      </span>
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-medium"
+                        style={{
+                          backgroundColor: tag.color || '#0068ff',
+                          color: getContrastTextColor(tag.color || '#0068ff')
+                        }}
+                      >
+                        {tag.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="h-px bg-gray-700/50 my-1" />
+              <div className="px-2 py-1.5 flex items-center gap-1.5">
+                <input
+                  value={quickTagName}
+                  onChange={e => setQuickTagName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleQuickCreateTag();
+                    if (e.key === 'Escape') setQuickTagName('');
+                  }}
+                  placeholder="Tạo nhanh nhãn..."
+                  className="flex-1 px-2.5 py-1 text-[11px] rounded-lg text-gray-100 bg-gray-800 border border-gray-700 placeholder-gray-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleQuickCreateTag}
+                  disabled={!quickTagName.trim()}
+                  className="px-2 py-1 text-[10px] font-medium text-white rounded-lg shrink-0 transition-all"
+                  style={{ background: '#0068ff', color: '#fff' }}
+                >Tạo</button>
+              </div>
             </div>
           </>
         );

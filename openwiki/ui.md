@@ -115,3 +115,16 @@ try { await save(); } finally { isSubmittingRef.current = false; }
 /settings            → Settings (account, employee, integrations)
 /integration         → Integration management
 ```
+
+---
+
+## UI Coding Patterns
+
+### Hybrid Theme Detection
+When checking the active theme dynamically (e.g. context menus, popovers, dropdown backgrounds) inside a React modal, simply checking `theme === 'light'` does not cover the `'system'` theme setting when the user's OS is in Light Mode.
+
+**Best Practice:**
+```typescript
+const isLightTheme = document.documentElement.getAttribute('data-theme') === 'light';
+```
+Using `document.documentElement`'s `data-theme` attribute guarantees the correct visual background color is applied in Dark, Light, and System settings.

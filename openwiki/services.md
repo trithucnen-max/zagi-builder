@@ -14,6 +14,7 @@
 | HttpClientService | `src/services/http/HttpClientService.ts` | 88KB | HTTP client cho Nhân viên (kết nối tới Boss) |
 | HttpConnectionManager | `src/services/http/HttpConnectionManager.ts` | 13KB | Quản lý HttpClientService instances theo workspace |
 | CRMQueueService | `src/services/crm/CRMQueueService.ts` | 48KB | Campaign gửi tin hàng loạt CRM |
+| MessageSchedulerService | `src/services/chat/MessageSchedulerService.ts` | 15KB | Hẹn giờ & tự động gửi tin nhắn Zalo |
 | AIAssistantService | `src/services/ai/AIAssistantService.ts` | 34KB | AI chat assistant tích hợp nhiều provider |
 | EmployeeService | `src/services/employee/EmployeeService.ts` | 16KB | Quản lý nhân viên, auth, permissions |
 | DataSyncService | `src/services/employee/DataSyncService.ts` | 30KB | Đồng bộ dữ liệu Boss → Nhân viên (Zalo, ERP, Facebook) |
@@ -221,6 +222,21 @@ Tiếp nhận và lưu trữ tạm các phân đoạn (chunk) của file lớn �
 3. Boss `UploadChunkService.saveChunk()` lưu từng chunk
 4. Chunk cuối: Boss gọi `mergeChunks()`, trả về `{ success: true, completed: true, bossPath }`
 5. Các chunk trung gian trả về `{ success: true, completed: false }`
+
+---
+
+## MessageSchedulerService
+
+**File:** `src/services/chat/MessageSchedulerService.ts`
+**Singleton:** `MessageSchedulerService.getInstance()`
+**Chạy:** Chỉ hoạt động trên máy Boss / Standalone (Không chạy trên máy Nhân viên để tránh lỗi kết nối SQLite cục bộ).
+
+### Purpose
+Hệ thống scheduler quét cơ sở dữ liệu định kỳ mỗi phút và tiến hành gửi tin nhắn Zalo đã được hẹn lịch khi đến giờ.
+
+### Gotchas
+- **Kiểm tra khởi tạo Database:** Để tránh lỗi crash hoặc ghi log cảnh báo `Query aborted: database is not initialized` lúc khởi động, scheduler luôn kiểm tra `DatabaseService.getInstance().getIsInitialized() === true` trước khi truy vấn.
+- **Quyền gửi:** Chỉ được thực thi trên tài khoản Boss có kết nối SQLite local.
 
 ---
 
