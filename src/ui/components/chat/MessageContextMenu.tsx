@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ipc from '@/lib/ipc';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import type { ChannelCapability } from '@/../configs/channelConfig';
@@ -87,6 +87,7 @@ export default function MessageContextMenu({
   x, y, msg, isSent, isGroupAdmin, channelCap, onClose, onReply, onForward, onSelectMessages, onAddToNotes, onUndo, onDelete, onDeleteFromDb, onReact, onPin, showNotification,
 }: MessageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ left: x, top: y });
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -101,11 +102,22 @@ export default function MessageContextMenu({
     };
   }, [onClose]);
 
+  useEffect(() => {
+    if (menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const menuWidth = rect.width || 220;
+      const menuHeight = rect.height || 360;
+      const left = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8));
+      const top = Math.max(8, Math.min(y, window.innerHeight - menuHeight - 16));
+      setCoords({ left, top });
+    }
+  }, [x, y]);
+
   // Adjust position to stay in viewport
   const style: React.CSSProperties = {
     position: 'fixed',
-    left: Math.min(x, window.innerWidth - 220),
-    top: Math.min(y, window.innerHeight - 360),
+    left: coords.left,
+    top: coords.top,
     zIndex: 9999,
   };
 

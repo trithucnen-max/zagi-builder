@@ -1087,6 +1087,7 @@ export class DataAccessor {
 
   static async uploadToLibrary(params: {
     zaloId: string; fileName: string; mimeType: string; base64: string;
+    tags?: string; folderId?: number | null;
   }) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().post('/api/library/upload/json', params); }
@@ -1104,18 +1105,21 @@ export class DataAccessor {
   static async createLibraryFolder(params: {
     zaloId: string; name: string; parentId?: number | null; color?: string; type?: string;
   }) {
+    invalidateLibraryCache();
     if (isEmployee()) { return rest().post('/api/library/folders', params); }
     try { return await window.electronAPI.library.createFolder(params); }
     catch { return { success: false }; }
   }
 
   static async renameLibraryFolder(id: number, name: string) {
+    invalidateLibraryCache();
     if (isEmployee()) { return rest().patch('/api/library/folders/' + id, { name }); }
     try { return await window.electronAPI.library.renameFolder?.(id, name); }
     catch { return { success: false }; }
   }
 
   static async deleteLibraryFolder(id: number) {
+    invalidateLibraryCache();
     if (isEmployee()) { return rest().delete('/api/library/folders/' + id); }
     try { return await window.electronAPI.library.deleteFolder(id); }
     catch { return { success: false }; }
@@ -1125,6 +1129,7 @@ export class DataAccessor {
     name?: string; tags?: string; folderId?: number | null;
     isFavorite?: number; altText?: string;
   }) {
+    invalidateLibraryCache();
     if (isEmployee()) { return rest().patch('/api/library/item/' + uuid, params); }
     try { return await window.electronAPI.library.updateItem?.(uuid, params); }
     catch { return { success: false }; }

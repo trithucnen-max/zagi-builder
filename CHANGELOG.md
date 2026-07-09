@@ -4,7 +4,36 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v27.2.9] - 2026-07-10
+
+### Tính năng mới: Lên lịch gửi tin nhắn · Công cụ chụp màn hình · Mở rộng khung soạn thảo · Sửa lỗi hệ thống Boss–Nhân viên
+
+- **Lên lịch gửi tin nhắn (Scheduled Messages):**
+  - Thêm nút đồng hồ bên cạnh nút gửi trong khung chat để đặt lịch gửi tin nhắn cho nhóm hoặc cá nhân vào thời điểm cụ thể.
+  - Hỗ trợ chọn ngày giờ gửi qua date-time picker, hiển thị danh sách tin nhắn đang chờ gửi ngay trong cuộc trò chuyện.
+  - Có thể huỷ tin nhắn đã lên lịch trước khi đến giờ gửi.
+  - Hệ thống scheduler chạy nền tự động kiểm tra và gửi tin đúng giờ, chỉ chạy trên máy Boss/Standalone (không chạy trên máy Nhân viên để tránh lỗi DB).
+
+- **Công cụ chụp màn hình tích hợp (Screenshot & Annotate):**
+  - Bổ sung nút chụp màn hình trong thanh công cụ chat, hỗ trợ chụp toàn bộ màn hình và chụp màn hình khi cuộn trang.
+  - Bộ công cụ chỉnh sửa ảnh inline: tô màu, đánh dấu (highlight), làm mờ vùng nhạy cảm, gán văn bản chú thích, vẽ hình tròn và hình chữ nhật.
+  - Gửi ảnh chụp trực tiếp vào cuộc trò chuyện sau khi chỉnh sửa.
+
+- **Mở rộng khung soạn thảo tin nhắn:**
+  - Thêm nút mở rộng (expand) khung soạn thảo tin nhắn lên dạng panel lớn hơn để soạn thảo các nội dung dài, hỗ trợ markdown cơ bản.
+
+- **Sửa lỗi context menu tràn khỏi màn hình:**
+  - Điều chỉnh vị trí hiển thị menu chuột phải khi click vào ảnh hoặc tin nhắn ở cuối danh sách chat: mép dưới của menu sẽ luôn cách mép dưới màn hình một khoảng tối thiểu, tránh bị che khuất.
+
+- **Sửa lỗi nghiêm trọng Boss–Nhân viên (Proxy Registry):**
+  - Tách `ipcHandlerRegistry` thành file riêng `ipcRegistry.ts` để đảm bảo tất cả IPC modules (`zaloIpc`, `crmIpc`, ...) và `HttpRelayService` đều chia sẻ **cùng một singleton Map instance** bất kể cơ chế module caching của Node.js.
+  - Giải quyết triệt để lỗi `No handler for channel: crm:scheduleMessage` (và các kênh CRM khác) khi máy Nhân viên gửi yêu cầu proxy về Boss.
+  - Ngăn `MessageSchedulerService` khởi động trên máy Nhân viên (máy không có SQLite local), loại bỏ hàng loạt cảnh báo `Query aborted: database is not initialized` trong console log.
+
+---
+
 ## [v27.2.8] - 2026-07-09
+
 
 ### Tăng cường độ bền bỉ đường truyền (Network Resilience) & Trải nghiệm Gán nhãn
 

@@ -9,13 +9,8 @@ import Logger from '../../src/utils/Logger';
 import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import FileStorageService from '../../src/services/file/FileStorageService';
 import { uploadEmployeeMedia } from './proxyHelper';
-
-/**
- * Registry of IPC handler functions.
- * Used by HttpRelayService to invoke handlers directly on the boss side
- * without going through Electron's internal ipcMain._invokeHandlers.
- */
-export const ipcHandlerRegistry = new Map<string, (event: any, params: any) => Promise<any>>();
+import { ipcHandlerRegistry } from './ipcRegistry';
+export { ipcHandlerRegistry };
 
 async function getService(auth: any, isReconnection = false): Promise<ZaloService> {
     return await ZaloService.getInstance(auth, isReconnection);

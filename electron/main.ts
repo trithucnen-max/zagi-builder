@@ -1153,6 +1153,16 @@ async function startupAfterLicenseCheck(): Promise<void> {
       ErpCalendarService.getInstance().initSchedulers();
     } catch (err: any) { console.error('[main] ErpCalendar scheduler init error:', err.message); }
   }, 3500);
+  // Initialize scheduled chat message scheduler
+  setTimeout(() => {
+    try {
+      const AppModeManager = require('../src/utils/AppModeManager').default;
+      if (!AppModeManager.getInstance().isEmployeeMode()) {
+        const MessageSchedulerService = require('../src/services/chat/MessageSchedulerService').default;
+        MessageSchedulerService.getInstance().startScheduler();
+      }
+    } catch (err: any) { console.error('[main] MessageScheduler scheduler init error:', err.message); }
+  }, 3600);
   // Initialize ERP Notification cron (due-soon + overdue)
   setTimeout(() => {
     try {

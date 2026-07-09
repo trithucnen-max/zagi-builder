@@ -764,7 +764,7 @@ class HttpRelayService {
             }
 
             // Use handler registry
-            const { ipcHandlerRegistry } = require('../../../electron/ipc/zaloIpc');
+            const { ipcHandlerRegistry } = require('../../../electron/ipc/ipcRegistry');
             const handler = ipcHandlerRegistry?.get(channel);
 
             // ── Special: sendVideo from library → do full 3-step upload chain ──

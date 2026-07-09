@@ -433,11 +433,50 @@ class CRMQueueService {
 
                 if (imgs.length > 0) {
                     Logger.log(`[CRMQueue] Sending ${imgs.length} image(s) with text to ${threadId} (threadType=${threadType})`);
+                    
+                    const resolvedPaths: string[] = [];
                     for (const p of imgs) {
-                        if (!fs.existsSync(p)) Logger.warn(`[CRMQueue] ⚠️ Image not found on disk: ${p}`);
+                        let resolvedPath = p;
+                        
+                        // Check if p is a UUID or URL containing UUID
+                        let uuid = '';
+                        if (p.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                            uuid = p;
+                        } else {
+                            // Try to extract UUID from URL (e.g. /api/library/file/uuid or /api/media/uuid)
+                            const match = p.match(/\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+                            if (match) {
+                                uuid = match[1];
+                            }
+                        }
+                        
+                        if (uuid) {
+                            try {
+                                const db = DatabaseService.getInstance();
+                                const row = db.queryOne<{ file_path: string }>(
+                                    'SELECT file_path FROM media_library_items WHERE uuid = ?',
+                                    [uuid]
+                                );
+                                if (row && row.file_path && fs.existsSync(row.file_path)) {
+                                    resolvedPath = row.file_path;
+                                    Logger.log(`[CRMQueue] Resolved image UUID/URL ${p} to Boss local path: ${resolvedPath}`);
+                                } else {
+                                    Logger.warn(`[CRMQueue] ⚠️ Could not resolve UUID ${uuid} to local path or file does not exist`);
+                                }
+                            } catch (dbErr: any) {
+                                Logger.error(`[CRMQueue] DB resolve error for UUID ${uuid}: ${dbErr.message}`);
+                            }
+                        }
+                        
+                        if (fs.existsSync(resolvedPath)) {
+                            resolvedPaths.push(resolvedPath);
+                        } else {
+                            Logger.warn(`[CRMQueue] ⚠️ Image path not found on disk: ${resolvedPath} (from original: ${p})`);
+                        }
                     }
+
                     const attachments: any[] = [];
-                    for (const filePath of imgs) {
+                    for (const filePath of resolvedPaths) {
                         try {
                             const buffer = fs.readFileSync(filePath);
                             const baseName = path.basename(filePath);

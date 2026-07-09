@@ -52,11 +52,9 @@ function toBossMediaUrl(localPath: string, bossUrl: string, zaloId?: string): st
     // Normalize path separators
     let normalized = localPath.replace(/\\/g, '/');
 
-    // Try to extract relative path after the media base directory
-    // Patterns: /media/zaloId/... or D:\media\zaloId\...
-    const mediaMatch = normalized.match(/(?:^|\/)(media|_uploads|avatar)\/(.+)/);
+    const mediaMatch = normalized.match(/(?:^|\/)(media|_uploads|avatar)\/(.+)/i);
     if (mediaMatch) {
-      const type = mediaMatch[1];
+      const type = mediaMatch[1].toLowerCase();
       const rest = mediaMatch[2];
       if (type === 'media') {
         return `${bossUrl}/api/media/${rest}`;

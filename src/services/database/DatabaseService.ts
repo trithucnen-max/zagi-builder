@@ -1091,6 +1091,23 @@ class DatabaseService {
                 UNIQUE(zalo_id, group_id)
             );
         `);
+
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS scheduled_chat_messages (
+                id TEXT PRIMARY KEY,
+                owner_zalo_id TEXT NOT NULL,
+                thread_id TEXT NOT NULL,
+                thread_type TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                message TEXT NOT NULL,
+                attachments TEXT,
+                send_at INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                error TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+        `);
     }
 
     // ─── ERP Schema ────────────────────────────────────────────────────────────

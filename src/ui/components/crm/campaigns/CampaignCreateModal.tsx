@@ -3,6 +3,8 @@ import ipc from '@/lib/ipc';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import AppIcon from '@/components/common/AppIcon';
 import { useAppStore } from '@/store/appStore';
+import DataAccessor from '@/lib/data/DataAccessor';
+import LibraryPickerModal from '@/components/chat/library/LibraryPickerModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -153,7 +155,7 @@ const INVITE_ERROR_LABELS: Record<number, string> = {
 
 function LivePreview({
   blocks, activeIdx, mode, type, friendMsg, campaignName = '',
-  onTabChange,
+  onTabChange, zaloId,
 }: {
   blocks: ContentBlock[];
   activeIdx: number;
@@ -162,6 +164,7 @@ function LivePreview({
   friendMsg: string;
   campaignName?: string;
   onTabChange: (i: number) => void;
+  zaloId?: string;
 }) {
   const block = blocks[activeIdx] ?? blocks[0];
 
@@ -236,7 +239,7 @@ function LivePreview({
                   }`} style={{ maxWidth: '11.25rem' }}>
                     {block.images.filter(p => typeof p === 'string').map((p, i) => (
                       <div key={i} className="aspect-square overflow-hidden rounded">
-                        <img src={toLocalMediaUrl(p)} alt="" className="w-full h-full object-cover"
+                        <img src={toLocalMediaUrl(p, zaloId)} alt="" className="w-full h-full object-cover"
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       </div>
                     ))}
@@ -385,15 +388,19 @@ function GroupPicker({
 // ── Block Editor ──────────────────────────────────────────────────────────────
 
 function BlockEditor({
-  block, onUpdate,
+  block, onUpdate, zaloId,
 }: {
   block: ContentBlock;
   onUpdate: (u: Partial<ContentBlock>) => void;
+  zaloId?: string;
 }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const [prompt, setPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [showAiInput, setShowAiInput] = useState(false);
+
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const insertVar = (v: string) => {
     const ta = taRef.current;
@@ -444,15 +451,48 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
     }
   };
 
-  const pickImages = async () => {
+  const pickFromComputer = async () => {
     const r = await ipc.file?.openDialog({
       filters: [{ name: 'Hình ảnh', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }],
       multiSelect: true,
     });
     if (r?.filePaths?.length) {
-      const cleanExisting = block.images.filter((p): p is string => typeof p === 'string' && p.length > 0);
-      const newPaths = r.filePaths.filter((p: any): p is string => typeof p === 'string' && p.length > 0);
-      onUpdate({ images: [...cleanExisting, ...newPaths] });
+      setUploading(true);
+      try {
+        const cleanExisting = block.images.filter((p): p is string => typeof p === 'string' && p.length > 0);
+        const uploadedPaths: string[] = [];
+        
+        for (const filePath of r.filePaths) {
+          try {
+            const readRes = await ipc.file?.readImageAsBase64?.({ localPath: filePath });
+            if (!readRes?.success || !readRes.base64) continue;
+            
+            const baseName = filePath.split(/[/\\]/).pop() || 'image.jpg';
+            const uploadRes = await DataAccessor.uploadToLibrary({
+              zaloId: zaloId || '',
+              fileName: baseName,
+              mimeType: readRes.mimeType || 'image/jpeg',
+              base64: readRes.base64,
+            });
+            
+            if (uploadRes.success && uploadRes.data) {
+              const item = uploadRes.data;
+              const pathValue = item._localPath || item.fileUrl || item.uuid;
+              uploadedPaths.push(pathValue);
+            }
+          } catch (uploadErr) {
+            console.error('[CampaignCreateModal] Upload error for file:', filePath, uploadErr);
+          }
+        }
+        
+        if (uploadedPaths.length > 0) {
+          onUpdate({ images: [...cleanExisting, ...uploadedPaths] });
+        }
+      } catch (err) {
+        console.error('[CampaignCreateModal] pickFromComputer failed:', err);
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
@@ -545,7 +585,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
           <div className="flex flex-wrap gap-1.5 mb-2">
             {block.images.filter(p => typeof p === 'string').map((p, i) => (
               <div key={i} className="relative group/img w-14 h-14 rounded-lg overflow-hidden border border-gray-350 dark:border-gray-700 flex-shrink-0">
-                <img src={toLocalMediaUrl(p)} alt="" className="w-full h-full object-cover"
+                <img src={toLocalMediaUrl(p, zaloId)} alt="" className="w-full h-full object-cover"
                   onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3'; }} />
                 <button type="button"
                   onClick={() => onUpdate({ images: block.images.filter((_, j) => j !== i) })}
@@ -558,15 +598,49 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
             ))}
           </div>
         )}
-        <button type="button" onClick={pickImages}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-blue-600 border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500/50 rounded-lg transition-colors bg-white dark:bg-gray-800">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
-          </svg>
-          {block.images.length > 0 ? `${block.images.length} ảnh · thêm tiếp` : 'Đính kèm ảnh (tuỳ chọn)'}
-        </button>
+        
+        {uploading ? (
+          <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-blue-500 border border-dashed border-blue-500/30 rounded-lg bg-blue-50/10">
+            <svg className="animate-spin w-3 h-3 text-blue-500" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Đang tải ảnh lên máy chủ...
+          </div>
+        ) : (
+          <div className="flex gap-2 w-full">
+            <button type="button" onClick={pickFromComputer}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-blue-600 border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500/50 rounded-lg transition-colors bg-white dark:bg-gray-800">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              Chọn từ Máy tính
+            </button>
+            <button type="button" onClick={() => setShowLibraryPicker(true)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-500 hover:text-blue-600 border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500/50 rounded-lg transition-colors bg-white dark:bg-gray-800">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              Chọn từ Thư viện
+            </button>
+          </div>
+        )}
       </div>
+
+      {showLibraryPicker && (
+        <LibraryPickerModal
+          zaloId={zaloId || ''}
+          initialType="image"
+          onClose={() => setShowLibraryPicker(false)}
+          onSelect={(selectedItems) => {
+            const cleanExisting = block.images.filter((p): p is string => typeof p === 'string' && p.length > 0);
+            const selectedPaths = selectedItems.map(item => item._localPath || item.fileUrl || item.uuid);
+            onUpdate({ images: [...cleanExisting, ...selectedPaths] });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1274,6 +1348,7 @@ Yiêu cầu quan trọng:
                   <BlockEditor
                     block={currentBlock}
                     onUpdate={u => updateBlock(currentBlock.id, u)}
+                    zaloId={zaloId}
                   />
                 </div>
               )}
@@ -1510,6 +1585,7 @@ Yiêu cầu quan trọng:
               friendMsg={friendReqMsg}
               campaignName={name}
               onTabChange={setActiveBlock}
+              zaloId={zaloId}
             />
           </div>
         </div>

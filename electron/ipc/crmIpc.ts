@@ -6,6 +6,7 @@ import AppModeManager from '../../src/utils/AppModeManager';
 import Logger from '../../src/utils/Logger';
 import { proxyToBoss, uploadEmployeeMedia, proxyToBossAsync } from './proxyHelper';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
+import { ipcHandlerRegistry } from './ipcRegistry';
 
 function isEmployeeMode(): boolean {
     try {
@@ -24,6 +25,7 @@ function ipcHandle(channel: string, handler: any) {
         }
         return handler(event, ...args);
     });
+    ipcHandlerRegistry.set(channel, handler);
 }
 
 export function registerCRMIpc(): void {
@@ -480,6 +482,49 @@ export function registerCRMIpc(): void {
     ipcHandle('analytics:labelUsage', async (_e, { zaloId, sinceTs, untilTs }: { zaloId: string; sinceTs: number; untilTs: number }) => {
         try { return { success: true, ...DatabaseService.getInstance().getLabelUsageAnalytics(zaloId, sinceTs, untilTs) }; }
         catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    // ── Scheduled Messages ───────────────────────────────────────────
+    ipcHandle('crm:scheduleMessage', async (_e, { ownerZaloId, threadId, threadType, channel, message, attachments, sendAt }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const id = `sched_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            db.run(
+                `INSERT INTO scheduled_chat_messages (id, owner_zalo_id, thread_id, thread_type, channel, message, attachments, send_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [id, ownerZaloId, threadId, threadType, channel, message, attachments ? JSON.stringify(attachments) : null, sendAt, 'pending', Date.now(), Date.now()]
+            );
+            db.save();
+            return { success: true, id };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:getScheduledMessages', async (_e, { ownerZaloId, threadId }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const rows = db.query<any>(
+                `SELECT * FROM scheduled_chat_messages WHERE owner_zalo_id = ? AND thread_id = ? AND status = 'pending' ORDER BY send_at ASC`,
+                [ownerZaloId, threadId]
+            );
+            return { success: true, scheduledMessages: rows };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:cancelScheduledMessage', async (_e, { id }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.run(
+                `DELETE FROM scheduled_chat_messages WHERE id = ?`,
+                [id]
+            );
+            db.save();
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
     });
 }
 

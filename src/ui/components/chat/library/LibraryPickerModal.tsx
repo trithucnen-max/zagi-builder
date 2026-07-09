@@ -55,10 +55,11 @@ type MediaType = 'image' | 'video' | 'file' | 'all';
 
 interface Props {
   zaloId: string;
-  threadId: string;
-  threadType: number;
+  threadId?: string;
+  threadType?: number;
   initialType?: MediaType;
   onClose: () => void;
+  onSelect?: (items: LibraryItem[]) => void;
 }
 
 const TYPE_LABELS: Record<MediaType, string> = {
@@ -69,7 +70,7 @@ const TYPE_LABELS: Record<MediaType, string> = {
 };
 
 export default function LibraryPickerModal({
-  zaloId, threadId, threadType, initialType = 'all', onClose,
+  zaloId, threadId, threadType, initialType = 'all', onClose, onSelect,
 }: Props) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -79,6 +80,13 @@ export default function LibraryPickerModal({
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0);
   const [uploading, setUploading] = useState(false);
+
+  // Upload tagging modal state
+  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
+  const [uploadTagIds, setUploadTagIds] = useState<Set<number>>(new Set());
+  const [showUploadTagModal, setShowUploadTagModal] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#3b82f6');
 
   // Folders
   const [folders, setFolders] = useState<LibraryFolder[]>([]);
@@ -401,31 +409,16 @@ export default function LibraryPickerModal({
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
 
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
 
-    setUploading(true);
-    try {
-      const base64 = await fileToBase64(file);
-      const result = await DataAccessor.uploadToLibrary({
-        zaloId, fileName: file.name, mimeType: file.type, base64,
-      });
-      if (result.success && result.data) {
-        setSelected(prev => new Set(prev).add(result.data.uuid));
-        setPage(1);
-        loadItems(1);
-        loadFolders();
-      }
-    } catch (err) {
-      console.warn('[Library] drop upload error:', err);
-    }
-    setUploading(false);
-  }, [zaloId, loadItems, loadFolders]);
+    startUploadFlow(Array.from(files));
+  }, [zaloId]);
 
   // ── Send ────────────────────────────────────────────────────
 
@@ -509,9 +502,88 @@ export default function LibraryPickerModal({
     }
   };
 
+  const startUploadFlow = (files: File[]) => {
+    setPendingFiles(files);
+    setUploadTagIds(new Set());
+    setShowUploadTagModal(true);
+  };
+
+  const handleCreateUploadTag = async () => {
+    if (!newTagName.trim()) return;
+    try {
+      const res = await DataAccessor.createLibraryTag({
+        name: newTagName.trim(),
+        zaloId,
+        color: newTagColor,
+      });
+      if (res.success) {
+        await loadTags();
+        const result = await DataAccessor.getLibraryTags({ zaloId });
+        if (result.success && result.items) {
+          const newTag = (result.items || []).find((t: any) => t.name === newTagName.trim());
+          if (newTag) {
+            setUploadTagIds(prev => new Set(prev).add(newTag.id));
+          }
+        }
+        setNewTagName('');
+      }
+    } catch (err) {
+      console.error('Failed to create tag in upload flow:', err);
+    }
+  };
+
+  const executeUpload = async () => {
+    if (!pendingFiles || pendingFiles.length === 0) return;
+    setShowUploadTagModal(false);
+    setUploading(true);
+    try {
+      const tagIdsArr = Array.from(uploadTagIds);
+      const newSelected = new Set(selected);
+      
+      for (let i = 0; i < pendingFiles.length; i++) {
+        const file = pendingFiles[i];
+        const base64 = await fileToBase64(file);
+        const folderId = activeFolderId || null;
+        
+        const result = await DataAccessor.uploadToLibrary({
+          zaloId,
+          fileName: file.name,
+          mimeType: file.type,
+          base64,
+          folderId,
+        });
+        
+        if (result.success && result.data) {
+          const itemUuid = result.data.uuid;
+          newSelected.add(itemUuid);
+          
+          if (tagIdsArr.length > 0) {
+            await DataAccessor.assignTagsToLibraryItem(itemUuid, tagIdsArr, zaloId);
+          }
+        }
+      }
+      
+      setSelected(newSelected);
+      setPage(1);
+      await loadItems(1);
+      await loadFolders();
+    } catch (err) {
+      console.error('Upload flow execution failed:', err);
+    } finally {
+      setUploading(false);
+      setPendingFiles(null);
+    }
+  };
+
   const handleSendSelected = async () => {
     const selectedItems = items.filter(i => selected.has(i.uuid));
     if (selectedItems.length === 0) { onClose(); return; }
+
+    if (onSelect) {
+      onSelect(selectedItems);
+      onClose();
+      return;
+    }
 
     const imageItems = selectedItems.filter(i => i.type === 'image');
     const nonImageItems = selectedItems.filter(i => i.type !== 'image');
@@ -568,23 +640,7 @@ export default function LibraryPickerModal({
   const handleUploadAndSend = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    setUploading(true);
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const base64 = await fileToBase64(file);
-        const result = await DataAccessor.uploadToLibrary({
-          zaloId, fileName: file.name, mimeType: file.type, base64,
-        });
-        if (result.success && result.data) {
-          setSelected(prev => new Set(prev).add(result.data.uuid));
-        }
-      }
-      setPage(1);
-      loadItems(1);
-      loadFolders();
-    } catch {}
-    setUploading(false);
+    startUploadFlow(Array.from(files));
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -1107,9 +1163,11 @@ export default function LibraryPickerModal({
           <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700/80 hover:bg-indigo-600 text-white-important text-xs rounded-lg transition-colors disabled:opacity-50"><SendIcon className="w-4 h-4 inline" /> {uploading ? 'Đang tải...' : 'Upload vào thư viện'}
           </button>
-          <button onClick={() => directInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs rounded-lg transition-colors"><MonitorIcon className="w-4 h-4 inline" /> Chọn từ Máy tính
-          </button>
+          {!onSelect && (
+            <button onClick={() => directInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs rounded-lg transition-colors"><MonitorIcon className="w-4 h-4 inline" /> Chọn từ Máy tính
+            </button>
+          )}
           <div className="flex-1" />
           <span className="text-xs text-gray-400">{selectedItems.length} file</span>
           <button onClick={handleSendSelected} disabled={selectedItems.length === 0}
@@ -1118,7 +1176,7 @@ export default function LibraryPickerModal({
                 ? 'bg-blue-600 hover:bg-blue-500 text-white'
                 : 'bg-gray-700 text-gray-400 cursor-not-allowed'
             }`}>
-            Gửi {selectedItems.length ? `${selectedItems.length} file` : ''}
+            {onSelect ? 'Chọn' : 'Gửi'} {selectedItems.length ? `${selectedItems.length} file` : ''}
           </button>
         </div>
       </div>
@@ -1249,6 +1307,72 @@ export default function LibraryPickerModal({
           </>
         );
       })()}
+
+      {/* Upload tagging modal */}
+      {showUploadTagModal && pendingFiles && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowUploadTagModal(false)}>
+          <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-white mb-2">🏷️ Gán nhãn dán cho các file tải lên</h3>
+            <p className="text-xs text-gray-400 mb-4">Đang chuẩn bị tải lên {pendingFiles.length} file. Chọn hoặc tạo nhãn dán để gán tự động cho các file này:</p>
+            
+            {/* Tag list checkboxes */}
+            <div className="max-h-40 overflow-y-auto border border-gray-700/50 rounded-xl p-2.5 bg-gray-900/40 mb-4 space-y-1.5">
+              {tags.map(tag => {
+                const isChecked = uploadTagIds.has(tag.id);
+                return (
+                  <button key={tag.id} type="button"
+                    onClick={() => {
+                      const next = new Set(uploadTagIds);
+                      if (isChecked) next.delete(tag.id);
+                      else next.add(tag.id);
+                      setUploadTagIds(next);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2 py-1 text-xs text-gray-200 hover:bg-gray-750/30 rounded transition-colors text-left"
+                  >
+                    <span className="w-4 h-4 rounded border border-gray-500 flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: isChecked ? tag.color : 'transparent', borderColor: tag.color }}>
+                      {isChecked && '✓'}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] text-white" style={{ backgroundColor: tag.color }}>
+                      {tag.name}
+                    </span>
+                  </button>
+                );
+              })}
+              {tags.length === 0 && (
+                <p className="text-center py-4 text-xs text-gray-500">Chưa có nhãn dán nào</p>
+              )}
+            </div>
+
+            {/* Create new tag inline */}
+            <div className="flex items-center gap-2 mb-5">
+              <input value={newTagName} onChange={e => setNewTagName(e.target.value)}
+                placeholder="Tên nhãn mới..."
+                className="flex-1 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-xs text-gray-200 placeholder-gray-500 outline-none"
+              />
+              <input type="color" value={newTagColor} onChange={e => setNewTagColor(e.target.value)}
+                className="w-7 h-7 border-0 bg-transparent cursor-pointer rounded shrink-0 p-0 outline-none"
+              />
+              <button type="button" onClick={handleCreateUploadTag} disabled={!newTagName.trim()}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs rounded-lg transition-colors shrink-0">
+                Tạo
+              </button>
+            </div>
+
+            {/* Confirm buttons */}
+            <div className="flex justify-end gap-2.5">
+              <button type="button" onClick={() => setShowUploadTagModal(false)}
+                className="px-4 py-1.5 border border-gray-600 text-gray-300 hover:text-white text-xs rounded-lg transition-colors">
+                Hủy
+              </button>
+              <button type="button" onClick={executeUpload}
+                className="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors">
+                Xác nhận & Tải lên
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

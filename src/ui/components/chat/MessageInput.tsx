@@ -9,6 +9,7 @@ import AccountAssignmentPopup from './AccountAssignmentPopup';
 import {SendCardModal} from './GroupModals';
 import {CreatePollDialog, NoteViewModal} from './ChatWindow';
 import BankCardModal from './BankCardModal';
+import ExpandedEditorModal from './ExpandedEditorModal';
 import {
   fetchQuickMessages,
   invalidateZaloQuickMessageCache,
@@ -182,6 +183,13 @@ export default function MessageInput() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
 
+  // ── Scheduled messages & Expanded editor states ──
+  const [showExpandedEditor, setShowExpandedEditor] = useState(false);
+  const [showSchedulerDialog, setShowSchedulerDialog] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
+
   const handleAiDraft = async (promptText: string) => {
     if (!promptText.trim()) return;
     setAiGenerating(true);
@@ -308,6 +316,82 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
       setThreadLocalLabelIds(new Set());
     }
   }, [activeAccountId, activeThreadId]);
+
+  const fetchScheduledMessages = useCallback(async () => {
+    if (!activeAccountId || !activeThreadId) {
+      setScheduledMessages([]);
+      return;
+    }
+    try {
+      const res = await ipc.crm.getScheduledMessages({ ownerZaloId: activeAccountId, threadId: activeThreadId });
+      if (res && res.success) {
+        setScheduledMessages(res.scheduledMessages || []);
+      } else {
+        setScheduledMessages([]);
+      }
+    } catch {
+      setScheduledMessages([]);
+    }
+  }, [activeAccountId, activeThreadId]);
+
+  useEffect(() => {
+    fetchScheduledMessages();
+  }, [activeAccountId, activeThreadId, fetchScheduledMessages]);
+
+  const handleCancelScheduled = async (id: string) => {
+    try {
+      const res = await ipc.crm.cancelScheduledMessage({ id });
+      if (res && res.success) {
+        showNotification('Đã hủy lịch gửi tin nhắn!', 'success');
+        fetchScheduledMessages();
+      } else {
+        showNotification(res?.error || 'Hủy lịch gửi thất bại', 'error');
+      }
+    } catch (err: any) {
+      showNotification('Hủy lịch gửi thất bại: ' + err.message, 'error');
+    }
+  };
+
+  const handleScheduleMessageSubmit = async () => {
+    if (!text.trim()) {
+      showNotification('Vui lòng soạn nội dung tin nhắn trước khi hẹn giờ!', 'error');
+      return;
+    }
+    if (!scheduledDate || !scheduledTime) {
+      showNotification('Vui lòng chọn ngày và giờ!', 'error');
+      return;
+    }
+
+    const sendAt = new Date(`${scheduledDate}T${scheduledTime}:00`).getTime();
+    if (isNaN(sendAt) || sendAt <= Date.now()) {
+      showNotification('Thời gian hẹn giờ phải lớn hơn thời gian hiện tại!', 'error');
+      return;
+    }
+
+    try {
+      const activeChannel = activeContact?.channel || 'zalo';
+      const res = await ipc.crm.scheduleMessage({
+        ownerZaloId: activeAccountId!,
+        threadId: activeThreadId,
+        threadType: activeThreadType,
+        channel: activeChannel,
+        message: text,
+        sendAt,
+      });
+
+      if (res && res.success) {
+        showNotification('Đã lên lịch gửi tin nhắn!', 'success');
+        setText('');
+        if (textareaRef.current) textareaRef.current.innerHTML = '';
+        setShowSchedulerDialog(false);
+        fetchScheduledMessages();
+      } else {
+        showNotification(res?.error || 'Lên lịch thất bại', 'error');
+      }
+    } catch (err: any) {
+      showNotification('Lên lịch thất bại: ' + err.message, 'error');
+    }
+  };
 
   // ─── AI: listen for insert-to-chat events from AIQuickPanel ──────────────
   useEffect(() => {
@@ -2874,6 +2958,37 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         </div>
       )}
 
+      {/* Scheduled message list */}
+      {scheduledMessages.length > 0 && (
+        <div className="flex flex-col gap-1.5 px-3 py-2 border-b border-gray-700 bg-gray-850/50">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider flex items-center gap-1">
+              📅 Tin nhắn hẹn giờ ({scheduledMessages.length})
+            </span>
+          </div>
+          <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1">
+            {scheduledMessages.map((msg) => {
+              const dateStr = new Date(msg.send_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+              return (
+                <div key={msg.id} className="flex items-center justify-between gap-3 text-xs bg-gray-900/60 hover:bg-gray-900 border border-gray-850 rounded-lg px-2.5 py-1.5 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-200 truncate">{msg.message}</p>
+                    <p className="text-[9px] text-blue-400 font-medium mt-0.5">⏱️ Sẽ gửi vào: {dateStr}</p>
+                  </div>
+                  <button
+                    onClick={() => handleCancelScheduled(msg.id)}
+                    className="flex-shrink-0 text-gray-500 hover:text-red-400 hover:bg-gray-800 w-5 h-5 rounded flex items-center justify-center transition-colors"
+                    title="Hủy lịch gửi"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Local label row — Pancake-style horizontal pills */}
       {showLocalLabels && (
         <div className="flex items-start gap-1.5 px-3 py-2 border-b border-gray-700/50 transition-all">
@@ -3159,6 +3274,42 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           </svg>
         </ToolbarBtn>
         )}
+
+        {/* Soạn thảo mở rộng */}
+        <ToolbarBtn onClick={() => setShowExpandedEditor(true)} title="Soạn thảo mở rộng" disabled={sending}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 3 21 3 21 9" />
+            <polyline points="9 21 3 21 3 15" />
+            <line x1="21" y1="3" x2="14" y2="10" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </ToolbarBtn>
+
+        {/* Hẹn giờ gửi */}
+        <ToolbarBtn
+          onClick={() => {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            setScheduledDate(`${year}-${month}-${day}`);
+            
+            const future = new Date(today.getTime() + 5 * 60 * 1000);
+            const hh = String(future.getHours()).padStart(2, '0');
+            const mm = String(future.getMinutes()).padStart(2, '0');
+            setScheduledTime(`${hh}:${mm}`);
+
+            setShowSchedulerDialog(true);
+          }}
+          title="Hẹn giờ gửi tin nhắn"
+          disabled={sending}
+          active={showSchedulerDialog}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+        </ToolbarBtn>
 
         {/* Gửi danh thiếp */}
         {channelCap.supportsBusinessCard && (
@@ -3456,6 +3607,108 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           threadType={activeThreadType}
           onClose={() => setShowSendCard(false)}
         />
+      )}
+
+      {/* Expanded Editor Modal */}
+      {showExpandedEditor && (
+        <ExpandedEditorModal
+          initialText={text}
+          onClose={() => setShowExpandedEditor(false)}
+          onSave={(newText) => {
+            setText(newText);
+            if (textareaRef.current) {
+              textareaRef.current.innerText = newText;
+              textareaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          }}
+          onSend={(newText) => {
+            setText(newText);
+            if (textareaRef.current) {
+              textareaRef.current.innerText = newText;
+              textareaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            setTimeout(() => {
+              handleSend();
+            }, 50);
+          }}
+        />
+      )}
+
+      {/* Scheduler Dialog Overlay */}
+      {showSchedulerDialog && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-750 w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-150">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-805">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⏰</span>
+                <h3 className="text-sm font-semibold text-gray-100">Hẹn giờ gửi tin nhắn</h3>
+              </div>
+              <button
+                onClick={() => setShowSchedulerDialog(false)}
+                className="w-8 h-8 rounded-full hover:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-200 transition-colors text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Nội dung tin nhắn</label>
+                <textarea
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    if (textareaRef.current) {
+                      textareaRef.current.innerText = e.target.value;
+                    }
+                  }}
+                  placeholder="Nhập nội dung tin nhắn cần hẹn giờ gửi..."
+                  className="w-full h-28 bg-gray-955 border border-gray-750 rounded-xl p-3 text-xs text-gray-150 focus:outline-none focus:border-blue-500 resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">Chọn ngày gửi</label>
+                  <input
+                    type="date"
+                    value={scheduledDate}
+                    onChange={e => setScheduledDate(e.target.value)}
+                    className="w-full bg-gray-955 border border-gray-750 rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">Chọn giờ gửi</label>
+                  <input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={e => setScheduledTime(e.target.value)}
+                    className="w-full bg-gray-955 border border-gray-750 rounded-xl px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-5 py-4 bg-gray-955 border-t border-gray-805">
+              <button
+                onClick={() => setShowSchedulerDialog(false)}
+                className="px-4 py-2 rounded-xl border border-gray-750 text-gray-400 hover:text-gray-200 hover:bg-gray-850 text-xs font-semibold transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                disabled={!text.trim()}
+                onClick={handleScheduleMessageSubmit}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors shadow-lg shadow-blue-500/10"
+              >
+                Đặt lịch gửi
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* BankCard Modal */}

@@ -280,6 +280,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCampaignStats: (params: any) => ipcRenderer.invoke('crm:getCampaignStats', params),
     getCampaignSafetyStats: (params: any) => ipcRenderer.invoke('crm:getCampaignSafetyStats', params),
     getActivityStats: (params: any) => ipcRenderer.invoke('crm:getActivityStats', params),
+    scheduleMessage: (params: any) => ipcRenderer.invoke('crm:scheduleMessage', params),
+    getScheduledMessages: (params: any) => ipcRenderer.invoke('crm:getScheduledMessages', params),
+    cancelScheduledMessage: (params: any) => ipcRenderer.invoke('crm:cancelScheduledMessage', params),
   },
 
   // ─── Analytics / Reporting ──────────────────────────────────────────
