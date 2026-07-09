@@ -124,6 +124,15 @@ if (!empSvc.hasPermission(employee.employee_id, module)) {
 }
 ```
 
+### 8. Electron net.request for Main Process HTTP (v27.2.8)
+Để tránh sập ứng dụng do lỗi bộ nhớ phân giải DNS c-ares của Node.js khi đổi Wifi hoặc gập máy ngủ:
+* **KHÔNG DÙNG** module `http`/`https` của Node.js hoặc thư viện `axios` trong Main Process.
+* **LUÔN DÙNG** `net.request` của Electron để phân giải tên miền qua Network Stack của Chromium.
+
+### 9. Trì hoãn Reconnect khi Thức dậy/Mở khóa máy (v27.2.8)
+* Khi bắt sự kiện `resume` hoặc `unlock-screen` từ `powerMonitor`, **KHÔNG** kích hoạt kết nối lại ngay lập tức.
+* **LUÔN trì hoãn 3-5 giây** (sử dụng `setTimeout`) trước khi gọi các hàm kết nối DNS để card mạng của hệ thống có đủ thời gian lấy IP ổn định.
+
 ---
 
 ## Performance Gotchas
@@ -132,7 +141,7 @@ if (!empSvc.hasPermission(employee.employee_id, module)) {
 - **WorkflowEngineService.ts là 180KB** — executeNode là switch/case khổng lồ
 - **App.tsx là 70KB** — avoid thêm code vào đây, tách component riêng
 - **better-sqlite3 là sync** — đừng để DB query trong hot path (event handlers)
-- **SSE stream** — Boss push events realtime, nhân viên không cần poll
+- **Socket.IO stream** — Boss push events realtime qua WebSocket, nhân viên không cần poll
 
 ---
 

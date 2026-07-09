@@ -1056,18 +1056,24 @@ async function startupAfterLicenseCheck(): Promise<void> {
   };
 
   powerMonitor.on('resume', () => {
-    console.log('[main.ts] 🔋 System woke up from sleep — forcing immediate reconnect...');
-    HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
-    HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
-    // Chờ mạng ổn định sau khi máy thức dậy (5s) rồi mới restart Zalo listener
-    setTimeout(() => restartZaloListeners(), 5000);
+    console.log('[main.ts] 🔋 System woke up from sleep — waiting for network to stabilize before reconnecting...');
+    // Trì hoãn 5 giây để card mạng có đủ thời gian nhận IP mới ổn định trước khi DNS query
+    setTimeout(() => {
+      console.log('[main.ts] 🔋 System woke up from sleep (delayed) — executing reconnect...');
+      HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
+      HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
+      restartZaloListeners();
+    }, 5000);
   });
 
   powerMonitor.on('unlock-screen', () => {
-    console.log('[main.ts] 🔑 System unlocked — forcing immediate reconnect...');
-    HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
-    HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
-    setTimeout(() => restartZaloListeners(), 3000);
+    console.log('[main.ts] 🔑 System unlocked — waiting for network to stabilize before reconnecting...');
+    setTimeout(() => {
+      console.log('[main.ts] 🔑 System unlocked (delayed) — executing reconnect...');
+      HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
+      HttpConnectionManager.getInstance().forceReconnectAll().catch(() => {});
+      restartZaloListeners();
+    }, 3000);
   });
 
   // Lắng nghe tín hiệu mạng từ Renderer — restart cả Boss HTTP lẫn Zalo listener

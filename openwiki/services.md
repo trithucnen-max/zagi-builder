@@ -92,7 +92,7 @@ EventBroadcaster.getInstance().broadcast('event:message', data);
 **Chạy:** Chỉ trên máy Boss
 
 ### Purpose
-HTTP server nội bộ cho phép nhân viên kết nối. Xử lý auth, proxy IPC actions, SSE event stream, media upload/request, data sync.
+HTTP server nội bộ cho phép nhân viên kết nối. Xử lý auth, proxy IPC actions, Socket.IO event stream, media upload/request, data sync.
 
 ### Key Endpoints
 | Endpoint | Method | Purpose |
@@ -103,13 +103,13 @@ HTTP server nội bộ cho phép nhân viên kết nối. Xử lý auth, proxy I
 | `/api/media/upload` | POST | Nhận base64 file nhỏ (≤2MB) từ nhân viên, lưu Boss storage |
 | `/api/media/upload-chunk` | POST | Nhận từng phân đoạn (chunk) của file lớn, tự ghép khi hoàn tất |
 | `/api/media/request` | POST | Trả về file binary theo path |
-| `/api/events/stream` | GET | SSE stream push events Zalo về nhân viên. Hỗ trợ tham số `?lastEventId=N` để phục hồi sự kiện bị bỏ lỡ |
+| Socket.IO (Port 27800) | WS/Polling | Đẩy sự kiện thời gian thực (Zalo, ERP, CRM) từ Boss về nhân viên |
 
-### SSE Event Recovery
-- Mỗi sự kiện SSE được đánh số ID tăng dần theo từng nhân viên.
+### Socket.IO Event Recovery (Event Buffer catch-up)
+- Mỗi sự kiện đẩy được đánh số ID `seqId` tăng dần theo từng nhân viên.
 - Boss duy trì **Event History Queue** tối đa 500 sự kiện / 10 phút cho mỗi nhân viên.
-- Khi nhân viên reconnect với `?lastEventId=N`:
-  - **Hit:** Boss replay các sự kiện bị bỏ lỡ từ `N+1`.
+- Khi nhân viên kết nối lại, gửi `catch-up` event kèm theo `{ lastSeqId }`:
+  - **Hit:** Boss replay các sự kiện bị bỏ lỡ từ `lastSeqId + 1`.
   - **Miss:** Boss gửi `relay:fallbackDeltaSync` → nhân viên chạy Delta Sync.
 
 ### executeProxyAction
@@ -128,15 +128,15 @@ Khi nhân viên proxy action:
 **Khởi tạo bởi:** `HttpConnectionManager`
 
 ### Purpose
-Kết nối nhân viên tới Boss. Authenticate, nhận SSE events, proxy actions, upload media.
+Kết nối nhân viên tới Boss. Authenticate, thiết lập kênh Socket.IO nhận sự kiện, thực hiện proxy actions và upload media.
 
 ### Key Methods
 - `authenticate(bossUrl, username, password)` → lấy token + snapshot
 - `proxyAction(channel, params)` → POST `/api/proxy/action`
 - `uploadMedia(base64, filename, zaloId)` → tự động chọn: nếu file > 2MB dùng Chunked Upload qua `/api/media/upload-chunk`, nếu nhỏ hơn dùng `/api/media/upload` — **timeout 120s/chunk**
 - `requestMedia(filePath)` → lấy file binary từ Boss
-- `triggerWorkflowEngine(channel, data)` → khi Boss push SSE event → trigger workflow local
-- `getLastEventId() / saveLastEventId(id)` → đọc/ghi ID sự kiện SSE cuối cùng vào SQLite local (`last_sse_event_id_{workspaceId}`)
+- `triggerWorkflowEngine(channel, data)` → khi nhận sự kiện qua Socket.IO → trigger workflow local
+- `getLastEventId() / saveLastEventId(id)` → đọc/ghi ID sự kiện Socket.IO cuối cùng vào SQLite local (`last_sse_event_id_{workspaceId}`) nhằm phục vụ việc catch-up.
 
 ---
 

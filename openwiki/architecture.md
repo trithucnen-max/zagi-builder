@@ -42,7 +42,7 @@ HttpRelayService (port 27800)
   ├── /api/media/upload        ← nhận file nhỏ (≤2MB) từ nhân viên
   ├── /api/media/upload-chunk  ← nhận chunk file lớn, tự ghép khi đủ [v27.2.6]
   ├── /api/media/request       ← nhân viên request file từ Boss
-  └── /api/events/stream       ← SSE push event + Last-Event-ID recovery [v27.2.6]
+  └── Socket.IO (port 27800)   ← WebSockets / Polling stream events + EventBuffer catch-up [v27.2.7]
 ```
 
 ### Nhân viên machine
@@ -53,9 +53,17 @@ HttpClientService (kết nối tới Boss)
   ├── uploadMedia(base64, filename) → tự chọn:
   │     ├── file ≤2MB → /api/media/upload (1 request)
   │     └── file >2MB → /api/media/upload-chunk (nhiều chunk 2MB) [v27.2.6]
-  ├── SSE listener → nhận event:message, event:reaction, ...
-  └── SSE reconnect → gửi ?lastEventId=N → Boss replay các sự kiện bị lỡ [v27.2.6]
+  ├── Socket.IO Client → nhận event:message, event:reaction, ...
+  └── Catch-up on reconnect → gửi { lastSeqId } → Boss replay các sự kiện bị lỡ [v27.2.7]
 ```
+
+### Network Stability & LAN/WAN Switching (v27.2.8)
+* **net.request Migration**: Toàn bộ tiến trình chính (Main Process) được di chuyển sang sử dụng `net.request` của Electron cho mọi cuộc gọi HTTP/HTTPS, loại bỏ hoàn toàn lỗi sập thư viện `c-ares` (`ares_dns_rr_get_ttl` SIGTRAP) khi đổi Wifi hoặc gập máy ngủ.
+* **Delayed Reconnect on Sleep/Wake**: Trì hoãn cuộc gọi kết nối lại (3s khi unlock screen, 5s khi resume từ sleep) để card mạng của hệ điều hành nhận IP và ổn định trước khi thực hiện DNS lookup.
+* **LAN/WAN Auto-Switch & Rollback**:
+  * Khi có mạng LAN chung với Boss, tự động dò tìm IP LAN và chuyển sang kết nối trực tiếp LAN qua HTTP và Socket.IO để tối ưu hóa tốc độ.
+  * Khi rời xa LAN hoặc Wifi đổi mạng, sau 2 lần Heartbeat lỗi (~30s), tự động Rollback lùi về mạng WAN/Tunnel (`https://relay.basancorp.com`).
+  * Hiển thị thông báo trạng thái kết nối trực tiếp lên màn hình UI của nhân viên.
 
 ### AI Read-Only Policy (v27.2.6)
 Trên máy Nhân viên (workspace `remote`), các IPC ghi AI bị chặn hoàn toàn:
