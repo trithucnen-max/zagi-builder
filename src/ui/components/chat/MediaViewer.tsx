@@ -439,8 +439,6 @@ export default function MediaViewer({ src, images, initialIndex = 0, alt = 'ản
                 height: '100%',
               }}
               contentStyle={{
-                width: '100%',
-                height: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -452,8 +450,8 @@ export default function MediaViewer({ src, images, initialIndex = 0, alt = 'ản
                 src={displaySrc}
                 alt={currentAlt}
                 className={`select-none rounded-sm shadow-2xl transition-opacity duration-200 ${
-                  isImageLoading ? 'opacity-0' : 'opacity-100'
-                } ${mainImageError ? 'opacity-30' : ''}`}
+                  mainImageError ? 'opacity-30' : 'opacity-100'
+                }`}
                 style={{
                   maxWidth: '90vw',
                   maxHeight: '85vh',

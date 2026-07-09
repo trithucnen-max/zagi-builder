@@ -56,7 +56,12 @@ function toBossMediaUrl(localPath: string, bossUrl: string, zaloId?: string): st
     // Patterns: /media/zaloId/... or D:\media\zaloId\...
     const mediaMatch = normalized.match(/(?:^|\/)(media|_uploads|avatar)\/(.+)/);
     if (mediaMatch) {
-      return `${bossUrl}/api/${mediaMatch[1]}/${mediaMatch[2]}`;
+      const type = mediaMatch[1];
+      const rest = mediaMatch[2];
+      if (type === 'media') {
+        return `${bossUrl}/api/media/${rest}`;
+      }
+      return `${bossUrl}/api/media/${type}/${rest}`;
     }
 
     // Fallback: use as-is with media prefix
