@@ -351,9 +351,16 @@ class WorkflowEngineService {
     }
   }
 
-  // ─── Event Listeners ──────────────────────────────────────────────────────
+  private zaloEventUnsubscribes: Array<() => void> = [];
+  private fbEventUnsubscribes: Array<() => void> = [];
 
   private registerZaloEventListeners(): void {
+    // Unsubscribe existing listeners to prevent duplicate registration
+    for (const unsub of this.zaloEventUnsubscribes) {
+      try { unsub(); } catch {}
+    }
+    this.zaloEventUnsubscribes = [];
+
     const EVENT_MAP: Record<string, string> = {
       'event:message':       'trigger.message',
       'event:friendRequest': 'trigger.friendRequest',
@@ -364,15 +371,21 @@ class WorkflowEngineService {
       'integration:payment': 'trigger.payment',
     };
     for (const [channel, triggerType] of Object.entries(EVENT_MAP)) {
-      EventBroadcaster.onBeforeSend(channel, (data: any) => {
+      const unsub = EventBroadcaster.onBeforeSend(channel, (data: any) => {
         this.triggerWorkflows(triggerType, data);
       });
+      this.zaloEventUnsubscribes.push(unsub);
     }
-
   }
 
   /** Bridge Facebook events to workflow triggers */
   private registerFacebookEventListeners(): void {
+    // Unsubscribe existing listeners to prevent duplicate registration
+    for (const unsub of this.fbEventUnsubscribes) {
+      try { unsub(); } catch {}
+    }
+    this.fbEventUnsubscribes = [];
+
     // Simple 1:1 mapping for standalone Facebook events
     const SIMPLE_EVENTS: Record<string, string> = {
       'fb:onReaction':   'fb.trigger.reaction',
@@ -380,13 +393,14 @@ class WorkflowEngineService {
       'fb:onGroupEvent': 'fb.trigger.groupEvent',
     };
     for (const [channel, triggerType] of Object.entries(SIMPLE_EVENTS)) {
-      EventBroadcaster.onBeforeSend(channel, (data: any) => {
+      const unsub = EventBroadcaster.onBeforeSend(channel, (data: any) => {
         this.triggerWorkflows(triggerType, data);
       });
+      this.fbEventUnsubscribes.push(unsub);
     }
 
     // Message event — determine specific trigger type from attachment data
-    EventBroadcaster.onBeforeSend('fb:onMessage', (data: any) => {
+    const unsubMsg = EventBroadcaster.onBeforeSend('fb:onMessage', (data: any) => {
       // Always trigger the base text-message workflow
       this.triggerWorkflows('fb.trigger.message', data);
 
@@ -405,6 +419,7 @@ class WorkflowEngineService {
         this.triggerWorkflows('fb.trigger.sticker', data);
       }
     });
+    this.fbEventUnsubscribes.push(unsubMsg);
   }
 
   /**
