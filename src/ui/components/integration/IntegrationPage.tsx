@@ -633,7 +633,7 @@ export default function IntegrationPage() {
               <AISection onNavigateAi={handleNavigateAi} />
 
               {Object.entries(CATALOG)
-                .filter(([key]) => !isEmployee || (key !== 'payment' && key !== 'shipping'))
+                .filter(([key]) => !isEmployee || (key !== 'payment'))
                 .map(([key, items]) => (
                   <IntegrationSection
                     key={key}
@@ -698,7 +698,7 @@ function TopBar({ activeTab, onTabChange, tunnelUrl, tunnelLoading, onTunnelTogg
 }) {
   const empMode = useEmployeeStore(s => s.mode);
   const isEmployee = empMode === 'employee';
-  const visibleTabs = TABS.filter(t => !isEmployee || (t.key !== 'payment' && t.key !== 'shipping'));
+  const visibleTabs = TABS.filter(t => !isEmployee || (t.key !== 'payment'));
 
   return (
     <div className="flex-shrink-0 border-b border-gray-700 bg-gray-900/95">
