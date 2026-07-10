@@ -4596,7 +4596,7 @@ CÁC BỘ LỌC ĐỊNH DẠNG HỖ TRỢ (RẤT QUAN TRỌNG):
 - | formatVND : Sử dụng khi muốn định dạng số tiền thành tiền tệ Việt Nam. Ví dụ: {{ $trigger.amount | formatVND }} -> 10.000.000đ
 - | formatDate('HH:mm - DD/MM/YYYY') : Định dạng ngày giờ. Ví dụ: {{ $trigger.transactionDate | formatDate('HH:mm - DD/MM/YYYY') }} -> 14:30 - 11/07/2026
 
-VÍ DỤ CẤU TRÚC TIN NHẮN THÔNG BÁO CHUẨN ĐỂ THAM KHẢO (Luôn sử dụng emoji và bôi đậm tiêu đề thông tin để tăng tính thẩm mỹ):
+VÍ DỤ CẤU TRÚC TIN NHẮN THÔNG BÁO CHUẨN ĐỂ THAM KHẢO (Chỉ sử dụng emoji và văn bản thường, KHÔNG sử dụng ký tự định dạng **):
 📌 Chi tiết giao dịch
 💰 Số tiền: {{ $trigger.amount | formatNumber }} VNĐ
 🏦 Ngân hàng: {{ $trigger.bankName }}
@@ -4608,7 +4608,7 @@ Zagi chân thành cảm ơn Anh/Chị đã tin tưởng và đồng hành. Chúc
 HƯỚNG DẪN SOẠN THẢO:
 1. Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhập, hướng dẫn hay kết luận nào ngoài nội dung văn bản sẽ sử dụng.
 2. Tự động chèn các biến động {{ ... }} và các bộ lọc định dạng phù hợp nhất vào văn bản dựa theo yêu cầu của người dùng.
-3. Trình bày tin nhắn đẹp mắt, sử dụng các icon emoji và định dạng bôi đậm (dùng ** để bôi đậm, ví dụ **Số tiền:**) để làm nổi bật thông tin quan trọng.`;
+3. Trình bày tin nhắn đẹp mắt, sử dụng các icon emoji và văn bản thường (KHÔNG sử dụng các ký tự định dạng như ** để bôi đậm, chỉ xuất ra text thường kèm emoji) để đảm bảo hiển thị chuẩn xác.`;
 
       const response = await ipc.ai?.chat(assistantId, [
         { role: 'system', content: systemMessage },
