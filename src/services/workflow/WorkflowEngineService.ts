@@ -745,7 +745,7 @@ class WorkflowEngineService {
       // Filter by integration id
       if (cfg.integrationId && data.integrationId !== cfg.integrationId) return false;
       // Filter by minimum amount
-      const amount = Number(tx.amount || tx.in || tx.amount_in || tx.amountIn || 0);
+      const amount = Number(tx.amount || tx.in || tx.amount_in || tx.amountIn || tx.transferAmount || 0);
       if (cfg.minAmount && amount < Number(cfg.minAmount)) return false;
       // Filter by description keyword
       if (cfg.descContains) {
@@ -1305,9 +1305,9 @@ class WorkflowEngineService {
       return {
         integrationId:   data.integrationId || '',
         integrationType: data.integrationType || '',
-        amount:          tx.amount || tx.in || tx.amount_in || tx.amountIn || 0,
+        amount:          tx.amount || tx.in || tx.amount_in || tx.amountIn || tx.transferAmount || 0,
         description:     tx.description || tx.memo || tx.content || tx.transaction_content || tx.transactionContent || '',
-        bankName:        tx.bankName || tx.bank_name || '',
+        bankName:        tx.bankName || tx.bank_name || tx.gateway || '',
         accountNumber:   tx.accountNumber || tx.bank_acc_id || tx.account_number || '',
         transactionId:   tx.id || tx.transaction_id || tx.tid || '',
         transactionDate: tx.when || tx.transactionDate || tx.created_at || tx.transaction_date || '',
