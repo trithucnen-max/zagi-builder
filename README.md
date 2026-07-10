@@ -177,13 +177,13 @@ Bạn dùng distro nào?
 
 | Thiết bị | File cần tải | Ghi chú |
 |---|---|---|
-| PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.2.10-x64.exe` | Phổ biến nhất |
-| Surface Pro 7 trở xuống | `Zagi-Setup-27.2.10-x64.exe` | Chip Intel |
-| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi-Setup-27.2.10-arm64.exe` | 🆕 Chip ARM64 |
-| MacBook M1/M2/M3/M4 | `Zagi-27.2.10-arm64-mac.zip` | Apple Silicon |
-| MacBook/iMac Intel | `Zagi-27.2.10-mac.zip` | Intel x64 |
-| Ubuntu/Debian Linux | `zagi_27.2.10_amd64.deb` | Cài như package |
-| Fedora/Arch/Linux khác | `Zagi-27.2.10.AppImage` | Chạy mọi distro |
+| PC/Laptop Windows (Intel/AMD) | `Zagi v27.2.10 Window.exe` | Phổ biến nhất |
+| Surface Pro 7 trở xuống | `Zagi v27.2.10 Window.exe` | Chip Intel |
+| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi v27.2.10 Surface.exe` | 🆕 Chip ARM64 |
+| MacBook M1/M2/M3/M4 | `Zagi v27.2.10 MacOS M1+ arm64.dmg` | Apple Silicon |
+| MacBook/iMac Intel | `Zagi v27.2.10 MacOS Intel.dmg` | Intel x64 |
+| Ubuntu/Debian Linux | `Zagi v27.2.10 Linux Debian.deb` | Cài như package |
+| Fedora/Arch/Linux khác | `Zagi v27.2.10 Linux.AppImage` | Chạy mọi distro |
 
 ---
 
@@ -210,8 +210,8 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.2.10.AppImage
-./Zagi-27.2.10.AppImage
+chmod +x "Zagi v27.2.10 Linux.AppImage"
+./"Zagi v27.2.10 Linux.AppImage"
 ```
 
 Nếu lỗi "FUSE not available":
@@ -221,7 +221,7 @@ sudo apt install libfuse2
 
 Hoặc dùng `.deb`:
 ```bash
-sudo dpkg -i zagi_27.2.10_amd64.deb
+sudo dpkg -i "Zagi v27.2.10 Linux Debian.deb"
 ```
 
 </details>

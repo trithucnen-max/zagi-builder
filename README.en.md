@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi-Setup-27.2.10-arm64.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi v27.2.10 Surface.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi-Setup-27.2.10-x64.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi v27.2.10 Window.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.2.10.AppImage
-./Zagi-27.2.10.AppImage
+chmod +x "Zagi v27.2.10 Linux.AppImage"
+./"Zagi v27.2.10 Linux.AppImage"
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i zagi_27.2.10_amd64.deb
+sudo dpkg -i "Zagi v27.2.10 Linux Debian.deb"
 ```
 
 </details>

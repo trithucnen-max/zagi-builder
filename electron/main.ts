@@ -91,17 +91,14 @@ ipcMain.handle = (channel: string, listener: any) => {
   if (
     (channel.startsWith('erp:') && !ERP_READ_ONLY_CHANNELS.has(channel)) ||
     (channel.startsWith('fb:') && !FB_READ_ONLY_CHANNELS.has(channel)) ||
+    channel.startsWith('ai:') ||
     channel === 'workflow:save' ||
     channel === 'workflow:delete' ||
-    channel === 'workflow:toggle' ||
-    AI_WRITE_CHANNELS.has(channel)
+    channel === 'workflow:toggle'
   ) {
     const wrappedListener = async (event: any, ...args: any[]) => {
       const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
       if (activeWs?.type === 'remote' && !(args[0]?._fromRelay)) {
-        if (AI_WRITE_CHANNELS.has(channel)) {
-          return { success: false, error: 'Chế độ nhân viên (Remote): Cấu hình Trợ lý AI chỉ có thể thực hiện trên máy BOSS' };
-        }
         try {
           return await HttpConnectionManager.getInstance().proxyAction(activeWs.id, channel, args[0] || {});
         } catch (err: any) {

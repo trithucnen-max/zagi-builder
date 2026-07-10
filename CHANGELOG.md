@@ -27,6 +27,10 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Cho phép bỏ qua kiểm tra sự tồn tại của tệp đính kèm ở local trên máy nhân viên, trực tiếp ủy nhiệm proxy gửi tập tin qua máy chủ (Boss Machine) nơi lưu trữ file gốc để gửi đi thành công.
   - Đồng bộ hóa logic chuyển tiếp tất cả loại tệp qua Facebook và Zalo (bao gồm cả tệp âm thanh/voice note).
 
+- **Đồng bộ & Cấu hình Trợ lý AI ở Máy Nhân Viên (Employee Mode):**
+  - Khắc phục lỗi hiển thị cảnh báo chặn cấu hình AI trên máy nhân viên. Toàn bộ các cổng ghi và lưu trợ lý (`ai:*`) giờ đây được định tuyến (proxy) trực tiếp về Boss Machine để thực hiện cập nhật cơ sở dữ liệu Boss từ xa.
+  - Tự động ủy quyền đọc cấu hình Trợ lý AI từ Boss Machine, giải quyết vấn đề danh sách Trợ lý AI không đồng bộ xuống máy nhân viên.
+
 ---
 
 ## [v27.2.9] - 2026-07-10
