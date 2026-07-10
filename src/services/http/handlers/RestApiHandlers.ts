@@ -675,6 +675,39 @@ export const handlers = {
     return success({ items: logs });
   },
 
+  clearSendLogHandler(employee: RegisteredEmployee, params: any): JsonResponse {
+    const zaloId = params.zaloId || employee.assigned_accounts[0];
+    if (!zaloId) return error('Missing zaloId');
+    db().clearSendLog(zaloId);
+    return success({ success: true });
+  },
+
+  cleanupSendLogHandler(employee: RegisteredEmployee, params: any): JsonResponse {
+    const zaloId = params.zaloId || employee.assigned_accounts[0];
+    if (!zaloId) return error('Missing zaloId');
+    const days = parseInt(params.days) || 0;
+    db().cleanupSendLogOlderThan(zaloId, days);
+    return success({ success: true });
+  },
+
+  getSendLogCleanupSettingsHandler(employee: RegisteredEmployee, params: any): JsonResponse {
+    const zaloId = params.zaloId || employee.assigned_accounts[0];
+    if (!zaloId) return error('Missing zaloId');
+    const days = db().getSetting(`crm_send_log_cleanup_days_${zaloId}`);
+    return success({ success: true, days: days ? parseInt(days, 10) : 0 });
+  },
+
+  setSendLogCleanupSettingsHandler(employee: RegisteredEmployee, params: any): JsonResponse {
+    const zaloId = params.zaloId || employee.assigned_accounts[0];
+    if (!zaloId) return error('Missing zaloId');
+    const days = parseInt(params.days) || 0;
+    db().setSetting(`crm_send_log_cleanup_days_${zaloId}`, String(days));
+    if (days > 0) {
+      db().cleanupSendLogOlderThan(zaloId, days);
+    }
+    return success({ success: true });
+  },
+
   getQueueStatusHandler(employee: RegisteredEmployee, params: any): JsonResponse {
     const zaloId = params.zaloId || employee.assigned_accounts[0];
     if (!zaloId) return error('Missing zaloId');

@@ -850,6 +850,38 @@ export class DataAccessor {
     return window.electronAPI.crm.getSendLog(params);
   }
 
+  static async clearSendLog(params: { zaloId: string }) {
+    if (isEmployee()) {
+      const res = await rest().post('/api/command/crm/send-log/clear', params);
+      return res.data;
+    }
+    return window.electronAPI.crm.clearSendLog(params);
+  }
+
+  static async cleanupSendLog(params: { zaloId: string; days: number }) {
+    if (isEmployee()) {
+      const res = await rest().post('/api/command/crm/send-log/cleanup', params);
+      return res.data;
+    }
+    return window.electronAPI.crm.cleanupSendLog(params);
+  }
+
+  static async getSendLogCleanupSettings(params: { zaloId: string }) {
+    if (isEmployee()) {
+      const res = await rest().get('/api/query/crm/send-log/cleanup-settings', params);
+      return res.data;
+    }
+    return window.electronAPI.crm.getSendLogCleanupSettings(params);
+  }
+
+  static async setSendLogCleanupSettings(params: { zaloId: string; days: number }) {
+    if (isEmployee()) {
+      const res = await rest().post('/api/command/crm/send-log/cleanup-settings', params);
+      return res.data;
+    }
+    return window.electronAPI.crm.setSendLogCleanupSettings(params);
+  }
+
   static async getQueueStatus(params: { zaloId: string }) {
     if (isEmployee()) {
       const res = await rest().get('/api/query/crm/queue-status', params);

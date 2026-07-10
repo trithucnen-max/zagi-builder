@@ -392,6 +392,55 @@ export function registerCRMIpc(): void {
         catch (e: any) { return { success: false, error: e.message }; }
     });
 
+    ipcHandle('crm:clearSendLog', async (_e, { zaloId }: { zaloId: string }) => {
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:clearSendLog', { zaloId });
+            }
+            DatabaseService.getInstance().clearSendLog(zaloId);
+            return { success: true };
+        }
+        catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcHandle('crm:cleanupSendLog', async (_e, { zaloId, days }: { zaloId: string; days: number }) => {
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:cleanupSendLog', { zaloId, days });
+            }
+            DatabaseService.getInstance().cleanupSendLogOlderThan(zaloId, days);
+            return { success: true };
+        }
+        catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcHandle('crm:getSendLogCleanupSettings', async (_e, { zaloId }: { zaloId: string }) => {
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:getSendLogCleanupSettings', { zaloId });
+            }
+            const db = DatabaseService.getInstance();
+            const days = db.getSetting(`crm_send_log_cleanup_days_${zaloId}`);
+            return { success: true, days: days ? parseInt(days, 10) : 0 };
+        }
+        catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcHandle('crm:setSendLogCleanupSettings', async (_e, { zaloId, days }: { zaloId: string; days: number }) => {
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:setSendLogCleanupSettings', { zaloId, days });
+            }
+            const db = DatabaseService.getInstance();
+            db.setSetting(`crm_send_log_cleanup_days_${zaloId}`, String(days));
+            if (days > 0) {
+                db.cleanupSendLogOlderThan(zaloId, days);
+            }
+            return { success: true };
+        }
+        catch (e: any) { return { success: false, error: e.message }; }
+    });
+
     ipcHandle('crm:getCampaignStats', async (_e, { zaloId, limit }: { zaloId: string; limit?: number }) => {
         try {
             if (AppModeManager.getInstance().getMode() === 'employee') {

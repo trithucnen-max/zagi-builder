@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import ipc from '@/lib/ipc';
 import AIAssistantDetailPage from './AIAssistantDetailPage';
 import AccountAssignmentPopup from '@/components/chat/AccountAssignmentPopup';
+import GlobalRoleAssignmentPopup from './GlobalRoleAssignmentPopup';
 import BrandLogo from '../common/BrandLogo';
 import { useEmployeeStore } from '@/store/employeeStore';
 
@@ -31,6 +32,7 @@ export default function AIAssistantPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [showAccountPopup, setShowAccountPopup] = useState(false);
+  const [showRolePopup, setShowRolePopup] = useState(false);
 
   const empMode = useEmployeeStore(s => s.mode);
   const isEmployee = empMode === 'employee';
@@ -75,6 +77,10 @@ export default function AIAssistantPage() {
           </div>
           {!isEmployee && (
             <>
+              <button onClick={() => setShowRolePopup(true)}
+                className="px-3 py-2 text-sm rounded-lg transition-colors border text-gray-400 hover:text-white border-gray-600 hover:border-gray-500">
+                ⚙️ Cấu hình vai trò AI
+              </button>
               <button onClick={() => setShowAccountPopup(true)}
                 className="px-3 py-2 text-sm rounded-lg transition-colors border text-gray-400 hover:text-white border-gray-600 hover:border-gray-500">
                 👤 Gán theo tài khoản
@@ -156,6 +162,7 @@ export default function AIAssistantPage() {
 
       {/* Assignment popup */}
       <AccountAssignmentPopup open={showAccountPopup} onClose={() => setShowAccountPopup(false)} />
+      <GlobalRoleAssignmentPopup open={showRolePopup} onClose={() => setShowRolePopup(false)} />
     </div>
   );
 }

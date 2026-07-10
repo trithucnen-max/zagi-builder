@@ -149,10 +149,11 @@ graph TD
 ---
 
 ## 5. LỊCH SỬ CẬP NHẬT CÁC PHIÊN BẢN (CHANGELOG)
-Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.8`:
+Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.11`:
 
 | Phiên bản | Ngày cập nhật | Loại cập nhật | Điểm nhấn chính (Highlights) |
 | :--- | :--- | :--- | :--- |
+| **v27.2.11** | 10/07/2026 | Minor | **5 AI Agent & Expose IPC Bridge:** Triển khai hệ thống 5 AI Agent độc lập gán theo vai trò; Bong bóng chat hỗ trợ Zagi (AI 5) nạp tài liệu đào tạo; Đại tu Notification Center, đồng bộ giao diện & sửa lỗi forward tệp máy nhân viên. |
 | **v27.2.8** | 09/07/2026 | Minor | **Thin Client & Socket.IO:** Loại bỏ hoàn toàn SQLite cục bộ trên máy Nhân viên (Zero SQLite); Thay thế hoàn toàn SSE bằng Socket.IO v4 làm transport thời gian thực chính; Tích hợp form đổi cấu hình kết nối trực tiếp trên màn hình khóa. |
 | **v27.2.7** | 08/07/2026 | Patch | **Tự động tối ưu kết nối & Khôi phục nhanh:** Tự phát hiện IP LAN của Boss và chuyển đổi luồng kết nối active/SSE sang cục bộ; Tự động kết nối lại tức thì khi Sleep/Wake-up (powerMonitor) hoặc khôi phục WiFi. |
 | **v27.2.6** | 08/07/2026 | Patch | **Nâng cấp hạ tầng mạng Boss–Nhân viên:** Chunked Upload file lớn (phân đoạn 2MB, không OOM), SSE Last-Event-ID Recovery (phục hồi sự kiện bị lỡ khi mất mạng), AI Assistant Read-Only cho Nhân viên, Đồng bộ 2 chiều phân hệ Facebook, Workflow Real-time 2 chiều Boss ↔ Nhân viên. |
@@ -176,6 +177,23 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 ---
 
 ### Chi tiết các cập nhật từng phiên bản
+
+#### 🚀 v27.2.11 — Tích hợp Dify Chatbot cho Hỗ trợ Zagi, Hệ thống 5 AI Agent chuyên biệt, Expose IPC Bridge, Cải tiến UX & Sửa lỗi chuyển tiếp tệp tin
+*   **Tính năng mới (New):**
+    *   **Hệ thống 5 AI Agent chuyên biệt:** Triển khai cơ cấu phân chia 5 Trợ lý AI độc lập (AI 1: Tư vấn sản phẩm, AI 2: Soạn tin & Workflow, AI 3: Tóm tắt & Bộ nhớ, AI 4: Chân dung khách hàng, AI 5: Giải thích hướng dẫn Zagi).
+    *   **Bong bóng Trợ lý Zagi (AI 5) kết nối Dify Chatbot:** Tích hợp Floating Action Button bong bóng chat nổi toàn cục ở góc dưới phải màn hình, sử dụng biểu tượng robot phẳng chuẩn của Zagi. Kết nối trực tiếp với API Dify (`http://chatbot.itngon.com/v1`, API Key: `app-Shoio3nzmEVuoJJOBUsycsp9`) qua Electron Backend. Người dùng không cần cấu hình API key hay gán AI assistant thủ công cho AI 5 nữa.
+    *   **Đồng bộ ngữ cảnh qua Dify conversation_id:** Widget tự động lưu trữ và truyền `conversationId` qua cổng IPC giúp Dify duy trì mạch hội thoại thông minh xuyên suốt phiên.
+    *   **Bảng điều khiển vai trò AI tinh gọn (AI Roles config):** Bổ sung Modal cho phép Boss gán chi tiết trợ lý AI nào đảm nhận vai trò AI 2, AI 3, AI 4 của hệ thống. Tự động ẩn cấu hình AI 5 vì đã kết nối sẵn với Dify.
+    *   **Hiển thị động Chân dung khách hàng (AI 4) theo System Prompt:** Loại bỏ cấu trúc gán cứng tĩnh cũ. Toàn bộ thông tin chân dung khách hàng được trích xuất động bằng regex từ câu trả lời của AI dựa theo đúng cấu trúc tiêu chí (1-5 chỉ số) được định nghĩa trong System Prompt của người dùng (ví dụ: `1. Nhu cầu:`, `2. Khả năng tài chính:`, v.v.). AI 4 sẽ phân tích và phác họa chân dung khách hàng **chỉ dựa trên Ghi chú & Nhật ký** (đã loại bỏ hoàn toàn lịch sử chat gần đây khỏi prompt để tránh lẫn tạp âm, từ ngữ cũ, hoặc gây lặp thẻ/nhiễu thông tin).
+*   **Cải tiến & Sửa lỗi (Improved & Fixed):**
+    *   **Hỗ trợ Markdown AI 5**: Tích hợp MarkdownText render tin nhắn AI 5 đẹp mắt (bôi đen, danh sách, code).
+    *   **Đồng bộ & phơi bày IPC (Preload Bridge):** Đăng ký đầy đủ 3 API IPC mới qua tệp `electron/preload.ts` khắc phục triệt để lỗi mất hàm phía Renderer.
+    *   **Đại tu Notification Center**: Thiết kế lại giao diện trực quan, trực tiếp bổ sung vòng tròn màu sắc và icon emoji đại diện cho từng loại task/sắp tới hạn. Hỗ trợ hiển thị nền xanh nhạt cho thông báo chưa đọc, khắc phục triệt để lỗi in thừa số `0` dư thừa do đánh giá SQLite.
+    *   **Khắc phục lỗi tối giao diện ban ngày**: Đồng bộ hiển thị sáng/tối của Menu kết nối (TopBar) theo cấu hình hệ thống bằng cách kiểm tra biến `resolvedTheme`.
+    *   **Ẩn nhãn đã xóa**: Tự động lọc và không hiển thị các huy hiệu nhãn dán trên tệp/hình ảnh trong Thư viện nếu nhãn dán đó đã bị xóa.
+    *   **Sửa lỗi forward file đính kèm máy nhân viên**: Tự động điều hướng và bỏ qua kiểm tra tệp local tại máy nhân viên, thực hiện gửi trực tiếp tệp gốc được lưu trữ trên Boss Machine khi chuyển tiếp PDF, ảnh, video, âm thanh sang hội thoại đích.
+    *   **Đồng bộ & Cấu hình AI từ xa**: Chuyển tiếp toàn bộ 14 kênh thao tác đọc/ghi của AI (`ai:*`) từ máy nhân viên về máy Boss. Nhân viên có thể tải và xem toàn bộ danh sách trợ lý AI cấu hình trên Boss, đồng thời tạo mới hoặc chỉnh sửa trợ lý AI từ xa.
+    *   **Mở hình ảnh/file Media đầy đủ**: Tự động chuyển tiếp các yêu cầu kiểm tra sự tồn tại của tệp, đọc dữ liệu ảnh base64, lấy metadata video, và sửa chữa ảnh hỏng (`file:repairImage`, `file:validateLocalImages`, `file:readImageAsBase64`, `file:getVideoMeta`, `file:exists`) từ máy nhân viên về máy Boss nơi tệp tin được lưu trữ vật lý. Sửa triệt để lỗi nhân viên nhìn thấy ảnh thumbnail nhưng bấm mở xem ảnh lớn không được.
 
 #### 🚀 v27.2.8 — Kiến trúc Thin Client (Zero SQLite) & Giao thức Socket.IO
 *   **Tính năng mới (New):**

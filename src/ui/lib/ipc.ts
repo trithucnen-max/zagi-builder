@@ -267,6 +267,10 @@ declare global {
         removeCampaignContacts: (params: { zaloId: string; campaignId: number; contactIds: string[] }) => Promise<{ success: boolean }>;
         getCampaignContacts: (params: { campaignId: number }) => Promise<{ success: boolean; contacts: any[] }>;
         getSendLog: (params: { zaloId: string; opts?: any }) => Promise<{ success: boolean; logs: any[] }>;
+        clearSendLog: (params: { zaloId: string }) => Promise<{ success: boolean; error?: string }>;
+        cleanupSendLog: (params: { zaloId: string; days: number }) => Promise<{ success: boolean; error?: string }>;
+        getSendLogCleanupSettings: (params: { zaloId: string }) => Promise<{ success: boolean; days: number; error?: string }>;
+        setSendLogCleanupSettings: (params: { zaloId: string; days: number }) => Promise<{ success: boolean; error?: string }>;
         getQueueStatus: (params: { zaloId: string }) => Promise<{ success: boolean; status: any }>;
         getCampaignStats: (params: { zaloId: string; limit?: number }) => Promise<{ success: boolean; stats: any[] }>;
         getCampaignSafetyStats: (params: { zaloId?: string }) => Promise<{ success: boolean; data: { sentStrangerMessages: number; sentStrangerInvites: number; campaignsOverTime: Array<{ date: string; count: number }> } }>;
@@ -434,6 +438,9 @@ declare global {
         getUsageLogs:  (opts?: { assistantId?: string; dateFrom?: number; dateTo?: number; limit?: number }) => Promise<{ success: boolean; logs: any[]; error?: string }>;
         getUsageStats: (opts?: { assistantId?: string; days?: number }) => Promise<{ success: boolean; stats: any[]; error?: string }>;
         triggerContactSummary: (params: { ownerZaloId: string; contactId: string }) => Promise<{ success: boolean; error?: string }>;
+        getGlobalRoleAssistants: () => Promise<{ success: boolean; roles: Record<string, string | null>; error?: string }>;
+        setGlobalRoleAssistant: (role: string, assistantId: string | null) => Promise<{ success: boolean; error?: string }>;
+        askZagiSupport: (message: string, conversationId: string | null) => Promise<{ success: boolean; result: string; conversationId?: string; error?: string }>;
       };
       tunnel: {
         start:  () => Promise<{ success: boolean; url?: string; error?: string }>;

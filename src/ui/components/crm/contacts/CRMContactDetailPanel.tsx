@@ -303,7 +303,7 @@ function AIProfileCard({ aiProfile, onGenerate, generating, hasNotes }: AIProfil
           
           <button
             onClick={onGenerate}
-            disabled={generating || !hasNotes}
+            disabled={generating}
             className="px-2 py-0.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-[9px] uppercase font-bold tracking-wider transition-all duration-200 disabled:opacity-40 flex items-center gap-1 cursor-pointer"
           >
             {generating ? (
@@ -370,6 +370,8 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
 
   // New state variables for notes & AI
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [aiTab, setAiTab] = useState<'profile' | 'summary'>('profile');
   const [newNoteText, setNewNoteText] = useState('');
   const [editNoteId, setEditNoteId] = useState<number | null>(null);
   const [editNoteText, setEditNoteText] = useState('');
@@ -681,6 +683,29 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
     if (!activeAccountId) return;
     setGeneratingAI(true);
     try {
+      // If there are no notes, directly clear the profile
+      if (notes.length === 0) {
+        const saveRes = await ipc.db?.updateContactAIProfile({
+          ownerZaloId: activeAccountId,
+          contactId: contact.contact_id,
+          aiProfile: '',
+        });
+
+        if (saveRes?.success) {
+          const currentState = useCRMStore.getState();
+          currentState.setContacts(
+            currentState.contacts.map(c =>
+              c.contact_id === contact.contact_id ? { ...c, ai_profile: '' } : c
+            ),
+            currentState.totalContacts
+          );
+          showNotification('Đã làm sạch hồ sơ khách hàng do không còn ghi chú nào.', 'success');
+        } else {
+          showNotification('Lỗi khi cập nhật cơ sở dữ liệu', 'error');
+        }
+        return;
+      }
+
       // Use the contact's assigned assistant first, then fall back to summary via IPC trigger
       if (contact.ai_assistant_id) {
         const res = await ipc.ai?.triggerContactSummary({
@@ -718,6 +743,8 @@ YÊU CẦU:
   * Khác (nếu có)
 - Nếu đề mục nào không có thông tin trong ghi chú, ghi rõ "Chưa có thông tin".
 - Sử dụng tiếng Việt, phong cách chuyên nghiệp.
+- Không tự ý bịa đặt hay suy diễn bất kỳ thông tin nào ngoài các ghi chú đã cung cấp.
+- Loại bỏ hoàn toàn các thông tin cũ/trùng lặp không xuất hiện trong ghi chú hiện tại. Với nội dung cũ hãy xóa đi và chỉ cập nhật nội dung có trong ghi chú mới nhất.
 
 Dữ liệu ghi chú khách hàng:
 ${notesText}`;
@@ -753,6 +780,101 @@ ${notesText}`;
     }
   };
 
+  // ── Resize sidebar state ───────────────────────────────────────────────────
+  const STORAGE_KEY = 'zagi_crm_sidebar_width';
+  const defaultWidth = Math.round(window.innerWidth * 0.7);
+  const savedWidth = parseInt(localStorage.getItem(STORAGE_KEY) || '', 10);
+  const [width, setWidth] = useState(isNaN(savedWidth) ? defaultWidth : savedWidth);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    const startX = e.clientX;
+    const startWidth = width;
+    const onMove = (ev: MouseEvent) => {
+      const delta = startX - ev.clientX;
+      const next = Math.max(300, Math.min(Math.round(window.innerWidth * 0.9), startWidth + delta));
+      setWidth(next);
+    };
+    const onUp = () => {
+      setIsResizing(false);
+      setWidth(w => { localStorage.setItem(STORAGE_KEY, String(w)); return w; });
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [width]);
+
+  // ── AI Chat Summary (AI 3) ─────────────────────────────────────────────────
+  const handleGenerateAIChatSummary = async () => {
+    if (!activeAccountId) return;
+    setGeneratingSummary(true);
+    try {
+      const msgRes = await ipc.db?.getMessages({
+        zaloId: activeAccountId,
+        threadId: contact.contact_id,
+        limit: 100,
+        offset: 0
+      });
+      const messagesList = msgRes?.messages || [];
+      if (messagesList.length === 0) {
+        showNotification('Hội thoại chưa có tin nhắn nào để tóm tắt.', 'warning');
+        return;
+      }
+      const chatHistoryText = [...messagesList].reverse().map(m => {
+        const sender = m.fromMe ? 'Nhân viên' : (m.senderName || 'Khách hàng');
+        const time = new Date(m.time).toLocaleString('vi-VN');
+        return `[${time}] ${sender}: ${m.message || '[Tệp tin/Hình ảnh]'}`;
+      }).join('\n');
+
+      const rolesRes = await ipc.ai?.getGlobalRoleAssistants();
+      const listRes = await ipc.ai?.listAssistants();
+      const assistantsList = listRes?.assistants || [];
+      const assistantId = rolesRes?.roles?.summarizer || assistantsList.find((a: any) => a.enabled !== false)?.id || 'default';
+
+      const systemPrompt = `Bạn là trợ lý AI chuyên tóm tắt nội dung hội thoại chat (AI 3).\nNhiệm vụ: Đọc kỹ lịch sử chat bên dưới và viết tóm tắt ngắn gọn, súc tích về các ý chính (vấn đề, yêu cầu, kết quả, hành động tiếp theo).\nChỉ trả về bản tóm tắt, không thêm các câu dẫn nhập hay kết luận.`;
+      const chatRes = await ipc.ai?.chat(assistantId, [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Lịch sử hội thoại:\n${chatHistoryText}\n\nHãy tóm tắt hội thoại này:` }
+      ]);
+
+      if (chatRes?.success && chatRes?.result) {
+        const summaryText = chatRes.result.trim();
+        let extra: Record<string, any> = {};
+        try {
+          if (contact.extra_data) {
+            extra = typeof contact.extra_data === 'string' ? JSON.parse(contact.extra_data) : contact.extra_data;
+          }
+        } catch {}
+        const updatedExtra = { ...extra, ai_chat_summary: summaryText };
+        const saveRes = await ipc.db?.updateContactExtraData({
+          zaloId: activeAccountId,
+          contactId: contact.contact_id,
+          extraData: updatedExtra,
+        });
+        if (saveRes?.success) {
+          const currentState = useCRMStore.getState();
+          currentState.setContacts(
+            currentState.contacts.map(c =>
+              c.contact_id === contact.contact_id ? { ...c, extra_data: JSON.stringify(updatedExtra) } : c
+            ),
+            currentState.totalContacts
+          );
+          showNotification('Tóm tắt cuộc chat bằng AI thành công!', 'success');
+        } else {
+          showNotification('Lỗi khi lưu tóm tắt cuộc chat vào CSDL.', 'error');
+        }
+      } else {
+        showNotification(chatRes?.error || 'Trợ lý AI 3 không phản hồi.', 'error');
+      }
+    } catch (e: any) {
+      showNotification(`Lỗi: ${e.message}`, 'error');
+    } finally {
+      setGeneratingSummary(false);
+    }
+  };
 
 
   const name = contact.alias || contact.display_name || contact.contact_id;
@@ -790,7 +912,14 @@ ${notesText}`;
   const sortedNotes = [...notes].sort((a, b) => a.created_at - b.created_at);
 
   return (
-    <div className="w-80 flex-shrink-0 flex flex-col bg-white border-l border-gray-200 h-full">
+    <div style={{ width: `${width}px` }} className="flex-shrink-0 flex flex-col bg-white border-l border-gray-200 h-full relative">
+      {/* Resize Handle */}
+      <div
+        onMouseDown={startResizing}
+        className={`absolute top-0 left-0 bottom-0 w-1 z-50 cursor-col-resize transition-colors ${
+          isResizing ? 'bg-blue-500' : 'hover:bg-blue-400'
+        }`}
+      />
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 bg-white">
         <button onClick={onClose} className="text-gray-500 hover:text-gray-800 transition-colors">
@@ -1060,15 +1189,13 @@ ${notesText}`;
           )}
         </div>
 
-        {/* AI Analysis Section */}
+        {/* AI Analysis Section — Tabbed AI 3 / AI 4 */}
         <div className="space-y-2.5">
           {/* AI Config Controls — compact single row */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 shadow-sm">
             <div className="flex items-center gap-2">
-              {/* Icon + label */}
               <svg className="w-3 h-3 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
               <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500 flex-shrink-0">Trợ lý AI</span>
-              {/* Assistant select */}
               <select
                 id={`ai-assistant-select-${contact.contact_id}`}
                 value={contact.ai_assistant_id || ''}
@@ -1081,7 +1208,6 @@ ${notesText}`;
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
-              {/* Auto-summary toggle */}
               <div className="flex items-center gap-1 flex-shrink-0">
                 <span className="text-[10px] text-gray-400">Tự tổng</span>
                 <button
@@ -1097,7 +1223,6 @@ ${notesText}`;
                   }`} />
                 </button>
               </div>
-              {/* Threshold input (only when auto-summary ON) */}
               {contact.ai_auto_summary ? (
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <input
@@ -1116,48 +1241,131 @@ ${notesText}`;
             </div>
           </div>
 
-          {/* AI Profile Card / Generate */}
-          {contact.ai_profile ? (
-            <AIProfileCard
-              aiProfile={contact.ai_profile}
-              onGenerate={handleGenerateAIProfile}
-              generating={generatingAI}
-              hasNotes={notes.length > 0}
-            />
-          ) : (
-            <div className="bg-white border border-gray-200 rounded-lg p-3.5 space-y-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-700 flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="9" y1="9" x2="15" y2="9"/>
-                    <line x1="9" y1="13" x2="15" y2="13"/>
-                    <line x1="9" y1="17" x2="13" y2="17"/>
-                  </svg>
-                  HỒ SƠ KHÁCH HÀNG (AI)
-                </span>
-                <button
-                  onClick={handleGenerateAIProfile}
-                  disabled={generatingAI}
-                  className="px-2 py-0.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-[9px] uppercase font-bold tracking-wider transition-all duration-200 disabled:opacity-40 flex items-center gap-1 cursor-pointer"
-                >
-                  {generatingAI ? (
-                    <>
-                      <span className="animate-spin inline-block w-2.5 h-2.5 border border-gray-500 border-t-transparent rounded-full" />
-                      ĐANG TẠO...
-                    </>
-                  ) : (
-                    'TỔNG HỢP'
-                  )}
-                </button>
-              </div>
-              <p className="text-[11px] text-gray-600 italic py-3 text-center bg-white rounded-lg border border-dashed border-gray-300">
-                {notes.length === 0 
-                  ? 'Hãy thêm ghi chú hoặc chat để tổng hợp bằng AI.' 
-                  : 'Chưa có phân tích. Nhấn nút để bắt đầu phân tích.'}
-              </p>
+          {/* AI 3 & AI 4 Tabbed View */}
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+            {/* Tabs Header */}
+            <div className="flex border-b border-gray-200 bg-gray-50/50">
+              <button
+                onClick={() => setAiTab('profile')}
+                className={`flex-1 py-2 text-center text-xs font-semibold border-b-2 transition-all ${
+                  aiTab === 'profile'
+                    ? 'border-blue-500 text-blue-600 bg-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                👤 Chân dung (AI 4)
+              </button>
+              <button
+                onClick={() => setAiTab('summary')}
+                className={`flex-1 py-2 text-center text-xs font-semibold border-b-2 transition-all ${
+                  aiTab === 'summary'
+                    ? 'border-blue-500 text-blue-600 bg-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                💬 Tóm tắt (AI 3)
+              </button>
             </div>
-          )}
+
+            {/* Tab Contents */}
+            <div className="p-3.5 space-y-3">
+              {aiTab === 'profile' ? (
+                contact.ai_profile ? (
+                  <AIProfileCard
+                    aiProfile={contact.ai_profile}
+                    onGenerate={handleGenerateAIProfile}
+                    generating={generatingAI}
+                    hasNotes={notes.length > 0}
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">
+                        Chưa có chân dung khách hàng
+                      </span>
+                      <button
+                        onClick={handleGenerateAIProfile}
+                        disabled={generatingAI}
+                        className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white text-[9px] uppercase font-bold tracking-wider transition-all duration-200 disabled:opacity-40 flex items-center gap-1 cursor-pointer rounded"
+                      >
+                        {generatingAI ? (
+                          <>
+                            <span className="animate-spin inline-block w-2.5 h-2.5 border border-white border-t-transparent rounded-full" />
+                            ĐANG PHÂN TÍCH...
+                          </>
+                        ) : 'PHÂN TÍCH'}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-gray-600 italic py-3 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                      {notes.length === 0
+                        ? 'Hãy thêm ghi chú trước khi phân tích chân dung bằng AI 4.'
+                        : 'Nhấn nút để phân tích chân dung khách hàng theo tiêu chí tùy chỉnh.'}
+                    </p>
+                  </div>
+                )
+              ) : (() => {
+                let extra: any = {};
+                try {
+                  if (contact.extra_data) {
+                    extra = typeof contact.extra_data === 'string' ? JSON.parse(contact.extra_data) : contact.extra_data;
+                  }
+                } catch {}
+                const chatSummary = extra.ai_chat_summary || '';
+                return chatSummary ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Bản tóm tắt hội thoại</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={handleGenerateAIChatSummary}
+                          disabled={generatingSummary}
+                          className="p-1 hover:bg-gray-100 rounded transition-colors text-blue-600 hover:text-blue-500"
+                          title="Tải lại tóm tắt"
+                        >
+                          {generatingSummary ? (
+                            <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full" />
+                          ) : (
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(chatSummary); showNotification('Đã sao chép tóm tắt!', 'success'); }}
+                          className="p-1 hover:bg-gray-100 rounded transition-colors text-gray-400 hover:text-gray-600"
+                          title="Sao chép tóm tắt"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-700 leading-relaxed bg-gray-50/50 p-2.5 rounded-lg border border-gray-200 whitespace-pre-wrap">
+                      {chatSummary}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Chưa có tóm tắt hội thoại</span>
+                      <button
+                        onClick={handleGenerateAIChatSummary}
+                        disabled={generatingSummary}
+                        className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] uppercase font-bold tracking-wider transition-all duration-200 disabled:opacity-40 flex items-center gap-1 cursor-pointer rounded"
+                      >
+                        {generatingSummary ? (
+                          <>
+                            <span className="animate-spin inline-block w-2.5 h-2.5 border border-white border-t-transparent rounded-full" />
+                            ĐANG TÓM TẮT...
+                          </>
+                        ) : 'TÓM TẮT CHAT'}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-gray-600 italic py-3 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                      Nhấn nút để AI 3 tóm tắt nhanh lịch sử hội thoại gần đây.
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
         </div>
 
 

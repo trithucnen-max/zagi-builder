@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
 > **Ngày cập nhật:** 10/07/2026  
-> **Phiên bản:** v27.2.10 (Stable)  
+> **Phiên bản:** v27.2.11 (Stable)  
 > **Nhánh Git hiện tại:** `main` (Working tree sạch)
 
 ---
@@ -77,7 +77,13 @@
     *   **Sửa lỗi tạo project nhân đôi**: Race condition giữa optimistic state add và sự kiện realtime `erp:event:projectCreated`.
     *   **Toast thông báo lỗi ERP**: Toàn bộ thao tác `createProject`, `updateProject`, `deleteProject`, `deleteTask` hiển thị toast khi thất bại.
     *   **Cải tiến ErrorBoundary**: Hiển thị thông báo lỗi nổi bật (hộp đỏ) + nút Sao chép mã lỗi.
-17. **Cải tiến UI/UX & Sửa lỗi chuyển tiếp tệp đính kèm (v27.2.10):**
+17. **Cải tiến UI/UX & Sửa lỗi tệp đính kèm & Hệ thống 5 AI Agent (v27.2.11):**
+    *   **Hệ thống 5 AI Agent chuyên biệt:** Cơ cấu phân chia 5 Trợ lý AI độc lập (AI 1: Tư vấn sản phẩm, AI 2: Soạn tin & Workflow, AI 3: Tóm tắt & Bộ nhớ, AI 4: Chân dung khách hàng, AI 5: Giải thích hướng dẫn Zagi).
+    *   **Bong bóng Trợ lý Zagi (AI 5) kết nối Dify:** Widget chat nổi góc dưới phải màn hình kết nối trực tiếp chatbot Dify của Zagi, tự động lưu trữ và đồng bộ hóa `conversationId`, sử dụng icon robot phẳng chuẩn của Zagi, hỗ trợ Markdown render tin nhắn cực đẹp.
+    *   **Bảng điều khiển vai trò AI tinh gọn:** Cho phép Boss gán trợ lý cho AI 2, AI 3, AI 4. Tự động ẩn cấu hình AI 5 vì đã được kết nối mặc định với Dify phía Boss.
+    *   **Hiển thị động Chân dung khách hàng (AI 4) theo System Prompt:** Loại bỏ cấu trúc gán cứng tĩnh cũ. Toàn bộ thông tin chân dung khách hàng được trích xuất động bằng regex từ câu trả lời của AI dựa theo đúng cấu trúc tiêu chí (1-5 chỉ số) được định nghĩa trong System Prompt của người dùng (ví dụ: `1. Nhu cầu:`, `2. Khả năng tài chính:`, v.v.). AI 4 sẽ phân tích và phác họa chân dung khách hàng **chỉ dựa trên Ghi chú & Nhật ký** (đã loại bỏ hoàn toàn lịch sử chat gần đây khỏi prompt để tránh lẫn tạp âm, từ ngữ cũ, hoặc gây lặp thẻ/nhiễu thông tin).
+    *   **Sửa lỗi nhận diện tin nhắn tự gửi (isSelf / ignoreOwn):** Khắc phục lỗi AI tự nhận diện tin nhắn phản hồi của chính mình làm tin nhắn mới từ khách để rồi tiếp tục tự trả lời, tạo ra vòng lặp vô hạn. So sánh trực tiếp mã số người gửi (`uidFrom` / `senderId`) với mã số tài khoản đang chạy (`zaloId` / `fbAccountId`) ngoài việc dựa vào flag `isSelf` thô.
+    *   **Đồng bộ & phơi bày IPC (Preload Bridge):** Đăng ký đầy đủ 3 API IPC mới qua tệp `electron/preload.ts` khắc phục triệt để lỗi mất hàm phía Renderer.
     *   **Đại tu Notification Center**: Thiết kế lại giao diện trực quan, trực tiếp bổ sung vòng tròn màu sắc và icon emoji đại diện cho từng loại task/sắp tới hạn. Hỗ trợ hiển thị nền xanh nhạt cho thông báo chưa đọc, khắc phục triệt để lỗi in thừa số `0` dư thừa do đánh giá SQLite.
     *   **Khắc phục lỗi tối giao diện ban ngày**: Đồng bộ hiển thị sáng/tối của Menu kết nối (TopBar) theo cấu hình hệ thống bằng cách kiểm tra biến `resolvedTheme`.
     *   **Ẩn nhãn đã xóa**: Tự động lọc và không hiển thị các huy hiệu nhãn dán trên tệp/hình ảnh trong Thư viện nếu nhãn dán đó đã bị xóa.

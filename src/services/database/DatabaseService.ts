@@ -5820,6 +5820,27 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] getSendLog: ${err.message}`); return []; }
     }
 
+    public clearSendLog(ownerZaloId: string): void {
+        if (!this.initialized) return;
+        try {
+            this.run('DELETE FROM crm_send_log WHERE owner_zalo_id = ?', [ownerZaloId]);
+            Logger.log(`[DB] clearSendLog: cleared logs for owner=${ownerZaloId}`);
+        } catch (err: any) {
+            Logger.error(`[DB] clearSendLog error: ${err.message}`);
+        }
+    }
+
+    public cleanupSendLogOlderThan(ownerZaloId: string, days: number): void {
+        if (!this.initialized) return;
+        try {
+            const threshold = Date.now() - (days * 24 * 60 * 60 * 1000);
+            this.run('DELETE FROM crm_send_log WHERE owner_zalo_id = ? AND sent_at < ?', [ownerZaloId, threshold]);
+            Logger.log(`[DB] cleanupSendLogOlderThan: deleted logs older than ${days} days for owner=${ownerZaloId}`);
+        } catch (err: any) {
+            Logger.error(`[DB] cleanupSendLogOlderThan error: ${err.message}`);
+        }
+    }
+
     /** Top N campaigns with detailed stats including replied count */
     public getTopCampaignStats(ownerZaloId: string, limit = 10): any[] {
         if (!this.initialized) return [];

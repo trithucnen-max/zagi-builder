@@ -226,4 +226,32 @@ export function registerAIAssistantIpc(): void {
       return { success: false, error: e.message };
     }
   });
+
+  // ─── Global Role Assistants ───────────────────────────────────────────────
+  register('ai:getGlobalRoleAssistants', async () => {
+    try {
+      const roles = AIAssistantService.getInstance().getGlobalRoleAssistants();
+      return { success: true, roles };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  register('ai:setGlobalRoleAssistant', async (_e, { role, assistantId }: { role: string; assistantId: string | null }) => {
+    try {
+      AIAssistantService.getInstance().setGlobalRoleAssistant(role, assistantId);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  register('ai:askZagiSupport', async (_e, { message, conversationId }: { message: string; conversationId: string | null }) => {
+    try {
+      const res = await AIAssistantService.getInstance().askZagiSupport(message, conversationId);
+      return { success: true, ...res };
+    } catch (e: any) {
+      return { success: false, result: `Lỗi: ${e.message}`, conversationId: conversationId || '' };
+    }
+  });
 }

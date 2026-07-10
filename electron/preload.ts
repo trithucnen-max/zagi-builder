@@ -276,6 +276,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     removeCampaignContacts: (params: any) => ipcRenderer.invoke('crm:removeCampaignContacts', params),
     getCampaignContacts: (params: any) => ipcRenderer.invoke('crm:getCampaignContacts', params),
     getSendLog: (params: any) => ipcRenderer.invoke('crm:getSendLog', params),
+    clearSendLog: (params: any) => ipcRenderer.invoke('crm:clearSendLog', params),
+    cleanupSendLog: (params: any) => ipcRenderer.invoke('crm:cleanupSendLog', params),
+    getSendLogCleanupSettings: (params: any) => ipcRenderer.invoke('crm:getSendLogCleanupSettings', params),
+    setSendLogCleanupSettings: (params: any) => ipcRenderer.invoke('crm:setSendLogCleanupSettings', params),
     getQueueStatus: (params: any) => ipcRenderer.invoke('crm:getQueueStatus', params),
     getCampaignStats: (params: any) => ipcRenderer.invoke('crm:getCampaignStats', params),
     getCampaignSafetyStats: (params: any) => ipcRenderer.invoke('crm:getCampaignSafetyStats', params),
@@ -404,6 +408,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getUsageLogs:  (opts?: any) => ipcRenderer.invoke('ai:getUsageLogs', opts || {}),
     getUsageStats: (opts?: any) => ipcRenderer.invoke('ai:getUsageStats', opts || {}),
     triggerContactSummary: (params: { ownerZaloId: string; contactId: string }) => ipcRenderer.invoke('ai:triggerContactSummary', params),
+    getGlobalRoleAssistants: () => ipcRenderer.invoke('ai:getGlobalRoleAssistants'),
+    setGlobalRoleAssistant: (role: string, assistantId: string | null) => ipcRenderer.invoke('ai:setGlobalRoleAssistant', { role, assistantId }),
+    askZagiSupport: (message: string, conversationId: string | null) => ipcRenderer.invoke('ai:askZagiSupport', { message, conversationId }),
   },
 
   // ─── Tunnel ───────────────────────────────────────────────────────

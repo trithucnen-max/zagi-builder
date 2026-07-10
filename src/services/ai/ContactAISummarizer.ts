@@ -159,13 +159,20 @@ class ContactAISummarizer {
             );
             const contactName = contactRow?.alias || contactRow?.display_name || contactId;
 
-            const recentMessages = db.getMessages(ownerZaloId, contactId, messageCount, 0);
-            if (recentMessages.length === 0) {
-                Logger.warn(`[ContactAISummarizer] No messages found for contact=${contactId}. Skipping.`);
-                return { success: false, error: 'No messages found' };
+            const notes = db.getCRMNotes(ownerZaloId, contactId);
+            if (notes.length === 0) {
+                Logger.info(`[ContactAISummarizer] No notes found for contact=${contactId}. Clearing AI profile.`);
+                db.updateContactAIProfile({ ownerZaloId, contactId, aiProfile: '', resetCounter: true });
+                
+                // Success: clear cooldown
+                lastAttemptTime.delete(key);
+                
+                Logger.info(`[ContactAISummarizer] Auto-summary complete (cleared) for contact=${contactId}.`);
+                EventBroadcaster.broadcastAIProfileUpdated(ownerZaloId, contactId, '');
+                return { success: true };
             }
 
-            const prompt = ContactAISummarizer.buildMergePrompt(contactName, currentProfile, recentMessages);
+            const prompt = ContactAISummarizer.buildNotesPrompt(contactName, notes, assistant.systemPrompt || '');
             const chatRes = await aiService.chat(assistant.id, [{ role: 'user', content: prompt }], false);
             if (!chatRes?.result) {
                 Logger.warn('[ContactAISummarizer] AI returned empty response.');
@@ -189,50 +196,35 @@ class ContactAISummarizer {
         }
     }
 
-    private static buildMergePrompt(contactName: string, oldProfile: string | null, recentMessages: any[]): string {
-        const messagesText = recentMessages
-            .filter((m: any) => {
-                // Filter out system, stickers, and recalled messages to optimize token usage
-                const type = m.msg_type || 'text';
-                if (type === 'system' || type === 'sticker' || m.is_recalled) return false;
-                return true;
-            })
-            .map((m: any) => {
-                const sender = m.is_sent ? '[Nhân viên]' : `[${contactName}]`;
-                const time = m.timestamp ? new Date(m.timestamp).toLocaleString('vi-VN') : '';
-                let text = '';
-                try {
-                    const parsed = JSON.parse(m.content || '{}');
-                    text = parsed.msg || parsed.message || parsed.title || '';
-                } catch {
-                    text = String(m.content || '');
-                }
-                if (!text) return null;
-                return `${time} ${sender}: ${text}`;
-            })
-            .filter(Boolean)
+    private static buildNotesPrompt(contactName: string, notes: any[], systemPrompt: string = ''): string {
+        const notesText = notes
+            .map((n: any) => `[Ngày ${new Date(n.created_at).toLocaleString('vi-VN')}]: ${n.content}`)
             .join('\n');
 
-        const profileSection = oldProfile
-            ? `HỒ SƠ HIỆN TẠI:\n${oldProfile}`
-            : 'HỒ SƠ HIỆN TẠI: (Chưa có thông tin)';
+        const structureInstructions = systemPrompt
+            ? `Hãy phân tích và tổng hợp thông tin dựa theo đúng cấu trúc tiêu chí được định nghĩa trong System Prompt của bạn.`
+            : `Hãy trình bày rõ ràng theo các đề mục sau:
+  * Nhu cầu
+  * Mong muốn
+  * Tình trạng hiện tại
+  * Khả năng tài chính
+  * Địa chỉ/Khu vực sinh sống
+  * Khác (nếu có)
+- Nếu đề mục nào không có thông tin trong ghi chú, ghi rõ "Chưa có thông tin".`;
 
-        return `Bạn là trợ lý AI chuyên phân tích hồ sơ khách hàng.
-Dưới đây là hồ sơ hiện tại của khách hàng tên "${contactName}" va ${recentMessages.length} tin nhắn trao đổi gần nhất.
-
-${profileSection}
-
-${recentMessages.length} TIN NHẮN MỚI NHẤT:
-${messagesText}
-
+        return `Dưới đây là các ghi chú về khách hàng tên "${contactName}". Hãy phân tích và tổng hợp thông tin từ các ghi chú này thành một bản hồ sơ phân tích khách hàng.
 YÊU CẦU:
-- Cập nhật hồ sơ bằng cách tích hợp thông tin mới từ các tin nhắn trên.
-- Nếu có thông tin MỚI hoặc THAY ĐỔI (ví dụ: gia từ 4 tỷ tăng lên 6 tỷ):
-  -> Cập nhật thành giá mới, kèm chú thích: "(Trước: 4 tỷ -> Cập nhật: 6 tỷ)"
-- Giữ nguyên các thông tin cũ không đổi. Không tự ý xóa các đề mục đã có.
-- Trả về hồ sơ hoàn chỉnh format đề mục bằng tiếng Việt.`;
+- Phân tích ngắn gọn, đi thẳng vào các ý chính.
+- ${structureInstructions}
+- Sử dụng tiếng Việt, phong cách chuyên nghiệp.
+- Không tự ý bịa đặt hay suy diễn bất kỳ thông tin nào ngoài các ghi chú đã cung cấp.
+- Loại bỏ hoàn toàn các thông tin cũ/trùng lặp không xuất hiện trong ghi chú hiện tại. Với nội dung cũ hãy xóa đi và chỉ cập nhật nội dung có trong ghi chú mới nhất.
+
+Dữ liệu ghi chú khách hàng:
+${notesText}`;
     }
 }
 
 export default ContactAISummarizer;
+
 

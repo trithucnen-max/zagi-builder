@@ -4,6 +4,27 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v27.2.11] - 2026-07-11
+
+### ERP Co giãn Giao diện · Dọn dẹp Lịch sử gửi CRM · Sửa lỗi chạy ngầm Workflow & AI Autopilot
+
+- **ERP Task Details Layout (Co giãn & Mở rộng):**
+  - Hỗ trợ co kéo mở rộng kích thước 2 cột nội dung (Left column details & Right column sidebar) bằng chuột, tỷ lệ kéo thả tùy chỉnh linh hoạt từ 30% đến 80%.
+  - Bổ sung nút bấm mở rộng (Maximize) chuyên biệt cho 2 mục **Nhiệm vụ con** và **BÌNH LUẬN & TRAO ĐỔI** ở cột phải để tối đa hóa tầm nhìn khi danh sách quá dài, đồng thời tự động ẩn double scrollbars để cuộn mượt mà hơn.
+
+- **Dọn dẹp Lịch sử gửi tin CRM (Clear & Auto-cleanup Log):**
+  - Thêm nút bấm **Xóa lịch sử** màu đỏ (kèm hộp thoại xác nhận an toàn chống mất mát dữ liệu) trong lịch sử gửi tin CRM để dọn dẹp lịch sử gửi chiến dịch của tài khoản hiện tại.
+  - Hỗ trợ **Đặt lịch tự động xóa sau N ngày** (con số tự chọn tùy ý, ví dụ: 20, 30 ngày...). Cấu hình được lưu trữ độc lập theo từng tài khoản Zalo trong SQLite `app_settings` (`crm_send_log_cleanup_days_<zaloId>`).
+  - Tích hợp tác vụ dọn dẹp định kỳ chạy ngầm lúc 3:00 sáng hàng ngày trong tiến trình Electron Main, tự động rà quét và giải phóng các dòng logs đã quá hạn.
+  - Đồng bộ hóa đầy đủ IPC channels và REST endpoints giúp hỗ trợ thực thi mượt mà ở cả chế độ máy Boss và máy Nhân viên (Remote Employee Mode).
+
+- **Sửa lỗi ngầm Workflow Engine & Tinh chỉnh AI Autopilot:**
+  - Khắc phục lỗi nghiêm trọng khi chuyển đổi Workspace xóa sạch các hooks sự kiện của `WorkflowEngineService` trên `EventBroadcaster`, giúp tự động re-register và tái khởi động workflow ổn định.
+  - Nâng cấp cơ chế chạy tự động của AI (`ai.generateText`): Tự động lấy nội dung tin nhắn đến làm prompt nếu người dùng bỏ trống cấu hình, đồng thời tự động nạp 20 tin nhắn lịch sử trò chuyện gần nhất từ database làm ngữ cảnh để tránh tình trạng bot bị lặp lại tin nhắn chào hỏi vô hạn.
+  - Hỗ trợ nhận diện và phân tích cấu trúc dữ liệu JSON Lines phản hồi từ các LLM endpoints thành các tin nhắn Zalo riêng biệt để gửi đi thành công.
+
+---
+
 ## [v27.2.10] - 2026-07-10
 
 ### Cải tiến UI/UX & Sửa lỗi Nghiêm trọng Chuyển tiếp Tệp Đính kèm (Employee Mode)

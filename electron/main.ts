@@ -1212,6 +1212,16 @@ async function startupAfterLicenseCheck(): Promise<void> {
             console.log(`[MediaCleanup] Cleaned ${deleted} dirs for ${acc.zalo_id}`);
           }
         }
+
+        // Daily cleanup for CRM send log
+        const crmLogDays = db.getSetting(`crm_send_log_cleanup_days_${acc.zalo_id}`);
+        if (crmLogDays) {
+          const days = parseInt(crmLogDays, 10);
+          if (days > 0) {
+            db.cleanupSendLogOlderThan(acc.zalo_id, days);
+            console.log(`[SendLogCleanup] Cleaned send logs older than ${days} days for ${acc.zalo_id}`);
+          }
+        }
       }
       console.log('[MediaCleanup] Daily cleanup completed');
     } catch (err: any) {

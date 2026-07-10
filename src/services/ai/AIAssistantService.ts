@@ -727,6 +727,65 @@ YÊU CẦU BẮT BUỘC:
     }
     return result;
   }
+  // ─── Global AI Role Assignments ─────────────────────────────────────────
+
+  /**
+   * Get all global role assignments
+   */
+  public getGlobalRoleAssistants(): Record<string, string | null> {
+    const db = DatabaseService.getInstance();
+    return {
+      composer: db.getSetting('ai_role_composer_id'),
+      summarizer: db.getSetting('ai_role_summarizer_id'),
+      profiler: db.getSetting('ai_role_profiler_id'),
+      support: db.getSetting('ai_role_support_id'),
+    };
+  }
+
+  /**
+   * Set global role assistant
+   */
+  public setGlobalRoleAssistant(role: string, assistantId: string | null): void {
+    const db = DatabaseService.getInstance();
+    const validRoles = ['composer', 'summarizer', 'profiler', 'support'];
+    if (!validRoles.includes(role)) {
+      throw new Error(`Vai trò AI không hợp lệ: ${role}`);
+    }
+    db.setSetting(`ai_role_${role}_id`, assistantId || '');
+  }
+
+  /**
+   * Ask Zagi support AI (AI 5) connected to Dify Chatbot
+   */
+  public async askZagiSupport(message: string, conversationId: string | null): Promise<{ result: string; conversationId: string }> {
+    try {
+      const axios = require('axios');
+      const response = await axios.post(
+        'http://chatbot.itngon.com/v1/chat-messages',
+        {
+          inputs: {},
+          query: message,
+          response_mode: 'blocking',
+          conversation_id: conversationId || undefined,
+          user: 'zagi-client'
+        },
+        {
+          headers: {
+            Authorization: 'Bearer app-Shoio3nzmEVuoJJOBUsycsp9',
+            'Content-Type': 'application/json'
+          },
+          timeout: 60000
+        }
+      );
+
+      const answer = response.data?.answer || '';
+      const newConversationId = response.data?.conversation_id || '';
+      return { result: answer, conversationId: newConversationId };
+    } catch (err: any) {
+      Logger.error(`[AIAssistant] askZagiSupport Dify call FAILED: ${err.message}`);
+      return { result: `Không thể kết nối tới trợ lý: ${err.message}`, conversationId: conversationId || '' };
+    }
+  }
 
   // ─── Row mapper ─────────────────────────────────────────────────────────
 

@@ -39,6 +39,7 @@ import { playNotificationSound, showDesktopNotification } from './utils/Notifica
 import { checkAccountInitNeeds } from './lib/zaloInitUtils';
 import AddAccountModal from "@/components/auth/AddAccountModal";
 import EmployeeConnectionBanner from "@/components/common/EmployeeConnectionBanner";
+import GlobalSupportChat from './components/common/GlobalSupportChat';
 import { useWorkspaceStore } from './store/workspaceStore';
 import { useEmployeeStore } from './store/employeeStore';
 import RestQueryService from '../services/http/RestQueryService';
@@ -1912,6 +1913,9 @@ export default function App() {
 
       {/* Bug Report Modal */}
       <BugReportModal />
+
+      {/* Zagi AI Support Chatbot Widget */}
+      <GlobalSupportChat />
     </div>
   );
 }

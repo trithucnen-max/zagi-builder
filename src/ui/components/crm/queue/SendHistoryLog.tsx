@@ -169,19 +169,55 @@ export default function SendHistoryLog(_props: SendHistoryLogProps) {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  const [cleanupDays, setCleanupDays] = useState(0);
+
   const loadData = useCallback(async () => {
     if (!activeAccountId) return;
     setLoading(true);
-    // Load logs + all campaigns in parallel
-    const [logsRes, campsRes] = await Promise.all([
+    // Load logs + all campaigns + settings in parallel
+    const [logsRes, campsRes, settingsRes] = await Promise.all([
       ipc.crm?.getSendLog({ zaloId: activeAccountId, opts: { limit: 2000 } }),
       ipc.crm?.getCampaigns({ zaloId: activeAccountId }),
+      ipc.crm?.getSendLogCleanupSettings({ zaloId: activeAccountId })
     ]);
     if (logsRes?.success) setLogs(logsRes.logs);
     if (campsRes?.success) setAllCampaigns(campsRes.campaigns.map((c: any) => ({ id: c.id, name: c.name, campaign_type: c.campaign_type || 'message' })));
+    if (settingsRes?.success) setCleanupDays(settingsRes.days || 0);
     setLoading(false);
     setPage(0);
   }, [activeAccountId]);
+
+  const handleClearHistory = async () => {
+    if (!activeAccountId) return;
+    const ok = window.confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử gửi tin của tài khoản này? Thao tác này không thể phục hồi.');
+    if (!ok) return;
+    
+    try {
+      const res = await ipc.crm?.clearSendLog({ zaloId: activeAccountId });
+      if (res?.success) {
+        setLogs([]);
+        setPage(0);
+      } else {
+        alert('Lỗi khi xóa lịch sử: ' + (res?.error || 'Không xác định'));
+      }
+    } catch (err: any) {
+      alert('Lỗi: ' + err.message);
+    }
+  };
+
+  const handleUpdateCleanupDays = async (days: number) => {
+    if (!activeAccountId) return;
+    const cleanDays = Math.max(0, days);
+    setCleanupDays(cleanDays);
+    try {
+      const res = await ipc.crm?.setSendLogCleanupSettings({ zaloId: activeAccountId, days: cleanDays });
+      if (!res?.success) {
+        console.error('Lỗi khi lưu cấu hình tự động xóa:', res?.error);
+      }
+    } catch (err: any) {
+      console.error('Lỗi lưu cấu hình:', err.message);
+    }
+  };
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -309,7 +345,37 @@ export default function SendHistoryLog(_props: SendHistoryLogProps) {
           {failedCount > 0 && <span className="text-red-400">{failedCount} lỗi</span>}
           <span className="text-gray-500">/ {logs.length} tổng</span>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3.5">
+          {/* Auto-delete days config */}
+          <div className="flex items-center gap-1.5 border-r border-gray-700/50 pr-3.5 text-xs">
+            <span className="text-gray-400">Tự động xóa sau:</span>
+            <input 
+              type="number"
+              min="0"
+              value={cleanupDays || ''}
+              onChange={e => handleUpdateCleanupDays(parseInt(e.target.value) || 0)}
+              className="w-12 bg-gray-800 border border-gray-700 rounded-lg px-1.5 py-1 text-center text-white focus:outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              placeholder="0"
+            />
+            <span className="text-gray-400">ngày</span>
+            {cleanupDays > 0 && (
+              <span className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded font-medium ml-1">Đang bật</span>
+            )}
+          </div>
+
+          {/* Clear Send Log Button */}
+          <button 
+            onClick={handleClearHistory}
+            className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 bg-transparent px-3 py-1.5 rounded-lg border border-red-500/30 hover:border-red-500/50 transition-colors"
+            title="Xóa toàn bộ lịch sử gửi của tài khoản này"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Xóa lịch sử
+          </button>
+
           {filtered.length > 0 && (
             <button onClick={exportToCSV}
               title={`Xuất ${filtered.length} dòng đang hiển thị ra CSV`}

@@ -196,7 +196,8 @@ export default function MessageInput() {
     try {
       const listRes = await ipc.ai?.listAssistants();
       const assistants = listRes?.assistants || [];
-      const assistantId = assistants.find((a: any) => a.enabled !== false)?.id || 'default';
+      const rolesRes = await ipc.ai?.getGlobalRoleAssistants();
+      const assistantId = rolesRes?.roles?.composer || assistants.find((a: any) => a.enabled !== false)?.id || 'default';
       
       const systemMessage = `Bạn là một trợ lý AI chuyên nghiệp giúp viết tin nhắn chat cho khách hàng.
 Nhiệm vụ của bạn là viết một tin nhắn tự nhiên, thân thiện, thuyết phục dựa trên yêu cầu của người dùng.

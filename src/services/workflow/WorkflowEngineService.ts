@@ -165,6 +165,30 @@ class WorkflowEngineService {
     Logger.log(`[WorkflowEngine] Initialized — ${this.workflows.size} workflows loaded`);
   }
 
+  public handleWorkspaceSwitch(): void {
+    try {
+      // 1. Stop all cron jobs
+      for (const job of this.cronJobs.values()) {
+        try { job.stop(); } catch {}
+      }
+      this.cronJobs.clear();
+
+      // 2. Reload workflows from the newly switched database
+      this.loadWorkflows();
+
+      // 3. Re-register cron jobs
+      this.registerCronJobs();
+
+      // 4. Re-register event listeners (hooks) on EventBroadcaster
+      this.registerZaloEventListeners();
+      this.registerFacebookEventListeners();
+      
+      Logger.log(`[WorkflowEngine] Workspace switched: reloaded ${this.workflows.size} workflows and re-registered hooks/cron`);
+    } catch (err: any) {
+      Logger.error(`[WorkflowEngine] Failed to handle workspace switch: ${err.message}`);
+    }
+  }
+
   private normalizeWorkflowChannel(channel?: string): WorkflowChannel {
     return channel === 'facebook' ? 'facebook' : 'zalo';
   }
@@ -626,9 +650,17 @@ class WorkflowEngineService {
         if (!this.matchFilterId(gid, cfg.groupId)) return false;
       }
       if (cfg.ignoreOwn !== false) {
-        if ((msg as any).isSelf || data.isSelf) return false;
+        const uid = String(msgData.uidFrom || (msg as any).uidFrom || data.fromId || '');
+        const ownerZaloId = String(data.zaloId || '');
+        const isSelf = !!((msg as any).isSelf || data.isSelf || uid === '0' || (ownerZaloId && uid === ownerZaloId));
+        if (isSelf) return false;
       }
-      if (cfg.onlyOwn && !((msg as any).isSelf || data.isSelf)) return false;
+      if (cfg.onlyOwn) {
+        const uid = String(msgData.uidFrom || (msg as any).uidFrom || data.fromId || '');
+        const ownerZaloId = String(data.zaloId || '');
+        const isSelf = !!((msg as any).isSelf || data.isSelf || uid === '0' || (ownerZaloId && uid === ownerZaloId));
+        if (!isSelf) return false;
+      }
       if (cfg.keyword) {
         const rawContent = msgData.content || (msg as any).content || data.content;
         const content = String((rawContent as any)?.msg || (typeof rawContent === 'string' ? rawContent : '') || '').toLowerCase();
@@ -729,10 +761,19 @@ class WorkflowEngineService {
       // Ignore own messages (default true)
       if (cfg.ignoreOwn !== false) {
         const msg = data.message || {};
-        if (msg.isSelf || data.isSelf) return false;
+        const senderId = String(data.fromId || msg.userID || '');
+        const fbAccountId = String(data.fbAccountId || '');
+        const isSelf = !!(msg.isSelf || data.isSelf || (fbAccountId && senderId === fbAccountId));
+        if (isSelf) return false;
       }
       // Only own messages
-      if (cfg.onlyOwn && !((data.message || {}).isSelf || data.isSelf)) return false;
+      if (cfg.onlyOwn) {
+        const msg = data.message || {};
+        const senderId = String(data.fromId || msg.userID || '');
+        const fbAccountId = String(data.fbAccountId || '');
+        const isSelf = !!(msg.isSelf || data.isSelf || (fbAccountId && senderId === fbAccountId));
+        if (!isSelf) return false;
+      }
       // Keyword filter
       if (cfg.keyword) {
         const content = String(data.content || data.message?.body || '').toLowerCase();
@@ -1169,7 +1210,7 @@ class WorkflowEngineService {
         groupName:   data.groupName     || (msg as any).groupName  || '',
         msgId:       msgData.msgId      || (msg as any).msgId       || data.msgId    || '',
         timestamp:   Number(msgData.ts) || Number((msg as any).ts) || data.timestamp || Date.now(),
-        isSelf:      !!((msg as any).isSelf || data.isSelf),
+        isSelf:      !!((msg as any).isSelf || data.isSelf || (msgData.uidFrom && data.zaloId && String(msgData.uidFrom) === String(data.zaloId)) || msgData.uidFrom === '0'),
         zaloId:      data.zaloId || '',
       };
     }
@@ -2484,12 +2525,12 @@ class WorkflowEngineService {
             const AIAssistantService = (await import('../ai/AIAssistantService')).default;
             const chatMsgs: { role: string; content: string }[] = [];
 
-            // Add chat history if provided
+            // Add chat history if provided, otherwise auto-load from DB
             if (cfg.chatHistory) {
               try {
                 let history: any[] = typeof cfg.chatHistory === 'string' && cfg.chatHistory.trim()
                   ? JSON.parse(cfg.chatHistory) : (Array.isArray(cfg.chatHistory) ? cfg.chatHistory : []);
-            const maxMsgs = Number(cfg.maxHistoryMessages ?? 20);
+                const maxMsgs = Number(cfg.maxHistoryMessages ?? 20);
                 if (history.length > maxMsgs) history = history.slice(-maxMsgs);
                 for (const msg of history) {
                   if (msg?.role && msg?.content) {
@@ -2500,9 +2541,35 @@ class WorkflowEngineService {
                   }
                 }
               } catch {}
+            } else {
+              // Auto-load Zalo/Facebook chat history from DB if not explicitly provided
+              const threadId = ctx.trigger.threadId || ctx.trigger.fromId || '';
+              const zaloId = ctx.pageId || '';
+              if (threadId && zaloId) {
+                try {
+                  const db = DatabaseService.getInstance();
+                  const maxMsgs = Number(cfg.maxHistoryMessages ?? 20);
+                  const dbMsgs = db.getMessages(zaloId, threadId, maxMsgs);
+                  dbMsgs.reverse();
+                  const currentMsgId = String(ctx.trigger.msgId || '');
+                  for (const msg of dbMsgs) {
+                    if (msg.msg_id === currentMsgId) continue;
+                    if (msg.content && msg.content.trim()) {
+                      chatMsgs.push({
+                        role: msg.is_sent === 1 ? 'assistant' : 'user',
+                        content: msg.content.trim()
+                      });
+                    }
+                  }
+                } catch (err: any) {
+                  Logger.warn(`[WorkflowEngine] Auto-loading chat history failed: ${err.message}`);
+                }
+              }
             }
 
-            chatMsgs.push({ role: 'user', content: cfg.prompt });
+            const promptContent = (cfg.prompt && cfg.prompt.trim()) || String(ctx.trigger.content || '') || 'Xin chào';
+            chatMsgs.push({ role: 'user', content: promptContent });
+            
             const result = await AIAssistantService.getInstance().chatForWorkflow(cfg.assistantId, chatMsgs);
             Logger.info(`[WorkflowEngine] AI assistant response: success=${!!result.result}, length=${result.result?.length || 0}, preview="${(result.result || '').substring(0, 200)}", tokens=${result.totalTokens}`);
             return { result: result.result, totalTokens: result.totalTokens, model: 'assistant' };
@@ -2546,9 +2613,34 @@ class WorkflowEngineService {
           } catch {
             // Ignore parse errors — just proceed without history
           }
+        } else {
+          // Auto-load Zalo/Facebook chat history from DB
+          const threadId = ctx.trigger.threadId || ctx.trigger.fromId || '';
+          const zaloId = ctx.pageId || '';
+          if (threadId && zaloId) {
+            try {
+              const db = DatabaseService.getInstance();
+              const maxMsgs = Number(cfg.maxHistoryMessages ?? 20);
+              const dbMsgs = db.getMessages(zaloId, threadId, maxMsgs);
+              dbMsgs.reverse();
+              const currentMsgId = String(ctx.trigger.msgId || '');
+              for (const msg of dbMsgs) {
+                if (msg.msg_id === currentMsgId) continue;
+                if (msg.content && msg.content.trim()) {
+                  messages.push({
+                    role: msg.is_sent === 1 ? 'assistant' : 'user',
+                    content: msg.content.trim()
+                  });
+                }
+              }
+            } catch (err: any) {
+              Logger.warn(`[WorkflowEngine] Auto-loading chat history failed: ${err.message}`);
+            }
+          }
         }
 
-        messages.push({ role: 'user', content: cfg.prompt });
+        const promptContent = (cfg.prompt && cfg.prompt.trim()) || String(ctx.trigger.content || '') || 'Xin chào';
+        messages.push({ role: 'user', content: promptContent });
 
         const platform = cfg.platform || 'openai';
         const rawModel = cfg.model || 'gpt-5.4-mini';

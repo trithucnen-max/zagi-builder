@@ -22,7 +22,7 @@ export function parseStructuredResponse(
 ): AIStructuredSegment[] | null {
   if (!raw || typeof raw !== 'string') return null;
   const trimmed = raw.trim();
-  if (!trimmed.startsWith('[')) return null;
+  if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return null;
 
   // ── Attempt 1: Full valid JSON ──────────────────────────────────
   try {

@@ -122,18 +122,24 @@ export default function WorkflowAIDialog({ currentNodes, currentEdges, channel, 
   useEffect(() => {
     (async () => {
       try {
-        // Try to get default first
-        const defRes = await ipc.ai?.getDefault();
-        if (defRes?.success && defRes.assistant) {
-          setSelectedAssistantId(defRes.assistant.id);
+        // Get AI 2 (composer) role assistant first
+        const rolesRes = await ipc.ai?.getGlobalRoleAssistants();
+        const composerId = rolesRes?.roles?.composer;
+        if (composerId) {
+          setSelectedAssistantId(composerId);
+        } else {
+          const defRes = await ipc.ai?.getDefault();
+          if (defRes?.success && defRes.assistant) {
+            setSelectedAssistantId(defRes.assistant.id);
+          }
         }
         // Then list all
         const listRes = await ipc.ai?.listAssistants();
         if (listRes?.success) {
           setAssistants(listRes.assistants || []);
-          // If no default, pick first
-          if (!defRes?.assistant && listRes.assistants.length > 0) {
-            setSelectedAssistantId(listRes.assistants[0].id);
+          // If no selected, pick first enabled
+          if (!composerId && listRes.assistants.length > 0) {
+            setSelectedAssistantId(listRes.assistants.find((a: any) => a.enabled !== false)?.id || listRes.assistants[0].id);
           }
         }
       } catch { /* ignore */ }

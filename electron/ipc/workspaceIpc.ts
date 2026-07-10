@@ -9,6 +9,7 @@ import HttpRelayService from '../../src/services/http/HttpRelayService';
 import ConnectionManager from '../../src/utils/ConnectionManager';
 import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import CRMQueueService from '../../src/services/crm/CRMQueueService';
+import WorkflowEngineService from '../../src/services/workflow/WorkflowEngineService';
 import Logger from '../../src/utils/Logger';
 
 function httpPost(url: string, body: any, timeoutMs = 15000): Promise<any> {
@@ -225,6 +226,13 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
                         relay.hookEventBroadcaster();
                     }
                 } catch {}
+
+                // Notify WorkflowEngineService of workspace switch to re-hook and reload workflows
+                try {
+                    WorkflowEngineService.getInstance().handleWorkspaceSwitch();
+                } catch (err: any) {
+                    Logger.error(`[workspaceIpc] Failed to handle workspace switch in WorkflowEngineService: ${err.message}`);
+                }
 
                 // Sync latest cookies from active ConnectionManager connections into the newly loaded DB
                 // (Zalo may have refreshed cookies while boss was on a different workspace)

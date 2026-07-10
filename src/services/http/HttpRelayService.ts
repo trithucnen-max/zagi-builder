@@ -1682,6 +1682,9 @@ class HttpRelayService {
             if (method === 'GET' && pathname === '/api/query/crm/campaigns/send-log') {
                 return this.json(res, 200, restHandlers.getSendLogHandler(employee, params));
             }
+            if (method === 'GET' && pathname === '/api/query/crm/send-log/cleanup-settings') {
+                return this.json(res, 200, restHandlers.getSendLogCleanupSettingsHandler(employee, params));
+            }
             if (method === 'GET' && pathname === '/api/query/crm/queue-status') {
                 return this.json(res, 200, restHandlers.getQueueStatusHandler(employee, params));
             }
@@ -2207,6 +2210,15 @@ class HttpRelayService {
             if (pathname === '/api/command/crm/campaigns/contacts') {
                 db.addCampaignContacts(parseInt(params.campaignId) || 0, zaloId, params.contacts || []);
                 return { success: true };
+            }
+            if (pathname === '/api/command/crm/send-log/clear') {
+                return restHandlers.clearSendLogHandler(employee, params);
+            }
+            if (pathname === '/api/command/crm/send-log/cleanup') {
+                return restHandlers.cleanupSendLogHandler(employee, params);
+            }
+            if (pathname === '/api/command/crm/send-log/cleanup-settings') {
+                return restHandlers.setSendLogCleanupSettingsHandler(employee, params);
             }
 
             // ── Friends — CRUD ──
