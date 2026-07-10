@@ -17,6 +17,9 @@ module.exports = {
         'navy-dark': '#072247',
         'blue-700': '#1D4ED8',
         'blue-600': '#2563EB',
+        'sidebar': 'var(--color-sidebar)',
+        'sidebar-hover': 'var(--color-sidebar-hover)',
+        'zalo-blue-dark': '#0052CC',
         // Semantic
         success: '#16A34A', 'success-dark': '#22C55E',
         'success-bg': '#F0FDF4', 'success-bg-dark': '#052E16',

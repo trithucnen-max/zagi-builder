@@ -22,7 +22,8 @@ const scaleToPx = (s: number) => Math.round(16 * s);
 
 export default function TopBar() {
   const [isMaximized, setIsMaximized] = useState(false);
-  const { theme, setTheme, showNotification, fontSizeScale, setFontSizeScale, setView, setBugReportOpen } = useAppStore();
+  const { theme, resolvedTheme, setTheme, showNotification, fontSizeScale, setFontSizeScale, setView, setBugReportOpen } = useAppStore();
+  const isLightTheme = (resolvedTheme || theme) === 'light';
   const { activeAccountId } = useAccountStore();
   const [loadingOldMsgs, setLoadingOldMsgs] = useState(false);
   const [lockScreenEnabled, setLockScreenEnabled] = useState(false);
@@ -291,27 +292,27 @@ export default function TopBar() {
             {/* Boss connection dropdown */}
             {bossPopupOpen && (
               <div className={`absolute left-0 top-full mt-1.5 w-64 rounded-xl shadow-2xl z-[9999] overflow-hidden border ${
-                theme === 'light'
+                isLightTheme
                   ? 'bg-white border-gray-200 shadow-gray-300/40 text-gray-800'
                   : 'bg-[#1a1f2e] border-gray-700 shadow-black/80 text-gray-200'
               }`}>
                 {/* Header */}
                 <div className={`px-3.5 py-2.5 border-b ${
-                  theme === 'light' ? 'border-gray-100 bg-gray-50/60' : 'border-gray-700/80 bg-black/10'
+                  isLightTheme ? 'border-gray-100 bg-gray-50/60' : 'border-gray-700/80 bg-black/10'
                 }`}>
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className={`text-xs font-semibold ${theme === 'light' ? 'text-gray-800' : 'text-gray-200'}`}>Kết nối Boss</span>
+                    <span className={`text-xs font-semibold ${isLightTheme ? 'text-gray-800' : 'text-gray-200'}`}>Kết nối Boss</span>
                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                       bossConnected
-                        ? (theme === 'light' ? 'bg-green-50 text-green-700' : 'bg-green-500/20 text-green-400')
-                        : (theme === 'light' ? 'bg-red-50 text-red-700' : 'bg-red-500/20 text-red-400')
+                        ? (isLightTheme ? 'bg-green-50 text-green-700' : 'bg-green-500/20 text-green-400')
+                        : (isLightTheme ? 'bg-red-50 text-red-700' : 'bg-red-500/20 text-red-400')
                     }`}>
                       {bossConnected ? '● Online' : '● Offline'}
                     </span>
                   </div>
-                  <p className={`text-[11px] ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`}>{currentEmployee.display_name}</p>
+                  <p className={`text-[11px] ${isLightTheme ? 'text-gray-600' : 'text-gray-400'}`}>{currentEmployee.display_name}</p>
                   {bossConnected && bossLatency != null && (
-                    <p className={`text-[10px] mt-0.5 ${theme === 'light' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <p className={`text-[10px] mt-0.5 ${isLightTheme ? 'text-gray-400' : 'text-gray-500'}`}>
                       ⚡ Latency: {bossLatency}ms {isUsingLan && '(Mạng LAN)'}
                     </p>
                   )}
@@ -324,7 +325,7 @@ export default function TopBar() {
                     onClick={handleBossReconnect}
                     disabled={bossReconnecting}
                     className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs transition-colors disabled:opacity-50 ${
-                      theme === 'light'
+                      isLightTheme
                         ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                         : 'text-gray-300 hover:bg-white/5 hover:text-white'
                     }`}
@@ -347,7 +348,7 @@ export default function TopBar() {
                   <button
                     onClick={handleBossDisconnect}
                     className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs transition-colors ${
-                      theme === 'light'
+                      isLightTheme
                         ? 'text-gray-700 hover:bg-red-50 hover:text-red-650'
                         : 'text-gray-400 hover:bg-red-500/10 hover:text-red-400'
                     }`}
@@ -359,13 +360,13 @@ export default function TopBar() {
                     <span>Ngắt kết nối</span>
                   </button>
 
-                  <div className={`my-1 border-t ${theme === 'light' ? 'border-gray-100' : 'border-gray-700/60'}`} />
+                  <div className={`my-1 border-t ${isLightTheme ? 'border-gray-100' : 'border-gray-700/60'}`} />
 
                   {/* Open settings */}
                   <button
                     onClick={() => { setBossPopupOpen(false); setView('settings'); }}
                     className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs transition-colors ${
-                      theme === 'light'
+                      isLightTheme
                         ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                         : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                     }`}

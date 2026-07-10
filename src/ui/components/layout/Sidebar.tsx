@@ -94,7 +94,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
           <button
             onClick={toggleSidebarExpanded}
             title={showExpanded ? 'Ẩn danh sách tài khoản đầy đủ' : 'Hiện danh sách tài khoản đầy đủ'}
-            className={`font-semibold w-8 h-8 rounded-lg flex items-center justify-center transition-colors border-0 cursor-pointer ${
+            className={`font-semibold w-8 h-8 rounded-lg flex items-center justify-center transition-colors border-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 ${
               showExpanded
                 ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30'
                 : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 hover:text-white'
@@ -122,7 +122,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
           <button
             onClick={exitMergedInbox}
             title="Thoát chế độ Gộp tài khoản"
-            className="w-8 h-8 rounded-lg bg-red-900/30 border border-red-700/40 flex items-center justify-center text-red-400 hover:bg-red-900/60 hover:text-red-300 transition-colors flex-shrink-0"
+            className="w-8 h-8 rounded-lg bg-red-900/30 border border-red-700/40 flex items-center justify-center text-red-400 hover:bg-red-900/60 hover:text-red-300 transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -133,7 +133,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
           <button
             onClick={() => setMergedInboxFilter(null)}
             title="Tất cả tài khoản"
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ring-2 ${
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ring-2 focus:outline-none ${
               mergedInboxFilterAccount === null
                 ? 'bg-blue-600 text-white ring-blue-400'
                 : 'bg-white/10 text-white hover:bg-white/20 ring-transparent'
@@ -164,7 +164,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
                 <button
                   onClick={() => setMergedInboxFilter(isSelected ? null : zaloId)}
                   title={`${account.full_name || zaloId}${isSelected ? ' — đang lọc' : ' — nhấn để lọc'}`}
-                  className={`w-10 h-10 rounded-full overflow-hidden ring-2 transition-all flex-shrink-0 ${
+                  className={`w-10 h-10 rounded-full overflow-hidden ring-2 transition-all flex-shrink-0 focus:outline-none ${
                     isSelected
                       ? 'ring-blue-500 scale-110'
                       : isAllMode
@@ -241,7 +241,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
                   setView('chat');
                 }}
                 title={tooltipLines}
-                className={`relative w-10 h-10 rounded-full overflow-visible ring-2 transition-all flex-shrink-0 ${
+                className={`relative w-10 h-10 rounded-full overflow-visible ring-2 transition-all flex-shrink-0 focus:outline-none ${
                   activeAccountId === account.zalo_id
                     ? 'ring-blue-500'
                     : listenerDead
@@ -310,7 +310,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
         <button
           onClick={onAddAccount}
           title="Thêm tài khoản"
-          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors border-2 border-dashed border-white/20 hover:border-white/40"
+          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors border-2 border-dashed border-white/20 hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2Z" />
@@ -353,7 +353,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
           <button
             onClick={() => setLicenseModalOpen(true)}
             title="Bản quyền"
-            className="w-10 h-10 rounded-lg flex items-center justify-center text-white hover:bg-white/10 transition-all duration-150"
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-white hover:bg-white/10 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <rect x="5" y="11" width="14" height="10" rx="2" />
@@ -374,7 +374,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
 function NavBtn({ icon, label, active, onClick, dot }: { icon: string; label: string; active: boolean; onClick: () => void; dot?: boolean }) {
   return (
     <button onClick={onClick} title={label}
-      className={`relative w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150 ${active ? 'bg-zalo-blue-dark text-white shadow-md' : 'text-white hover:bg-white/10'}`}>
+      className={`relative w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${active ? 'bg-zalo-blue-dark text-white shadow-md' : 'text-white hover:bg-white/10'}`}>
       <AppIcon name={icon as any} className="text-current" size={icon === 'settings' ? 18 : 16} />
       {dot && (
         <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-gray-900 pointer-events-none" />
@@ -418,7 +418,7 @@ function NavFlyout({ icon, label, active, items }: { icon: string; label: string
       <button
         ref={btnRef}
         title={label}
-        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150 ${
+        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
           active ? 'bg-zalo-blue-dark text-white shadow-md' : 'text-white hover:bg-white/10'
         }`}
       >

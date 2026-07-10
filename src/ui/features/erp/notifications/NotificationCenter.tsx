@@ -5,6 +5,32 @@ import { useUpdateStore, POSTPONE_MS, POSTPONE_OPTIONS } from '@/store/updateSto
 
 interface Props { onClose?: () => void; }
 
+const getNotificationVisuals = (type: string, title: string) => {
+  const t = title.toLowerCase();
+  if (type === 'task_overdue' || t.includes('quá hạn')) {
+    return {
+      icon: '⚠️',
+      bgColor: 'bg-red-500/10 dark:bg-red-500/20 text-red-500 dark:text-red-400',
+    };
+  }
+  if (type === 'task_due' || t.includes('đến hạn') || t.includes('sắp')) {
+    return {
+      icon: '⏰',
+      bgColor: 'bg-yellow-500/10 dark:bg-yellow-500/20 text-yellow-600 dark:text-yellow-400',
+    };
+  }
+  if (type?.startsWith('task') || t.includes('task') || t.includes('công việc')) {
+    return {
+      icon: '📋',
+      bgColor: 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-500 dark:text-blue-400',
+    };
+  }
+  return {
+    icon: '🔔',
+    bgColor: 'bg-gray-500/10 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400',
+  };
+};
+
 export default function NotificationCenter({ onClose }: Props) {
   const eid = useCurrentEmployeeId();
   const erpPerms = useErpPermissions();
@@ -24,11 +50,11 @@ export default function NotificationCenter({ onClose }: Props) {
 
   const updateStatusLabel = () => {
     switch (status) {
-      case 'downloaded': return { text: '✅ Đã tải xong – sẵn sàng cài đặt', color: 'text-green-400' };
-      case 'downloading': return { text: progress ? `⬇ Đang tải… ${progress.percent.toFixed(0)}%` : '⬇ Đang tải…', color: 'text-blue-300' };
+      case 'downloaded': return { text: '✅ Đã tải xong – sẵn sàng cài đặt', color: 'text-green-600 dark:text-green-400' };
+      case 'downloading': return { text: progress ? `⬇ Đang tải… ${progress.percent.toFixed(0)}%` : '⬇ Đang tải…', color: 'text-blue-600 dark:text-blue-400' };
       case 'error':
-      case 'stalled':    return { text: '⚠️ Tải thất bại – nhấn để thử lại', color: 'text-red-400' };
-      default:           return { text: '🆕 Bản cập nhật sẵn sàng tải', color: 'text-yellow-300' };
+      case 'stalled':    return { text: '⚠️ Tải thất bại – nhấn để thử lại', color: 'text-red-600 dark:text-red-400' };
+      default:           return { text: '🆕 Bản cập nhật sẵn sàng tải', color: 'text-yellow-600 dark:text-yellow-400' };
     }
   };
 
@@ -42,34 +68,37 @@ export default function NotificationCenter({ onClose }: Props) {
     }
   };
 
-  // Hoãn với duration tuỳ chọn — timer re-show được quản lý bởi UpdateNotification (luôn mounted)
   const handlePostpone = (ms: number = POSTPONE_MS) => {
     setPostponeOpen(false);
     postpone(ms);
   };
 
   return (
-    <div className="w-80 max-h-[520px] bg-gray-800 border border-gray-600 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+    <div className="w-80 max-h-[520px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
-        <span className="text-sm font-semibold text-white">Thông báo</span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
+        <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Thông báo</span>
         <div className="flex items-center gap-2">
           {hasErpNotifs && (
-            <>
+            <div className="flex items-center gap-3 mr-1">
               <button
                 onClick={() => markAllRead(eid)}
-                className="text-[11px] text-gray-400 hover:text-white"
+                className="text-xs text-blue-primary hover:text-blue-dark font-medium transition-colors"
                 title="Đánh dấu tất cả đã đọc"
               >Đọc hết</button>
               <button
                 onClick={() => deleteAllNotifications(eid)}
-                className="text-[11px] text-gray-400 hover:text-red-400"
+                className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
                 title="Xoá tất cả thông báo"
               >Xoá hết</button>
-            </>
+            </div>
           )}
           {onClose && (
-            <button onClick={onClose} className="text-gray-400 hover:text-white text-xs" title="Đóng">✕</button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all" title="Đóng">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
           )}
         </div>
       </div>
@@ -77,26 +106,26 @@ export default function NotificationCenter({ onClose }: Props) {
       <div className="flex-1 overflow-y-auto">
         {/* ── App update item ── */}
         {hasUpdate && updateInfo && (
-          <div className="border-b border-gray-700 bg-blue-950/40 p-3">
-            <div className="flex items-start gap-2.5">
-              <div className="mt-0.5 w-8 h-8 flex-shrink-0 rounded-full bg-orange-500/20 flex items-center justify-center text-base">🆕</div>
+          <div className="border-b border-gray-100 dark:border-gray-800 bg-blue-50/50 dark:bg-blue-950/20 p-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 w-8 h-8 flex-shrink-0 rounded-full bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center text-base">🆕</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
-                  <span className="text-xs font-semibold text-white">Phiên bản {updateInfo.version}</span>
+                  <span className="text-xs font-bold text-gray-850 dark:text-white">Phiên bản {updateInfo.version}</span>
                   {/* Dropdown hoãn */}
                   <div className="relative flex-shrink-0">
                     <button
                       onClick={() => setPostponeOpen(v => !v)}
-                      className="text-[10px] text-gray-400 hover:text-gray-200 transition-colors"
+                      className="text-[10px] text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                       title="Hoãn"
                     >⏰ Hoãn</button>
                     {postponeOpen && (
-                      <div className="absolute right-0 top-full mt-1 w-28 bg-gray-900 border border-gray-600 rounded-lg shadow-xl z-[10000] overflow-hidden">
+                      <div className="absolute right-0 top-full mt-1 w-28 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg shadow-xl z-[10000] overflow-hidden">
                         {POSTPONE_OPTIONS.map(opt => (
                           <button
                             key={opt.ms}
                             onClick={() => handlePostpone(opt.ms)}
-                            className="w-full text-left px-3 py-1.5 text-xs text-gray-200 hover:bg-blue-600 transition-colors"
+                            className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-blue-600/30 transition-colors"
                           >
                             {opt.label}
                           </button>
@@ -105,41 +134,41 @@ export default function NotificationCenter({ onClose }: Props) {
                     )}
                   </div>
                 </div>
-                <div className={`text-[11px] mt-0.5 ${updateStatusLabel().color}`}>
+                <div className={`text-[11px] mt-0.5 font-medium ${updateStatusLabel().color}`}>
                   {updateStatusLabel().text}
                 </div>
                 {/* Progress bar */}
                 {status === 'downloading' && progress && (
-                  <div className="mt-1.5 h-1 rounded-full bg-gray-700 overflow-hidden">
+                  <div className="mt-1.5 h-1 rounded-full bg-gray-150 dark:bg-gray-700 overflow-hidden">
                     <div
-                      className="h-1 rounded-full bg-blue-400 transition-all duration-500"
+                      className="h-1 rounded-full bg-blue-500 transition-all duration-500"
                       style={{ width: `${progress.percent}%` }}
                     />
                   </div>
                 )}
-                <div className="mt-2 flex gap-1.5">
+                <div className="mt-2.5 flex gap-1.5">
                   {status === 'downloaded' ? (
                     <button
                       onClick={handleUpdateAction}
-                      className="flex-1 py-1 rounded-lg bg-green-600 hover:bg-green-500 text-white text-[11px] font-semibold transition-colors"
+                      className="flex-1 py-1 rounded-lg bg-green-600 hover:bg-green-500 text-white text-[11px] font-bold transition-colors"
                     >Khởi động lại để cập nhật</button>
                   ) : isMac ? (
                     <>
                       <a
                         href={`https://zagiapp.com/file/Zagi-${updateInfo.version}-arm64.dmg`}
                         target="_blank" rel="noopener noreferrer"
-                        className="flex-1 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] text-center font-semibold transition-colors no-underline"
+                        className="flex-1 py-1 rounded-lg bg-blue-650 hover:bg-blue-600 text-white text-[11px] text-center font-bold transition-colors no-underline"
                       >🍎 Apple Silicon</a>
                       <a
                         href={`https://zagiapp.com/file/Zagi-${updateInfo.version}.dmg`}
                         target="_blank" rel="noopener noreferrer"
-                        className="flex-1 py-1 rounded-lg bg-gray-600 hover:bg-gray-500 text-white text-[11px] text-center font-semibold transition-colors no-underline"
+                        className="flex-1 py-1 rounded-lg bg-gray-150 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-250 text-[11px] text-center font-bold transition-colors no-underline border border-gray-200 dark:border-transparent"
                       >💻 Intel Mac</a>
                     </>
                   ) : (
                     <button
                       onClick={handleUpdateAction}
-                      className="flex-1 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-semibold transition-colors"
+                      className="flex-1 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-bold transition-colors"
                     >
                       {status === 'error' || status === 'stalled' ? '🔄 Thử lại' : '⬇ Tải ngay'}
                     </button>
@@ -154,60 +183,79 @@ export default function NotificationCenter({ onClose }: Props) {
         {erpPerms.can('erp.access') && (
           <>
             {groups.length === 0 && !hasUpdate && (
-              <div className="p-6 text-center text-gray-500 text-xs">Chưa có thông báo</div>
+              <div className="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">Chưa có thông báo</div>
             )}
             {groups.length === 0 && hasUpdate && (
-              <div className="p-3 text-center text-gray-600 text-[11px]">Không có thông báo ERP</div>
+              <div className="p-4 text-center text-gray-400 dark:text-gray-500 text-[11px]">Không có thông báo ERP</div>
             )}
             {groups.map(g => (
               <div key={g.label}>
-                <div className="sticky top-0 px-3 py-1 text-[10px] uppercase tracking-wide text-gray-500 bg-gray-800/95">
+                <div className="sticky top-0 px-4 py-1.5 text-[10px] font-bold tracking-wider text-gray-500 dark:text-gray-400 bg-gray-50/95 dark:bg-gray-900/95 border-y border-gray-100/80 dark:border-gray-800/80 uppercase z-10">
                   {g.label}
                 </div>
-                {g.items.map(n => (
-                  <button
-                    key={n.id}
-                    onClick={() => !n.read && markRead([n.id])}
-                    className={`w-full text-left px-3 py-2 border-b border-gray-700/40 hover:bg-gray-700/60 flex items-start gap-2 group ${n.read ? 'opacity-60' : ''}`}
-                  >
-                    {!n.read && <span className="mt-1 w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0" />}
-                    {n.read && <span className="mt-1 w-1.5 h-1.5 flex-shrink-0" />}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs text-gray-200 font-medium truncate">{n.title}</div>
-                      {n.body && <div className="text-[11px] text-gray-400 truncate">{n.body}</div>}
-                      <div className="text-[10px] text-gray-500 mt-0.5">{formatTime(n.created_at)}</div>
-                    </div>
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                      {!n.read && (
+                {g.items.map(n => {
+                  const visuals = getNotificationVisuals(n.type, n.title);
+                  return (
+                    <button
+                      key={n.id}
+                      onClick={() => !n.read && markRead([n.id])}
+                      className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-white/5 flex items-start gap-3 group transition-all relative ${
+                        !n.read 
+                          ? 'bg-blue-50/30 dark:bg-blue-950/20' 
+                          : 'opacity-70'
+                      }`}
+                    >
+                      {/* Left Icon Container */}
+                      <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-base relative ${visuals.bgColor}`}>
+                        {visuals.icon}
+                        {/* Blue dot indicator for unread */}
+                        {!n.read && (
+                          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-primary border-2 border-white dark:border-gray-900 rounded-full" />
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 pr-6">
+                        <div className="text-xs font-semibold text-gray-850 dark:text-gray-200 truncate">{n.title}</div>
+                        {n.body && <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">{n.body}</div>}
+                        <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1">
+                          <span>{formatTime(n.created_at)}</span>
+                        </div>
+                      </div>
+
+                      {/* Hover action buttons (Mark read / Delete) */}
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-20">
+                        {!n.read && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markRead([n.id]); }}
+                            className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 border border-gray-250 dark:border-gray-700 flex items-center justify-center text-blue-primary hover:bg-blue-50 dark:hover:bg-blue-900/30 shadow-sm transition-all"
+                            title="Đánh dấu đã đọc"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          </button>
+                        )}
                         <button
-                          onClick={(e) => { e.stopPropagation(); markRead([n.id]); }}
-                          className="w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-blue-500/20 text-gray-500 hover:text-blue-400 transition-all"
-                          title="Đánh dấu đã đọc"
+                          onClick={(e) => { e.stopPropagation(); deleteNotifications([n.id]); }}
+                          className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 border border-gray-255 dark:border-gray-700 flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 shadow-sm transition-all"
+                          title="Xoá thông báo này"
                         >
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12"/>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                           </svg>
                         </button>
-                      )}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteNotifications([n.id]); }}
-                        className="w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-all"
-                        title="Xoá thông báo này"
-                      >
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </button>
-                ))}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             ))}
           </>
         )}
 
         {!erpPerms.can('erp.access') && isEmpty && (
-          <div className="p-6 text-center text-gray-500 text-xs">Chưa có thông báo</div>
+          <div className="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">Chưa có thông báo</div>
         )}
       </div>
     </div>

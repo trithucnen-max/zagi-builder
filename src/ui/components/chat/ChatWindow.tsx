@@ -5616,8 +5616,9 @@ async function sendOneForward(
   const msgType = msg.msg_type || '';
   const content = msg.content || '';
   const isVideo = msgType === 'chat.video.msg';
-  const isFile = !isVideo && isFileType(msgType, content);
-  const isImage = !isVideo && !isFile && isMediaType(msgType, content);
+  const isVoice = msgType === 'chat.voice' || msgType === 'audio';
+  const isFile = !isVideo && !isVoice && isFileType(msgType, content);
+  const isImage = !isVideo && !isVoice && !isFile && isMediaType(msgType, content);
   let localPath = '';
   try {
     const raw = typeof msg.local_paths === 'string' ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
@@ -5627,15 +5628,17 @@ async function sendOneForward(
   } catch {}
 
   if (channel === 'facebook' && accountId) {
-    if ((isFile || isVideo) && localPath) {
-      await channelIpc.sendAttachment('facebook', { accountId, threadId: target.threadId, filePath: localPath, threadType: target.threadType });
-    } else if (isImage && localPath) {
-      await channelIpc.sendAttachment('facebook', { accountId, threadId: target.threadId, filePath: localPath, threadType: target.threadType });
+    if ((isFile || isVideo || isImage || isVoice) && localPath) {
+      let fileType: 'image' | 'video' | 'audio' | 'file' = 'file';
+      if (isImage) fileType = 'image';
+      else if (isVideo) fileType = 'video';
+      else if (isVoice) fileType = 'audio';
+      await channelIpc.sendAttachment('facebook', { accountId, threadId: target.threadId, filePath: localPath, threadType: target.threadType, fileType });
     } else {
       const text = composeText || extractMsgText(msg);
       await channelIpc.sendMessage('facebook', { accountId, threadId: target.threadId, body: text, threadType: target.threadType });
     }
-    if (composeText && (isFile || isVideo || isImage) && localPath) {
+    if (composeText && (isFile || isVideo || isImage || isVoice) && localPath) {
       await channelIpc.sendMessage('facebook', { accountId, threadId: target.threadId, body: composeText, threadType: target.threadType });
     }
     return;
@@ -5644,7 +5647,7 @@ async function sendOneForward(
   // Zalo path
   if (channel === 'zalo' || !channel) {
     const isTempId = String(msg.msg_id).startsWith('temp_');
-    const isAttachment = isFile || isVideo || isImage;
+    const isAttachment = isFile || isVideo || isImage || isVoice;
     let fileExists = false;
     if (isAttachment && localPath) {
       try {
@@ -5652,11 +5655,15 @@ async function sendOneForward(
       } catch {}
     }
 
-    if (isAttachment && fileExists) {
-      if (isFile || isVideo) {
-        await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
-      } else if (isImage) {
+    const isEmployee = useEmployeeStore.getState().mode === 'employee';
+    const canSendAsFile = isAttachment && localPath && (isEmployee || fileExists);
+
+    if (canSendAsFile) {
+      if (isImage) {
         await ipc.zalo?.sendImage({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType, message: '' });
+      } else {
+        // Send file, video, and voice messages using sendFile (safe E2EE attachment proxy fallback)
+        await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
       }
       if (composeText && composeText.trim()) {
         await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
@@ -5691,7 +5698,7 @@ async function sendOneForward(
   }
 
   // Fallback Zalo path (for temp messages or local only)
-  if ((isFile || isVideo) && localPath) {
+  if ((isFile || isVideo || isVoice) && localPath) {
     await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
   } else if (isImage && localPath) {
     await ipc.zalo?.sendImage({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType, message: '' });
@@ -5699,7 +5706,7 @@ async function sendOneForward(
     const text = composeText || extractMsgText(msg);
     await ipc.zalo?.sendMessage({ auth, message: text, threadId: target.threadId, type: target.threadType });
   }
-  if (composeText && (isFile || isVideo || isImage) && localPath) {
+  if (composeText && (isFile || isVideo || isImage || isVoice) && localPath) {
     await ipc.zalo?.sendMessage({ auth, message: composeText, threadId: target.threadId, type: target.threadType });
   }
 }

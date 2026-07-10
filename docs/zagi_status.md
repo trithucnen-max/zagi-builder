@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 06/07/2026  
-> **Phiên bản:** v27.2.5 (Stable)  
+> **Ngày cập nhật:** 10/07/2026  
+> **Phiên bản:** v27.2.10 (Stable)  
 > **Nhánh Git hiện tại:** `main` (Working tree sạch)
 
 ---
@@ -43,7 +43,7 @@
     *   **Sửa lỗi tải thành viên nhóm:** Bổ sung xử lý khóa `changed_groups` khi parse danh sách nhóm và bọc try-catch/hiển thị thông báo khi quét nhóm bị khóa.
     *   **Sửa lỗi tạo chiến dịch:** Khắc phục lỗi thiếu placeholder `?` trong câu lệnh INSERT bảng `crm_campaigns` và sửa lỗi mất số điện thoại (`phone`) khi nhân bản (clone) chiến dịch.
     *   **Sửa lỗi trắng trang CRM**: Khắc phục lỗi thiếu `onPatchContact` trong destructuring props của `CRMContactList.tsx` gây crash runtime React.
-    *   **Sửa lỗi Giới tính trong Chat**: Cấu hình lại các tùy chọn chọn giới tính của chat profile khớp với DB SQLite.
+    *   **Sửa lỗi Giới tính trong Chat**: Cấu hình lại các tùy chọn chọn giới tính của chat profile khớp with DB SQLite.
 12. **Cải tiến Inline Edit CRM & Custom Salutation (v27.1.8):**
     *   **Inline Edit trên CRM lớn & bảng chi tiết**: Nháy đúp (hoặc click 1 lần khi bật Sửa nhanh) để sửa trực tiếp Biệt danh, Xưng hô, Sinh nhật, SĐT trên bảng CRM lớn. Cho phép sửa trực tiếp thông tin trên bảng chi tiết khách hàng và tự động lưu.
     *   **Chế độ Sửa nhanh (Edit Mode)**: Thêm nút bật tắt "Sửa nhanh" trên thanh công cụ giúp vô hiệu hóa mở bảng chi tiết khi click dòng và cho phép click 1 phát sửa ngay.
@@ -77,6 +77,11 @@
     *   **Sửa lỗi tạo project nhân đôi**: Race condition giữa optimistic state add và sự kiện realtime `erp:event:projectCreated`.
     *   **Toast thông báo lỗi ERP**: Toàn bộ thao tác `createProject`, `updateProject`, `deleteProject`, `deleteTask` hiển thị toast khi thất bại.
     *   **Cải tiến ErrorBoundary**: Hiển thị thông báo lỗi nổi bật (hộp đỏ) + nút Sao chép mã lỗi.
+17. **Cải tiến UI/UX & Sửa lỗi chuyển tiếp tệp đính kèm (v27.2.10):**
+    *   **Đại tu Notification Center**: Thiết kế lại giao diện trực quan, trực tiếp bổ sung vòng tròn màu sắc và icon emoji đại diện cho từng loại task/sắp tới hạn. Hỗ trợ hiển thị nền xanh nhạt cho thông báo chưa đọc, khắc phục triệt để lỗi in thừa số `0` dư thừa do đánh giá SQLite.
+    *   **Khắc phục lỗi tối giao diện ban ngày**: Đồng bộ hiển thị sáng/tối của Menu kết nối (TopBar) theo cấu hình hệ thống bằng cách kiểm tra biến `resolvedTheme`.
+    *   **Ẩn nhãn đã xóa**: Tự động lọc và không hiển thị các huy hiệu nhãn dán trên tệp/hình ảnh trong Thư viện nếu nhãn dán đó đã bị xóa.
+    *   **Sửa lỗi forward file đính kèm máy nhân viên**: Tự động điều hướng và bỏ qua kiểm tra tệp local tại máy nhân viên, thực hiện gửi trực tiếp tệp gốc được lưu trữ trên Boss Machine khi chuyển tiếp PDF, ảnh, video, âm thanh sang hội thoại đích.
 
 ## 4. Trạng Thái Kiểm Thử & Chạy Thử
 *   **Preview Server:** ⚪ **Stopped** (Đang dừng).

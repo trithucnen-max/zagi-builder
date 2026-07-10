@@ -345,7 +345,11 @@ class LibraryService {
 
   public deleteFolder(id: number): boolean {
     const db = DatabaseService.getInstance();
-    db.run('UPDATE media_library_items SET folder_id = NULL WHERE folder_id = ?', [id]);
+    // Lấy danh sách các item trong folder để xóa cả file vật lý và database
+    const items = db.query<any>('SELECT uuid FROM media_library_items WHERE folder_id = ?', [id]) || [];
+    for (const item of items) {
+      this.deleteItem(item.uuid);
+    }
     db.run('DELETE FROM media_library_folders WHERE id = ?', [id]);
     return true;
   }
@@ -383,8 +387,26 @@ class LibraryService {
 
   public deleteTag(id: number): boolean {
     const db = DatabaseService.getInstance();
+    // Lấy thông tin tag trước khi xóa để cập nhật trường tags trong media_library_items
+    const tag = db.queryOne<any>('SELECT name, owner_zalo_id FROM media_library_tags WHERE id = ?', [id]);
+
     db.run('DELETE FROM media_library_item_tags WHERE tag_id = ?', [id]);
     db.run('DELETE FROM media_library_tags WHERE id = ?', [id]);
+
+    if (tag && tag.name) {
+      // Tìm tất cả items có chứa tag.name trong trường tags
+      const items = db.query<any>(
+        'SELECT uuid, tags FROM media_library_items WHERE owner_zalo_id = ? AND tags LIKE ?',
+        [tag.owner_zalo_id, `%${tag.name}%`]
+      ) || [];
+
+      for (const item of items) {
+        const currentTags = (item.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+        const filteredTags = currentTags.filter((t: string) => t !== tag.name);
+        const newTagsString = filteredTags.join(',');
+        db.run('UPDATE media_library_items SET tags = ? WHERE uuid = ?', [newTagsString, item.uuid]);
+      }
+    }
     return true;
   }
 

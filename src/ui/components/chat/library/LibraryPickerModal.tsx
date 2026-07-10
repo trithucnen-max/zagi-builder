@@ -166,6 +166,90 @@ export default function LibraryPickerModal({
     setMoveFolderTarget(null);
   }, [menuTarget, closeMenus]);
 
+  // Drag-to-select: click and drag across items to auto-select
+  const dragSelectRef = useRef<{
+    startUuid: string | null;
+    startIdx: number;
+    hasActivated: boolean;
+  }>({ startUuid: null, startIdx: -1, hasActivated: false });
+  const clickSuppressUntilRef = useRef(0);
+  const itemsRef = useRef<LibraryItem[]>([]);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      const drag = dragSelectRef.current;
+      if (!drag.startUuid) return;
+
+      // Find library item element under cursor
+      const elements = document.elementsFromPoint(e.clientX, e.clientY);
+      let currentUuid: string | null = null;
+      for (const el of elements) {
+        const itemEl = (el as HTMLElement).closest?.('[id^="lib-item-"]') as HTMLElement;
+        if (itemEl) {
+          currentUuid = itemEl.id.replace('lib-item-', '');
+          break;
+        }
+      }
+      if (!currentUuid) return;
+
+      const currentItems = itemsRef.current;
+      const startIdx = currentItems.findIndex(i => i.uuid === drag.startUuid);
+      const endIdx = currentItems.findIndex(i => i.uuid === currentUuid);
+      if (startIdx === -1 || endIdx === -1) return;
+
+      // Activate selection mode on move
+      if (!drag.hasActivated) {
+        if (currentUuid === drag.startUuid) return; // Haven't left the original item
+        drag.hasActivated = true;
+        document.getSelection()?.removeAllRanges();
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+      }
+
+      // Select items in range
+      const minIdx = Math.min(startIdx, endIdx);
+      const maxIdx = Math.max(startIdx, endIdx);
+      const rangeUuids = currentItems.slice(minIdx, maxIdx + 1).map(i => i.uuid);
+
+      setSelected(prev => {
+        const next = new Set(prev);
+        for (const uuid of rangeUuids) {
+          next.add(uuid);
+        }
+        return next;
+      });
+    };
+
+    const handlePointerUp = () => {
+      const drag = dragSelectRef.current;
+      if (!drag.startUuid) return;
+
+      if (drag.hasActivated) {
+        clickSuppressUntilRef.current = Date.now() + 150;
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+      }
+
+      drag.startUuid = null;
+      drag.startIdx = -1;
+      drag.hasActivated = false;
+    };
+
+    document.addEventListener('pointermove', handlePointerMove, { capture: true });
+    document.addEventListener('pointerup', handlePointerUp, { capture: true });
+
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove, { capture: true });
+      document.removeEventListener('pointerup', handlePointerUp, { capture: true });
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+    };
+  }, []);
+
   // Drag & drop upload
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -372,7 +456,7 @@ export default function LibraryPickerModal({
 
   const handleDeleteFolder = async (id: number) => {
     // Dùng confirm dialog của Electron (window.confirm có sẵn)
-    const ok = window.confirm?.('Xoá thư mục này? File trong thư mục sẽ không bị xoá.') ?? true;
+    const ok = window.confirm?.('Xoá thư mục này? Toàn bộ ảnh/file trong thư mục này cũng sẽ bị xoá.') ?? true;
     if (!ok) return;
     try {
       await DataAccessor.deleteLibraryFolder(id);
@@ -985,11 +1069,26 @@ export default function LibraryPickerModal({
               {(initialType === 'image' || initialType === 'all') && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
                   {items.filter(i => i.type === 'image').map(item => (
-                    <div key={item.uuid} className="relative group">
+                    <div key={item.uuid} id={`lib-item-${item.uuid}`} className="relative group"
+                      onPointerDown={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('a, button, [role="button"], input, textarea, select')) return;
+                        if (e.button !== 0) return;
+                        const idx = items.findIndex(i => i.uuid === item.uuid);
+                        dragSelectRef.current = {
+                          startUuid: item.uuid,
+                          startIdx: idx,
+                          hasActivated: false,
+                        };
+                      }}
+                    >
                       {/*** Thumbnail (overflow-hidden removed — dropdowns render here without being clipped) ***/}
-                      <div onClick={() => toggleSelect(item.uuid)}
+                      <div onClick={(e) => {
+                          if (Date.now() < clickSuppressUntilRef.current) return;
+                          toggleSelect(item.uuid);
+                        }}
                         className={`relative aspect-square rounded-xl cursor-pointer border-2 transition-all ${
-                          selected.has(item.uuid) ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-transparent hover:border-gray-500'
+                          selected.has(item.uuid) ? 'border-blue-primary ring-2 ring-blue-primary/40' : 'border-transparent hover:border-gray-500'
                         }`}>
                         {/*** Chỉ clip riêng ảnh, không clip dropdown ***/}
                         <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
@@ -1029,8 +1128,8 @@ export default function LibraryPickerModal({
 
                         {selected.has(item.uuid) && (
                           <>
-                            <div className="absolute bottom-1 right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs shadow-lg">✓</div>
-                            <div className="absolute inset-0 bg-blue-500/20 rounded-xl" />
+                            <div className="absolute bottom-1 right-1 w-6 h-6 bg-blue-primary rounded-full flex items-center justify-center text-white text-xs shadow-lg">✓</div>
+                            <div className="absolute inset-0 rounded-xl" style={{ backgroundColor: 'rgba(0, 104, 255, 0.15)' }} />
                           </>
                         )}
                       </div>
@@ -1056,7 +1155,8 @@ export default function LibraryPickerModal({
                                   const trimmed = name.trim();
                                   if (!trimmed) return null;
                                   const tagObj = tags.find(t => t.name === trimmed);
-                                  const bgColor = tagObj?.color || '#4b5563';
+                                  if (!tagObj) return null; // Ẩn nhãn đã xóa
+                                  const bgColor = tagObj.color || '#4b5563';
                                   const textColor = getContrastTextColor(bgColor);
                                   return (
                                     <span key={trimmed} className="px-1 rounded text-[7px] font-medium"
@@ -1080,11 +1180,26 @@ export default function LibraryPickerModal({
               {(initialType === 'video' || initialType === 'all') && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
                   {items.filter(i => i.type === 'video').map(item => (
-                    <div key={item.uuid} className="relative group">
+                    <div key={item.uuid} id={`lib-item-${item.uuid}`} className="relative group"
+                      onPointerDown={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('a, button, [role="button"], input, textarea, select')) return;
+                        if (e.button !== 0) return;
+                        const idx = items.findIndex(i => i.uuid === item.uuid);
+                        dragSelectRef.current = {
+                          startUuid: item.uuid,
+                          startIdx: idx,
+                          hasActivated: false,
+                        };
+                      }}
+                    >
                       {/*** Thumbnail (overflow-hidden removed for dropdown) ***/}
-                      <div onClick={() => toggleSelect(item.uuid)}
+                      <div onClick={(e) => {
+                          if (Date.now() < clickSuppressUntilRef.current) return;
+                          toggleSelect(item.uuid);
+                        }}
                         className={`relative aspect-video rounded-xl cursor-pointer border-2 transition-all ${
-                          selected.has(item.uuid) ? 'border-blue-500' : 'border-transparent hover:border-gray-500'
+                          selected.has(item.uuid) ? 'border-blue-primary' : 'border-transparent hover:border-gray-500'
                         }`}>
                         {/*** Clip riêng video icon ***/}
                         <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
@@ -1143,7 +1258,8 @@ export default function LibraryPickerModal({
                                     const trimmed = name.trim();
                                     if (!trimmed) return null;
                                     const tagObj = tags.find(t => t.name === trimmed);
-                                    const bgColor = tagObj?.color || '#4b5563';
+                                    if (!tagObj) return null; // Ẩn nhãn đã xóa
+                                    const bgColor = tagObj.color || '#4b5563';
                                     const textColor = getContrastTextColor(bgColor);
                                     return (
                                       <span key={trimmed} className="px-1 rounded text-[7px] font-medium"
@@ -1159,8 +1275,10 @@ export default function LibraryPickerModal({
                         </div>
 
                         {selected.has(item.uuid) && (
-                          <><div className="absolute bottom-1 right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs shadow-lg">✓</div>
-                          <div className="absolute inset-0 bg-blue-500/20 rounded-xl" /></>
+                          <>
+                            <div className="absolute bottom-1 right-1 w-5 h-5 bg-blue-primary rounded-full flex items-center justify-center text-white text-xs shadow-lg">✓</div>
+                            <div className="absolute inset-0 rounded-xl" style={{ backgroundColor: 'rgba(0, 104, 255, 0.15)' }} />
+                          </>
                         )}
                       </div>
 
@@ -1173,9 +1291,23 @@ export default function LibraryPickerModal({
               {(initialType === 'file' || initialType === 'all') && (
                 <div className="space-y-2">
                   {items.filter(i => i.type === 'file').map(item => (
-                    <div key={item.uuid} onClick={() => toggleSelect(item.uuid)}
+                    <div key={item.uuid} id={`lib-item-${item.uuid}`} onClick={(e) => {
+                        if (Date.now() < clickSuppressUntilRef.current) return;
+                        toggleSelect(item.uuid);
+                      }}
+                      onPointerDown={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('a, button, [role="button"], input, textarea, select')) return;
+                        if (e.button !== 0) return;
+                        const idx = items.findIndex(i => i.uuid === item.uuid);
+                        dragSelectRef.current = {
+                          startUuid: item.uuid,
+                          startIdx: idx,
+                          hasActivated: false,
+                        };
+                      }}
                       className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer border transition-all group ${
-                        selected.has(item.uuid) ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700/50 hover:border-gray-500 bg-gray-800/50'
+                        selected.has(item.uuid) ? 'border-blue-primary bg-blue-primary/10' : 'border-gray-700/50 hover:border-gray-500 bg-gray-800/50'
                       }`}>
                       <span className="text-2xl">{getFileIcon(item.name)}</span>
                       <div className="flex-1 min-w-0">
@@ -1202,7 +1334,8 @@ export default function LibraryPickerModal({
                                     const trimmed = name.trim();
                                     if (!trimmed) return null;
                                     const tagObj = tags.find(t => t.name === trimmed);
-                                    const bgColor = tagObj?.color || '#4b5563';
+                                    if (!tagObj) return null; // Ẩn nhãn đã xóa
+                                    const bgColor = tagObj.color || '#4b5563';
                                     const textColor = getContrastTextColor(bgColor);
                                     return (
                                       <span key={trimmed} className="px-1.5 py-0.5 rounded text-[8px] font-medium"
@@ -1231,7 +1364,7 @@ export default function LibraryPickerModal({
                         <button onClick={(e) => handleMenuClick(e, item.uuid)}
                           className="bg-black/40 hover:bg-black/60 rounded-lg px-1.5 py-1 text-sm text-gray-300 hover:text-white">⋮</button>
                       </div>
-                      {selected.has(item.uuid) && <span className="text-blue-400 ml-1">✓</span>}
+                      {selected.has(item.uuid) && <span className="text-blue-primary ml-1">✓</span>}
                     </div>
                   ))}
                 </div>

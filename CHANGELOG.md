@@ -4,6 +4,31 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v27.2.10] - 2026-07-10
+
+### Cải tiến UI/UX & Sửa lỗi Nghiêm trọng Chuyển tiếp Tệp Đính kèm (Employee Mode)
+
+- **Đại tu Trung tâm Thông báo (Notification Center):**
+  - Khắc phục lỗi in hiển thị thừa số `0` do đánh giá logic SQLite trong câu lệnh điều kiện React.
+  - Thiết kế lại danh sách thông báo với vòng tròn màu sắc và icon emoji đại diện trực quan theo nhóm tính năng/loại thông báo (⚠️ Task quá hạn, ⏰ Sắp tới hạn, 📋 Task, 🔔 Mặc định).
+  - Tự động hiển thị nền xanh dịu tinh tế cho các thông báo chưa đọc, giúp phân biệt rõ ràng với thông báo đã đọc.
+  - Phân tách nhóm ngày bằng font chữ nhỏ, in hoa và khoảng cách rộng rãi, hiện đại theo Zagi Design System.
+  - Hỗ trợ đổi giao diện sáng/tối đồng bộ nhờ hệ thống CSS lớp `dark:` chuẩn hóa của Tailwind.
+
+- **Sửa giao diện Daytime/Sáng cho Menu Kết nối (TopBar):**
+  - Bổ sung kiểm tra hệ thống thông qua `resolvedTheme` từ store chính của ứng dụng.
+  - Khắc phục việc menu kết nối (Menu 2) bị tối đen khi người dùng chọn chủ đề tự động theo hệ thống (theme "system") vào ban ngày.
+
+- **Sửa lỗi Nhãn đã xóa vẫn hiển thị trên ảnh:**
+  - Ẩn toàn bộ huy hiệu nhãn dán trong Thư viện (Ảnh, Video, File) nếu nhãn dán đó không còn tồn tại trong danh sách nhãn hiện hoạt của ứng dụng (đã bị xóa).
+
+- **Sửa lỗi Forward File Đính kèm ở Máy Nhân Viên (Employee Mode):**
+  - Giải quyết lỗi nghiêm trọng khi chuyển tiếp (forward) file PDF, hình ảnh, video, và tin nhắn thoại từ máy nhân viên chỉ hiển thị tên tệp tin dạng text mà không gửi file thực tế.
+  - Cho phép bỏ qua kiểm tra sự tồn tại của tệp đính kèm ở local trên máy nhân viên, trực tiếp ủy nhiệm proxy gửi tập tin qua máy chủ (Boss Machine) nơi lưu trữ file gốc để gửi đi thành công.
+  - Đồng bộ hóa logic chuyển tiếp tất cả loại tệp qua Facebook và Zalo (bao gồm cả tệp âm thanh/voice note).
+
+---
+
 ## [v27.2.9] - 2026-07-10
 
 ### Tính năng mới: Lên lịch gửi tin nhắn · Công cụ chụp màn hình · Mở rộng khung soạn thảo · Sửa lỗi hệ thống Boss–Nhân viên
