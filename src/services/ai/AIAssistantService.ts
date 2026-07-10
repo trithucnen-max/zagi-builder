@@ -577,10 +577,21 @@ YÊU CẦU BẮT BUỘC:
     if (!assistant) throw new Error('Trợ lý AI không tồn tại');
     if (!assistant.enabled) throw new Error('Trợ lý AI đã bị tắt');
 
-    const systemPrompt = await this.buildSystemPrompt(assistant, structured);
+    // Build the base system prompt from DB (personality + knowledge base + POS data)
+    const dbSystemPrompt = await this.buildSystemPrompt(assistant, structured);
+
+    // If caller injected a system message, merge it with the DB prompt instead of duplicating
+    const callerSystemMsg = conversationMessages.find(m => m.role === 'system');
+    const nonSystemMessages = conversationMessages.filter(m => m.role !== 'system');
+
+    const mergedSystemPrompt = [
+      dbSystemPrompt,
+      callerSystemMsg?.content,
+    ].filter(Boolean).join('\n\n---\n\n');
+
     const messages: ChatMessage[] = [
-      { role: 'system', content: systemPrompt },
-      ...conversationMessages.map(m => ({
+      { role: 'system', content: mergedSystemPrompt },
+      ...nonSystemMessages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       })),
