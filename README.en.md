@@ -220,6 +220,7 @@ sudo dpkg -i "Zagi v27.2.11 Linux Debian.deb"
 - Actions: send message/image/file, find user, manage group, mute, forward, recall…
 - Integrations: logic, Google Sheets, AI, Telegram, Discord, Email, Notion, HTTP Request
 - Execution history for easy inspection and debugging
+- 📦 **18 Standard Workflow Templates Library:** Pre-packaged JSON workflows for accounting alerts, order verification, shipping updates, low stock warnings, auto birthday wishes, NPS surveys, etc.
 
 ### 5️⃣ Sales Integrations
 
@@ -243,6 +244,8 @@ sudo dpkg -i "Zagi v27.2.11 Linux Debian.deb"
 - Create workflows using plain natural language — no drag-and-drop needed
 - Use AI action nodes in workflows to build 24/7 auto-reply chatbots
 - Multi-platform AI: OpenAI, Claude, Gemini, 9Router
+- 🧠 **Context-Aware AI Drafting & Variable Auto-Injection:** Automatically injects system variables (POS, payment, shipping, CRM) into AI drafting tools. Supports the `| formatNumber` filter for custom localized currency/number formatting.
+- ⚙️ **Merged System Prompts & Optimized Zalo Styling:** Combines DB personality prompt and code prompt dynamically to prevent LLM instructions conflicts; optimizes text styling with emojis only (excluding `**` markdown tags) for native Zalo display compatibility.
 
 ---
 

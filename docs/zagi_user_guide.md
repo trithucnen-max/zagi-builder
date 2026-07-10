@@ -85,10 +85,17 @@ Các bước tạo: Workflow → Tạo mới → đặt tên → chọn Trigger 
 
 Triggers gồm: tin nhắn mới, lời mời kết bạn, sự kiện nhóm, react, gán/gỡ nhãn, lịch trình cron, chạy thủ công. Zalo Actions gồm hơn 15 loại (gửi tin, gửi ảnh/file, tìm user theo SĐT, kết bạn, thêm/xóa khỏi nhóm, thu hồi tin, tạo poll...). Logic gồm IF, Switch, Delay, lưu biến, Stop If, forEach. Tích hợp Google Sheets, node AI, và gửi Telegram/Discord/Email/Notion/HTTP Request.
 
+💡 **Thư viện kịch bản mẫu:** Zagi đi kèm bộ **18 kịch bản Workflow chuẩn** (file `.json` lưu tại thư mục `zagi-workflows/` ở thư mục Tải xuống) bao gồm: tự động báo cáo kế toán, xác nhận đơn hàng, gửi mã vận đơn, cảnh báo tồn kho, chúc mừng sinh nhật tự động, khảo sát NPS... Bạn có thể Import trực tiếp vào Zagi để sử dụng ngay.
+
 Lưu ý: workflow chạy cục bộ nên app phải đang chạy; nên dùng node Chờ N giây giữa các tin để tránh rate-limit.
 
 3.6. Trợ lý AI
 Tạo nhiều chatbot AI với tính cách/prompt/mục đích khác nhau, gán cho hội thoại cụ thể hoặc dùng trong Workflow. Hỗ trợ nhiều model: GPT, Gemini, Claude, DeepSeek. Hướng dẫn: Cài đặt → AI Assistant → nhập API Key → tạo trợ lý → viết prompt → chọn model → gán vào hội thoại hoặc dùng trong node Workflow.
+
+🌟 **Tích hợp Trợ lý AI thông minh trong soạn thảo tin nhắn:**
+- **Nạp biến động & Định dạng tiền tệ:** Khi soạn tin nhắn nháp qua nút "Trợ lý AI", hệ thống tự động tiêm toàn bộ danh sách biến động của hệ thống (Zalo, POS, giao hàng, thanh toán) giúp AI hiểu ngữ cảnh để chèn đúng chỗ. Hỗ trợ bộ lọc `| formatNumber` (ví dụ: `{{ $trigger.amount | formatNumber }}`) tự động thêm dấu phẩy phân tách hàng nghìn cho số tiền.
+- **Tránh ký tự rác:** AI soạn tin được hướng dẫn dùng chữ thường kèm emoji thay vì định dạng markdown `**` để đảm bảo văn bản hiển thị đẹp mắt, sạch sẽ trên ứng dụng Zalo PC của khách hàng.
+- **Hợp nhất System Prompt thông minh:** Tránh hiện tượng AI bị rối loạn khi có 2 system prompt song song (DB prompt và code prompt), Zagi tự động gộp thành một block duy nhất trước khi truyền lên LLM.
 
 9Router (proxy AI giá rẻ/miễn phí): giúp giảm 30–50% chi phí AI, quản lý key tập trung, tự động fallback. Cài bằng hai lệnh terminal: npm install -g 9router rồi 9router. Dashboard mở tại http://localhost:20128. Trong Zagi chọn nền tảng 9Router và chọn model FREE. Lưu ý 9Router phải chạy song song với Zagi.
 

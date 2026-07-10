@@ -295,6 +295,7 @@ sudo dpkg -i "Zagi v27.2.11 Linux Debian.deb"
 - Hành động: gửi tin/ảnh/file, tìm user, quản lý nhóm, chặn, chuyển tiếp, thu hồi…
 - Tích hợp: logic, Google Sheets, AI, Telegram, Discord, Email, Notion, HTTP Request
 - Lịch sử thực thi dễ kiểm tra và debug
+- 📦 **Thư viện 18 kịch bản Workflow mẫu:** Đi kèm bộ 18 kịch bản mẫu (.json) thiết lập sẵn cho CSKH, báo cáo kế toán, theo dõi vận đơn, tồn kho, chúc mừng sinh nhật tự động, khảo sát NPS... giúp triển khai ngay lập tức.
 
 ### 5️⃣ Tích hợp bán hàng
 
@@ -318,6 +319,8 @@ sudo dpkg -i "Zagi v27.2.11 Linux Debian.deb"
 - Tạo workflow bằng lệnh ngôn ngữ tự nhiên — không cần kéo thả
 - Dùng AI node trong workflow để tạo chatbot tự động trả lời 24/7
 - Hỗ trợ đa nền tảng AI: OpenAI, Claude, Gemini, 9Router
+- 🧠 **Trợ lý AI Soạn tin & Nạp biến động tự động:** AI tự nhận diện tất cả biến động (thanh toán, vận chuyển, POS, CRM) để chèn chính xác. Hỗ trợ cú pháp lọc định dạng số `| formatNumber` (phân tách hàng nghìn bằng dấu phẩy).
+- ⚙️ **Hợp nhất System Prompt & Tối ưu hiển thị:** Tự động gộp prompt từ DB và code client để tránh xung đột chỉ thị; tự động viết tin nhắn dạng thường kèm emoji thay vì ký tự rác markdown `**` trên Zalo.
 
 ---
 

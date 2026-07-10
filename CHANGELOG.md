@@ -22,6 +22,10 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Khắc phục lỗi nghiêm trọng khi chuyển đổi Workspace xóa sạch các hooks sự kiện của `WorkflowEngineService` trên `EventBroadcaster`, giúp tự động re-register và tái khởi động workflow ổn định.
   - Nâng cấp cơ chế chạy tự động của AI (`ai.generateText`): Tự động lấy nội dung tin nhắn đến làm prompt nếu người dùng bỏ trống cấu hình, đồng thời tự động nạp 20 tin nhắn lịch sử trò chuyện gần nhất từ database làm ngữ cảnh để tránh tình trạng bot bị lặp lại tin nhắn chào hỏi vô hạn.
   - Hỗ trợ nhận diện và phân tích cấu trúc dữ liệu JSON Lines phản hồi từ các LLM endpoints thành các tin nhắn Zalo riêng biệt để gửi đi thành công.
+  - **Nạp ngữ cảnh biến tự động và bộ lọc formatNumber cho Trợ lý AI**: AI khi nháp tin nhắn tự động nhận diện toàn bộ danh mục biến của hệ thống (thanh toán, vận chuyển, bán hàng, POS, CRM) và hỗ trợ cú pháp định dạng số `| formatNumber` để phân tách hàng nghìn bằng dấu phẩy.
+  - **Khắc phục lỗi gửi trùng 2 tin nhắn**: Loại bỏ trigger bridge dư thừa của sự kiện `integration:payment` trong `electron/main.ts` để tránh trigger chạy 2 lần cho cùng một giao dịch.
+  - **Sửa lỗi trùng lặp/xung đột System Prompt**: Gộp System Prompt khai báo từ Database và prompt chuyên biệt (soạn tin, sinh workflow) từ client thành một block duy nhất để AI xử lý mượt mà, không bị nhiễu chỉ thị.
+  - **Bổ sung 18 kịch bản Workflow chuẩn**: Xây dựng sẵn bộ 18 kịch bản mẫu dưới dạng file JSON tại thư mục `zagi-workflows/` phục vụ các nhu cầu CSKH, tài chính, kho bãi, và vận hành doanh nghiệp.
 
 ---
 
