@@ -3,6 +3,7 @@ import ipc from '@/lib/ipc';
 import AIAssistantDetailPage from './AIAssistantDetailPage';
 import AccountAssignmentPopup from '@/components/chat/AccountAssignmentPopup';
 import BrandLogo from '../common/BrandLogo';
+import { useEmployeeStore } from '@/store/employeeStore';
 
 const PLATFORM_META: Record<string, { label: string; color: string; icon: string }> = {
   openai:   { label: 'OpenAI',   color: 'bg-green-600',   icon: '🤖' },
@@ -30,6 +31,9 @@ export default function AIAssistantPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [showAccountPopup, setShowAccountPopup] = useState(false);
+
+  const empMode = useEmployeeStore(s => s.mode);
+  const isEmployee = empMode === 'employee';
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -63,18 +67,24 @@ export default function AIAssistantPage() {
             <div>
               <h1 className="text-lg font-semibold text-white">Trợ lý AI</h1>
               <p className="text-xs text-gray-400 mt-0.5">
-                Tạo và quản lý trợ lý AI — tùy chỉnh prompt, nạp dữ liệu sản phẩm, file kiến thức
+                {isEmployee 
+                  ? 'Xem danh sách trợ lý AI đang hoạt động trên hệ thống' 
+                  : 'Tạo và quản lý trợ lý AI — tùy chỉnh prompt, nạp dữ liệu sản phẩm, file kiến thức'}
               </p>
             </div>
           </div>
-          <button onClick={() => setShowAccountPopup(true)}
-            className="px-3 py-2 text-sm rounded-lg transition-colors border text-gray-400 hover:text-white border-gray-600 hover:border-gray-500">
-            👤 Gán theo tài khoản
-          </button>
-          <button onClick={() => setCreating(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
-            + Tạo trợ lý
-          </button>
+          {!isEmployee && (
+            <>
+              <button onClick={() => setShowAccountPopup(true)}
+                className="px-3 py-2 text-sm rounded-lg transition-colors border text-gray-400 hover:text-white border-gray-600 hover:border-gray-500">
+                👤 Gán theo tài khoản
+              </button>
+              <button onClick={() => setCreating(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
+                + Tạo trợ lý
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -92,12 +102,16 @@ export default function AIAssistantPage() {
             <div className="text-5xl mb-4">🤖</div>
             <h3 className="text-lg font-medium text-white mb-2">Chưa có trợ lý AI nào</h3>
             <p className="text-sm text-gray-400 mb-6 max-w-md mx-auto">
-              Tạo trợ lý AI để tự động gợi ý câu trả lời trong chat, hỏi đáp trực tiếp và nhiều hơn nữa
+              {isEmployee 
+                ? 'Hiện chưa có trợ lý AI nào được thiết lập bởi Boss.' 
+                : 'Tạo trợ lý AI để tự động gợi ý câu trả lời trong chat, hỏi đáp trực tiếp và nhiều hơn nữa'}
             </p>
-            <button onClick={() => setCreating(true)}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
-              + Tạo trợ lý đầu tiên
-            </button>
+            {!isEmployee && (
+              <button onClick={() => setCreating(true)}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
+                + Tạo trợ lý đầu tiên
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -130,7 +144,7 @@ export default function AIAssistantPage() {
                       {a.enabled ? 'Đang bật' : 'Đã tắt'}
                     </span>
                     <span className="text-xs text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                      Cấu hình →
+                      {isEmployee ? 'Xem chi tiết →' : 'Cấu hình →'}
                     </span>
                   </div>
                 </button>

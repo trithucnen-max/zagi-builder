@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
+import { useEmployeeStore } from '@/store/employeeStore';
 import {showConfirm} from "@/components/common/ConfirmDialog";
 import PromptWizardModal from './PromptWizardModal';
 import { parseStructuredResponse } from '../../../utils/aiUtils';
@@ -183,6 +184,8 @@ interface Props {
 
 export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
   const { showNotification } = useAppStore();
+  const empMode = useEmployeeStore(s => s.mode);
+  const isEmployee = empMode === 'employee';
 
   // Form state
   const [name, setName] = useState('');
@@ -603,10 +606,10 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
           </h1>
           <p className="text-xs text-gray-400">{currentPlatform.label} — {model === '__custom__' ? (customModelInput || 'tự nhập...') : model}</p>
         </div>
-        <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+        <label className={`flex items-center gap-2 flex-shrink-0 ${isEmployee ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
           <span className="text-xs text-gray-400">Kích hoạt</span>
-          <div className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-blue-600' : 'bg-gray-600'}`}
-            onClick={() => setEnabled(!enabled)}>
+          <div className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-blue-600' : 'bg-gray-600'} ${isEmployee ? 'opacity-70' : ''}`}
+            onClick={() => !isEmployee && setEnabled(!enabled)}>
             <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : ''}`}/>
           </div>
         </label>
@@ -640,6 +643,11 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
       <div className="flex-1 flex overflow-hidden">
         {/* ─── LEFT: Config ─────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5 min-w-0">
+          {isEmployee && (
+            <div className="bg-blue-900/30 border border-blue-800/40 rounded-xl p-3 text-xs text-blue-300 flex items-center gap-2">
+              <span>ℹ️ Bạn đang xem cấu hình trợ lý AI ở chế độ Chỉ đọc. Chỉ máy Boss mới được phép chỉnh sửa.</span>
+            </div>
+          )}
 
           {/* Basic info */}
           <div>
@@ -648,29 +656,34 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Tên trợ lý *</label>
                 <input type="text" value={name} onChange={e => setName(e.target.value)}
+                  disabled={isEmployee}
                   placeholder="VD: Trợ lý bán hàng..."
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"/>
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-75 disabled:cursor-not-allowed"/>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div ref={dropdownRef} className="relative">
                   <label className="block text-xs text-gray-400 mb-1">Nền tảng AI</label>
                   <button
                     type="button"
-                    onClick={() => setPlatformDropdownOpen(v => !v)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center justify-between focus:outline-none focus:border-blue-500"
+                    onClick={() => !isEmployee && setPlatformDropdownOpen(v => !v)}
+                    className={`w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white flex items-center justify-between focus:outline-none focus:border-blue-500 ${
+                      isEmployee ? 'opacity-75 cursor-not-allowed' : ''
+                    }`}
                   >
                     <span className="flex items-center gap-2">
                       <AppIcon name={currentPlatform.icon} className="text-blue-400" size={16} />
                       <span>{currentPlatform.label}</span>
                     </span>
-                    <svg
-                      width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                      className={`text-gray-400 flex-shrink-0 transition-transform ${platformDropdownOpen ? 'rotate-180' : ''}`}
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                    {!isEmployee && (
+                      <svg
+                        width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                        className={`text-gray-400 flex-shrink-0 transition-transform ${platformDropdownOpen ? 'rotate-180' : ''}`}
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    )}
                   </button>
-                  {platformDropdownOpen && (
+                  {platformDropdownOpen && !isEmployee && (
                     <div className="absolute top-full left-0 right-0 mt-1.5 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden max-h-[220px] overflow-y-auto">
                       {PLATFORMS.map(p => {
                         const isActive = p.value === platform;
@@ -700,6 +713,7 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                   {(platform === '9router' || platform === 'openrouter') ? (
                     <div className="space-y-1.5">
                       <select value={isCustomModel && model !== '__custom__' ? '__custom__' : model}
+                        disabled={isEmployee}
                         onChange={e => {
                           if (e.target.value === '__custom__') {
                             setModel('__custom__');
@@ -708,21 +722,23 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                             setModel(e.target.value);
                           }
                         }}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 disabled:opacity-75 disabled:cursor-not-allowed">
                         {currentModels.map(m => (
                           <option key={m.value} value={m.value}>{m.label}</option>
                         ))}
                       </select>
                       {isCustomModel && (
                         <input type="text" value={customModelInput}
+                          disabled={isEmployee}
                           onChange={e => { setCustomModelInput(e.target.value); setModel(e.target.value); }}
                           placeholder="Nhập model name bất kỳ, VD: oc/llama-4, vertex/gemini-3-flash..."
-                          className="w-full bg-gray-700 border border-blue-600/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"/>
+                          className="w-full bg-gray-700 border border-blue-600/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-75 disabled:cursor-not-allowed"/>
                       )}
                     </div>
                   ) : (
                     <select value={model} onChange={e => setModel(e.target.value)}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                      disabled={isEmployee}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 disabled:opacity-75 disabled:cursor-not-allowed">
                       {currentModels.map(m => (
                         <option key={m.value} value={m.value}>{m.label}</option>
                       ))}
@@ -738,48 +754,56 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
             <h2 className="text-sm font-semibold text-gray-300 mb-2">🔑 API Key</h2>
             <div className="bg-gray-800 rounded-xl p-4">
               <div className="relative">
-                <input type={showApiKey ? 'text' : 'password'}
-                  value={apiKey} onChange={e => setApiKey(e.target.value)}
-                  placeholder={savedId ? '••••••••  (để trống = giữ cũ)' : 'Nhập API Key...'}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 pr-10"/>
-                <button type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm"
-                  onClick={() => setShowApiKey(!showApiKey)}>
-                  {showApiKey ? '🙈' : '👁'}
-                </button>
+                <input type="password"
+                  value={isEmployee ? '••••••••••••••••' : apiKey} 
+                  onChange={e => !isEmployee && setApiKey(e.target.value)}
+                  placeholder={isEmployee ? 'Được bảo mật bởi Boss' : (savedId ? '••••••••  (để trống = giữ cũ)' : 'Nhập API Key...')}
+                  disabled={isEmployee}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 pr-10 disabled:opacity-75 disabled:cursor-not-allowed"/>
+                {!isEmployee && (
+                  <button type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm"
+                    onClick={() => setShowApiKey(!showApiKey)}>
+                    {showApiKey ? '🙈' : '👁'}
+                  </button>
+                )}
               </div>
-              <p className="text-[10px] text-gray-500 mt-1.5">
-                {platform === 'openai' && 'Lấy tại: platform.openai.com/api-keys'}
-                {platform === 'gemini' && 'Lấy tại: aistudio.google.com/apikey'}
-                {platform === 'claude' && 'Lấy tại: console.anthropic.com/settings/keys'}
-                {platform === 'deepseek' && 'Lấy tại: platform.deepseek.com/api-keys'}
-                {platform === 'grok' && 'Lấy tại: console.x.ai'}
-                {platform === 'mistral' && 'Lấy tại: console.mistral.ai/api-keys'}
-                {platform === '9router' && 'Lấy từ Dashboard -> API Keys 9router tại http://localhost:20128/dashboard'}
-                {platform === 'openrouter' && 'Lấy tại: openrouter.ai/settings/keys'}
-              </p>
-              {platform === '9router' && (
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('nav:view', { detail: { view: 'settings' } }));
-                      setTimeout(() => window.dispatchEvent(new CustomEvent('nav:settings', {
-                        detail: { tab: 'introduction', subtab: 'ai-assistant' },
-                      })), 80);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 border border-cyan-600/40 transition-colors"
-                  >
-                    📖 Hướng dẫn tích hợp 9Router
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => ipc.shell?.openExternal('http://localhost:20128')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
-                  >
-                    🔗 Mở Dashboard 9Router
-                  </button>
-                </div>
+              {!isEmployee && (
+                <>
+                  <p className="text-[10px] text-gray-500 mt-1.5">
+                    {platform === 'openai' && 'Lấy tại: platform.openai.com/api-keys'}
+                    {platform === 'gemini' && 'Lấy tại: aistudio.google.com/apikey'}
+                    {platform === 'claude' && 'Lấy tại: console.anthropic.com/settings/keys'}
+                    {platform === 'deepseek' && 'Lấy tại: platform.deepseek.com/api-keys'}
+                    {platform === 'grok' && 'Lấy tại: console.x.ai'}
+                    {platform === 'mistral' && 'Lấy tại: console.mistral.ai/api-keys'}
+                    {platform === '9router' && 'Lấy từ Dashboard -> API Keys 9router tại http://localhost:20128/dashboard'}
+                    {platform === 'openrouter' && 'Lấy tại: openrouter.ai/settings/keys'}
+                  </p>
+                  {platform === '9router' && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(new CustomEvent('nav:view', { detail: { view: 'settings' } }));
+                          setTimeout(() => window.dispatchEvent(new CustomEvent('nav:settings', {
+                            detail: { tab: 'introduction', subtab: 'ai-assistant' },
+                          })), 80);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 border border-cyan-600/40 transition-colors"
+                      >
+                        📖 Hướng dẫn tích hợp 9Router
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => ipc.shell?.openExternal('http://localhost:20128')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                      >
+                        🔗 Mở Dashboard 9Router
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -788,24 +812,27 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-gray-300">💬 System Prompt</h2>
-              <div className="flex items-center gap-1.5">
-                {systemPrompt.trim().length > 20 && (
+              {!isEmployee && (
+                <div className="flex items-center gap-1.5">
+                  {systemPrompt.trim().length > 20 && (
+                    <button onClick={() => setShowPromptWizard(true)}
+                      className="px-2.5 py-1 text-[10px] rounded-lg bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 border border-purple-600/30 transition-colors">
+                      ✨ Cải thiện prompt
+                    </button>
+                  )}
                   <button onClick={() => setShowPromptWizard(true)}
-                    className="px-2.5 py-1 text-[10px] rounded-lg bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 border border-purple-600/30 transition-colors">
-                    ✨ Cải thiện prompt
+                    className="px-2.5 py-1 text-[10px] rounded-lg bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-blue-400 hover:from-blue-600/30 hover:to-purple-600/30 border border-blue-600/30 transition-colors font-medium">
+                    ✨ Gợi ý bằng AI
                   </button>
-                )}
-                <button onClick={() => setShowPromptWizard(true)}
-                  className="px-2.5 py-1 text-[10px] rounded-lg bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-blue-400 hover:from-blue-600/30 hover:to-purple-600/30 border border-blue-600/30 transition-colors font-medium">
-                  ✨ Gợi ý bằng AI
-                </button>
-              </div>
+                </div>
+              )}
             </div>
             <div className="bg-gray-800 rounded-xl p-4">
               <textarea value={systemPrompt} onChange={e => setSystemPrompt(e.target.value)}
                 rows={10}
+                disabled={isEmployee}
                 placeholder="VD: Bạn là trợ lý bán hàng chuyên nghiệp..."
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-y min-h-[80px]"/>
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-y min-h-[80px] disabled:opacity-75 disabled:cursor-not-allowed"/>
             </div>
           </div>
 
@@ -819,14 +846,16 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                 setPosPage(1);
                 setPosSearchQuery('');
                 setSelectedPosIds(new Set());
-              }} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+              }} 
+              disabled={isEmployee}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 disabled:opacity-75 disabled:cursor-not-allowed">
                 <option value="">— Bạn chưa liên kết POS —</option>
                 {posIntegrations.map(p => (
                   <option key={p.id} value={p.id}>{p.name} ({p.type})</option>
                 ))}
               </select>
 
-              {posIntegrationId && (
+              {!isEmployee && posIntegrationId && (
                 <div className="space-y-2">
                   {/* Search + Load */}
                   <div className="flex gap-2">
@@ -948,7 +977,7 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                     <div className="bg-gray-900/50 rounded-xl border border-green-700/30 p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-semibold text-green-400">📌 Sản phẩm đã ghim cho AI ({pinnedProducts.length})</p>
-                        <button onClick={handleUnpinAll} className="text-[10px] text-red-400/70 hover:text-red-400 transition-colors">Xóa tất cả</button>
+                        {!isEmployee && <button onClick={handleUnpinAll} className="text-[10px] text-red-400/70 hover:text-red-400 transition-colors">Xóa tất cả</button>}
                       </div>
                       <div className="space-y-1 max-h-48 overflow-y-auto pr-0.5">
                         {pinnedProducts.map((p: any) => (
@@ -963,18 +992,22 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                               <p className="text-[10px] text-gray-500">{p.code}</p>
                             </div>
                             <span className="text-[10px] text-green-400 flex-shrink-0">{p.price ? Number(p.price).toLocaleString('vi-VN') + 'đ' : ''}</span>
-                            <button onClick={() => handleUnpinProduct(p.id)}
-                              className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0 text-xs opacity-0 group-hover:opacity-100">✕</button>
+                            {!isEmployee && (
+                              <button onClick={() => handleUnpinProduct(p.id)}
+                                className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0 text-xs opacity-0 group-hover:opacity-100">✕</button>
+                            )}
                           </div>
                         ))}
                       </div>
-                      <p className="text-[10px] text-gray-500">💡 AI sẽ dùng danh sách này khi tư vấn. Nhớ bấm <strong className="text-gray-400">Lưu</strong> để áp dụng.</p>
+                      {!isEmployee && <p className="text-[10px] text-gray-500">💡 AI sẽ dùng danh sách này khi tư vấn. Nhớ bấm <strong className="text-gray-400">Lưu</strong> để áp dụng.</p>}
                     </div>
                   )}
 
-                  <p className="text-[10px] text-gray-500">
-                    Tìm & ghim sản phẩm để AI biết thông tin khi tư vấn. Bấm ✕ để hủy sản phẩm đã ghim.
-                  </p>
+                  {!isEmployee && (
+                    <p className="text-[10px] text-gray-500">
+                      Tìm & ghim sản phẩm để AI biết thông tin khi tư vấn. Bấm ✕ để hủy sản phẩm đã ghim.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -984,9 +1017,11 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
           <div>
             <h2 className="text-sm font-semibold text-gray-300 mb-2">📚 File kiến thức</h2>
             <div className="bg-gray-800 rounded-xl p-4 space-y-2">
-              <p className="text-[10px] text-gray-500 leading-relaxed">
-                ℹ️ File được <strong className="text-gray-400">trích xuất nội dung text</strong> và lưu tại máy. Khi AI trả lời, nội dung text sẽ được nạp vào system prompt — <strong className="text-gray-400">không gửi file gốc lên AI</strong>. Hỗ trợ: TXT, MD, CSV, JSON, HTML, XML, YAML, LOG (tối đa ~100KB text/file).
-              </p>
+              {!isEmployee && (
+                <p className="text-[10px] text-gray-500 leading-relaxed">
+                  ℹ️ File được <strong className="text-gray-400">trích xuất nội dung text</strong> và lưu tại máy. Khi AI trả lời, nội dung text sẽ được nạp vào system prompt — <strong className="text-gray-400">không gửi file gốc lên AI</strong>. Hỗ trợ: TXT, MD, CSV, JSON, HTML, XML, YAML, LOG (tối đa ~100KB text/file).
+                </p>
+              )}
               {files.length > 0 && (
                 <div className="space-y-1.5">
                   {files.map(f => (
@@ -999,16 +1034,20 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                       ) : (
                         <span className="text-[10px] text-yellow-500 flex-shrink-0">⚠️</span>
                       )}
-                      <button onClick={() => handleRemoveFile(f.id)}
-                        className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0 text-xs">✕</button>
+                      {!isEmployee && (
+                        <button onClick={() => handleRemoveFile(f.id)}
+                          className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0 text-xs">✕</button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
-              <button onClick={handleUploadFile} disabled={uploadingFile || !savedId}
-                className="w-full py-2 border-2 border-dashed border-gray-600 hover:border-blue-500 rounded-lg text-xs text-gray-400 hover:text-blue-400 transition-colors disabled:opacity-50">
-                {uploadingFile ? '⏳ Đang tải...' : savedId ? '📎 Chọn file để tải lên' : '💾 Lưu trợ lý trước'}
-              </button>
+              {!isEmployee && (
+                <button onClick={handleUploadFile} disabled={uploadingFile || !savedId}
+                  className="w-full py-2 border-2 border-dashed border-gray-600 hover:border-blue-500 rounded-lg text-xs text-gray-400 hover:text-blue-400 transition-colors disabled:opacity-50">
+                  {uploadingFile ? '⏳ Đang tải...' : savedId ? '📎 Chọn file để tải lên' : '💾 Lưu trợ lý trước'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1024,7 +1063,8 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                 </div>
                 <input type="range" min="0" max="2" step="0.1" value={temperature}
                   onChange={e => setTemperature(parseFloat(e.target.value))}
-                  className="w-full accent-blue-500"/>
+                  disabled={isEmployee}
+                  className="w-full accent-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"/>
                 <div className="flex justify-between text-[10px] text-gray-500">
                   <span>Chính xác (0)</span><span>Sáng tạo (2)</span>
                 </div>
@@ -1035,7 +1075,8 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                 <label className="block text-xs text-gray-400 mb-1">Max tokens</label>
                 <input type="number" min={50} max={8000} step={50} value={maxTokens}
                   onChange={e => setMaxTokens(Math.max(50, parseInt(e.target.value) || 1000))}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                  disabled={isEmployee}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 disabled:opacity-75 disabled:cursor-not-allowed"/>
               </div>
 
               {/* Context message count */}
@@ -1043,7 +1084,8 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                 <label className="block text-xs text-gray-400 mb-1">Số tin nhắn lịch sử (ngữ cảnh)</label>
                 <input type="number" min={1} max={100} step={1} value={contextMessageCount}
                   onChange={e => setContextMessageCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 30)))}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+                  disabled={isEmployee}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 disabled:opacity-75 disabled:cursor-not-allowed"/>
                 <p className="text-[10px] text-gray-500 mt-1">
                   Số tin nhắn gần nhất được nạp làm ngữ cảnh cho AI khi gợi ý và trả lời. Mặc định 30.
                 </p>
@@ -1054,7 +1096,8 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
                 <label className="block text-xs text-gray-400 mb-1">Base URL (tuỳ chọn)</label>
                 <input type="text" value={baseUrl} onChange={e => setBaseUrl(e.target.value)}
                   placeholder={platform === '9router' ? 'http://localhost:20128' : platform === 'openrouter' ? 'https://openrouter.ai/api' : 'https://api.custom-proxy.com'}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"/>
+                  disabled={isEmployee}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-75 disabled:cursor-not-allowed"/>
                 <p className="text-[10px] text-gray-500 mt-1">
                   Ghi đè endpoint API. Để trống để dùng URL mặc định. Hữu ích khi dùng proxy như 9Router, OpenRouter, hoặc các API gateway khác.
                 </p>
@@ -1327,7 +1370,7 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
 
       {/* Footer */}
       <div className="px-6 py-3 border-t border-gray-700 flex-shrink-0 flex items-center gap-3">
-        {savedId && (
+        {savedId && !isEmployee && (
           <button onClick={handleDelete} disabled={deleting}
             className="px-3 py-2 text-sm rounded-lg text-red-400 hover:bg-red-900/30 border border-red-800/40 transition-colors">
             {deleting ? 'Đang xóa...' : '🗑️ Xóa'}
@@ -1340,10 +1383,12 @@ export default function AIAssistantDetailPage({ assistantId, onBack }: Props) {
             {testing ? '⏳ Đang test...' : '🔍 Test kết nối'}
           </button>
         )}
-        <button onClick={handleSave} disabled={saving}
-          className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors">
-          {saving ? 'Đang lưu...' : savedId ? '💾 Cập nhật' : '✨ Tạo trợ lý'}
-        </button>
+        {!isEmployee && (
+          <button onClick={handleSave} disabled={saving}
+            className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors">
+            {saving ? 'Đang lưu...' : savedId ? '💾 Cập nhật' : '✨ Tạo trợ lý'}
+          </button>
+        )}
       </div>
 
       {/* Prompt Wizard Modal */}

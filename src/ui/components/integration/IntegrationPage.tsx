@@ -4,6 +4,7 @@ import IntegrationDetailPage from './IntegrationDetailPage';
 import AIAssistantPage from './AIAssistantPage';
 import BrandLogo from '../common/BrandLogo';
 import AppIcon, { IconType } from '../common/AppIcon';
+import { useEmployeeStore } from '@/store/employeeStore';
 
 // ─── Catalog definition ───────────────────────────────────────────────────────
 
@@ -515,6 +516,9 @@ function IntegrationSection({ sectionKey, catalog, savedList, onSelect }: {
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function IntegrationPage() {
+  const empMode = useEmployeeStore(s => s.mode);
+  const isEmployee = empMode === 'employee';
+
   const [savedList, setSavedList] = useState<SavedIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDetail, setSelectedDetail] = useState<{ catalogItem: CatalogItem; saved?: SavedIntegration } | null>(null);
@@ -628,26 +632,30 @@ export default function IntegrationPage() {
             <>
               <AISection onNavigateAi={handleNavigateAi} />
 
-              {Object.entries(CATALOG).map(([key, items]) => (
-                <IntegrationSection
-                  key={key}
-                  sectionKey={key}
-                  catalog={items}
-                  savedList={savedList}
-                  onSelect={handleSelectItem}
-                />
-              ))}
+              {Object.entries(CATALOG)
+                .filter(([key]) => !isEmployee || (key !== 'payment' && key !== 'shipping'))
+                .map(([key, items]) => (
+                  <IntegrationSection
+                    key={key}
+                    sectionKey={key}
+                    catalog={items}
+                    savedList={savedList}
+                    onSelect={handleSelectItem}
+                  />
+                ))}
 
               {/* Divider before tunnel */}
-              <div className="border-t border-gray-700/40 pt-6">
-                <TunnelStatusCard
-                  webhookPort={webhookPort}
-                  tunnelUrl={tunnelUrl}
-                  tunnelLoading={tunnelLoading}
-                  onToggle={handleTunnelToggle}
-                  savedList={savedList}
-                />
-              </div>
+              {!isEmployee && (
+                <div className="border-t border-gray-700/40 pt-6">
+                  <TunnelStatusCard
+                    webhookPort={webhookPort}
+                    tunnelUrl={tunnelUrl}
+                    tunnelLoading={tunnelLoading}
+                    onToggle={handleTunnelToggle}
+                    savedList={savedList}
+                  />
+                </div>
+              )}
             </>
           ) : (
             /* ── Single tab: show that section only ── */
@@ -688,6 +696,10 @@ function TopBar({ activeTab, onTabChange, tunnelUrl, tunnelLoading, onTunnelTogg
   tunnelLoading: boolean;
   onTunnelToggle: () => void;
 }) {
+  const empMode = useEmployeeStore(s => s.mode);
+  const isEmployee = empMode === 'employee';
+  const visibleTabs = TABS.filter(t => !isEmployee || (t.key !== 'payment' && t.key !== 'shipping'));
+
   return (
     <div className="flex-shrink-0 border-b border-gray-700 bg-gray-900/95">
       <div className="px-6">
@@ -698,33 +710,35 @@ function TopBar({ activeTab, onTabChange, tunnelUrl, tunnelLoading, onTunnelTogg
             <p className="text-[11px] text-gray-500">Kết nối nền tảng bên ngoài</p>
           </div>
           {/* Compact tunnel toggle in top bar */}
-          <button
-            onClick={onTunnelToggle}
-            disabled={tunnelLoading}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-lg font-medium transition-colors ${
-              tunnelUrl
-                ? 'bg-green-800/40 text-green-300 border border-green-700/50 hover:bg-red-800/40 hover:text-red-300 hover:border-red-700/50'
-                : 'bg-gray-700/60 text-gray-400 border border-gray-600/50 hover:bg-gray-700 hover:text-white'
-            }`}
-            title={tunnelUrl ? 'Nhấn để tắt Tunnel' : 'Bật Tunnel để nhận webhook từ internet'}
-          >
-            {tunnelLoading ? (
-              <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-            ) : tunnelUrl ? (
-              <span className="w-2 h-2 rounded-full bg-green-400"/>
-            ) : (
-              <span className="w-2 h-2 rounded-full bg-gray-500"/>
-            )}
-            <span>{tunnelUrl ? 'Online' : 'Tunnel'}</span>
-          </button>
+          {!isEmployee && (
+            <button
+              onClick={onTunnelToggle}
+              disabled={tunnelLoading}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-lg font-medium transition-colors ${
+                tunnelUrl
+                  ? 'bg-green-800/40 text-green-300 border border-green-700/50 hover:bg-red-800/40 hover:text-red-300 hover:border-red-700/50'
+                  : 'bg-gray-700/60 text-gray-400 border border-gray-600/50 hover:bg-gray-700 hover:text-white'
+              }`}
+              title={tunnelUrl ? 'Nhấn để tắt Tunnel' : 'Bật Tunnel để nhận webhook từ internet'}
+            >
+              {tunnelLoading ? (
+                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+              ) : tunnelUrl ? (
+                <span className="w-2 h-2 rounded-full bg-green-400"/>
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-gray-500"/>
+              )}
+              <span>{tunnelUrl ? 'Online' : 'Tunnel'}</span>
+            </button>
+          )}
         </div>
 
         {/* Horizontal tabs */}
         <nav className="flex gap-1 -mb-px">
-          {TABS.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => onTabChange(tab.key)}
