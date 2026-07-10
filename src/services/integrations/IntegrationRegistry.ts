@@ -367,12 +367,22 @@ export const IntegrationRegistry = {
           // parts[0] = 'webhook', parts[1] = integrationId or type
           const route = parts[1] || '';
 
-          // Find matching integration
+           // Find matching integration
           const allConfigs = dbListAll();
           const matchById = allConfigs.find(c => c.id === route);
           const matchByType = allConfigs.find(c => c.type === route && c.enabled);
-          const config = matchById || matchByType;
-
+          let config = matchById || matchByType;
+ 
+          if (!config) {
+            // Fallback: If not matched by route (e.g. user entered domain URL without /webhook/<id> path)
+            // check if we have a single enabled casso/sepay integration
+            const paymentConfigs = allConfigs.filter(c => (c.type === 'casso' || c.type === 'sepay') && c.enabled);
+            if (paymentConfigs.length === 1) {
+              config = paymentConfigs[0];
+              Logger.log(`[WebhookServer] Webhook route not matched for '${route}', using single active payment integration fallback: ${config.id} (${config.type})`);
+            }
+          }
+ 
           if (config) {
             // Emit payment event for workflow triggers
             if (config.type === 'casso' || config.type === 'sepay') {
