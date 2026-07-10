@@ -112,7 +112,17 @@ export class SePayAdapter extends IntegrationAdapter {
           timeout: 10000,
         });
         const list = config.isV2 ? (res.data?.data || []) : (res.data?.transactions || []);
-        return { transactions: list };
+        
+        // Normalize for Zagi UI and Workflow engine compatibility
+        const normalized = list.map((tx: any) => ({
+          ...tx,
+          when: tx.transaction_date || tx.transactionDate || tx.when || tx.created_at || '—',
+          in: Number(tx.amount_in || tx.amount || tx.in || 0),
+          amount: Number(tx.amount_in || tx.amount || tx.in || 0),
+          description: tx.transaction_content || tx.description || tx.content || tx.memo || '—'
+        }));
+        
+        return { transactions: normalized };
       }
 
       case 'getBankAccounts': {
@@ -122,7 +132,13 @@ export class SePayAdapter extends IntegrationAdapter {
           timeout: 10000,
         });
         const list = config.isV2 ? (res.data?.data || []) : (res.data?.bankAccounts || []);
-        return { accounts: list };
+        const normalized = list.map((acc: any) => ({
+          ...acc,
+          accountNumber: acc.account_number || acc.accountNumber || '',
+          accountName: acc.account_holder_name || acc.accountName || '',
+          bankName: acc.bank_brand_name || acc.bank?.short_name || acc.bankName || '',
+        }));
+        return { accounts: normalized };
       }
 
       case 'handleWebhook': {
@@ -135,7 +151,23 @@ export class SePayAdapter extends IntegrationAdapter {
             throw new Error('SePay webhook checksum không hợp lệ');
           }
         }
-        return { valid: true, transaction: params.body };
+        
+        // Normalize webhook body transaction fields for Workflow trigger compatibility
+        const tx = params.body || {};
+        const normalizedTx = {
+          ...tx,
+          amount: tx.amount || tx.in || tx.amount_in || tx.amountIn || 0,
+          description: tx.description || tx.memo || tx.content || tx.transaction_content || tx.transactionContent || '',
+          bankName: tx.bankName || tx.bank_name || '',
+          accountNumber: tx.accountNumber || tx.bank_acc_id || tx.account_number || '',
+          transactionId: tx.id || tx.transaction_id || tx.tid || '',
+          transactionDate: tx.when || tx.transactionDate || tx.created_at || tx.transaction_date || '',
+          when: tx.when || tx.transactionDate || tx.created_at || tx.transaction_date || '',
+          fromAccount: tx.fromAccount || tx.from_account || tx.senderAccount || tx.sender_account || '',
+          toAccount: tx.toAccount || tx.to_account || tx.accountNumber || tx.account_number || tx.bank_acc_id || '',
+        };
+        
+        return { valid: true, transaction: normalizedTx };
       }
 
       default:
