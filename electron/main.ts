@@ -94,7 +94,12 @@ ipcMain.handle = (channel: string, listener: any) => {
     channel.startsWith('ai:') ||
     channel === 'workflow:save' ||
     channel === 'workflow:delete' ||
-    channel === 'workflow:toggle'
+    channel === 'workflow:toggle' ||
+    channel === 'file:repairImage' ||
+    channel === 'file:validateLocalImages' ||
+    channel === 'file:readImageAsBase64' ||
+    channel === 'file:getVideoMeta' ||
+    channel === 'file:exists'
   ) {
     const wrappedListener = async (event: any, ...args: any[]) => {
       const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();

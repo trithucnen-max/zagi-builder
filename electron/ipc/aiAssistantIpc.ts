@@ -5,11 +5,16 @@ import AIAssistantService from '../../src/services/ai/AIAssistantService';
 import ContactAISummarizer from '../../src/services/ai/ContactAISummarizer';
 import DatabaseService from '../../src/services/database/DatabaseService';
 import Logger from '../../src/utils/Logger';
+import { ipcHandlerRegistry } from './ipcRegistry';
 
 export function registerAIAssistantIpc(): void {
+  const register = (channel: string, handler: (event: any, params: any) => Promise<any>) => {
+    ipcMain.handle(channel, handler);
+    ipcHandlerRegistry.set(channel, handler);
+  };
 
   // ─── List all assistants ──────────────────────────────────────────────────
-  ipcMain.handle('ai:listAssistants', async () => {
+  register('ai:listAssistants', async () => {
     try {
       const assistants = AIAssistantService.getInstance().listAssistants();
       // Mask API keys for renderer
@@ -22,7 +27,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Get single assistant ──────────────────────────────────────────────────
-  ipcMain.handle('ai:getAssistant', async (_e, { id }: { id: string }) => {
+  register('ai:getAssistant', async (_e, { id }: { id: string }) => {
     try {
       const assistant = AIAssistantService.getInstance().getAssistant(id);
       if (!assistant) return { success: false, error: 'Không tìm thấy trợ lý AI' };
@@ -33,7 +38,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Get default assistant ────────────────────────────────────────────────
-  ipcMain.handle('ai:getDefault', async () => {
+  register('ai:getDefault', async () => {
     try {
       const assistant = AIAssistantService.getInstance().getDefaultAssistant();
       if (!assistant) return { success: true, assistant: null };
@@ -44,7 +49,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Save (create/update) ─────────────────────────────────────────────────
-  ipcMain.handle('ai:saveAssistant', async (_e, { assistant }: { assistant: any }) => {
+  register('ai:saveAssistant', async (_e, { assistant }: { assistant: any }) => {
     try {
       // If apiKey is '***', preserve existing key (handled in service via ON CONFLICT)
       const pinnedLen = assistant?.pinnedProductsJson?.length || 0;
@@ -58,7 +63,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Delete ───────────────────────────────────────────────────────────────
-  ipcMain.handle('ai:deleteAssistant', async (_e, { id }: { id: string }) => {
+  register('ai:deleteAssistant', async (_e, { id }: { id: string }) => {
     try {
       AIAssistantService.getInstance().deleteAssistant(id);
       return { success: true };
@@ -68,7 +73,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Test connection ──────────────────────────────────────────────────────
-  ipcMain.handle('ai:testAssistant', async (_e, { id }: { id: string }) => {
+  register('ai:testAssistant', async (_e, { id }: { id: string }) => {
     try {
       return await AIAssistantService.getInstance().testConnection(id);
     } catch (e: any) {
@@ -77,7 +82,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Get files ────────────────────────────────────────────────────────────
-  ipcMain.handle('ai:getFiles', async (_e, { assistantId }: { assistantId: string }) => {
+  register('ai:getFiles', async (_e, { assistantId }: { assistantId: string }) => {
     try {
       const files = AIAssistantService.getInstance().getFiles(assistantId);
       return { success: true, files };
@@ -87,7 +92,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Upload file (read text content) ──────────────────────────────────────
-  ipcMain.handle('ai:uploadFile', async (_e, { assistantId, filePath: fp }: { assistantId: string; filePath: string }) => {
+  register('ai:uploadFile', async (_e, { assistantId, filePath: fp }: { assistantId: string; filePath: string }) => {
     try {
       if (!fs.existsSync(fp)) return { success: false, error: 'File không tồn tại' };
       const fileName = path.basename(fp);
@@ -110,7 +115,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Remove file ──────────────────────────────────────────────────────────
-  ipcMain.handle('ai:removeFile', async (_e, { fileId }: { fileId: number }) => {
+  register('ai:removeFile', async (_e, { fileId }: { fileId: number }) => {
     try {
       AIAssistantService.getInstance().removeFile(fileId);
       return { success: true };
@@ -120,7 +125,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Get suggestions (for chat input) ─────────────────────────────────────
-  ipcMain.handle('ai:suggest', async (_e, { assistantId, chatHistory }: { assistantId: string; chatHistory: any[] }) => {
+  register('ai:suggest', async (_e, { assistantId, chatHistory }: { assistantId: string; chatHistory: any[] }) => {
     try {
       const suggestions = await AIAssistantService.getInstance().getSuggestions(assistantId, chatHistory);
       return { success: true, suggestions };
@@ -133,7 +138,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Direct chat ──────────────────────────────────────────────────────────
-  ipcMain.handle('ai:chat', async (_e, { assistantId, messages, structured, maxTokens }: { assistantId: string; messages: any[]; structured?: boolean; maxTokens?: number }) => {
+  register('ai:chat', async (_e, { assistantId, messages, structured, maxTokens }: { assistantId: string; messages: any[]; structured?: boolean; maxTokens?: number }) => {
     try {
       Logger.info(`[AIAssistantIpc] chat: assistantId=${assistantId}, messagesCount=${messages?.length}, structured=${!!structured}, maxTokens=${maxTokens ?? 'default'}`);
       const result = await AIAssistantService.getInstance().chat(assistantId, messages, !!structured, maxTokens);
@@ -147,7 +152,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Per-account assistant assignment ──────────────────────────────────────
-  ipcMain.handle('ai:getAccountAssistant', async (_e, { zaloId, role }: { zaloId: string; role: 'suggestion' | 'panel' }) => {
+  register('ai:getAccountAssistant', async (_e, { zaloId, role }: { zaloId: string; role: 'suggestion' | 'panel' }) => {
     try {
       const assistant = AIAssistantService.getInstance().getAssistantForAccount(zaloId, role);
       if (!assistant) return { success: true, assistant: null };
@@ -157,7 +162,7 @@ export function registerAIAssistantIpc(): void {
     }
   });
 
-  ipcMain.handle('ai:setAccountAssistant', async (_e, { zaloId, role, assistantId }: { zaloId: string; role: 'suggestion' | 'panel'; assistantId: string | null }) => {
+  register('ai:setAccountAssistant', async (_e, { zaloId, role, assistantId }: { zaloId: string; role: 'suggestion' | 'panel'; assistantId: string | null }) => {
     try {
       AIAssistantService.getInstance().setAccountAssistant(zaloId, role, assistantId);
       return { success: true };
@@ -166,7 +171,7 @@ export function registerAIAssistantIpc(): void {
     }
   });
 
-  ipcMain.handle('ai:getAccountAssistants', async (_e, { zaloId }: { zaloId: string }) => {
+  register('ai:getAccountAssistants', async (_e, { zaloId }: { zaloId: string }) => {
     try {
       const assignments = AIAssistantService.getInstance().getAccountAssistants(zaloId);
       return { success: true, ...assignments };
@@ -176,7 +181,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Usage logs & reporting ────────────────────────────────────────────────
-  ipcMain.handle('ai:getUsageLogs', async (_e, opts: any) => {
+  register('ai:getUsageLogs', async (_e, opts: any) => {
     try {
       const logs = AIAssistantService.getInstance().getUsageLogs(opts);
       return { success: true, logs };
@@ -185,7 +190,7 @@ export function registerAIAssistantIpc(): void {
     }
   });
 
-  ipcMain.handle('ai:getUsageStats', async (_e, opts: any) => {
+  register('ai:getUsageStats', async (_e, opts: any) => {
     try {
       const stats = AIAssistantService.getInstance().getUsageStats(opts);
       return { success: true, stats };
@@ -195,7 +200,7 @@ export function registerAIAssistantIpc(): void {
   });
 
   // ─── Trigger manual AI contact summary ────────────────────────────────────
-  ipcMain.handle('ai:triggerContactSummary', async (_e, {
+  register('ai:triggerContactSummary', async (_e, {
     ownerZaloId, contactId
   }: { ownerZaloId: string; contactId: string }) => {
     try {
@@ -222,4 +227,3 @@ export function registerAIAssistantIpc(): void {
     }
   });
 }
-

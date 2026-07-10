@@ -8,6 +8,7 @@ import * as path from 'path';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
 import HttpConnectionManager from '../../src/services/http/HttpConnectionManager';
 import HttpClientService from '../../src/services/http/HttpClientService';
+import { ipcHandlerRegistry } from './ipcRegistry';
 
 /** Repair queue: dedup concurrent repairs for the same file */
 const pendingRepairs = new Map<string, Promise<{ success: boolean; newLocalPath?: string; error?: string }>>();
@@ -30,7 +31,12 @@ function getFfmpegBin(): string {
 }
 
 export function registerFileIpc() {
-    ipcMain.handle('file:openDialog', async (_event, options: any) => {
+    const register = (channel: string, handler: (event: any, ...args: any[]) => Promise<any>) => {
+        ipcMain.handle(channel, handler);
+        ipcHandlerRegistry.set(channel, handler);
+    };
+
+    register('file:openDialog', async (_event, options: any) => {
         try {
             const result = await dialog.showOpenDialog({
                 properties: ['openFile', ...(options?.multiSelect ? ['multiSelections' as const] : [])],
@@ -45,7 +51,7 @@ export function registerFileIpc() {
         }
     });
 
-    ipcMain.handle('file:saveImage', async (_event, { zaloId, url, filename }) => {
+    register('file:saveImage', async (_event, { zaloId, url, filename }) => {
         try {
             const localPath = await FileStorageService.downloadImage(zaloId, url, filename);
             return { success: true, localPath };
@@ -55,11 +61,11 @@ export function registerFileIpc() {
         }
     });
 
-    ipcMain.handle('file:getAppDataPath', async () => {
+    register('file:getAppDataPath', async () => {
         return { success: true, path: app.getPath('userData') };
     });
 
-    ipcMain.handle('file:openPath', async (_event, filePath: string) => {
+    register('file:openPath', async (_event, filePath: string) => {
         try {
             // Resolve relative paths (stored in DB as folder-agnostic relative paths)
             const resolved = FileStorageService.resolveAbsolutePath(filePath);
@@ -70,7 +76,7 @@ export function registerFileIpc() {
         }
     });
 
-    ipcMain.handle('file:exists', async (_event, filePath: string) => {
+    register('file:exists', async (_event, filePath: string) => {
         try {
             if (!filePath) return false;
             const resolved = FileStorageService.resolveAbsolutePath(filePath);
@@ -81,7 +87,7 @@ export function registerFileIpc() {
     });
 
     /** Mở thư mục chứa file và highlight file đó (Explorer/Finder) */
-    ipcMain.handle('file:showItemInFolder', async (_event, filePath: string) => {
+    register('file:showItemInFolder', async (_event, filePath: string) => {
         try {
             // Resolve relative paths (stored in DB as folder-agnostic relative paths)
             const resolved = FileStorageService.resolveAbsolutePath(filePath);
@@ -95,7 +101,7 @@ export function registerFileIpc() {
     /**
      * Lưu file về máy: hiện dialog chọn vị trí, copy file local hoặc download từ URL
      */
-    ipcMain.handle('file:saveAs', async (_event, params: {
+    register('file:saveAs', async (_event, params: {
         localPath?: string;
         remoteUrl?: string;
         defaultName: string;
@@ -197,7 +203,7 @@ export function registerFileIpc() {
     });
 
     /** Lưu base64 data thành file tạm để gửi ảnh clipboard */
-    ipcMain.handle('file:saveTempBlob', async (_event, { base64, ext, filename }: { base64: string; ext: string; filename?: string }) => {
+    register('file:saveTempBlob', async (_event, { base64, ext, filename }: { base64: string; ext: string; filename?: string }) => {
         try {
             const tmpDir = path.join(app.getPath('temp'), 'zagi-clipboard');
             if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
@@ -218,7 +224,7 @@ export function registerFileIpc() {
      * Đọc ảnh từ local path hoặc remote URL và trả về base64.
      * Dùng main process để tránh CORS khi fetch remote URL từ renderer.
      */
-    ipcMain.handle('file:readImageAsBase64', async (_event, { localPath: lp, remoteUrl }: { localPath?: string; remoteUrl?: string }) => {
+    register('file:readImageAsBase64', async (_event, { localPath: lp, remoteUrl }: { localPath?: string; remoteUrl?: string }) => {
         try {
             if (lp) {
                 const resolved = FileStorageService.resolveAbsolutePath(lp);
@@ -250,7 +256,7 @@ export function registerFileIpc() {
     /**
      * Lấy metadata video (duration, width, height) và extract thumbnail dùng ffmpeg-static.
      */
-    ipcMain.handle('file:getVideoMeta', async (_event, { filePath: videoPath }: { filePath: string }) => {
+    register('file:getVideoMeta', async (_event, { filePath: videoPath }: { filePath: string }) => {
         try {
             // Resolve relative paths stored in DB
             const resolvedVideoPath = FileStorageService.resolveAbsolutePath(videoPath);
@@ -340,7 +346,7 @@ export function registerFileIpc() {
      * Repair ảnh lỗi: xóa file hỏng, tải lại từ CDN backup URL, cập nhật DB.
      * Renderer gọi khi img onError fire (MediaBubble / MediaViewer).
      */
-    ipcMain.handle('file:repairImage', async (_event, params: {
+    register('file:repairImage', async (_event, params: {
         zaloId: string;
         msgId: string;
         threadId?: string;
@@ -419,7 +425,7 @@ export function registerFileIpc() {
      * Batch validate ảnh local: kiểm tra nhiều ảnh cùng lúc, trả về danh sách ảnh lỗi.
      * Renderer gọi khi load messages để tìm và repair ảnh hỏng từ trước.
      */
-    ipcMain.handle('file:validateLocalImages', async (_event, items: Array<{
+    register('file:validateLocalImages', async (_event, items: Array<{
         zaloId: string;
         msgId: string;
         threadId?: string;

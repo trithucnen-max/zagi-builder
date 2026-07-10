@@ -4,6 +4,21 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v27.2.11] - 2026-07-10
+
+### Đồng bộ AI & Proxy tệp đính kèm đầy đủ cho Nhân viên (Employee Mode)
+
+- **Cấu hình & Đồng bộ AI từ xa:**
+  - Khắc phục triệt để lỗi không đồng bộ danh sách trợ lý AI từ Boss xuống máy nhân viên.
+  - Tự động chuyển tiếp (proxy) tất cả 14 kênh thao tác đọc/ghi của AI (`ai:*`) từ máy nhân viên về máy Boss, giúp nhân viên tạo mới, sửa đổi hoặc xóa cấu hình AI từ xa.
+  - Đăng ký toàn bộ IPC handler của trợ lý AI vào `ipcHandlerRegistry` để phục vụ chuyển tiếp an toàn từ HTTP Relay.
+
+- **Sửa lỗi không mở xem được ảnh lớn (Media Viewer) trên máy Nhân viên:**
+  - Định tuyến các kênh tệp hệ thống (`file:repairImage`, `file:validateLocalImages`, `file:readImageAsBase64`, `file:getVideoMeta`, `file:exists`) từ máy nhân viên về máy Boss thông qua proxy.
+  - Cho phép máy nhân viên truy cập trực tiếp các tệp tin lưu trữ vật lý trên Boss Machine, giải quyết lỗi nhân viên thấy ảnh thumbnail nhưng bấm mở xem ảnh lớn không được.
+
+---
+
 ## [v27.2.10] - 2026-07-10
 
 ### Cải tiến UI/UX & Sửa lỗi Nghiêm trọng Chuyển tiếp Tệp Đính kèm (Employee Mode)
