@@ -725,10 +725,11 @@ class WorkflowEngineService {
       // Filter by integration id
       if (cfg.integrationId && data.integrationId !== cfg.integrationId) return false;
       // Filter by minimum amount
-      if (cfg.minAmount && Number(tx.amount || tx.in || 0) < Number(cfg.minAmount)) return false;
+      const amount = Number(tx.amount || tx.in || tx.amount_in || tx.amountIn || 0);
+      if (cfg.minAmount && amount < Number(cfg.minAmount)) return false;
       // Filter by description keyword
       if (cfg.descContains) {
-        const desc = String(tx.description || tx.memo || tx.content || '').toLowerCase();
+        const desc = String(tx.description || tx.memo || tx.content || tx.transaction_content || tx.transactionContent || '').toLowerCase();
         if (!desc.includes(String(cfg.descContains).toLowerCase())) return false;
       }
     }
