@@ -7,6 +7,7 @@ import GroupAvatar from '@/components/common/GroupAvatar';
 import TemplateVarPopup from './TemplateVarPopup';
 import { SmartInput, SmartTextarea } from './SmartInput';
 import { showConfirm } from '@/components/common/ConfirmDialog';
+import { getTemplateVarsForNode, getNodeOutputVars } from './templateVars';
 
 const BANK_LIST = [
   { name: 'Vietcombank', bin: 970436 },
@@ -4567,9 +4568,47 @@ export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConf
       const assistants = listRes?.assistants || [];
       const assistantId = assistants.find((a: any) => a.enabled !== false)?.id || 'default';
       
+      // 1. Gather all available variables for the current workflow context
+      const triggerNode = nodes?.find(n => n.type?.includes('trigger') || n.type?.startsWith('trigger.'));
+      const triggerVars = getTemplateVarsForNode(triggerNode?.type);
+      const nodeOutputVars = getNodeOutputVars(nodes || [], node.id);
+      const allVars = [...triggerVars, ...nodeOutputVars];
+
+      // 2. Format the variables catalog list
+      const variablesCatalog = allVars.map(v => {
+        let text = `- {{ ${v.key} }} : ${v.label} (Mô tả: ${v.description}`;
+        if (v.example) text += `, ví dụ: ${v.example}`;
+        text += `)`;
+        return text;
+      }).join('\n');
+
+      // 3. Build detailed, rich system prompt instructing AI on variables and filters
       const systemMessage = `Bạn là một trợ lý AI chuyên nghiệp giúp viết nội dung cho các kịch bản tự động hóa (workflow) trong phần mềm Zagi.
-Nhiệm vụ của bạn là viết một đoạn văn bản (tin nhắn, nội dung email, prompt, v.v.) tự nhiên, lôi cuốn, chuyên nghiệp dựa trên yêu cầu của người dùng.
-Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhập hay kết luận nào ngoài nội dung văn bản sẽ sử dụng.`;
+Nhiệm vụ của bạn là viết một đoạn văn bản (tin nhắn Zalo/Facebook, nội dung email, prompt, v.v.) tự nhiên, lôi cuốn, chuyên nghiệp dựa trên yêu cầu của người dùng.
+
+Để chèn dữ liệu động từ hệ thống, bạn PHẢI sử dụng chính xác các biến có sẵn dưới đây bằng cú pháp {{ biến | bộ_lọc }}:
+
+DANH SÁCH BIẾN DỮ LIỆU ĐỘNG CÓ SẴN TRONG WORKFLOW NÀY:
+${variablesCatalog}
+
+CÁC BỘ LỌC ĐỊNH DẠNG HỖ TRỢ (RẤT QUAN TRỌNG):
+- | formatNumber : Sử dụng khi muốn định dạng số/số tiền có dấu phẩy phân tách hàng nghìn. Ví dụ: {{ $trigger.amount | formatNumber }} VNĐ -> 10,000,000 VNĐ
+- | formatVND : Sử dụng khi muốn định dạng số tiền thành tiền tệ Việt Nam. Ví dụ: {{ $trigger.amount | formatVND }} -> 10.000.000đ
+- | formatDate('HH:mm - DD/MM/YYYY') : Định dạng ngày giờ. Ví dụ: {{ $trigger.transactionDate | formatDate('HH:mm - DD/MM/YYYY') }} -> 14:30 - 11/07/2026
+
+VÍ DỤ CẤU TRÚC TIN NHẮN THÔNG BÁO CHUẨN ĐỂ THAM KHẢO (Luôn sử dụng emoji và bôi đậm tiêu đề thông tin để tăng tính thẩm mỹ):
+📌 Chi tiết giao dịch
+💰 Số tiền: {{ $trigger.amount | formatNumber }} VNĐ
+🏦 Ngân hàng: {{ $trigger.bankName }}
+📝 Nội dung: {{ $trigger.description }}
+⏰ Thời gian: {{ $trigger.transactionDate | formatDate('HH:mm - DD/MM/YYYY') }}
+
+Zagi chân thành cảm ơn Anh/Chị đã tin tưởng và đồng hành. Chúc Anh/Chị một ngày làm việc thật nhiều năng lượng và hiệu quả! 🤝🌟
+
+HƯỚNG DẪN SOẠN THẢO:
+1. Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhập, hướng dẫn hay kết luận nào ngoài nội dung văn bản sẽ sử dụng.
+2. Tự động chèn các biến động {{ ... }} và các bộ lọc định dạng phù hợp nhất vào văn bản dựa theo yêu cầu của người dùng.
+3. Trình bày tin nhắn đẹp mắt, sử dụng các icon emoji và định dạng bôi đậm (dùng ** để bôi đậm, ví dụ **Số tiền:**) để làm nổi bật thông tin quan trọng.`;
 
       const response = await ipc.ai?.chat(assistantId, [
         { role: 'system', content: systemMessage },

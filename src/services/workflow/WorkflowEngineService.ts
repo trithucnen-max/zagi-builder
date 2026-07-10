@@ -4008,6 +4008,9 @@ class WorkflowEngineService {
         if (filterStr === 'formatVND') {
           const num = Number(val);
           val = Number.isFinite(num) ? num.toLocaleString('vi-VN') + 'đ' : String(val ?? '');
+        } else if (filterStr === 'formatNumber') {
+          const num = Number(val);
+          val = Number.isFinite(num) ? num.toLocaleString('en-US') : String(val ?? '');
         } else if (filterStr === 'extractOrderCode') {
           if (!val) {
             val = '';
