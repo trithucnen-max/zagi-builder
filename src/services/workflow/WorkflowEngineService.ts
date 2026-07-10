@@ -925,8 +925,18 @@ class WorkflowEngineService {
       let renderedConfig: Record<string, any> = {};
       try {
         renderedConfig = this.renderConfig(node.config, context, nodeId);
+        
+        // Coerce message field to string for message-sending nodes to prevent crashes if an object is passed
+        if (node.type === 'zalo.sendMessage' || node.type === 'fb.action.sendMessage') {
+          if (renderedConfig.message !== undefined && renderedConfig.message !== null && typeof renderedConfig.message !== 'string') {
+            renderedConfig.message = typeof renderedConfig.message === 'object' ? JSON.stringify(renderedConfig.message) : String(renderedConfig.message);
+          }
+        }
+
         if (node.type === 'zalo.sendMessage') {
-          Logger.info(`[WorkflowEngine] sendMessage BEFORE: raw="${(node.config.message || '').substring(0, 300)}" → rendered="${(renderedConfig.message || '').substring(0, 300)}"`);
+          const rawMsg = typeof node.config.message === 'string' ? node.config.message : JSON.stringify(node.config.message || '');
+          const rendMsg = typeof renderedConfig.message === 'string' ? renderedConfig.message : JSON.stringify(renderedConfig.message || '');
+          Logger.info(`[WorkflowEngine] sendMessage BEFORE: raw="${rawMsg.substring(0, 300)}" → rendered="${rendMsg.substring(0, 300)}"`);
         }
         
         let output: Record<string, any> = {};
