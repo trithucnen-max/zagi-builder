@@ -7,7 +7,7 @@ import GroupAvatar from '@/components/common/GroupAvatar';
 import TemplateVarPopup from './TemplateVarPopup';
 import { SmartInput, SmartTextarea } from './SmartInput';
 import { showConfirm } from '@/components/common/ConfirmDialog';
-import { getTemplateVarsForNode, getNodeOutputVars } from './templateVars';
+import { getTemplateVarsForNode, getNodeOutputVars, TEMPLATE_VARS } from './templateVars';
 
 const BANK_LIST = [
   { name: 'Vietcombank', bin: 970436 },
@@ -4569,8 +4569,7 @@ export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConf
       const assistantId = assistants.find((a: any) => a.enabled !== false)?.id || 'default';
       
       // 1. Gather all available variables for the current workflow context
-      const triggerNode = nodes?.find(n => n.type?.includes('trigger') || n.type?.startsWith('trigger.'));
-      const triggerVars = getTemplateVarsForNode(triggerNode?.type);
+      const triggerVars = TEMPLATE_VARS; // Load entire system variables catalog
       const nodeOutputVars = getNodeOutputVars(nodes || [], node.id);
       const allVars = [...triggerVars, ...nodeOutputVars];
 
@@ -4588,13 +4587,19 @@ Nhiệm vụ của bạn là viết một đoạn văn bản (tin nhắn Zalo/Fa
 
 Để chèn dữ liệu động từ hệ thống, bạn PHẢI sử dụng chính xác các biến có sẵn dưới đây bằng cú pháp {{ biến | bộ_lọc }}:
 
-DANH SÁCH BIẾN DỮ LIỆU ĐỘNG CÓ SẴN TRONG WORKFLOW NÀY:
+DANH SÁCH BIẾN DỮ LIỆU ĐỘNG CÓ SẴN TRONG HỆ THỐNG:
 ${variablesCatalog}
 
 CÁC BỘ LỌC ĐỊNH DẠNG HỖ TRỢ (RẤT QUAN TRỌNG):
 - | formatNumber : Sử dụng khi muốn định dạng số/số tiền có dấu phẩy phân tách hàng nghìn. Ví dụ: {{ $trigger.amount | formatNumber }} VNĐ -> 10,000,000 VNĐ
 - | formatVND : Sử dụng khi muốn định dạng số tiền thành tiền tệ Việt Nam. Ví dụ: {{ $trigger.amount | formatVND }} -> 10.000.000đ
 - | formatDate('HH:mm - DD/MM/YYYY') : Định dạng ngày giờ. Ví dụ: {{ $trigger.transactionDate | formatDate('HH:mm - DD/MM/YYYY') }} -> 14:30 - 11/07/2026
+
+HƯỚNG DẪN SOẠN THẢO CHO TỪNG HOÀN CẢNH:
+- HOÀN CẢNH THANH TOÁN (SePay, Casso...): Sử dụng các biến như {{ $trigger.amount | formatNumber }} VNĐ, {{ $trigger.bankName }}, {{ $trigger.description }}, {{ $trigger.transactionDate | formatDate('HH:mm - DD/MM/YYYY') }} để làm tin nhắn xác nhận nhận tiền.
+- HOÀN CẢNH VẬN CHUYỂN / GIAO HÀNG (GHN, GHTK...): Sử dụng các biến vận đơn như {{ $trigger.shippingCode }}, {{ $trigger.carrier }}, {{ $trigger.status }}, {{ $trigger.fee | formatNumber }} để làm tin nhắn cập nhật trạng thái giao hàng.
+- HOÀN CẢNH BÁN HÀNG / POS / ĐƠN HÀNG (KiotViet, Sapo...): Sử dụng các biến đơn hàng như {{ $trigger.orderCode }}, {{ $trigger.totalPayment | formatNumber }}, {{ $trigger.customerName }} để thông báo tạo đơn, xác nhận đơn thành công.
+- HOÀN CẢNH CHĂM SÓC KHÁCH HÀNG CRM: Sử dụng các biến như {{ $trigger.fromName }}, {{ $trigger.fromPhone }}, danh xưng xưng hô phù hợp.
 
 VÍ DỤ CẤU TRÚC TIN NHẮN THÔNG BÁO CHUẨN ĐỂ THAM KHẢO (Chỉ sử dụng emoji và văn bản thường, KHÔNG sử dụng ký tự định dạng **):
 📌 Chi tiết giao dịch
