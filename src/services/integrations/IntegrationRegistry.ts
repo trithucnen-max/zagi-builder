@@ -384,10 +384,13 @@ export const IntegrationRegistry = {
           }
  
           if (config) {
+            Logger.log(`[WebhookServer] Webhook matched/routed to config: ${config.id} (${config.type})`);
             // Emit payment event for workflow triggers
             if (config.type === 'casso' || config.type === 'sepay') {
               const transactions: any[] = payload?.data || (Array.isArray(payload) ? payload : [payload]);
+              Logger.log(`[WebhookServer] Processing ${transactions.length} payment transactions for workflow emit`);
               for (const tx of transactions) {
+                Logger.log(`[WebhookServer] Emitting integration:payment event: amount=${tx.amount || tx.amount_in || 0}, content="${tx.description || tx.transaction_content || ''}"`);
                 EventBroadcaster.emit('integration:payment', {
                   integrationId: config.id,
                   integrationType: config.type,

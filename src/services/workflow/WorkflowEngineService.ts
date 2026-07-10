@@ -468,17 +468,37 @@ class WorkflowEngineService {
   // ─── Trigger matching ─────────────────────────────────────────────────────
 
   private triggerWorkflows(triggerType: string, eventData: any): void {
+    Logger.log(`[WorkflowEngine] triggerWorkflows: Evaluating ${this.workflows.size} workflows for event type '${triggerType}'`);
     for (const wf of this.workflows.values()) {
-      if (!wf.enabled) continue;
-      if (!this.isRunnableWorkflow(wf)) continue;
+      if (!wf.enabled) {
+        Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) is disabled, skipping`);
+        continue;
+      }
+      if (!this.isRunnableWorkflow(wf)) {
+        Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) channel is not runnable (${wf.channel}), skipping`);
+        continue;
+      }
       const triggerNode = wf.nodes.find(n => n.type === triggerType);
-      if (!triggerNode) continue;
+      if (!triggerNode) {
+        Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) does not contain trigger type '${triggerType}', skipping`);
+        continue;
+      }
       // pageIds: rỗng = áp dụng cho tất cả; có giá trị = chỉ chạy cho page khớp
       if (wf.pageIds.length > 0) {
         const accountId = eventData.zaloId || eventData.fbAccountId || '';
-        if (accountId && !wf.pageIds.includes(accountId)) continue;
+        if (accountId && !wf.pageIds.includes(accountId)) {
+          Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) pageIds mismatch (accountId=${accountId}, pageIds=${wf.pageIds}), skipping`);
+          continue;
+        }
       }
-      if (!this.matchesTriggerFilter(triggerNode, eventData)) continue;
+      
+      Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) matching filter conditions...`);
+      if (!this.matchesTriggerFilter(triggerNode, eventData)) {
+        Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) filter match failed. Config: ${JSON.stringify(triggerNode.config)}, Event: ${JSON.stringify(eventData)}`);
+        continue;
+      }
+      
+      Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) matched filter successfully! Running...`);
 
       // ─── Debounce for message triggers: gom tin nhắn liên tiếp ────────
       const debounceSeconds = Number(triggerNode.config.debounceSeconds || 0);
