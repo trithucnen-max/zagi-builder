@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import BrandLogo from '../common/BrandLogo';
+import { useEmployeeStore } from '@/store/employeeStore';
 
 interface CatalogItem {
   type: string;
@@ -33,6 +34,9 @@ interface Props {
 
 export default function IntegrationDetailPage({ catalogItem, saved, webhookPort, tunnelUrl, onBack }: Props) {
   const { showNotification } = useAppStore();
+  const empMode = useEmployeeStore(s => s.mode);
+  const isEmployee = empMode === 'employee';
+
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
@@ -148,11 +152,11 @@ export default function IntegrationDetailPage({ catalogItem, saved, webhookPort,
         </div>
         <div className="ml-auto flex items-center gap-2">
           {/* Enable toggle */}
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className={`flex items-center gap-2 ${isEmployee ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
             <span className="text-xs text-gray-400">Kích hoạt</span>
             <div
-              className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-blue-600' : 'bg-gray-600'}`}
-              onClick={() => setEnabled(!enabled)}
+              className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-blue-600' : 'bg-gray-600'} ${isEmployee ? 'opacity-70' : ''}`}
+              onClick={() => !isEmployee && setEnabled(!enabled)}
             >
               <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : ''}`}/>
             </div>
@@ -163,151 +167,179 @@ export default function IntegrationDetailPage({ catalogItem, saved, webhookPort,
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-        {/* Credentials */}
-        <div>
-          <h2 className="text-sm font-semibold text-gray-300 mb-3">🔑 Thông tin xác thực</h2>
-          <div className="space-y-3 bg-gray-800 rounded-xl p-4">
-            {catalogItem.credentialFields.map(field => (
-              <div key={field.key}>
-                <label className="block text-xs text-gray-400 mb-1">{field.label}</label>
-                <div className="relative">
-                  <input
-                    type={field.secret && !showSecret[field.key] ? 'password' : 'text'}
-                    value={credentials[field.key] || ''}
-                    onChange={e => setCredentials(prev => ({ ...prev, [field.key]: e.target.value }))}
-                    placeholder={field.placeholder || (saved_id ? '••••••••' : '')}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 pr-10"
-                  />
-                  {field.secret && (
-                    <button
-                      type="button"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                      onClick={() => setShowSecret(prev => ({ ...prev, [field.key]: !prev[field.key] }))}
-                    >
-                      {showSecret[field.key] ? '🙈' : '👁'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          {saved_id && (
-            <p className="text-xs text-gray-500 mt-1">Để trống các trường bí mật nếu không muốn thay đổi.</p>
-          )}
-        </div>
-
-        {/* Settings */}
-        {catalogItem.settingFields && catalogItem.settingFields.length > 0 && (
-          <div>
-            <h2 className="text-sm font-semibold text-gray-300 mb-3">⚙️ Cài đặt</h2>
-            <div className="space-y-3 bg-gray-800 rounded-xl p-4">
-              {catalogItem.settingFields.map(field => (
-                <div key={field.key}>
-                  <label className="block text-xs text-gray-400 mb-1">{field.label}</label>
-                  {field.type === 'select' ? (
-                    <select
-                      value={settings[field.key] || ''}
-                      onChange={e => setSettings(prev => ({ ...prev, [field.key]: e.target.value }))}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                    >
-                      {field.options?.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={settings[field.key] || ''}
-                      onChange={e => setSettings(prev => ({ ...prev, [field.key]: e.target.value }))}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Webhook & Tunnel — bắt buộc cho thanh toán */}
-        {isPayment && (
-          <div>
-            <h2 className="text-sm font-semibold text-gray-300 mb-3">🌐 Webhook Tunnel — Kết nối Internet</h2>
-            <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-
-              {/* WHY — giải thích tại sao cần tunnel */}
-              <div className="bg-amber-900/20 border border-amber-700/30 rounded-xl px-4 py-3">
-                <p className="text-xs font-semibold text-amber-300 mb-1.5">💡 Dùng {catalogItem.name} để nhận thanh toán tự động?</p>
-                <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                  {catalogItem.name} gửi webhook (thông báo giao dịch) từ internet.
-                  Nhưng phần mềm đang chạy trên máy tính của bạn (localhost), không có địa chỉ công khai.
-                  <strong className="text-amber-100"> Bạn cần bật Tunnel</strong> để tạo cầu nối giữa internet và máy bạn.
-                </p>
-              </div>
-
-              {/* Luồng hoạt động trực quan */}
-              <div className="bg-gray-900/40 rounded-xl px-4 py-3 border border-gray-700/40">
-                <p className="text-[10px] text-gray-500 font-medium mb-2">📋 Luồng hoạt động:</p>
-                <div className="flex items-center gap-2 text-[11px] text-gray-400 flex-wrap">
-                  <span className="px-2 py-1 bg-blue-900/40 rounded-lg text-blue-300">{catalogItem.name}</span>
-                  <span className="text-gray-600">─(webhook)─→</span>
-                  <span className="px-2 py-1 bg-green-900/40 rounded-lg text-green-300">Tunnel URL</span>
-                  <span className="text-gray-600">─(tunnel)─→</span>
-                  <span className="px-2 py-1 bg-purple-900/40 rounded-lg text-purple-300">Máy bạn</span>
-                  <span className="text-gray-600">→</span>
-                  <span className="px-2 py-1 bg-emerald-900/40 rounded-lg text-emerald-300">Tự động XN đơn</span>
-                </div>
-              </div>
-
-              {/* Public URL (when tunnel is active) */}
-              {publicWebhookUrl && (
+        {isEmployee ? (
+          <div className="bg-gray-800 rounded-xl p-5 border border-gray-700/60">
+            {saved_id ? (
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🟢</span>
                 <div>
-                  <p className="text-[10px] text-green-400 mb-1 font-medium">✅ URL công khai — dùng để cấu hình webhook trong {catalogItem.name}:</p>
-                  <div className="flex items-center gap-2 bg-green-900/20 border border-green-700/40 rounded-lg px-3 py-2">
-                    <code className="text-xs text-green-300 flex-1 break-all">{publicWebhookUrl}</code>
-                    <button
-                      className="text-gray-400 hover:text-white flex-shrink-0"
-                      onClick={() => navigator.clipboard.writeText(publicWebhookUrl)}
-                      title="Copy"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-green-600 mt-1">Copy URL trên và dán vào webhook settings của {catalogItem.name}.</p>
+                  <h3 className="text-sm font-semibold text-white">Đang hoạt động</h3>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Gian hàng: {saved?.settings?.retailerName || saved?.settings?.retailerDomain || saved?.settings?.storeDomain || saved?.settings?.businessId || saved?.name || ''}
+                  </p>
                 </div>
-              )}
-
-              {/* No tunnel — Big warning + CTA */}
-              {!publicWebhookUrl && (
-                <div className="bg-red-900/20 border border-red-700/40 rounded-xl px-4 py-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg flex-shrink-0">🔴</span>
-                    <div>
-                      <p className="text-xs font-semibold text-red-300 mb-1">Chưa bật Tunnel — Chưa thể nhận thanh toán tự động</p>
-                      <p className="text-[11px] text-red-400/80 leading-relaxed">
-                        Server {catalogItem.name} cần gửi webhook đến một URL công khai trên internet.
-                        {tunnelUrl
-                          ? 'Tunnel đang chạy nhưng chưa có URL. Thử tắt rồi bật lại.'
-                          : 'Bạn cần bật Tunnel ở trang Tích hợp (nút "Bật Tunnel") để nhận webhook.'}
-                      </p>
-                      <ul className="mt-2 space-y-1 text-[11px] text-red-300/70">
-                        <li className="flex items-start gap-1.5"><span className="flex-shrink-0">1.</span> Về trang <strong className="text-red-200">Tích hợp → bật Tunnel</strong> (nút xanh trên cùng)</li>
-                        <li className="flex items-start gap-1.5"><span className="flex-shrink-0">2.</span> Copy URL công khai hiện ra</li>
-                        <li className="flex items-start gap-1.5"><span className="flex-shrink-0">3.</span> Dán URL vào webhook settings của {catalogItem.name}</li>
-                      </ul>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-xl">⚪</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400">Chưa được cấu hình</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Vui lòng liên hệ Boss để thiết lập kết nối.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Credentials */}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-300 mb-3">🔑 Thông tin xác thực</h2>
+              <div className="space-y-3 bg-gray-800 rounded-xl p-4">
+                {catalogItem.credentialFields.map(field => (
+                  <div key={field.key}>
+                    <label className="block text-xs text-gray-400 mb-1">{field.label}</label>
+                    <div className="relative">
+                      <input
+                        type={field.secret && !showSecret[field.key] ? 'password' : 'text'}
+                        value={credentials[field.key] || ''}
+                        onChange={e => setCredentials(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        placeholder={field.placeholder || (saved_id ? '••••••••' : '')}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 pr-10"
+                      />
+                      {field.secret && (
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                          onClick={() => setShowSecret(prev => ({ ...prev, [field.key]: !prev[field.key] }))}
+                        >
+                          {showSecret[field.key] ? '🙈' : '👁'}
+                        </button>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Local URL info (informational) */}
-              <div className="bg-gray-700/40 rounded-lg px-3 py-2">
-                <p className="text-[10px] text-gray-500 mb-0.5">URL local (nội bộ, không dùng để cấu hình webhook):</p>
-                <code className="text-[11px] text-gray-500 font-mono">{localWebhookUrl}</code>
+                ))}
               </div>
+              {saved_id && (
+                <p className="text-xs text-gray-500 mt-1">Để trống các trường bí mật nếu không muốn thay đổi.</p>
+              )}
             </div>
-          </div>
+
+            {/* Settings */}
+            {catalogItem.settingFields && catalogItem.settingFields.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-gray-300 mb-3">⚙️ Cài đặt</h2>
+                <div className="space-y-3 bg-gray-800 rounded-xl p-4">
+                  {catalogItem.settingFields.map(field => (
+                    <div key={field.key}>
+                      <label className="block text-xs text-gray-400 mb-1">{field.label}</label>
+                      {field.type === 'select' ? (
+                        <select
+                          value={settings[field.key] || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, [field.key]: e.target.value }))}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                        >
+                          {field.options?.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={settings[field.key] || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, [field.key]: e.target.value }))}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Webhook & Tunnel — bắt buộc cho thanh toán */}
+            {isPayment && (
+              <div>
+                <h2 className="text-sm font-semibold text-gray-300 mb-3">🌐 Webhook Tunnel — Kết nối Internet</h2>
+                <div className="bg-gray-800 rounded-xl p-4 space-y-3">
+
+                  {/* WHY — giải thích tại sao cần tunnel */}
+                  <div className="bg-amber-900/20 border border-amber-700/30 rounded-xl px-4 py-3">
+                    <p className="text-xs font-semibold text-amber-300 mb-1.5">💡 Dùng {catalogItem.name} để nhận thanh toán tự động?</p>
+                    <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                      {catalogItem.name} gửi webhook (thông báo giao dịch) từ internet.
+                      Nhưng phần mềm đang chạy trên máy tính của bạn (localhost), không có địa chỉ công khai.
+                      <strong className="text-amber-100"> Bạn cần bật Tunnel</strong> để tạo cầu nối giữa internet và máy bạn.
+                    </p>
+                  </div>
+
+                  {/* Luồng hoạt động trực quan */}
+                  <div className="bg-gray-900/40 rounded-xl px-4 py-3 border border-gray-700/40">
+                    <p className="text-[10px] text-gray-500 font-medium mb-2">📋 Luồng hoạt động:</p>
+                    <div className="flex items-center gap-2 text-[11px] text-gray-400 flex-wrap">
+                      <span className="px-2 py-1 bg-blue-900/40 rounded-lg text-blue-300">{catalogItem.name}</span>
+                      <span className="text-gray-600">─(webhook)─→</span>
+                      <span className="px-2 py-1 bg-green-900/40 rounded-lg text-green-300">Tunnel URL</span>
+                      <span className="text-gray-600">─(tunnel)─→</span>
+                      <span className="px-2 py-1 bg-purple-900/40 rounded-lg text-purple-300">Máy bạn</span>
+                      <span className="text-gray-600">→</span>
+                      <span className="px-2 py-1 bg-emerald-900/40 rounded-lg text-emerald-300">Tự động XN đơn</span>
+                    </div>
+                  </div>
+
+                  {/* Public URL (when tunnel is active) */}
+                  {publicWebhookUrl && (
+                    <div>
+                      <p className="text-[10px] text-green-400 mb-1 font-medium">✅ URL công khai — dùng để cấu hình webhook trong {catalogItem.name}:</p>
+                      <div className="flex items-center gap-2 bg-green-900/20 border border-green-700/40 rounded-lg px-3 py-2">
+                        <code className="text-xs text-green-300 flex-1 break-all">{publicWebhookUrl}</code>
+                        <button
+                          className="text-gray-400 hover:text-white flex-shrink-0"
+                          onClick={() => navigator.clipboard.writeText(publicWebhookUrl)}
+                          title="Copy"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                          </svg>
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-green-600 mt-1">Copy URL trên và dán vào webhook settings của {catalogItem.name}.</p>
+                    </div>
+                  )}
+
+                  {/* No tunnel — Big warning + CTA */}
+                  {!publicWebhookUrl && (
+                    <div className="bg-red-900/20 border border-red-700/40 rounded-xl px-4 py-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg flex-shrink-0">🔴</span>
+                        <div>
+                          <p className="text-xs font-semibold text-red-300 mb-1">Chưa bật Tunnel — Chưa thể nhận thanh toán tự động</p>
+                          <p className="text-[11px] text-red-400/80 leading-relaxed">
+                            Server {catalogItem.name} cần gửi webhook đến một URL công khai trên internet.
+                            {tunnelUrl
+                              ? 'Tunnel đang chạy nhưng chưa có URL. Thử tắt rồi bật lại.'
+                              : 'Bạn cần bật Tunnel ở trang Tích hợp (nút "Bật Tunnel") để nhận webhook.'}
+                          </p>
+                          <ul className="mt-2 space-y-1 text-[11px] text-red-300/70">
+                            <li className="flex items-start gap-1.5"><span className="flex-shrink-0">1.</span> Về trang <strong className="text-red-200">Tích hợp → bật Tunnel</strong> (nút xanh trên cùng)</li>
+                            <li className="flex items-start gap-1.5"><span className="flex-shrink-0">2.</span> Copy URL công khai hiện ra</li>
+                            <li className="flex items-start gap-1.5"><span className="flex-shrink-0">3.</span> Dán URL vào webhook settings của {catalogItem.name}</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Local URL info (informational) */}
+                  <div className="bg-gray-700/40 rounded-lg px-3 py-2">
+                    <p className="text-[10px] text-gray-500 mb-0.5">URL local (nội bộ, không dùng để cấu hình webhook):</p>
+                    <code className="text-[11px] text-gray-500 font-mono">{localWebhookUrl}</code>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Usage in conversation (QuickPanel) */}
@@ -471,7 +503,7 @@ export default function IntegrationDetailPage({ catalogItem, saved, webhookPort,
 
       {/* Footer actions */}
       <div className="px-6 py-4 border-t border-gray-700 flex-shrink-0 flex items-center gap-3">
-        {saved_id && (
+        {saved_id && !isEmployee && (
           <button
             onClick={handleDelete}
             disabled={deleting}
@@ -490,13 +522,15 @@ export default function IntegrationDetailPage({ catalogItem, saved, webhookPort,
             {testing ? 'Đang test...' : '🔍 Test kết nối'}
           </button>
         )}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors"
-        >
-          {saving ? 'Đang lưu...' : saved_id ? '💾 Cập nhật' : '🔌 Kết nối'}
-        </button>
+        {!isEmployee && (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors"
+          >
+            {saving ? 'Đang lưu...' : saved_id ? '💾 Cập nhật' : '🔌 Kết nối'}
+          </button>
+        )}
       </div>
     </div>
   );
