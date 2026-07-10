@@ -20,13 +20,13 @@ export class SePayAdapter extends IntegrationAdapter {
 
   async testConnection(): Promise<TestResult> {
     try {
-      const res = await axios.get('https://my.sepay.vn/userapi/userinfo', {
+      const res = await axios.get('https://my.sepay.vn/userapi/bankaccounts/list', {
         headers: this.getHeaders(),
         timeout: 10000,
       });
-      if (res.data?.status === 200) {
-        const name = res.data?.data?.fullname || 'SePay';
-        return { success: true, message: `Kết nối SePay thành công — ${name}` };
+      if (res.status === 200 || res.data?.status === 200) {
+        const count = res.data?.bankAccounts?.length || 0;
+        return { success: true, message: `Kết nối SePay thành công — Tìm thấy ${count} tài khoản ngân hàng` };
       }
       return { success: false, message: res.data?.messages || 'Không thể kết nối SePay' };
     } catch (e: any) {
@@ -49,7 +49,7 @@ export class SePayAdapter extends IntegrationAdapter {
       }
 
       case 'getBankAccounts': {
-        const res = await axios.get('https://my.sepay.vn/userapi/accounts/list', {
+        const res = await axios.get('https://my.sepay.vn/userapi/bankaccounts/list', {
           headers: this.getHeaders(),
           timeout: 10000,
         });

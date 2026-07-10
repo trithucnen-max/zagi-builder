@@ -241,7 +241,15 @@ export default function AIQuickPanel({ onClose }: { onClose: () => void }) {
           <div className="text-xs text-gray-500">Đang tải...</div>
         ) : assistants.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-2">
-            <div className="text-3xl">🤖</div>
+            <div className="flex justify-center text-gray-500">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="10" rx="2" />
+                <circle cx="12" cy="5" r="2" />
+                <path d="M12 7v4" />
+                <line x1="8" y1="16" x2="8" y2="16" strokeLinecap="round" strokeWidth="2" />
+                <line x1="16" y1="16" x2="16" y2="16" strokeLinecap="round" strokeWidth="2" />
+              </svg>
+            </div>
             <p className="text-xs text-gray-400 text-center leading-relaxed">
               Chưa có trợ lý AI nào.<br/>Tạo trợ lý để bắt đầu hỗ trợ chat thông minh.
             </p>
