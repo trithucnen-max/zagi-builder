@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v27.2.9** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v27.2.10** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.9-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20Window.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.10-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20Window.exe)
 
-**[Zagi v27.2.9 Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20Window.exe)**
+**[Zagi v27.2.10 Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20Window.exe)**
 
 NSIS Installer · ~195 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~195 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.9-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20MacOS%20M1%2B%20arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.10-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20MacOS%20M1%2B%20arm64.dmg)
 
-**[Zagi v27.2.9 MacOS M1+ arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20MacOS%20M1%2B%20arm64.dmg)**
+**[Zagi v27.2.10 MacOS M1+ arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20MacOS%20M1%2B%20arm64.dmg)**
 
 Apple Silicon DMG · ~257 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · ~257 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.9-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20MacOS%20Intel.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.10-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20MacOS%20Intel.dmg)
 
-**[Zagi v27.2.9 MacOS Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20MacOS%20Intel.dmg)**
+**[Zagi v27.2.10 MacOS Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20MacOS%20Intel.dmg)**
 
 Intel x64 DMG · ~265 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · ~265 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.9-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20Linux.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.10-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20Linux.AppImage)
 
-**[Zagi v27.2.9 Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20Linux.AppImage)**  
-**[Zagi v27.2.9 Linux Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20Linux%20Debian.deb)**
+**[Zagi v27.2.10 Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20Linux.AppImage)**  
+**[Zagi v27.2.10 Linux Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20Linux%20Debian.deb)**
 
 AppImage + .deb · ~239 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~239 MB
 > 
 > Surface Pro 7 trở xuống (Intel) → dùng bản Windows x64 phía trên.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.9-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20Surface.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.10-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20Surface.exe)
 
-**[Zagi v27.2.9 Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.9%20Surface.exe)**
+**[Zagi v27.2.10 Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.10%20Surface.exe)**
 
 NSIS Installer ARM64 · ~196 MB · Tối ưu native cho Surface ARM
 
@@ -124,19 +124,19 @@ NSIS Installer ARM64 · ~196 MB · Tối ưu native cho Surface ARM
 Máy tính của bạn là loại gì?
 │
 ├─ 🖥️ PC desktop / Laptop thông thường (Dell, HP, Lenovo, Asus, Acer...)
-│   └─ → Tải: Zagi v27.2.9 Window.exe  ✅
+│   └─ → Tải: Zagi v27.2.10 Window.exe  ✅
 │
 ├─ 💻 Surface Pro 7, Surface Laptop 1-4, Surface Go 1-2, Surface Book
-│   └─ → Tải: Zagi v27.2.9 Window.exe  ✅  (chip Intel, chạy ok)
+│   └─ → Tải: Zagi v27.2.10 Window.exe  ✅  (chip Intel, chạy ok)
 │
 └─ 💻 Surface Pro X, Surface Pro 9 (5G), Surface Pro 10, Surface Pro 11,
        Surface Laptop 7 (chip Snapdragon / ARM64)
-    └─ → Tải: Zagi v27.2.9 Surface.exe  ✅ (bản native ARM64)
+    └─ → Tải: Zagi v27.2.10 Surface.exe  ✅ (bản native ARM64)
 ```
 
 > 💡 **Cách kiểm tra chip máy Surface:** Vào `Settings → System → About`, xem mục **Processor**:
-> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v27.2.9 Window.exe`
-> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v27.2.9 Surface.exe`
+> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v27.2.10 Window.exe`
+> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v27.2.10 Surface.exe`
 
 ---
 
@@ -146,15 +146,15 @@ Máy tính của bạn là loại gì?
 Mac của bạn là loại gì?
 │
 ├─ 🍎 MacBook Air/Pro M1, M2, M3, M4 (2020 trở về sau)
-│   └─ → Tải: Zagi v27.2.9 MacOS M1+ arm64.dmg  ✅
+│   └─ → Tải: Zagi v27.2.10 MacOS M1+ arm64.dmg  ✅
 │
 └─ 🍎 MacBook, iMac, Mac mini chip Intel (2019 trở về trước)
-    └─ → Tải: Zagi v27.2.9 MacOS Intel.dmg  ✅
+    └─ → Tải: Zagi v27.2.10 MacOS Intel.dmg  ✅
 ```
 
 > 💡 **Cách kiểm tra:** Click logo Apple → **About This Mac** → xem mục **Chip** hoặc **Processor**:
-> - Có chữ `Apple M1/M2/M3/M4` → bản `Zagi v27.2.9 MacOS M1+ arm64.dmg`
-> - Có chữ `Intel` → bản `Zagi v27.2.9 MacOS Intel.dmg`
+> - Có chữ `Apple M1/M2/M3/M4` → bản `Zagi v27.2.10 MacOS M1+ arm64.dmg`
+> - Có chữ `Intel` → bản `Zagi v27.2.10 MacOS Intel.dmg`
 
 ---
 
@@ -164,11 +164,11 @@ Mac của bạn là loại gì?
 Bạn dùng distro nào?
 │
 ├─ Ubuntu, Mint, PopOS, Zorin, ElementaryOS... → Tải .deb  ✅
-│   sudo dpkg -i "Zagi v27.2.9 Linux Debian.deb"
+│   sudo dpkg -i "Zagi v27.2.10 Linux Debian.deb"
 │
 └─ Fedora, Arch, openSUSE hoặc bất kỳ distro nào
     → Tải .AppImage  ✅
-    chmod +x "Zagi v27.2.9 Linux.AppImage" && ./"Zagi v27.2.9 Linux.AppImage"
+    chmod +x "Zagi v27.2.10 Linux.AppImage" && ./"Zagi v27.2.10 Linux.AppImage"
 ```
 
 ---
@@ -177,13 +177,13 @@ Bạn dùng distro nào?
 
 | Thiết bị | File cần tải | Ghi chú |
 |---|---|---|
-| PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.2.9-x64.exe` | Phổ biến nhất |
-| Surface Pro 7 trở xuống | `Zagi-Setup-27.2.9-x64.exe` | Chip Intel |
-| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi-Setup-27.2.9-arm64.exe` | 🆕 Chip ARM64 |
-| MacBook M1/M2/M3/M4 | `Zagi-27.2.9-arm64-mac.zip` | Apple Silicon |
-| MacBook/iMac Intel | `Zagi-27.2.9-mac.zip` | Intel x64 |
-| Ubuntu/Debian Linux | `zagi_27.2.9_amd64.deb` | Cài như package |
-| Fedora/Arch/Linux khác | `Zagi-27.2.9.AppImage` | Chạy mọi distro |
+| PC/Laptop Windows (Intel/AMD) | `Zagi-Setup-27.2.10-x64.exe` | Phổ biến nhất |
+| Surface Pro 7 trở xuống | `Zagi-Setup-27.2.10-x64.exe` | Chip Intel |
+| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi-Setup-27.2.10-arm64.exe` | 🆕 Chip ARM64 |
+| MacBook M1/M2/M3/M4 | `Zagi-27.2.10-arm64-mac.zip` | Apple Silicon |
+| MacBook/iMac Intel | `Zagi-27.2.10-mac.zip` | Intel x64 |
+| Ubuntu/Debian Linux | `zagi_27.2.10_amd64.deb` | Cài như package |
+| Fedora/Arch/Linux khác | `Zagi-27.2.10.AppImage` | Chạy mọi distro |
 
 ---
 
@@ -198,7 +198,7 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 2. Nhấn **Run anyway** (Vẫn chạy)
 
 ### 🍎 macOS
-* ⚠️ **Lưu ý:** Kể từ phiên bản v27.2.9, để phát hành nhanh chóng, bước ký số (Code Signing) tạm thời được bỏ qua. Khi chạy ứng dụng lần đầu, bạn sẽ gặp cảnh báo bảo mật từ Gatekeeper (*"Zagi is damaged and can't be opened"* hoặc *"unidentified developer"*).
+* ⚠️ **Lưu ý:** Kể từ phiên bản v27.2.10, để phát hành nhanh chóng, bước ký số (Code Signing) tạm thời được bỏ qua. Khi chạy ứng dụng lần đầu, bạn sẽ gặp cảnh báo bảo mật từ Gatekeeper (*"Zagi is damaged and can't be opened"* hoặc *"unidentified developer"*).
 * **Cách mở ứng dụng (Vượt qua Gatekeeper):**
   1. Giải nén file `.zip` đã tải về để có ứng dụng `Zagi.app` và kéo nó vào thư mục `/Applications`.
   2. Click chuột phải (hoặc nhấn giữ phím `Control` và click) vào icon `Zagi` trong thư mục `Applications` -> chọn **Open** (Mở) -> chọn tiếp **Open** ở hộp thoại xác nhận.
@@ -210,8 +210,8 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x Zagi-27.2.9.AppImage
-./Zagi-27.2.9.AppImage
+chmod +x Zagi-27.2.10.AppImage
+./Zagi-27.2.10.AppImage
 ```
 
 Nếu lỗi "FUSE not available":
@@ -221,7 +221,7 @@ sudo apt install libfuse2
 
 Hoặc dùng `.deb`:
 ```bash
-sudo dpkg -i zagi_27.2.9_amd64.deb
+sudo dpkg -i zagi_27.2.10_amd64.deb
 ```
 
 </details>
@@ -456,7 +456,7 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.2.9</strong> — 2026-07-09 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v27.2.10</strong> — 2026-07-09 · <em>🟢 Phiên bản hiện tại</em></summary>
 
 ### 🚀 Nâng cấp nổi bật
 
