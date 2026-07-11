@@ -862,8 +862,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
   const triggerType = triggerNode?.data?.type || '';
   const hasSendNodes = nodes.some(n => {
     const t = n.data?.type || '';
-    return t === 'zalo.sendMessage' || t === 'zalo.sendImage' || t === 'zalo.sendFile'
-      || t === 'zalo.sendVoice' || t === 'zalo.sendTyping';
+    return t.startsWith('zalo.send');
   });
 
   const handleRunClick = () => {

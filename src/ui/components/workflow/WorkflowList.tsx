@@ -757,8 +757,7 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
     const triggerType = triggerNode?.type || '';
     const hasSendNodes = (wf.nodes || []).some((n: any) => {
       const t = n.type || '';
-      return t === 'zalo.sendMessage' || t === 'zalo.sendImage' || t === 'zalo.sendFile'
-        || t === 'zalo.sendVoice' || t === 'zalo.sendTyping';
+      return t.startsWith('zalo.send');
     });
     if (hasSendNodes || triggerType === 'trigger.friendRequest') {
       setTestRunWf({ ...wf, _triggerType: triggerType });
