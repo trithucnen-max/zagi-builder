@@ -326,8 +326,18 @@ export default function BankCardModal({ threadId, threadType, onClose }: Props) 
                         <input
                           type="text"
                           value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          placeholder="VD: HD12345"
+                          onChange={(e) => {
+                            const val = e.target.value
+                              .normalize('NFD')
+                              .replace(/[\u0300-\u036f]/g, '')
+                              .replace(/đ/g, 'd')
+                              .replace(/Đ/g, 'D')
+                              .replace(/[^a-zA-Z0-9\s-_]/g, '')
+                              .toUpperCase()
+                              .substring(0, 25);
+                            setDescription(val);
+                          }}
+                          placeholder="VD: HD12345 (Không dấu)"
                           className="w-full bg-gray-900/60 border border-gray-700 rounded-md px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
                         />
                       </div>

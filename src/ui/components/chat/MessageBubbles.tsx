@@ -1571,6 +1571,19 @@ async function loadBankCardHtmlBlob(url: string): Promise<string | null> {
   } catch { return null; }
 }
 
+function sanitizeVietQRDescription(str: string): string {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[^a-zA-Z0-9\s-_]/g, '')
+    .toUpperCase()
+    .trim()
+    .substring(0, 25);
+}
+
 export function BankCardBubble({ msg }: { msg: any }) {
   const [copied, setCopied] = React.useState(false);
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
@@ -1643,7 +1656,10 @@ export function BankCardBubble({ msg }: { msg: any }) {
       qrUrl += `&amount=${data.amount}`;
     }
     if (data.description) {
-      qrUrl += `&addInfo=${encodeURIComponent(data.description)}`;
+      const sanitizedDesc = sanitizeVietQRDescription(data.description);
+      if (sanitizedDesc) {
+        qrUrl += `&addInfo=${encodeURIComponent(sanitizedDesc)}`;
+      }
     }
 
     return (
