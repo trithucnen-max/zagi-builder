@@ -1205,7 +1205,7 @@ export function registerDatabaseIpc() {
     // ─── Bank Cards ─────────────────────────────────────────────────────
     ipcMain.handle('db:getBankCards', async (_event, { zaloId }: { zaloId: string }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getBankCards', { zaloId });
             const cards = DatabaseService.getInstance().getBankCards(zaloId);
             return { success: true, cards };
         } catch (error: any) { return { success: false, error: error.message }; }
@@ -1213,7 +1213,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:upsertBankCard', async (_event, { zaloId, card }: { zaloId: string; card: any }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss("upsertBankCard", { zaloId, card });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:upsertBankCard', { zaloId, card });
             const id = DatabaseService.getInstance().upsertBankCard(zaloId, card);
             return { success: true, id };
         } catch (error: any) { return { success: false, error: error.message }; }
@@ -1221,7 +1221,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:deleteBankCard', async (_event, { zaloId, id }: { zaloId: string; id: number }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss("deleteBankCard", { zaloId, id });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:deleteBankCard', { zaloId, id });
             DatabaseService.getInstance().deleteBankCard(zaloId, id);
             return { success: true };
         } catch (error: any) { return { success: false, error: error.message }; }
