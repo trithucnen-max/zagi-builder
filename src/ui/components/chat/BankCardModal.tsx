@@ -78,6 +78,10 @@ export default function BankCardModal({ threadId, threadType, onClose }: Props) 
   const [editMode, setEditMode] = useState<'list' | 'form'>('list');
   const [editCard, setEditCard] = useState<Partial<BankCard> | null>(null);
 
+  // QR config options
+  const [amount, setAmount] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+
   const loadCards = async () => {
     if (!activeAccountId) return;
     setLoading(true);
@@ -143,6 +147,8 @@ export default function BankCardModal({ threadId, threadType, onClose }: Props) 
         bankName,
         numAccBank: card.account_number,
         nameAccBank: card.account_name,
+        amount: amount ? Number(amount) : undefined,
+        description: description || undefined,
       });
 
       const res = await ipc.zalo?.sendBankCard({
@@ -298,7 +304,37 @@ export default function BankCardModal({ threadId, threadType, onClose }: Props) 
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3.5">
+                  {/* Cấu hình QR thanh toán nhanh */}
+                  <div className="bg-gray-800/40 border border-gray-700/60 rounded-lg p-3 space-y-2.5 shadow-inner">
+                    <span className="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
+                      <span className="text-sm">⚡</span> Cấu hình QR thanh toán nhanh (Tùy chọn)
+                    </span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-gray-400 font-medium">Số tiền cần thanh toán</label>
+                        <input
+                          type="number"
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          placeholder="VD: 50000"
+                          className="w-full bg-gray-900/60 border border-gray-700 rounded-md px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-gray-400 font-medium">Nội dung chuyển khoản</label>
+                        <input
+                          type="text"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          placeholder="VD: HD12345"
+                          className="w-full bg-gray-900/60 border border-gray-700 rounded-md px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
                   {cards.map((card) => (
                     <div
                       key={card.id}
@@ -358,6 +394,7 @@ export default function BankCardModal({ threadId, threadType, onClose }: Props) 
                       </div>
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </>

@@ -1430,13 +1430,19 @@ const BANK_CARD_COLORS: Record<number, { name: string; color: string }> = {
  * Tìm binBank/numAccBank/nameAccBank đệ quy trong object bất kỳ.
  * Zalo webhook trả content với nhiều cấu trúc khác nhau — cần deep search.
  */
-function deepFindBankFields(obj: any, depth = 0): { binBank: number; numAccBank: string; nameAccBank: string } | null {
+function deepFindBankFields(obj: any, depth = 0): { binBank: number; numAccBank: string; nameAccBank: string; amount?: number; description?: string } | null {
   if (!obj || typeof obj !== 'object' || depth > 8) return null;
   // Nếu object trực tiếp chứa binBank + numAccBank → trả về luôn
   const binBank = Number(obj.binBank) || 0;
   const numAccBank = String(obj.numAccBank || '');
   if (binBank && numAccBank) {
-    return { binBank, numAccBank, nameAccBank: String(obj.nameAccBank || '') };
+    return {
+      binBank,
+      numAccBank,
+      nameAccBank: String(obj.nameAccBank || ''),
+      amount: obj.amount ? Number(obj.amount) : undefined,
+      description: obj.description || obj.addInfo || obj.transferDescription || undefined
+    };
   }
   // Duyệt đệ quy qua các field con
   for (const key of Object.keys(obj)) {
@@ -1466,7 +1472,7 @@ function deepFindBankFields(obj: any, depth = 0): { binBank: number; numAccBank:
  *  B) ZInstant template: { action, params: { item: { data_url, data_type, ... } } }
  *     → Không chứa binBank/numAccBank — cần fetch data_url hoặc dùng cache.
  */
-function parseBankCardFromContent(content: string): { binBank: number; numAccBank: string; nameAccBank: string } | null {
+function parseBankCardFromContent(content: string): { binBank: number; numAccBank: string; nameAccBank: string; amount?: number; description?: string } | null {
   try {
     const parsed = JSON.parse(content);
     if (parsed?.action !== 'zinstant.bankcard') return null;
@@ -1483,7 +1489,13 @@ function parseBankCardFromContent(content: string): { binBank: number; numAccBan
       const binBank = Number(item?.binBank) || 0;
       const numAccBank = String(item?.numAccBank || '');
       if (binBank && numAccBank) {
-        return { binBank, numAccBank, nameAccBank: String(item?.nameAccBank || '') };
+        return {
+          binBank,
+          numAccBank,
+          nameAccBank: String(item?.nameAccBank || ''),
+          amount: item?.amount ? Number(item.amount) : undefined,
+          description: item?.description || item?.addInfo || item?.transferDescription || undefined
+        };
       }
     }
 
@@ -1491,7 +1503,13 @@ function parseBankCardFromContent(content: string): { binBank: number; numAccBan
     if (parsed?._bankData) {
       const d = parsed._bankData;
       if (d.binBank && d.numAccBank) {
-        return { binBank: Number(d.binBank), numAccBank: String(d.numAccBank), nameAccBank: String(d.nameAccBank || '') };
+        return {
+          binBank: Number(d.binBank),
+          numAccBank: String(d.numAccBank),
+          nameAccBank: String(d.nameAccBank || ''),
+          amount: d.amount ? Number(d.amount) : undefined,
+          description: d.description || d.addInfo || d.transferDescription || undefined
+        };
       }
     }
 
@@ -1562,10 +1580,25 @@ export function BankCardBubble({ msg }: { msg: any }) {
   // ── Parse structured data (binBank + numAccBank) trực tiếp từ content ──
   const data = React.useMemo(() => {
     const fromContent = parseBankCardFromContent(msg.content || '{}');
-    if (fromContent) return fromContent;
-    if (activeAccountId && msg.thread_id && msg.timestamp) {
-      const cached = getCachedBankCard(activeAccountId, msg.thread_id, Number(msg.timestamp));
-      if (cached) return { binBank: cached.binBank, numAccBank: cached.numAccBank, nameAccBank: cached.nameAccBank };
+    const cached = (activeAccountId && msg.thread_id && msg.timestamp)
+      ? getCachedBankCard(activeAccountId, msg.thread_id, Number(msg.timestamp))
+      : null;
+
+    if (fromContent) {
+      return {
+        ...fromContent,
+        amount: fromContent.amount || cached?.amount,
+        description: fromContent.description || cached?.description
+      };
+    }
+    if (cached) {
+      return {
+        binBank: cached.binBank,
+        numAccBank: cached.numAccBank,
+        nameAccBank: cached.nameAccBank,
+        amount: cached.amount,
+        description: cached.description
+      };
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1605,7 +1638,13 @@ export function BankCardBubble({ msg }: { msg: any }) {
   // ── Case 1: Có structured data (binBank + numAccBank) → render styled card + QR ──
   if (data) {
     const info = BANK_CARD_COLORS[data.binBank] || { name: `Bank (${data.binBank})`, color: '#1a2332' };
-    const qrUrl = `https://img.vietqr.io/image/${data.binBank}-${data.numAccBank}-compact.png?accountName=${encodeURIComponent(data.nameAccBank || '')}`;
+    let qrUrl = `https://img.vietqr.io/image/${data.binBank}-${data.numAccBank}-compact.png?accountName=${encodeURIComponent(data.nameAccBank || '')}`;
+    if (data.amount) {
+      qrUrl += `&amount=${data.amount}`;
+    }
+    if (data.description) {
+      qrUrl += `&addInfo=${encodeURIComponent(data.description)}`;
+    }
 
     return (
       <div className="rounded-2xl overflow-hidden shadow-lg max-w-[300px] select-text" style={{ background: info.color }}>
@@ -1617,6 +1656,16 @@ export function BankCardBubble({ msg }: { msg: any }) {
           <div className="flex-1 min-w-0">
             <p className="text-white text-lg font-bold font-mono tracking-wider leading-tight mb-1">{data.numAccBank}</p>
             {data.nameAccBank && <p className="text-white/80 text-xs font-medium uppercase tracking-wide truncate">{data.nameAccBank}</p>}
+            {data.amount && (
+              <p className="text-white text-xs font-semibold mt-1">
+                Số tiền: {data.amount.toLocaleString('vi-VN')}đ
+              </p>
+            )}
+            {data.description && (
+              <p className="text-white/90 text-[10px] leading-snug font-medium italic mt-0.5 break-words line-clamp-2 max-w-[170px]" title={data.description}>
+                Nội dung: {data.description}
+              </p>
+            )}
           </div>
           <div className="w-[72px] h-[72px] rounded-lg bg-white p-1 flex-shrink-0 ml-3 shadow">
             <img src={qrUrl} alt="QR" className="w-full h-full object-contain rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />

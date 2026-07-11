@@ -14,6 +14,8 @@ export interface BankCardData {
   nameAccBank: string;
   /** timestamp khi gửi, dùng để match + cleanup */
   sentAt: number;
+  amount?: number;
+  description?: string;
 }
 
 // Cache: key = `${ownerZaloId}:${threadId}` → array of recent sent cards (LIFO)
