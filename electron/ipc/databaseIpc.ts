@@ -439,7 +439,7 @@ export function registerDatabaseIpc() {
     // ─── Friend Cache ─────────────────────────────────────────────────────
     ipcMain.handle('db:isFriend', async (_event, { zaloId, userId }: { zaloId: string; userId: string }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:isFriend', { zaloId, userId });
             const isFriend = DatabaseService.getInstance().checkIsFriend(zaloId, userId);
             return { success: true, isFriend };
         } catch (error: any) {
@@ -449,7 +449,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getFriends', async (_event, { zaloId }: { zaloId: string }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getFriends', { zaloId });
             const friends = DatabaseService.getInstance().getFriends(zaloId);
             const lastFetched = DatabaseService.getInstance().getFriendsLastFetched(zaloId);
             return { success: true, friends, lastFetched };
@@ -460,7 +460,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:saveFriends', async (_event, { zaloId, friends }: { zaloId: string; friends: any[] }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss('db:saveFriends', { zaloId, friends });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:saveFriends', { zaloId, friends });
             DatabaseService.getInstance().saveFriends(zaloId, friends);
             return { success: true };
         } catch (error: any) {
@@ -470,7 +470,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:deleteConversation', async (_event, { zaloId, contactId }: { zaloId: string; contactId: string }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss('db:deleteConversation', { zaloId, contactId });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:deleteConversation', { zaloId, contactId });
             DatabaseService.getInstance().deleteConversation(zaloId, contactId);
             return { success: true };
         } catch (error: any) {
@@ -480,7 +480,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getLinks', async (_event, { zaloId, threadId, limit, offset }: { zaloId: string; threadId: string; limit?: number; offset?: number }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getLinks', { zaloId, threadId, limit, offset });
             const links = DatabaseService.getInstance().getLinks(zaloId, threadId, limit ?? 50, offset ?? 0);
             return { success: true, links };
         } catch (error: any) {
@@ -574,7 +574,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getStickerById', async (_event, { stickerId }: { stickerId: number }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getStickerById', { stickerId });
             const sticker = DatabaseService.getInstance().getStickerById(stickerId);
             return { success: true, sticker: sticker || null };
         } catch (error: any) {
@@ -584,7 +584,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getRecentStickers', async (_event, params: any) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getRecentStickers', params);
             const limit = params?.limit ?? 30;
             const stickers = DatabaseService.getInstance().getRecentStickers(limit);
             return { success: true, stickers };
@@ -595,7 +595,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:addRecentSticker', async (_event, { stickerId }: { stickerId: number }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss("addRecentSticker", { stickerId });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:addRecentSticker', { stickerId });
             DatabaseService.getInstance().addRecentSticker(stickerId);
             return { success: true };
         } catch (error: any) {
@@ -605,7 +605,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:markStickerUnsupported', async (_event, { stickerId }: { stickerId: number }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss("markStickerUnsupported", { stickerId });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:markStickerUnsupported', { stickerId });
             DatabaseService.getInstance().markStickerUnsupported(stickerId);
             return { success: true };
         } catch (error: any) {
@@ -615,7 +615,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:saveStickerPacks', async (_event, { packs }: { packs: any[] }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss("saveStickerPacks", { packs });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:saveStickerPacks', { packs });
             DatabaseService.getInstance().saveStickerPacks(packs || []);
             return { success: true };
         } catch (error: any) {
@@ -625,7 +625,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getStickerPacks', async () => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getStickerPacks', {});
             const packs = DatabaseService.getInstance().getStickerPacks();
             return { success: true, packs };
         } catch (error: any) {
@@ -635,7 +635,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getStickersByPackId', async (_event, { catId }: { catId: number }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getStickersByPackId', { catId });
             const stickers = DatabaseService.getInstance().getStickersByPackId(catId);
             return { success: true, stickers };
         } catch (error: any) {
@@ -647,7 +647,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:saveKeywordStickers', async (_event, { keyword, stickerIds }: { keyword: string; stickerIds: number[] }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss("saveKeywordStickers", { keyword, stickerIds });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:saveKeywordStickers', { keyword, stickerIds });
             DatabaseService.getInstance().saveKeywordStickers(keyword, stickerIds);
             return { success: true };
         } catch (error: any) {
@@ -657,7 +657,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getKeywordStickers', async (_event, { keyword }: { keyword: string }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getKeywordStickers', { keyword });
             const stickerIds = DatabaseService.getInstance().getKeywordStickers(keyword);
             return { success: true, stickerIds };
         } catch (error: any) {
@@ -667,7 +667,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getStickersByIds', async (_event, { stickerIds }: { stickerIds: number[] }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getStickersByIds', { stickerIds });
             const stickers = DatabaseService.getInstance().getStickersByIds(stickerIds);
             return { success: true, stickers };
         } catch (error: any) {
@@ -677,7 +677,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getAllCachedPackSummaries', async () => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getAllCachedPackSummaries', {});
             const packs = DatabaseService.getInstance().getAllCachedPackSummaries();
             return { success: true, packs };
         } catch (error: any) {
@@ -688,7 +688,7 @@ export function registerDatabaseIpc() {
     // ─── Friend Request Cache ─────────────────────────────────────────────
     ipcMain.handle('db:getFriendRequests', async (_event, { zaloId, direction }: { zaloId: string; direction: 'received' | 'sent' }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getFriendRequests', { zaloId, direction });
             const requests = DatabaseService.getInstance().getFriendRequests(zaloId, direction);
             const lastFetched = DatabaseService.getInstance().getFriendRequestsLastFetched(zaloId, direction);
             return { success: true, requests, lastFetched };
@@ -699,7 +699,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:saveFriendRequests', async (_event, { zaloId, requests, direction }: { zaloId: string; requests: any[]; direction: 'received' | 'sent' }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss("saveFriendRequests", { zaloId, requests, direction });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:saveFriendRequests', { zaloId, requests, direction });
             DatabaseService.getInstance().saveFriendRequests(zaloId, requests, direction);
             return { success: true };
         } catch (error: any) {
@@ -709,7 +709,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:upsertFriendRequest', async (_event, { zaloId, request, direction }: { zaloId: string; request: any; direction: 'received' | 'sent' }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss('db:upsertFriendRequest', { zaloId, request, direction });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:upsertFriendRequest', { zaloId, request, direction });
             DatabaseService.getInstance().upsertFriendRequest(zaloId, request, direction);
             return { success: true };
         } catch (error: any) {
@@ -719,7 +719,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:removeFriendRequest', async (_event, { zaloId, userId, direction }: { zaloId: string; userId: string; direction: 'received' | 'sent' }) => {
         try {
-            if (isEmployeeMode()) proxyToBoss('db:removeFriendRequest', { zaloId, userId, direction });
+            if (isEmployeeMode()) return await proxyToBossAsync('db:removeFriendRequest', { zaloId, userId, direction });
             DatabaseService.getInstance().removeFriendRequest(zaloId, userId, direction);
             return { success: true };
         } catch (error: any) {
