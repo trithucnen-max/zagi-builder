@@ -720,9 +720,21 @@ class WorkflowEngineService {
     }
 
     if (triggerNode.type === 'trigger.reaction') {
-      if (cfg.threadId && data.threadId !== cfg.threadId) return false;
+      const rx = data.reaction || {};
+      const rData = rx.data || {};
+      const threadId = String(rx.threadId || rData.threadId || data.threadId || '');
+      if (cfg.threadId && threadId !== cfg.threadId) return false;
       if (cfg.reactionType && cfg.reactionType !== 'any') {
-        if (String(data.react || data.reactionType || '') !== String(cfg.reactionType)) return false;
+        const rawIcon = String(rData.content?.rIcon || rx.content?.rIcon || rx.rIcon || rData.rIcon || '');
+        const emoji = rx.react || rx.reactionType || '';
+        const EMOJI_TO_TYPE: Record<string, string> = {
+          '👍': '1', '❤️': '2', '😂': '3', '😆': '3', '😮': '4', '😢': '5', '😭': '5', '😡': '6'
+        };
+        const ICON_TO_TYPE: Record<string, string> = {
+          '/-strong': '1', '/-heart': '2', ':>': '3', ":')": '3', ':))': '3', ':o': '4', ':-((': '5', ':((': '5', ':-h': '6'
+        };
+        const eventReactionType = ICON_TO_TYPE[rawIcon] || EMOJI_TO_TYPE[emoji] || emoji || '';
+        if (String(eventReactionType) !== String(cfg.reactionType)) return false;
       }
     }
 
@@ -1262,9 +1274,13 @@ class WorkflowEngineService {
     }
     if (triggerType === 'trigger.friendRequest' || triggerType.startsWith('event:friendRequest')) {
       const d = data.requester || data.data || data;
+      const userId = String(d.userId || d.uid || data.userId || data.threadId || '');
       return {
-        userId: d.userId || d.uid || data.userId || '',
-        displayName: d.displayName || d.dName || data.displayName || '',
+        userId,
+        threadId: userId,
+        threadType: 0,
+        isGroup: false,
+        displayName: d.displayName || d.dName || data.displayName || data.fromName || 'Người Dùng Thử Nghiệm',
         phone: d.phone || d.phoneNumber || data.phone || '',
         message: d.msg || d.message || data.message || '',
         zaloId: data.zaloId || '',
@@ -1272,10 +1288,17 @@ class WorkflowEngineService {
     }
     if (triggerType === 'trigger.groupEvent' || triggerType.startsWith('event:groupEvent')) {
       const d = data.data || data;
-      const members: any[] = d.updateMembers || [];
+      let members: any[] = d.updateMembers || [];
+      if (members.length === 0 && data.threadId) {
+        members = [{ dName: 'Thành Viên Thử Nghiệm', id: 'mock_member_123' }];
+      }
+      const groupId = String(data.groupId || d.groupId || data.threadId || '');
       return {
-        groupId: data.groupId || d.groupId || '',
-        eventType: data.eventType || '',
+        groupId,
+        threadId: groupId,
+        threadType: 1,
+        isGroup: true,
+        eventType: data.eventType || 'join',
         actorName: members[0]?.dName || members[0]?.zaloName || '',
         targetNames: members.map((m: any) => m.dName || m.zaloName || m.id || '').filter(Boolean).join(', '),
         systemText: data.systemText || '',
@@ -1283,12 +1306,35 @@ class WorkflowEngineService {
       };
     }
     if (triggerType === 'trigger.reaction' || triggerType.startsWith('event:reaction')) {
+      const rx = data.reaction || {};
+      const rData = rx.data || {};
+      const rawIcon = String(rData.content?.rIcon || rx.content?.rIcon || rx.rIcon || rData.rIcon || '');
+      const ICON_MAP: Record<string, string> = {
+        '/-heart': '❤️', '/-strong': '👍', ':>': '😆', ':o': '😮',
+        ':-((':  '😢', ':-h': '😡', ':-*': '😘', ":')": '😂',
+        '/-shit': '💩', '/-rose': '🌹', '/-break': '💔', '/-weak': '👎',
+        ';xx': '😍', ';-/': '😕', ';-)': '😉', '/-fade': '🥱',
+        '_()_': '🙏', '/-no': '🙅', '/-ok': '👌', '/-v': '✌️',
+        '/-thanks': '🙏', '/-punch': '👊', ':-bye': '👋', ':((': '😭',
+        ':))': '😁', '$-)': '🤑',
+      };
+      const emoji = ICON_MAP[rawIcon] || rx.react || rx.reactionType || rawIcon || '';
+      const rMsg = rData.content?.rMsg || rx.content?.rMsg || [];
+      const targetMsgId = rMsg.length > 0
+        ? String(rMsg[0].gMsgID || rMsg[0].cMsgID || '')
+        : String(rData.msgId || rx.msgId || data.msgId || '');
+      const threadId = String(rx.threadId || rData.threadId || data.threadId || '');
+      const isGroup = threadId.startsWith('g');
+      const threadType = isGroup ? 1 : 0;
       return {
-        fromId: data.uidFrom || data.fromId || '',
-        fromName: data.fromName || '',
-        msgId: data.msgId || '',
-        threadId: data.threadId || '',
-        react: data.react || data.reactionType || '',
+        fromId: String(rData.uidFrom || rx.uidFrom || data.fromId || ''),
+        fromName: data.fromName || rData.dName || rx.fromName || 'Người Dùng Thử Nghiệm',
+        msgId: targetMsgId,
+        threadId,
+        threadType,
+        isGroup,
+        react: emoji,
+        reactionType: emoji,
         zaloId: data.zaloId || '',
       };
     }
@@ -3903,7 +3949,7 @@ class WorkflowEngineService {
 
       // Resolve base expression
       if (baseExpr.startsWith('$trigger.')) {
-        val = ctx.trigger?.[baseExpr.slice(9)];
+        val = this.getNestedValue(ctx.trigger, baseExpr.slice(9));
       } else if (baseExpr.startsWith('$var.')) {
         val = this.getNestedValue(ctx.variables, baseExpr.slice(5));
       } else if (baseExpr.startsWith('$vars.')) {

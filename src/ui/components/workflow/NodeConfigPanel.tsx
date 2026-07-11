@@ -4924,7 +4924,13 @@ HƯỚNG DẪN SOẠN THẢO:
     onConfigChange(next);
   };
 
-  const appendVar = (key: string, v: string) => update(key, (config[key] ?? '') + v);
+  const appendVar = (key: string, v: string) => {
+    const match = v.match(/\{\{\s*([\s\S]*?)\s*\}\}/);
+    const varKey = match ? match[1].trim() : v;
+    window.dispatchEvent(new CustomEvent('zagi-insert-var', {
+      detail: { fieldKey: key, value: varKey }
+    }));
+  };
 
   const renderVarToolbar = (field: Field) => {
     return (
@@ -5103,7 +5109,8 @@ HƯỚNG DẪN SOẠN THẢO:
               placeholder={field.placeholder} className={inputCls}
               nodeType={node?.type} allNodes={nodes} currentId={node?.id}
               isInsideLoop={isNodeInsideLoop}
-              onFocus={() => setTemplatePopupField(field.key)} />
+              onFocus={() => setTemplatePopupField(field.key)}
+              fieldKey={field.key} />
           ) : (
             <input value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
               placeholder={field.placeholder} className={inputCls}
@@ -5128,7 +5135,8 @@ HƯỚNG DẪN SOẠN THẢO:
                     className={`${inputCls} resize-none rounded-t-none border-t-0`}
                     nodeType={node?.type} allNodes={nodes} currentId={node?.id}
                     isInsideLoop={isNodeInsideLoop}
-                    onFocus={() => setTemplatePopupField(field.key)} />
+                    onFocus={() => setTemplatePopupField(field.key)}
+                    fieldKey={field.key} />
                 </>
               ) : (
                 <textarea value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
@@ -5686,7 +5694,11 @@ function ExpandTextareaModal({
   if (!open) return null;
 
   const appendLocalVar = (v: string) => {
-    setVal(prev => prev + v);
+    const match = v.match(/\{\{\s*([\s\S]*?)\s*\}\}/);
+    const varKey = match ? match[1].trim() : v;
+    window.dispatchEvent(new CustomEvent('zagi-insert-var', {
+      detail: { fieldKey: '__expand_modal_field__', value: varKey }
+    }));
   };
 
   return (
@@ -5807,6 +5819,7 @@ function ExpandTextareaModal({
                 allNodes={allNodes}
                 currentId={currentId}
                 isInsideLoop={isInsideLoop}
+                fieldKey="__expand_modal_field__"
               />
             </div>
           </div>
@@ -5843,8 +5856,9 @@ function ExpandTextareaModal({
           allNodes={allNodes}
           currentId={currentId}
           onSelect={(varKey) => {
-            const tag = `{{ ${varKey} }}`;
-            setVal(prev => prev + tag); // Simple append
+            window.dispatchEvent(new CustomEvent('zagi-insert-var', {
+              detail: { fieldKey: '__expand_modal_field__', value: varKey }
+            }));
           }}
           isInsideLoop={isInsideLoop}
         />

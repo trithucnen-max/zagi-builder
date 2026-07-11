@@ -10,6 +10,7 @@ interface SmartInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElemen
   currentId?: string;
   isInsideLoop?: boolean;
   onFocus?: () => void;
+  fieldKey?: string;
 }
 
 interface SmartTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange' | 'value'> {
@@ -21,6 +22,7 @@ interface SmartTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextA
   rows?: number;
   isInsideLoop?: boolean;
   onFocus?: () => void;
+  fieldKey?: string;
 }
 
 // ── Helpers to parse/serialize raw text and visual HTML chips ─────────────────
@@ -67,7 +69,7 @@ const plainTextToHtml = (
       }
     }
 
-    const finalLabel = (label || baseKey) + filterText;
+    const finalLabel = `{{ ${key} }}`;
     const varInfo = allAvailableVars.find(v => v.key === key || v.key === baseKey);
     const desc = varInfo?.description || '';
     const tooltipText = `Cú pháp: {{ ${key} }}${desc ? `\nMô tả: ${desc}` : ''}`;
@@ -268,6 +270,7 @@ interface SmartRichEditorProps {
   rows?: number;
   isInsideLoop?: boolean;
   onFocus?: () => void;
+  fieldKey?: string;
 }
 
 const SmartRichEditor = ({
@@ -282,6 +285,7 @@ const SmartRichEditor = ({
   rows,
   isInsideLoop,
   onFocus,
+  fieldKey,
 }: SmartRichEditorProps) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -289,6 +293,7 @@ const SmartRichEditor = ({
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const lastRangeRef = useRef<Range | null>(null);
 
   const theme = useAppStore(s => s.theme);
   const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -383,6 +388,33 @@ const SmartRichEditor = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  // Track caret selection range
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0 && editorRef.current) {
+        const range = selection.getRangeAt(0);
+        if (editorRef.current.contains(range.commonAncestorContainer)) {
+          lastRangeRef.current = range.cloneRange();
+        }
+      }
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
+
+  // Listen to external insert requests
+  useEffect(() => {
+    const handleInsert = (e: Event) => {
+      const customEvent = e as CustomEvent<{ fieldKey: string; value: string }>;
+      if (customEvent.detail.fieldKey === fieldKey) {
+        insertAtCursor(customEvent.detail.value);
+      }
+    };
+    window.addEventListener('zagi-insert-var', handleInsert);
+    return () => window.removeEventListener('zagi-insert-var', handleInsert);
+  }, [fieldKey, allAvailableVars]);
+
   const handleInput = () => {
     if (!editorRef.current) return;
     const currentText = domToPlainText(editorRef.current);
@@ -435,7 +467,7 @@ const SmartRichEditor = ({
           span.className = 'font-bold bg-gray-200/80 dark:bg-gray-700/60 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded-md mx-0.5 inline-block text-xs align-middle border border-gray-300/50 dark:border-gray-600/30 select-all';
           span.setAttribute('contenteditable', 'false');
           span.setAttribute('data-var-key', varKey);
-          span.textContent = label;
+          span.textContent = `{{ ${varKey} }}`;
 
           range.insertNode(span);
 
@@ -458,6 +490,58 @@ const SmartRichEditor = ({
         }
       }
     }
+  };
+
+  const insertAtCursor = (varKey: string) => {
+    if (!editorRef.current) return;
+    
+    // Focus the editor
+    editorRef.current.focus();
+
+    const selection = window.getSelection();
+    let range = lastRangeRef.current;
+
+    // Check if the range is actually inside editorRef.current
+    if (range && !editorRef.current.contains(range.commonAncestorContainer)) {
+      range = null;
+    }
+
+    if (!selection) return;
+
+    if (!range) {
+      range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+    }
+
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const span = document.createElement('span');
+    span.className = 'font-bold bg-gray-200/80 dark:bg-gray-700/60 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded-md mx-0.5 inline-block text-xs align-middle border border-gray-300/50 dark:border-gray-600/30 select-all';
+    span.setAttribute('contenteditable', 'false');
+    span.setAttribute('data-var-key', varKey);
+    span.textContent = `{{ ${varKey} }}`;
+
+    range.deleteContents(); // Delete selection text if any
+    range.insertNode(span);
+
+    // Insert trailing space
+    const spaceNode = document.createTextNode(' ');
+    range.setStartAfter(span);
+    range.setEndAfter(span);
+    range.insertNode(spaceNode);
+
+    // Move cursor after the space
+    range.setStartAfter(spaceNode);
+    range.setEndAfter(spaceNode);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    // Trigger updates
+    const newVal = domToPlainText(editorRef.current);
+    onChange(newVal);
+    setShowDropdown(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -539,7 +623,7 @@ const SmartRichEditor = ({
 
 // ── SmartInput Component ─────────────────────────────────────────────────────
 export const SmartInput = React.forwardRef<any, SmartInputProps>((
-  { value, onChange, nodeType, allNodes, currentId, isInsideLoop, className, placeholder, onFocus, ...props },
+  { value, onChange, nodeType, allNodes, currentId, isInsideLoop, className, placeholder, onFocus, fieldKey, ...props },
   forwardedRef
 ) => {
   return (
@@ -554,6 +638,7 @@ export const SmartInput = React.forwardRef<any, SmartInputProps>((
       currentId={currentId}
       isInsideLoop={isInsideLoop}
       onFocus={onFocus}
+      fieldKey={fieldKey}
     />
   );
 });
@@ -561,7 +646,7 @@ SmartInput.displayName = 'SmartInput';
 
 // ── SmartTextarea Component ──────────────────────────────────────────────────
 export const SmartTextarea = React.forwardRef<any, SmartTextareaProps>((
-  { value, onChange, nodeType, allNodes, currentId, isInsideLoop, className, placeholder, rows, onFocus, ...props },
+  { value, onChange, nodeType, allNodes, currentId, isInsideLoop, className, placeholder, rows, onFocus, fieldKey, ...props },
   forwardedRef
 ) => {
   return (
@@ -577,6 +662,7 @@ export const SmartTextarea = React.forwardRef<any, SmartTextareaProps>((
       rows={rows}
       isInsideLoop={isInsideLoop}
       onFocus={onFocus}
+      fieldKey={fieldKey}
     />
   );
 });

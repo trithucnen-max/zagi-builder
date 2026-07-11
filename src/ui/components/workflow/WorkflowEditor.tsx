@@ -33,17 +33,27 @@ interface Props {
 const normalizeWorkflowChannel = (channel?: string): Channel => channel === 'facebook' ? 'facebook' : 'zalo';
 
 // ── Test-run recipient picker modal ──────────────────────────────────────────
-function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }: {
+function TestRunModal({ accounts, workflowPageIds, triggerType, triggerConfig, onRun, onClose }: {
   accounts: { zalo_id: string; full_name: string; avatar_url: string; phone?: string }[];
   workflowPageIds: string[];
   triggerType?: string;
+  triggerConfig?: any;
   onRun: (triggerData: any) => void;
   onClose: () => void;
 }) {
   const isFriendRequest = triggerType === 'trigger.friendRequest';
+  const isGroupOnly = triggerType === 'trigger.groupEvent' || 
+    triggerType === 'fb.trigger.groupEvent' || 
+    (triggerType === 'trigger.message' && triggerConfig?.threadType === '1') ||
+    (triggerType === 'trigger.reaction' && triggerConfig?.threadId && String(triggerConfig.threadId).startsWith('g'));
+    
+  const isFriendOnly = isFriendRequest || 
+    (triggerType === 'trigger.message' && triggerConfig?.threadType === '0') ||
+    (triggerType === 'trigger.reaction' && triggerConfig?.threadId && String(triggerConfig.threadId) !== '' && !String(triggerConfig.threadId).startsWith('g'));
+
   const [selectedAccount, setSelectedAccount] = useState('');
   // Tab: 'friend' | 'group'
-  const [tab, setTab] = useState<'friend' | 'group'>('friend');
+  const [tab, setTab] = useState<'friend' | 'group'>(isGroupOnly ? 'group' : 'friend');
   const [runRealMode, setRunRealMode] = useState(false);
   const [friends, setFriends] = useState<{ userId: string; displayName: string; avatar: string }[]>([]);
   const [groups, setGroups] = useState<{ contactId: string; displayName: string; avatar: string }[]>([]);
@@ -65,6 +75,12 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
     }
   }, [availableAccounts]);
 
+  // Synchronize tab based on trigger settings
+  useEffect(() => {
+    if (isGroupOnly) setTab('group');
+    else if (isFriendOnly) setTab('friend');
+  }, [isGroupOnly, isFriendOnly]);
+
   // Load friends when account changes
   useEffect(() => {
     if (!selectedAccount) return;
@@ -72,11 +88,39 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
     setSelectedTarget(null);
     ipc.db?.getFriends({ zaloId: selectedAccount }).then((res: any) => {
       if (res?.success) {
-        const list = (res.friends || []).filter((f: any) => f.userId !== selectedAccount);
+        let list = (res.friends || []).filter((f: any) => f.userId !== selectedAccount);
+        
+        // Filter by fromId if configured in trigger
+        if (triggerType === 'trigger.message' && triggerConfig?.fromId) {
+          const allowedIds = Array.isArray(triggerConfig.fromId)
+            ? triggerConfig.fromId
+            : typeof triggerConfig.fromId === 'string'
+              ? (() => {
+                  try {
+                    const parsed = JSON.parse(triggerConfig.fromId);
+                    return Array.isArray(parsed) ? parsed : [triggerConfig.fromId];
+                  } catch {
+                    return [triggerConfig.fromId];
+                  }
+                })()
+              : [];
+          if (allowedIds.length > 0) {
+            list = list.filter((f: any) => allowedIds.includes(f.userId));
+          }
+        }
+        
+        // Filter by reaction threadId if configured (and not a group)
+        if (triggerType === 'trigger.reaction' && triggerConfig?.threadId) {
+          const tid = String(triggerConfig.threadId);
+          if (tid && !tid.startsWith('g')) {
+            list = list.filter((f: any) => String(f.userId) === tid);
+          }
+        }
+        
         setFriends(list);
       }
     }).catch(() => {}).finally(() => setLoadingFriends(false));
-  }, [selectedAccount]);
+  }, [selectedAccount, triggerType, triggerConfig]);
 
   // Load groups when account changes
   useEffect(() => {
@@ -84,17 +128,64 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
     setLoadingGroups(true);
     ipc.db?.getContacts(selectedAccount).then((res: any) => {
       if (res?.success) {
-        const groupList = (res.contacts || [])
+        let groupList = (res.contacts || [])
           .filter((c: any) => c.contactType === 'group' || c.contact_type === 'group')
           .map((c: any) => ({
             contactId: c.contactId || c.contact_id,
             displayName: c.displayName || c.display_name || c.name || c.contactId,
             avatar: c.avatar || c.avatar_url || c.avatarUrl || '',
           }));
+          
+        // Filter by groupId if configured in trigger.message
+        if (triggerType === 'trigger.message' && triggerConfig?.groupId) {
+          const allowedIds = Array.isArray(triggerConfig.groupId)
+            ? triggerConfig.groupId
+            : typeof triggerConfig.groupId === 'string'
+              ? (() => {
+                  try {
+                    const parsed = JSON.parse(triggerConfig.groupId);
+                    return Array.isArray(parsed) ? parsed : [triggerConfig.groupId];
+                  } catch {
+                    return [triggerConfig.groupId];
+                  }
+                })()
+              : [];
+          if (allowedIds.length > 0) {
+            groupList = groupList.filter((g: any) => allowedIds.includes(g.contactId));
+          }
+        }
+        
+        // Filter by groupId if configured in trigger.groupEvent
+        if ((triggerType === 'trigger.groupEvent' || triggerType === 'fb.trigger.groupEvent') && triggerConfig?.groupId) {
+          const allowedIds = Array.isArray(triggerConfig.groupId)
+            ? triggerConfig.groupId
+            : typeof triggerConfig.groupId === 'string'
+              ? (() => {
+                  try {
+                    const parsed = JSON.parse(triggerConfig.groupId);
+                    return Array.isArray(parsed) ? parsed : [triggerConfig.groupId];
+                  } catch {
+                    return [triggerConfig.groupId];
+                  }
+                })()
+              : [];
+          if (allowedIds.length > 0) {
+            groupList = groupList.filter((g: any) => allowedIds.includes(g.contactId));
+          }
+        }
+        
+        // Filter by reaction threadId if configured (and starts with g)
+        if (triggerType === 'trigger.reaction' && triggerConfig?.threadId) {
+          const tid = String(triggerConfig.threadId);
+          if (tid && tid.startsWith('g')) {
+            groupList = groupList.filter((g: any) => String(g.contactId) === tid);
+          }
+        }
+        
         setGroups(groupList);
       }
     }).catch(() => {}).finally(() => setLoadingGroups(false));
-  }, [selectedAccount]);
+  }, [selectedAccount, triggerType, triggerConfig]);
 
   // Reset selection when switching tabs
   useEffect(() => { setSelectedTarget(null); setSearch(''); }, [tab]);
@@ -238,8 +329,8 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
             </div>
           )}
 
-          {/* Tab switcher: Bạn bè / Nhóm (hidden for friendRequest trigger or when runRealMode is enabled) */}
-          {!isFriendRequest && !runRealMode && (
+          {/* Tab switcher: Bạn bè / Nhóm (hidden for friendRequest trigger, group-only, friend-only or when runRealMode is enabled) */}
+          {!isFriendRequest && !isGroupOnly && !isFriendOnly && !runRealMode && (
             <div className="flex rounded-xl bg-gray-800/60 border border-gray-700/50 p-0.5 gap-0.5">
               <button
                 type="button"
@@ -272,7 +363,13 @@ function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }
               <label className="text-gray-400 text-xs font-medium mb-1.5 block">
                 {isFriendRequest
                   ? 'Chọn người gửi lời mời kết bạn'
-                  : tab === 'friend' ? 'Chọn bạn bè để gửi thử' : 'Chọn nhóm để gửi thử'}
+                  : triggerType === 'trigger.groupEvent' || triggerType === 'fb.trigger.groupEvent'
+                    ? 'Chọn nhóm để mô phỏng sự kiện nhóm'
+                    : triggerType === 'trigger.reaction' || triggerType === 'fb.trigger.reaction'
+                      ? 'Chọn cuộc trò chuyện để mô phỏng reaction'
+                      : triggerType === 'trigger.message' || triggerType === 'fb.trigger.message'
+                        ? (tab === 'friend' ? 'Chọn bạn bè để gửi tin nhắn thử' : 'Chọn nhóm để gửi tin nhắn thử')
+                        : (tab === 'friend' ? 'Chọn bạn bè để gửi thử' : 'Chọn nhóm để gửi thử')}
               </label>
               <input
                 value={search}
@@ -858,16 +955,36 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
   };
 
   // ── Check if workflow has send-message nodes → need recipient picker ─────
-  const triggerNode = nodes.find(n => (n.data?.type || '').startsWith('trigger.'));
+  const triggerNode = nodes.find(n => {
+    const t = n.data?.type || '';
+    return t.startsWith('trigger.') || t.startsWith('fb.trigger.');
+  });
   const triggerType = triggerNode?.data?.type || '';
   const hasSendNodes = nodes.some(n => {
     const t = n.data?.type || '';
-    return t.startsWith('zalo.send');
+    return t.startsWith('zalo.send') || t.startsWith('fb.action.');
   });
+
+  const INTERACTION_TRIGGERS = [
+    'trigger.message',
+    'trigger.friendRequest',
+    'trigger.groupEvent',
+    'trigger.reaction',
+    'trigger.labelAssigned',
+    'fb.trigger.message',
+    'fb.trigger.image',
+    'fb.trigger.video',
+    'fb.trigger.file',
+    'fb.trigger.sticker',
+    'fb.trigger.reaction',
+    'fb.trigger.unsend',
+    'fb.trigger.groupEvent',
+  ];
+  const alwaysShowModal = INTERACTION_TRIGGERS.includes(triggerType);
 
   const handleRunClick = () => {
     setRunAsSandbox(false);
-    if (hasSendNodes || triggerType === 'trigger.friendRequest') {
+    if (hasSendNodes || alwaysShowModal) {
       setShowTestRunModal(true);
     } else {
       handleRun(undefined, false);
@@ -876,7 +993,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
 
   const handleSandboxClick = () => {
     setRunAsSandbox(true);
-    if (hasSendNodes || triggerType === 'trigger.friendRequest') {
+    if (hasSendNodes || alwaysShowModal) {
       setShowTestRunModal(true);
     } else {
       handleRun(undefined, true);
@@ -1282,6 +1399,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
           accounts={accounts}
           workflowPageIds={workflowMeta.pageIds}
           triggerType={triggerType}
+          triggerConfig={triggerNode?.data?.config}
           onRun={(triggerData) => handleRun(triggerData, runAsSandbox)}
           onClose={() => setShowTestRunModal(false)}
         />
