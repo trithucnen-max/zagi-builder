@@ -66,6 +66,7 @@ Tạo nhiều chatbot AI với tính cách/prompt/mục đích khác nhau, gán 
 3.7. Tích hợp (POS, Thanh toán, Vận chuyển)
 POS: KiotViet, Haravan, Sapo, Nhanh.vn, Pancake POS — tra cứu đơn/khách/sản phẩm và tạo đơn ngay trong chat. Kết nối tại Công cụ → Tích hợp → POS/Bán hàng, nhập credential, Test kết nối, Bật.
 Thanh toán: Casso và SePay — nhận webhook realtime khi có chuyển khoản, tự động xác nhận đơn. Cần bật Tunnel (Cloudflare Quick Tunnel) để có URL công khai nhận webhook mà không cần VPS.
+- Tính năng tạo QR thanh toán nhanh: Khi gửi thẻ ngân hàng trong khung chat, Zagi cho phép cấu hình thêm "Số tiền cần thanh toán" và "Nội dung chuyển khoản" (không bắt buộc) để sinh mã VietQR động trực quan, tự điền sẵn thông tin khi khách hàng quét mã bằng ứng dụng ngân hàng.
 Vận chuyển: GHN và GHTK — tạo và tra cứu vận đơn, tính phí ngay trong chat. GHN có môi trường Sandbox để test.
 Điểm mạnh: kết hợp cả ba (POS + thanh toán + vận chuyển) với Workflow để tự động hóa end-to-end từ lúc khách chuyển khoản đến khi tạo đơn giao hàng.
 ###
