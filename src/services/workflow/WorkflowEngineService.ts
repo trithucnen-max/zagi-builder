@@ -927,12 +927,12 @@ class WorkflowEngineService {
           let contactRow = null;
           if (ownerZaloId) {
             contactRow = (db as any).query(
-              `SELECT display_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id FROM contacts WHERE owner_zalo_id = ? AND contact_id = ? LIMIT 1`,
+              `SELECT display_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id, ai_profile, extra_data FROM contacts WHERE owner_zalo_id = ? AND contact_id = ? LIMIT 1`,
               [ownerZaloId, contactId]
             )?.[0];
           } else {
             contactRow = (db as any).query(
-              `SELECT display_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id FROM contacts WHERE contact_id = ? LIMIT 1`,
+              `SELECT display_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id, ai_profile, extra_data FROM contacts WHERE contact_id = ? LIMIT 1`,
               [contactId]
             )?.[0];
           }
@@ -952,6 +952,8 @@ class WorkflowEngineService {
 
           if (contactRow || friendRow) {
             flatTrigger.salutation = contactRow?.salutation || '';
+            flatTrigger.alias = contactRow?.alias || '';
+            flatTrigger.aiProfile = contactRow?.ai_profile || '';
             flatTrigger.displayName = contactRow?.alias || contactRow?.display_name || friendRow?.display_name || flatTrigger.fromName || flatTrigger.displayName || '';
             flatTrigger.display_name = flatTrigger.displayName;
             flatTrigger.fromName = flatTrigger.displayName;
@@ -961,6 +963,18 @@ class WorkflowEngineService {
             flatTrigger.birthday = contactRow?.birthday || '';
             flatTrigger.gender = contactRow?.gender !== undefined ? contactRow.gender : '';
             flatTrigger.pipeline_stage_id = contactRow?.pipeline_stage_id || '';
+            
+            if (contactRow?.extra_data) {
+              try {
+                const parsed = JSON.parse(contactRow.extra_data);
+                flatTrigger.extraData = parsed;
+                Object.assign(flatTrigger, parsed);
+              } catch (e) {
+                flatTrigger.extraData = {};
+              }
+            } else {
+              flatTrigger.extraData = {};
+            }
           }
         }
       } catch (err: any) {
