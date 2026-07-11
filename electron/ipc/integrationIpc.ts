@@ -57,8 +57,13 @@ export function registerIntegrationIpc(): void {
     };
 
     // ─── List all integrations (no credentials) ───────────────────────────────
-    ipcMain.handle('integration:list', async () => {
+    const listHandler = async (_e: any, params?: { _fromRelay?: boolean }) => {
         try {
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('integration:list', params || {});
+            }
             const items = IntegrationRegistry.listConfigs();
             const port  = IntegrationRegistry.getWebhookPort();
             return { success: true, integrations: items, webhookPort: port };
@@ -66,18 +71,37 @@ export function registerIntegrationIpc(): void {
             Logger.error(`[IntegrationIpc] list: ${e.message}`);
             return { success: false, error: e.message, integrations: [] };
         }
-    });
+    };
+    ipcMain.handle('integration:list', listHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('integration:list', listHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register integration:list in registry: ${err.message}`);
+    }
 
     // ─── Get single (masked credentials) ─────────────────────────────────────
-    ipcMain.handle('integration:get', async (_e, { id }: { id: string }) => {
+    const getHandler = async (_e: any, params: { id: string; _fromRelay?: boolean }) => {
         try {
-            const item = IntegrationRegistry.getConfig(id);
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('integration:get', params);
+            }
+            const item = IntegrationRegistry.getConfig(params.id);
             if (!item) return { success: false, error: 'Không tìm thấy' };
             return { success: true, integration: item };
         } catch (e: any) {
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('integration:get', getHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('integration:get', getHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register integration:get in registry: ${err.message}`);
+    }
 
     // ─── Save (create or update) ──────────────────────────────────────────────
     const saveHandler = async (_e: any, params: { integration: any; _fromRelay?: boolean }) => {
@@ -227,13 +251,34 @@ export function registerIntegrationIpc(): void {
     }
 
     // ─── Get webhook port ─────────────────────────────────────────────────────
-    ipcMain.handle('integration:getWebhookPort', async () => {
-        return { success: true, port: IntegrationRegistry.getWebhookPort() };
-    });
+    const getWebhookPortHandler = async (_e: any, params?: { _fromRelay?: boolean }) => {
+        try {
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('integration:getWebhookPort', params || {});
+            }
+            return { success: true, port: IntegrationRegistry.getWebhookPort() };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    };
+    ipcMain.handle('integration:getWebhookPort', getWebhookPortHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('integration:getWebhookPort', getWebhookPortHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register integration:getWebhookPort in registry: ${err.message}`);
+    }
 
     // ─── Tunnel: start ────────────────────────────────────────────────────────
-    ipcMain.handle('tunnel:start', async () => {
+    const tunnelStartHandler = async (_e: any, params?: { _fromRelay?: boolean }) => {
         try {
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('tunnel:start', params || {});
+            }
             const port = IntegrationRegistry.getWebhookPort();
             const url = await TunnelService.start(port, 'Webhook Gateway');
             // Notify all renderer windows of the tunnel URL change
@@ -243,11 +288,23 @@ export function registerIntegrationIpc(): void {
             Logger.error(`[TunnelIpc] start: ${e.message}`);
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('tunnel:start', tunnelStartHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('tunnel:start', tunnelStartHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register tunnel:start in registry: ${err.message}`);
+    }
 
     // ─── Tunnel: stop ─────────────────────────────────────────────────────────
-    ipcMain.handle('tunnel:stop', async () => {
+    const tunnelStopHandler = async (_e: any, params?: { _fromRelay?: boolean }) => {
         try {
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('tunnel:stop', params || {});
+            }
             const port = IntegrationRegistry.getWebhookPort();
             await TunnelService.stop(port);
             BrowserWindow.getAllWindows().forEach(w => w.webContents.send('tunnel:changed', { port, url: null }));
@@ -255,16 +312,39 @@ export function registerIntegrationIpc(): void {
         } catch (e: any) {
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('tunnel:stop', tunnelStopHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('tunnel:stop', tunnelStopHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register tunnel:stop in registry: ${err.message}`);
+    }
 
     // ─── Tunnel: status ───────────────────────────────────────────────────────
-    ipcMain.handle('tunnel:status', () => {
-        const port = IntegrationRegistry.getWebhookPort();
-        return {
-            active: TunnelService.isActive(port),
-            url: TunnelService.getUrl(port),
-        };
-    });
+    const tunnelStatusHandler = async (_e: any, params?: { _fromRelay?: boolean }) => {
+        try {
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('tunnel:status', params || {});
+            }
+            const port = IntegrationRegistry.getWebhookPort();
+            return {
+                active: TunnelService.isActive(port),
+                url: TunnelService.getUrl(port),
+            };
+        } catch (e: any) {
+            return { active: false, url: null, error: e.message };
+        }
+    };
+    ipcMain.handle('tunnel:status', tunnelStatusHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('tunnel:status', tunnelStatusHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register tunnel:status in registry: ${err.message}`);
+    }
 
     // ─── Tunnel: get all ─────────────────────────────────────────────────────
     ipcMain.handle('tunnel:getAll', () => ({
@@ -272,8 +352,13 @@ export function registerIntegrationIpc(): void {
     }));
 
     // ─── Tunnel: get Named Tunnel config ────────────────────────────────────
-    ipcMain.handle('tunnel:getConfig', () => {
+    const tunnelGetConfigHandler = async (_e: any, params?: { _fromRelay?: boolean }) => {
         try {
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('tunnel:getConfig', params || {});
+            }
             const db = DatabaseService.getInstance();
             return {
                 success: true,
@@ -285,17 +370,33 @@ export function registerIntegrationIpc(): void {
         } catch (e: any) {
             return { success: false, error: e.message };
         }
-    });
+    };
+    ipcMain.handle('tunnel:getConfig', tunnelGetConfigHandler);
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('tunnel:getConfig', tunnelGetConfigHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register tunnel:getConfig in registry: ${err.message}`);
+    }
 
     // ─── Tunnel: save Named Tunnel config ───────────────────────────────────
-    ipcMain.handle('tunnel:saveConfig', (_e, config: {
-        token: string;
-        domainIntegration: string;
-        domainWorkflow: string;
-        domainRelay: string;
+    const tunnelSaveConfigHandler = async (_e: any, params: {
+        config: {
+            token: string;
+            domainIntegration: string;
+            domainWorkflow: string;
+            domainRelay: string;
+        };
+        _fromRelay?: boolean;
     }) => {
         try {
+            const AppModeManager = require('../../src/utils/AppModeManager').default;
+            if (AppModeManager.getInstance().getMode() === 'employee' && !params?._fromRelay) {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('tunnel:saveConfig', params);
+            }
             const db = DatabaseService.getInstance();
+            const config: any = params.config || {};
             db.setSetting(CF_TUNNEL_KEYS.TOKEN,              config.token?.trim() || '');
             db.setSetting(CF_TUNNEL_KEYS.DOMAIN_INTEGRATION, config.domainIntegration?.trim() || '');
             db.setSetting(CF_TUNNEL_KEYS.DOMAIN_WORKFLOW,    config.domainWorkflow?.trim() || '');
@@ -310,6 +411,19 @@ export function registerIntegrationIpc(): void {
             Logger.error(`[IntegrationIpc] saveConfig: ${e.message}`);
             return { success: false, error: e.message };
         }
+    };
+    ipcMain.handle('tunnel:saveConfig', async (event, configOrParams: any) => {
+        if (configOrParams && typeof configOrParams === 'object' && 'config' in configOrParams) {
+            return await tunnelSaveConfigHandler(event, configOrParams);
+        } else {
+            return await tunnelSaveConfigHandler(event, { config: configOrParams });
+        }
     });
+    try {
+        const { ipcHandlerRegistry } = require('./zaloIpc');
+        ipcHandlerRegistry.set('tunnel:saveConfig', tunnelSaveConfigHandler);
+    } catch (err: any) {
+        Logger.error(`[IntegrationIpc] Failed to register tunnel:saveConfig in registry: ${err.message}`);
+    }
 
 }
