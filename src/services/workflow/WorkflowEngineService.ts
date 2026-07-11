@@ -890,8 +890,34 @@ class WorkflowEngineService {
     // Flatten trigger data for template access
     const flatTrigger = this.flattenTriggerData(triggerData, triggeredBy);
 
+    // Tự động tìm tên nhóm (groupName) từ DB nếu threadId/groupId là nhóm chat
+    const groupId = flatTrigger.groupId || flatTrigger.threadId;
+    if (groupId && typeof groupId === 'string' && groupId.startsWith('g')) {
+      try {
+        const db = DatabaseService.getInstance();
+        if (db && (db as any).initialized) {
+          const groupRow = (db as any).query(
+            `SELECT display_name FROM contacts WHERE contact_id = ? LIMIT 1`,
+            [groupId]
+          )?.[0];
+          if (groupRow) {
+            flatTrigger.groupName = groupRow.display_name;
+          }
+        }
+      } catch (err: any) {
+        Logger.error(`[WorkflowEngine] Failed to fetch group name from DB:`, err.message);
+      }
+    }
+
     // Tự động làm giàu dữ liệu (enrich) cho Trigger từ CRM nếu có thông tin khách hàng (contactId)
-    const contactId = flatTrigger.threadId || flatTrigger.fromId || flatTrigger.userId;
+    // Nếu threadId bắt đầu bằng 'g' (nhóm), contactId chính là fromId hoặc userId của người gửi/thành viên
+    let contactId = '';
+    if (flatTrigger.threadId && typeof flatTrigger.threadId === 'string' && !flatTrigger.threadId.startsWith('g')) {
+      contactId = flatTrigger.threadId;
+    } else {
+      contactId = flatTrigger.fromId || flatTrigger.userId || '';
+    }
+
     if (contactId && typeof contactId === 'string' && !contactId.startsWith('g')) {
       try {
         const db = DatabaseService.getInstance();
@@ -940,6 +966,12 @@ class WorkflowEngineService {
       } catch (err: any) {
         Logger.error(`[WorkflowEngine] Failed to enrich trigger with CRM data:`, err.message);
       }
+    }
+
+    // Fallback displayName/display_name từ event data nếu chưa có
+    if (!flatTrigger.displayName) {
+      flatTrigger.displayName = flatTrigger.actorName || flatTrigger.targetNames || '';
+      flatTrigger.display_name = flatTrigger.displayName;
     }
 
     const context: ExecutionContext = {
@@ -1293,12 +1325,15 @@ class WorkflowEngineService {
         members = [{ dName: 'Thành Viên Thử Nghiệm', id: 'mock_member_123' }];
       }
       const groupId = String(data.groupId || d.groupId || data.threadId || '');
+      const memberId = members[0]?.id || members[0]?.uid || members[0]?.userId || '';
       return {
         groupId,
         threadId: groupId,
         threadType: 1,
         isGroup: true,
         eventType: data.eventType || 'join',
+        fromId: memberId,
+        userId: memberId,
         actorName: members[0]?.dName || members[0]?.zaloName || '',
         targetNames: members.map((m: any) => m.dName || m.zaloName || m.id || '').filter(Boolean).join(', '),
         systemText: data.systemText || '',
