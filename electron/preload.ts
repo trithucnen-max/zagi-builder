@@ -358,6 +358,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       getTunnelStatus: () => ipcRenderer.invoke('workflow:getTunnelStatus'),
       getPortConfig: () => ipcRenderer.invoke('workflow:getPortConfig'),
       setPortConfig: (key: string, port: number) => ipcRenderer.invoke('workflow:setPortConfig', { key, port }),
+      uploadMedia: (params: { filePaths: string[]; zaloId?: string }) => ipcRenderer.invoke('workflow:uploadMedia', params),
     },
 
   // ─── App-level (badge, open thread) ─────────────────────────────

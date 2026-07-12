@@ -831,7 +831,8 @@ export default function CRMContactList({
           )}
         </button>
         <span className="w-8 flex-shrink-0" />
-        <span className="flex-1 ml-2">Tên</span>
+        <span className="flex-1 ml-2">Biệt danh CRM</span>
+        <span className="flex-1 ml-2 hidden md:block">Tên Zalo</span>
         <span className="w-16 flex-shrink-0 text-center">Giới tính</span>
         <span className="w-20 flex-shrink-0 text-center">Xưng hô</span>
         <span className="w-24 flex-shrink-0 text-center">Sinh nhật</span>
@@ -908,7 +909,7 @@ export default function CRMContactList({
                     </div>
                   </div>
                 </div>
-                {/* Name + Labels underneath */}
+                {/* Biệt danh CRM */}
                 <div className="flex-1 ml-2 min-w-0">
                   <div className="flex items-center gap-1.5"
                     onClick={e => {
@@ -949,7 +950,7 @@ export default function CRMContactList({
                             ? 'text-gray-200'
                             : 'text-gray-400 hover:text-gray-200 cursor-pointer'
                       }`}>
-                        {pendingEdits[contact.contact_id]?.alias ?? name}
+                        {pendingEdits[contact.contact_id]?.alias ?? (contact.alias || contact.display_name || contact.contact_id)}
                       </span>
                     )}
                     {contact.contact_type === 'group'
@@ -963,7 +964,7 @@ export default function CRMContactList({
                     {contact.note_count > 0 && <span className="text-[12px] text-yellow-500 flex-shrink-0">📝</span>}
                   </div>
                   {contact.alias && contact.alias !== contact.display_name &&
-                    <p className="text-[11px] text-gray-500 truncate">{contact.display_name}</p>}
+                    <p className="text-[11px] text-gray-500 truncate md:hidden">{contact.display_name}</p>}
                   {/* Facebook Link display */}
                   {contact.extra_data && (() => {
                     try {
@@ -1011,6 +1012,11 @@ export default function CRMContactList({
                       </div>
                     );
                   })()}
+                </div>
+
+                {/* Tên Zalo (Desktop only) */}
+                <div className="flex-1 ml-2 min-w-0 hidden md:flex items-center text-xs text-gray-400 truncate">
+                  {contact.display_name || contact.contact_id}
                 </div>
                 {/* Gender column */}
                 <span className="w-16 flex-shrink-0 hidden lg:block text-center">

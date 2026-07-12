@@ -56,20 +56,26 @@ export default function TemplateVarPopup({
         },
         {
           key: '$item.display_name',
-          label: 'Tên Zalo khách hàng',
-          description: 'Tên hiển thị Zalo của khách hàng đang lặp.',
+          label: 'Tên liên hệ (thông minh)',
+          description: 'Tên liên hệ. Ưu tiên biệt danh CRM (alias) nếu có, ngược lại dùng tên hiển thị Zalo.',
+          group: 'loop',
+        },
+        {
+          key: '$item.zalo_name',
+          label: 'Tên Zalo gốc',
+          description: 'Tên đăng ký Zalo gốc của khách hàng.',
+          group: 'loop',
+        },
+        {
+          key: '$item.alias',
+          label: 'Biệt danh CRM',
+          description: 'Chỉ lấy biệt danh CRM của khách hàng. Để trống nếu chưa đặt.',
           group: 'loop',
         },
         {
           key: '$item.phone',
           label: 'Số điện thoại',
-          description: 'Số điện thoại của khách hàng đang lặp (nếu có).',
-          group: 'loop',
-        },
-        {
-          key: '$item.birthday',
-          label: 'Ngày sinh nhật',
-          description: 'Ngày sinh nhật của khách hàng đang lặp (VD: 01/07/1996).',
+          description: 'Số điện thoại của khách hàng đang lặp (từ CRM).',
           group: 'loop',
         },
         {
@@ -79,9 +85,9 @@ export default function TemplateVarPopup({
           group: 'loop',
         },
         {
-          key: '$item.alias',
-          label: 'Biệt danh khách hàng',
-          description: 'Biệt danh của khách hàng đang lặp lưu trong CRM.',
+          key: '$item.birthday',
+          label: 'Ngày sinh nhật',
+          description: 'Ngày sinh nhật của khách hàng đang lặp (VD: 01/07/1996).',
           group: 'loop',
         },
         {
@@ -91,11 +97,53 @@ export default function TemplateVarPopup({
           group: 'loop',
         },
         {
+          key: '$item.avatar',
+          label: 'URL Avatar khách hàng',
+          description: 'Đường dẫn ảnh đại diện của khách hàng đang lặp.',
+          group: 'loop',
+        },
+        {
+          key: '$item.pipeline_stage_id',
+          label: 'ID bước phễu CRM (Pipeline)',
+          description: 'ID bước trạng thái trong phễu Pipeline của khách hàng đang lặp.',
+          group: 'loop',
+        },
+        {
+          key: '$item.channel',
+          label: 'Kênh liên lạc',
+          description: 'Kênh liên lạc của khách hàng đang lặp (zalo, facebook, ...).',
+          group: 'loop',
+        },
+        {
+          key: '$item.aiProfile',
+          label: 'Hồ sơ AI khách hàng',
+          description: 'Tóm tắt hồ sơ AI của khách hàng đang lặp.',
+          group: 'loop',
+        },
+        {
+          key: '$item.extraData',
+          label: 'Dữ liệu mở rộng CRM (JSON)',
+          description: 'Dữ liệu tùy chỉnh (custom fields) của khách hàng đang lặp. Truy cập: $item.extraData.tenTruong.',
+          group: 'loop',
+        },
+        {
+          key: '$item.extraDataObject.<tenTruong>',
+          label: 'Trường tùy chỉnh CRM bất kỳ',
+          description: 'Truy cập 1 trường cụ thể từ dữ liệu mở rộng. Thay <tenTruong> bằng tên trường của bạn.',
+          group: 'loop',
+        },
+        {
+          key: '$item.labels',
+          label: 'Mảng nhãn khách hàng',
+          description: 'Danh sách nhãn tag được gán cho khách hàng đang lặp. Mỗi nhãn có id, name, color.',
+          group: 'loop',
+        },
+        {
           key: 'index',
           label: 'Thứ tự lượt lặp (0, 1, 2...)',
-          description: 'Thứ tự lượt lặp của phần tử hiện tại trong danh sách.',
+          description: 'Thứ tự lượt lặp của phần tử hiện tại trong danh sách (bắt đầu từ 0).',
           group: 'loop',
-        }
+        },
       ]);
     }
 
@@ -244,7 +292,15 @@ export default function TemplateVarPopup({
               >
                 {/* Icon based on group */}
                 <span className="flex-shrink-0 text-base mt-0.5">
-                  {group === 'trigger' ? '📩' : group === 'date' ? '📅' : group === 'variable' ? '📦' : group === 'node' ? '🔗' : group === 'loop' ? '🔁' : '👤'}
+                  {group === 'trigger' ? '💬'
+                    : group === 'crm' ? '👤'
+                    : group === 'date' ? '📅'
+                    : group === 'variable' ? '📦'
+                    : group === 'node' ? '🔗'
+                    : group === 'loop' ? '🔁'
+                    : group === 'system' ? '⚙️'
+                    : group === 'page' ? '🏪'
+                    : '📌'}
                 </span>
 
                 {/* Content */}

@@ -1,7 +1,7 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 10/07/2026  
+> **Ngày cập nhật:** 12/07/2026  
 > **Phiên bản:** v27.2.11 (Stable)  
-> **Nhánh Git hiện tại:** `main` (Working tree sạch)
+> **Nhánh Git hiện tại:** `main` (Working tree dơ do chỉnh sửa)
 
 ---
 
@@ -36,7 +36,7 @@
 8.  **Font Scale & UI Zoom:** Co giãn phông chữ đồng bộ qua CSS Variable (`--zagi-font-scale`) không vỡ layout, tích hợp thanh trượt trên TopBar.
 9.  **Hướng dẫn sử dụng tích hợp:** Được đưa thành một Tab chuyên biệt trong **Cài đặt → Giới thiệu → Hướng dẫn sử dụng**.
 10. **Nâng cấp Động cơ Workflow & Chạy thử (v27.1.8):**
-    *   **Tự động nhận diện API tài khoản:** Cơ chế `resolveApiForThread()` tự động tra cứu cơ sở dữ liệu để tìm tài khoản Zalo đang kết nối thực tế có tham gia nhóm/hội thoại, giải quyết triệt để lỗi Zalo API 161 "Nhóm không tồn tại".
+    *   **Tự động nhận diện API tài khoản:** Cơ chế `resolveApiForThread()` tự động tra cứu cơ sở dữ liệu để tìm tài khoản Zalo đang kết nối thực tế có tham gia nhóm/hội thoại, giải quyết triệt to lỗi Zalo API 161 "Nhóm không tồn tại".
     *   **Chạy thử linh hoạt (Modal Test-run):** Nâng cấp `TestRunModal` hỗ trợ tab **Bạn bè** và **Nhóm** giúp chạy thử trực tiếp vào Group.
     *   **Gửi thực tế theo cấu hình Node:** Thêm toggle **"Gửi thực tế theo cấu hình Node"** để mô phỏng chạy thật (gửi trực tiếp vào ID nhóm được cấu hình trong Node) thay vì luôn ghi đè đích gửi test.
 11. **Sửa lỗi hệ thống (v27.1.8):**
@@ -81,10 +81,24 @@
     *   **Hệ thống 5 AI Agent chuyên biệt:** Cơ cấu phân chia 5 Trợ lý AI độc lập (AI 1: Tư vấn sản phẩm, AI 2: Soạn tin & Workflow, AI 3: Tóm tắt & Bộ nhớ, AI 4: Chân dung khách hàng, AI 5: Giải thích hướng dẫn Zagi).
     *   **Bong bóng Trợ lý Zagi (AI 5) kết nối Dify:** Widget chat nổi góc dưới phải màn hình kết nối trực tiếp chatbot Dify của Zagi, tự động lưu trữ và đồng bộ hóa `conversationId`, sử dụng icon robot phẳng chuẩn của Zagi, hỗ trợ Markdown render tin nhắn cực đẹp.
     *   **Bảng điều khiển vai trò AI tinh gọn:** Cho phép Boss gán trợ lý cho AI 2, AI 3, AI 4. Tự động ẩn cấu hình AI 5 vì đã được kết nối mặc định với Dify phía Boss.
-    *   **Hiển thị động Chân dung khách hàng (AI 4) theo System Prompt:** Loại bỏ cấu trúc gán cứng tĩnh cũ. Toàn bộ thông tin chân dung khách hàng được trích xuất động bằng regex từ câu trả lời của AI dựa theo đúng cấu trúc tiêu chí (1-5 chỉ số) được định nghĩa trong System Prompt của người dùng (ví dụ: `1. Nhu cầu:`, `2. Khả năng tài chính:`, v.v.). AI 4 sẽ phân tích và phác họa chân dung khách hàng **chỉ dựa trên Ghi chú & Nhật ký** (đã loại bỏ hoàn toàn lịch sử chat gần đây khỏi prompt để tránh lẫn tạp âm, từ ngữ cũ, hoặc gây lặp thẻ/nhiễu thông tin).
+    *   **Hiển thị động Chân dung khách hàng (AI 4) theo System Prompt:** Loại bỏ cấu trúc gán cứng tĩnh cũ. Toàn bộ thông tin chân dung khách hàng được trích xuất động bằng regex từ câu trả lời của AI dựa theo đúng cấu trúc tiêu chí (1-5 chỉ số) được định nghĩa trong System Prompt của người dùng. AI 4 sẽ phân tích và phác họa chân dung khách hàng chỉ dựa trên Ghi chú & Nhật ký.
     *   **Sửa lỗi nhận diện tin nhắn tự gửi (isSelf / ignoreOwn):** Khắc phục lỗi AI tự nhận diện tin nhắn phản hồi của chính mình làm tin nhắn mới từ khách để rồi tiếp tục tự trả lời, tạo ra vòng lặp vô hạn. So sánh trực tiếp mã số người gửi (`uidFrom` / `senderId`) với mã số tài khoản đang chạy (`zaloId` / `fbAccountId`) ngoài việc dựa vào flag `isSelf` thô.
     *   **Đồng bộ & phơi bày IPC (Preload Bridge):** Đăng ký đầy đủ 3 API IPC mới qua tệp `electron/preload.ts` khắc phục triệt để lỗi mất hàm phía Renderer.
     *   **Đại tu Notification Center**: Thiết kế lại giao diện trực quan, trực tiếp bổ sung vòng tròn màu sắc và icon emoji đại diện cho từng loại task/sắp tới hạn. Hỗ trợ hiển thị nền xanh nhạt cho thông báo chưa đọc, khắc phục triệt để lỗi in thừa số `0` dư thừa do đánh giá SQLite.
+    *   **Khắc phục lỗi tối giao diện ban ngày**: Đồng bộ hiển thị sáng/tối của Menu kết nối (TopBar) theo cấu hình hệ thống bằng cách kiểm tra biến `resolvedTheme`.
+    *   **Ẩn nhãn đã xóa**: Tự động lọc và không hiển thị các huy hiệu nhãn dán trên tệp/hình ảnh trong Thư viện nếu nhãn dán đó đã bị xóa.
+    *   **Sửa lỗi forward file đính kèm máy nhân viên**: Tự động điều hướng và bỏ qua kiểm tra tệp local tại máy nhân viên, thực hiện gửi trực tiếp tệp gốc được lưu trữ trên Boss Machine khi chuyển tiếp PDF, ảnh, video, âm thanh sang hội thoại đích.
+    *   **Đồng bộ & Cấu hình AI từ xa**: Chuyển tiếp toàn bộ 14 kênh thao tác đọc/ghi của AI (`ai:*`) từ máy nhân viên về máy Boss. Nhân viên có thể tải và xem toàn bộ danh sách trợ lý AI cấu hình trên Boss, đồng thời tạo mới hoặc chỉnh sửa trợ lý AI từ xa.
+    *   **Mở hình ảnh/file Media đầy đủ**: Tự động chuyển tiếp các yêu cầu kiểm tra sự tồn tại của tệp, đọc dữ liệu ảnh base64, lấy metadata video, và sửa chữa ảnh hỏng từ máy nhân viên về máy Boss. Sửa triệt để lỗi nhân viên nhìn thấy ảnh thumbnail nhưng bấm mở xem ảnh lớn không được.
+    *   **Nạp ngữ cảnh biến tự động & Bộ lọc formatNumber cho Trợ lý AI**: AI khi soạn tin tự động hiểu toàn bộ các biến động của hệ thống và hỗ trợ bộ lọc `formatNumber` để định dạng tiền tệ có dấu phẩy phân cách hàng nghìn.
+    *   **Sửa lỗi gửi trùng 2 tin nhắn**: Loại bỏ trigger bridge trùng lặp của sự kiện `integration:payment` trong `electron/main.ts`, đảm bảo chỉ gửi đúng 1 tin nhắn duy nhất khi nhận webhook thanh toán.
+    *   **Sửa lỗi trùng lặp/xung đột System Prompt**: Gộp System Prompt từ Database và prompt chuyên biệt từ client khi gọi AI để tránh xung đột chỉ dẫn hoặc làm AI bối rối.
+    *   **Thư viện 18 kịch bản Workflow mẫu**: Xây dựng hoàn chỉnh 18 mẫu kịch bản Workflow `.json` lưu tại thư mục `zagi-workflows/` phục vụ đa dạng các nhu cầu vận hành, tài chính, kho bãi và CSKH.
+18. **Tách biệt Tên, Alias & Xưng hô CRM (v27.2.11):**
+    *   **Giao diện Tách Cột CRM**: Tách biệt cột **Biệt danh CRM** (click sửa nhanh inline) và cột **Tên Zalo** gốc. Ẩn tên Zalo gốc trên màn hình nhỏ và gom làm phụ đề nhỏ dưới biệt danh.
+    *   **Tự động điền Xưng hô (Salutation)**: Tự động hóa điền xưng hô "Anh"/"Chị"/"Bạn" dựa vào giới tính khi đồng bộ profile từ Zalo, đồng thời giữ nguyên các xưng hô chỉnh sửa thủ công của người dùng.
+    *   **Đồng bộ biến Chiến dịch & Workflow**: Thêm biến `{zalo_name}` / `$item.zalo_name` (tên Zalo gốc) và `{alias}` / `$item.alias` (biệt danh CRM, không tự động fallback khi rỗng). Đồng bộ `{salutation}` và `{gender_greeting}` trực tiếp với trường Xưng hô CRM.
+    *   **Autocomplete trình soạn thảo**: Nhập dấu `{` tự động hiển thị popup gợi ý biến trong trình soạn tin nhắn chiến dịch & workflow, bổ sung thanh công cụ chips chèn nhanh.nền xanh nhạt cho thông báo chưa đọc, khắc phục triệt để lỗi in thừa số `0` dư thừa do đánh giá SQLite.
     *   **Khắc phục lỗi tối giao diện ban ngày**: Đồng bộ hiển thị sáng/tối của Menu kết nối (TopBar) theo cấu hình hệ thống bằng cách kiểm tra biến `resolvedTheme`.
     *   **Ẩn nhãn đã xóa**: Tự động lọc và không hiển thị các huy hiệu nhãn dán trên tệp/hình ảnh trong Thư viện nếu nhãn dán đó đã bị xóa.
     *   **Sửa lỗi forward file đính kèm máy nhân viên**: Tự động điều hướng và bỏ qua kiểm tra tệp local tại máy nhân viên, thực hiện gửi trực tiếp tệp gốc được lưu trữ trên Boss Machine khi chuyển tiếp PDF, ảnh, video, âm thanh sang hội thoại đích.

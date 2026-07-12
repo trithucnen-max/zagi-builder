@@ -8,7 +8,7 @@ import Logger from '../../src/utils/Logger';
 import WebhookGatewayService from '../../src/services/workflow/WebhookGatewayService';
 import TunnelService from '../../src/services/tunnel/TunnelService';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
-import { proxyToBossAsync } from './proxyHelper';
+import { proxyToBossAsync, uploadEmployeeMedia } from './proxyHelper';
 
 function isEmployeeMode(): boolean {
     try {
@@ -464,6 +464,15 @@ export function registerWorkflowIpc(): void {
         } catch (e: any) {
             Logger.error('[WorkflowIpc] setPortConfig error: ' + e.message);
             return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('workflow:uploadMedia', async (_e, { filePaths, zaloId }: { filePaths: string[]; zaloId?: string }) => {
+        try {
+            return await uploadEmployeeMedia(filePaths, zaloId);
+        } catch (err: any) {
+            Logger.error(`[WorkflowIpc] Failed to upload workflow media: ${err.message}`);
+            return [];
         }
     });
 }

@@ -1,7 +1,7 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 1.2  
-> **Ngày cập nhật:** 09/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v27.2.8 (Stable)  
+> **Phiên bản tài liệu:** 1.3  
+> **Ngày cập nhật:** 12/07/2026  
+> **Trạng thái sản phẩm hiện tại:** v27.2.11 (Stable)  
 > **Chủ quản:** Product Management Team  
 
 

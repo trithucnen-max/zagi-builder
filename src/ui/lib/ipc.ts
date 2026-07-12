@@ -408,6 +408,7 @@ declare global {
         getTunnelStatus: () => Promise<{ success: boolean; running: boolean; port: number; tunnelActive: boolean; tunnelUrl: string | null; error?: string }>;
         getPortConfig: () => Promise<{ success: boolean; integrationPort: number; workflowPort: number; error?: string }>;
         setPortConfig: (key: string, port: number) => Promise<{ success: boolean; error?: string }>;
+        uploadMedia: (params: { filePaths: string[]; zaloId?: string }) => Promise<string[]>;
       };
       integration: {
         list:           () => Promise<{ success: boolean; integrations: any[]; webhookPort?: number; error?: string }>;

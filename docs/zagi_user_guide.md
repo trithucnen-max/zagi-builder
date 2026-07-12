@@ -46,6 +46,10 @@ Hạn chế quan trọng phải nói rõ với khách: Zagi không hỗ trợ ng
 ###
 3.4. CRM & Khách hàng
 Toàn bộ bạn bè và thành viên các nhóm Zalo được đồng bộ tự động vào CRM, kèm hồ sơ đầy đủ: tên, SĐT, giới tính, ngày sinh (đồng bộ từ profile Zalo thật). Hỗ trợ tìm kiếm, sắp xếp, bộ lọc kết hợp, chọn hàng loạt.
+Tách biệt cột **Biệt danh CRM** (do doanh nghiệp tự đặt, click đúp sửa nhanh) và **Tên Zalo gốc** (tên khách hàng đăng ký Zalo) để tránh lẫn lộn thông tin.
+**Xưng hô (Salutation)**: Tự sinh "Anh"/"Chị"/"Bạn" dựa vào giới tính khi đồng bộ profile từ Zalo và bảo toàn các xưng hô chỉnh sửa thủ công của người dùng (có thể sửa trong danh sách CRM hoặc ngay bên cạnh khung chat khi đang tương tác).
+**Đồng bộ biến Chiến dịch & Workflow**: hỗ trợ chèn biến linh hoạt: `{zalo_name}` / `$item.zalo_name` (tên Zalo gốc), `{alias}` / `$item.alias` (biệt danh CRM, không tự động fallback ra tên Zalo khi rỗng), `{name}` / `$item.display_name` (tên liên hệ thông minh: alias > display_name), `{salutation}` và `{gender_greeting}` (đồng bộ trực tiếp với trường xưng hô CRM).
+**Autocomplete & Toolbar**: Soạn tin nhắn chiến dịch & workflow hỗ trợ nhập dấu `{` tự động hiển thị gợi ý biến thông minh và thanh công cụ chip chèn nhanh tiện dụng.
 Nhãn Zalo (Label): đồng bộ hai chiều với Zalo điện thoại — gán trong app thì hiện trên điện thoại. Dùng nhãn làm điều kiện trong Workflow.
 Quản lý nhóm & rời nhóm hàng loạt: xem/tìm kiếm thành viên, rời nhiều nhóm cùng lúc, tự động chuyển quyền trưởng nhóm trước khi rời để tránh nhóm bị giải tán, AI soạn lời tạm biệt lịch sự. Có tính năng quét thành viên nhóm ẩn và quét nhóm chưa tham gia qua link mời.
 Chăm sóc theo sinh nhật/giới tính (điểm bán hàng mạnh): lọc khách sinh nhật hôm nay/tuần/tháng để gửi lời chúc + ưu đãi; chiến dịch theo giới tính (8/3, 20/10 cho khách nữ; 14/2 cho khách nam); kéo lại khách cũ chưa nhắn > 30 ngày. Cách dùng: CRM → Danh sách liên hệ → Bộ lọc → chọn tiêu chí → Chọn hết → Thêm vào chiến dịch → soạn nội dung → Gửi.

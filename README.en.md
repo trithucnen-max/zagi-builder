@@ -384,10 +384,13 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.2.11</strong> — 2026-07-09 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.2.11</strong> — 2026-07-12 · <em>🟢 Current version</em></summary>
 
 ### 🚀 Key Highlights
 
+- 👤 **CRM Name, Alias & Salutation Separation**: Separated "CRM Alias" (supports inline edit) and original "Zalo Name" columns on the CRM list page. Auto-fills salutation ("Anh"/"Chị"/"Bạn") by gender upon Zalo profile sync, while protecting manual edits.
+- 💬 **Campaign & Workflow Variable Synchronization**: Syncs `{zalo_name}` / `$item.zalo_name` (original registered Zalo name) and `{alias}` / `$item.alias` (CRM alias only, no fallback if empty). Maps `{salutation}` and `{gender_greeting}` directly to the CRM salutation field.
+- 💡 **Editor Autocomplete & Quick Chips**: Typing `{` opens variable autocomplete popup in message editors. Added a quick chips toolbar for instant variable insertion.
 - 🌐 **Seamless Network Switch (LAN / WAN)**: Automatically scans Boss LAN IP when connected via WAN/Tunnel, switching connection paths seamlessly for optimal speed.
 - ⚡ **Network Stability (No c-ares crashes)**: Switched main process HTTP requests to Electron `net.request`, completely resolving c-ares name resolution crashes (`ares_dns_rr_get_ttl` SIGTRAP) on WiFi changes.
 - ⏱️ **Connection Storm Protection (Throttling)**: Implemented 10s throttling for forced reconnections, preventing endless loops when network connection fluctuates.

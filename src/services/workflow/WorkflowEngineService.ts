@@ -951,8 +951,13 @@ class WorkflowEngineService {
           }
 
           if (contactRow || friendRow) {
-            flatTrigger.salutation = contactRow?.salutation || '';
+            const genderVal = contactRow?.gender;
+            const genderGreeting = genderVal === 0 ? 'Anh' : (genderVal === 1 ? 'Chị' : 'Bạn');
+
+            flatTrigger.salutation = contactRow?.salutation || genderGreeting;
             flatTrigger.alias = contactRow?.alias || '';
+            flatTrigger.zalo_name = contactRow?.display_name || friendRow?.display_name || flatTrigger.fromName || '';
+            flatTrigger.zaloName = flatTrigger.zalo_name;
             flatTrigger.aiProfile = contactRow?.ai_profile || '';
             flatTrigger.displayName = contactRow?.alias || contactRow?.display_name || friendRow?.display_name || flatTrigger.fromName || flatTrigger.displayName || '';
             flatTrigger.display_name = flatTrigger.displayName;
@@ -1645,7 +1650,7 @@ class WorkflowEngineService {
       // ── CRM Actions ─────────────────────────────────────────────────────
       case 'crm.getContacts': {
         let sql = `
-          SELECT contact_id, display_name, avatar_url as avatar, phone, is_friend, contact_type, gender, birthday, pipeline_stage_id, channel, salutation, alias, ai_profile, extra_data
+          SELECT contact_id, display_name, display_name AS zalo_name, avatar_url as avatar, phone, is_friend, contact_type, gender, birthday, pipeline_stage_id, channel, salutation, alias, ai_profile, extra_data
           FROM contacts
           WHERE 1=1
         `;

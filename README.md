@@ -459,10 +459,13 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.2.11</strong> — 2026-07-09 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v27.2.11</strong> — 2026-07-12 · <em>🟢 Phiên bản hiện tại</em></summary>
 
 ### 🚀 Nâng cấp nổi bật
 
+- 👤 **Tách biệt & Đồng bộ Tên, Alias và Xưng hô CRM**: Tách biệt cột "Biệt danh CRM" (sửa nhanh inline) và "Tên Zalo" gốc trên danh sách CRM. Tự động điền Xưng hô (Anh/Chị/Bạn) dựa vào giới tính khi đồng bộ profile Zalo và bảo toàn các xưng hô chỉnh sửa thủ công.
+- 💬 **Đồng bộ biến Chiến dịch & Workflow**: Thêm biến `{zalo_name}` / `$item.zalo_name` (tên Zalo gốc) và `{alias}` / `$item.alias` (biệt danh CRM, không tự động fallback khi trống). Đồng bộ `{salutation}` và `{gender_greeting}` trực tiếp với trường Xưng hô CRM.
+- 💡 **Trình soạn thảo hỗ trợ Autocomplete**: Nhập dấu `{` tự động hiển thị popup gợi ý biến trong trình soạn tin nhắn chiến dịch & workflow, bổ sung thanh công cụ chips chèn nhanh.
 - 🌐 **Tự động chuyển đổi LAN / WAN (Seamless Network Switch)**: Tự động dò quét địa chỉ IP LAN của Boss khi sử dụng WAN/Tunnel để chuyển đổi kết nối mượt mà, tối ưu hóa tốc độ.
 - ⚡ **Chống sập ứng dụng khi đổi mạng (Network stability)**: Tích hợp `net.request` của Electron giúp loại bỏ hoàn toàn lỗi crash c-ares (`ares_dns_rr_get_ttl` SIGTRAP) khi thay đổi mạng Wifi.
 - ⏱️ **Giới hạn kết nối tuần hoàn (Throttling)**: Giới hạn tần suất kết nối 10 giây ngăn chặn lặp kết nối liên tục khi mạng chập chờn.

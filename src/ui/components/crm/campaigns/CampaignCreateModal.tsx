@@ -5,6 +5,8 @@ import AppIcon from '@/components/common/AppIcon';
 import { useAppStore } from '@/store/appStore';
 import DataAccessor from '@/lib/data/DataAccessor';
 import LibraryPickerModal from '@/components/chat/library/LibraryPickerModal';
+import CampaignVarPopup from './CampaignVarPopup';
+import { substitutePreviewCampaign } from './campaignVars';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -40,26 +42,8 @@ interface CampaignCreateModalProps {
   onSave: (data: CampaignFormData) => Promise<void>;
 }
 
-// Preview substitution — replaces variables with dummy values
-function substitutePreview(text: string, campaignName: string = ''): string {
-  const now = new Date();
-  const todayDD = String(now.getDate()).padStart(2, '0');
-  const todayMM = String(now.getMonth() + 1).padStart(2, '0');
-  const todayYYYY = now.getFullYear();
-  const todayTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-  return (text || '')
-    .replace(/\{name\}/g, 'Nguyễn Văn A')
-    .replace(/\{userId\}/g, '0987654321')
-    .replace(/\{gender_greeting\}/g, 'Anh/Chị')
-    .replace(/\{salutation\}/g, 'Anh')
-    .replace(/\{alias\}/g, 'Biệt danh A')
-    .replace(/\{campaign_name\}/g, campaignName || 'Chiến dịch tri ân')
-    .replace(/\{date\}/g, `${todayDD}/${todayMM}/${todayYYYY}`)
-    .replace(/\{time\}/g, todayTime)
-    .replace(/\{birthday_day\}/g, todayDD)
-    .replace(/\{birthday_month\}/g, todayMM);
-}
+// Preview substitution — dùng hàm từ campaignVars.ts
+const substitutePreview = substitutePreviewCampaign;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -96,6 +80,7 @@ function parseMixedConfig(raw?: string): MixedConfig {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+// TEMPLATE_VARS giữ lại để tương thích ngược (có thể có nơi khác dùng)
 const TEMPLATE_VARS = [
   { key: '{name}', label: 'Tên Zalo' },
   { key: '{userId}', label: 'ID Zalo' },
@@ -398,9 +383,20 @@ function BlockEditor({
   const [prompt, setPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [showAiInput, setShowAiInput] = useState(false);
+  const [showVarPopup, setShowVarPopup] = useState(false);
+  const [varPopupTrigger, setVarPopupTrigger] = useState(false); // triggered by { key
 
   const [showLibraryPicker, setShowLibraryPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  const QUICK_VARS = [
+    { key: '{name}',             label: 'Tên' },
+    { key: '{zalo_name}',        label: 'Tên Zalo' },
+    { key: '{gender_greeting}',  label: 'Anh/Chị' },
+    { key: '{salutation}',       label: 'Xưng hô' },
+    { key: '{phone}',            label: 'SĐT' },
+    { key: '{birthday_day}',     label: 'Ngày sinh' },
+  ];
 
   const insertVar = (v: string) => {
     const ta = taRef.current;
@@ -421,14 +417,17 @@ function BlockEditor({
       const systemMessage = `Bạn là một trợ lý AI chuyên nghiệp giúp viết nội dung tin nhắn cho chiến dịch Zalo CRM. 
 Nhiệm vụ của bạn là viết một mẫu tin nhắn tự nhiên, lôi cuốn, và cá nhân hóa dựa trên yêu cầu của người dùng.
 HÃY CHỦ ĐỘNG SỬ DỤNG các thẻ biến sau trong văn bản để cá nhân hóa nội dung:
-- {name}: để xưng tên người nhận
-- {gender_greeting}: để xưng hô lịch sự (Anh/Chị/Bạn)
-- {alias}: để gọi biệt danh
+- {name}: tên hiển thị của người nhận
+- {gender_greeting}: xưng hô lịch sự (Anh/Chị/Bạn)
+- {salutation}: danh xưng tùy chỉnh của khách
+- {alias}: biệt danh trong CRM
+- {phone}: số điện thoại khách hàng
+- {birthday}: ngày sinh đầy đủ (dd/MM/yyyy)
+- {birthday_day}: ngày sinh nhật
+- {birthday_month}: tháng sinh nhật
 - {campaign_name}: tên chiến dịch
 - {date}: ngày gửi
 - {time}: giờ gửi
-- {birthday_day}: ngày sinh nhật
-- {birthday_month}: tháng sinh nhật
 
 Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời dẫn nhập hay kết luận nào ngoài nội dung tin nhắn sẽ gửi đi.`;
 
@@ -500,17 +499,29 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Variable chips & AI button */}
+      {/* Variable toolbar: quick chips + more button */}
       <div className="flex items-center justify-between flex-shrink-0 flex-wrap gap-2">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] text-gray-500">Chèn biến:</span>
-          {TEMPLATE_VARS.map(v => (
-            <button key={v.key} type="button" onClick={() => insertVar(v.key)}
-              className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors font-medium"
-              title={`Chèn biến ${v.key}`}>
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium mr-0.5">Chèn:</span>
+          {QUICK_VARS.map(v => (
+            <button
+              key={v.key}
+              type="button"
+              onClick={() => insertVar(v.key)}
+              className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-medium transition-colors"
+              title={v.key}
+            >
               {v.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setShowVarPopup(true)}
+            className="text-[10px] px-2 py-0.5 rounded-full border border-gray-500/30 text-gray-400 hover:bg-gray-500/15 font-medium transition-colors"
+            title="Xem tất cả biến..."
+          >
+            ⊕ Thêm biến
+          </button>
         </div>
         <button
           type="button"
@@ -524,6 +535,13 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
           🪄 Trợ lý AI
         </button>
       </div>
+
+      {/* Campaign var popup */}
+      <CampaignVarPopup
+        open={showVarPopup || varPopupTrigger}
+        onClose={() => { setShowVarPopup(false); setVarPopupTrigger(false); }}
+        onSelect={insertVar}
+      />
 
       {/* Inline AI assist box */}
       {showAiInput && (
@@ -563,12 +581,18 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
         </div>
       )}
 
-      {/* Textarea */}
+      {/* Textarea — trigger { to open var popup */}
       <textarea
         ref={taRef}
         value={block.text}
         onChange={e => onUpdate({ text: e.target.value })}
-        placeholder={'Soạn nội dung tin nhắn...\nDùng {name} để chèn tên người nhận'}
+        onKeyDown={e => {
+          if (e.key === '{' && !e.ctrlKey && !e.metaKey) {
+            // Let the { char be typed normally, then open popup
+            setTimeout(() => setVarPopupTrigger(true), 0);
+          }
+        }}
+        placeholder={'Soạn nội dung tin nhắn...\nGõ { để chèn biến nhanh, hoặc dùng nút Chèn bên trên'}
         className="min-h-[200px] h-[200px] w-full bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
       />
 
@@ -752,6 +776,9 @@ export default function CampaignCreateModal({
   // AI for friend request
   const [aiGeneratingFR, setAiGeneratingFR] = useState(false);
   const [showAiInputFR, setShowAiInputFR] = useState(false);
+  const [showFRVarPopup, setShowFRVarPopup] = useState(false);
+  const [frVarPopupTrigger, setFrVarPopupTrigger] = useState(false);
+
   const [promptFR, setPromptFR] = useState('');
 
   const getAiGeneratedFRText = async (userPrompt: string) => {
@@ -1359,11 +1386,16 @@ Yiêu cầu quan trọng:
                   <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
                     <span className="text-[11px] font-semibold text-gray-650 dark:text-gray-400">🤝 Lời nhắn kết bạn</span>
                     <div className="flex items-center gap-1 flex-wrap">
-                      {TEMPLATE_VARS.map(v => (
-                        <button key={v.key} type="button" onClick={() => insertFRVar(v.key)}
-                          className="text-[9px] px-1.5 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors font-medium"
-                          title={`ChỈn biến ${v.key}`}>{v.label}</button>
+                      <span className="text-[9px] text-gray-500">Chèn:</span>
+                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'}].map(v => (
+                        <button key={v.k} type="button" onClick={() => insertFRVar(v.k)}
+                          className="text-[9px] px-1.5 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 transition-colors font-medium"
+                          title={v.k}>{v.l}</button>
                       ))}
+                      <button type="button" onClick={() => setShowFRVarPopup(true)}
+                        className="text-[9px] px-1.5 py-0.5 rounded-full border border-gray-500/30 text-gray-400 hover:bg-gray-500/15 transition-colors font-medium"
+                      >⊕ Thêm
+                      </button>
                       <button
                         type="button"
                         onClick={() => setShowAiInputFR(v => !v)}
@@ -1373,6 +1405,11 @@ Yiêu cầu quan trọng:
                       </button>
                     </div>
                   </div>
+                  <CampaignVarPopup
+                    open={showFRVarPopup || frVarPopupTrigger}
+                    onClose={() => { setShowFRVarPopup(false); setFrVarPopupTrigger(false); }}
+                    onSelect={insertFRVar}
+                  />
                   {showAiInputFR && (
                     <div className="flex gap-2 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-2.5 py-1.5 mb-1.5">
                       <input
@@ -1392,8 +1429,10 @@ Yiêu cầu quan trọng:
                       </button>
                     </div>
                   )}
-                  <textarea ref={friendReqRef} value={friendReqMsg} onChange={e => setFriendReqMsg(e.target.value.slice(0, 150))}
-                    rows={2} placeholder="Xin chào {name}, tôi muốn kết nối với bạn!"
+                  <textarea ref={friendReqRef} value={friendReqMsg}
+                    onChange={e => setFriendReqMsg(e.target.value.slice(0, 150))}
+                    onKeyDown={e => { if (e.key === '{') setTimeout(() => setFrVarPopupTrigger(true), 0); }}
+                    rows={2} placeholder="Xin chào {name}, tôi muốn kết nối!"
                     className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
                   {hasFRMsgLink && (
                     <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-1 leading-relaxed">
@@ -1409,15 +1448,19 @@ Yiêu cầu quan trọng:
               {/* Standalone friend request */}
               {hasFR && !hasMsg && (
                 <div className="flex-shrink-0 flex flex-col gap-2">
-                  {/* Header row: variable chips + AI button */}
+                  {/* Header row: quick chips + popup + AI */}
                   <div className="flex items-center justify-between flex-wrap gap-1.5 flex-shrink-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] text-gray-500">Chèn biến:</span>
-                      {TEMPLATE_VARS.map(v => (
-                        <button key={v.key} type="button" onClick={() => insertFRVar(v.key)}
-                          className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 font-sans transition-colors font-medium"
-                          title={`Chèn biến ${v.key}`}>{v.label}</button>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-[10px] text-gray-500">Chèn:</span>
+                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{phone}',l:'SĐT'}].map(v => (
+                        <button key={v.k} type="button" onClick={() => insertFRVar(v.k)}
+                          className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 transition-colors font-medium"
+                          title={v.k}>{v.l}</button>
                       ))}
+                      <button type="button" onClick={() => setShowFRVarPopup(true)}
+                        className="text-[10px] px-2 py-0.5 rounded-full border border-gray-500/30 text-gray-400 hover:bg-gray-500/15 transition-colors font-medium"
+                      >⊕ Thêm biến
+                      </button>
                     </div>
                     <button
                       type="button"
@@ -1431,6 +1474,12 @@ Yiêu cầu quan trọng:
                       🪄 Trợ lý AI
                     </button>
                   </div>
+
+                  <CampaignVarPopup
+                    open={showFRVarPopup || frVarPopupTrigger}
+                    onClose={() => { setShowFRVarPopup(false); setFrVarPopupTrigger(false); }}
+                    onSelect={insertFRVar}
+                  />
 
                   {/* AI input */}
                   {showAiInputFR && (
@@ -1467,7 +1516,9 @@ Yiêu cầu quan trọng:
                     </div>
                   )}
 
-                  <textarea ref={friendReqRef} value={friendReqMsg} onChange={e => setFriendReqMsg(e.target.value.slice(0, 150))}
+                  <textarea ref={friendReqRef} value={friendReqMsg}
+                    onChange={e => setFriendReqMsg(e.target.value.slice(0, 150))}
+                    onKeyDown={e => { if (e.key === '{') setTimeout(() => setFrVarPopupTrigger(true), 0); }}
                     placeholder="Xin chào {name}, tôi muốn kết nối với bạn!"
                     className="h-28 min-h-[90px] w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors" />
                   {hasFRMsgLink && (

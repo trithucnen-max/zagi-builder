@@ -4,9 +4,15 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
-## [v27.2.11] - 2026-07-11
+## [v27.2.11] - 2026-07-12
 
-### ERP Co giãn Giao diện · Dọn dẹp Lịch sử gửi CRM · Sửa lỗi chạy ngầm Workflow & AI Autopilot
+### ERP Co giãn Giao diện · Dọn dẹp CRM Logs · Sửa lỗi chạy ngầm Workflow & AI Autopilot · Tách biệt Tên & Xưng hô CRM
+
+- **Đồng bộ Khái niệm Tên, Alias và Xưng hô CRM (Name & Salutation Separation):**
+  - Tách biệt cột **Biệt danh CRM** (cho phép nhấp đúp sửa inline nhanh) và cột **Tên Zalo** gốc (ẩn trên thiết bị di động, tự động co gộp làm phụ đề bên dưới biệt danh) trên giao diện danh sách CRM.
+  - Tự động hóa điền danh xưng "Anh"/"Chị"/"Bạn" dựa vào giới tính khi đồng bộ profile từ Zalo về SQLite, đồng thời bảo toàn và không ghi đè các giá trị xưng hô đã được sửa tay bởi người dùng.
+  - Cập nhật cơ chế thay thế biến trong Chiến dịch & Workflow: `{name}` (tên liên hệ thông minh: alias > display_name), `{zalo_name}` (tên Zalo đăng ký gốc), `{alias}` (chỉ lấy biệt danh CRM, trả về chuỗi rỗng sạch sẽ nếu không cấu hình), `{salutation}` và `{gender_greeting}` (đồng bộ trực tiếp với trường xưng hô CRM).
+  - Tích hợp tính năng autocomplete gợi ý biến khi gõ dấu `{` và thanh công cụ chip chèn nhanh trong cả trình soạn tin nhắn chiến dịch và soạn kịch bản Workflow.
 
 - **ERP Task Details Layout (Co giãn & Mở rộng):**
   - Hỗ trợ co kéo mở rộng kích thước 2 cột nội dung (Left column details & Right column sidebar) bằng chuột, tỷ lệ kéo thả tùy chỉnh linh hoạt từ 30% đến 80%.

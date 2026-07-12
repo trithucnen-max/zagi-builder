@@ -144,8 +144,14 @@ const VarDropdown = ({
         },
         {
           key: '$item.display_name',
-          label: 'Tên Zalo của khách hàng',
-          description: 'Tên hiển thị Zalo của khách hàng đang lặp.',
+          label: 'Tên liên hệ (thông minh) của khách hàng',
+          description: 'Tên liên hệ của khách hàng. Ưu tiên biệt danh CRM (alias) nếu có, ngược lại dùng tên Zalo.',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.zalo_name',
+          label: 'Tên Zalo gốc của khách hàng',
+          description: 'Tên đăng ký Zalo gốc của khách hàng đang lặp.',
           group: 'loop' as any,
         },
         {
@@ -168,8 +174,8 @@ const VarDropdown = ({
         },
         {
           key: '$item.alias',
-          label: 'Biệt danh của khách hàng',
-          description: 'Biệt danh của khách hàng đang lặp lưu trong CRM.',
+          label: 'Biệt danh CRM của khách hàng',
+          description: 'Chỉ lấy biệt danh CRM của khách hàng. Để trống nếu chưa đặt.',
           group: 'loop' as any,
         },
         {
@@ -312,8 +318,14 @@ const SmartRichEditor = ({
         },
         {
           key: '$item.display_name',
-          label: 'Tên Zalo của khách hàng',
-          description: 'Tên hiển thị Zalo của khách hàng đang lặp.',
+          label: 'Tên liên hệ (thông minh) của khách hàng',
+          description: 'Tên liên hệ của khách hàng. Ưu tiên biệt danh CRM (alias) nếu có, ngược lại dùng tên Zalo.',
+          group: 'loop' as any,
+        },
+        {
+          key: '$item.zalo_name',
+          label: 'Tên Zalo gốc của khách hàng',
+          description: 'Tên đăng ký Zalo gốc của khách hàng đang lặp.',
           group: 'loop' as any,
         },
         {
@@ -336,8 +348,8 @@ const SmartRichEditor = ({
         },
         {
           key: '$item.alias',
-          label: 'Biệt danh của khách hàng',
-          description: 'Biệt danh của khách hàng đang lặp lưu trong CRM.',
+          label: 'Biệt danh CRM của khách hàng',
+          description: 'Chỉ lấy biệt danh CRM của khách hàng. Để trống nếu chưa đặt.',
           group: 'loop' as any,
         },
         {

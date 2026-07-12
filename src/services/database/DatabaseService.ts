@@ -2515,6 +2515,29 @@ class DatabaseService {
         } catch (err: any) {
             Logger.warn(`[DatabaseService] erp_task_checklist migration: ${err.message}`);
         }
+
+        // ── crm_contacts.salutation auto-fill migration for old records ──
+        try {
+            this.run(`
+                UPDATE contacts 
+                SET salutation = 'Anh' 
+                WHERE gender = 0 AND (salutation IS NULL OR salutation = '')
+            `);
+            this.run(`
+                UPDATE contacts 
+                SET salutation = 'Chị' 
+                WHERE gender = 1 AND (salutation IS NULL OR salutation = '')
+            `);
+            this.run(`
+                UPDATE contacts 
+                SET salutation = 'Bạn' 
+                WHERE gender IS NOT NULL AND gender != 0 AND gender != 1 AND (salutation IS NULL OR salutation = '')
+            `);
+            this.save();
+            Logger.log('[DatabaseService] Migration: auto-filled salutation from gender for existing contacts');
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] salutation auto-fill migration warning: ${err.message}`);
+        }
     }
 
     // ─── Account Operations ───────────────────────────────────────────────
@@ -3187,9 +3210,13 @@ class DatabaseService {
 
             // Update gender & birthday if provided (separate UPDATE to keep INSERT clean)
             if (gender !== undefined && gender !== null) {
+                const autoSalutation = gender === 0 ? 'Anh' : (gender === 1 ? 'Chị' : 'Bạn');
                 this.run(
-                    `UPDATE contacts SET gender=? WHERE owner_zalo_id=? AND contact_id=?`,
-                    [gender, ownerZaloId, contactId]
+                    `UPDATE contacts SET 
+                       gender=?,
+                       salutation = CASE WHEN salutation IS NULL OR salutation = '' THEN ? ELSE salutation END
+                     WHERE owner_zalo_id=? AND contact_id=?`,
+                    [gender, autoSalutation, ownerZaloId, contactId]
                 );
             }
             if (birthday !== undefined && birthday !== null && birthday !== '') {
@@ -5680,12 +5707,14 @@ class DatabaseService {
         try {
             const rows = this.query<any>(
                 `SELECT cc.*, c.template_message, c.delay_seconds, c.campaign_type, c.friend_request_message, c.mixed_config, c.name as campaign_name,
-                    COALESCE(cont.phone, fr.phone, '') as phone,
+                    COALESCE(NULLIF(cont.phone,''), NULLIF(fr.phone,''), '') as contact_phone,
                     COALESCE(cont.contact_type, 'user') as contact_type,
                     COALESCE(cont.alias, '') as alias,
                     cont.gender,
                     cont.birthday,
-                    cont.salutation
+                    cont.salutation,
+                    cont.ai_profile,
+                    cont.extra_data
                  FROM crm_campaign_contacts cc
                  JOIN crm_campaigns c ON c.id=cc.campaign_id
                  LEFT JOIN contacts cont ON cont.owner_zalo_id=cc.owner_zalo_id AND cont.contact_id=cc.contact_id
@@ -5725,12 +5754,14 @@ class DatabaseService {
             const placeholders = allowedCampaignIds.map(() => '?').join(',');
             const rows = this.query<any>(
                 `SELECT cc.*, c.template_message, c.delay_seconds, c.campaign_type, c.friend_request_message, c.mixed_config, c.name as campaign_name, c.daily_send_limit, c.daily_start_time, c.scheduled_start_at,
-                    COALESCE(cont.phone, fr.phone, '') as phone,
+                    COALESCE(NULLIF(cont.phone,''), NULLIF(fr.phone,''), '') as contact_phone,
                     COALESCE(cont.contact_type, 'user') as contact_type,
                     COALESCE(cont.alias, '') as alias,
                     cont.gender,
                     cont.birthday,
-                    cont.salutation
+                    cont.salutation,
+                    cont.ai_profile,
+                    cont.extra_data
                  FROM crm_campaign_contacts cc
                  JOIN crm_campaigns c ON c.id=cc.campaign_id
                  LEFT JOIN contacts cont ON cont.owner_zalo_id=cc.owner_zalo_id AND cont.contact_id=cc.contact_id
@@ -5985,7 +6016,7 @@ class DatabaseService {
                     `SELECT f.user_id as contact_id, COALESCE(c.alias,'') as alias,
                         COALESCE(c.display_name, f.display_name,'') as display_name,
                         COALESCE(c.avatar_url, f.avatar,'') as avatar,
-                        COALESCE(c.phone, f.phone,'') as phone,
+                        COALESCE(NULLIF(c.phone,''), NULLIF(f.phone,''), '') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
                         c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation

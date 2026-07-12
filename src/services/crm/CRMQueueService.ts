@@ -343,7 +343,8 @@ class CRMQueueService {
                 ? salutationVal.trim()
                 : genderGreeting;
 
-            const contactAlias = (item as any).alias || effectiveDisplayName || '';
+            const contactAlias = (item as any).alias || '';
+            const zaloName     = item.display_name || item.contact_id || '';
 
             let bDay = '';
             let bMonth = '';
@@ -358,18 +359,47 @@ class CRMQueueService {
 
             const campaignName = (item as any).campaign_name || '';
 
-            substitute = (tpl: string) =>
-                (tpl || '')
-                    .replace(/\{name\}/g, effectiveDisplayName || item.contact_id)
-                    .replace(/\{userId\}/g, effectiveContactId)
-                    .replace(/\{gender_greeting\}/g, genderGreeting)
-                    .replace(/\{salutation\}/g, effectiveSalutation)
-                    .replace(/\{alias\}/g, contactAlias)
-                    .replace(/\{campaign_name\}/g, campaignName)
-                    .replace(/\{date\}/g, `${todayDD}/${todayMM}/${todayYYYY}`)
-                    .replace(/\{time\}/g, todayTime)
-                    .replace(/\{birthday_day\}/g, bDay)
-                    .replace(/\{birthday_month\}/g, bMonth);
+            const contactPhone = (item as any).contact_phone || (item as any).phone || '';
+            const aiProfile    = (item as any).ai_profile || '';
+
+            // Extra data (custom fields): parse JSON dữ liệu mở rộng
+            let extraDataObj: Record<string, any> = {};
+            try {
+                const rawExtra = (item as any).extra_data;
+                if (rawExtra) extraDataObj = JSON.parse(rawExtra);
+            } catch { /* ignore parse error */ }
+
+            substitute = (tpl: string) => {
+                let result = (tpl || '')
+                    .replace(/\{name\}/g,             effectiveDisplayName || item.contact_id)
+                    .replace(/\{zalo_name\}/g,        zaloName)
+                    .replace(/\{userId\}/g,           effectiveContactId)
+                    .replace(/\{gender_greeting\}/g,  effectiveSalutation)
+                    .replace(/\{salutation\}/g,       effectiveSalutation)
+                    .replace(/\{alias\}/g,            contactAlias)
+                    .replace(/\{phone\}/g,            contactPhone)
+                    .replace(/\{birthday\}/g,         bdayStr || '')
+                    .replace(/\{birthday_day\}/g,     bDay)
+                    .replace(/\{birthday_month\}/g,   bMonth)
+                    .replace(/\{ai_profile\}/g,       aiProfile)
+                    .replace(/\{campaign_name\}/g,    campaignName)
+                    .replace(/\{date\}/g,             `${todayDD}/${todayMM}/${todayYYYY}`)
+                    .replace(/\{time\}/g,             todayTime);
+
+                // {extra.<field>} — thay thế custom fields từ extraData
+                result = result.replace(/\{extra\.([^}]+)\}/g, (_match, field) => {
+                    const val = extraDataObj[field];
+                    return val !== undefined && val !== null && val !== '' ? String(val) : '';
+                });
+
+                // Cleanup: xóa bất kỳ biến {xyz} nào còn sót lại chưa được thay thế
+                result = result.replace(/\{[a-z_][a-z0-9_.]*\}/gi, '');
+
+                // Dọn khoảng trắng thừa do xóa biến
+                result = result.replace(/  +/g, ' ').trim();
+
+                return result;
+            };
 
             campaignType = (item as any).campaign_type || 'message';
             isGroup = (item as any).contact_type === 'group';
@@ -530,7 +560,7 @@ class CRMQueueService {
                 owner_zalo_id: zaloId,
                 contact_id: effectiveContactId,
                 display_name: effectiveDisplayName || '',
-                phone: (item as any).phone || '',
+                phone: (item as any).contact_phone || (item as any).phone || '',
                 contact_type: isGroup ? 'group' : 'user',
                 campaign_id: item.campaign_id,
                 sent_at: Date.now(),

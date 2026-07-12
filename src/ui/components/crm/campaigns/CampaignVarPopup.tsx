@@ -1,0 +1,207 @@
+import React, { useState, useMemo } from 'react';
+import { useAppStore } from '@/store/appStore';
+import {
+  CampaignVarInfo,
+  CampaignVarGroup,
+  CAMPAIGN_VAR_GROUP_LABELS,
+  getCampaignVarsByGroup,
+} from './campaignVars';
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  /** Callback khi người dùng chọn 1 variable */
+  onSelect: (varKey: string) => void;
+}
+
+const GROUP_ICONS: Record<CampaignVarGroup | string, string> = {
+  contact:  '👤',
+  datetime: '📅',
+  campaign: '📣',
+};
+
+export default function CampaignVarPopup({ open, onClose, onSelect }: Props) {
+  const [search, setSearch]             = useState('');
+  const [selectedGroup, setSelectedGroup] = useState<CampaignVarGroup | 'all'>('all');
+  const theme   = useAppStore(s => s.theme);
+  const isLight = theme === 'light' || (
+    theme === 'system' &&
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    !window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  const groupedVars = useMemo(() => getCampaignVarsByGroup(), []);
+
+  const filtered = useMemo(() => {
+    const all: { var: CampaignVarInfo; group: CampaignVarGroup }[] = [];
+    for (const [group, vars] of groupedVars.entries()) {
+      if (selectedGroup !== 'all' && group !== selectedGroup) continue;
+      for (const v of vars) all.push({ var: v, group });
+    }
+    if (!search.trim()) return all;
+    const q = search.toLowerCase();
+    return all.filter(
+      ({ var: v }) =>
+        v.key.toLowerCase().includes(q) ||
+        v.label.toLowerCase().includes(q) ||
+        v.description.toLowerCase().includes(q)
+    );
+  }, [groupedVars, search, selectedGroup]);
+
+  const groups: (CampaignVarGroup | 'all')[] = ['all', ...groupedVars.keys()];
+  const groupLabels: Record<string, string>   = { all: '📋 Tất cả', ...CAMPAIGN_VAR_GROUP_LABELS };
+  const groupCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: 0 };
+    for (const [g, vars] of groupedVars.entries()) {
+      counts[g]    = vars.length;
+      counts.all  += vars.length;
+    }
+    return counts;
+  }, [groupedVars]);
+
+  if (!open) return null;
+
+  const surface   = isLight ? 'bg-white border-gray-200'         : 'bg-gray-900 border-gray-700';
+  const divider   = isLight ? 'border-gray-200'                   : 'border-gray-700';
+  const subtleBg  = isLight ? 'bg-gray-50'                        : 'bg-gray-800/30';
+  const textMain  = isLight ? 'text-gray-900'                     : 'text-white';
+  const textSub   = isLight ? 'text-gray-500'                     : 'text-gray-400';
+  const inputCls  = isLight
+    ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-blue-500/30'
+    : 'bg-gray-800 border-gray-600 text-white placeholder-gray-500 focus:ring-blue-500/30';
+  const chipActive = isLight ? 'bg-blue-100 text-blue-700'        : 'bg-blue-500/20 text-blue-400';
+  const chipIdle   = isLight ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-gray-800 text-gray-400 hover:bg-gray-700';
+  const cardCls    = isLight
+    ? 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
+    : 'bg-gray-800/40 border-gray-700/40 hover:border-blue-500/30 hover:bg-blue-500/5';
+  const codeCls    = isLight ? 'text-blue-700 bg-blue-50'         : 'text-blue-400 bg-blue-500/10';
+  const exCls      = isLight ? 'text-green-600 bg-green-50'       : 'text-green-400 bg-green-500/10';
+  const btnCls     = isLight ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gray-700 text-gray-300 hover:bg-gray-600';
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      <div className={`relative rounded-2xl shadow-2xl w-[580px] max-w-[95vw] max-h-[82vh] flex flex-col overflow-hidden border ${surface}`}>
+
+        {/* ── Header ────────────────────────────────────────────────── */}
+        <div className={`flex items-center justify-between px-5 py-4 border-b ${divider}`}>
+          <div>
+            <p className={`text-base font-semibold ${textMain}`}>🔤 Chèn biến động</p>
+            <p className={`text-xs ${textSub}`}>
+              Click vào biến để chèn vào ô đang soạn — cú pháp <code className={`font-mono text-[10px] px-1 rounded ${codeCls}`}>{'{tên_biến}'}</code>
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isLight ? 'hover:bg-gray-100 text-gray-500' : 'hover:bg-gray-700 text-gray-400'}`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* ── Search ────────────────────────────────────────────────── */}
+        <div className={`px-4 py-3 border-b ${isLight ? divider : 'border-gray-700/50'}`}>
+          <div className="relative">
+            <svg
+              className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${textSub}`}
+              fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+            >
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Tìm theo tên, cú pháp, mô tả..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              autoFocus
+              className={`w-full pl-10 pr-4 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 ${inputCls}`}
+            />
+          </div>
+        </div>
+
+        {/* ── Group tabs ────────────────────────────────────────────── */}
+        <div style={{ minHeight: '46px' }} className={`flex gap-1 px-4 py-2 border-b overflow-x-auto ${divider} ${subtleBg}`}>
+          {groups.map(g => (
+            <button
+              key={g}
+              onClick={() => setSelectedGroup(g)}
+              className={`flex-shrink-0 px-2.5 py-1 text-[10px] font-medium rounded-lg transition-colors whitespace-nowrap ${selectedGroup === g ? chipActive : chipIdle}`}
+            >
+              {groupLabels[g] || g}
+              <span className={`ml-1 text-[9px] ${selectedGroup === g ? (isLight ? 'text-blue-500' : 'text-blue-500') : (isLight ? 'text-gray-400' : 'text-gray-500')}`}>
+                {groupCounts[g] || 0}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Variable list ─────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          {filtered.length === 0 ? (
+            <div className={`text-center py-8 ${textSub}`}>
+              <span className="text-3xl block mb-2">🔍</span>
+              <p className="text-sm">Không tìm thấy biến</p>
+              <p className={`text-xs mt-1 ${isLight ? 'text-gray-400' : 'text-gray-600'}`}>Thử từ khoá khác</p>
+            </div>
+          ) : (
+            filtered.map(({ var: v, group }) => (
+              <button
+                key={v.key}
+                type="button"
+                onClick={() => { onSelect(v.key); onClose(); }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all flex items-start gap-3 ${cardCls}`}
+              >
+                {/* Group icon */}
+                <span className="flex-shrink-0 text-base mt-0.5">
+                  {GROUP_ICONS[group] ?? '📌'}
+                </span>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <code className={`text-xs font-mono font-semibold px-1.5 py-0.5 rounded ${codeCls}`}>
+                      {v.key}
+                    </code>
+                    <span className={`text-[11px] font-medium truncate ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
+                      {v.label}
+                    </span>
+                  </div>
+                  <p className={`text-[10px] mt-1 leading-relaxed ${textSub}`}>
+                    {v.description}
+                  </p>
+                  {v.example && (
+                    <span className={`inline-block text-[9px] mt-0.5 font-mono px-1 py-0.5 rounded ${exCls}`}>
+                      VD: {v.example}
+                    </span>
+                  )}
+                </div>
+
+                {/* Insert pill */}
+                <span className={`flex-shrink-0 text-[10px] px-2 py-1 rounded-lg font-medium self-center ${isLight ? 'bg-gray-100 text-gray-500' : 'bg-gray-700 text-gray-400'}`}>
+                  Chèn
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+
+        {/* ── Footer ────────────────────────────────────────────────── */}
+        <div className={`px-5 py-3 border-t flex items-center justify-between ${divider} ${subtleBg}`}>
+          <span className={`text-[11px] ${textSub}`}>
+            {filtered.length} biến{search.trim() ? ` (tìm "${search}")` : ''}
+          </span>
+          <button
+            onClick={onClose}
+            className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${btnCls}`}
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
