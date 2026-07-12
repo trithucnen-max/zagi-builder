@@ -1872,11 +1872,12 @@ export default function ChatWindow() {
           const isVideoMsg = cached?.isVideo ?? isVideoType(msg.msg_type);
           const isVoiceMsg = cached?.isVoice ?? (msg.msg_type === 'chat.voice' || msg.msg_type === 'audio');
           const isBankCardMsg = isBankCardType(msg.msg_type, msg.content);
+          const isLocationMsg = msg.msg_type === 'chat.location.new';
           const isGroupMedia = cached?.isGroupMedia ?? (!isPollMsg && !isVideoMsg && !isVoiceMsg && !!groupedFirstMsgs[msg.msg_id]);
           const groupMediaMsgs = isGroupMedia ? groupedFirstMsgs[msg.msg_id] : null;
-          const isMediaMsg = cached?.isMedia ?? (!isCardMsg && !isEcardMsg && !isStickerMsg && !isGroupMedia && !isRtf && !isPollMsg && !isVideoMsg && !isVoiceMsg && !isBankCardMsg && isMediaType(msg.msg_type, msg.content));
-          const isFileMsg = cached?.isFile ?? (!isCardMsg && !isEcardMsg && !isStickerMsg && !isMediaMsg && !isRtf && !isPollMsg && !isVideoMsg && !isVoiceMsg && !isBankCardMsg && isFileType(msg.msg_type, msg.content));
-          const content = cached?.content ?? (isMediaMsg || isFileMsg || isCardMsg || isEcardMsg || isStickerMsg || isGroupMedia || isRtf || isPollMsg || isVideoMsg || isVoiceMsg || isBankCardMsg ? '' : parseContent(msg.content));
+          const isMediaMsg = cached?.isMedia ?? (!isCardMsg && !isEcardMsg && !isStickerMsg && !isGroupMedia && !isRtf && !isPollMsg && !isVideoMsg && !isVoiceMsg && !isBankCardMsg && !isLocationMsg && isMediaType(msg.msg_type, msg.content));
+          const isFileMsg = cached?.isFile ?? (!isCardMsg && !isEcardMsg && !isStickerMsg && !isMediaMsg && !isRtf && !isPollMsg && !isVideoMsg && !isVoiceMsg && !isBankCardMsg && !isLocationMsg && isFileType(msg.msg_type, msg.content));
+          const content = cached?.content ?? (isMediaMsg || isFileMsg || isCardMsg || isEcardMsg || isStickerMsg || isGroupMedia || isRtf || isPollMsg || isVideoMsg || isVoiceMsg || isBankCardMsg || isLocationMsg ? '' : parseContent(msg.content));
 
           // Sticker nhóm: nhiều sticker liền nhau từ cùng người gửi trong 30 phút
           const isGroupedStickerFirst = isStickerMsg && !!groupedStickerFirstMsgs[msg.msg_id];
@@ -2034,7 +2035,7 @@ export default function ChatWindow() {
                   <div className={`flex flex-col ${isEcardMsg ? 'w-full items-center' : isSent ? 'items-end' : 'items-start'} relative min-w-0${hasReactions && !isGroupedStickerFirst ? ' mb-3' : ''}`}>
 
                     <div className={`rounded-2xl text-sm break-words min-w-0 overflow-hidden ${
-                      isMediaMsg || isGroupMedia || isFileMsg || isCardMsg || isEcardMsg || isStickerMsg || isBankCardMsg ? '' : isSent
+                      isMediaMsg || isGroupMedia || isFileMsg || isCardMsg || isEcardMsg || isStickerMsg || isBankCardMsg || isLocationMsg ? '' : isSent
                         ? 'px-3 py-2 chat-bubble-sender rounded-br-sm'
                         : 'px-3 py-2 chat-bubble-receiver rounded-bl-sm'
                     }`}>
@@ -2235,7 +2236,7 @@ export default function ChatWindow() {
                         <RtfBubble msg={msg} allContacts={contactList} groupMembersList={groupMembers}
                           onMentionClick={(uid, e) => setUserProfilePopup({ userId: uid, x: e.clientX, y: e.clientY })} />
                       )}
-                      renderText={() => (
+                      renderText={isLocationMsg ? undefined : () => (
                         <>
                           <TextWithMentions text={content} allContacts={contactList} groupMembersList={groupMembers}
                             highlight={searchHighlightQuery}

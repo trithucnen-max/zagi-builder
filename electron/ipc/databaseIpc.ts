@@ -844,7 +844,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getLocalQuickMessages', async (_event, { zaloId }: { zaloId: string }) => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getLocalQuickMessages', { zaloId });
             const items = DatabaseService.getInstance().getLocalQuickMessages(zaloId);
             return { success: true, items };
         } catch (error: any) {
@@ -900,7 +900,7 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:getAllLocalQuickMessages', async () => {
         try {
-            if (isEmployeeMode()) return { success: true };
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getAllLocalQuickMessages', {});
             const items = DatabaseService.getInstance().getAllLocalQuickMessages();
             return { success: true, items };
         } catch (error: any) {

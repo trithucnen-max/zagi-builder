@@ -2706,8 +2706,14 @@ function LabelPickerModal({
     }
   };
 
-  const localOpts = options.filter(o => o.source === 'local');
-  const zaloOpts = options.filter(o => o.source === 'zalo');
+  const localOpts = options.filter(o => o.source === 'local').filter(o => {
+    if (!o.pageIds || o.pageIds.length === 0) return true;
+    return o.pageIds.some(id => accounts.some(acc => acc.zalo_id === id));
+  });
+  const zaloOpts = options.filter(o => o.source === 'zalo').filter(o => {
+    if (!o.pageId) return true;
+    return accounts.some(acc => acc.zalo_id === o.pageId);
+  });
 
   // Build account lookup map
   const accountMap = React.useMemo(() => {

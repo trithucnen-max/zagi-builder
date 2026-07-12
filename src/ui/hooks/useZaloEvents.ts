@@ -10,6 +10,7 @@ import { playNotificationSound, showDesktopNotification, requestNotificationPerm
 import { getFilteredUnreadCount } from '@/lib/badgeUtils';
 import Logger from "../../utils/Logger";
 import { extractUserProfile } from "../../utils/profileUtils";
+import { cacheSentBankCard } from '@/lib/bankCardCache';
 
 // ─── Contact fetch cache (7 ngày) ────────────────────────────────────────────
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -200,6 +201,13 @@ function buildMessagePreview(
 
   // ── Todo ───────────────────────────────────────────────────────────────
   if (mt === 'chat.todo') return '📝 Công việc';
+
+  // ── Location ──────────────────────────────────────────────────────────
+  if (mt === 'chat.location.new') {
+    const p = typeof contentRaw === 'string' ? (() => { try { return JSON.parse(contentRaw); } catch { return {}; } })() : (contentRaw || {});
+    const desc = p.description || '';
+    return desc ? `📍 ${desc}` : '📍 [Vị trí]';
+  }
 
   // ── Image (from type detection) ──────────────────────────────────────────
   if (isImage) return '🖼 Hình ảnh';
@@ -1686,6 +1694,20 @@ export function useZaloEvents() {
         useChatStore.getState().updateContact(data.ownerZaloId, {
           contact_id: data.contactId,
           alias: data.alias,
+        });
+      }
+    }));
+
+    // Cache dữ liệu bank card khi Workflow gửi để BankCardBubble hiển thị hình ảnh thẻ đẹp
+    unsubs.push(ipc.on('zalo:bankCardCached', (data: any) => {
+      if (data?.ownerZaloId && data?.threadId && data?.binBank && data?.numAccBank) {
+        cacheSentBankCard(data.ownerZaloId, data.threadId, {
+          binBank: Number(data.binBank),
+          bankName: String(data.bankName || `Bank (${data.binBank})`),
+          numAccBank: String(data.numAccBank),
+          nameAccBank: String(data.nameAccBank || ''),
+          amount: data.amount ? Number(data.amount) : undefined,
+          description: data.description || undefined,
         });
       }
     }));

@@ -4,15 +4,17 @@
 
 let audioCtx: AudioContext | null = null;
 
-/** Play a pleasant two-tone notification beep using Web Audio API (no external file needed) */
-export function playNotificationSound(volume = 0.5) {
+let playTimeout: any = null;
+let pendingCount = 0;
+let lastPlayTime = 0;
+let pendingVolume = 0.5;
+
+function playSingleNotificationSound(volume = 0.5) {
   try {
     if (!audioCtx || audioCtx.state === 'closed') {
       audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
-    // Resume if suspended (browser autoplay policy)
     if (audioCtx.state === 'suspended') audioCtx.resume();
-
     const ctx = audioCtx;
     const vol = Math.max(0, Math.min(1, volume));
 
@@ -33,7 +35,66 @@ export function playNotificationSound(volume = 0.5) {
       t += 0.16;
     }
   } catch (e) {
-    console.warn('[NotificationService] playSound error:', e);
+    console.warn('[NotificationService] playSingleNotificationSound error:', e);
+  }
+}
+
+function playDoubleNotificationSound(volume = 0.5) {
+  try {
+    if (!audioCtx || audioCtx.state === 'closed') {
+      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const ctx = audioCtx;
+    const vol = Math.max(0, Math.min(1, volume));
+
+    // Double ding: 880, 1100 (ding 1) -> 880, 1100 (ding 2)
+    const tones = [880, 1100, 880, 1100];
+    const delays = [0.01, 0.17, 0.35, 0.51];
+    
+    for (let i = 0; i < tones.length; i++) {
+      const freq = tones[i];
+      const delay = delays[i];
+      const t = ctx.currentTime + delay;
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(vol * 0.4, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      osc.start(t);
+      osc.stop(t + 0.18);
+    }
+  } catch (e) {
+    console.warn('[NotificationService] playDoubleNotificationSound error:', e);
+  }
+}
+
+export function playNotificationSound(volume = 0.5) {
+  const now = Date.now();
+  if (now - lastPlayTime < 3000) {
+    return;
+  }
+
+  pendingVolume = volume;
+  pendingCount++;
+
+  if (!playTimeout) {
+    playTimeout = setTimeout(() => {
+      const countToPlay = pendingCount;
+      pendingCount = 0;
+      playTimeout = null;
+      lastPlayTime = Date.now();
+
+      if (countToPlay > 1) {
+        playDoubleNotificationSound(pendingVolume);
+      } else {
+        playSingleNotificationSound(pendingVolume);
+      }
+    }, 250);
   }
 }
 

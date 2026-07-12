@@ -131,9 +131,17 @@ export default class ZaloService {
     }
 
     /**
-     * Remove a ZaloService instance by zaloId (called when account is disconnected/removed).
-     * Prevents stale API instances from accumulating in memory.
+     * Lấy ZaloService instance hiện có theo zaloId (không tạo mới).
+     * Dùng trong WorkflowEngine để tránh truyền auth object.
      */
+    public static getInstanceByZaloId(zaloId: string): ZaloService | null {
+        for (const instance of this.instances.values()) {
+            if (instance.zaloId === zaloId) return instance;
+        }
+        return null;
+    }
+
+
     public static removeInstanceByZaloId(zaloId: string): void {
         for (const [key, instance] of this.instances) {
             if (instance.zaloId === zaloId) {
@@ -1073,15 +1081,17 @@ export default class ZaloService {
                         filesPath.push(meta.thumbPath);
                         // Upload ảnh bìa lên Zalo
                         const thumbResp = await this.uploadVideoThumb(meta.thumbPath, threadId, type);
-                        if (thumbResp && thumbResp.fileUrl) {
-                            thumbnailUrl = thumbResp.fileUrl;
+                        const uploadedThumbUrl = thumbResp?.normalUrl || thumbResp?.hdUrl || thumbResp?.url || thumbResp?.thumbUrl || thumbResp?.fileUrl || thumbResp?.href;
+                        if (uploadedThumbUrl) {
+                            thumbnailUrl = uploadedThumbUrl;
                         }
                     }
 
                     // Upload file video lên Zalo
                     const videoResp = await this.uploadVideoFile(resolvedVideoPath, threadId, type);
-                    if (videoResp && videoResp.fileUrl) {
-                        videoUrl = videoResp.fileUrl;
+                    const uploadedUrl = videoResp?.fileUrl || videoResp?.normalUrl || videoResp?.hdUrl || videoResp?.url;
+                    if (uploadedUrl) {
+                        videoUrl = uploadedUrl;
                     }
                 }
             }

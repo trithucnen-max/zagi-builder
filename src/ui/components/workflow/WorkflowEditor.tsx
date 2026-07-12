@@ -704,6 +704,35 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
     });
   }, [workflowId, toRFNode]);
 
+  // Auto-select last account if pageIds is empty on load
+  const prevPageIdsLengthRef = useRef<number | null>(null);
+  const loadedWorkflowIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (loadedWorkflowIdRef.current !== workflowId) {
+      loadedWorkflowIdRef.current = workflowId;
+      prevPageIdsLengthRef.current = null;
+    }
+  }, [workflowId]);
+
+  useEffect(() => {
+    if (accounts.length > 0 && workflowMeta.pageIds.length === 0 && prevPageIdsLengthRef.current === null) {
+      const filtered = accounts.filter(a => (a.channel || 'zalo') === workflowMeta.channel);
+      if (filtered.length > 0) {
+        setWorkflowMeta(prev => {
+          if (prev.pageIds.length > 0) return prev;
+          return {
+            ...prev,
+            pageIds: [filtered[filtered.length - 1].zalo_id]
+          };
+        });
+      }
+      prevPageIdsLengthRef.current = 0;
+    } else if (workflowMeta.pageIds.length > 0) {
+      prevPageIdsLengthRef.current = workflowMeta.pageIds.length;
+    }
+  }, [accounts, workflowMeta.channel, workflowMeta.pageIds.length]);
+
   // Update node debug results and edge colors on canvas when activeDebugLog changes
   useEffect(() => {
     setNodes(ns => ns.map(n => {

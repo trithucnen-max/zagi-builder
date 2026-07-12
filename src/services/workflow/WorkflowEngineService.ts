@@ -1968,7 +1968,6 @@ class WorkflowEngineService {
       }
 
       case 'zalo.sendVideo': {
-        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
         const continueOnError = cfg.continueOnError === true;
@@ -1992,6 +1991,12 @@ class WorkflowEngineService {
           throw new Error("Danh sách đường dẫn video gửi trống");
         }
 
+        // Dùng ZaloService thay vì raw zca-js API để hỗ trợ upload đường dẫn cục bộ
+        const zaloId = ctx.pageId || ctx.trigger?.zaloId || '';
+        const ZaloService = require('../zalo/ZaloService').default;
+        const zaloSvc = ZaloService.getInstanceByZaloId(zaloId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
+
         let lastResult: any = { success: false, error: 'Không gửi được video đến hội thoại nào' };
         for (const tid of targetThreadIds) {
           const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
@@ -1999,14 +2004,20 @@ class WorkflowEngineService {
             try {
               const options = {
                 videoUrl: vPath,
-                thumbnailUrl: cfg.thumbnailUrl,
+                thumbnailUrl: cfg.thumbnailUrl || '',
                 duration: cfg.duration ? Number(cfg.duration) : undefined,
                 width: cfg.width ? Number(cfg.width) : undefined,
                 height: cfg.height ? Number(cfg.height) : undefined,
                 msg: cfg.msg || undefined,
                 ttl: cfg.ttl ? Number(cfg.ttl) : 0,
               };
-              const result = await api.sendVideo(options, tid, activeThreadType);
+              let result: any;
+              if (zaloSvc) {
+                // Gọi ZaloService để hỗ trợ upload tệp cục bộ và chuẩn hóa URL
+                result = await zaloSvc.sendVideo(options, tid, activeThreadType, null);
+              } else {
+                result = await api.sendVideo(options, tid, activeThreadType);
+              }
               lastResult = result;
               Logger.log(`[WorkflowEngine] zalo.sendVideo to ${tid} (${vPath}): success=true`);
             } catch (err: any) {
@@ -2055,7 +2066,6 @@ class WorkflowEngineService {
       }
 
       case 'zalo.sendBankCard': {
-        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
         const threadType = Number(cfg.threadType) === 1 ? 1 : 0;
         const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
         const continueOnError = cfg.continueOnError === true;
@@ -2066,13 +2076,38 @@ class WorkflowEngineService {
           nameAccBank: (cfg.nameAccBank || '').toUpperCase(),
         };
 
+        // Gọi ZaloService để chuẩn hóa tham số (parseInt binBank, convertThreadType)
+        const bankZaloId = ctx.pageId || ctx.trigger?.zaloId || '';
+        const ZaloServiceBank = require('../zalo/ZaloService').default;
+        const zaloSvcBank = ZaloServiceBank.getInstanceByZaloId(bankZaloId);
+        const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
+
         let lastResult: any = { success: false, error: 'Không gửi được thẻ ngân hàng đến hội thoại nào' };
         for (const tid of targetThreadIds) {
           try {
             const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
-            const result = await api.sendBankCard(JSON.stringify(bankPayload), tid, activeThreadType);
+            let result: any;
+            if (zaloSvcBank) {
+              result = await zaloSvcBank.sendBankCard(JSON.stringify(bankPayload), tid, activeThreadType);
+            } else {
+              result = await api.sendBankCard(JSON.stringify(bankPayload), tid, activeThreadType);
+            }
             lastResult = result;
             Logger.log(`[WorkflowEngine] zalo.sendBankCard to ${tid}: success=true`);
+            // Emit IPC event để renderer cache dữ liệu bank card và hiển thị ảnh thẻ đẹp
+            try {
+              const EventBroadcaster = require('../event/EventBroadcaster').default;
+              const ownerZaloId = ctx.pageId || ctx.trigger?.zaloId || '';
+              EventBroadcaster.emit('zalo:bankCardCached', {
+                ownerZaloId,
+                threadId: tid,
+                binBank: Number(bankPayload.binBank),
+                numAccBank: String(bankPayload.numAccBank),
+                nameAccBank: String(bankPayload.nameAccBank),
+              });
+            } catch (e: any) {
+              Logger.warn(`[WorkflowEngine] bankCardCached emit failed: ${e.message}`);
+            }
           } catch (err: any) {
             Logger.warn(`[WorkflowEngine] zalo.sendBankCard to ${tid} failed: ${err.message}`);
             lastResult = { success: false, error: err.message };
@@ -3754,11 +3789,77 @@ class WorkflowEngineService {
             return res?.success ? res.response : res;
           },
           sendVideo: async (options: any, threadId: string, type: any) => {
-            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendVideo', { zaloId: targetZaloId, auth: {}, options, threadId, type });
+            const clientService = HttpConnectionManager.getInstance().getServiceForWorkspace(activeWs.id);
+            let bossPath = options.videoUrl;
+            if (clientService && bossPath) {
+              const fs = require('fs');
+              const path = require('path');
+              try {
+                let localPath = bossPath;
+                if (localPath.startsWith('file://')) {
+                  const decoded = decodeURIComponent(localPath);
+                  const pathPart = decoded.startsWith('file:///') ? decoded.substring(8) : decoded.substring(7);
+                  localPath = /^[a-zA-Z]:/.test(pathPart) ? pathPart : '/' + pathPart;
+                }
+                if (localPath && !localPath.startsWith('http://') && !localPath.startsWith('https://') && fs.existsSync(localPath)) {
+                  const buffer = fs.readFileSync(localPath);
+                  const base64 = buffer.toString('base64');
+                  const filename = path.basename(localPath);
+                  const uploadRes = await clientService.uploadMedia(base64, filename, targetZaloId);
+                  if (uploadRes?.success && uploadRes.bossPath) {
+                    bossPath = uploadRes.bossPath;
+                  } else {
+                    Logger.warn(`[WorkflowEngine] Proxy sendVideo upload failed: ${uploadRes?.error}`);
+                  }
+                }
+              } catch (err: any) {
+                Logger.error(`[WorkflowEngine] Proxy sendVideo upload error: ${err.message}`);
+              }
+            }
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendVideo', {
+              zaloId: targetZaloId,
+              auth: {},
+              options: { ...options, videoUrl: bossPath },
+              threadId,
+              type
+            });
             return res?.success ? res.response : res;
           },
           sendVoice: async (options: any, threadId: string, type: any) => {
-            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendVoice', { zaloId: targetZaloId, auth: {}, options, threadId, type });
+            const clientService = HttpConnectionManager.getInstance().getServiceForWorkspace(activeWs.id);
+            let bossPath = options.voiceUrl;
+            if (clientService && bossPath) {
+              const fs = require('fs');
+              const path = require('path');
+              try {
+                let localPath = bossPath;
+                if (localPath.startsWith('file://')) {
+                  const decoded = decodeURIComponent(localPath);
+                  const pathPart = decoded.startsWith('file:///') ? decoded.substring(8) : decoded.substring(7);
+                  localPath = /^[a-zA-Z]:/.test(pathPart) ? pathPart : '/' + pathPart;
+                }
+                if (localPath && !localPath.startsWith('http://') && !localPath.startsWith('https://') && fs.existsSync(localPath)) {
+                  const buffer = fs.readFileSync(localPath);
+                  const base64 = buffer.toString('base64');
+                  const filename = path.basename(localPath);
+                  const uploadRes = await clientService.uploadMedia(base64, filename, targetZaloId);
+                  if (uploadRes?.success && uploadRes.bossPath) {
+                    bossPath = uploadRes.bossPath;
+                  } else {
+                    Logger.warn(`[WorkflowEngine] Proxy sendVoice upload failed: ${uploadRes?.error}`);
+                  }
+                }
+              } catch (err: any) {
+                Logger.error(`[WorkflowEngine] Proxy sendVoice upload error: ${err.message}`);
+              }
+            }
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:sendVoice', {
+              zaloId: targetZaloId,
+              auth: {},
+              options: { ...options, voiceUrl: bossPath },
+              threadId,
+              type
+            });
             return res?.success ? res.response : res;
           },
           sendBankCard: async (payload: any, threadId: string, type: any) => {
