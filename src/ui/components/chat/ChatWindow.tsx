@@ -2945,7 +2945,7 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
   const addOption = () => { if (options.length < 20) setOptions(prev => [...prev, '']); };
   const removeOption = (i: number) => { if (options.length > 2) setOptions(prev => prev.filter((_, idx) => idx !== i)); };
 
-  const handleCreate = async () => {
+  const handleCreate = async (keepOpen = false) => {
     const q = question.trim();
     const opts = options.map(o => o.trim()).filter(Boolean);
     if (!q) { showNotification('Vui lòng nhập câu hỏi bình chọn', 'error'); return; }
@@ -2981,7 +2981,12 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
       }
       if (res?.success) {
         showNotification('Đã tạo bình chọn', 'success');
-        onClose();
+        if (keepOpen) {
+          setQuestion('');
+          setOptions(['', '']);
+        } else {
+          onClose();
+        }
       } else {
         showNotification('Tạo bình chọn thất bại: ' + (res?.error || 'Lỗi không xác định'), 'error');
       }
@@ -3103,10 +3108,15 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-700 flex-shrink-0">
           <button onClick={onClose}
-            className="px-5 py-2 rounded-xl text-sm font-semibold text-gray-300 hover:bg-gray-700 transition-colors">
+            className="px-5 py-2 rounded-xl text-sm font-semibold text-gray-400 hover:text-gray-250 transition-colors">
             Huỷ
           </button>
-          <button onClick={handleCreate} disabled={creating || !question.trim() || options.filter(o => o.trim()).length < 2}
+          <button onClick={() => handleCreate(true)} disabled={creating || !question.trim() || options.filter(o => o.trim()).length < 2}
+            className="px-5 py-2 rounded-xl text-sm font-semibold bg-gray-800 hover:bg-gray-750 text-gray-200 border border-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+            {creating && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
+            Tạo & Nhập tiếp
+          </button>
+          <button onClick={() => handleCreate(false)} disabled={creating || !question.trim() || options.filter(o => o.trim()).length < 2}
             className="px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
             {creating && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
             Tạo bình chọn
@@ -5359,6 +5369,10 @@ const RTF_COLOR_MAP: Record<string, string> = {
   'c_f27806': '#f27806',
   'c_f7b503': '#f7b503',
   'c_15a85f': '#15a85f',
+  'c_3b82f6': '#3b82f6',
+  'c_7c3aed': '#7c3aed',
+  'c_db2777': '#db2777',
+  'c_9ca3af': '#9ca3af',
 };
 
 interface RtfStyle {
@@ -5378,7 +5392,20 @@ function applyRtfStyles(text: string, styles: RtfStyle[], mentions?: RtfMention[
   if (!text) return null;
 
   // Build character-level style map
-  type CharStyle = { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; color?: string; small?: boolean; big?: boolean; mentionUid?: string };
+  type CharStyle = {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    strike?: boolean;
+    color?: string;
+    small_12?: boolean;
+    small_13?: boolean;
+    normal_14?: boolean;
+    medium_16?: boolean;
+    big_18?: boolean;
+    xlarge_20?: boolean;
+    mentionUid?: string;
+  };
   const charStyles: CharStyle[] = Array.from({ length: text.length }, () => ({}));
 
   // Apply RTF styles (st can be comma-separated like "b,c_db342e")
@@ -5392,8 +5419,12 @@ function applyRtfStyles(text: string, styles: RtfStyle[], mentions?: RtfMention[
         else if (st === 'i') cs.italic = true;
         else if (st === 'u') cs.underline = true;
         else if (st === 's') cs.strike = true;
-        else if (st === 'f_13') cs.small = true;
-        else if (st === 'f_18') cs.big = true;
+        else if (st === 'f_12') cs.small_12 = true;
+        else if (st === 'f_13') cs.small_13 = true;
+        else if (st === 'f_14') cs.normal_14 = true;
+        else if (st === 'f_16') cs.medium_16 = true;
+        else if (st === 'f_18') cs.big_18 = true;
+        else if (st === 'f_20') cs.xlarge_20 = true;
         else if (st in RTF_COLOR_MAP) cs.color = RTF_COLOR_MAP[st];
       }
     }
@@ -5420,8 +5451,12 @@ function applyRtfStyles(text: string, styles: RtfStyle[], mentions?: RtfMention[
     if (cs.italic) cls.push('italic');
     if (cs.underline) cls.push('underline');
     if (cs.strike) cls.push('line-through');
-    if (cs.small) cls.push('text-xs');
-    if (cs.big) cls.push('text-base font-medium');
+    if (cs.small_12) cls.push('text-[12px]');
+    if (cs.small_13) cls.push('text-xs');
+    if (cs.normal_14) cls.push('text-sm');
+    if (cs.medium_16) cls.push('text-[16px]');
+    if (cs.big_18) cls.push('text-base font-medium');
+    if (cs.xlarge_20) cls.push('text-lg font-bold');
     if (cs.mentionUid) {
       cls.push('font-semibold');
       if (onMentionClick && cs.mentionUid !== 'unknown') cls.push('cursor-pointer hover:underline');

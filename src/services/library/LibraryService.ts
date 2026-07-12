@@ -527,6 +527,29 @@ class LibraryService {
       db.exec(`CREATE INDEX IF NOT EXISTS idx_library_folder ON media_library_items(folder_id)`);
       db.exec(`CREATE INDEX IF NOT EXISTS idx_library_item_tags_uuid ON media_library_item_tags(item_uuid)`);
       db.exec(`CREATE INDEX IF NOT EXISTS idx_library_item_tags_id ON media_library_item_tags(tag_id)`);
+
+      // Sync old tag strings to junction table
+      try {
+        const items = db.query<any>("SELECT uuid, owner_zalo_id, tags FROM media_library_items WHERE tags IS NOT NULL AND tags != ''") || [];
+        for (const item of items) {
+          const names = item.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+          for (const name of names) {
+            // Find or create tag
+            let tag = db.queryOne<any>("SELECT id FROM media_library_tags WHERE owner_zalo_id = ? AND name = ?", [item.owner_zalo_id, name]);
+            if (!tag) {
+              const color = '#3b82f6';
+              db.run("INSERT INTO media_library_tags (name, owner_zalo_id, color) VALUES (?, ?, ?)", [name, item.owner_zalo_id, color]);
+              tag = db.queryOne<any>("SELECT id FROM media_library_tags WHERE owner_zalo_id = ? AND name = ?", [item.owner_zalo_id, name]);
+            }
+            if (tag) {
+              db.run("INSERT OR IGNORE INTO media_library_item_tags (item_uuid, tag_id, owner_zalo_id) VALUES (?, ?, ?)", [item.uuid, tag.id, item.owner_zalo_id]);
+            }
+          }
+        }
+      } catch (syncErr: any) {
+        Logger.warn(`[LibraryService] Tag sync migration warning: ${syncErr.message}`);
+      }
+
       Logger.log('[LibraryService] ✅ Tables migrated');
     } catch (err: any) {
       Logger.warn(`[LibraryService] Migration error: ${err.message}`);

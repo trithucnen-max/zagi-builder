@@ -555,8 +555,9 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
 }
 
 /* ── Backgrounds ─────────────────────────────────────────────────────────── */
-/* Custom colors used in UserProfilePopup */
+/* Custom colors used in UserProfilePopup & CRMNotesModal */
 html[data-theme="light"] .bg-\[\#1e2535\]     { background-color: #f0ede8; }
+html[data-theme="light"] .bg-\[\#151a25\]     { background-color: #e5e2db; }
 html[data-theme="light"] .border-\[\#1e2535\] { border-color: #f0ede8; }
 
 html[data-theme="light"] .bg-gray-950  { background-color: #ffffff; }

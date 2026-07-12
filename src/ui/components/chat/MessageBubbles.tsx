@@ -200,6 +200,8 @@ function LocationBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
 const RTF_COLOR_MAP: Record<string, string> = {
   'c_db342e': '#db342e', 'c_f27806': '#f27806',
   'c_f7b503': '#f7b503', 'c_15a85f': '#15a85f',
+  'c_3b82f6': '#3b82f6', 'c_7c3aed': '#7c3aed',
+  'c_db2777': '#db2777', 'c_9ca3af': '#9ca3af',
 };
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -1363,7 +1365,19 @@ function RtfBubble({ msg }: { msg: any }) {
   if (!title) return <span className="text-xs opacity-60">[Tin nhắn định dạng]</span>;
   if (!styles.length) return <span className="whitespace-pre-wrap">{convertZaloEmojis(title)}</span>;
 
-  type CharStyle = { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; color?: string; small?: boolean; big?: boolean };
+  type CharStyle = {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    strike?: boolean;
+    color?: string;
+    small_12?: boolean;
+    small_13?: boolean;
+    normal_14?: boolean;
+    medium_16?: boolean;
+    big_18?: boolean;
+    xlarge_20?: boolean;
+  };
   const charStyles: CharStyle[] = Array.from({ length: title.length }, () => ({}));
 
   for (const style of styles) {
@@ -1376,8 +1390,12 @@ function RtfBubble({ msg }: { msg: any }) {
         else if (st === 'i') cs.italic = true;
         else if (st === 'u') cs.underline = true;
         else if (st === 's') cs.strike = true;
-        else if (st === 'f_13') cs.small = true;
-        else if (st === 'f_18') cs.big = true;
+        else if (st === 'f_12') cs.small_12 = true;
+        else if (st === 'f_13') cs.small_13 = true;
+        else if (st === 'f_14') cs.normal_14 = true;
+        else if (st === 'f_16') cs.medium_16 = true;
+        else if (st === 'f_18') cs.big_18 = true;
+        else if (st === 'f_20') cs.xlarge_20 = true;
         else if (st in RTF_COLOR_MAP) cs.color = RTF_COLOR_MAP[st];
       }
     }
@@ -1396,8 +1414,12 @@ function RtfBubble({ msg }: { msg: any }) {
     if (cs.italic) cls.push('italic');
     if (cs.underline) cls.push('underline');
     if (cs.strike) cls.push('line-through');
-    if (cs.small) cls.push('text-xs');
-    if (cs.big) cls.push('text-base font-medium');
+    if (cs.small_12) cls.push('text-[12px]');
+    if (cs.small_13) cls.push('text-xs');
+    if (cs.normal_14) cls.push('text-sm');
+    if (cs.medium_16) cls.push('text-[16px]');
+    if (cs.big_18) cls.push('text-base font-medium');
+    if (cs.xlarge_20) cls.push('text-lg font-bold');
     if (cs.color) inlineStyle.color = cs.color;
     nodes.push(
       <span key={i}

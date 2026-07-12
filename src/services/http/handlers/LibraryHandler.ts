@@ -342,6 +342,18 @@ export const libraryHandlers = {
   serveThumb(req: http.IncomingMessage, res: http.ServerResponse, uuid: string): void {
     const thumbInfo = lib().getThumbPath(uuid);
     if (!thumbInfo) {
+      // Fallback: If thumb is missing but it's an image, serve original file directly
+      const fileInfo = lib().getFilePath(uuid);
+      if (fileInfo && fileInfo.mimeType.startsWith('image/')) {
+        const stat = fs.statSync(fileInfo.filePath);
+        res.writeHead(200, {
+          'Content-Type': fileInfo.mimeType,
+          'Content-Length': stat.size,
+          'Cache-Control': 'public, max-age=604800',
+        });
+        fs.createReadStream(fileInfo.filePath).pipe(res);
+        return;
+      }
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(error('Thumb not found')));
       return;

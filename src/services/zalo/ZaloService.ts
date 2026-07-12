@@ -382,6 +382,22 @@ export default class ZaloService {
         }
     }
 
+    private stripFileProtocol(url: string): string {
+        if (!url) return '';
+        if (url.startsWith('file://')) {
+            const decoded = decodeURIComponent(url);
+            if (decoded.startsWith('file:///')) {
+                const pathPart = decoded.substring(8);
+                if (/^[a-zA-Z]:/.test(pathPart)) {
+                    return pathPart;
+                }
+                return '/' + pathPart;
+            }
+            return decoded.substring(7);
+        }
+        return url;
+    }
+
     /**
      * Xử lý tải xuống các tệp đính kèm
      * @param attachments Mảng các URL của tệp đính kèm
@@ -396,7 +412,8 @@ export default class ZaloService {
             fs.mkdirSync(imageDir, {recursive: true});
         }
 
-        for (const fileUrl of attachments) {
+        for (let fileUrl of attachments) {
+            fileUrl = this.stripFileProtocol(fileUrl);
             if (!fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
                 // Nếu là đường dẫn tệp cục bộ, sử dụng trực tiếp không tải xuống
                 downloadedFiles.push(FileStorageService.resolveAbsolutePath(fileUrl));
@@ -1035,6 +1052,9 @@ export default class ZaloService {
             const quoteParsed = quote ? (typeof quote === 'string' ? JSON.parse(quote) : quote) : null;
 
             let videoUrl = videoOptions.videoUrl;
+            if (videoUrl) {
+                videoUrl = this.stripFileProtocol(videoUrl);
+            }
             let thumbnailUrl = videoOptions.thumbnailUrl;
             let duration = videoOptions.duration;
             let width = videoOptions.width;
@@ -1375,6 +1395,9 @@ export default class ZaloService {
         type = convertThreadType(type);
         try {
             let voiceUrl = voiceOptions.voiceUrl;
+            if (voiceUrl) {
+                voiceUrl = this.stripFileProtocol(voiceUrl);
+            }
             if (voiceUrl && !voiceUrl.startsWith('http://') && !voiceUrl.startsWith('https://')) {
                 const resolvedVoicePath = FileStorageService.resolveAbsolutePath(voiceUrl);
                 if (fs.existsSync(resolvedVoicePath)) {
@@ -1409,9 +1432,35 @@ export default class ZaloService {
         if (!this.api) throw new Error("API not initialized");
         try {
             const threadType = convertThreadType(type);
-            const result = await this.api.uploadAttachment([voicePath], threadId, threadType);
+            let targetPath = voicePath;
+            const ext = path.extname(voicePath).toLowerCase();
+            const isTempConversion = ext !== '.m4a' && ext !== '.mp3';
+
+            if (isTempConversion) {
+                const m4aPath = voicePath.substring(0, voicePath.length - ext.length) + '.m4a';
+                const ffmpegBin = this.getFfmpegBin();
+                Logger.info(`[ZaloService] Converting voice file ${voicePath} to ${m4aPath} using ${ffmpegBin}`);
+                const result = spawnSync(ffmpegBin, ['-y', '-i', voicePath, '-c:a', 'aac', '-b:a', '128k', m4aPath], { stdio: 'ignore' });
+                if (result.status === 0 && fs.existsSync(m4aPath)) {
+                    targetPath = m4aPath;
+                } else {
+                    Logger.error(`[ZaloService] ffmpeg conversion failed, status: ${result.status}`);
+                }
+            }
+
+            const result = await this.api.uploadAttachment([targetPath], threadId, threadType);
             const resp = Array.isArray(result) ? result[0] : result;
             Logger.info(`[ZaloService] uploadVoiceFile raw result: ${JSON.stringify(resp)}`);
+
+            // Clean up the converted file if we created one
+            if (isTempConversion && targetPath !== voicePath) {
+                try {
+                    fs.unlinkSync(targetPath);
+                } catch (cleanupErr: any) {
+                    Logger.warn(`[ZaloService] Failed to clean up converted voice file: ${cleanupErr.message}`);
+                }
+            }
+
             return resp;
         } catch (error: any) {
             throw new Error('uploadVoiceFile error: ' + error.message);
@@ -1558,6 +1607,7 @@ export default class ZaloService {
     public async sendImage(filePath: string, threadId: string, type: ThreadType = ThreadType.User, caption?: string, quote: any = null): Promise<any> {
         if (!this.api) throw new Error("API not initialized");
         try {
+            filePath = this.stripFileProtocol(filePath);
             const buffer = fs.readFileSync(filePath);
             const baseName = path.basename(filePath);
             let width = 0, height = 0;
@@ -1617,7 +1667,8 @@ export default class ZaloService {
         // Nếu chỉ 1 ảnh, dùng sendImage thông thường
         if (filePaths.length === 1) return this.sendImage(filePaths[0], threadId, type, undefined, quote);
         try {
-            const attachments = filePaths.map(filePath => {
+            const attachments = filePaths.map(rawPath => {
+                const filePath = this.stripFileProtocol(rawPath);
                 const buffer = fs.readFileSync(filePath);
                 const baseName = path.basename(filePath);
                 // zca-js requires filename to contain an extension (`${string}.${string}`)
@@ -1749,6 +1800,8 @@ export default class ZaloService {
             numAccBank,
             nameAccBank,
         }
+
+        type = convertThreadType(type);
 
         try {
             return await this.api.sendBankCard(finalPayload, threadId, type);

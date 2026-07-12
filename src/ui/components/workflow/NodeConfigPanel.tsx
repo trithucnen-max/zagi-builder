@@ -2,12 +2,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
+import LibraryPickerModal from '../chat/library/LibraryPickerModal';
 import { getNodeLabel } from './workflowConfig';
 import GroupAvatar from '@/components/common/GroupAvatar';
 import TemplateVarPopup from './TemplateVarPopup';
 import { SmartInput, SmartTextarea } from './SmartInput';
 import { showConfirm } from '@/components/common/ConfirmDialog';
 import { getTemplateVarsForNode, getNodeOutputVars, TEMPLATE_VARS } from './templateVars';
+
+const getSafeFileUrl = (path: string): string => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  if (path.startsWith('file://')) return path;
+  const normalized = path.replace(/\\/g, '/');
+  if (normalized.startsWith('/')) {
+    return `file://${normalized}`;
+  }
+  return `file:///${normalized}`;
+};
 
 const BANK_LIST = [
   { name: 'Vietcombank', bin: 970436 },
@@ -4010,6 +4022,7 @@ function FilePickerField({
   const theme = useAppStore(s => s.theme);
   const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
   const [previewError, setPreviewError] = React.useState(false);
+  const [showLibPicker, setShowLibPicker] = React.useState(false);
 
   const handleSelectFile = async () => {
     try {
@@ -4044,7 +4057,7 @@ function FilePickerField({
         <div className={`p-3 border-b ${isLight ? 'border-gray-200 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
           <div className="relative w-full h-32 rounded-lg overflow-hidden bg-gray-900/20">
             <img
-              src={isUrl ? value : `file://${value}`}
+              src={getSafeFileUrl(value)}
               alt="Preview"
               className="w-full h-full object-contain"
               onError={() => setPreviewError(true)}
@@ -4054,7 +4067,7 @@ function FilePickerField({
       )}
 
       {/* Input and buttons */}
-      <div className="flex items-center gap-2 p-2">
+      <div className="p-2.5 space-y-2.5">
         <input
           type="text"
           value={value || ''}
@@ -4063,37 +4076,70 @@ function FilePickerField({
             setPreviewError(false);
           }}
           placeholder={placeholder || (fileType === 'image' ? 'Chọn ảnh hoặc nhập URL' : 'Chọn file từ máy tính')}
-          className={`flex-1 px-2 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 ${
+          className={`w-full px-2.5 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 ${
             isLight
               ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-blue-500/30'
               : 'bg-gray-900/50 border-gray-600 text-white placeholder-gray-500 focus:ring-blue-500/30'
           }`}
         />
-        <button
-          type="button"
-          onClick={handleSelectFile}
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 ${
-            isLight
-              ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'
-              : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {fileType === 'image' ? (
-              <>
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </>
-            ) : (
-              <>
-                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-                <polyline points="13 2 13 9 20 9"/>
-              </>
-            )}
-          </svg>
-          Chọn {fileType === 'image' ? 'ảnh' : 'file'}
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={handleSelectFile}
+            className={`w-full py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 shrink-0 ${
+              isLight
+                ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'
+                : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
+            }`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              {fileType === 'image' ? (
+                <>
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </>
+              ) : (
+                <>
+                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                  <polyline points="13 2 13 9 20 9"/>
+                </>
+              )}
+            </svg>
+            Chọn từ máy
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowLibPicker(true)}
+            className={`w-full py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 shrink-0 ${
+              isLight
+                ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
+                : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30'
+            }`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            Thư viện
+          </button>
+        </div>
+
+        {showLibPicker && (
+          <LibraryPickerModal
+            zaloId={useAccountStore.getState().activeAccountId || useAccountStore.getState().accounts[0]?.zalo_id || ''}
+            initialType={fileType === 'audio' ? 'file' : fileType}
+            onClose={() => setShowLibPicker(false)}
+            onSelect={(items) => {
+              if (items?.[0]) {
+                const path = items[0]._localPath || items[0].fileUrl;
+                onChange(path);
+                setPreviewError(false);
+              }
+              setShowLibPicker(false);
+            }}
+          />
+        )}
       </div>
 
       {/* File info */}
@@ -4153,6 +4199,8 @@ function MultiImageSelector({
   const theme = useAppStore(s => s.theme);
   const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
   
+  const [showLibPicker, setShowLibPicker] = React.useState(false);
+
   // Extract paths from config.filePaths or config.filePath
   const filePathsStr = config.filePaths || '';
   const filePathStr = config.filePath || '';
@@ -4225,7 +4273,7 @@ function MultiImageSelector({
         <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
           {currentPaths.map((p, idx) => {
             const isUrl = p.startsWith('http://') || p.startsWith('https://');
-            const imgSrc = isUrl ? p : `file://${p}`;
+            const imgSrc = getSafeFileUrl(p);
             const fileName = p.split('\\').pop()?.split('/').pop() || p;
             return (
               <div key={idx} className={`relative group border rounded-xl overflow-hidden aspect-video ${isLight ? 'border-gray-200 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
@@ -4282,6 +4330,34 @@ function MultiImageSelector({
           </svg>
           Chọn ảnh từ máy
         </button>
+
+        <button
+          type="button"
+          onClick={() => setShowLibPicker(true)}
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            isLight
+              ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
+              : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30'
+          }`}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          Chọn từ thư viện
+        </button>
+
+        {showLibPicker && (
+          <LibraryPickerModal
+            zaloId={useAccountStore.getState().activeAccountId || useAccountStore.getState().accounts[0]?.zalo_id || ''}
+            initialType="image"
+            onClose={() => setShowLibPicker(false)}
+            onSelect={(items) => {
+              const added = items.map(item => item._localPath || item.fileUrl).filter(p => p && !currentPaths.includes(p));
+              updatePathsList([...currentPaths, ...added]);
+              setShowLibPicker(false);
+            }}
+          />
+        )}
       </div>
 
       {/* Input URL manually */}
@@ -4335,6 +4411,317 @@ function MultiImageSelector({
           className="text-xs text-gray-300 font-medium cursor-pointer select-none"
         >
           🎲 Gửi ngẫu nhiên 1 ảnh trong danh sách
+        </label>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bank Card Autofill Helper Component ─────────────────────────────────────
+
+function BankCardAutofillHelper({
+  onChange,
+}: {
+  onChange: (updates: Record<string, any>) => void;
+}) {
+  const activeAccountId = useAccountStore(s => s.activeAccountId) || useAccountStore.getState().accounts[0]?.zalo_id || '';
+  const [cards, setCards] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  useEffect(() => {
+    if (!activeAccountId) return;
+    setLoading(true);
+    ipc.db?.getBankCards({ zaloId: activeAccountId })
+      .then((res: any) => {
+        if (res?.success && res.cards) {
+          setCards(res.cards);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [activeAccountId]);
+
+  if (loading) {
+    return (
+      <div className="text-xs text-gray-500 py-1.5 flex items-center gap-1.5">
+        <svg className="animate-spin h-3.5 w-3.5 text-gray-500" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+        </svg>
+        Đang tải thông tin ngân hàng đã lưu...
+      </div>
+    );
+  }
+
+  if (cards.length === 0) {
+    return null;
+  }
+
+  const handleSelectCard = (card: any) => {
+    onChange({
+      binBank: String(card.bin_bank),
+      numAccBank: card.account_number,
+      nameAccBank: card.account_name,
+    });
+    setShowDropdown(false);
+  };
+
+  return (
+    <div className="relative mb-3.5 bg-blue-600/5 border border-blue-500/20 rounded-xl p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-blue-400 font-medium flex items-center gap-1">
+          <span>💡</span>
+          <span>Phát hiện {cards.length} tài khoản ngân hàng đã lưu</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowDropdown(prev => !prev)}
+          className="text-[10px] bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 px-2 py-1 rounded-lg transition-colors font-semibold border border-blue-500/20"
+        >
+          {showDropdown ? 'Đóng' : 'Chọn nhanh...'}
+        </button>
+      </div>
+
+      {showDropdown && (
+        <div className="mt-2.5 space-y-1.5 max-h-36 overflow-y-auto">
+          {cards.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => handleSelectCard(c)}
+              className="w-full text-left text-xs px-2.5 py-2 rounded-lg bg-gray-800 hover:bg-gray-700/80 text-gray-200 hover:text-white truncate transition-colors flex items-center justify-between border border-gray-700/50"
+            >
+              <span className="font-semibold">{c.bank_name} - {c.account_number}</span>
+              <span className="text-[10px] text-gray-500 font-mono italic">{c.account_name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Multi File Selector Component ───────────────────────────────────────────
+
+function MultiFileSelector({
+  config,
+  onChange,
+  fileType,
+}: {
+  config: Record<string, any>;
+  onChange: (updates: Record<string, any>) => void;
+  fileType: 'file' | 'video';
+}) {
+  const theme = useAppStore(s => s.theme);
+  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [showLibPicker, setShowLibPicker] = React.useState(false);
+
+  const isVideo = fileType === 'video';
+  const filePathsStr = isVideo ? (config.videoUrls || '') : (config.filePaths || '');
+  const filePathStr = isVideo ? (config.videoUrl || '') : (config.filePath || '');
+
+  const currentPaths = React.useMemo(() => {
+    const list = filePathsStr.split('\n').map((p: string) => p.trim()).filter(Boolean);
+    if (list.length === 0 && filePathStr) {
+      list.push(filePathStr.trim());
+    }
+    return list;
+  }, [filePathsStr, filePathStr]);
+
+  const sendMode = config.sendMode || 'single';
+  const isRandom = sendMode === 'random';
+
+  const updatePathsList = (newList: string[], newRandomVal?: boolean) => {
+    const randomVal = newRandomVal !== undefined ? newRandomVal : isRandom;
+    const pathsStr = newList.join('\n');
+    const firstPath = newList[0] || '';
+
+    let mode = 'single';
+    if (randomVal) {
+      mode = 'random';
+    } else if (newList.length > 1) {
+      mode = 'multiple';
+    } else if (newList.length === 1) {
+      mode = 'single';
+    }
+
+    if (isVideo) {
+      onChange({
+        sendMode: mode,
+        videoUrl: firstPath,
+        videoUrls: pathsStr,
+      });
+    } else {
+      onChange({
+        sendMode: mode,
+        filePath: firstPath,
+        filePaths: pathsStr,
+      });
+    }
+  };
+
+  const handleSelectFiles = async () => {
+    try {
+      let filters = [{ name: 'All Files', extensions: ['*'] }];
+      if (isVideo) {
+        filters = [{ name: 'Videos', extensions: ['mp4', 'mkv', 'avi', 'mov', 'webm'] }];
+      }
+      const result = await ipc.file?.openDialog({ filters, multiSelect: true });
+      if (result?.success && !result.canceled && result.filePaths?.length) {
+        const added = result.filePaths.filter((p: string) => !currentPaths.includes(p));
+        updatePathsList([...currentPaths, ...added]);
+      }
+    } catch (err) {
+      console.warn('[MultiFileSelector] Error selecting files:', err);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    const next = [...currentPaths];
+    next.splice(index, 1);
+    updatePathsList(next);
+  };
+
+  const [urlInput, setUrlInput] = React.useState('');
+  const handleAddUrl = () => {
+    const val = urlInput.trim();
+    if (val && !currentPaths.includes(val)) {
+      updatePathsList([...currentPaths, val]);
+      setUrlInput('');
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* List of files */}
+      {currentPaths.length > 0 ? (
+        <div className="space-y-2 max-h-48 overflow-y-auto p-1">
+          {currentPaths.map((p, idx) => {
+            const fileName = p.split('\\').pop()?.split('/').pop() || p;
+            return (
+              <div key={idx} className={`flex items-center justify-between gap-3 px-3 py-2 border rounded-xl ${isLight ? 'border-gray-200 bg-gray-50' : 'border-gray-700 bg-gray-800/50'}`}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-base shrink-0">{isVideo ? '🎥' : '📁'}</span>
+                  <span className="text-xs truncate font-mono text-gray-300">
+                    {fileName}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveFile(idx)}
+                  className="w-5 h-5 rounded-full bg-red-600/10 hover:bg-red-600/20 text-red-500 hover:text-red-400 flex items-center justify-center transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={`border border-dashed rounded-xl py-6 px-4 text-center ${isLight ? 'border-gray-200 bg-gray-50 text-gray-400' : 'border-gray-700 bg-gray-800/10 text-gray-500'}`}>
+          <div className="text-xl mb-1">{isVideo ? '🎥' : '📁'}</div>
+          <p className="text-[11px]">Chưa có {isVideo ? 'video' : 'file'} nào được chọn</p>
+        </div>
+      )}
+
+      {/* Buttons */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={handleSelectFiles}
+          className={`w-full py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            isLight
+              ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'
+              : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
+          }`}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+          Chọn từ máy
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowLibPicker(true)}
+          className={`w-full py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            isLight
+              ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
+              : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30'
+          }`}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          Thư viện
+        </button>
+
+        {showLibPicker && (
+          <LibraryPickerModal
+            zaloId={useAccountStore.getState().activeAccountId || useAccountStore.getState().accounts[0]?.zalo_id || ''}
+            initialType={fileType}
+            onClose={() => setShowLibPicker(false)}
+            onSelect={(items) => {
+              const added = items.map(item => item._localPath || item.fileUrl).filter(p => p && !currentPaths.includes(p));
+              updatePathsList([...currentPaths, ...added]);
+              setShowLibPicker(false);
+            }}
+          />
+        )}
+      </div>
+
+      {/* Input URL manually */}
+      <div className="flex gap-1.5 items-center">
+        <input
+          type="text"
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+          placeholder={`Hoặc nhập link URL ${isVideo ? 'video' : 'file'} trực tiếp...`}
+          className={`flex-1 px-2.5 py-1.5 text-[11px] rounded-lg border focus:outline-none focus:ring-2 ${
+            isLight
+              ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-blue-500/30'
+              : 'bg-gray-900/50 border-gray-600 text-white placeholder-gray-500 focus:ring-blue-500/30'
+          }`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleAddUrl();
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleAddUrl}
+          disabled={!urlInput.trim()}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            urlInput.trim()
+              ? isLight
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+              : 'bg-gray-500/10 text-gray-500 cursor-not-allowed border border-transparent'
+          }`}
+        >
+          Thêm
+        </button>
+      </div>
+
+      {/* Checkbox for random selection */}
+      <div className="flex items-center gap-2 py-1">
+        <input
+          type="checkbox"
+          id={`send-random-${fileType}-checkbox`}
+          checked={isRandom}
+          onChange={(e) => {
+            updatePathsList(currentPaths, e.target.checked);
+          }}
+          className={`rounded border focus:ring-blue-500 ${isLight ? 'border-gray-300 text-blue-600' : 'border-gray-600 text-blue-600 bg-gray-900/50'}`}
+        />
+        <label
+          htmlFor={`send-random-${fileType}-checkbox`}
+          className="text-xs text-gray-300 font-medium cursor-pointer select-none"
+        >
+          🎲 Gửi ngẫu nhiên 1 {isVideo ? 'video' : 'file'} trong danh sách
         </label>
       </div>
     </div>
@@ -5072,6 +5459,53 @@ HƯỚNG DẪN SOẠN THẢO:
       }
     }
 
+    // Custom Interceptor for zalo.sendFile
+    if (node.type === 'zalo.sendFile') {
+      if (field.key === 'sendMode' || field.key === 'filePaths') {
+        return null;
+      }
+      if (field.key === 'filePath') {
+        return (
+          <div key="custom-multi-file" className="space-y-1.5">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-gray-300">Danh sách file gửi</label>
+            </div>
+            <MultiFileSelector
+              config={config}
+              fileType="file"
+              onChange={(updates) => {
+                const next = { ...config, ...updates };
+                setConfig(next);
+                onConfigChange(next);
+              }}
+            />
+          </div>
+        );
+      }
+    }
+
+    // Custom Interceptor for zalo.sendVideo
+    if (node.type === 'zalo.sendVideo') {
+      if (field.key === 'videoUrl') {
+        return (
+          <div key="custom-multi-video" className="space-y-1.5">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-gray-300">Danh sách video gửi</label>
+            </div>
+            <MultiFileSelector
+              config={config}
+              fileType="video"
+              onChange={(updates) => {
+                const next = { ...config, ...updates };
+                setConfig(next);
+                onConfigChange(next);
+              }}
+            />
+          </div>
+        );
+      }
+    }
+
     // ── hideWhen: skip rendering if condition matches ──────────────────────
     if (field.hideWhenKey && field.hideWhenValue) {
       const cur = config[field.hideWhenKey] || '';
@@ -5383,6 +5817,16 @@ HƯỚNG DẪN SOẠN THẢO:
           <p className="text-gray-300 text-xs font-medium">Node này không cần cấu hình thêm</p>
           <p className="text-gray-600 text-[11px] mt-1">Chỉ cần kết nối với các node khác là đủ.</p>
         </div>
+      )}
+
+      {node.type === 'zalo.sendBankCard' && (
+        <BankCardAutofillHelper
+          onChange={(updates) => {
+            const next = { ...config, ...updates };
+            setConfig(next);
+            onConfigChange(next);
+          }}
+        />
       )}
 
       {basicFields.map(renderField)}

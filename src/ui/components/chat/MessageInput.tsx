@@ -3,11 +3,12 @@ import {useChatStore} from '@/store/chatStore';
 import {useAccountStore} from '@/store/accountStore';
 import {useAppStore} from '@/store/appStore';
 import ipc from '@/lib/ipc';
-import LibraryPickerModal from './library/LibraryPickerModal';
+import LibraryPickerModal, { checkSuspiciousFiles } from './library/LibraryPickerModal';
 import { useEmployeeStore } from '@/store/employeeStore';
 import AccountAssignmentPopup from './AccountAssignmentPopup';
 import {SendCardModal} from './GroupModals';
 import {CreatePollDialog, NoteViewModal} from './ChatWindow';
+import CRMNotesModal from './CRMNotesModal';
 import BankCardModal from './BankCardModal';
 import ExpandedEditorModal from './ExpandedEditorModal';
 import {
@@ -129,7 +130,7 @@ export default function MessageInput() {
   const [showBankCard, setShowBankCard] = useState(false);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showCreateNote, setShowCreateNote] = useState(false);
+  const [showCRMNotes, setShowCRMNotes] = useState(false);
   const [showFormatBar, setShowFormatBar] = useState(false);
   // Format ranges: mỗi entry = { start, len, st } — theo chuẩn zca-js Style[]
   const [fmtRanges, setFmtRanges] = useState<Array<{ start: number; len: number; st: string }>>([]);
@@ -1366,8 +1367,16 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         c_f27806: 'color:#f27806',
         c_f7b503: 'color:#f7b503',
         c_15a85f: 'color:#15a85f',
+        c_3b82f6: 'color:#3b82f6',
+        c_7c3aed: 'color:#7c3aed',
+        c_db2777: 'color:#db2777',
+        c_9ca3af: 'color:#9ca3af',
+        f_12: 'font-size:12px',
         f_13: 'font-size:13px',
+        f_14: 'font-size:14px',
+        f_16: 'font-size:16px',
         f_18: 'font-size:18px',
+        f_20: 'font-size:20px',
       };
       // Merge u and s
       const decorations: string[] = [];
@@ -2686,6 +2695,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
 
     const files = Array.from(e.dataTransfer.files || []);
     if (files.length === 0) return;
+    if (!checkSuspiciousFiles(files)) return;
     if (!activeThreadId || !activeAccountId) return;
 
     const auth = getAuth();
@@ -2862,52 +2872,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         </div>
       )}
 
-      {/* AI Quick Settings — always visible when AI is enabled */}
-      {activeAccountId && activeThreadId && !isAiSuggestDisabled(activeAccountId, activeThreadId) && (
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-700">
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowAiAssignmentPopup(true); }}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-400 transition-colors cursor-pointer"
-            title="Tuỳ chỉnh trợ lý cho hội thoại này"
-          >
-            <span className="text-[12px]">⚙</span>
-            <span>Tuỳ chỉnh nhanh cho hội thoại hiện tại</span>
-          </button>
-        </div>
-      )}
 
-      {/* AI Suggestions bar */}
-      {activeAccountId && activeThreadId && !isAiSuggestDisabled(activeAccountId, activeThreadId) && (aiSuggestions.length > 0 || aiSuggestionsLoading) && (
-        <div className="ai-suggestion-bar border-b overflow-x-auto">
-          <span className="ai-suggestion-badge">
-            <span className="text-[11px]">✨</span>
-            <span>Gợi ý AI</span>
-          </span>
-          {aiSuggestionsLoading ? (
-            <span className="ai-suggestion-loading animate-pulse">
-              Đang gợi ý câu trả lời...
-            </span>
-          ) : (
-            aiSuggestions.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => { setText(s); if (textareaRef.current) textareaRef.current.innerText = s; setAiSuggestions([]); }}
-                className="ai-suggestion-chip group"
-                title={s}
-              >
-                <span className="ai-suggestion-chip-text line-clamp-2 break-words">{s}</span>
-              </button>
-            ))
-          )}
-          <button
-            onClick={() => setAiSuggestions([])}
-            className="ai-suggestion-close"
-            title="Ẩn gợi ý"
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Reply preview */}
       {replyTo && (
@@ -3213,30 +3178,11 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         </div>
         )}
 
-        {/* Gửi ảnh */}
-        {channelCap.supportsImage && hasChatPermission && (
-        <ToolbarBtn onClick={() => { setLibraryPickerType('image'); setShowLibraryPicker(true); }} title="Gửi ảnh" disabled={sending}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-          </svg>
-        </ToolbarBtn>
-        )}
-
-        {/* Gửi file */}
-        {channelCap.supportsFile && hasChatPermission && (
-        <ToolbarBtn onClick={() => { setLibraryPickerType('file'); setShowLibraryPicker(true); }} title="Gửi file" disabled={sending}>
+        {/* Đính kèm */}
+        {hasChatPermission && (
+        <ToolbarBtn onClick={() => { setLibraryPickerType('all'); setShowLibraryPicker(true); }} title="Đính kèm (ảnh, video, file)" disabled={sending}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-          </svg>
-        </ToolbarBtn>
-        )}
-
-        {/* Gửi video */}
-        {channelCap.supportsVideo && hasChatPermission && (
-        <ToolbarBtn onClick={() => { setLibraryPickerType('video'); setShowLibraryPicker(true); }} title="Gửi video" disabled={sending || isRecording}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="23 7 16 12 23 17 23 7"/>
-            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
           </svg>
         </ToolbarBtn>
         )}
@@ -3280,13 +3226,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         )}
 
         {/* Định dạng văn bản */}
-        {channelCap.supportsTextStyle && (
-        <ToolbarBtn onClick={() => setShowFormatBar(v => !v)} title="Định dạng" active={showFormatBar || activeFmts.size > 0}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>
-          </svg>
-        </ToolbarBtn>
-        )}
+
 
         {/* Soạn thảo mở rộng */}
         <ToolbarBtn onClick={() => setShowExpandedEditor(true)} title="Soạn thảo mở rộng" disabled={sending}>
@@ -3433,191 +3373,64 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           </>
         )}
 
-        {/* AI Suggestions toggle with dropdown */}
-        <div ref={aiMenuRef} className="relative">
-          <ToolbarBtn
-            onClick={() => {
-              setShowStickerPicker(false);
-              setShowAiMenu(v => !v);
-            }}
-            title="Gợi ý AI"
-            active={aiSuggestionsEnabled && !(activeAccountId && activeThreadId && isAiSuggestDisabled(activeAccountId, activeThreadId))}
-          >
-            <div className="relative flex items-center justify-center">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="10" rx="2" />
-                <circle cx="12" cy="5" r="2" />
-                <path d="M12 7v4" />
-                <line x1="8" y1="16" x2="8" y2="16" strokeLinecap="round" strokeWidth="2.5" />
-                <line x1="16" y1="16" x2="16" y2="16" strokeLinecap="round" strokeWidth="2.5" />
-              </svg>
-              <span className="absolute -top-1 -right-1 text-[8px] leading-none">✨</span>
-            </div>
-          </ToolbarBtn>
-          {showAiMenu && (
-            <div className="absolute bottom-full left-0 mb-2 w-64 overflow-hidden rounded-2xl border border-blue-500/20 bg-gray-800/95 shadow-2xl shadow-black/40 backdrop-blur z-50">
-              <div className="border-b border-blue-500/10 bg-gradient-to-r from-blue-500/10 via-transparent to-transparent px-3 py-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-400">Gợi ý AI</p>
-                <p className="mt-0.5 text-[11px] text-gray-400">Tuỳ chỉnh nhanh cho hội thoại hiện tại</p>
-              </div>
-              <button
-                onClick={() => { setAiSuggestionsEnabled(!aiSuggestionsEnabled); setShowAiMenu(false); }}
-                className="w-full text-left px-3 py-2.5 hover:bg-blue-500/10 flex items-center gap-2.5 transition-colors"
-              >
-                <span className={`w-4 h-4 rounded-md border ${aiSuggestionsEnabled ? 'bg-blue-500 border-blue-500 shadow-sm shadow-blue-900/40' : 'border-gray-500 bg-gray-800'} flex items-center justify-center flex-shrink-0`}>
-                  {aiSuggestionsEnabled && <span className="text-white-important text-[8px]">✓</span>}
-                </span>
-                <span className="text-gray-200 leading-5">Bật gợi ý AI (toàn bộ)</span>
-              </button>
-              {activeAccountId && activeThreadId && (
-                <>
-                  <div className="mx-3 border-t border-gray-700/80" />
-                  <button
-                    onClick={() => { toggleAiDisableForThread(activeAccountId, activeThreadId); setShowAiMenu(false); }}
-                    className="w-full text-left px-3 py-2.5 hover:bg-blue-500/10 flex items-center gap-2.5 transition-colors"
-                  >
-                    <span className={`w-4 h-4 rounded-md border ${isAiSuggestDisabled(activeAccountId, activeThreadId) && !useAppStore.getState().aiSuggestDisabledAccounts[activeAccountId] ? 'bg-red-500 border-red-500 shadow-sm shadow-red-900/40' : 'border-gray-500 bg-gray-800'} flex items-center justify-center flex-shrink-0`}>
-                      {isAiSuggestDisabled(activeAccountId, activeThreadId) && !useAppStore.getState().aiSuggestDisabledAccounts[activeAccountId] && <span className="text-white-important text-[8px]">✓</span>}
-                    </span>
-                    <span className="text-gray-200 leading-5">Tắt ở hội thoại này</span>
-                  </button>
-                </>
-              )}
-              {activeAccountId && (
-                <button
-                  onClick={() => { toggleAiDisableForAccount(activeAccountId); setShowAiMenu(false); }}
-                  className="w-full text-left px-3 py-2.5 hover:bg-blue-500/10 flex items-center gap-2.5 transition-colors"
-                >
-                  <span className={`w-4 h-4 rounded-md border ${useAppStore.getState().aiSuggestDisabledAccounts[activeAccountId] ? 'bg-red-500 border-red-500 shadow-sm shadow-red-900/40' : 'border-gray-500 bg-gray-800'} flex items-center justify-center flex-shrink-0`}>
-                    {useAppStore.getState().aiSuggestDisabledAccounts[activeAccountId] && <span className="text-white-important text-[8px]">✓</span>}
-                  </span>
-                  <span className="text-gray-200 leading-5">Tắt toàn bộ tài khoản này</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Thêm tính năng — nhóm: poll/note/nhắc hẹn; user: chỉ nhắc hẹn */}
-        <div className="relative">
-          <ToolbarBtn
-            ref={moreMenuBtnRef}
-            onClick={() => setShowMoreMenu(v => !v)}
-            title="Thêm tính năng"
-            active={showMoreMenu}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+        {/* Bình chọn */}
+        {isGroupThread && channelCap.supportsPoll && hasChatPermission && (
+          <ToolbarBtn onClick={() => setShowCreatePoll(true)} title="Tạo bình chọn" disabled={sending}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
             </svg>
           </ToolbarBtn>
+        )}
 
-          {/* More menu dropdown */}
-          {showMoreMenu && (
-            <MoreMenuDropdown
-              isGroup={activeThreadType === 1}
-              onCreatePoll={() => { setShowMoreMenu(false); setShowCreatePoll(true); }}
-              onCreateNote={() => { setShowMoreMenu(false); setShowCreateNote(true); }}
-              onCreateReminder={() => { setShowMoreMenu(false); setShowReminderPopup(true); }}
-              onOpenIntegration={() => { setShowMoreMenu(false); toggleIntegrationQuickPanel(); }}
-              onClose={() => setShowMoreMenu(false)}
-              supportsPoll={channelCap.supportsPoll}
-              supportsReminder={channelCap.supportsReminder}
-            />
-          )}
+        {/* Ghi chú CRM */}
+        {hasChatPermission && (
+          <ToolbarBtn onClick={() => setShowCRMNotes(true)} title="Ghi chú CRM" disabled={sending}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+          </ToolbarBtn>
+        )}
 
-          {/* Reminder popup */}
-          {showReminderPopup && activeThreadId && (
-            <ReminderPanel
-              threadId={activeThreadId}
-              threadType={activeThreadType || 0}
-              onClose={() => setShowReminderPopup(false)}
-              anchorRef={moreMenuBtnRef}
-            />
-          )}
+        {/* Nhắc hẹn */}
+        {channelCap.supportsReminder && hasChatPermission && (
+          <div className="relative">
+            <ToolbarBtn
+              ref={moreMenuBtnRef}
+              onClick={() => setShowReminderPopup(v => !v)}
+              title="Tạo nhắc hẹn"
+              active={showReminderPopup}
+              disabled={sending}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </ToolbarBtn>
+            {showReminderPopup && activeThreadId && (
+              <ReminderPanel
+                threadId={activeThreadId}
+                threadType={activeThreadType || 0}
+                onClose={() => setShowReminderPopup(false)}
+                anchorRef={moreMenuBtnRef}
+              />
+            )}
+          </div>
+        )}
 
-        </div>
+        {/* Tích hợp nhanh */}
+        {hasChatPermission && (
+          <ToolbarBtn onClick={toggleIntegrationQuickPanel} title="Tích hợp nhanh" disabled={sending}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </ToolbarBtn>
+        )}
 
       </div>
-
-      {/* ── Format bar (expandable) ── */}
-      {showFormatBar && (
-        <div className="flex items-center gap-1 px-3 py-1.5 border-b border-gray-700/50 flex-wrap">
-          {/* Bold */}
-          <FmtBtn active={activeFmts.has('b')} onClick={() => applyFormat('b')} title="Đậm (Ctrl+B)">
-            <span className="font-bold text-sm leading-none">B</span>
-          </FmtBtn>
-          {/* Italic */}
-          <FmtBtn active={activeFmts.has('i')} onClick={() => applyFormat('i')} title="Nghiêng (Ctrl+I)">
-            <span className="italic text-sm leading-none">I</span>
-          </FmtBtn>
-          {/* Underline */}
-          <FmtBtn active={activeFmts.has('u')} onClick={() => applyFormat('u')} title="Gạch dưới (Ctrl+U)">
-            <span className="underline text-sm leading-none">U</span>
-          </FmtBtn>
-          {/* Strikethrough */}
-          <FmtBtn active={activeFmts.has('s')} onClick={() => applyFormat('s')} title="Gạch ngang">
-            <span className="line-through text-sm leading-none">S</span>
-          </FmtBtn>
-
-          <div className="w-px h-4 bg-gray-600 mx-1" />
-
-          {/* Font size */}
-          <FmtBtn active={activeFmts.has('f_13')} onClick={() => applyFormat('f_13')} title="Chữ nhỏ">
-            <span className="text-xs leading-none font-medium">A</span>
-          </FmtBtn>
-          <FmtBtn active={activeFmts.has('f_18')} onClick={() => applyFormat('f_18')} title="Chữ lớn">
-            <span className="text-base leading-none font-medium">A</span>
-          </FmtBtn>
-
-          <div className="w-px h-4 bg-gray-600 mx-1" />
-
-          {/* Colors */}
-          {([
-            { st: 'c_db342e', color: '#db342e', label: 'Đỏ' },
-            { st: 'c_f27806', color: '#f27806', label: 'Cam' },
-            { st: 'c_f7b503', color: '#f7b503', label: 'Vàng' },
-            { st: 'c_15a85f', color: '#15a85f', label: 'Xanh lá' },
-          ] as const).map(({ st, color, label }) => (
-            <button
-              key={st}
-              onMouseDown={(e) => { e.preventDefault(); applyFormat(st); }}
-              title={label}
-              className={`w-5 h-5 rounded-full border-2 transition-all hover:scale-110 ${activeFmts.has(st) ? 'border-white scale-110' : 'border-transparent'}`}
-              style={{ backgroundColor: color }}
-            />
-          ))}
-
-          <div className="w-px h-4 bg-gray-600 mx-1" />
-
-          {/* Clear all formats */}
-          {fmtRanges.length > 0 && (
-            <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setFmtRanges([]);
-                  setActiveFmts(new Set());
-                  const el = textareaRef.current;
-                  if (el) {
-                    el.textContent = getPlainText(el);
-                    requestAnimationFrame(() => el.focus());
-                  }
-                }}
-                title="Xóa tất cả định dạng"
-              className="text-xs text-gray-400 hover:text-red-400 px-1.5 py-0.5 rounded hover:bg-gray-700 transition-colors"
-            >✕ Xóa định dạng</button>
-          )}
-
-          {/* Hint: select text to apply */}
-          {fmtRanges.length === 0 && (
-            <span className="text-xs text-gray-500 ml-auto">Chọn văn bản rồi bấm định dạng</span>
-          )}
-          {fmtRanges.length > 0 && (
-            <span className="text-xs text-blue-400 ml-auto">
-              {fmtRanges.length} định dạng đang áp dụng
-            </span>
-          )}
-        </div>
-      )}
 
       {/* SendCard Modal */}
       {showSendCard && activeThreadId && (
@@ -3632,16 +3445,19 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
       {showExpandedEditor && (
         <ExpandedEditorModal
           initialText={text}
+          initialFmtRanges={fmtRanges}
           onClose={() => setShowExpandedEditor(false)}
-          onSave={(newText) => {
+          onSave={(newText, newFmtRanges) => {
             setText(newText);
+            setFmtRanges(newFmtRanges || []);
             if (textareaRef.current) {
               textareaRef.current.innerText = newText;
               textareaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
             }
           }}
-          onSend={(newText) => {
+          onSend={(newText, newFmtRanges) => {
             setText(newText);
+            setFmtRanges(newFmtRanges || []);
             if (textareaRef.current) {
               textareaRef.current.innerText = newText;
               textareaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
@@ -3748,14 +3564,16 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         />
       )}
 
-      {/* Create Note Modal — group only */}
-      {showCreateNote && activeThreadId && (
-        <NoteViewModal
-          groupId={activeThreadId}
-          initialTitle=""
-          isGroup={isGroupThread}
-          activeAccountId={activeAccountId || ''}
-          onClose={() => setShowCreateNote(false)}
+      {/* Ghi chú CRM Modal */}
+      {showCRMNotes && activeThreadId && (
+        <CRMNotesModal
+          contactId={activeThreadId}
+          contactName={
+            isGroupThread
+              ? (groupInfoCache?.[activeAccountId || '']?.[activeThreadId]?.name || 'Nhóm')
+              : (activeContact?.display_name || activeContact?.name || 'Khách hàng')
+          }
+          onClose={() => setShowCRMNotes(false)}
         />
       )}
 

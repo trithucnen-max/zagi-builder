@@ -1973,27 +1973,47 @@ class WorkflowEngineService {
         const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
         const continueOnError = cfg.continueOnError === true;
 
-        const options = {
-          videoUrl: cfg.videoUrl,
-          thumbnailUrl: cfg.thumbnailUrl,
-          duration: cfg.duration ? Number(cfg.duration) : undefined,
-          width: cfg.width ? Number(cfg.width) : undefined,
-          height: cfg.height ? Number(cfg.height) : undefined,
-          msg: cfg.msg || undefined,
-          ttl: cfg.ttl ? Number(cfg.ttl) : 0,
-        };
+        const sendMode = cfg.sendMode || 'single';
+        let videos: string[] = [];
+        if (sendMode === 'single') {
+          if (cfg.videoUrl) videos.push(cfg.videoUrl.trim());
+        } else {
+          const paths = (cfg.videoUrls || '').split('\n').map((p: string) => p.trim()).filter(Boolean);
+          if (sendMode === 'random') {
+            if (paths.length > 0) {
+              videos.push(paths[Math.floor(Math.random() * paths.length)]);
+            }
+          } else {
+            videos = paths;
+          }
+        }
+
+        if (videos.length === 0) {
+          throw new Error("Danh sách đường dẫn video gửi trống");
+        }
 
         let lastResult: any = { success: false, error: 'Không gửi được video đến hội thoại nào' };
         for (const tid of targetThreadIds) {
-          try {
-            const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
-            const result = await api.sendVideo(options, tid, activeThreadType);
-            lastResult = result;
-            Logger.log(`[WorkflowEngine] zalo.sendVideo to ${tid}: success=true`);
-          } catch (err: any) {
-            Logger.warn(`[WorkflowEngine] zalo.sendVideo to ${tid} failed: ${err.message}`);
-            lastResult = { success: false, error: err.message };
-            if (!continueOnError) throw err;
+          const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
+          for (const vPath of videos) {
+            try {
+              const options = {
+                videoUrl: vPath,
+                thumbnailUrl: cfg.thumbnailUrl,
+                duration: cfg.duration ? Number(cfg.duration) : undefined,
+                width: cfg.width ? Number(cfg.width) : undefined,
+                height: cfg.height ? Number(cfg.height) : undefined,
+                msg: cfg.msg || undefined,
+                ttl: cfg.ttl ? Number(cfg.ttl) : 0,
+              };
+              const result = await api.sendVideo(options, tid, activeThreadType);
+              lastResult = result;
+              Logger.log(`[WorkflowEngine] zalo.sendVideo to ${tid} (${vPath}): success=true`);
+            } catch (err: any) {
+              Logger.warn(`[WorkflowEngine] zalo.sendVideo to ${tid} (${vPath}) failed: ${err.message}`);
+              lastResult = { success: false, error: err.message };
+              if (!continueOnError) throw err;
+            }
           }
         }
         return {
@@ -2110,7 +2130,14 @@ class WorkflowEngineService {
         if (sendMode === 'single') {
           if (cfg.filePath) attachments.push(cfg.filePath.trim());
         } else {
-          attachments = (cfg.filePaths || '').split('\n').map((p: string) => p.trim()).filter(Boolean);
+          const paths = (cfg.filePaths || '').split('\n').map((p: string) => p.trim()).filter(Boolean);
+          if (sendMode === 'random') {
+            if (paths.length > 0) {
+              attachments.push(paths[Math.floor(Math.random() * paths.length)]);
+            }
+          } else {
+            attachments = paths;
+          }
         }
 
         if (attachments.length === 0) {
