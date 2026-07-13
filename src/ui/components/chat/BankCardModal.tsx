@@ -157,6 +157,8 @@ export default function BankCardModal({ threadId, threadType, onClose }: Props) 
           binBank: card.bin_bank,
           numAccBank: card.account_number,
           nameAccBank: card.account_name,
+          amount: amount ? Number(amount) : undefined,
+          description: description || undefined,
         },
         threadId,
         type: threadType,

@@ -1793,11 +1793,12 @@ export default class ZaloService {
         }
     }
 
-    public async sendBankCard(payload: string | Object, threadId: string, type: any = ThreadType.User): Promise<SendBankCardResponse> {        if (!this.api) {
+    public async sendBankCard(payload: string | Object, threadId: string, type: any = ThreadType.User): Promise<SendBankCardResponse> {
+        if (!this.api) {
             throw new Error("API not initialized. Please ensure you've called initialize() first.");
         }
 
-        const parsedPayload = typeof payload == 'string' ? JSON.parse(payload) : payload,
+        const parsedPayload = typeof payload === 'string' ? JSON.parse(payload) : payload,
             binBank = parsedPayload.binBank || '',
             numAccBank = parsedPayload.numAccBank || '',
             nameAccBank = parsedPayload.nameAccBank || ''
@@ -1805,15 +1806,47 @@ export default class ZaloService {
             throw new Error("Invalid payload: empty array");
         }
 
-        const finalPayload: SendBankCardPayload = {
+        const finalPayload: any = {
             binBank: parseInt(binBank),
             numAccBank,
             nameAccBank,
+            amount: parsedPayload.amount ? Number(parsedPayload.amount) : undefined,
+            description: parsedPayload.description || undefined,
         }
 
         type = convertThreadType(type);
 
         try {
+            // Thử tự đóng gói params để truyền đầy đủ amount và description lên Zalo server
+            const listener = (this.api as any).listener;
+            const ctx = listener ? listener.ctx : null;
+            if (ctx && ctx.utils) {
+                const utils = ctx.utils;
+                const serviceURL = utils.makeURL(`${this.api.zpwServiceMap.zimsg[0]}/api/transfer/card`);
+                const params = {
+                    binBank: finalPayload.binBank,
+                    numAccBank: finalPayload.numAccBank,
+                    nameAccBank: finalPayload.nameAccBank?.toUpperCase() || "---",
+                    amount: finalPayload.amount,
+                    description: finalPayload.description,
+                    desc: finalPayload.description, // Gửi cả desc và description để đảm bảo Zalo App nhận dạng đúng
+                    cliMsgId: Date.now().toString(),
+                    tsMsg: Date.now(),
+                    destUid: threadId,
+                    destType: type === ThreadType.Group ? 1 : 0,
+                };
+                const encryptedParams = utils.encodeAES(JSON.stringify(params));
+                if (!encryptedParams) throw new Error("Failed to encrypt params");
+                const response = await utils.request(serviceURL, {
+                    method: "POST",
+                    body: new URLSearchParams({
+                        params: encryptedParams,
+                    }),
+                });
+                return utils.resolve(response);
+            }
+            
+            // Fallback nếu không có context zca-js
             return await this.api.sendBankCard(finalPayload, threadId, type);
         } catch (error) {
             throw error;
