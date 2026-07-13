@@ -2084,8 +2084,8 @@ class WorkflowEngineService {
             .substring(0, 25);
         };
 
-        const resolvedAmount = cfg.amount ? this.resolveVariables(cfg.amount, ctx) : '';
-        const resolvedDesc = cfg.description ? this.resolveVariables(cfg.description, ctx) : '';
+        const resolvedAmount = cfg.amount || '';
+        const resolvedDesc = cfg.description || '';
 
         const bankPayload = {
           binBank: cfg.binBank,
