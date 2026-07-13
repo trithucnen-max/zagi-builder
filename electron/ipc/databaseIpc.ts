@@ -741,12 +741,13 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getCallReport', async (_event, { zaloId, fromTs, toTs }: { zaloId: string; fromTs: number; toTs: number }) => {
+    ipcMain.handle('db:getCallReport', async (_event, { zaloId, fromTs, toTs, localLabelIds, zaloLabelThreadIds }: any) => {
         try {
+            Logger.log(`[databaseIpc:db:getCallReport] Received: zaloId=${zaloId}, fromTs=${fromTs}, toTs=${toTs}, localLabelIds=${JSON.stringify(localLabelIds)}, zaloLabelThreadIds=${JSON.stringify(zaloLabelThreadIds)}`);
             if (isEmployeeMode()) {
-                return await proxyToBossAsync('db:getCallReport', { zaloId, fromTs, toTs });
+                return await proxyToBossAsync('db:getCallReport', { zaloId, fromTs, toTs, localLabelIds, zaloLabelThreadIds });
             }
-            const report = DatabaseService.getInstance().getCallReport(zaloId, fromTs, toTs);
+            const report = DatabaseService.getInstance().getCallReport(zaloId, fromTs, toTs, localLabelIds, zaloLabelThreadIds);
             return { success: true, ...report };
         } catch (error: any) {
             return { success: false, error: error.message };

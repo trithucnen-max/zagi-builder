@@ -231,10 +231,10 @@ function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Parse yyyy-MM-dd string to start-of-day timestamp */
+/** Parse yyyy-MM-dd string to start-of-day timestamp (local midnight) */
 function dateStrToTs(s: string): number {
-  const d = new Date(s + 'T00:00:00');
-  return d.getTime();
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0).getTime(); // local midnight, guaranteed
 }
 
 // ── Guide Modal ────────────────────────────────────────────────────────────────
@@ -432,9 +432,12 @@ export default function AnalyticsPage() {
       return { from: todayStart - 86400000, to: todayStart - 1, periodDays: 1 };
     }
     const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
-    const t = Date.now();
-    const f = t - days * 86400000;
-    return { from: f, to: t, periodDays: days };
+    const now = new Date();
+    // to = 23:59:59.999 hôm nay (local)
+    const toTs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+    // from = 00:00:00 của ngày (days-1) ngày trước (tính hôm nay là ngày 1)
+    const fromTs = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1), 0, 0, 0, 0).getTime();
+    return { from: fromTs, to: toTs, periodDays: days };
   }, [period, customFrom, customTo]);
 
   // Map contactType to threadType for IPC calls (-1 = all)

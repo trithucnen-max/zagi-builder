@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ipc from '../../lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import { useAccountStore } from '@/store/accountStore';
+import { useEmployeeStore } from '@/store/employeeStore';
 import { v4 as uuidv4 } from 'uuid';
 import { showConfirm } from '../common/ConfirmDialog';
 import { FacebookIcon, ZaloIcon } from '../common/ChannelBadge';
@@ -703,7 +704,20 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
     setLoading(true);
     try {
       const res = await ipc.workflow?.list();
-      if (res?.success) setWorkflows(res.workflows);
+      if (res?.success) {
+        let list = res.workflows || [];
+        const isEmployee = useEmployeeStore.getState().mode === 'employee';
+        if (isEmployee) {
+          const allowedZaloIds = accounts.map(a => a.zalo_id);
+          list = list.filter((wf: any) => {
+            const ids = Array.isArray(wf.pageIds) && wf.pageIds.length > 0
+              ? wf.pageIds
+              : (wf.pageId ? [wf.pageId] : []);
+            return ids.some(id => allowedZaloIds.includes(id));
+          });
+        }
+        setWorkflows(list);
+      }
     } finally {
       setLoading(false);
     }
@@ -867,7 +881,7 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
         const ids: string[] = Array.isArray(wf.pageIds) && wf.pageIds.length > 0
           ? wf.pageIds
           : (wf.pageId ? [wf.pageId] : []);
-        if (ids.length === 0) return true;  // global workflows always shown
+        if (ids.length === 0) return false;  // workflow không có pageId: ẩn khi đang filter theo account
         return filterPages.some(fp => ids.includes(fp));
       });
     }

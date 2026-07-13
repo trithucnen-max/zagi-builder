@@ -760,6 +760,18 @@ Phiên bản đầy đủ tính năng đầu tiên:
 
 ---
 
+## 📖 Tài liệu kỹ thuật & Các bản vá lỗi (Technical Fixes)
+
+- [Sửa lỗi bộ lọc nhãn cuộc gọi, Zalo poll trong workflow & phân quyền nhân viên](./call-analytics-zalo-poll-fix.md)
+- [Cấu hình ERP Sync & Khắc phục lỗi kết nối](./erp-sync-fix.md)
+- [Bản vá bảo mật & phân quyền](./security-bugfix.md)
+- [Tài liệu đóng gói Docker & triển khai CI/CD](./docker-build-pack.md)
+- [Khắc phục lỗi Toolbar & Thư viện trong Chat](./chat-toolbar-library-fix.md)
+- [Quy chuẩn Salutation & Tên hiển thị CRM](./crm-name-salutation.md)
+- [Tổng hợp các tính năng nâng cao của Zagi](./zagi-rich-features.md)
+
+---
+
 ## 📣 Liên hệ & Hỗ trợ
 
 - 🐛 **Báo lỗi & góp ý**: [GitHub Issues](https://github.com/trithucnen-max/zagi-builder/issues)

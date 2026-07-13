@@ -80,7 +80,8 @@ export const libraryHandlers = {
         }));
 
         // Build URLs
-        const bossUrl = `//${req.headers.host || ''}`;
+        const proto = req.headers['x-forwarded-proto'] || 'http';
+        const bossUrl = `${proto}://${req.headers.host || ''}`;
         const fileUrl = `${bossUrl}/api/library/file/${item.uuid}`;
         const thumbUrl = item.thumb_path ? `${bossUrl}/api/library/thumb/${item.uuid}` : null;
 
@@ -140,7 +141,8 @@ export const libraryHandlers = {
         }));
 
         // Build URLs using request host
-        const bossUrl = `//${req.headers.host || ''}`;
+        const proto = req.headers['x-forwarded-proto'] || 'http';
+        const bossUrl = `${proto}://${req.headers.host || ''}`;
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(success({

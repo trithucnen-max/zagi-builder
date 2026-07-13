@@ -426,7 +426,14 @@ class EventBroadcaster {
                                 Logger.log(`[EventBroadcaster] poll vote updated: pollId=${pollId} by ${voterName}`);
                                 return; // Don't insert as new message
                             }
+                            // Dù không tìm thấy message gốc, vote event cũng không tạo message mới
+                            // (tránh tạo nhiều bubble trong chat)
+                            Logger.warn(`[EventBroadcaster] poll vote: pollId=${pollId} not found in DB, skipping insert`);
+                            return;
                         }
+                    } else {
+                        // group.poll action khác (create, lock...): cho phép lưu bình thường
+                        // → fall-through xuống saveMessage
                     }
                 } catch (pollErr: any) {
                     Logger.warn(`[EventBroadcaster] group.poll intercept error: ${pollErr.message}`);

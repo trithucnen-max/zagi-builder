@@ -3454,21 +3454,20 @@ class DatabaseService {
         if (!this.initialized) return false;
         try {
             // Tìm tin nhắn group.poll gốc có pollId này
+            // Dùng LIKE filter để thu hẹp tập trước, tránh scan toàn bộ rồi parse từng row
+            const likePattern = `%"pollId":${pollId}%`;
             const rows = this.query<any>(
-                `SELECT msg_id FROM messages
+                `SELECT msg_id, content FROM messages
                  WHERE owner_zalo_id=? AND thread_id=? AND msg_type='group.poll'
-                 ORDER BY timestamp ASC`,
-                [ownerZaloId, threadId]
+                 AND content LIKE ?
+                 ORDER BY timestamp ASC LIMIT 10`,
+                [ownerZaloId, threadId, likePattern]
             );
 
             let foundMsgId: string | null = null;
             for (const row of rows) {
                 try {
-                    const contentRow = this.queryOne<any>(
-                        `SELECT content FROM messages WHERE owner_zalo_id=? AND msg_id=?`,
-                        [ownerZaloId, row.msg_id]
-                    );
-                    const c = JSON.parse(contentRow?.content || '{}');
+                    const c = JSON.parse(row.content || '{}');
                     const params = typeof c.params === 'string' ? JSON.parse(c.params) : (c.params || {});
                     if (String(params.pollId || '') === String(pollId)) {
                         foundMsgId = row.msg_id;
@@ -4846,6 +4845,8 @@ class DatabaseService {
     } {
         if (!this.initialized) return { byContact: [], byDay: [], totals: { total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 } };
 
+        Logger.log(`[DatabaseService:getCallReport] ownerZaloId=${ownerZaloId}, fromTs=${fromTs}, toTs=${toTs}, localLabelIds=${JSON.stringify(localLabelIds)}, zaloLabelThreadIds=${JSON.stringify(zaloLabelThreadIds)}`);
+
         const hasLocalFilter = localLabelIds && localLabelIds.length > 0;
         const hasZaloFilter = zaloLabelThreadIds !== undefined;
         const hasZaloThreads = zaloLabelThreadIds && zaloLabelThreadIds.length > 0;
@@ -4853,6 +4854,7 @@ class DatabaseService {
         // Nếu người dùng chọn lọc nhãn Zalo nhưng danh sách thread trống (không có liên hệ nào gắn nhãn),
         // và không chọn lọc nhãn Local, thì lập tức trả về rỗng để tối ưu, tránh query vô nghĩa.
         if (hasZaloFilter && !hasZaloThreads && !hasLocalFilter) {
+            Logger.log(`[DatabaseService:getCallReport] Empty Zalo threads shortcut triggered.`);
             return { byContact: [], byDay: [], totals: { total: 0, answered: 0, missed: 0, inbound: 0, outbound: 0, totalDuration: 0 } };
         }
 
@@ -4890,6 +4892,7 @@ class DatabaseService {
         sql += ` ORDER BY timestamp ASC`;
 
         const rows = this.query<any>(sql, params);
+        Logger.log(`[DatabaseService:getCallReport] SQL query result count: ${rows.length}`);
 
         const parsed = rows.map((r: any) => {
             let action = '', duration = 0;

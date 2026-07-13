@@ -2354,12 +2354,11 @@ class WorkflowEngineService {
         for (const groupId of groupIds) {
           try {
             await api.createPoll({
-              groupId,
               question: cfg.question,
               options,
-              allowMultiVote: !!cfg.allowMultiple,
+              allowMultiChoices: !!cfg.allowMultiple,
               expiredTime: Number(cfg.expireTime ?? 0),
-            } as any);
+            }, groupId);
           } catch (err: any) {
             Logger.warn(`[WorkflowEngine] createPoll error for group ${groupId}: ${err.message}`);
           }
@@ -3780,8 +3779,13 @@ class WorkflowEngineService {
             const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:addReaction', { zaloId: targetZaloId, auth: {}, msgId: p.msgId, clientMsgId: p.clientMsgId, reactionType: type });
             return res?.success ? res.response : res;
           },
-          createPoll: async (p: any) => {
-            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:createPoll', { zaloId: targetZaloId, auth: {}, ...p });
+          createPoll: async (options: any, groupId: string) => {
+            const res = await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:createPoll', {
+              zaloId: targetZaloId,
+              auth: {},
+              options,
+              groupId
+            });
             return res?.success ? res.response : res;
           },
           getGroupChatHistory: async (p: any) => {

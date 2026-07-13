@@ -210,7 +210,10 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
     if (!selectedAccountId) return;
     setLoading(true);
     try {
-      const zaloLabelThreadIds = selectedZaloLabelIds.length > 0 ? selectedZaloLabelThreadIds : undefined;
+      // Chỉ truyền zaloLabelThreadIds khi có thread thực (tránh short-circuit rỗng trong DB)
+      const zaloLabelThreadIds = (selectedZaloLabelIds.length > 0 && selectedZaloLabelThreadIds.length > 0)
+        ? selectedZaloLabelThreadIds
+        : undefined;
       const res = await ipc.db?.getCallReport({
         zaloId: selectedAccountId,
         fromTs: sinceTs,
@@ -401,6 +404,12 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
           ) : (
             <p className="text-xs text-gray-500 py-1">Chưa có Nhãn Zalo nào.</p>
           )
+        )}
+        {/* Warning khi chọn nhãn Zalo nhưng chưa có liên hệ nào được gắn */}
+        {labelTab === 'zalo' && selectedZaloLabelIds.length > 0 && selectedZaloLabelThreadIds.length === 0 && (
+          <p className="text-xs text-amber-400 mt-1">
+            ⚠️ Nhãn Zalo đã chọn chưa có liên hệ nào được gắn — không có kết quả để lọc.
+          </p>
         )}
       </div>
 
