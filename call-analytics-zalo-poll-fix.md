@@ -29,6 +29,18 @@ Bản vá này sửa đổi 3 lỗi quan trọng liên quan đến tính năng b
 *   **Giải pháp:** 
     *   Cập nhật IPC handler `db:getCallReport` trong [`databaseIpc.ts`](./electron/ipc/databaseIpc.ts) để bóc tách đầy đủ các tham số nhãn và chuyển tiếp chúng xuống Database Service (hoặc thông qua proxy `proxyToBossAsync` nếu chạy ở chế độ Nhân viên).
 
+### 4. Sửa lỗi hiển thị & Cải tiến giao diện Card Ngân hàng (Bank Card) giống Zalo
+*   **Vấn đề:** 
+    *   **Lỗi hiển thị trắng trống trơn (Hình 3):** Khi gửi tin nhắn Card Ngân hàng tự động qua Workflow, tin nhắn được lưu trong database dưới dạng JSON thô mà không có tham số `action === 'zinstant.bankcard'`. Lớp `isBankCardType` và `parseBankCardFromContent` cũ chỉ nhận dạng được tin nhắn khi có đúng tham số `action` này, dẫn đến việc tin nhắn bị render thành text bubble trống trơn màu xanh nhạt của người gửi.
+    *   **Giao diện chưa đồng bộ (Hình 2):** Màu nền MB Bank quá tối (`#1e0a5e`), màu chữ bị đổi thành màu đen (do CSS override), chỉ sử dụng icon mặc định `🏦` và chỉ có duy nhất 1 nút "Sao chép STK". Trong khi Zalo gốc có logo MB thật, chữ trắng tương phản tốt và có 2 nút "Lưu tài khoản" / "Chuyển khoản".
+*   **Giải pháp:** 
+    *   **Nhận dạng thông minh:** Cải tiến `isBankCardType` và `parseBankCardFromContent` trong `MessageBubbles.tsx` để tự động nhận dạng các tin nhắn có content dạng JSON chứa `binBank` và `numAccBank` bất kể có tham số `action` hay không.
+    *   **Giao diện chuẩn Zalo:**
+        *   Cập nhật bảng màu `BANK_CARD_COLORS` với mã màu chuẩn của MB Bank (`#153092`) và thêm mã code logo (ví dụ `MB`).
+        *   Tự động tải logo thật từ API VietQR `https://api.vietqr.io/img/${info.code}.png` với cơ chế fallback thông minh về emoji `🏦`.
+        *   Cố định màu chữ bằng inline style `style={{ color: '#ffffff' }}` để tránh bị CSS global đè màu đen.
+        *   Tái cấu trúc Footer thành 2 nút nằm ngang phân tách bởi vạch dọc: **"Lưu tài khoản"** và **"Chuyển khoản"** đúng như Zalo gốc.
+
 ---
 
 ## 🛠️ Các file thay đổi
@@ -37,11 +49,13 @@ Bản vá này sửa đổi 3 lỗi quan trọng liên quan đến tính năng b
 *   **[`src/ui/components/workflow/WorkflowList.tsx`](./src/ui/components/workflow/WorkflowList.tsx)**: Thêm bộ lọc workflow giới hạn theo phân quyền của nhân viên.
 *   **[`electron/ipc/databaseIpc.ts`](./electron/ipc/databaseIpc.ts)**: Cập nhật bóc tách tham số bộ lọc nhãn trong IPC `db:getCallReport`.
 *   **[`src/services/database/DatabaseService.ts`](./src/services/database/DatabaseService.ts)**: Thêm các dòng log debug để kiểm tra SQL query.
+*   **[`src/ui/components/chat/MessageBubbles.tsx`](./src/ui/components/chat/MessageBubbles.tsx)**: Cập nhật logic parse, nhận dạng tin nhắn tự động từ workflow và cải tiến giao diện Card Ngân hàng chuẩn Zalo.
 
 ---
 
 ## 🚀 Hướng dẫn Kiểm tra & Triển khai (Deployment & Verification)
 
-1.  **Khởi động lại ứng dụng:** Vì các thay đổi nằm ở Main Process (Electron backend), **cả máy BOSS và máy Nhân viên** đều cần được tắt ứng dụng và khởi động lại terminal (`npm run dev`) để nạp code IPC mới.
+1.  **Khởi động lại ứng dụng:** Vì các thay đổi nằm ở Main Process (Electron backend) và UI, cả máy BOSS và máy Nhân viên đều cần được tắt ứng dụng và khởi động lại terminal (`npm run dev`) để nạp code IPC mới và giao diện mới.
 2.  **Lọc nhãn cuộc gọi:** Truy cập tab Báo cáo cuộc gọi, chọn nhãn local (ví dụ: "zagi"). Kiểm tra số lượng cuộc gọi và top khách hàng thay đổi chính xác.
-3.  **CI/CD:** Commit và push code lên nhánh GitHub `fix/label-filter-workflow-poll-daterange`. Quy trình GitHub Actions sẽ tự động biên dịch, chạy các bài test chất lượng và tạo bản build mới cho các hệ điều hành.
+3.  **Kiểm tra Card Ngân hàng:** Gửi tin nhắn ngân hàng thủ công hoặc chạy workflow gửi tự động. Kiểm tra xem giao diện Card trên Zagi đã hiển thị logo thật của ngân hàng, chữ trắng rõ nét, có 2 nút "Lưu tài khoản" / "Chuyển khoản" và tin nhắn tự động từ workflow không còn bị trắng trống trơn.
+4.  **CI/CD:** Commit và push code lên nhánh GitHub `fix/label-filter-workflow-poll-daterange`. Quy trình GitHub Actions sẽ tự động biên dịch, chạy các bài test chất lượng và tạo bản build mới cho các hệ điều hành.

@@ -103,11 +103,20 @@ function isBankCardType(msgType: string, content: string): boolean {
       if (parsed?.action === 'zinstant.bankcard') return true;
     } catch {}
   }
-  // Fallback: kiểm tra content bất kể msgType (phòng trường hợp Zalo đổi msgType)
+  // Fallback 1: kiểm tra content chứa zinstant.bankcard
   if (content && content.includes('zinstant.bankcard')) {
     try {
       const parsed = JSON.parse(content);
       if (parsed?.action === 'zinstant.bankcard') return true;
+    } catch {}
+  }
+  // Fallback 2: kiểm tra content là JSON chứa binBank và numAccBank (phòng trường hợp gửi qua API/workflow và lưu JSON thô)
+  if (content && content.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(content);
+      const bin = parsed.binBank || parsed.params?.item?.binBank || parsed.params?.bubbleItem?.binBank || parsed._bankData?.binBank;
+      const acc = parsed.numAccBank || parsed.params?.item?.numAccBank || parsed.params?.bubbleItem?.numAccBank || parsed._bankData?.numAccBank;
+      if (bin && acc) return true;
     } catch {}
   }
   return false;
@@ -1434,18 +1443,28 @@ function RtfBubble({ msg }: { msg: any }) {
 
 // ── BankCardBubble (shared component — dùng chung cho ChatWindow & QuickChat) ─
 
-const BANK_CARD_COLORS: Record<number, { name: string; color: string }> = {
-  970436: { name: 'Vietcombank', color: '#00663b' }, 970415: { name: 'VietinBank', color: '#004a91' },
-  970418: { name: 'BIDV', color: '#1a3e6e' }, 970407: { name: 'Techcombank', color: '#1a1a2e' },
-  970422: { name: 'MB Bank', color: '#1e0a5e' }, 970416: { name: 'ACB', color: '#1a237e' },
-  970432: { name: 'VPBank', color: '#00653a' }, 970423: { name: 'TPBank', color: '#5c2d91' },
-  970403: { name: 'Sacombank', color: '#004f9f' }, 970437: { name: 'HDBank', color: '#e31837' },
-  970405: { name: 'Agribank', color: '#1a6b3c' }, 970443: { name: 'SHB', color: '#005eac' },
-  970431: { name: 'Eximbank', color: '#005baa' }, 970426: { name: 'MSB', color: '#e31937' },
-  970448: { name: 'OCB', color: '#1e824c' }, 970441: { name: 'VIB', color: '#003366' },
-  970440: { name: 'SeABank', color: '#e3242b' }, 970449: { name: 'LPBank', color: '#004b87' },
-  970428: { name: 'Nam A Bank', color: '#1d3557' }, 970424: { name: 'Shinhan Bank', color: '#0046a6' },
-  458761: { name: 'HSBC', color: '#db0011' },
+const BANK_CARD_COLORS: Record<number, { name: string; code: string; color: string }> = {
+  970436: { name: 'Vietcombank', code: 'VCB', color: '#00663b' },
+  970415: { name: 'VietinBank', code: 'CTG', color: '#004a91' },
+  970418: { name: 'BIDV', code: 'BIDV', color: '#1a3e6e' },
+  970407: { name: 'Techcombank', code: 'TCB', color: '#ba1a1a' },
+  970422: { name: 'Ngân hàng MB Bank', code: 'MB', color: '#153092' },
+  970416: { name: 'ACB', code: 'ACB', color: '#005ba9' },
+  970432: { name: 'VPBank', code: 'VPB', color: '#00653a' },
+  970423: { name: 'TPBank', code: 'TPB', color: '#5c2d91' },
+  970403: { name: 'Sacombank', code: 'STB', color: '#004f9f' },
+  970437: { name: 'HDBank', code: 'HDB', color: '#e31837' },
+  970405: { name: 'Agribank', code: 'VBA', color: '#1a6b3c' },
+  970443: { name: 'SHB', code: 'SHB', color: '#005eac' },
+  970431: { name: 'Eximbank', code: 'EIB', color: '#005baa' },
+  970426: { name: 'MSB', code: 'MSB', color: '#e31937' },
+  970448: { name: 'OCB', code: 'OCB', color: '#1e824c' },
+  970441: { name: 'VIB', code: 'VIB', color: '#003366' },
+  970440: { name: 'SeABank', code: 'SEAB', color: '#e3242b' },
+  970449: { name: 'LPBank', code: 'LPB', color: '#004b87' },
+  970428: { name: 'Nam A Bank', code: 'NAB', color: '#1d3557' },
+  970424: { name: 'Shinhan Bank', code: 'SHHN', color: '#0046a6' },
+  458761: { name: 'HSBC', code: 'HSBC', color: '#db0011' },
 };
 
 /**
@@ -1497,45 +1516,22 @@ function deepFindBankFields(obj: any, depth = 0): { binBank: number; numAccBank:
 function parseBankCardFromContent(content: string): { binBank: number; numAccBank: string; nameAccBank: string; amount?: number; description?: string } | null {
   try {
     const parsed = JSON.parse(content);
-    if (parsed?.action !== 'zinstant.bankcard') return null;
-
-    // Thử parse params (có thể là string JSON hoặc object)
-    let params: any = parsed.params;
-    if (typeof params === 'string') {
-      try { params = JSON.parse(params); } catch {}
+    
+    // Nếu là JSON thô trực tiếp chứa binBank và numAccBank
+    const binBank = Number(parsed.binBank || parsed.params?.item?.binBank || parsed.params?.bubbleItem?.binBank || parsed._bankData?.binBank) || 0;
+    const numAccBank = String(parsed.numAccBank || parsed.params?.item?.numAccBank || parsed.params?.bubbleItem?.numAccBank || parsed._bankData?.numAccBank || '');
+    
+    if (binBank && numAccBank) {
+      return {
+        binBank,
+        numAccBank,
+        nameAccBank: String(parsed.nameAccBank || parsed.params?.item?.nameAccBank || parsed.params?.bubbleItem?.nameAccBank || parsed._bankData?.nameAccBank || ''),
+        amount: parsed.amount || parsed.params?.item?.amount || parsed._bankData?.amount ? Number(parsed.amount || parsed.params?.item?.amount || parsed._bankData?.amount) : undefined,
+        description: parsed.description || parsed.addInfo || parsed.transferDescription || parsed.params?.item?.description || parsed._bankData?.description || undefined
+      };
     }
 
-    // ── Fast path: params.item / params.bubbleItem / params trực tiếp ──
-    if (params && typeof params === 'object') {
-      const item = params.item || params.bubbleItem || params;
-      const binBank = Number(item?.binBank) || 0;
-      const numAccBank = String(item?.numAccBank || '');
-      if (binBank && numAccBank) {
-        return {
-          binBank,
-          numAccBank,
-          nameAccBank: String(item?.nameAccBank || ''),
-          amount: item?.amount ? Number(item.amount) : undefined,
-          description: item?.description || item?.addInfo || item?.transferDescription || undefined
-        };
-      }
-    }
-
-    // ── Fallback: _bankData embedded ──
-    if (parsed?._bankData) {
-      const d = parsed._bankData;
-      if (d.binBank && d.numAccBank) {
-        return {
-          binBank: Number(d.binBank),
-          numAccBank: String(d.numAccBank),
-          nameAccBank: String(d.nameAccBank || ''),
-          amount: d.amount ? Number(d.amount) : undefined,
-          description: d.description || d.addInfo || d.transferDescription || undefined
-        };
-      }
-    }
-
-    // ── Deep search: tìm đệ quy binBank+numAccBank trong toàn bộ parsed object ──
+    // Fallback cho cấu trúc deep search
     const deep = deepFindBankFields(parsed);
     if (deep) return deep;
 
@@ -1672,7 +1668,7 @@ export function BankCardBubble({ msg }: { msg: any }) {
 
   // ── Case 1: Có structured data (binBank + numAccBank) → render styled card + QR ──
   if (data) {
-    const info = BANK_CARD_COLORS[data.binBank] || { name: `Bank (${data.binBank})`, color: '#1a2332' };
+    const info = BANK_CARD_COLORS[data.binBank] || { name: `Bank (${data.binBank})`, code: '', color: '#1a2332' };
     let qrUrl = `https://img.vietqr.io/image/${data.binBank}-${data.numAccBank}-compact.png?accountName=${encodeURIComponent(data.nameAccBank || '')}`;
     if (data.amount) {
       qrUrl += `&amount=${data.amount}`;
@@ -1685,36 +1681,75 @@ export function BankCardBubble({ msg }: { msg: any }) {
     }
 
     return (
-      <div className="rounded-2xl overflow-hidden shadow-lg max-w-[300px] select-text" style={{ background: info.color }}>
-        <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-2">
-          <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm"><span className="text-lg">🏦</span></div>
-          <span className="text-white text-sm font-semibold">{info.name}</span>
-        </div>
-        <div className="flex items-end justify-between px-4 pt-1 pb-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-lg font-bold font-mono tracking-wider leading-tight mb-1">{data.numAccBank}</p>
-            {data.nameAccBank && <p className="text-white/80 text-xs font-medium uppercase tracking-wide truncate">{data.nameAccBank}</p>}
-            {data.amount && (
-              <p className="text-white text-xs font-semibold mt-1">
-                Số tiền: {data.amount.toLocaleString('vi-VN')}đ
-              </p>
-            )}
-            {data.description && (
-              <p className="text-white/90 text-[10px] leading-snug font-medium italic mt-0.5 break-words line-clamp-2 max-w-[170px]" title={data.description}>
-                Nội dung: {data.description}
-              </p>
-            )}
+      <div className="rounded-2xl overflow-hidden shadow-lg w-[320px] select-text flex flex-col" style={{ background: info.color }}>
+        {/* Main Bank Card */}
+        <div className="p-4 flex flex-col flex-1">
+          {/* Header */}
+          <div className="flex items-center gap-2.5 pb-3">
+            <div className="w-8 h-8 rounded bg-white flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden p-0.5">
+              {info.code ? (
+                <img 
+                  src={`https://api.vietqr.io/img/${info.code}.png`} 
+                  alt={info.name} 
+                  className="w-full h-full object-contain" 
+                  onError={(e) => { 
+                    e.currentTarget.style.display = 'none';
+                    const p = e.currentTarget.parentElement;
+                    if (p) {
+                      const span = document.createElement('span');
+                      span.className = 'text-base';
+                      span.innerText = '🏦';
+                      p.appendChild(span);
+                    }
+                  }} 
+                />
+              ) : (
+                <span className="text-base">🏦</span>
+              )}
+            </div>
+            <span className="text-sm font-bold tracking-wide" style={{ color: '#ffffff' }}>{info.name}</span>
           </div>
-          <div className="w-[72px] h-[72px] rounded-lg bg-white p-1 flex-shrink-0 ml-3 shadow">
-            <img src={qrUrl} alt="QR" className="w-full h-full object-contain rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+
+          {/* Info and QR Row */}
+          <div className="flex items-end justify-between pt-1">
+            <div className="flex-1 min-w-0 pr-2">
+              <p className="text-[22px] font-bold font-mono tracking-wider leading-none mb-2" style={{ color: '#ffffff' }}>{data.numAccBank}</p>
+              {data.nameAccBank && <p className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{data.nameAccBank}</p>}
+              {data.amount && (
+                <p className="text-xs font-bold mt-1" style={{ color: '#ffffff' }}>
+                  Số tiền: {data.amount.toLocaleString('vi-VN')}đ
+                </p>
+              )}
+              {data.description && (
+                <p className="text-[10px] leading-snug font-medium italic mt-1 break-words line-clamp-2 max-w-[180px]" style={{ color: 'rgba(255, 255, 255, 0.75)' }} title={data.description}>
+                  Nội dung: {data.description}
+                </p>
+              )}
+            </div>
+            
+            {/* VietQR Code */}
+            <div className="w-[84px] h-[84px] rounded bg-white p-1 flex-shrink-0 shadow-md flex items-center justify-center">
+              <img src={qrUrl} alt="QR" className="w-full h-full object-contain rounded" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            </div>
           </div>
         </div>
-        <button onClick={(e) => handleCopy(data.numAccBank, e)}
-          className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium bg-black/20 text-white/80 hover:bg-black/30 hover:text-white transition-colors">
-          {copied
-            ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg> Đã sao chép</>
-            : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Sao chép STK</>}
-        </button>
+
+        {/* Action Footer */}
+        <div className="bg-white border-t border-gray-100 flex items-center h-[44px]">
+          <button 
+            onClick={(e) => handleCopy(data.numAccBank, e)} 
+            className="flex-1 h-full flex items-center justify-center text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none"
+          >
+            Lưu tài khoản
+          </button>
+          <div className="h-5 border-l border-gray-200" />
+          <button 
+            onClick={(e) => handleCopy(data.numAccBank, e)} 
+            className="flex-1 h-full flex items-center justify-center text-xs font-bold text-blue-600 hover:bg-blue-50/30 transition-colors focus:outline-none"
+          >
+            {copied ? 'Đã sao chép STK' : 'Chuyển khoản'}
+          </button>
+        </div>
       </div>
     );
   }
