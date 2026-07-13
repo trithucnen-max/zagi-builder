@@ -726,6 +726,16 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       desc: 'Tên chủ tài khoản ngân hàng.',
     },
     {
+      key: 'amount', label: 'Số tiền cần thanh toán (Tùy chọn)', type: 'text',
+      placeholder: 'VD: 50000',
+      desc: 'Số tiền chuyển khoản (hỗ trợ biến {{...}} hoặc số nguyên).',
+    },
+    {
+      key: 'description', label: 'Nội dung chuyển khoản (Tùy chọn)', type: 'text',
+      placeholder: 'VD: HD12345 (Không dấu)',
+      desc: 'Nội dung chuyển khoản (tự động chuyển thành tiếng Việt không dấu không ký tự đặc biệt).',
+    },
+    {
       key: 'threadIds', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',
       contactMode: 'multi',
       placeholder: '{{ $trigger.threadId }}',

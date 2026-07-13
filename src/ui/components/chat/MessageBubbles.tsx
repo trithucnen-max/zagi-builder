@@ -1666,9 +1666,19 @@ export function BankCardBubble({ msg }: { msg: any }) {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
   };
 
-  // ── Case 1: Có structured data (binBank + numAccBank) → render styled card + QR ──
   if (data) {
     const info = BANK_CARD_COLORS[data.binBank] || { name: `Bank (${data.binBank})`, code: '', color: '#1a2332' };
+
+    const handleTransfer = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      handleCopy(data.numAccBank, e);
+      if (info.code) {
+        const bankCode = String(info.code).toLowerCase();
+        const quickLink = `https://dl.vietqr.co/pay?app=${bankCode}&acc=${data.numAccBank}&amount=${data.amount || ''}&nd=${encodeURIComponent(data.description || '')}`;
+        window.open(quickLink, '_blank');
+      }
+    };
+
     let qrUrl = `https://img.vietqr.io/image/${data.binBank}-${data.numAccBank}-compact.png?accountName=${encodeURIComponent(data.nameAccBank || '')}`;
     if (data.amount) {
       qrUrl += `&amount=${data.amount}`;
@@ -1744,7 +1754,7 @@ export function BankCardBubble({ msg }: { msg: any }) {
           </button>
           <div className="h-5 border-l border-gray-200" />
           <button 
-            onClick={(e) => handleCopy(data.numAccBank, e)} 
+            onClick={handleTransfer} 
             className="flex-1 h-full flex items-center justify-center text-xs font-bold text-blue-600 hover:bg-blue-50/30 transition-colors focus:outline-none"
           >
             {copied ? 'Đã sao chép STK' : 'Chuyển khoản'}

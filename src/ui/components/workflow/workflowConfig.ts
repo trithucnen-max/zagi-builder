@@ -210,7 +210,7 @@ export const DEFAULT_CONFIGS: Record<string, Record<string, any>> = {
   'zalo.sendFile':         { threadId: '{{ $trigger.threadId }}', threadType: '{{ $trigger.threadType }}', sendMode: 'single', filePath: '', filePaths: '' },
   'zalo.sendVideo':        { threadId: '{{ $trigger.threadId }}', threadType: '{{ $trigger.threadType }}', videoUrl: '', thumbnailUrl: '', duration: '', width: '', height: '', msg: '', ttl: 0 },
   'zalo.sendVoice':        { threadId: '{{ $trigger.threadId }}', threadType: '{{ $trigger.threadType }}', voiceUrl: '', ttl: 0 },
-  'zalo.sendBankCard':     { threadId: '{{ $trigger.threadId }}', threadType: '{{ $trigger.threadType }}', binBank: '', numAccBank: '', nameAccBank: '' },
+  'zalo.sendBankCard':     { threadId: '{{ $trigger.threadId }}', threadType: '{{ $trigger.threadType }}', binBank: '', numAccBank: '', nameAccBank: '', amount: '', description: '' },
   'zalo.sendCard':         { threadId: '{{ $trigger.threadId }}', threadType: '{{ $trigger.threadType }}', userId: '', phoneNumber: '', ttl: 0 },
   'zalo.findUser':         { phone: '{{ $trigger.fromPhone }}' },
   'zalo.getUserInfo':      { userId: '{{ $trigger.fromId }}' },

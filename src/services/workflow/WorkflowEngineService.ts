@@ -2070,10 +2070,29 @@ class WorkflowEngineService {
         const targetThreadIds = this.resolveTargetThreadIds(cfg, ctx.trigger?.threadId, ctx);
         const continueOnError = cfg.continueOnError === true;
 
+        // Hàm helper chuẩn hóa nội dung chuyển khoản y hệt VietQR
+        const sanitizeDesc = (str: string): string => {
+          if (!str) return '';
+          return str
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'D')
+            .replace(/[^a-zA-Z0-9\s-_]/g, '')
+            .toUpperCase()
+            .trim()
+            .substring(0, 25);
+        };
+
+        const resolvedAmount = cfg.amount ? this.resolveVariables(cfg.amount, ctx) : '';
+        const resolvedDesc = cfg.description ? this.resolveVariables(cfg.description, ctx) : '';
+
         const bankPayload = {
           binBank: cfg.binBank,
           numAccBank: cfg.numAccBank,
           nameAccBank: (cfg.nameAccBank || '').toUpperCase(),
+          amount: resolvedAmount ? Number(resolvedAmount) : undefined,
+          description: resolvedDesc ? sanitizeDesc(resolvedDesc) : undefined,
         };
 
         // Gọi ZaloService để chuẩn hóa tham số (parseInt binBank, convertThreadType)
@@ -2104,6 +2123,8 @@ class WorkflowEngineService {
                 binBank: Number(bankPayload.binBank),
                 numAccBank: String(bankPayload.numAccBank),
                 nameAccBank: String(bankPayload.nameAccBank),
+                amount: bankPayload.amount,
+                description: bankPayload.description,
               });
             } catch (e: any) {
               Logger.warn(`[WorkflowEngine] bankCardCached emit failed: ${e.message}`);
