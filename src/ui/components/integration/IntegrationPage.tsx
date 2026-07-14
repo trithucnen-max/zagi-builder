@@ -85,8 +85,10 @@ const CATALOG: Record<string, CatalogItem[]> = {
       icon: '🟢', color: 'bg-emerald-500',
       desc: 'Quản lý bán hàng đa kênh Sapo. Tra cứu đơn, khách hàng theo SĐT.',
       credentialFields: [
-        { key: 'accessToken',  label: 'Access Token (Mã truy cập - KHÔNG phải API Secret)', secret: true, placeholder: 'Thường bắt đầu bằng "sap_". KHÔNG nhập API Secret. Lấy từ Sapo Admin → Cấu hình → Ứng dụng → Ứng dụng riêng.' },
-        { key: 'storeDomain', label: 'Tên store (subdomain)', placeholder: 'vd: myshop (myshop.mysapo.net)' },
+        { key: 'apiKey',       label: 'API Key (Cho Ứng dụng riêng/Custom App)', placeholder: 'Lấy từ Sapo Admin → Ứng dụng riêng → API Key' },
+        { key: 'apiSecret',    label: 'API Secret (Cho Ứng dụng riêng/Custom App)', secret: true, placeholder: 'Lấy từ Sapo Admin → Ứng dụng riêng → API Secret' },
+        { key: 'accessToken',  label: 'Access Token (Cho ứng dụng Public/OAuth)', secret: true, placeholder: 'Chỉ nhập nếu dùng OAuth. Bỏ trống nếu đã nhập API Key + API Secret ở trên.' },
+        { key: 'storeDomain',  label: 'Tên store (subdomain)', placeholder: 'vd: myshop (nếu link là myshop.mysapo.net)' },
       ],
     },
     {

@@ -23,12 +23,27 @@ export class SapoAdapter extends IntegrationAdapter {
   }
 
   private getHeaders() {
-    const { accessToken } = this.config.credentials;
-    if (!accessToken) throw new Error('Thiếu Access Token Sapo');
-    return {
-      'X-Sapo-Access-Token': accessToken,
-      'Content-Type': 'application/json',
-    };
+    const { accessToken, apiKey, apiSecret } = this.config.credentials;
+    
+    // Nếu dùng API Key + API Secret (Basic Auth cho Private App)
+    if (apiKey && apiSecret) {
+      const rawToken = `${apiKey.trim()}:${apiSecret.trim()}`;
+      const base64Token = Buffer.from(rawToken).toString('base64');
+      return {
+        'Authorization': `Basic ${base64Token}`,
+        'Content-Type': 'application/json',
+      };
+    }
+
+    // Nếu dùng Access Token (OAuth / Public App)
+    if (accessToken) {
+      return {
+        'X-Sapo-Access-Token': accessToken.trim(),
+        'Content-Type': 'application/json',
+      };
+    }
+
+    throw new Error('Thiếu thông tin xác thực Sapo (Nhập API Key + API Secret hoặc Access Token)');
   }
 
   /** Custom HTTPS Agent để tránh lỗi SSL handshake với SAPO server */
@@ -90,9 +105,11 @@ export class SapoAdapter extends IntegrationAdapter {
   async testConnection(): Promise<TestResult> {
     try {
       // Validate credentials trước khi gọi API
-      const { storeDomain, accessToken } = this.config.credentials;
+      const { storeDomain, accessToken, apiKey, apiSecret } = this.config.credentials;
       if (!storeDomain) return { success: false, message: 'Thiếu tên store (subdomain) — VD: ten-cua-hang' };
-      if (!accessToken) return { success: false, message: 'Thiếu Access Token — lấy từ SAPO Admin → Cài đặt → Phát triển → API' };
+      if (!accessToken && (!apiKey || !apiSecret)) {
+        return { success: false, message: 'Thiếu thông tin xác thực: Vui lòng nhập API Key + API Secret hoặc Access Token' };
+      }
 
       const data = await this.apiGet('/admin/store.json');
       const name = data?.store?.name || data?.store?.domain || 'Sapo Store';
