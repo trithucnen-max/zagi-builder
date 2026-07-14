@@ -11,7 +11,7 @@ interface CatalogItem {
   icon: string;
   color: string;
   priority: string;
-  credentialFields: { key: string; label: string; secret?: boolean; placeholder?: string }[];
+  credentialFields: { key: string; label: string; secret?: boolean; placeholder?: string; optional?: boolean }[];
   settingFields?: { key: string; label: string; type?: string; options?: { value: string; label: string }[] }[];
 }
 
@@ -64,9 +64,29 @@ export default function IntegrationDetailPage({ catalogItem, saved, webhookPort,
     // Validate required credential fields
     for (const field of catalogItem.credentialFields) {
       const value = credentials[field.key]?.trim();
-      // Create mode: require all credentials. Update mode: allow blank to keep old credential.
-      if (!saved_id && !value) {
+      // Create mode: require non-optional credentials.
+      if (!saved_id && !value && !field.optional) {
         showNotification(`Vui lòng nhập ${field.label}`, 'warning');
+        return;
+      }
+    }
+
+    // Custom multi-field validation for Sapo
+    if (catalogItem.type === 'sapo' && !saved_id) {
+      const hasToken = !!credentials.accessToken?.trim();
+      const hasKeys = !!credentials.apiKey?.trim() && !!credentials.apiSecret?.trim();
+      if (!hasToken && !hasKeys) {
+        showNotification('Vui lòng nhập API Key + API Secret hoặc Access Token cho Sapo.', 'warning');
+        return;
+      }
+    }
+
+    // Custom multi-field validation for Haravan
+    if (catalogItem.type === 'haravan' && !saved_id) {
+      const hasToken = !!credentials.accessToken?.trim();
+      const hasKeys = !!credentials.apiKey?.trim() && !!credentials.password?.trim();
+      if (!hasToken && !hasKeys) {
+        showNotification('Vui lòng nhập API Key + Password hoặc Access Token cho Haravan.', 'warning');
         return;
       }
     }

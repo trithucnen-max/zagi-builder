@@ -15,7 +15,7 @@ interface CatalogItem {
   icon: string;
   color: string;
   priority: 'p0' | 'p1' | 'p2';
-  credentialFields: { key: string; label: string; secret?: boolean; placeholder?: string }[];
+  credentialFields: { key: string; label: string; secret?: boolean; placeholder?: string; optional?: boolean }[];
   settingFields?: { key: string; label: string; type?: string; options?: { value: string; label: string }[] }[];
 }
 
@@ -74,9 +74,9 @@ const CATALOG: Record<string, CatalogItem[]> = {
       icon: '🏪', color: 'bg-indigo-500',
       desc: 'Nền tảng TMĐT Việt Nam. Tra cứu đơn hàng, khách hàng Haravan trong chat.',
       credentialFields: [
-        { key: 'accessToken',   label: 'Access Token (Mã truy cập - KHÔNG phải API Secret/Password)', secret: true, placeholder: 'Nhập Mã truy cập (Access Token). KHÔNG nhập API Secret. Lấy từ Cấu hình -> Ứng dụng -> Ứng dụng riêng.' },
-        { key: 'apiKey',        label: 'API Key (legacy)', placeholder: 'Bỏ trống nếu dùng Access Token' },
-        { key: 'password',      label: 'Password (legacy)', secret: true, placeholder: 'Bỏ trống nếu dùng Access Token' },
+        { key: 'accessToken',   label: 'Access Token (Mã truy cập - KHÔNG phải API Secret/Password)', secret: true, placeholder: 'Nhập Mã truy cập (Access Token). KHÔNG nhập API Secret. Lấy từ Cấu hình -> Ứng dụng -> Ứng dụng riêng.', optional: true },
+        { key: 'apiKey',        label: 'API Key (legacy)', placeholder: 'Bỏ trống nếu dùng Access Token', optional: true },
+        { key: 'password',      label: 'Password (legacy)', secret: true, placeholder: 'Bỏ trống nếu dùng Access Token', optional: true },
         { key: 'retailerDomain', label: 'Tên shop (subdomain)', placeholder: 'vd: myshop hoặc myshop.myharavan.com' },
       ],
     },
@@ -85,9 +85,9 @@ const CATALOG: Record<string, CatalogItem[]> = {
       icon: '🟢', color: 'bg-emerald-500',
       desc: 'Quản lý bán hàng đa kênh Sapo. Tra cứu đơn, khách hàng theo SĐT.',
       credentialFields: [
-        { key: 'apiKey',       label: 'API Key (Cho Ứng dụng riêng/Custom App)', placeholder: 'Lấy từ Sapo Admin → Ứng dụng riêng → API Key' },
-        { key: 'apiSecret',    label: 'API Secret (Cho Ứng dụng riêng/Custom App)', secret: true, placeholder: 'Lấy từ Sapo Admin → Ứng dụng riêng → API Secret' },
-        { key: 'accessToken',  label: 'Access Token (Cho ứng dụng Public/OAuth)', secret: true, placeholder: 'Chỉ nhập nếu dùng OAuth. Bỏ trống nếu đã nhập API Key + API Secret ở trên.' },
+        { key: 'apiKey',       label: 'API Key (Cho Ứng dụng riêng/Custom App)', placeholder: 'Lấy từ Sapo Admin → Ứng dụng riêng → API Key', optional: true },
+        { key: 'apiSecret',    label: 'API Secret (Cho Ứng dụng riêng/Custom App)', secret: true, placeholder: 'Lấy từ Sapo Admin → Ứng dụng riêng → API Secret', optional: true },
+        { key: 'accessToken',  label: 'Access Token (Cho ứng dụng Public/OAuth)', secret: true, placeholder: 'Chỉ nhập nếu dùng OAuth. Bỏ trống nếu đã nhập API Key + API Secret ở trên.', optional: true },
         { key: 'storeDomain',  label: 'Tên store (subdomain)', placeholder: 'vd: myshop (nếu link là myshop.mysapo.net)' },
       ],
     },
