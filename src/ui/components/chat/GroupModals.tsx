@@ -1098,3 +1098,108 @@ function LabelChip({ label, active, onClick, color, emoji }: {
     </button>
   );
 }
+
+// ─── JoinGroupLinkModal ───────────────────────────────────────────────────────
+export function JoinGroupLinkModal({ onClose }: { onClose: () => void }) {
+  const { getActiveAccount } = useAccountStore();
+  const { showNotification } = useAppStore();
+  const [link, setLink] = useState('');
+  const [joining, setJoining] = useState(false);
+
+  const handleJoin = async () => {
+    const trimmedLink = link.trim();
+    if (!trimmedLink) {
+      showNotification('Vui lòng nhập link nhóm Zalo', 'warning');
+      return;
+    }
+
+    const activeAcc = getActiveAccount();
+    if (!activeAcc) {
+      showNotification('Vui lòng chọn tài khoản Zalo hoạt động trước', 'warning');
+      return;
+    }
+
+    setJoining(true);
+    try {
+      const accRes = await ipc.login?.getAccounts();
+      const acc = accRes?.accounts?.find((a: any) => a.zalo_id === activeAcc.zalo_id);
+      const auth = acc?.cookies ? { cookies: acc.cookies, imei: acc.imei || '', userAgent: acc.user_agent || '' } : {};
+
+      const res = await ipc.zalo.joinGroupLink({ auth, zaloId: activeAcc.zalo_id, link: trimmedLink });
+      
+      if (res?.success || res?.response) {
+        showNotification('Tham gia nhóm thành công!', 'success');
+        onClose();
+      } else {
+        const errorMsg = res?.error || 'Không thể tham gia nhóm';
+        showNotification('Lỗi: ' + errorMsg, 'error');
+      }
+    } catch (err: any) {
+      showNotification('Lỗi kết nối: ' + err.message, 'error');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-400">
+              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+            </svg>
+            Vào nhóm Zalo bằng link
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 flex flex-col gap-4">
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Nhập đường dẫn tham gia nhóm Zalo (ví dụ: <code className="text-blue-400">https://zalo.me/g/abcdef</code>). Zagi sẽ sử dụng tài khoản hiện tại để gửi yêu cầu tham gia nhóm trực tiếp.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-gray-300">Link nhóm Zalo</label>
+            <input
+              type="text"
+              value={link}
+              onChange={e => setLink(e.target.value)}
+              placeholder="https://zalo.me/g/..."
+              className="w-full px-3 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              disabled={joining}
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handleJoin(); }}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-5 py-4 border-t border-gray-700 bg-gray-800/40">
+          <button onClick={onClose} disabled={joining}
+            className="flex-1 py-2.5 rounded-xl border border-gray-600 text-sm text-gray-300 hover:bg-gray-700 transition-colors">
+            Hủy
+          </button>
+          <button onClick={handleJoin} disabled={joining || !link.trim()}
+            className="flex-1 py-2.5 rounded-xl bg-blue-600 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5">
+            {joining ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Đang kết nối...
+              </>
+            ) : 'Tham gia'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

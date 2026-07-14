@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
 import { sendSeenForThread } from '@/lib/sendSeenHelper';
 import { getFilteredUnreadCount } from '@/lib/badgeUtils';
-import { CreateGroupModal, InviteToGroupModal } from './GroupModals';
+import { CreateGroupModal, InviteToGroupModal, JoinGroupLinkModal } from './GroupModals';
 import { showConfirm } from '../common/ConfirmDialog';
 import LabelPicker, { EditLabelsModal } from './LabelPicker';
 import AddFriendModal from '../common/AddFriendModal';
@@ -105,6 +105,7 @@ export default function ConversationList() {
   const [localLabelsByAccount, setLocalLabelsByAccount] = useState<Record<string, LocalLabelData[]>>({});
   const [localLabelThreadMapByAccount, setLocalLabelThreadMapByAccount] = useState<Record<string, Record<string, number[]>>>({});
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [joinGroupOpen, setJoinGroupOpen] = useState(false);
   const [inviteContactId, setInviteContactId] = useState<string | null>(null);
   const [loadingGroupAvatars, setLoadingGroupAvatars] = useState(false);
   const [editLabelsOpen, setEditLabelsOpen] = useState(false);
@@ -1501,13 +1502,22 @@ export default function ConversationList() {
             Đóng
           </button>
         ) : channelCap.supportsCreateGroup ? (
-          <button title="Tạo nhóm" onClick={() => setCreateGroupOpen(true)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
-            </svg>
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button title="Tạo nhóm" onClick={() => setCreateGroupOpen(true)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+              </svg>
+            </button>
+            <button title="Vào nhóm bằng link" onClick={() => setJoinGroupOpen(true)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 flex-shrink-0">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+              </svg>
+            </button>
+          </div>
         ) : null}
       </div>
 
@@ -2151,6 +2161,7 @@ export default function ConversationList() {
 
       {/* Modals */}
       {createGroupOpen && <CreateGroupModal onClose={() => setCreateGroupOpen(false)} />}
+      {joinGroupOpen && <JoinGroupLinkModal onClose={() => setJoinGroupOpen(false)} />}
       {inviteContactId && (
         <InviteToGroupModal
           contactId={inviteContactId}

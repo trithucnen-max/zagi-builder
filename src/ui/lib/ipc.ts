@@ -716,6 +716,51 @@ function wrapErpApi<T extends Record<string, any> | undefined>(api: T): T {
   return wrapped as T;
 }
 
+const originalOpenExternal = window.electronAPI?.shell?.openExternal;
+
+const openExternalWrapper = async (url: string) => {
+  if (!url) return;
+  const isZaloGroup = /(?:zalo\.me\/g\/|chat\.zalo\.me\/g\/)([a-zA-Z0-9_-]+)/i.test(url);
+  if (isZaloGroup) {
+    const { useAccountStore } = await import('../store/accountStore');
+    const { useAppStore } = await import('../store/appStore');
+    const activeZaloId = useAccountStore.getState().activeAccountId;
+    const showNotification = useAppStore.getState().showNotification;
+
+    if (activeZaloId) {
+      const confirmJoin = window.confirm('Bạn có muốn tham gia nhóm Zalo này trực tiếp trên tài khoản Zagi đang hoạt động không?');
+      if (confirmJoin) {
+        try {
+          const accRes = await window.electronAPI?.login?.getAccounts();
+          const acc = accRes?.accounts?.find((a: any) => a.zalo_id === activeZaloId);
+          const auth = acc?.cookies ? { cookies: acc.cookies, imei: acc.imei || '', userAgent: acc.user_agent || '' } : {};
+
+          if (showNotification) showNotification('Đang gửi yêu cầu vào nhóm...', 'info');
+          const result = await window.electronAPI?.zalo?.joinGroupLink({ auth, zaloId: activeZaloId, link: url });
+
+          if (result?.success || result?.response) {
+            if (showNotification) showNotification('Tham gia nhóm thành công!', 'success');
+          } else {
+            const err = result?.error || 'Lỗi không xác định';
+            if (showNotification) showNotification(`Không thể tự động tham gia: ${err}`, 'error');
+            originalOpenExternal?.(url);
+          }
+        } catch (err: any) {
+          if (showNotification) showNotification(`Lỗi: ${err.message}`, 'error');
+          originalOpenExternal?.(url);
+        }
+        return;
+      }
+    }
+  }
+  originalOpenExternal?.(url);
+};
+
+const shell = window.electronAPI?.shell ? {
+  ...window.electronAPI.shell,
+  openExternal: openExternalWrapper,
+} : undefined;
+
 const erp = wrapErpApi(window.electronAPI?.erp);
 
 export const ipc = {
@@ -725,7 +770,7 @@ export const ipc = {
   file: window.electronAPI?.file,
   app: window.electronAPI?.app,
   window: window.electronAPI?.window,
-  shell: window.electronAPI?.shell,
+  shell,
   util: window.electronAPI?.util,
   crm: window.electronAPI?.crm,
   analytics: window.electronAPI?.analytics,
