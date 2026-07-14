@@ -74,7 +74,7 @@ const CATALOG: Record<string, CatalogItem[]> = {
       icon: '🏪', color: 'bg-indigo-500',
       desc: 'Nền tảng TMĐT Việt Nam. Tra cứu đơn hàng, khách hàng Haravan trong chat.',
       credentialFields: [
-        { key: 'accessToken',   label: 'Access Token (khuyên dùng)', secret: true, placeholder: 'Haravan Access Token từ Custom App' },
+        { key: 'accessToken',   label: 'Access Token (Mã truy cập - KHÔNG phải API Secret/Password)', secret: true, placeholder: 'Nhập Mã truy cập (Access Token). KHÔNG nhập API Secret. Lấy từ Cấu hình -> Ứng dụng -> Ứng dụng riêng.' },
         { key: 'apiKey',        label: 'API Key (legacy)', placeholder: 'Bỏ trống nếu dùng Access Token' },
         { key: 'password',      label: 'Password (legacy)', secret: true, placeholder: 'Bỏ trống nếu dùng Access Token' },
         { key: 'retailerDomain', label: 'Tên shop (subdomain)', placeholder: 'vd: myshop hoặc myshop.myharavan.com' },
@@ -85,7 +85,7 @@ const CATALOG: Record<string, CatalogItem[]> = {
       icon: '🟢', color: 'bg-emerald-500',
       desc: 'Quản lý bán hàng đa kênh Sapo. Tra cứu đơn, khách hàng theo SĐT.',
       credentialFields: [
-        { key: 'accessToken',  label: 'Access Token', secret: true, placeholder: 'Lấy từ SAPO Admin → Cài đặt → Phát triển → Quản lý API → Token' },
+        { key: 'accessToken',  label: 'Access Token (Mã truy cập - KHÔNG phải API Secret)', secret: true, placeholder: 'Thường bắt đầu bằng "sap_". KHÔNG nhập API Secret. Lấy từ Sapo Admin → Cấu hình → Ứng dụng → Ứng dụng riêng.' },
         { key: 'storeDomain', label: 'Tên store (subdomain)', placeholder: 'vd: myshop (myshop.mysapo.net)' },
       ],
     },
