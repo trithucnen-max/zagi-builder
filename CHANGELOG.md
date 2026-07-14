@@ -6,7 +6,12 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v27.2.12] - 2026-07-14
 
-### Động cơ Workflow Persistent Checkpoints (Phương án C) · Khôi phục luồng khi tắt máy · Tab quản lý Đang Chờ & Trình tự tuần tự hóa ExecutionContext
+### Động cơ Workflow Persistent Checkpoints (Phương án C) · Kết nối Sapo Private App (API Key/Secret Basic Auth) · Khôi phục luồng khi tắt máy
+
+- **Tích hợp POS (Sapo & Haravan Private App):**
+  - Nâng cấp `SapoAdapter.ts` để hỗ trợ xác thực bằng **API Key** và **API Secret (Basic Authentication)** cho cửa hàng riêng (Private App), khắc phục lỗi không thể kết nối khi thiếu trường Access Token.
+  - Tinh chỉnh giao diện kết nối của Sapo và Haravan (`IntegrationPage.tsx` & `IntegrationDetailPage.tsx`): tách biệt rõ ràng các trường bắt buộc/tùy chọn (optional fields), bổ sung nhãn cảnh báo và placeholder hướng dẫn lấy thông tin từ Sapo/Haravan Admin.
+  - Khắc phục lỗi validate dữ liệu bắt buộc (required checks) ngăn cản việc lưu cấu hình khi không nhập đủ tất cả các trường xác thực.
 
 - **Cơ chế lưu trạng thái Workflow (Persistent Checkpoints):**
   - Triển khai cơ chế checkpoint lưu trạng thái hoạt động của workflow vào bảng `workflow_checkpoints` trong SQLite khi gặp node Chờ (`logic.wait`) có thời gian chờ dài (> 5 phút), giúp giải phóng bộ nhớ RAM và CPU thay vì giữ luồng chờ dài ngày trong bộ nhớ.

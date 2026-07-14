@@ -103,12 +103,13 @@
     *   **Ẩn nhãn đã xóa**: Tự động lọc và không hiển thị các huy hiệu nhãn dán trên tệp/hình ảnh trong Thư viện nếu nhãn dán đó đã bị xóa.
     *   **Sửa lỗi forward file đính kèm máy nhân viên**: Tự động điều hướng và bỏ qua kiểm tra tệp local tại máy nhân viên, thực hiện gửi trực tiếp tệp gốc được lưu trữ trên Boss Machine khi chuyển tiếp PDF, ảnh, video, âm thanh sang hội thoại đích.
     *   **Autocomplete trình soạn thảo**: Nhập dấu `{` tự động hiển thị popup gợi ý biến trong trình soạn tin nhắn chiến dịch & workflow, bổ sung thanh công cụ chips chèn nhanh.
-19. **Động cơ Workflow Persistent Checkpoints (v27.2.12):**
+19. **Động cơ Workflow Persistent Checkpoints & Tích hợp Sapo (v27.2.12):**
     *   **Persistent Checkpoints**: Tự động lưu trạng thái hoạt động của workflow vào SQLite (`workflow_checkpoints`) khi gặp node Chờ (`logic.wait`) có thời gian chờ dài (> 5 phút), giúp giải phóng bộ nhớ RAM và CPU thay vì giữ luồng chờ dài ngày trong bộ nhớ.
     *   **Chế độ Chờ Ngày thực tế (Calendar Wait)**: Node Chờ hỗ trợ cấu hình theo ngày thực tế dịch chuyển (ví dụ: 0 là hôm nay, 1 là ngày mai) kết hợp khung giờ gửi cố định mong muốn (ví dụ: 09:00). Có bộ lọc an toàn tự động thực thi ngay nếu giờ đích trong ngày hôm nay đã trôi qua.
     *   **Động cơ Tự động Khôi phục (CheckpointScheduler)**: Khôi phục và chạy tiếp các kịch bản đang chờ dở dang sau khi tắt máy hoặc restart máy Boss/máy chủ. Tự động phát hiện và dọn dẹp các checkpoint của kịch bản đã bị xóa hoặc tắt đi trong thời gian chờ.
     *   **Tab quản lý "Đang Chờ" trên UI**: Tích hợp tab chuyên biệt trong phân hệ Workflow Automation hiển thị số lượng badge pending, countdown thời gian chờ thực tế và hỗ trợ Hủy checkpoint nhanh.
     *   **Tuần tự hóa ngữ cảnh thông minh (contextSerializer)**: Giải quyết triệt để vấn đề tham chiếu vòng, ép Set ↔ Array và rút gọn chuỗi >10KB để tránh phình dữ liệu.
+    *   **Tích hợp Sapo Private App (API Key/Secret Basic Auth)**: Nâng cấp `SapoAdapter.ts` hỗ trợ xác thực cổng Sapo Admin qua Basic Auth. Tách bạch các trường tùy chọn và bắt buộc của Sapo & Haravan trên giao diện cấu hình, sửa lỗi required validation khi kết nối.
 
 ## 4. Trạng Thái Kiểm Thử & Chạy Thử
 *   **Preview Server:** ⚪ **Stopped** (Đang dừng).
