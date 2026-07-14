@@ -13,6 +13,12 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Tinh chỉnh giao diện kết nối của Sapo và Haravan (`IntegrationPage.tsx` & `IntegrationDetailPage.tsx`): tách biệt rõ ràng các trường bắt buộc/tùy chọn (optional fields), bổ sung nhãn cảnh báo và placeholder hướng dẫn lấy thông tin từ Sapo/Haravan Admin.
   - Khắc phục lỗi validate dữ liệu bắt buộc (required checks) ngăn cản việc lưu cấu hình khi không nhập đủ tất cả các trường xác thực.
 
+- **Tham gia nhóm Zalo trực tiếp bằng Link (Zalo Group Join):**
+  - Tích hợp tính năng tham gia nhóm Zalo trực tiếp ngay bên trong Zagi bằng tài khoản Zalo đang hoạt động thay vì mở trình duyệt Chrome ngoài.
+  - Bọc lớp hàm `ipc.shell.openExternal` để tự động phát hiện, chặn các liên kết nhóm Zalo (`zalo.me/g/...` hoặc `chat.zalo.me/g/...`), hiển thị hộp thoại xác nhận và tự động gia nhập nhóm bằng API `joinGroupLink`.
+  - Bổ sung nút **"Vào nhóm bằng link"** (icon Link 🔗) kế bên nút "Tạo nhóm" ở Sidebar danh sách chat, mở popup cho phép người dùng dán link và tham gia nhóm trực tiếp nhanh chóng.
+  - Thiết kế bộ kiểm thử tự động `zaloGroupJoin.test.ts` (8 passed tests) đảm bảo tính chính xác và an toàn của hệ thống regex và luồng chặn IPC.
+
 - **Cơ chế lưu trạng thái Workflow (Persistent Checkpoints):**
   - Triển khai cơ chế checkpoint lưu trạng thái hoạt động của workflow vào bảng `workflow_checkpoints` trong SQLite khi gặp node Chờ (`logic.wait`) có thời gian chờ dài (> 5 phút), giúp giải phóng bộ nhớ RAM và CPU thay vì giữ luồng chờ dài ngày trong bộ nhớ.
   - Tích hợp động cơ quét tự động `CheckpointScheduler` quét cơ sở dữ liệu định kỳ mỗi 60 giây để khôi phục và tiếp tục chạy (resume) các workflow đến hạn.

@@ -48,6 +48,7 @@ if (activeWs?.type === 'remote' && !args[0]?._fromRelay) {
 | `zalo:removeFromGroup` | — | groupId, members[] |
 | `zalo:createPoll` | — | poll data |
 | `zalo:getMessageHistory` | — | threadId, type, count |
+| `zalo:joinGroupLink` | `s.joinGroupLink(p.link)` | link (zalo.me/g/...) |
 
 ## Workflow IPC Channels (`electron/ipc/workflowIpc.ts`)
 
