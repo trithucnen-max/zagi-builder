@@ -912,6 +912,26 @@ class DatabaseService {
             CREATE INDEX IF NOT EXISTS idx_wf_logs_status ON workflow_run_logs(status, started_at DESC);
         `);
 
+        // ─── Workflow Persistent Checkpoints ──────────────────────────────────────
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS workflow_checkpoints (
+                id              TEXT PRIMARY KEY,
+                workflow_id     TEXT NOT NULL,
+                workflow_name   TEXT NOT NULL,
+                triggered_by    TEXT NOT NULL,
+                run_id          TEXT NOT NULL,
+                resume_at       INTEGER NOT NULL,
+                created_at      INTEGER NOT NULL,
+                resume_node_id  TEXT NOT NULL,
+                wait_label      TEXT NOT NULL DEFAULT '',
+                context_json    TEXT NOT NULL,
+                status          TEXT NOT NULL DEFAULT 'pending',
+                error_message   TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_wf_cp_resume ON workflow_checkpoints(status, resume_at);
+            CREATE INDEX IF NOT EXISTS idx_wf_cp_workflow ON workflow_checkpoints(workflow_id, created_at DESC);
+        `);
+
         // Migration: add page_ids column to workflows if missing + backfill from page_id
         try {
             const wfCols = this.query<any>(`PRAGMA table_info(workflows)`);
@@ -7201,6 +7221,145 @@ class DatabaseService {
             this.run(`DELETE FROM workflow_run_logs WHERE started_at < ?`, [cutoff]);
         } catch (err: any) {
             Logger.error(`[DB] deleteOldRunLogs: ${err.message}`);
+        }
+    }
+
+    // ─── Workflow Checkpoint Operations ───────────────────────────────────────
+
+    public saveWorkflowCheckpoint(cp: {
+        id: string;
+        workflowId: string;
+        workflowName: string;
+        triggeredBy: string;
+        runId: string;
+        resumeAt: number;
+        createdAt: number;
+        resumeNodeId: string;
+        waitLabel: string;
+        contextJson: string;
+    }): void {
+        if (!this.initialized) return;
+        try {
+            this.run(
+                `INSERT OR REPLACE INTO workflow_checkpoints
+                 (id, workflow_id, workflow_name, triggered_by, run_id, resume_at, created_at, resume_node_id, wait_label, context_json, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+                [
+                    cp.id, cp.workflowId, cp.workflowName, cp.triggeredBy,
+                    cp.runId, cp.resumeAt, cp.createdAt, cp.resumeNodeId,
+                    cp.waitLabel, cp.contextJson,
+                ]
+            );
+        } catch (err: any) {
+            Logger.error(`[DB] saveWorkflowCheckpoint: ${err.message}`);
+        }
+    }
+
+    public getPendingCheckpoints(nowMs: number): any[] {
+        if (!this.initialized) return [];
+        try {
+            return this.query<any>(
+                `SELECT * FROM workflow_checkpoints WHERE status = 'pending' AND resume_at <= ? ORDER BY resume_at ASC`,
+                [nowMs]
+            );
+        } catch (err: any) {
+            Logger.error(`[DB] getPendingCheckpoints: ${err.message}`);
+            return [];
+        }
+    }
+
+    public getAllPendingCheckpoints(): any[] {
+        if (!this.initialized) return [];
+        try {
+            return this.query<any>(
+                `SELECT * FROM workflow_checkpoints WHERE status = 'pending' ORDER BY resume_at ASC`
+            );
+        } catch (err: any) {
+            Logger.error(`[DB] getAllPendingCheckpoints: ${err.message}`);
+            return [];
+        }
+    }
+
+    public markCheckpointProcessing(id: string): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`UPDATE workflow_checkpoints SET status = 'processing' WHERE id = ? AND status = 'pending'`, [id]);
+        } catch (err: any) {
+            Logger.error(`[DB] markCheckpointProcessing: ${err.message}`);
+        }
+    }
+
+    public markCheckpointDone(id: string): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`UPDATE workflow_checkpoints SET status = 'done' WHERE id = ?`, [id]);
+        } catch (err: any) {
+            Logger.error(`[DB] markCheckpointDone: ${err.message}`);
+        }
+    }
+
+    public markCheckpointFailed(id: string, errorMessage: string): void {
+        if (!this.initialized) return;
+        try {
+            this.run(
+                `UPDATE workflow_checkpoints SET status = 'failed', error_message = ? WHERE id = ?`,
+                [errorMessage, id]
+            );
+        } catch (err: any) {
+            Logger.error(`[DB] markCheckpointFailed: ${err.message}`);
+        }
+    }
+
+    public markCheckpointExpired(id: string): void {
+        if (!this.initialized) return;
+        try {
+            this.run(
+                `UPDATE workflow_checkpoints SET status = 'expired', error_message = 'Quá thời hạn 90 ngày' WHERE id = ?`,
+                [id]
+            );
+        } catch (err: any) {
+            Logger.error(`[DB] markCheckpointExpired: ${err.message}`);
+        }
+    }
+
+    public deleteCheckpoint(id: string): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`DELETE FROM workflow_checkpoints WHERE id = ?`, [id]);
+        } catch (err: any) {
+            Logger.error(`[DB] deleteCheckpoint: ${err.message}`);
+        }
+    }
+
+    public getWorkflowCheckpoints(workflowId?: string): any[] {
+        if (!this.initialized) return [];
+        try {
+            if (workflowId) {
+                return this.query<any>(
+                    `SELECT * FROM workflow_checkpoints WHERE workflow_id = ? ORDER BY created_at DESC`,
+                    [workflowId]
+                );
+            }
+            return this.query<any>(
+                `SELECT * FROM workflow_checkpoints WHERE status IN ('pending', 'processing', 'failed', 'expired') ORDER BY resume_at ASC`
+            );
+        } catch (err: any) {
+            Logger.error(`[DB] getWorkflowCheckpoints: ${err.message}`);
+            return [];
+        }
+    }
+
+    public cleanupOldCheckpoints(): void {
+        if (!this.initialized) return;
+        try {
+            // Xóa checkpoint đã done sau 7 ngày
+            const doneCutoff = Date.now() - 7 * 86400_000;
+            this.run(`DELETE FROM workflow_checkpoints WHERE status = 'done' AND created_at < ?`, [doneCutoff]);
+            // Xóa checkpoint expired/failed sau 30 ngày
+            const failedCutoff = Date.now() - 30 * 86400_000;
+            this.run(`DELETE FROM workflow_checkpoints WHERE status IN ('expired', 'failed') AND created_at < ?`, [failedCutoff]);
+        } catch (err: any) {
+            Logger.error(`[DB] cleanupOldCheckpoints: ${err.message}`);
         }
     }
 

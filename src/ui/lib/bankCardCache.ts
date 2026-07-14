@@ -21,6 +21,29 @@ export interface BankCardData {
 // Cache: key = `${ownerZaloId}:${threadId}` → array of recent sent cards (LIFO)
 const cache = new Map<string, BankCardData[]>();
 
+// ── Subscription system ──────────────────────────────────────────────────────
+// BankCardBubble subscribes to know when new data is available (race condition fix)
+const _updateListeners: Array<() => void> = [];
+
+/**
+ * Subscribe to cache updates. Returns unsubscribe function.
+ * Called by BankCardBubble to re-render when bankCardCached event arrives late.
+ */
+export function subscribeToUpdates(fn: () => void): () => void {
+  _updateListeners.push(fn);
+  return () => {
+    const idx = _updateListeners.indexOf(fn);
+    if (idx >= 0) _updateListeners.splice(idx, 1);
+  };
+}
+
+/** Notify all BankCardBubble subscribers that new data was cached */
+function _notifyUpdate(): void {
+  for (const fn of _updateListeners) {
+    try { fn(); } catch {}
+  }
+}
+
 /** Lưu dữ liệu bank card khi gửi */
 export function cacheSentBankCard(ownerZaloId: string, threadId: string, data: Omit<BankCardData, 'sentAt'>): void {
   const key = `${ownerZaloId}:${threadId}`;
@@ -29,6 +52,8 @@ export function cacheSentBankCard(ownerZaloId: string, threadId: string, data: O
   // Giữ tối đa 20 entries, xóa cũ
   if (list.length > 20) list.splice(0, list.length - 20);
   cache.set(key, list);
+  // Notify all BankCardBubble instances to re-check
+  _notifyUpdate();
 }
 
 /**

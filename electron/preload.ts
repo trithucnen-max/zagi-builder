@@ -359,6 +359,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       getPortConfig: () => ipcRenderer.invoke('workflow:getPortConfig'),
       setPortConfig: (key: string, port: number) => ipcRenderer.invoke('workflow:setPortConfig', { key, port }),
       uploadMedia: (params: { filePaths: string[]; zaloId?: string }) => ipcRenderer.invoke('workflow:uploadMedia', params),
+      getCheckpoints: () => ipcRenderer.invoke('workflow:getCheckpoints'),
+      cancelCheckpoint: (id: string) => ipcRenderer.invoke('workflow:cancelCheckpoint', { id }),
     },
 
   // ─── App-level (badge, open thread) ─────────────────────────────

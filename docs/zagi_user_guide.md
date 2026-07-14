@@ -58,8 +58,14 @@ Chiến dịch gửi tin (Campaign): gửi tin/kết bạn/mời nhóm hàng lo�
 3.5. Workflow tự động hóa
 Hệ thống tự động hóa kéo-thả theo mô hình Trigger → Node → Action, chạy nền liên tục 24/7. Không cần code.
 Các bước tạo: Workflow → Tạo mới → đặt tên → chọn Trigger → kéo thả node → nối và cấu hình → Bật và giám sát trong tab Lịch sử chạy.
-Triggers gồm: tin nhắn mới, lời mời kết bạn, sự kiện nhóm, react, gán/gỡ nhãn, lịch trình cron, chạy thủ công. Zalo Actions gồm hơn 15 loại (gửi tin, gửi ảnh/file, tìm user theo SĐT, kết bạn, thêm/xóa khỏi nhóm, thu hồi tin, tạo poll...). Logic gồm IF, Switch, Delay, lưu biến, Stop If, forEach. Tích hợp Google Sheets, node AI, và gửi Telegram/Discord/Email/Notion/HTTP Request.
-Lưu ý: workflow chạy cục bộ nên app phải đang chạy; nên dùng node Chờ N giây giữa các tin để tránh rate-limit.
+Triggers gồm: tin nhắn mới, lời mời kết bạn, sự kiện nhóm, react, gán/gỡ nhãn, lịch trình cron, chạy thủ công. Zalo Actions gồm hơn 15 loại (gửi tin, gửi ảnh/file, tìm user theo SĐT, kết bạn, thêm/xóa khỏi nhóm, thu hồi tin, tạo poll...). Logic gồm IF, Switch, Delay (Chờ), lưu biến, Stop If, forEach. Tích hợp Google Sheets, node AI, và gửi Telegram/Discord/Email/Notion/HTTP Request.
+
+**Cơ chế persistent checkpoint (Bước đang chờ):**
+- Đối với node Chờ (`logic.wait`) có thời gian chờ dài trên 5 phút (ví dụ: chờ 1 ngày, vài ngày hoặc 3 tháng): Hệ thống tự động chuyển đổi ngữ cảnh chạy (ExecutionContext) thành dạng JSON, lưu xuống SQLite dưới dạng một "Checkpoint" (trạng thái pending) và giải phóng bộ nhớ. Khi đến giờ chạy tiếp, scheduler (`CheckpointScheduler`) sẽ tự động khôi phục ngữ cảnh và chạy nốt các bước còn lại.
+- **Kháng lỗi tắt máy:** Nếu máy Boss bị tắt hoặc khởi động lại đột ngột trong khi đang có bước chờ, sau khi mở lại ứng dụng, scheduler sẽ tự động quét và khôi phục các bước chờ bị trễ hoặc đến hạn, đảm bảo chiến dịch chăm sóc khách hàng dài ngày diễn ra liên tục.
+- **Tab "Đang Chờ" trên UI:** Người dùng có thể theo dõi danh sách các bước đang chờ ngay tại tab "Đang Chờ" của trang danh sách Workflow. Giao diện hiển thị: tên workflow, bước node đang chờ, thời gian khôi phục (countdown thời gian thực) và nút Hủy (X) để dừng sớm bước chờ.
+- **Quy tắc an toàn:** Hệ thống tự động bỏ qua và dọn dẹp các checkpoint của workflow đã bị vô hiệu hóa (disabled) hoặc bị xóa trong thời gian chờ. Thời gian chờ tối đa được hỗ trợ lên tới 3 tháng (90 ngày).
+Lưu ý: workflow chạy cục bộ nên app phải đang chạy (hoặc mở lại sau khi tắt) để các kịch bản tự động hóa và các bước chờ hoạt động.
 ###
 3.6. Trợ lý AI
 Tạo nhiều chatbot AI với tính cách/prompt/mục đích khác nhau, gán cho hội thoại cụ thể hoặc dùng trong Workflow. Hỗ trợ nhiều model: GPT, Gemini, Claude, DeepSeek. Hướng dẫn: Cài đặt → AI Assistant → nhập API Key → tạo trợ lý → viết prompt → chọn model → gán vào hội thoại hoặc dùng trong node Workflow.

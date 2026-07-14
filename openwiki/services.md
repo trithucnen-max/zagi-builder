@@ -20,11 +20,14 @@
 | DataSyncService | `src/services/employee/DataSyncService.ts` | 30KB | Đồng bộ dữ liệu Boss → Nhân viên (Zalo, ERP, Facebook) |
 | UploadChunkService | `src/services/file/UploadChunkService.ts` | 4KB | Tiếp nhận và ghép nối phân đoạn file upload từ nhân viên |
 | WebhookGatewayService | `src/services/workflow/WebhookGatewayService.ts` | 10KB | HTTP gateway nhận webhook trigger workflow |
+| CheckpointScheduler | `src/services/workflow/CheckpointScheduler.ts` | 4KB | Quét DB định kỳ, khôi phục workflow checkpoint đến hạn |
+| contextSerializer | `src/services/workflow/contextSerializer.ts` | 3.5KB | Serialize/deserialize ExecutionContext cho persistent checkpoint |
 | ConnectionManager | `src/utils/ConnectionManager.ts` | 8KB | Map zaloId → ZaloService instance |
 | WorkspaceManager | `src/utils/WorkspaceManager.ts` | 18KB | Quản lý workspace local/remote, DB path |
 | ZaloLoginHelper | `src/utils/ZaloLoginHelper.ts` | 55KB | Login Zalo, giữ session, emit events |
 | FileStorageService | `src/services/file/FileStorageService.ts` | — | Resolve file paths, xử lý temp files |
 | LicenseManager | `src/services/license/LicenseManager.ts` | — | Kiểm tra license, seat limit |
+
 
 ---
 
@@ -250,3 +253,43 @@ Chat assistant AI. Hỗ trợ OpenAI, Gemini, Deepseek, Grok. Tích hợp contex
 ### Gotchas
 - Dùng chung patterns AI với `WorkflowEngineService` (ai.generateText, ai.classify nodes)
 - **Nhân viên chỉ có quyền đọc (Read-only):** Các IPC ghi (`ai:saveAssistant`, `ai:deleteAssistant`, `ai:uploadFile`, `ai:removeFile`, `ai:setAccountAssistant`) bị chặn hoàn toàn trên workspace remote. Cấu hình Trợ lý AI chỉ được phép trên máy Boss.
+
+---
+
+## CheckpointScheduler
+
+**File:** `src/services/workflow/CheckpointScheduler.ts`
+**Singleton:** `CheckpointScheduler.getInstance()`
+**Chạy:** Chỉ hoạt động trên máy Boss / Standalone.
+
+### Purpose
+Quản lý chu kỳ quét cơ sở dữ liệu (SQLite) định kỳ mỗi 60 giây để khôi phục và tiếp tục chạy (resume) các workflow đang tạm dừng ở node Chờ (`logic.wait` > 5 phút) khi đến hạn.
+Nhiệm vụ:
+- Quét các checkpoint có status `pending` và có thời điểm khôi phục `resume_at` <= thời gian hiện tại.
+- Tự động đánh dấu `processing` (đảm bảo atomic không bị resume trùng lặp) và gọi `WorkflowEngineService.resumeFromCheckpoint(cp)`.
+- Đánh dấu `done` hoặc `failed` tùy theo kết quả thực thi tiếp theo.
+- Tự động quét và đánh dấu `expired` (quá hạn 90 ngày) các checkpoint đã nằm trong hàng chờ quá lâu.
+- Dọn dẹp định kỳ dữ liệu checkpoint cũ (hoàn thành > 7 ngày, lỗi/quá hạn > 30 ngày).
+
+### Gotchas
+- **Tránh crash khi khởi động:** Scheduler luôn kiểm tra `DatabaseService.getInstance().getIsInitialized()` trước khi làm việc.
+- **Bảo vệ tiến trình:** Sử dụng cờ `isPolling` để tránh các chu kỳ quét chồng chéo khi tác vụ resume trước đó chưa hoàn thành.
+- **Không chạy trên máy nhân viên:** Remote workspace (`ws.type === 'remote'`) sẽ bỏ qua quá trình poll để tránh xung đột dữ liệu SQLite cục bộ.
+
+---
+
+## contextSerializer
+
+**File:** `src/services/workflow/contextSerializer.ts`
+**Chạy:** Cả Boss và Nhân viên (Helper functions).
+
+### Purpose
+Tuần tự hóa (Serialize) và giải tuần tự (Deserialize) ngữ cảnh thực thi (`ExecutionContext`) của Workflow để lưu trữ an toàn trong cơ sở dữ liệu SQLite dưới dạng văn bản JSON.
+Nhiệm vụ:
+- Chuyển đổi các cấu trúc dữ liệu không thể tuần tự hóa mặc định của JavaScript như `Set` (ví dụ: `skippedNodes`) sang dạng `Array` và ngược lại.
+- Loại bỏ các tham chiếu vòng (circular references) hoặc các trường chứa hàm (functions) để tránh lỗi khi chuyển đổi JSON.
+- Tự động rút gọn (truncate) các chuỗi văn bản quá dài (>10KB) nhằm hạn chế phình dung lượng của cột `context_json` trong SQLite.
+
+### Gotchas
+- **Idempotency:** Đảm bảo quá trình chạy thử hoặc chạy thực tế khôi phục đầy đủ các thông tin đầu ra của các node đã hoàn thành trước đó (`nodes`), các biến tạm (`variables`), và đối tượng trigger gốc (`trigger`).
+

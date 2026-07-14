@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 12/07/2026  
-> **Phiên bản:** v27.2.11 (Stable)  
+> **Ngày cập nhật:** 14/07/2026  
+> **Phiên bản:** v27.2.12 (Stable)  
 > **Nhánh Git hiện tại:** `main` (Working tree dơ do chỉnh sửa)
 
 ---
@@ -102,17 +102,17 @@
     *   **Khắc phục lỗi tối giao diện ban ngày**: Đồng bộ hiển thị sáng/tối của Menu kết nối (TopBar) theo cấu hình hệ thống bằng cách kiểm tra biến `resolvedTheme`.
     *   **Ẩn nhãn đã xóa**: Tự động lọc và không hiển thị các huy hiệu nhãn dán trên tệp/hình ảnh trong Thư viện nếu nhãn dán đó đã bị xóa.
     *   **Sửa lỗi forward file đính kèm máy nhân viên**: Tự động điều hướng và bỏ qua kiểm tra tệp local tại máy nhân viên, thực hiện gửi trực tiếp tệp gốc được lưu trữ trên Boss Machine khi chuyển tiếp PDF, ảnh, video, âm thanh sang hội thoại đích.
-    *   **Đồng bộ & Cấu hình AI từ xa**: Chuyển tiếp toàn bộ 14 kênh thao tác đọc/ghi của AI (`ai:*`) từ máy nhân viên về máy Boss. Nhân viên có thể tải và xem toàn bộ danh sách trợ lý AI cấu hình trên Boss, đồng thời tạo mới hoặc chỉnh sửa trợ lý AI từ xa.
-    *   **Mở hình ảnh/file Media đầy đủ**: Tự động chuyển tiếp các yêu cầu kiểm tra sự tồn tại của tệp, đọc dữ liệu ảnh base64, lấy metadata video, và sửa chữa ảnh hỏng (`file:repairImage`, `file:validateLocalImages`, `file:readImageAsBase64`, `file:getVideoMeta`, `file:exists`) từ máy nhân viên về máy Boss nơi tệp tin được lưu trữ vật lý. Sửa triệt để lỗi nhân viên nhìn thấy ảnh thumbnail nhưng bấm mở xem ảnh lớn không được.
-    *   **Nạp ngữ cảnh biến tự động & Bộ lọc formatNumber cho Trợ lý AI**: AI khi soạn tin tự động hiểu toàn bộ các biến động của hệ thống (Zalo, thanh toán, vận chuyển, POS/bán hàng, CRM...) và hỗ trợ bộ lọc `formatNumber` để định dạng tiền tệ có dấu phẩy phân cách hàng nghìn. AI được hướng dẫn sử dụng text thường kèm emoji (không dùng ký tự `**` để bôi đậm) để tương thích hiển thị tối đa trên Zalo.
-    *   **Sửa lỗi gửi trùng 2 tin nhắn**: Loại bỏ trigger bridge trùng lặp của sự kiện `integration:payment` trong `electron/main.ts`, đảm bảo chỉ gửi đúng 1 tin nhắn duy nhất khi nhận webhook thanh toán.
-    *   **Sửa lỗi trùng lặp/xung đột System Prompt**: Gộp System Prompt từ Database và prompt chuyên biệt từ client khi gọi AI để tránh xung đột chỉ dẫn hoặc làm AI bối rối.
-    *   **Thư viện 18 kịch bản Workflow mẫu**: Xây dựng hoàn chỉnh 18 mẫu kịch bản Workflow `.json` lưu tại thư mục `zagi-workflows/` phục vụ đa dạng các nhu cầu vận hành, tài chính, kho bãi và CSKH.
-
+    *   **Autocomplete trình soạn thảo**: Nhập dấu `{` tự động hiển thị popup gợi ý biến trong trình soạn tin nhắn chiến dịch & workflow, bổ sung thanh công cụ chips chèn nhanh.
+19. **Động cơ Workflow Persistent Checkpoints (v27.2.12):**
+    *   **Persistent Checkpoints**: Tự động lưu trạng thái hoạt động của workflow vào SQLite (`workflow_checkpoints`) khi gặp node Chờ (`logic.wait`) có thời gian chờ dài (> 5 phút), giúp giải phóng bộ nhớ RAM và CPU thay vì giữ luồng chờ dài ngày trong bộ nhớ.
+    *   **Động cơ Tự động Khôi phục (CheckpointScheduler)**: Khôi phục và chạy tiếp các kịch bản đang chờ dở dang sau khi tắt máy hoặc restart máy Boss/máy chủ. Tự động phát hiện và dọn dẹp các checkpoint của kịch bản đã bị xóa hoặc tắt đi trong thời gian chờ.
+    *   **Tab quản lý "Đang Chờ" trên UI**: Tích hợp tab chuyên biệt trong phân hệ Workflow Automation hiển thị số lượng badge pending, countdown thời gian chờ thực tế và hỗ trợ Hủy checkpoint nhanh.
+    *   **Tuần tự hóa ngữ cảnh thông minh (contextSerializer)**: Giải quyết triệt để vấn đề tham chiếu vòng, ép Set ↔ Array và rút gọn chuỗi >10KB để tránh phình dữ liệu.
 
 ## 4. Trạng Thái Kiểm Thử & Chạy Thử
 *   **Preview Server:** ⚪ **Stopped** (Đang dừng).
-*   **Hệ thống Unit Test:** Đã cấu hình Jest & `ts-jest` cho các tệp kiểm thử:
+*   **Hệ thống Unit Test:** Đã cấu hình Jest & `ts-jest` thành công:
     1.  `lunar.test.ts` (Kiểm tra thuật toán chuyển đổi lịch âm Việt Nam).
     2.  `import.test.ts` (Kiểm tra logic chuẩn hóa số điện thoại và phân tách CSV).
-    *   *Lưu ý kỹ thuật:* Chạy test toàn bộ hệ thống qua `npx jest` hiện tại gặp lỗi tràn bộ nhớ NodeJS (`JavaScript heap out of memory`) khi biên dịch TypeScript qua `ts-jest` trên môi trường hiện hành do quy mô dự án lớn.
+    3.  `workflowCheckpoint.test.ts` (Kiểm tra động cơ checkpoint, contextSerializer và scheduler).
+    *   *Lưu ý kỹ thuật:* Chạy test toàn bộ hệ thống thành công qua `npx jest --no-coverage` với 10/10 test suites (126 tests) đạt tỷ lệ PASS 100%.

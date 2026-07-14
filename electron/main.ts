@@ -33,6 +33,7 @@ import HttpConnectionManager from '../src/services/http/HttpConnectionManager';
 import WorkflowEngineService from '../src/services/workflow/WorkflowEngineService';
 import IntegrationRegistry from '../src/services/integrations/IntegrationRegistry';
 import WebhookGatewayService from '../src/services/workflow/WebhookGatewayService';
+import CheckpointScheduler from '../src/services/workflow/CheckpointScheduler';
 import EventBroadcaster from '../src/services/event/EventBroadcaster';
 import CRMQueueService from '../src/services/crm/CRMQueueService';
 import FileStorageService from '../src/services/file/FileStorageService';
@@ -1173,7 +1174,11 @@ async function startupAfterLicenseCheck(): Promise<void> {
     } catch (err: any) { console.error('[main] ErpNotification scheduler init error:', err.message); }
   }, 3700);
   // Initialize Workflow Engine after a short delay to ensure DB is ready
-  setTimeout(() => WorkflowEngineService.getInstance().initialize(), 2000);
+  setTimeout(() => {
+    WorkflowEngineService.getInstance().initialize();
+    // Start checkpoint scheduler AFTER workflow engine is ready
+    setTimeout(() => CheckpointScheduler.getInstance().start(), 3000);
+  }, 2000);
   // Initialize Integration Registry
   setTimeout(() => {
     IntegrationRegistry.initialize();

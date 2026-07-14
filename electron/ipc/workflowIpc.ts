@@ -475,5 +475,27 @@ export function registerWorkflowIpc(): void {
             return [];
         }
     });
+
+    // ─── Checkpoint IPC Handlers ──────────────────────────────────────────────
+
+    ipcMain.handle('workflow:getCheckpoints', async () => {
+        try {
+            const checkpoints = DatabaseService.getInstance().getWorkflowCheckpoints();
+            return { success: true, checkpoints };
+        } catch (err: any) {
+            Logger.error(`[WorkflowIpc] getCheckpoints error: ${err.message}`);
+            return { success: false, error: err.message, checkpoints: [] };
+        }
+    });
+
+    ipcMain.handle('workflow:cancelCheckpoint', async (_e, { id }: { id: string }) => {
+        try {
+            DatabaseService.getInstance().deleteCheckpoint(id);
+            return { success: true };
+        } catch (err: any) {
+            Logger.error(`[WorkflowIpc] cancelCheckpoint error: ${err.message}`);
+            return { success: false, error: err.message };
+        }
+    });
 }
 

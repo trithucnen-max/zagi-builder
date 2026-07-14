@@ -164,6 +164,26 @@ export default function BankCardModal({ threadId, threadType, onClose }: Props) 
         type: threadType,
       });
       if (res?.success) {
+        // [Fix B] Gửi companion text khi có amount/description
+        // (Zalo recipient chỉ thấy số TK trong card template - cần text kèm để thấy thông tin thanh toán)
+        const hasPaymentInfo = (amount && Number(amount) > 0) || !!description?.trim();
+        if (hasPaymentInfo) {
+          try {
+            const lines: string[] = ['💳 Thông tin chuyển khoản:'];
+            if (amount && Number(amount) > 0) {
+              lines.push(`💰 Số tiền: ${Number(amount).toLocaleString('vi-VN')}đ`);
+            }
+            if (description?.trim()) {
+              lines.push(`📝 Nội dung: ${description.trim()}`);
+            }
+            await ipc.zalo?.sendMessage({
+              zaloId: activeAccountId,
+              threadId,
+              threadType,
+              message: lines.join('\n'),
+            });
+          } catch { /* Companion text failure should not block card send success */ }
+        }
         showNotification('Đã gửi thẻ ngân hàng thành công!', 'success');
         onClose();
       } else {

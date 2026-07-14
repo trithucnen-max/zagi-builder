@@ -8,6 +8,7 @@ import { showConfirm } from '../common/ConfirmDialog';
 import { FacebookIcon, ZaloIcon } from '../common/ChannelBadge';
 import type { Channel } from '../../../configs/channelConfig';
 import { getChannelColor } from '../../../configs/channelConfig';
+import { WorkflowCheckpointList } from './WorkflowCheckpointList';
 
 interface PageAccount {
   zalo_id: string;
@@ -699,6 +700,22 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
   const [testRunWf, setTestRunWf] = useState<any | null>(null);
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
+  const [viewMode, setViewMode] = useState<'workflows' | 'checkpoints'>('workflows');
+  const [pendingCheckpointCount, setPendingCheckpointCount] = useState(0);
+
+  // Load checkpoint count for badge
+  useEffect(() => {
+    const loadCount = async () => {
+      try {
+        const res = await (window as any).api?.workflow?.getCheckpoints?.();
+        const items = (res?.checkpoints || []).filter((cp: any) => cp.status === 'pending' || cp.status === 'processing');
+        setPendingCheckpointCount(items.length);
+      } catch { /* ignore */ }
+    };
+    loadCount();
+    const interval = setInterval(loadCount, 30_000);
+    return () => clearInterval(interval);
+  }, []);
  
   const load = async () => {
     setLoading(true);
@@ -966,6 +983,36 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
             <p className="text-gray-500 text-sm mt-0.5">Tự động hoá công việc với Workflow Automation</p>
           </div>
 
+          {/* View mode tabs */}
+          <div className="flex items-center gap-1 bg-gray-800/60 border border-gray-700 rounded-xl p-1">
+            <button
+              onClick={() => setViewMode('workflows')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                viewMode === 'workflows'
+                  ? 'bg-gray-700 text-white'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              Workflows
+            </button>
+            <button
+              onClick={() => setViewMode('checkpoints')}
+              className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                viewMode === 'checkpoints'
+                  ? 'bg-gray-700 text-white'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              Đang chờ
+              {pendingCheckpointCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                  {pendingCheckpointCount > 99 ? '99+' : pendingCheckpointCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Action buttons */}
           <div className="flex items-center gap-2">
             {/* Clone-all — only available when exactly 1 account is filtered */}
             {filterPages.length === 1 && (
@@ -1068,13 +1115,18 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
-        {loading && (
+        {/* Checkpoint view */}
+        {viewMode === 'checkpoints' && (
+          <WorkflowCheckpointList />
+        )}
+
+        {viewMode === 'workflows' && loading && (
           <div className="flex items-center justify-center py-16">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
-        {!loading && workflows.length === 0 && (
+        {!loading && viewMode === 'workflows' && workflows.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-2xl bg-gray-800 border border-gray-700 flex items-center justify-center mb-4">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-500">
@@ -1115,6 +1167,7 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
         )}
 
         {/* ── Card Grid ──────────────────────────────────────────────── */}
+        {viewMode === 'workflows' && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredWorkflows.map(wf => {
             const isRunning = runningId === wf.id;
@@ -1217,6 +1270,7 @@ export default function WorkflowList({ onEdit, onOpenStore }: Props) {
             );
           })}
         </div>
+        )} {/* end viewMode === 'workflows' */}
       </div>
 
       {/* Clone single workflow modal */}

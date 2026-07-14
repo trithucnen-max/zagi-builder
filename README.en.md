@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v27.2.11** — [View all versions](#changelog)
+> **Latest version: v27.2.12** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.11-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20Window.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v27.2.12-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20Window.exe)
 
-**[Zagi v27.2.11 Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20Window.exe)**
+**[Zagi v27.2.12 Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20Window.exe)**
 
 NSIS Installer · ~195 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~195 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.11-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20MacOS%20M1%2B%20arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v27.2.12-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20MacOS%20M1%2B%20arm64.dmg)
 
-**[Zagi v27.2.11 MacOS M1+ arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20MacOS%20M1%2B%20arm64.dmg)**
+**[Zagi v27.2.12 MacOS M1+ arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20MacOS%20M1%2B%20arm64.dmg)**
 
 Apple Silicon DMG · ~257 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · ~257 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.11-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20MacOS%20Intel.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v27.2.12-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20MacOS%20Intel.dmg)
 
-**[Zagi v27.2.11 MacOS Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20MacOS%20Intel.dmg)**
+**[Zagi v27.2.12 MacOS Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20MacOS%20Intel.dmg)**
 
 Intel x64 DMG · ~265 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · ~265 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.11-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20Linux.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v27.2.12-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20Linux.AppImage)
 
-**[Zagi v27.2.11 Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20Linux.AppImage)**  
-**[Zagi v27.2.11 Linux Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20Linux%20Debian.deb)**
+**[Zagi v27.2.12 Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20Linux.AppImage)**  
+**[Zagi v27.2.12 Linux Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20Linux%20Debian.deb)**
 
 AppImage + .deb · ~239 MB
 
@@ -98,9 +98,9 @@ AppImage + .deb · ~239 MB
 > 
 > Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.11-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20Surface.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v27.2.12-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20Surface.exe)
 
-**[Zagi v27.2.11 Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.11%20Surface.exe)**
+**[Zagi v27.2.12 Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/latest/download/Zagi%20v27.2.12%20Surface.exe)**
 
 NSIS Installer ARM64 · ~196 MB · Native performance on Surface ARM
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi v27.2.11 Surface.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi v27.2.12 Surface.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi v27.2.11 Window.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi v27.2.12 Window.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x "Zagi v27.2.11 Linux.AppImage"
-./"Zagi v27.2.11 Linux.AppImage"
+chmod +x "Zagi v27.2.12 Linux.AppImage"
+./"Zagi v27.2.12 Linux.AppImage"
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i "Zagi v27.2.11 Linux Debian.deb"
+sudo dpkg -i "Zagi v27.2.12 Linux Debian.deb"
 ```
 
 </details>
@@ -384,7 +384,21 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v27.2.11</strong> — 2026-07-12 · <em>🟢 Current version</em></summary>
+<summary><strong>v27.2.12</strong> — 2026-07-14 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights
+
+- 💾 **Workflow Persistent Checkpoints**: Automatically saves workflow ExecutionContext into SQLite when wait time of `logic.wait` node exceeds 5 minutes, freeing up system memory/CPU.
+- 🔄 **Recovery After Restart**: Upon Boss/Server restart, the `CheckpointScheduler` automatically detects and resumes pending or missed checkpoints.
+- 📋 **"Pending" Checkpoint Management Tab**: Integrated a dedicated tab in the Workflow Automation screen showing pending badge counts, active countdown timers, and quick cancel actions.
+- 🛡️ **Safe Serialization (contextSerializer)**: Resolves circular references, converts Sets to Arrays, and truncates strings >10KB to maintain a lightweight database.
+- 🧪 **Comprehensive Automated Testing**: Added `workflowCheckpoint.test.ts` containing 43 unit and integration tests with 100% pass rate.
+
+</details>
+
+
+<details>
+<summary><strong>v27.2.11</strong> — 2026-07-12</summary>
 
 ### 🚀 Key Highlights
 

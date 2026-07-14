@@ -1,7 +1,7 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 1.3  
-> **Ngày cập nhật:** 12/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v27.2.11 (Stable)  
+> **Phiên bản tài liệu:** 1.4  
+> **Ngày cập nhật:** 14/07/2026  
+> **Trạng thái sản phẩm hiện tại:** v27.2.12 (Stable)  
 > **Chủ quản:** Product Management Team  
 
 
@@ -149,10 +149,11 @@ graph TD
 ---
 
 ## 5. LỊCH SỬ CẬP NHẬT CÁC PHIÊN BẢN (CHANGELOG)
-Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.11`:
+Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.12`:
 
 | Phiên bản | Ngày cập nhật | Loại cập nhật | Điểm nhấn chính (Highlights) |
 | :--- | :--- | :--- | :--- |
+| **v27.2.12** | 14/07/2026 | Minor | **Persistent Delayed Execution & Checkpoint Engine:** Triển khai cơ chế lưu checkpoint khi chờ > 5 phút; CheckpointScheduler tự động khôi phục luồng chạy khi khởi động lại máy; Tab "Đang Chờ" hiển thị danh sách, countdown thời gian thực và nút huỷ bước chờ. |
 | **v27.2.11** | 10/07/2026 | Minor | **5 AI Agent & Expose IPC Bridge:** Triển khai hệ thống 5 AI Agent độc lập gán theo vai trò; Bong bóng chat hỗ trợ Zagi (AI 5) nạp tài liệu đào tạo; Đại tu Notification Center, đồng bộ giao diện & sửa lỗi forward tệp máy nhân viên. |
 | **v27.2.8** | 09/07/2026 | Minor | **Thin Client & Socket.IO:** Loại bỏ hoàn toàn SQLite cục bộ trên máy Nhân viên (Zero SQLite); Thay thế hoàn toàn SSE bằng Socket.IO v4 làm transport thời gian thực chính; Tích hợp form đổi cấu hình kết nối trực tiếp trên màn hình khóa. |
 | **v27.2.7** | 08/07/2026 | Patch | **Tự động tối ưu kết nối & Khôi phục nhanh:** Tự phát hiện IP LAN của Boss và chuyển đổi luồng kết nối active/SSE sang cục bộ; Tự động kết nối lại tức thì khi Sleep/Wake-up (powerMonitor) hoặc khôi phục WiFi. |
@@ -177,6 +178,17 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 ---
 
 ### Chi tiết các cập nhật từng phiên bản
+
+#### 🚀 v27.2.12 — Persistent Delayed Execution, Checkpoint Engine, Tab Đang Chờ & Quản lý Bước Chờ Workflow
+*   **Tính năng mới (New):**
+    *   **Persistent Workflow Checkpoint (Phương án C):** Triển khai cơ chế checkpoint lưu trạng thái hoạt động của workflow vào SQLite khi gặp node Chờ (`logic.wait`) có thời gian chờ dài (> 5 phút), giải phóng bộ nhớ RAM và CPU thay vì giữ luồng chờ dài ngày trong bộ nhớ.
+    *   **Động cơ Tự động Khôi phục (CheckpointScheduler):** Quét cơ sở dữ liệu định kỳ mỗi 60 giây để resume các workflow đến hạn. Tự động phục hồi và chạy tiếp các kịch bản đang chờ dở dang khi khởi động lại máy Boss/máy chủ.
+    *   **Tab Quản lý "Đang Chờ" trên UI:** Tích hợp tab chuyên biệt trong phân hệ Workflow Automation hiển thị số lượng badge pending, danh sách chi tiết các workflow đang tạm dừng chờ chạy tiếp kèm countdown thời gian thực.
+    *   **Hủy bước chờ linh hoạt:** Cung cấp nút Hủy (Cancel) trực tiếp trên giao diện để kết thúc sớm các kịch bản chờ không cần thiết, tự động dọn dẹp dữ liệu tương ứng trong SQLite.
+    *   **Tuần tự hóa ngữ cảnh thông minh (contextSerializer):** Hỗ trợ chuyển đổi ExecutionContext phức tạp thành dạng JSON an toàn (Set ↔ Array), loại bỏ các tham chiếu vòng (circular refs), thu gọn văn bản quá dài (>10KB) giúp tối ưu hóa dung lượng lưu trữ DB.
+    *   **Xử lý lỗi & Tự dọn dẹp:** Tự động phát hiện và dọn dẹp các checkpoint của workflow bị xoá hoặc vô hiệu hoá trong lúc chờ, tự động hủy checkpoint quá hạn 90 ngày và định kỳ dọn dẹp bản ghi cũ (done > 7 ngày, failed/expired > 30 ngày).
+*   **Kiểm thử & Đảm bảo chất lượng (QA & Test):**
+    *   **Bộ kiểm thử `workflowCheckpoint.test.ts`:** Bổ sung 43 ca kiểm thử tự động (100% pass) kiểm tra toàn bộ vòng đời checkpoint, tính đúng đắn của serializer và cơ chế scheduler hoạt động đồng thì (concurrency guards).
 
 #### 🚀 v27.2.11 — Tích hợp Dify Chatbot cho Hỗ trợ Zagi, Hệ thống 5 AI Agent chuyên biệt, Expose IPC Bridge, Cải tiến UX & Sửa lỗi chuyển tiếp tệp tin
 *   **Tính năng mới (New):**

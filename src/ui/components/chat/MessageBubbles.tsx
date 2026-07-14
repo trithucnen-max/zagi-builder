@@ -8,7 +8,7 @@ import { MessageItem } from '@/store/chatStore';
 import { useChatStore } from '@/store/chatStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
-import { getCachedBankCard } from '@/lib/bankCardCache';
+import { getCachedBankCard, subscribeToUpdates } from '@/lib/bankCardCache';
 import ipc from '@/lib/ipc';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import { formatPhone } from '@/utils/phoneUtils';
@@ -1608,6 +1608,14 @@ export function BankCardBubble({ msg }: { msg: any }) {
   const [blobUrl, setBlobUrl] = React.useState<string | null>(null);
   const [templateLoading, setTemplateLoading] = React.useState(false);
 
+  // ── Cache version: increments when bankCardCached event arrives ──
+  // Fixes race condition: workflow echo arrives before bankCardCached, bubble re-checks cache
+  const [cacheVersion, setCacheVersion] = React.useState(0);
+  React.useEffect(() => {
+    const unsub = subscribeToUpdates(() => setCacheVersion(v => v + 1));
+    return unsub;
+  }, []);
+
   // ── Parse structured data (binBank + numAccBank) trực tiếp từ content ──
   const data = React.useMemo(() => {
     const fromContent = parseBankCardFromContent(msg.content || '{}');
@@ -1633,7 +1641,7 @@ export function BankCardBubble({ msg }: { msg: any }) {
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [msg.content, msg.thread_id, msg.timestamp, activeAccountId]);
+  }, [msg.content, msg.thread_id, msg.timestamp, activeAccountId, cacheVersion]);
 
   // ── Trích xuất HTML URL từ ZInstant template ──
   const htmlUrl = React.useMemo(

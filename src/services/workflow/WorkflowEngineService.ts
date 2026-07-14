@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import { google } from 'googleapis';
 import { parseStructuredResponse, isValidStructuredResponse } from '../../utils/aiUtils';
 import { getLunarDate } from '../../utils/lunarCalendar';
+import { serializeContext, deserializeContext } from './contextSerializer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ export interface WorkflowRunLog {
   triggeredBy: string;
   startedAt: number;
   finishedAt: number;
-  status: 'success' | 'error' | 'partial';
+  status: 'success' | 'error' | 'partial' | 'waiting';
   errorMessage?: string;
   nodeResults: NodeResult[];
 }
@@ -124,6 +125,18 @@ interface ExecutionContext {
   _wfEdges?: WorkflowEdge[];
   _wfName: string;
   isSandbox?: boolean;
+  /** Persistent Checkpoint metadata */
+  _triggeredBy?: string;
+  _runId?: string;
+  _wfId?: string;
+}
+
+/** Sentinel error: workflow đã lưu checkpoint và thoát sớm — không phải lỗi thật */
+class CheckpointError extends Error {
+  constructor(public readonly checkpointId: string, public readonly resumeAt: number) {
+    super('__CHECKPOINT__');
+    this.name = 'CheckpointError';
+  }
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -1003,6 +1016,9 @@ class WorkflowEngineService {
       _wfEdges: wf.edges,
       _wfName: wf.name,
       isSandbox,
+      _triggeredBy: triggeredBy,
+      _runId: runId,
+      _wfId: wf.id,
     };
 
     const order = this.topologicalSort(wf);
@@ -1212,6 +1228,20 @@ class WorkflowEngineService {
           nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'success', input: this.truncateData(renderedConfig), output: { stopped: true }, durationMs: Date.now() - t0 });
           break;
         }
+        // Checkpoint saved — workflow tạm dừng, không phải lỗi
+        if (err instanceof CheckpointError) {
+          nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'success', input: this.truncateData(renderedConfig), output: { _checkpoint: err.checkpointId, resumeAt: err.resumeAt }, durationMs: Date.now() - t0 });
+          const waitingLog: WorkflowRunLog = {
+            id: runId, workflowId: wf.id, workflowName: wf.name,
+            triggeredBy, startedAt, finishedAt: Date.now(),
+            status: 'waiting',
+            errorMessage: `Đang chờ — resume lúc ${new Date(err.resumeAt).toLocaleString('vi-VN')}`,
+            nodeResults,
+          };
+          DatabaseService.getInstance().saveWorkflowRunLog(waitingLog);
+          EventBroadcaster.emit('workflow:executed', { workflowId: wf.id, runId, status: 'waiting' });
+          return waitingLog;
+        }
         // Build rich error output from axios/HTTP errors
         const errorOutput: Record<string, any> = {};
         errorOutput._errorType = 'execution_error';
@@ -1247,6 +1277,147 @@ class WorkflowEngineService {
 
     DatabaseService.getInstance().saveWorkflowRunLog(log);
     EventBroadcaster.emit('workflow:executed', { workflowId: wf.id, runId, status });
+    return log;
+  }
+
+  /**
+   * Resume một workflow từ checkpoint đã lưu trong DB.
+   * Được gọi bởi CheckpointScheduler mỗi phút.
+   */
+  public async resumeFromCheckpoint(cp: {
+    id: string;
+    workflow_id: string;
+    workflow_name: string;
+    triggered_by: string;
+    run_id: string;
+    resume_at: number;
+    created_at: number;
+    resume_node_id: string;
+    wait_label: string;
+    context_json: string;
+  }): Promise<WorkflowRunLog | null> {
+    const db = DatabaseService.getInstance();
+
+    // Kiểm tra workflow còn tồn tại và đang enabled
+    const wf = this.workflows.get(cp.workflow_id);
+    if (!wf || !wf.enabled) {
+      const reason = !wf ? 'Workflow đã bị xóa' : 'Workflow đang tắt (disabled)';
+      Logger.warn(`[WorkflowEngine] Checkpoint ${cp.id}: ${reason}`);
+      db.markCheckpointFailed(cp.id, reason);
+      // Gửi thông báo đến renderer
+      EventBroadcaster.emit('workflow:checkpointCancelled', {
+        checkpointId: cp.id,
+        workflowName: cp.workflow_name,
+        reason,
+      });
+      return null;
+    }
+
+    const startedAt = Date.now();
+    const nodeResults: NodeResult[] = [];
+    let status: 'success' | 'error' | 'partial' | 'waiting' = 'success';
+    let errorMessage: string | undefined;
+
+    try {
+      // Deserialize context từ checkpoint
+      const ctx: ExecutionContext = deserializeContext(cp.context_json);
+      // Restore wf snapshot từ context (đã được lưu lúc serialize)
+      if (!ctx._wfNodes || ctx._wfNodes.length === 0) {
+        ctx._wfNodes = wf.nodes;
+        ctx._wfEdges = wf.edges;
+      }
+      ctx._triggeredBy = cp.triggered_by;
+      ctx._runId = cp.run_id;
+
+      // Tính thứ tự topological từ snapshot nodes/edges
+      const snapshotWf: Workflow = {
+        ...wf,
+        nodes: ctx._wfNodes as WorkflowNode[],
+        edges: (ctx._wfEdges || wf.edges) as WorkflowEdge[],
+      };
+      const order = this.topologicalSort(snapshotWf);
+
+      // Tìm vị trí resume: bắt đầu từ node SAU logic.wait
+      const waitIndex = order.indexOf(cp.resume_node_id);
+      // resume_node_id là node đầu tiên cần chạy sau khi wait xong
+      const remainingOrder = waitIndex >= 0 ? order.slice(waitIndex) : order;
+
+      Logger.log(`[WorkflowEngine] Resuming checkpoint ${cp.id} for "${wf.name}" — ${remainingOrder.length} nodes remaining`);
+
+      for (const nodeId of remainingOrder) {
+        const node = snapshotWf.nodes.find(n => n.id === nodeId);
+        if (!node) continue;
+        const t0 = Date.now();
+
+        if (ctx.skippedNodes.has(nodeId)) {
+          nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'skipped', input: {}, output: { _skipped: true }, durationMs: 0 });
+          this.markDownstreamSkipped(nodeId, snapshotWf, ctx.skippedNodes);
+          continue;
+        }
+
+        let renderedConfig: Record<string, any> = {};
+        try {
+          renderedConfig = this.renderConfig(node.config, ctx, nodeId);
+          const output = await this.executeNode(node, renderedConfig, ctx, snapshotWf);
+          ctx.nodes[nodeId] = { output };
+
+          if (node.type === 'logic.if') {
+            const result = output.result as boolean;
+            for (const edge of snapshotWf.edges.filter(e => e.source === nodeId)) {
+              if (edge.sourceHandle === 'true'  && !result) { ctx.skippedNodes.add(edge.target); this.markDownstreamSkipped(edge.target, snapshotWf, ctx.skippedNodes); }
+              if (edge.sourceHandle === 'false' && result)  { ctx.skippedNodes.add(edge.target); this.markDownstreamSkipped(edge.target, snapshotWf, ctx.skippedNodes); }
+            }
+          }
+          if (node.type === 'logic.switch') {
+            const matchedHandle = output.matchedHandle as string;
+            for (const edge of snapshotWf.edges.filter(e => e.source === nodeId)) {
+              if (edge.sourceHandle !== matchedHandle) { ctx.skippedNodes.add(edge.target); this.markDownstreamSkipped(edge.target, snapshotWf, ctx.skippedNodes); }
+            }
+          }
+
+          nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'success', input: this.truncateData(renderedConfig), output: this.truncateData(output), durationMs: Date.now() - t0 });
+        } catch (err: any) {
+          if (err.message === '__STOP__') {
+            nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'success', input: this.truncateData(renderedConfig), output: { stopped: true }, durationMs: Date.now() - t0 });
+            break;
+          }
+          // Nested checkpoint (wait bên trong resume) — lưu checkpoint mới
+          if (err instanceof CheckpointError) {
+            const log: WorkflowRunLog = {
+              id: cp.run_id, workflowId: wf.id, workflowName: wf.name,
+              triggeredBy: cp.triggered_by, startedAt, finishedAt: Date.now(),
+              status: 'waiting',
+              errorMessage: `Đang chờ tiếp — resume lúc ${new Date(err.resumeAt).toLocaleString('vi-VN')}`,
+              nodeResults,
+            };
+            db.saveWorkflowRunLog(log);
+            db.markCheckpointDone(cp.id);
+            return log;
+          }
+          nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'error', input: this.truncateData(renderedConfig), output: { _errorMessage: err.message }, durationMs: Date.now() - t0, error: err.message });
+          if (!node.config?.continueOnError) {
+            status = 'error';
+            errorMessage = `Node "${node.label || node.type}" lỗi: ${err.message}`;
+            break;
+          }
+          status = 'partial';
+        }
+      }
+    } catch (err: any) {
+      status = 'error';
+      errorMessage = err.message;
+      Logger.error(`[WorkflowEngine] resumeFromCheckpoint ${cp.id} error: ${err.message}`);
+    }
+
+    const log: WorkflowRunLog = {
+      id: cp.run_id, workflowId: wf.id, workflowName: wf.name,
+      triggeredBy: cp.triggered_by, startedAt, finishedAt: Date.now(),
+      status: (['error', 'success', 'partial'] as const).includes(status as any) ? (status as 'error' | 'success' | 'partial') : 'success',
+      errorMessage,
+      nodeResults,
+    };
+    db.saveWorkflowRunLog(log);
+    EventBroadcaster.emit('workflow:executed', { workflowId: wf.id, runId: cp.run_id, status });
     return log;
   }
 
@@ -2102,21 +2273,15 @@ class WorkflowEngineService {
         const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
 
         let lastResult: any = { success: false, error: 'Không gửi được thẻ ngân hàng đến hội thoại nào' };
+        const ownerZaloId = ctx.pageId || ctx.trigger?.zaloId || '';
         for (const tid of targetThreadIds) {
           try {
             const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
-            let result: any;
-            if (zaloSvcBank) {
-              result = await zaloSvcBank.sendBankCard(JSON.stringify(bankPayload), tid, activeThreadType);
-            } else {
-              result = await api.sendBankCard(JSON.stringify(bankPayload), tid, activeThreadType);
-            }
-            lastResult = result;
-            Logger.log(`[WorkflowEngine] zalo.sendBankCard to ${tid}: success=true`);
-            // Emit IPC event để renderer cache dữ liệu bank card và hiển thị ảnh thẻ đẹp
+
+            // [Fix A1] Emit bankCardCached TRƯỚC khi gọi API (tránh race condition):
+            // Webhook Zalo echo có thể đến renderer trước API response trả về
             try {
               const EventBroadcaster = require('../event/EventBroadcaster').default;
-              const ownerZaloId = ctx.pageId || ctx.trigger?.zaloId || '';
               EventBroadcaster.emit('zalo:bankCardCached', {
                 ownerZaloId,
                 threadId: tid,
@@ -2127,7 +2292,34 @@ class WorkflowEngineService {
                 description: bankPayload.description,
               });
             } catch (e: any) {
-              Logger.warn(`[WorkflowEngine] bankCardCached emit failed: ${e.message}`);
+              Logger.warn(`[WorkflowEngine] bankCardCached pre-emit failed: ${e.message}`);
+            }
+
+            let result: any;
+            if (zaloSvcBank) {
+              result = await zaloSvcBank.sendBankCard(JSON.stringify(bankPayload), tid, activeThreadType);
+            } else {
+              result = await api.sendBankCard(JSON.stringify(bankPayload), tid, activeThreadType);
+            }
+            lastResult = result;
+            Logger.log(`[WorkflowEngine] zalo.sendBankCard to ${tid}: success=true`);
+
+            // [Fix B] Gửi companion text khi có amount/description vì Zalo recipient chỉ thấy số TK
+            const hasPaymentInfo = (bankPayload.amount && Number(bankPayload.amount) > 0) || !!bankPayload.description;
+            if (hasPaymentInfo && zaloSvcBank) {
+              try {
+                const lines: string[] = ['💳 Thông tin chuyển khoản:'];
+                if (bankPayload.amount && Number(bankPayload.amount) > 0) {
+                  lines.push(`💰 Số tiền: ${Number(bankPayload.amount).toLocaleString('vi-VN')}đ`);
+                }
+                if (bankPayload.description) {
+                  lines.push(`📝 Nội dung: ${bankPayload.description}`);
+                }
+                await zaloSvcBank.sendMessage(lines.join('\n'), tid, activeThreadType);
+                Logger.log(`[WorkflowEngine] Sent companion payment text to ${tid}`);
+              } catch (compErr: any) {
+                Logger.warn(`[WorkflowEngine] Companion text send failed: ${compErr.message}`);
+              }
             }
           } catch (err: any) {
             Logger.warn(`[WorkflowEngine] zalo.sendBankCard to ${tid} failed: ${err.message}`);
@@ -2551,7 +2743,58 @@ class WorkflowEngineService {
           const s = Number(cfg.seconds || 0);
           ms = (d * 86400 + h * 3600 + m * 60 + s) * 1000;
         }
-        await new Promise(r => setTimeout(r, Math.min(ms, 300_000)));
+
+        // Giới hạn 90 ngày (7,776,000,000 ms)
+        const MAX_WAIT_MS = 90 * 24 * 3600 * 1000;
+        ms = Math.min(ms, MAX_WAIT_MS);
+
+        // Nếu delay > 5 phút VÀ không phải sandbox → lưu Persistent Checkpoint
+        if (ms > 300_000 && !ctx.isSandbox) {
+          const cpId = uuidv4();
+          const resumeAt = Date.now() + ms;
+
+          // Tìm node tiếp theo sau wait node trong topological order
+          const currentWf: Workflow = {
+            id: (ctx as any)._wfId || '',
+            name: ctx._wfName || '',
+            enabled: true,
+            channel: 'zalo',
+            pageIds: ctx.pageId ? [ctx.pageId] : [],
+            nodes: ctx._wfNodes as WorkflowNode[],
+            edges: (ctx._wfEdges || []) as WorkflowEdge[],
+            createdAt: 0, updatedAt: 0,
+          };
+          const order = this.topologicalSort(currentWf);
+          const waitIdx = order.indexOf(node.id);
+          const resumeNodeId = waitIdx >= 0 && waitIdx + 1 < order.length ? order[waitIdx + 1] : '';
+
+          // Lưu checkpoint vào SQLite
+          DatabaseService.getInstance().saveWorkflowCheckpoint({
+            id: cpId,
+            workflowId: (ctx as any)._wfId || '',
+            workflowName: ctx._wfName || '',
+            triggeredBy: ctx._triggeredBy || 'unknown',
+            runId: ctx._runId || uuidv4(),
+            resumeAt,
+            createdAt: Date.now(),
+            resumeNodeId,
+            waitLabel: node.label || 'logic.wait',
+            contextJson: serializeContext(ctx),
+          });
+
+          Logger.log(`[WorkflowEngine] Checkpoint saved: ${cpId} — resume at ${new Date(resumeAt).toLocaleString('vi-VN')} (node: ${resumeNodeId})`);
+          EventBroadcaster.emit('workflow:checkpointCreated', {
+            checkpointId: cpId,
+            workflowName: ctx._wfName,
+            resumeAt,
+            waitLabel: node.label || 'Chờ',
+          });
+
+          throw new CheckpointError(cpId, resumeAt);
+        }
+
+        // Delay ngắn (≤ 5 phút): giữ nguyên hành vi cũ
+        await new Promise(r => setTimeout(r, ms));
         return { waited: ms };
       }
 

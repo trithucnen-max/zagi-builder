@@ -4,6 +4,35 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v27.2.12] - 2026-07-14
+
+### Động cơ Workflow Persistent Checkpoints (Phương án C) · Khôi phục luồng khi tắt máy · Tab quản lý Đang Chờ & Trình tự tuần tự hóa ExecutionContext
+
+- **Cơ chế lưu trạng thái Workflow (Persistent Checkpoints):**
+  - Triển khai cơ chế checkpoint lưu trạng thái hoạt động của workflow vào bảng `workflow_checkpoints` trong SQLite khi gặp node Chờ (`logic.wait`) có thời gian chờ dài (> 5 phút), giúp giải phóng bộ nhớ RAM và CPU thay vì giữ luồng chờ dài ngày trong bộ nhớ.
+  - Tích hợp động cơ quét tự động `CheckpointScheduler` quét cơ sở dữ liệu định kỳ mỗi 60 giây để khôi phục và tiếp tục chạy (resume) các workflow đến hạn.
+  - Hỗ trợ khôi phục và chạy tiếp các kịch bản đang chờ dở dang sau khi tắt máy hoặc restart máy Boss/máy chủ.
+  - Tự động phát hiện và dọn dẹp các checkpoint của kịch bản đã bị xóa hoặc tắt đi trong thời gian chờ.
+
+- **Giao diện quản lý "Đang Chờ" (Checkpoint UI):**
+  - Tích hợp tab "Đang Chờ" trực quan trong màn hình Workflow Automation hiển thị số lượng bước chờ (badge count) theo thời gian thực.
+  - Render danh sách chi tiết các kịch bản đang chờ bao gồm: tên workflow, bước node đang chờ, thời điểm khôi phục và đếm ngược countdown thời gian thực.
+  - Bổ sung nút Hủy (X) checkpoint trực tiếp trên giao diện để kết thúc sớm các bước chờ và dọn dẹp dữ liệu tương ứng trong SQLite.
+
+- **Tuần tự hóa ngữ cảnh thông minh (contextSerializer):**
+  - Hỗ trợ chuyển đổi `ExecutionContext` phức tạp thành JSON an toàn, chuyển đổi `Set` (skippedNodes) sang `Array` và ngược lại.
+  - Loại bỏ các tham chiếu vòng (circular references) và các thuộc tính chứa hàm (functions).
+  - Tự động rút gọn (truncate) các chuỗi dữ liệu quá dài (>10KB) để tránh phình dung lượng của cột `context_json` trong SQLite.
+
+- **Bảo mật, Hạn dùng & Tự dọn dẹp:**
+  - Quy định thời gian chờ tối đa lên đến 3 tháng (90 ngày) cho mỗi bước chờ, checkpoint cũ hơn 90 ngày sẽ được tự động đánh dấu quá hạn (`expired`) và báo lỗi.
+  - Chu kỳ dọn dẹp chạy ngầm tự động dọn dẹp dữ liệu cũ (hoàn thành > 7 ngày, lỗi hoặc quá hạn > 30 ngày) để tối ưu cơ sở dữ liệu.
+
+- **Kiểm thử & Đảm bảo chất lượng (QA & Test):**
+  - Bổ sung bộ kiểm thử tự động `workflowCheckpoint.test.ts` (43 passed tests) bao phủ 100% các tình huống biên, serialization và vòng đời scheduler.
+
+---
+
 ## [v27.2.11] - 2026-07-12
 
 ### ERP Co giãn Giao diện · Dọn dẹp CRM Logs · Sửa lỗi chạy ngầm Workflow & AI Autopilot · Tách biệt Tên & Xưng hô CRM
