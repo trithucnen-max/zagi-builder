@@ -65,6 +65,7 @@ Triggers gồm: tin nhắn mới, lời mời kết bạn, sự kiện nhóm, re
 - **Kháng lỗi tắt máy:** Nếu máy Boss bị tắt hoặc khởi động lại đột ngột trong khi đang có bước chờ, sau khi mở lại ứng dụng, scheduler sẽ tự động quét và khôi phục các bước chờ bị trễ hoặc đến hạn, đảm bảo chiến dịch chăm sóc khách hàng dài ngày diễn ra liên tục.
 - **Tab "Đang Chờ" trên UI:** Người dùng có thể theo dõi danh sách các bước đang chờ ngay tại tab "Đang Chờ" của trang danh sách Workflow. Giao diện hiển thị: tên workflow, bước node đang chờ, thời gian khôi phục (countdown thời gian thực) và nút Hủy (X) để dừng sớm bước chờ.
 - **Quy tắc an toàn:** Hệ thống tự động bỏ qua và dọn dẹp các checkpoint của workflow đã bị vô hiệu hóa (disabled) hoặc bị xóa trong thời gian chờ. Thời gian chờ tối đa được hỗ trợ lên tới 3 tháng (90 ngày).
+- **Chế độ chờ Ngày thực tế (Calendar Wait):** Trong cấu hình node Chờ (`logic.wait`), người dùng có thể chuyển đổi giữa chế độ *Chờ theo khoảng thời gian* (ví dụ: 1 ngày) hoặc *Chờ đến giờ cụ thể của ngày thực* (ví dụ: chờ đến ngày mai lúc 09:00). Giúp tối ưu hóa giờ gửi tin nhắn bám đuổi (chăm sóc khách hàng vào giờ hành chính, tránh nhắn tin làm phiền vào đêm muộn). Nếu mốc giờ đích của ngày hôm nay đã trôi qua khi luồng kích hoạt, node sẽ thực hiện chạy tiếp ngay lập tức.
 Lưu ý: workflow chạy cục bộ nên app phải đang chạy (hoặc mở lại sau khi tắt) để các kịch bản tự động hóa và các bước chờ hoạt động.
 ###
 3.6. Trợ lý AI

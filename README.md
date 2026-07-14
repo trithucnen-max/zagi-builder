@@ -464,10 +464,11 @@ npm run production
 ### 🚀 Nâng cấp nổi bật
 
 - 💾 **Workflow Persistent Checkpoints (Bước đang chờ)**: Hỗ trợ tự động lưu ngữ cảnh chạy (`ExecutionContext`) vào SQLite khi thời gian chờ của node `logic.wait` vượt quá 5 phút. Giúp giải phóng hoàn toàn bộ nhớ RAM/CPU.
+- 📅 **Chế độ chờ Ngày thực tế (Calendar Delay)**: Node Chờ hỗ trợ cấu hình theo ngày thực tế dịch chuyển (ví dụ: ngày mai) kết hợp khung giờ gửi cố định mong muốn (ví dụ: 09:00). Bộ lọc an toàn tự động thực thi ngay nếu giờ đích trong ngày hôm nay đã trôi qua.
 - 🔄 **Khôi phục sau khi tắt máy**: Khi khởi động lại máy Boss/máy chủ, động cơ `CheckpointScheduler` tự động phát hiện, tiếp tục chạy (resume) các bước chờ đến hạn hoặc bị lỡ lịch.
 - 📋 **Tab quản lý "Đang Chờ" trên UI**: Tích hợp tab chuyên biệt trong phân hệ Workflow Automation hiển thị số lượng badge pending, countdown thời gian chờ thực tế và hỗ trợ Hủy checkpoint nhanh.
 - 🛡️ **Tuần tự hóa an toàn (contextSerializer)**: Giải quyết triệt để vấn đề tham chiếu vòng (circular refs), ép Set ↔ Array và rút gọn chuỗi >10KB để tránh phình dữ liệu.
-- 🧪 **Bộ kiểm thử tự động toàn diện**: Bổ sung file `workflowCheckpoint.test.ts` gồm 43 test cases đạt tỷ lệ pass 100% cho toàn bộ vòng đời checkpoint.
+- 🧪 **Bộ kiểm thử tự động toàn diện**: Bổ sung file `workflowCheckpoint.test.ts` gồm 46 test cases đạt tỷ lệ pass 100% cho toàn bộ vòng đời checkpoint và thuật toán tính giờ thực tế (Calendar wait type).
 
 </details>
 

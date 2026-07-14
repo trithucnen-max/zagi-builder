@@ -105,6 +105,7 @@
     *   **Autocomplete trình soạn thảo**: Nhập dấu `{` tự động hiển thị popup gợi ý biến trong trình soạn tin nhắn chiến dịch & workflow, bổ sung thanh công cụ chips chèn nhanh.
 19. **Động cơ Workflow Persistent Checkpoints (v27.2.12):**
     *   **Persistent Checkpoints**: Tự động lưu trạng thái hoạt động của workflow vào SQLite (`workflow_checkpoints`) khi gặp node Chờ (`logic.wait`) có thời gian chờ dài (> 5 phút), giúp giải phóng bộ nhớ RAM và CPU thay vì giữ luồng chờ dài ngày trong bộ nhớ.
+    *   **Chế độ Chờ Ngày thực tế (Calendar Wait)**: Node Chờ hỗ trợ cấu hình theo ngày thực tế dịch chuyển (ví dụ: 0 là hôm nay, 1 là ngày mai) kết hợp khung giờ gửi cố định mong muốn (ví dụ: 09:00). Có bộ lọc an toàn tự động thực thi ngay nếu giờ đích trong ngày hôm nay đã trôi qua.
     *   **Động cơ Tự động Khôi phục (CheckpointScheduler)**: Khôi phục và chạy tiếp các kịch bản đang chờ dở dang sau khi tắt máy hoặc restart máy Boss/máy chủ. Tự động phát hiện và dọn dẹp các checkpoint của kịch bản đã bị xóa hoặc tắt đi trong thời gian chờ.
     *   **Tab quản lý "Đang Chờ" trên UI**: Tích hợp tab chuyên biệt trong phân hệ Workflow Automation hiển thị số lượng badge pending, countdown thời gian chờ thực tế và hỗ trợ Hủy checkpoint nhanh.
     *   **Tuần tự hóa ngữ cảnh thông minh (contextSerializer)**: Giải quyết triệt để vấn đề tham chiếu vòng, ép Set ↔ Array và rút gọn chuỗi >10KB để tránh phình dữ liệu.
@@ -114,5 +115,5 @@
 *   **Hệ thống Unit Test:** Đã cấu hình Jest & `ts-jest` thành công:
     1.  `lunar.test.ts` (Kiểm tra thuật toán chuyển đổi lịch âm Việt Nam).
     2.  `import.test.ts` (Kiểm tra logic chuẩn hóa số điện thoại và phân tách CSV).
-    3.  `workflowCheckpoint.test.ts` (Kiểm tra động cơ checkpoint, contextSerializer và scheduler).
-    *   *Lưu ý kỹ thuật:* Chạy test toàn bộ hệ thống thành công qua `npx jest --no-coverage` với 10/10 test suites (126 tests) đạt tỷ lệ PASS 100%.
+    3.  `workflowCheckpoint.test.ts` (Kiểm tra động cơ checkpoint, contextSerializer, scheduler và Calendar wait calculations).
+    *   *Lưu ý kỹ thuật:* Chạy test toàn bộ hệ thống thành công qua `npx jest --no-coverage` với 10/10 test suites (129 tests) đạt tỷ lệ PASS 100%.

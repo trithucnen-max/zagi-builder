@@ -2732,7 +2732,22 @@ class WorkflowEngineService {
 
       case 'logic.wait': {
         let ms = 0;
-        if (cfg.delayMs !== undefined && cfg.delayMs !== null) {
+        if (cfg.waitType === 'calendar') {
+          const now = new Date();
+          const targetDate = new Date(now.getTime());
+          
+          // Dịch chuyển số ngày thực tế
+          const daysToShift = Number(cfg.calendarDays ?? 1);
+          targetDate.setDate(targetDate.getDate() + daysToShift);
+          
+          // Thiết lập giờ và phút đích
+          const timeStr = cfg.targetTime || '09:00';
+          const [hh, mm] = timeStr.split(':').map(Number);
+          targetDate.setHours(hh || 0, mm || 0, 0, 0);
+          
+          const diffMs = targetDate.getTime() - now.getTime();
+          ms = diffMs > 0 ? diffMs : 0;
+        } else if (cfg.delayMs !== undefined && cfg.delayMs !== null) {
           ms = Number(cfg.delayMs);
         } else if (cfg.delaySeconds !== undefined && cfg.delaySeconds !== null && cfg.delaySeconds !== '') {
           ms = Number(cfg.delaySeconds) * 1000;

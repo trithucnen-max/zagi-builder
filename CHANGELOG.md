@@ -14,6 +14,12 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Hỗ trợ khôi phục và chạy tiếp các kịch bản đang chờ dở dang sau khi tắt máy hoặc restart máy Boss/máy chủ.
   - Tự động phát hiện và dọn dẹp các checkpoint của kịch bản đã bị xóa hoặc tắt đi trong thời gian chờ.
 
+- **Chế độ Ngày thực tế & Khung giờ đích cho Node Chờ (Calendar Delays):**
+  - Tích hợp thêm tùy chọn **Loại chờ**: Chờ theo khoảng thời gian (relative) và Chờ đến giờ cụ thể của ngày thực (calendar).
+  - Tự động tính toán khoảng trễ `ms` động từ thời điểm chạy hiện tại tới số ngày dịch chuyển mong muốn (`calendarDays`: 0 là hôm nay, 1 là ngày mai,...) tại khung giờ chỉ định (`targetTime`: ví dụ `09:00`, `15:30`).
+  - Tích hợp cơ chế tự động bảo vệ: nếu giờ đích của ngày hôm nay đã qua, Node sẽ chạy tiếp ngay lập tức để tránh làm nghẽn tiến trình.
+  - Cập nhật hiển thị nhãn preview trực quan trên sơ đồ Canvas React Flow (Ví dụ: `Chờ đến ngày mai lúc 09:00`, hoặc `Chờ 2d 5h` thay vì hiển thị giây thô).
+
 - **Giao diện quản lý "Đang Chờ" (Checkpoint UI):**
   - Tích hợp tab "Đang Chờ" trực quan trong màn hình Workflow Automation hiển thị số lượng bước chờ (badge count) theo thời gian thực.
   - Render danh sách chi tiết các kịch bản đang chờ bao gồm: tên workflow, bước node đang chờ, thời điểm khôi phục và đếm ngược countdown thời gian thực.
@@ -29,7 +35,7 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Chu kỳ dọn dẹp chạy ngầm tự động dọn dẹp dữ liệu cũ (hoàn thành > 7 ngày, lỗi hoặc quá hạn > 30 ngày) để tối ưu cơ sở dữ liệu.
 
 - **Kiểm thử & Đảm bảo chất lượng (QA & Test):**
-  - Bổ sung bộ kiểm thử tự động `workflowCheckpoint.test.ts` (43 passed tests) bao phủ 100% các tình huống biên, serialization và vòng đời scheduler.
+  - Bổ sung bộ kiểm thử tự động `workflowCheckpoint.test.ts` (46 passed tests) bao phủ 100% các tình huống biên, serialization và vòng đời scheduler.
 
 ---
 

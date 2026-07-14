@@ -520,6 +520,44 @@ describe('logic.wait checkpoint threshold', () => {
     const waitMs = 3 * 86_400_000;
     expect(waitMs > CHECKPOINT_THRESHOLD_MS).toBe(true);
   });
+
+  describe('calendar wait type calculation', () => {
+    const calculateCalendarWaitMs = (cfg: any, nowMock: Date): number => {
+      const now = nowMock;
+      const targetDate = new Date(now.getTime());
+      
+      const daysToShift = Number(cfg.calendarDays ?? 1);
+      targetDate.setDate(targetDate.getDate() + daysToShift);
+      
+      const timeStr = cfg.targetTime || '09:00';
+      const [hh, mm] = timeStr.split(':').map(Number);
+      targetDate.setHours(hh || 0, mm || 0, 0, 0);
+      
+      const diffMs = targetDate.getTime() - now.getTime();
+      return diffMs > 0 ? diffMs : 0;
+    };
+
+    it('calculates wait correctly for tomorrow at 09:00 AM', () => {
+      const now = new Date('2026-07-14T08:00:00');
+      const cfg = { waitType: 'calendar', calendarDays: 1, targetTime: '09:00' };
+      const ms = calculateCalendarWaitMs(cfg, now);
+      expect(ms).toBe(25 * 3600 * 1000);
+    });
+
+    it('calculates wait correctly for today at 09:00 AM if current time is 08:00 AM', () => {
+      const now = new Date('2026-07-14T08:00:00');
+      const cfg = { waitType: 'calendar', calendarDays: 0, targetTime: '09:00' };
+      const ms = calculateCalendarWaitMs(cfg, now);
+      expect(ms).toBe(1 * 3600 * 1000);
+    });
+
+    it('returns 0 ms if target time for today has already passed', () => {
+      const now = new Date('2026-07-14T10:00:00');
+      const cfg = { waitType: 'calendar', calendarDays: 0, targetTime: '09:00' };
+      const ms = calculateCalendarWaitMs(cfg, now);
+      expect(ms).toBe(0);
+    });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

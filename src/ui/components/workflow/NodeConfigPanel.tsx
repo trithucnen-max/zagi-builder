@@ -1065,24 +1065,56 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
   ],
   'logic.wait': [
     {
+      key: 'waitType',
+      label: 'Loại chờ',
+      type: 'select',
+      desc: 'Chọn cách tính thời gian chờ.',
+      options: [
+        { value: 'relative', label: '⏳ Chờ theo khoảng thời gian' },
+        { value: 'calendar', label: '📅 Chờ đến giờ cụ thể của ngày thực' },
+      ],
+    },
+    {
       key: 'days', label: 'Số ngày chờ', type: 'number', min: 0,
       desc: 'Khoảng thời gian chờ tính bằng ngày.',
       placeholder: '0',
+      hideWhenKey: 'waitType',
+      hideWhenValue: 'calendar',
     },
     {
       key: 'hours', label: 'Số giờ chờ', type: 'number', min: 0,
       desc: 'Khoảng thời gian chờ tính bằng giờ.',
       placeholder: '0',
+      hideWhenKey: 'waitType',
+      hideWhenValue: 'calendar',
     },
     {
       key: 'minutes', label: 'Số phút chờ', type: 'number', min: 0,
       desc: 'Khoảng thời gian chờ tính bằng phút.',
       placeholder: '0',
+      hideWhenKey: 'waitType',
+      hideWhenValue: 'calendar',
     },
     {
       key: 'seconds', label: 'Số giây chờ', type: 'number', min: 0,
       desc: 'Khoảng thời gian chờ tính bằng giây.',
       placeholder: '0',
+      hideWhenKey: 'waitType',
+      hideWhenValue: 'calendar',
+    },
+    {
+      key: 'calendarDays', label: 'Số ngày thực tế dịch chuyển', type: 'number', min: 0,
+      desc: 'Ví dụ: 0 là hôm nay, 1 là ngày mai, 2 là ngày kia.',
+      placeholder: '1',
+      hideWhenKey: 'waitType',
+      hideWhenValue: 'relative, ',
+    },
+    {
+      key: 'targetTime', label: 'Khung giờ gửi cụ thể', type: 'text',
+      desc: 'Nhập theo định dạng HH:mm (Ví dụ: 09:00, 15:30).',
+      placeholder: '09:00',
+      hideWhenKey: 'waitType',
+      hideWhenValue: 'relative, ',
     },
   ],
   'logic.setVariable': [

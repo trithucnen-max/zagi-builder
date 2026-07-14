@@ -389,10 +389,11 @@ npm run production
 ### 🚀 Key Highlights
 
 - 💾 **Workflow Persistent Checkpoints**: Automatically saves workflow ExecutionContext into SQLite when wait time of `logic.wait` node exceeds 5 minutes, freeing up system memory/CPU.
+- 📅 **Calendar Delay Mode**: Node wait configuration now supports scheduling based on calendar day shifts (e.g., tomorrow) combined with a target dispatch time (e.g., 09:00) to prevent sending messages late at night. Safety check auto-proceeds immediately if target time has already passed today.
 - 🔄 **Recovery After Restart**: Upon Boss/Server restart, the `CheckpointScheduler` automatically detects and resumes pending or missed checkpoints.
 - 📋 **"Pending" Checkpoint Management Tab**: Integrated a dedicated tab in the Workflow Automation screen showing pending badge counts, active countdown timers, and quick cancel actions.
 - 🛡️ **Safe Serialization (contextSerializer)**: Resolves circular references, converts Sets to Arrays, and truncates strings >10KB to maintain a lightweight database.
-- 🧪 **Comprehensive Automated Testing**: Added `workflowCheckpoint.test.ts` containing 43 unit and integration tests with 100% pass rate.
+- 🧪 **Comprehensive Automated Testing**: Added `workflowCheckpoint.test.ts` containing 46 unit and integration tests with 100% pass rate covering lifecycle, scheduler concurrency and calendar wait type logic.
 
 </details>
 

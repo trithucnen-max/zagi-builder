@@ -634,8 +634,29 @@ function getLogicSummary(data: any, isLight: boolean): React.ReactNode {
           {renderRichValue(cfg.right, isLight)}
         </div>
       );
-    case 'logic.wait':
-      return <span>Chờ {cfg.delaySeconds || 1}s</span>;
+    case 'logic.wait': {
+      if (cfg.waitType === 'calendar') {
+        const days = Number(cfg.calendarDays ?? 1);
+        const dayLabel = days === 0 ? 'hôm nay' : days === 1 ? 'ngày mai' : `sau ${days} ngày`;
+        return <span>Chờ đến {dayLabel} lúc {cfg.targetTime || '09:00'}</span>;
+      }
+      if (cfg.delayMs !== undefined && cfg.delayMs !== null) {
+        return <span>Chờ {Number(cfg.delayMs) / 1000}s</span>;
+      }
+      if (cfg.delaySeconds !== undefined && cfg.delaySeconds !== null && cfg.delaySeconds !== '') {
+        return <span>Chờ {cfg.delaySeconds}s</span>;
+      }
+      const d = Number(cfg.days || 0);
+      const h = Number(cfg.hours || 0);
+      const m = Number(cfg.minutes || 0);
+      const s = Number(cfg.seconds || 0);
+      const parts = [];
+      if (d > 0) parts.push(`${d}d`);
+      if (h > 0) parts.push(`${h}h`);
+      if (m > 0) parts.push(`${m}m`);
+      if (s > 0 || parts.length === 0) parts.push(`${s}s`);
+      return <span>Chờ {parts.join(' ')}</span>;
+    }
     case 'logic.setVariable':
       return (
         <div className="flex flex-wrap items-center gap-0.5">
