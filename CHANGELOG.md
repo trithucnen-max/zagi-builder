@@ -10,6 +10,8 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 - **Tích hợp POS (Sapo & Haravan Private App):**
   - Nâng cấp `SapoAdapter.ts` để hỗ trợ xác thực bằng **API Key** và **API Secret (Basic Authentication)** cho cửa hàng riêng (Private App), khắc phục lỗi không thể kết nối khi thiếu trường Access Token.
+  - Sửa lỗi đồng bộ đơn hàng Sapo: làm phẳng (flatten) các phiên bản (variants) sản phẩm trong `getProducts` và `lookupProduct` giúp Zagi hiển thị chi tiết và gửi đúng `variant_id` sang Sapo API thay vì gửi `product_id` của sản phẩm cha.
+  - Chuẩn hóa thông tin gửi sang Sapo: bổ sung đối tượng `customer` và map Họ & Tên của khách hàng vào các trường `first_name` và `last_name` ở cả `customer`, `billing_address` và `shipping_address` để Sapo tự động tạo/liên kết hồ sơ khách hàng có đủ số điện thoại/email và tự điền thông tin giao nhận, hỗ trợ thao tác "Đẩy vận chuyển" trực tiếp từ Sapo Admin.
   - Tinh chỉnh giao diện kết nối của Sapo và Haravan (`IntegrationPage.tsx` & `IntegrationDetailPage.tsx`): tách biệt rõ ràng các trường bắt buộc/tùy chọn (optional fields), bổ sung nhãn cảnh báo và placeholder hướng dẫn lấy thông tin từ Sapo/Haravan Admin.
   - Khắc phục lỗi validate dữ liệu bắt buộc (required checks) ngăn cản việc lưu cấu hình khi không nhập đủ tất cả các trường xác thực.
 

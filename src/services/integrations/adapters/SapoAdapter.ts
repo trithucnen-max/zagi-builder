@@ -247,9 +247,23 @@ export class SapoAdapter extends IntegrationAdapter {
         const data = await this.apiGet('/admin/products.json', {
           fields: 'id,title,images,product_type,variants',
           limit: params.limit || 20,
-          page: 1,
+          page: params.page || 1,
         });
-        return { products: data.products || [] };
+        const products: any[] = data.products || [];
+        const flattened = products.flatMap((p: any) =>
+          (p.variants || []).map((v: any) => ({
+            id: v.id,
+            product_id: p.id,
+            title: p.variants.length > 1 ? `${p.title} - ${v.title}` : p.title,
+            sku: v.sku,
+            barcode: v.barcode,
+            price: v.price,
+            inventory_quantity: v.inventory_quantity ?? 0,
+            images: p.images || [],
+            image: p.images?.find((img: any) => img.id === v.image_id) || p.images?.[0] || p.image || null,
+          })),
+        );
+        return { products: flattened };
       }
 
       case 'getInventory': {
@@ -279,9 +293,22 @@ export class SapoAdapter extends IntegrationAdapter {
       }
 
       case 'lookupProduct': {
-        if (!params.keyword) throw new Error('Cần cung cấp keyword để tìm sản phẩm');
-        const products = await this.filterProducts(params.keyword, params.limit || 10);
-        return { products, found: products.length > 0 };
+        const keyword = params.keyword || '';
+        const products = await this.filterProducts(keyword, params.limit || 10);
+        const flattened = products.flatMap((p: any) =>
+          (p.variants || []).map((v: any) => ({
+            id: v.id,
+            product_id: p.id,
+            title: p.variants.length > 1 ? `${p.title} - ${v.title}` : p.title,
+            sku: v.sku,
+            barcode: v.barcode,
+            price: v.price,
+            inventory_quantity: v.inventory_quantity ?? 0,
+            images: p.images || [],
+            image: p.images?.find((img: any) => img.id === v.image_id) || p.images?.[0] || p.image || null,
+          })),
+        );
+        return { products: flattened, found: flattened.length > 0 };
       }
 
       default:

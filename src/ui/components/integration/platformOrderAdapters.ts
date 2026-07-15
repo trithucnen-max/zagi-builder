@@ -164,18 +164,28 @@ function toSapo(data: GenericOrderData) {
   const wardName = data.customer.wardName || getWardName(data.customer.provinceId, data.customer.districtId, data.customer.wardId);
   const fullAddress = [data.customer.address, wardName, districtName, provinceName].filter(Boolean).join(', ');
 
+  const nameParts = (data.customer.name || 'Khách vãng lai').split(' ');
+  const lastName = nameParts.pop() || '';
+  const firstName = nameParts.join(' ') || lastName;
+
   return {
     order: {
       line_items: data.items.map(item => ({
-        product_id: item.productId,
         variant_id: item.productId,
         title: item.productName,
         quantity: item.quantity,
         price: item.price,
         discount_amount: item.discount,
       })),
+      customer: {
+        first_name: firstName,
+        last_name: lastName,
+        phone: data.customer.phone || undefined,
+        email: data.customer.email || undefined,
+      },
       billing_address: {
-        full_name: data.customer.name || 'Khách vãng lai',
+        first_name: firstName,
+        last_name: lastName,
         phone: data.customer.phone || undefined,
         email: data.customer.email || undefined,
         address1: data.customer.address || undefined,
@@ -185,7 +195,8 @@ function toSapo(data: GenericOrderData) {
         country: 'Việt Nam',
       },
       shipping_address: {
-        full_name: data.customer.name || 'Khách vãng lai',
+        first_name: firstName,
+        last_name: lastName,
         phone: data.customer.phone || undefined,
         address1: data.customer.address || undefined,
         full_address: fullAddress || undefined,
