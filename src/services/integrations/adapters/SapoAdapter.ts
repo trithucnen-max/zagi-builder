@@ -146,26 +146,73 @@ export class SapoAdapter extends IntegrationAdapter {
    * SAPO Customer API KHÔNG hỗ trợ search param — phải fetch rồi filter client-side.
    */
   private async findCustomers(keyword: string, limit: number): Promise<any[]> {
-    const data = await this.apiGet('/admin/customers.json', {
-      fields: 'id,first_name,last_name,email,phone,default_address,addresses,note,tags',
-      limit: 250, // max SAPO cho phép
-      page: 1,
-    });
-    const all: any[] = data.customers || [];
-    const kw = keyword.toLowerCase().trim();
+    const kw = keyword.trim();
+    if (!kw) return [];
 
-    // Filter: match phone hoặc email
-    return all
-      .filter(c => {
-        if (c.email?.toLowerCase() === kw) return true;
-        if (c.phone?.replace(/[\s.-]/g, '') === kw.replace(/[\s.-]/g, '')) return true;
-        // Check default_address.phone
-        if (c.default_address?.phone?.replace(/[\s.-]/g, '') === kw.replace(/[\s.-]/g, '')) return true;
-        // Check all addresses
-        if (c.addresses?.some((a: any) => a.phone?.replace(/[\s.-]/g, '') === kw.replace(/[\s.-]/g, ''))) return true;
-        return false;
-      })
-      .slice(0, limit);
+    let apiCustomers: any[] = [];
+    
+    // 1. Thử gọi API filter theo phone hoặc email trực tiếp
+    try {
+      if (kw.match(/^\+?\d+$/)) {
+        const cleanPhone = kw.replace(/[^\d]/g, '');
+        const suffix = cleanPhone.slice(-9); // Lấy 9 số cuối
+        const res1 = await this.apiGet('/admin/customers.json', { phone: kw });
+        if (Array.isArray(res1?.customers)) apiCustomers.push(...res1.customers);
+        
+        const res2 = await this.apiGet('/admin/customers.json', { phone: `0${suffix}` });
+        if (Array.isArray(res2?.customers)) apiCustomers.push(...res2.customers);
+
+        const res3 = await this.apiGet('/admin/customers.json', { phone: `+84${suffix}` });
+        if (Array.isArray(res3?.customers)) apiCustomers.push(...res3.customers);
+      } else if (kw.includes('@')) {
+        const res = await this.apiGet('/admin/customers.json', { email: kw });
+        if (Array.isArray(res?.customers)) apiCustomers.push(...res.customers);
+      }
+    } catch {
+      // Fallback về quét client-side
+    }
+
+    // 2. Nếu tìm kiếm trực tiếp không ra kết quả, hoặc để chắc chắn, tải danh sách về để filter
+    if (apiCustomers.length === 0) {
+      try {
+        const data = await this.apiGet('/admin/customers.json', {
+          fields: 'id,first_name,last_name,email,phone,default_address,addresses,note,tags',
+          limit: 250,
+          page: 1,
+        });
+        apiCustomers = data.customers || [];
+      } catch {
+        apiCustomers = [];
+      }
+    }
+
+    const matchPhone = (p1: string | undefined | null, p2: string): boolean => {
+      if (!p1) return false;
+      const clean1 = p1.replace(/[^\d]/g, '');
+      const clean2 = p2.replace(/[^\d]/g, '');
+      return clean1.slice(-9) === clean2.slice(-9) && clean1.slice(-9).length >= 9;
+    };
+
+    const seenIds = new Set<number>();
+    const filtered: any[] = [];
+    const lowerKw = kw.toLowerCase();
+
+    for (const c of apiCustomers) {
+      if (seenIds.has(c.id)) continue;
+
+      let isMatch = false;
+      if (c.email?.toLowerCase() === lowerKw) isMatch = true;
+      else if (c.phone && matchPhone(c.phone, kw)) isMatch = true;
+      else if (c.default_address?.phone && matchPhone(c.default_address.phone, kw)) isMatch = true;
+      else if (c.addresses?.some((a: any) => a.phone && matchPhone(a.phone, kw))) isMatch = true;
+
+      if (isMatch) {
+        seenIds.add(c.id);
+        filtered.push(c);
+      }
+    }
+
+    return filtered.slice(0, limit);
   }
 
   /**
@@ -174,7 +221,7 @@ export class SapoAdapter extends IntegrationAdapter {
    */
   private async filterProducts(keyword: string, limit: number): Promise<any[]> {
     const data = await this.apiGet('/admin/products.json', {
-      fields: 'id,title,images,product_type,variants',
+      fields: 'id,name,title,images,product_type,variants',
       limit: 250,
       page: 1,
     });
@@ -184,6 +231,7 @@ export class SapoAdapter extends IntegrationAdapter {
 
     return all
       .filter(p =>
+        (p.name || '').toLowerCase().includes(kw) ||
         (p.title || '').toLowerCase().includes(kw) ||
         (p.product_type || '').toLowerCase().includes(kw) ||
         (p.variants || []).some((v: any) =>
@@ -205,9 +253,38 @@ export class SapoAdapter extends IntegrationAdapter {
 
       case 'lookupOrder': {
         if (params.orderId) {
-          const data = await this.apiGet(`/admin/orders/${params.orderId}.json`);
-          const order = data.order;
-          return { order, orders: order ? [order] : [], found: !!order };
+          const orderIdStr = String(params.orderId).trim();
+          
+          // 1. Nếu là ID nội bộ (chỉ chứa số và dài)
+          if (/^\d+$/.test(orderIdStr) && orderIdStr.length > 8) {
+            try {
+              const data = await this.apiGet(`/admin/orders/${orderIdStr}.json`);
+              if (data?.order) {
+                return { order: data.order, orders: [data.order], found: true };
+              }
+            } catch {
+              // Tiếp tục tìm theo name nếu gọi trực tiếp ID thất bại
+            }
+          }
+
+          // 2. Tìm kiếm theo tên đơn hàng (name) - VD: #1033MKS
+          let data = await this.apiGet('/admin/orders.json', { name: orderIdStr });
+          let orders = data?.orders || [];
+
+          // Nếu không tìm thấy và mã không bắt đầu bằng '#', thử tìm với '#' phía trước
+          if (orders.length === 0 && !orderIdStr.startsWith('#')) {
+            data = await this.apiGet('/admin/orders.json', { name: `#${orderIdStr}` });
+            orders = data?.orders || [];
+          }
+
+          // Nếu vẫn không tìm thấy, thử tìm kiếm chung bằng query (Sapo hỗ trợ query để search rộng hơn)
+          if (orders.length === 0) {
+            data = await this.apiGet('/admin/orders.json', { query: orderIdStr });
+            orders = data?.orders || [];
+          }
+
+          const order = orders[0] || null;
+          return { order, orders, found: orders.length > 0 };
         }
 
         // Tra cứu theo SĐT: lookup customer → lấy customerId → query orders
@@ -245,23 +322,28 @@ export class SapoAdapter extends IntegrationAdapter {
 
       case 'getProducts': {
         const data = await this.apiGet('/admin/products.json', {
-          fields: 'id,title,images,product_type,variants',
+          fields: 'id,name,title,images,product_type,variants',
           limit: params.limit || 20,
           page: params.page || 1,
         });
         const products: any[] = data.products || [];
         const flattened = products.flatMap((p: any) =>
-          (p.variants || []).map((v: any) => ({
-            id: v.id,
-            product_id: p.id,
-            title: p.variants.length > 1 ? `${p.title} - ${v.title}` : p.title,
-            sku: v.sku,
-            barcode: v.barcode,
-            price: v.price,
-            inventory_quantity: v.inventory_quantity ?? 0,
-            images: p.images || [],
-            image: p.images?.find((img: any) => img.id === v.image_id) || p.images?.[0] || p.image || null,
-          })),
+          (p.variants || []).map((v: any) => {
+            const productTitle = p.name || p.title || '';
+            const variantTitle = v.title || v.name || '';
+            const displayTitle = variantTitle && p.variants.length > 1 ? `${productTitle} - ${variantTitle}` : productTitle;
+            return {
+              id: v.id,
+              product_id: p.id,
+              title: displayTitle,
+              sku: v.sku,
+              barcode: v.barcode,
+              price: v.price,
+              inventory_quantity: v.inventory_quantity ?? 0,
+              images: p.images || [],
+              image: p.images?.find((img: any) => img.id === v.image_id) || p.images?.[0] || p.image || null,
+            };
+          }),
         );
         return { products: flattened };
       }
@@ -296,17 +378,22 @@ export class SapoAdapter extends IntegrationAdapter {
         const keyword = params.keyword || '';
         const products = await this.filterProducts(keyword, params.limit || 10);
         const flattened = products.flatMap((p: any) =>
-          (p.variants || []).map((v: any) => ({
-            id: v.id,
-            product_id: p.id,
-            title: p.variants.length > 1 ? `${p.title} - ${v.title}` : p.title,
-            sku: v.sku,
-            barcode: v.barcode,
-            price: v.price,
-            inventory_quantity: v.inventory_quantity ?? 0,
-            images: p.images || [],
-            image: p.images?.find((img: any) => img.id === v.image_id) || p.images?.[0] || p.image || null,
-          })),
+          (p.variants || []).map((v: any) => {
+            const productTitle = p.name || p.title || '';
+            const variantTitle = v.title || v.name || '';
+            const displayTitle = variantTitle && p.variants.length > 1 ? `${productTitle} - ${variantTitle}` : productTitle;
+            return {
+              id: v.id,
+              product_id: p.id,
+              title: displayTitle,
+              sku: v.sku,
+              barcode: v.barcode,
+              price: v.price,
+              inventory_quantity: v.inventory_quantity ?? 0,
+              images: p.images || [],
+              image: p.images?.find((img: any) => img.id === v.image_id) || p.images?.[0] || p.image || null,
+            };
+          }),
         );
         return { products: flattened, found: flattened.length > 0 };
       }
