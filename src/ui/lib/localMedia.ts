@@ -26,15 +26,8 @@ export function toLocalMediaUrl(filePath: string, zaloId?: string): string {
     return filePath;
   }
 
-  const mode = getMode();
-  if (mode === 'employee') {
-    // Employee: convert boss local path → boss REST URL
-    const bossUrl = getBossBaseUrl();
-    if (!bossUrl) return filePath;
-    return toBossMediaUrl(filePath, bossUrl, zaloId);
-  }
-
-  // Standalone/Boss: local-media:// protocol (current behavior)
+  // Standalone/Boss & Employee: use local-media:// custom protocol to enable local disk caching
+  // and bypass mixed content/CORS restrictions over LAN/Tunnels.
   const stripped = filePath.replace(/^file:\/\/\//, '').replace(/^file:\/\//, '');
   const normalized = stripped.replace(/\\/g, '/');
   const withSlash = normalized.startsWith('/') ? normalized : '/' + normalized;
