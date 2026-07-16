@@ -4308,8 +4308,16 @@ class WorkflowEngineService {
         const results = [];
         for (const userId of members) {
           try {
-            const res = await rawApi.addUserToGroup(userId, p.groupId);
-            results.push(res);
+            try {
+              // Thử thêm trực tiếp trước
+              const res = await rawApi.addUserToGroup(userId, p.groupId);
+              results.push(res);
+            } catch (err: any) {
+              Logger.warn(`[WorkflowEngine] Direct addUserToGroup failed for user ${userId} in group ${p.groupId}: ${err.message}. Trying inviteUserToGroups fallback...`);
+              // Gọi API mời làm phương án dự phòng
+              const res = await rawApi.inviteUserToGroups(userId, [p.groupId]);
+              results.push({ success: true, ...res });
+            }
           } catch (err) {
             results.push({ success: false, error: err instanceof Error ? err.message : String(err) });
           }
