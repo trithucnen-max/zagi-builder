@@ -234,7 +234,7 @@ export default function App() {
         resolved = systemPrefersDark ? 'dark' : 'light';
       }
       document.documentElement.dataset.theme = resolved;
-      setResolvedTheme(resolved);
+      setResolvedTheme(resolved as any);
     };
 
     applyTheme(theme);
@@ -244,7 +244,7 @@ export default function App() {
       const listener = (e: MediaQueryListEvent) => {
         const resolved = e.matches ? 'dark' : 'light';
         document.documentElement.dataset.theme = resolved;
-        setResolvedTheme(resolved);
+        setResolvedTheme(resolved as any);
       };
       
       if (mediaQuery.addEventListener) {

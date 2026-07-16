@@ -4293,7 +4293,7 @@ class WorkflowEngineService {
     
     // Wrap rawApi (ZaloService) to ensure its signatures match the Employee Mode proxy signatures.
     // This resolves signature mismatches for: getUserInfo, addUserToGroup, removeUserFromGroup, undo, addReaction, getGroupChatHistory, updateLabels.
-    const rawApi = conn.api;
+    const rawApi = conn.api as any;
     return {
       ...rawApi,
       sendMessage: (p1: any, p2: any, p3: any, p4: any) => rawApi.sendMessage(p1, p2, p3, p4),

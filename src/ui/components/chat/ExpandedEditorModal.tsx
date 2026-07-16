@@ -38,7 +38,6 @@ function FmtBtn({ active, onClick, title, children }: FmtBtnProps) {
   );
 }
 
-// Custom Extension to support inline font size
 const FontSize = Extension.create({
   name: 'fontSize',
   addOptions() {
@@ -62,7 +61,7 @@ const FontSize = Extension.create({
       },
     };
   },
-});
+} as any);
 
 export default function ExpandedEditorModal({
   initialText,

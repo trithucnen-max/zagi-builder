@@ -30,7 +30,7 @@ import { BookIcon, ChartIcon, CloseIcon, EditIcon, FileTextIcon, FolderIcon, Ima
 interface LibraryItem {
   uuid: string;
   owner_zalo_id: string;
-  type: 'image' | 'video' | 'file';
+  type: 'image' | 'video' | 'audio' | 'file';
   name: string;
   mime_type: string;
   size: number;
@@ -43,6 +43,7 @@ interface LibraryItem {
   _localPath?: string;
   /** Local thumbnail path trên Boss (được inject bởi library IPC/handler, undefined ở employee mode) */
   _thumbLocalPath?: string;
+  tags?: string;
 }
 
 interface LibraryFolder {

@@ -67,7 +67,7 @@ export default function CRMNotesModal({ contactId, contactName, onClose }: CRMNo
         window.dispatchEvent(new Event('ui:noteChanged'));
         await loadNotes();
       } else {
-        throw new Error(res?.error || 'Lỗi lưu ghi chú');
+        throw new Error((res as any)?.error || 'Lỗi lưu ghi chú');
       }
     } catch (err: any) {
       showNotification('Không thể thêm ghi chú: ' + err.message, 'error');
@@ -92,7 +92,7 @@ export default function CRMNotesModal({ contactId, contactName, onClose }: CRMNo
         window.dispatchEvent(new Event('ui:noteChanged'));
         await loadNotes();
       } else {
-        throw new Error(res?.error || 'Lỗi cập nhật ghi chú');
+        throw new Error((res as any)?.error || 'Lỗi cập nhật ghi chú');
       }
     } catch (err: any) {
       showNotification('Không thể cập nhật ghi chú: ' + err.message, 'error');
@@ -110,7 +110,7 @@ export default function CRMNotesModal({ contactId, contactName, onClose }: CRMNo
         showNotification('Đã xóa ghi chú CRM', 'success');
         window.dispatchEvent(new Event('ui:noteChanged'));
       } else {
-        throw new Error(res?.error || 'Lỗi xóa ghi chú');
+        throw new Error((res as any)?.error || 'Lỗi xóa ghi chú');
       }
     } catch (err: any) {
       showNotification('Không thể xóa ghi chú: ' + err.message, 'error');

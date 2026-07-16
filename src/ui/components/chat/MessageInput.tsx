@@ -375,7 +375,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
       const res = await ipc.crm.scheduleMessage({
         ownerZaloId: activeAccountId!,
         threadId: activeThreadId,
-        threadType: activeThreadType,
+        threadType: String(activeThreadType),
         channel: activeChannel,
         message: text,
         sendAt,
@@ -1188,7 +1188,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         case 'n': // Create internal note
           e.preventDefault();
           e.stopPropagation();
-          setShowCreateNote(true);
+          setShowCRMNotes(true);
           return;
         case 's': // Toggle AI Quick Panel
           e.preventDefault();
@@ -3571,7 +3571,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           contactName={
             isGroupThread
               ? (groupInfoCache?.[activeAccountId || '']?.[activeThreadId]?.name || 'Nhóm')
-              : (activeContact?.display_name || activeContact?.name || 'Khách hàng')
+              : (activeContact?.display_name || 'Khách hàng')
           }
           onClose={() => setShowCRMNotes(false)}
         />
