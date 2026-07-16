@@ -20,37 +20,42 @@ async function getService(auth: any, isReconnection = false): Promise<ZaloServic
 function resolveZaloId(auth: any): string {
     try {
         const authObj = typeof auth === 'string' ? JSON.parse(auth) : auth;
+        
+        // 1. Ưu tiên: Lấy zaloId truyền trực tiếp từ frontend nếu có
+        const explicitZaloId = authObj?.zaloId || authObj?.zalo_id;
+        if (explicitZaloId) {
+            const cleanId = String(explicitZaloId);
+            if (ConnectionManager.isConnected(cleanId)) return cleanId;
+        }
+
         const cookies = authObj?.cookies || '';
 
         if (cookies) {
             const cookiesB64 = Buffer.from(cookies).toString('base64');
 
-            // Primary: exact match by cookies base64
+            // 2. Đối khớp trực tiếp theo cookies base64 (Primary)
             for (const [id, conn] of ConnectionManager.getAllConnections()) {
                 if (conn.authKey === cookiesB64) return id;
             }
 
-            // Fallback: look up zaloId from DB by cookies, then check if connection exists
-            // (handles case where cookies in DB are stale but the account IS connected)
+            // 3. Dự phòng: Quét database và giải mã cookies để đối khớp chính xác
             try {
-                const rows = (DatabaseService.getInstance() as any).query(
-                    `SELECT zalo_id FROM accounts WHERE cookies = ? LIMIT 1`, [cookies]
-                );
-                const dbZaloId = rows?.[0]?.zalo_id;
-                if (dbZaloId && ConnectionManager.isConnected(dbZaloId)) {
-                    return dbZaloId;
+                const accounts = DatabaseService.getInstance().getAccounts() || [];
+                for (const acc of accounts) {
+                    if (acc.cookies === cookies && ConnectionManager.isConnected(acc.zalo_id)) {
+                        return acc.zalo_id;
+                    }
                 }
-            } catch {}
+            } catch (dbErr: any) {
+                Logger.error(`[zaloIpc] resolveZaloId DB matching failed: ${dbErr.message}`);
+            }
         }
 
-        // Last resort: if only 1 connection exists, use it
-        // (handles both: cookies mismatch AND cookies missing from auth object)
-        // Trường hợp auth không có cookies (VD: gửi tin nhắn nhanh), vẫn gửi được
-        // nếu chỉ có 1 tài khoản Zalo đang kết nối.
+        // 4. Giải pháp cuối: Chỉ tự động fallback nếu KHÔNG truyền cookies trong request và chỉ có duy nhất 1 tài khoản đang kết nối
         const allConns = ConnectionManager.getAllConnections();
-        if (allConns.size === 1) {
+        if (!cookies && allConns.size === 1) {
             const [onlyId] = allConns.keys();
-            Logger.log(`[zaloIpc] resolveZaloId: using only connection: ${onlyId}${cookies ? ' (cookies mismatch)' : ' (no cookies in auth)'}`);
+            Logger.log(`[zaloIpc] resolveZaloId: using only connection (no cookies in request): ${onlyId}`);
             return onlyId;
         }
     } catch {}

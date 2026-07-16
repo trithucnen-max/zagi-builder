@@ -18,7 +18,7 @@ function useFriends() {
   const [refreshing, setRefreshing] = useState(false);
 
   const acc = getActiveAccount();
-  const auth = acc ? { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
+  const auth = acc ? { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
 
   const fetchFromApiRef = useRef<((force?: boolean) => Promise<void>) | null>(null);
 
@@ -38,6 +38,7 @@ function useFriends() {
   };
 
   useEffect(() => {
+    setFriends([]); // Xóa sạch bạn bè cũ ngay khi đổi tài khoản để tránh lẫn lộn
     if (!auth || !activeAccountId) return;
     let cancelled = false;
 
@@ -249,7 +250,7 @@ export function CreateGroupModal({ onClose, onCreated, preSelected }: {
 
   const { friends, loading, refreshing, refresh } = useFriends();
   const acc = getActiveAccount();
-  const auth = acc ? { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
+  const auth = acc ? { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
 
   useEffect(() => { groupNameRef.current?.focus(); }, []);
 
@@ -488,7 +489,7 @@ export function InviteToGroupModal({ contactId, contactName, onClose }: {
   const [inviting, setInviting] = useState(false);
 
   const acc = getActiveAccount();
-  const auth = acc ? { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
+  const auth = acc ? { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
 
   const groups = accountContacts.filter(c => c.contact_type === 'group').filter(g => {
     const name = (g.display_name || '').toLowerCase();
@@ -592,7 +593,7 @@ export function SendCardModal({ threadId, threadType, onClose }: {
 
   const { friends, loading, refreshing, refresh } = useFriends();
   const acc = getActiveAccount();
-  const auth = acc ? { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
+  const auth = acc ? { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
 
   useEffect(() => {
     if (!activeAccountId) return;
@@ -804,7 +805,7 @@ export function AddMemberToGroupModal({ groupId, groupName, existingMemberIds = 
 
   const { friends, loading, refreshing, refresh } = useFriends();
   const acc = getActiveAccount();
-  const auth = acc ? { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
+  const auth = acc ? { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent } : null;
 
   const toggleSelect = (id: string) =>
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -1138,7 +1139,7 @@ export function JoinGroupLinkModal({ onClose }: { onClose: () => void }) {
     try {
       const accRes = await ipc.login?.getAccounts();
       const acc = accRes?.accounts?.find((a: any) => a.zalo_id === activeAcc.zalo_id);
-      const auth = acc?.cookies ? { cookies: acc.cookies, imei: acc.imei || '', userAgent: acc.user_agent || '' } : {};
+      const auth = acc?.cookies ? { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei || '', userAgent: acc.user_agent || '' } : {};
 
       const res = await ipc.zalo.joinGroupLink({ auth, zaloId: activeAcc.zalo_id, link: trimmedLink });
       
