@@ -860,10 +860,30 @@ export default class ZaloService {
             throw new Error("API not initialized. Please ensure you've called initialize() first.");
         }
 
+        const cleanGroupId = groupId.startsWith('g') ? groupId : `g${groupId}`;
+
         try {
-            const cleanGroupId = groupId.startsWith('g') ? groupId : `g${groupId}`;
+            // Thử thêm trực tiếp trước bằng API mặc định
             return await this.api.addUserToGroup(memberId, cleanGroupId);
-        } catch (error) {
+        } catch (error: any) {
+            Logger.warn(`[ZaloService] Direct addUserToGroup failed: ${error.message}. Trying inviteUserToGroups fallback...`);
+            try {
+                // Nếu lỗi, thử dùng API mời vào nhóm (inviteUserToGroups)
+                if (typeof memberId === 'string') {
+                    const res = await (this.api as any).inviteUserToGroups(memberId, [cleanGroupId]);
+                    return { success: true, ...res } as any;
+                } else if (Array.isArray(memberId)) {
+                    const results = [];
+                    for (const mId of memberId) {
+                        const res = await (this.api as any).inviteUserToGroups(mId, [cleanGroupId]);
+                        results.push(res);
+                    }
+                    return { success: true, results } as any;
+                }
+            } catch (fallbackError: any) {
+                Logger.error(`[ZaloService] inviteUserToGroups fallback also failed: ${fallbackError.message}`);
+            }
+            // Nếu cả hai đều lỗi, ném ra lỗi của API gốc để giao diện hiển thị đúng lý do
             throw error;
         }
     }

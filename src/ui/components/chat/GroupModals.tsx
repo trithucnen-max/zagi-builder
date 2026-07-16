@@ -828,17 +828,32 @@ export function AddMemberToGroupModal({ groupId, groupName, existingMemberIds = 
     if (!auth || selected.size === 0) return;
     setAdding(true);
     let success = 0, failed = 0;
+    const errors: string[] = [];
     for (const userId of selected) {
       try {
         const res = await ipc.zalo?.addUserToGroup({ auth, userId, groupId });
-        if (res?.success) success++; else failed++;
-      } catch { failed++; }
+        if (res?.success) {
+          success++;
+        } else {
+          failed++;
+          const errMsg = res?.error || res?.response?.error_message || 'Lỗi không xác định';
+          if (errMsg && !errors.includes(errMsg)) errors.push(errMsg);
+        }
+      } catch (e: any) {
+        failed++;
+        const errMsg = e?.message || 'Lỗi không xác định';
+        if (!errors.includes(errMsg)) errors.push(errMsg);
+      }
     }
     setAdding(false);
-    if (success > 0) showNotification(`Đã thêm ${success} thành viên vào nhóm`, 'success');
-    if (failed > 0) showNotification(`Lỗi: ${failed} người không thêm được`, 'error');
+    if (success > 0) showNotification(`Đã gửi lời mời cho ${success} thành viên`, 'success');
+    if (failed > 0) {
+      const hint = errors.length > 0 ? ` — ${errors[0]}` : '';
+      showNotification(`${failed} người không thêm được${hint}`, 'error');
+    }
     if (success > 0) { onAdded?.(); onClose(); }
   };
+
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70" onClick={onClose}>
