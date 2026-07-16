@@ -2030,22 +2030,28 @@ function ImagePreview({ item }: { item: any }) {
   const [triedFallback, setTriedFallback] = useState(false);
 
   useEffect(() => {
-    let url = item.thumbUrl;
-    // Employee: fileUrl là full HTTP URL → dùng trước _localPath (boss path không tồn tại trên employee)
-    if (!url && item.fileUrl && item.fileUrl.startsWith('http')) {
+    let url: string | null = null;
+
+    // Priority 1: thumbUrl (HTTP)
+    if (item.thumbUrl) {
+      url = item.thumbUrl;
+    // Priority 2: _thumbLocalPath (boss local path)
+    } else if (item._thumbLocalPath) {
+      url = 'local-media:///' + item._thumbLocalPath.replace(/\\/g, '/').replace(/^\/?[A-Z]:\//, (m: string) => '/' + m[0].toLowerCase() + '/');
+    // Priority 3: employee HTTP fileUrl  
+    } else if (item.fileUrl && item.fileUrl.startsWith('http')) {
       url = item.fileUrl;
-    }
-    if (!url && item._localPath) {
-      // Boss: chuyển local path → local-media:// URL
+    // Priority 4: _localPath (boss local original file)
+    } else if (item._localPath) {
       url = 'local-media:///' + item._localPath.replace(/\\/g, '/').replace(/^\/?[A-Z]:\//, (m: string) => '/' + m[0].toLowerCase() + '/');
-    }
-    if (!url && item.fileUrl) {
-      url = item.fileUrl; // Fallback
+    // Priority 5: relative fileUrl (last resort)
+    } else if (item.fileUrl) {
+      url = item.fileUrl;
     }
     setSrc(url);
     setErr(false);
     setTriedFallback(false);
-  }, [item.thumbUrl, item._localPath, item.fileUrl]);
+  }, [item.thumbUrl, item._thumbLocalPath, item._localPath, item.fileUrl]);
  
   const ext = (item.name || '').split('.').pop()?.toLowerCase() || '';
   const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext);

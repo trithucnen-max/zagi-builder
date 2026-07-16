@@ -416,7 +416,10 @@ export function registerZaloIpc() {
     wrap('zalo:addUserToGroup', (s, p) => {
         if (!p.userId) throw new Error('Thiếu userId');
         if (!p.groupId) throw new Error('Thiếu groupId');
-        return s.addUserToGroup(p.userId, p.groupId);
+        // Normalize groupId: strip leading 'g' prefix — ZaloService will add it back
+        const groupId = p.groupId.startsWith('g') ? p.groupId.slice(1) : p.groupId;
+        Logger.log(`[zaloIpc] addUserToGroup userId=${p.userId} groupId=${groupId} (raw=${p.groupId})`);
+        return s.addUserToGroup(p.userId, groupId);
     });
 
     wrap('zalo:removeUserFromGroup', (s, p) =>

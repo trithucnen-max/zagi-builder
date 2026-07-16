@@ -128,11 +128,12 @@ class LibraryService {
         width = meta.width || 0;
         height = meta.height || 0;
 
-        // Generate thumbnail
+        // Generate thumbnail (flatten alpha channel for PNG → JPEG conversion)
         const thumbName = `${uuid}_thumb.jpg`;
         thumbPath = path.join(thumbDir, thumbName);
         await sharp(buffer)
           .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
+          .flatten({ background: '#ffffff' })
           .jpeg({ quality: 80 })
           .toFile(thumbPath);
       } catch (err: any) {
@@ -235,6 +236,7 @@ class LibraryService {
         thumbPath = path.join(thumbDir, thumbName);
         await sharp(buffer)
           .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
+          .flatten({ background: '#ffffff' })
           .jpeg({ quality: 80 })
           .toFile(thumbPath);
       } catch (err: any) {
