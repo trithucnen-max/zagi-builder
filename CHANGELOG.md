@@ -4,7 +4,36 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v3.0.0] - 2026-07-17
+
+### 🚀 Tính năng lớn · Thư viện Media Chung · Kết nối LAN Boss-Nhân Viên · Tự đồng bộ · Âm thanh
+
+- **Thư viện Media Chung (Shared Media Library):**
+  - Ra mắt thư viện media dùng chung: lưu và tổ chức ảnh, video, tài liệu, âm thanh tập trung.
+  - Hỗ trợ phân loại theo thư mục, gắn nhãn (tags) màu sắc và tìm kiếm toàn văn.
+  - Tải file từ thư viện gửi trực tiếp vào chat Zalo chỉ 1 click.
+  - Nhân viên truy cập thư viện Boss qua REST API khi kết nối LAN.
+  - **Sửa lỗi:** Thumbnail PNG bị trắng/blank do thiếu xử lý alpha channel khi convert PNG → JPEG. Thêm `.flatten({ background: '#ffffff' })` trước khi nén.
+  - **Sửa lỗi:** Fallback hiển thị ảnh cải thiện: `_thumbLocalPath → fileUrl HTTP → _localPath → fileUrl`.
+
+- **Kết nối LAN Boss-Nhân Viên (Workspace Remote):**
+  - Proxy toàn bộ hành động Zalo, file, workflow và thư viện qua HTTP relay nội bộ.
+  - Nhân viên upload file local lên Boss trước khi proxy để đồng nhất đường dẫn.
+
+- **Hỗ trợ Âm thanh (Audio):** Thêm loại `audio` vào thư viện, gửi file âm thanh vào chat Zalo.
+
+- **Tự đồng bộ media từ chat:** Ảnh, file từ chat Zalo tự động import vào thư viện Boss, tránh trùng lặp.
+
+- **Sửa lỗi thêm thành viên vào nhóm:**
+  - Khắc phục lỗi "1 người không thêm được" do `groupId` bị double prefix `gg...`.
+  - Thông báo lỗi hiển thị lý do thật từ Zalo API.
+
+- **Sửa lỗi TypeScript / CI/CD:** Giải quyết 40+ lỗi TypeScript và thêm Go subproject vào git để build CI/CD không bị gián đoạn.
+
+---
+
 ## [v27.2.12] - 2026-07-14
+
 
 ### Động cơ Workflow Persistent Checkpoints (Phương án C) · Kết nối Sapo Private App (API Key/Secret Basic Auth) · Khôi phục luồng khi tắt máy
 
