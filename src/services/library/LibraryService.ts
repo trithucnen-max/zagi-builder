@@ -16,7 +16,7 @@ import Logger from '../../utils/Logger';
 export interface LibraryItem {
   uuid: string;
   owner_zalo_id: string;
-  type: 'image' | 'file' | 'video';
+  type: 'image' | 'file' | 'video' | 'audio';
   name: string;
   mime_type: string;
   size: number;
@@ -180,6 +180,101 @@ class LibraryService {
     EventBroadcaster.emit('library:itemAdded', { zaloId, item, uuid });
 
     Logger.log(`[LibraryService] Uploaded: ${fileName} (${(buffer.length / 1024).toFixed(1)}KB) type=${type}`);
+    return item;
+  }
+
+  public async autoImportFromChat(
+    zaloId: string,
+    filePath: string,
+    fileName: string,
+    mimeType: string
+  ): Promise<LibraryItem | null> {
+    if (!filePath || !fs.existsSync(filePath)) return null;
+
+    const db = DatabaseService.getInstance();
+    const stats = fs.statSync(filePath);
+    const size = stats.size;
+
+    // Tránh import trùng lặp
+    const existing = db.queryOne<any>(
+      'SELECT uuid FROM media_library_items WHERE owner_zalo_id = ? AND name = ? AND size = ?',
+      [zaloId, fileName, size]
+    );
+    if (existing) return null;
+
+    const uuid = uuidv4();
+    const ext = path.extname(filePath) || path.extname(fileName) || '.bin';
+    const type = this.detectType(mimeType, ext);
+    const typeDir = this.getTypeDir(zaloId, type);
+    const thumbDir = this.getThumbDir(zaloId);
+
+    this.ensureDir(typeDir);
+    this.ensureDir(thumbDir);
+
+    const destPath = path.join(typeDir, `${uuid}${ext}`);
+    try {
+      fs.copyFileSync(filePath, destPath);
+    } catch (err: any) {
+      Logger.error(`[LibraryService] autoImportFromChat copy failed: ${err.message}`);
+      return null;
+    }
+
+    let width = 0;
+    let height = 0;
+    let thumbPath: string | null = null;
+
+    if (type === 'image') {
+      try {
+        const sharp = require('sharp');
+        const buffer = fs.readFileSync(destPath);
+        const meta = await sharp(buffer).metadata();
+        width = meta.width || 0;
+        height = meta.height || 0;
+
+        const thumbName = `${uuid}_thumb.jpg`;
+        thumbPath = path.join(thumbDir, thumbName);
+        await sharp(buffer)
+          .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 80 })
+          .toFile(thumbPath);
+      } catch (err: any) {
+        Logger.warn(`[LibraryService] autoImportFromChat thumb gen error: ${err.message}`);
+      }
+    }
+
+    if (type === 'video') {
+      try {
+        const sharp = require('sharp');
+        const thumbName = `${uuid}_thumb.jpg`;
+        thumbPath = path.join(thumbDir, thumbName);
+        await sharp({
+          create: { width: 320, height: 240, channels: 3, background: { r: 30, g: 30, b: 30 } }
+        })
+          .jpeg({ quality: 60 })
+          .toFile(thumbPath);
+      } catch {}
+    }
+
+    const now = Date.now();
+    db.run(
+      `INSERT INTO media_library_items
+       (uuid, owner_zalo_id, type, name, mime_type, size, width, height,
+        file_path, thumb_path, alt_text, tags, folder_id, is_favorite, created_by, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [uuid, zaloId, type, fileName, mimeType, size, width, height,
+       destPath, thumbPath, '', '', null, 0, 'system', now, now]
+    );
+
+    const item: LibraryItem = {
+      uuid, owner_zalo_id: zaloId, type: type as any, name: fileName,
+      mime_type: mimeType, size, width, height,
+      file_path: destPath, thumb_path: thumbPath,
+      alt_text: '', tags: '', folder_id: null,
+      is_favorite: 0, created_by: 'system', created_at: now, updated_at: now,
+    };
+
+    EventBroadcaster.emit('library:itemAdded', { zaloId, item, uuid });
+    Logger.log(`[LibraryService] Auto-imported chat file: ${fileName} (${(size / 1024).toFixed(1)}KB) type=${type}`);
     return item;
   }
 
@@ -459,6 +554,9 @@ class LibraryService {
   private detectType(mime: string, ext: string): string {
     if (mime.startsWith('image/')) return 'image';
     if (mime.startsWith('video/')) return 'video';
+    if (mime.startsWith('audio/') || ['.mp3', '.wav', '.m4a', '.ogg', '.aac', '.flac', '.amr'].includes(ext)) {
+      return 'audio';
+    }
     if (mime === 'application/pdf' || mime.startsWith('application/') || mime.startsWith('text/')
         || ['.doc','.docx','.xls','.xlsx','.ppt','.pptx','.zip','.rar','.txt','.csv'].includes(ext)) {
       return 'file';

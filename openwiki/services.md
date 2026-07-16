@@ -27,6 +27,7 @@
 | ZaloLoginHelper | `src/utils/ZaloLoginHelper.ts` | 55KB | Login Zalo, giữ session, emit events |
 | FileStorageService | `src/services/file/FileStorageService.ts` | — | Resolve file paths, xử lý temp files |
 | LicenseManager | `src/services/license/LicenseManager.ts` | — | Kiểm tra license, seat limit |
+| LibraryService | `src/services/library/LibraryService.ts` | 21KB | Quản lý thư viện media dùng chung (ảnh, file, video, audio) |
 
 
 ---
@@ -292,4 +293,25 @@ Nhiệm vụ:
 
 ### Gotchas
 - **Idempotency:** Đảm bảo quá trình chạy thử hoặc chạy thực tế khôi phục đầy đủ các thông tin đầu ra của các node đã hoàn thành trước đó (`nodes`), các biến tạm (`variables`), và đối tượng trigger gốc (`trigger`).
+
+---
+
+## LibraryService
+
+**File:** `src/services/library/LibraryService.ts`
+**Singleton:** `LibraryService.getInstance()`
+**Chạy:** Chỉ chạy trên máy Boss/Standalone (Nhân viên tương tác thông qua REST API do HttpRelayService cung cấp).
+
+### Purpose
+Quản lý thư viện media dùng chung của hệ thống (Ảnh, Video, Âm thanh, Tài liệu/File). Cung cấp các tính năng upload, truy vấn theo thư mục/nhãn dán, cập nhật tên và tự động import dữ liệu tệp tin từ chat history.
+
+### Key Methods
+- `upload(params)` — Nhận buffer file tải lên, tự động phân loại loại file, lưu trữ vật lý độc lập và tạo thumbnail (cho ảnh/video) trước khi ghi dữ liệu vào SQLite.
+- `autoImportFromChat(zaloId, filePath, fileName, mimeType)` — Tự động nền hóa sao chép các tệp tin tải về hoặc gửi đi trong lịch sử chat vào Thư viện chung để quản lý và tránh trùng lặp.
+- `getItems(params)` / `getFolders(zaloId, type)` / `getTags(zaloId)` — Truy vấn tệp tin, thư mục và nhãn dán từ cơ sở dữ liệu SQLite.
+
+### Gotchas
+- **Mạng LAN (Employee Mode):** Máy nhân viên (Remote workspace) giao tiếp với `LibraryService` của Boss qua endpoint `/api/library/*`. Kết quả danh sách thư mục và nhãn dán trả về từ REST API là mảng phẳng trực tiếp (`res.data`), cần bóc tách đúng định dạng ở frontend Client qua `DataAccessor`.
+- **Thumbnail:** Sử dụng thư viện `sharp` để nén và resize ảnh nhỏ đại diện cho ảnh gốc nhằm giảm tải băng thông tải danh sách.
+
 

@@ -1,7 +1,7 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
 > **Phiên bản tài liệu:** 1.4  
 > **Ngày cập nhật:** 14/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v27.2.12 (Stable)  
+> **Trạng thái sản phẩm hiện tại:** v3.0.0 (Stable)  
 > **Chủ quản:** Product Management Team  
 
 
@@ -149,11 +149,11 @@ graph TD
 ---
 
 ## 5. LỊCH SỬ CẬP NHẬT CÁC PHIÊN BẢN (CHANGELOG)
-Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v27.2.12`:
+Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đến phiên bản mới nhất `v3.0.0`:
 
 | Phiên bản | Ngày cập nhật | Loại cập nhật | Điểm nhấn chính (Highlights) |
 | :--- | :--- | :--- | :--- |
-| **v27.2.12** | 14/07/2026 | Minor | **Persistent Delayed Execution & Checkpoint Engine:** Triển khai cơ chế lưu checkpoint khi chờ > 5 phút; Hỗ trợ chế độ chờ Ngày thực tế + Khung giờ cố định (Calendar wait) tránh gửi tin ban đêm; CheckpointScheduler tự động khôi phục luồng chạy khi khởi động lại máy; Tab "Đang Chờ" hiển thị danh sách, countdown thời gian thực và nút huỷ bước chờ. **Hỗ trợ kết nối Sapo Private App & Chuẩn hóa đồng bộ đơn hàng:** Tích hợp xác thực Basic Auth (API Key + API Secret) và cải tiến giao diện kết nối Sapo/Haravan. Sửa lỗi đồng bộ đơn hàng: bổ sung đối tượng `customer`, chuẩn hóa họ tên khách hàng dạng `first_name`/`last_name` ở address, làm phẳng sản phẩm theo Variant level để gửi đúng Variant ID và điền thông tin người nhận chuẩn xác, hỗ trợ "Đẩy vận chuyển" trực tiếp từ Sapo Admin. **Tham gia nhóm Zalo trực tiếp:** Tự động chặn link nhóm zalo.me để join trực tiếp trên Zagi, và nút Vào nhóm nhanh bằng Link ở Sidebar. |
+| **v3.0.0** | 14/07/2026 | Minor | **Persistent Delayed Execution & Checkpoint Engine:** Triển khai cơ chế lưu checkpoint khi chờ > 5 phút; Hỗ trợ chế độ chờ Ngày thực tế + Khung giờ cố định (Calendar wait) tránh gửi tin ban đêm; CheckpointScheduler tự động khôi phục luồng chạy khi khởi động lại máy; Tab "Đang Chờ" hiển thị danh sách, countdown thời gian thực và nút huỷ bước chờ. **Hỗ trợ kết nối Sapo Private App & Chuẩn hóa đồng bộ đơn hàng:** Tích hợp xác thực Basic Auth (API Key + API Secret) và cải tiến giao diện kết nối Sapo/Haravan. Sửa lỗi đồng bộ đơn hàng: bổ sung đối tượng `customer`, chuẩn hóa họ tên khách hàng dạng `first_name`/`last_name` ở address, làm phẳng sản phẩm theo Variant level để gửi đúng Variant ID và điền thông tin người nhận chuẩn xác, hỗ trợ "Đẩy vận chuyển" trực tiếp từ Sapo Admin. **Tham gia nhóm Zalo trực tiếp:** Tự động chặn link nhóm zalo.me để join trực tiếp trên Zagi, và nút Vào nhóm nhanh bằng Link ở Sidebar. |
 | **v27.2.11** | 10/07/2026 | Minor | **5 AI Agent & Expose IPC Bridge:** Triển khai hệ thống 5 AI Agent độc lập gán theo vai trò; Bong bóng chat hỗ trợ Zagi (AI 5) nạp tài liệu đào tạo; Đại tu Notification Center, đồng bộ giao diện & sửa lỗi forward tệp máy nhân viên. |
 | **v27.2.8** | 09/07/2026 | Minor | **Thin Client & Socket.IO:** Loại bỏ hoàn toàn SQLite cục bộ trên máy Nhân viên (Zero SQLite); Thay thế hoàn toàn SSE bằng Socket.IO v4 làm transport thời gian thực chính; Tích hợp form đổi cấu hình kết nối trực tiếp trên màn hình khóa. |
 | **v27.2.7** | 08/07/2026 | Patch | **Tự động tối ưu kết nối & Khôi phục nhanh:** Tự phát hiện IP LAN của Boss và chuyển đổi luồng kết nối active/SSE sang cục bộ; Tự động kết nối lại tức thì khi Sleep/Wake-up (powerMonitor) hoặc khôi phục WiFi. |
@@ -179,7 +179,14 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 
 ### Chi tiết các cập nhật từng phiên bản
 
-#### 🚀 v27.2.12 — Persistent Delayed Execution, Checkpoint Engine, Tab Đang Chờ & Quản lý Bước Chờ Workflow, Sapo Private App & Zalo Group Join
+#### 🚀 v3.0.0 — Thư viện Media LAN Fix, Phân loại Âm thanh & Đồng bộ tự động từ Chat
+
+- **LAN Client Fix**: Sửa lỗi DataAccessor giải nén mảng folders/tags từ REST API của Boss.
+- **Audio Classification**: Hỗ trợ nhận diện tệp audio/ghi âm với tab "Âm thanh" riêng và biểu tượng nhạc 🎵.
+- **Auto-Sync to Library**: Hook vào updateLocalPaths của DatabaseService, tự động copy và lưu trữ file chat vào Thư viện.
+- **Biểu tượng Emoji sinh động**: Thay thế icon text PDF/DOC thành icon emoji 📄/📝/🎵 trực quan.
+
+\n#### 🚀 v3.0.0 — Persistent Delayed Execution, Checkpoint Engine, Tab Đang Chờ & Quản lý Bước Chờ Workflow, Sapo Private App & Zalo Group Join
 *   **Tính năng mới (New):**
     *   **Persistent Workflow Checkpoint (Phương án C):** Triển khai cơ chế checkpoint lưu trạng thái hoạt động của workflow vào SQLite khi gặp node Chờ (`logic.wait`) có thời gian chờ dài (> 5 phút), giải phóng bộ nhớ RAM và CPU thay vì giữ luồng chờ dài ngày trong bộ nhớ.
     *   **Chế độ Chờ Ngày thực tế & Khung giờ đích (Calendar Delays):** Node Chờ hỗ trợ cấu hình theo ngày thực tế dịch chuyển (ví dụ: 0 là hôm nay, 1 là ngày mai) kết hợp khung giờ gửi cố định mong muốn (ví dụ: 09:00). Có bộ lọc an toàn tự động thực thi ngay nếu giờ đích trong ngày hôm nay đã trôi qua.

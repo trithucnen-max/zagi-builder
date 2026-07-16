@@ -122,7 +122,7 @@ export default function MessageInput() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showLibraryPicker, setShowLibraryPicker] = useState(false);
-  const [libraryPickerType, setLibraryPickerType] = useState<'image' | 'video' | 'file' | 'all'>('all');
+  const [libraryPickerType, setLibraryPickerType] = useState<'image' | 'video' | 'audio' | 'file' | 'all'>('all');
   const hasChatPermission = useEmployeeStore(s => s.mode !== 'employee' || !!s.permissions['chat']);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);

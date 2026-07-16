@@ -4290,7 +4290,90 @@ class WorkflowEngineService {
       }
     }
     if (!conn || !conn.api) throw new Error(`Account ${pageId || fallbackPageId || 'unknown'} không connected`);
-    return conn.api;
+    
+    // Wrap rawApi (ZaloService) to ensure its signatures match the Employee Mode proxy signatures.
+    // This resolves signature mismatches for: getUserInfo, addUserToGroup, removeUserFromGroup, undo, addReaction, getGroupChatHistory, updateLabels.
+    const rawApi = conn.api;
+    return {
+      ...rawApi,
+      sendMessage: (p1: any, p2: any, p3: any, p4: any) => rawApi.sendMessage(p1, p2, p3, p4),
+      sendTypingEvent: (threadId: string, type: any, destType?: number) => rawApi.sendTypingEvent(threadId, type, destType),
+      findUser: (phone: string) => rawApi.findUser(phone),
+      getUserInfo: (p: { userId: string }) => rawApi.getUserInfo(p.userId),
+      acceptFriendRequest: (userId: string) => rawApi.acceptFriendRequest(userId),
+      rejectFriendRequest: (userId: string) => rawApi.rejectFriendRequest(userId),
+      sendFriendRequest: (message: string, userId: string) => rawApi.sendFriendRequest(message, userId),
+      addUserToGroup: async (p: { groupId: string; members: string | string[] }) => {
+        const members = Array.isArray(p.members) ? p.members : [p.members].filter(Boolean);
+        const results = [];
+        for (const userId of members) {
+          try {
+            const res = await rawApi.addUserToGroup(userId, p.groupId);
+            results.push(res);
+          } catch (err) {
+            results.push({ success: false, error: err instanceof Error ? err.message : String(err) });
+          }
+        }
+        return { success: results.every(r => r?.success !== false), results };
+      },
+      removeUserFromGroup: async (p: { groupId: string; members: string | string[] }) => {
+        const members = Array.isArray(p.members) ? p.members : [p.members].filter(Boolean);
+        const results = [];
+        for (const userId of members) {
+          try {
+            const res = await rawApi.removeUserFromGroup(userId, p.groupId);
+            results.push(res);
+          } catch (err) {
+            results.push({ success: false, error: err instanceof Error ? err.message : String(err) });
+          }
+        }
+        return { success: results.every(r => r?.success !== false), results };
+      },
+      undo: async (p: { msgId: string; threadId: string; threadType: number }) => {
+        const mockMsg = JSON.stringify({
+          threadId: p.threadId,
+          type: p.threadType === 1 ? 'group' : 'user',
+          data: {
+            msgId: p.msgId,
+            cliMsgId: p.msgId,
+          }
+        });
+        return await rawApi.undoMessage(mockMsg);
+      },
+      setMute: (threadId: string, threadType: any, duration: any, isMute: any) => rawApi.setMute(threadId, threadType, duration, isMute),
+      addReaction: async (p: { msgId: string; clientMsgId: string; threadId?: string; type?: any }, type: number) => {
+        const ReactionsMap = {
+          1: 'LIKE',
+          2: 'LOVE',
+          3: 'HAHA',
+          4: 'WOW',
+          5: 'SAD',
+          6: 'ANGRY'
+        } as any;
+        const rKey = ReactionsMap[type] || 'LIKE';
+        const mockMsg = JSON.stringify({
+          threadId: p.threadId || '',
+          type: p.type ?? 0,
+          data: {
+            msgId: p.msgId,
+            cliMsgId: p.clientMsgId || p.msgId
+          }
+        });
+        return await rawApi.addReaction(rKey, mockMsg);
+      },
+      createPoll: (options: any, groupId: string) => rawApi.createPoll(options, groupId),
+      getGroupChatHistory: (p: { groupId: string; lastMsgId?: string; count?: number }) => rawApi.getGroupChatHistory(p.groupId, p.lastMsgId, p.count),
+      sendVideo: (options: any, threadId: string, type: any) => rawApi.sendVideo(options, threadId, type),
+      sendVoice: (options: any, threadId: string, type: any) => rawApi.sendVoice(options, threadId, type),
+      sendBankCard: (payload: any, threadId: string, type: any) => rawApi.sendBankCard(payload, threadId, type),
+      sendCard: (cardsInfo: any) => rawApi.sendCard(cardsInfo),
+      sendFile: (filePath: string, threadId: string, type: any, quote: any = null) => rawApi.sendFile(filePath, threadId, type, quote),
+      sendImage: (filePath: string, threadId: string, type: any, message: string = '', quote: any = null) => rawApi.sendImage(filePath, threadId, type, message, quote),
+      sendImages: (filePaths: string[], threadId: string, type: any, quote: any = null) => rawApi.sendImages(filePaths, threadId, type, quote),
+      getLabels: () => rawApi.getLabels(),
+      updateLabels: (p: { labelData?: any[]; labels?: any[]; version: number }) => rawApi.updateLabels(p.labelData || p.labels || [], p.version),
+      forwardMessage: (payload: any, threadIds: string[], type: any) => rawApi.forwardMessage(payload, threadIds, type)
+    };
   }
 
   private topologicalSort(wf: Workflow): string[] {

@@ -60,6 +60,7 @@ Nhân viên machine:
 
 ## Changelog
 
+- 2026-07-16: Added dedicated Audio classification, automatic chat attachment background synchronization to shared Library, and fixed Employee LAN Library load folders/tags array resolution (v3.0.0)
 - 2026-07-15: Added Sapo order payload mapping fixes (split Họ/Tên, custom contact mapping) and product variant flattening to variant level (v27.2.12)
 - 2026-07-14: Updated wiki with Persistent Checkpoint Engine, Sapo/Haravan Private App connection support, CheckpointScheduler, contextSerializer, and database schema updates (v27.2.12)
 - 2026-07-09: Updated architecture, services, and patterns with Socket.IO details and net.request / sleep-wake delay network stability conventions (v27.2.8)

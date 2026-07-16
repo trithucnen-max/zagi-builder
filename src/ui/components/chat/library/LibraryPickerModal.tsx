@@ -53,7 +53,7 @@ interface LibraryFolder {
   item_count?: number;
 }
 
-type MediaType = 'image' | 'video' | 'file' | 'all';
+type MediaType = 'image' | 'video' | 'audio' | 'file' | 'all';
 
 interface Props {
   zaloId: string;
@@ -68,7 +68,8 @@ const TYPE_LABELS: Record<MediaType, string> = {
   all: 'Tất cả',
   image: 'Ảnh',
   video: 'Video',
-  file: 'File',
+  audio: 'Âm thanh',
+  file: 'Tài liệu/File',
 };
 
 /** Băm tên nhãn thành mã màu ngẫu nhiên nền sẫm hài hòa */
@@ -1410,6 +1411,86 @@ export default function LibraryPickerModal({
                 </div>
               )}
 
+              {/* Audios */}
+              {(initialType === 'audio' || initialType === 'all') && (
+                <div className="space-y-2 mb-4">
+                  {items.filter(i => i.type === 'audio').map(item => (
+                    <div key={item.uuid} id={`lib-item-${item.uuid}`} onClick={(e) => {
+                        if (Date.now() < clickSuppressUntilRef.current) return;
+                        toggleSelect(item.uuid);
+                      }}
+                      onPointerDown={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('a, button, [role="button"], input, textarea, select')) return;
+                        if (e.button !== 0) return;
+                        const idx = items.findIndex(i => i.uuid === item.uuid);
+                        dragSelectRef.current = {
+                          startUuid: item.uuid,
+                          startIdx: idx,
+                          hasActivated: false,
+                        };
+                      }}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer border transition-all group ${
+                        selected.has(item.uuid) ? 'border-blue-primary bg-blue-primary/10' : 'border-gray-700/50 hover:border-gray-500 bg-gray-800/50'
+                      }`}>
+                      <span className="text-2xl">🎵</span>
+                      <div className="flex-1 min-w-0">
+                        {editingName === item.uuid ? (
+                          <div className="flex items-center gap-1">
+                            <input ref={editInputRef} value={editingValue}
+                              onChange={e => setEditingValue(e.target.value)}
+                              onBlur={() => submitRename(item.uuid)}
+                              onKeyDown={e => { if (e.key === 'Enter') submitRename(item.uuid); if (e.key === 'Escape') setEditingName(null); }}
+                              className="flex-1 text-sm bg-gray-700 border border-gray-500 rounded px-2 py-1 text-gray-200 outline-none"
+                              onClick={e => e.stopPropagation()}
+                            />
+                            <button onClick={(e) => { e.stopPropagation(); submitRename(item.uuid); }}
+                              className="text-green-400 hover:text-green-300 text-sm px-1">✓</button>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-200 truncate">{item.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-gray-400">{(item.size / 1024).toFixed(1)} KB</span>
+                              {item.tags && (
+                                <div className="flex flex-wrap gap-1">
+                                  {item.tags.split(',').map((name: string) => {
+                                    const trimmed = name.trim();
+                                    if (!trimmed) return null;
+                                    const tagObj = tags.find(t => t.name === trimmed);
+                                    if (!tagObj) return null; // Ẩn nhãn đã xóa
+                                    const bgColor = tagObj.color || '#4b5563';
+                                    const textColor = getContrastTextColor(bgColor);
+                                    return (
+                                      <span key={trimmed} className="px-1.5 py-0.5 rounded text-[8px] font-medium"
+                                        style={{ backgroundColor: bgColor, color: textColor }}>
+                                        {trimmed}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {/*** Tag & ⋮ Menu buttons ***/}
+                      <div className="relative opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
+                        <button onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setEditTagsPos({ top: rect.bottom + 4, left: rect.left - 160 });
+                          setEditTagsTarget(item.uuid);
+                        }}
+                          className="text-[11px] leading-none text-gray-300 hover:text-white font-bold" title="Gán nhãn">🏷️</button>
+                        <button onClick={(e) => handleMenuClick(e, item.uuid)}
+                          className="text-gray-300 hover:text-white font-bold text-sm leading-none">⋮</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Files */}
               {(initialType === 'file' || initialType === 'all') && (
                 <div className="space-y-2">
@@ -1987,10 +2068,12 @@ function ImagePreview({ item }: { item: any }) {
   };
 
   if (!isImg || !src || err) {
+    const isVid = item.type === 'video';
+    let icon = getFileIcon(item.name || '');
+    if (isVid) icon = '🎬';
     return (
-      <div className="w-full h-full bg-gray-150 dark:bg-gray-850/50 flex flex-col items-center justify-center p-2 text-center select-none">
-        <span className="text-xl mb-1">📄</span>
-        <span className="text-[10px] font-bold text-gray-500 uppercase">{getFileIcon(item.name || '')}</span>
+      <div className="w-full h-full bg-gray-150 dark:bg-gray-850/50 flex flex-col items-center justify-center p-1 text-center select-none">
+        <span className="text-lg">{icon}</span>
       </div>
     );
   }
@@ -2013,18 +2096,20 @@ function ImagePreview({ item }: { item: any }) {
 function getAcceptType(type: MediaType): string {
   if (type === "image") return "image/*";
   if (type === "video") return "video/*";
+  if (type === "audio") return "audio/*";
   return "*/*";
 }
 
 function getFileIcon(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() || '';
-  if (['pdf'].includes(ext)) return 'PDF';
-  if (['doc', 'docx'].includes(ext)) return 'DOC';
-  if (['xls', 'xlsx', 'csv'].includes(ext)) return 'XLS';
-  if (['zip', 'rar', '7z'].includes(ext)) return 'ZIP';
-  if (['ppt', 'pptx'].includes(ext)) return 'PPT';
+  if (['pdf'].includes(ext)) return '📄';
+  if (['doc', 'docx'].includes(ext)) return '📝';
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return '📊';
+  if (['zip', 'rar', '7z'].includes(ext)) return '🗜️';
+  if (['ppt', 'pptx'].includes(ext)) return '📑';
   if (['txt'].includes(ext)) return 'TXT';
-  return 'FILE';
+  if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'amr'].includes(ext)) return '🎵';
+  return '📂';
 }
 
 function fileToBase64(file: File): Promise<string> {

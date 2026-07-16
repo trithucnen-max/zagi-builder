@@ -1109,7 +1109,7 @@ export class DataAccessor {
       const cached = getCachedLibrary(cacheKey);
       if (cached) return cached;
       const res = await rest().get('/api/library/folders', params);
-      const result = { success: true, items: res.data?.items || [] };
+      const result = { success: true, items: Array.isArray(res.data) ? res.data : (res.data?.items || []) };
       setCachedLibrary(cacheKey, result);
       return result;
     }
@@ -1173,7 +1173,7 @@ export class DataAccessor {
       const cached = getCachedLibrary(cacheKey);
       if (cached) return cached;
       const res = await rest().get('/api/library/tags', params);
-      const result = { success: true, items: Array.isArray(res.data) ? res.data : [] };
+      const result = { success: true, items: Array.isArray(res.data) ? res.data : (res.data?.items || []) };
       setCachedLibrary(cacheKey, result);
       return result;
     }
