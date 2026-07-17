@@ -860,7 +860,7 @@ export default class ZaloService {
             throw new Error("API not initialized. Please ensure you've called initialize() first.");
         }
 
-        const cleanGroupId = groupId.startsWith('g') ? groupId : `g${groupId}`;
+        const cleanGroupId = groupId.startsWith('g') ? groupId.slice(1) : groupId;
 
         try {
             // Thử thêm trực tiếp trước bằng API mặc định
@@ -1961,7 +1961,7 @@ export default class ZaloService {
 
     public async inviteUserToGroups(userId: string, groupIds: string[]): Promise<any> {
         if (!this.api) throw new Error("API not initialized");
-        const cleanGroupIds = groupIds.map(g => g.startsWith('g') ? g : `g${g}`);
+        const cleanGroupIds = groupIds.map(g => g.startsWith('g') ? g.slice(1) : g);
         try { return await (this.api as any).inviteUserToGroups(userId, cleanGroupIds); } catch (error) { throw error; }
     }
 

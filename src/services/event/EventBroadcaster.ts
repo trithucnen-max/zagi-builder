@@ -85,7 +85,38 @@ class EventBroadcaster {
         }
     }
 
+    private static shouldFilterEvent(channel: string, data: any): boolean {
+        // We only filter Zalo events that have a target Zalo ID
+        const zaloId = data?.zaloId || data?.zalo_id || data?.ownerZaloId || data?.owner_zalo_id ||
+            (channel === 'event:message' ? data?.message?.zaloId || data?.message?.owner_zalo_id : undefined);
+        
+        if (zaloId) {
+            const db = DatabaseService.getInstance();
+            if (db.getIsInitialized()) {
+                const accounts = db.getAccounts();
+                const isOwned = accounts.some((a: any) => a.zalo_id === zaloId);
+                if (!isOwned) {
+                    Logger.log(`[EventBroadcaster] Filtered out event on channel ${channel} for unowned account: ${zaloId}`);
+                    return true;
+                }
+
+                // Filter out duplicate friend request notifications if they are already a friend
+                if (channel === 'event:friendRequest') {
+                    const friendId = data?.requester?.userId;
+                    if (friendId && db.checkIsFriend(zaloId, friendId)) {
+                        Logger.log(`[EventBroadcaster] Filtered out friend request from ${friendId} to ${zaloId} because they are already friends`);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     private static sendAware(channel: string, data: any): void {
+        if (this.shouldFilterEvent(channel, data)) {
+            return;
+        }
         const { activeIsDefault } = this.resolveBossContext();
         if (activeIsDefault) {
             this.send(channel, data);
@@ -126,6 +157,9 @@ class EventBroadcaster {
     }
 
     private static send(channel: string, data: any): void {
+        if (this.shouldFilterEvent(channel, data)) {
+            return;
+        }
         // Fire before-send hooks (sync, không chặn send)
         const hooks = this.beforeSendHooks.get(channel);
         if (hooks && hooks.length > 0) {
@@ -144,6 +178,9 @@ class EventBroadcaster {
      *   Boss relay → Employee handlePushedEvent → send → hook → relay → loop!
      */
     public static sendDirect(channel: string, data: any): void {
+        if (this.shouldFilterEvent(channel, data)) {
+            return;
+        }
         if (this.window && !this.window.isDestroyed()) {
             this.window.webContents.send(channel, data);
         }
@@ -161,6 +198,9 @@ class EventBroadcaster {
      * the employee workspace (employee's handlePushedEvent sends to renderer).
      */
     public static fireHooksOnly(channel: string, data: any): void {
+        if (this.shouldFilterEvent(channel, data)) {
+            return;
+        }
         const hooks = this.beforeSendHooks.get(channel);
         if (hooks && hooks.length > 0) {
             for (const hook of hooks) {

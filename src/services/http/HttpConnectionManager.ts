@@ -216,8 +216,13 @@ class HttpConnectionManager {
         if (result.success) {
             Logger.log(`[HttpConnectionManager] ✅ Connected workspace "${workspaceId}"`);
         } else {
-            // Do NOT delete the client from this.clients so that health check can monitor and retry it in the background!
-            Logger.warn(`[HttpConnectionManager] ❌ Failed: ${result.error}`);
+            if (this.isUnauthorizedError(result.error)) {
+                Logger.warn(`[HttpConnectionManager] ❌ Connection failed due to expired/invalid token. Cleaning up client.`);
+                this.disconnect(workspaceId);
+            } else {
+                // Do NOT delete the client from this.clients so that health check can monitor and retry it in the background!
+                Logger.warn(`[HttpConnectionManager] ❌ Failed: ${result.error}`);
+            }
         }
 
         return result;
@@ -359,8 +364,6 @@ class HttpConnectionManager {
                 const status = client.service.getStatus();
                 if (status.connected) continue; // Already connected — skip
 
-                // Read connection details from the service itself (not WorkspaceManager)
-                // This ensures reconnect works for all connected workspaces regardless of their stored type
                 const bossUrl = client.service.getBossUrl();
                 const token = client.service.getToken();
 
@@ -371,13 +374,25 @@ class HttpConnectionManager {
 
                 Logger.log(`[HttpConnectionManager] Health check: "${wsId}" disconnected — attempting reconnect to ${bossUrl}`);
                 try {
-                    await this.connect(wsId, bossUrl, token);
+                    const result = await this.connect(wsId, bossUrl, token);
+                    // Token hết hạn / bị thu hồi → DỪNG retry, yêu cầu đăng nhập lại.
+                    // Tiếp tục retry với token cũ chỉ tạo vòng lặp vô hạn và log spam.
+                    if (!result.success && this.isUnauthorizedError(result.error)) {
+                        Logger.warn(`[HttpConnectionManager] Health check: "${wsId}" token expired — stopping retry, requesting re-auth`);
+                        this.sendToRenderer('workspace:authExpired', { workspaceId: wsId });
+                    }
                 } catch (err: any) {
                     Logger.warn(`[HttpConnectionManager] Health check reconnect failed for "${wsId}": ${err.message}`);
                 }
             }
         }, intervalMs);
         Logger.log(`[HttpConnectionManager] Health check started (interval=${intervalMs}ms)`);
+    }
+
+    /** Kiểm tra error string có phải Unauthorized (401) không. */
+    private isUnauthorizedError(error?: string): boolean {
+        if (!error) return false;
+        return /unauthorized|401|invalid.*token|token.*invalid|token.*expired|hết hạn/i.test(error);
     }
 
 
@@ -400,7 +415,12 @@ class HttpConnectionManager {
                 continue;
             }
             Logger.log(`[HttpConnectionManager] ⚡ Force reconnecting "${wsId}" to ${bossUrl}...`);
-            this.connect(wsId, bossUrl, token).catch((err: any) => {
+            this.connect(wsId, bossUrl, token).then((result) => {
+                if (!result.success && this.isUnauthorizedError(result.error)) {
+                    Logger.warn(`[HttpConnectionManager] ⚡ Force reconnect: "${wsId}" token expired — requesting re-auth`);
+                    this.sendToRenderer('workspace:authExpired', { workspaceId: wsId });
+                }
+            }).catch((err: any) => {
                 Logger.warn(`[HttpConnectionManager] Force reconnect failed for "${wsId}": ${err.message}`);
             });
         }

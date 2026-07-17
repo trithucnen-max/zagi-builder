@@ -4305,17 +4305,18 @@ class WorkflowEngineService {
       sendFriendRequest: (message: string, userId: string) => rawApi.sendFriendRequest(message, userId),
       addUserToGroup: async (p: { groupId: string; members: string | string[] }) => {
         const members = Array.isArray(p.members) ? p.members : [p.members].filter(Boolean);
+        const cleanGroupId = p.groupId.startsWith('g') ? p.groupId.slice(1) : p.groupId;
         const results = [];
         for (const userId of members) {
           try {
             try {
               // Thử thêm trực tiếp trước
-              const res = await rawApi.addUserToGroup(userId, p.groupId);
+              const res = await rawApi.addUserToGroup(userId, cleanGroupId);
               results.push(res);
             } catch (err: any) {
-              Logger.warn(`[WorkflowEngine] Direct addUserToGroup failed for user ${userId} in group ${p.groupId}: ${err.message}. Trying inviteUserToGroups fallback...`);
+              Logger.warn(`[WorkflowEngine] Direct addUserToGroup failed for user ${userId} in group ${cleanGroupId}: ${err.message}. Trying inviteUserToGroups fallback...`);
               // Gọi API mời làm phương án dự phòng
-              const res = await rawApi.inviteUserToGroups(userId, [p.groupId]);
+              const res = await rawApi.inviteUserToGroups(userId, [cleanGroupId]);
               results.push({ success: true, ...res });
             }
           } catch (err) {

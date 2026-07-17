@@ -70,15 +70,20 @@ Engine thực thi kịch bản automation. Load workflows từ DB, lắng nghe e
 **Singleton:** `EventBroadcaster.getInstance()`
 
 ### Purpose
-Pub/sub bus trung tâm. Main process đăng ký hooks; khi có event Zalo/Facebook, broadcast đồng thời tới renderer (qua `ipcMain.emit`) và workflow engine hooks.
+Pub/sub bus trung tâm. Phát sự kiện Zalo/Facebook từ Main process tới renderer và các trước-khi-gửi (before-send) hooks của WorkflowEngineService.
+
+### Filtering Middleware (v3.0.0)
+Tự động lọc sự kiện qua phương thức tĩnh `shouldFilterEvent`:
+1. **Cách ly tài khoản:** Nếu sự kiện có chứa `zaloId` nhưng tài khoản này không nằm trong danh sách gán của workspace hiện tại (`db.getAccounts()`), sự kiện sẽ bị hủy bỏ ngay lập tức để tránh hiển thị thông báo chéo giữa các nhân viên.
+2. **Lọc lặp kết bạn:** Đối với `event:friendRequest`, nếu ID người gửi đã có trong danh sách bạn bè (`db.checkIsFriend`), sự kiện sẽ bị hủy để tránh hiển thị lại thông báo kết bạn cũ lúc login/reconnect.
 
 ### Pattern
 ```typescript
 // Đăng ký hook (WorkflowEngine)
-EventBroadcaster.getInstance().registerHook('event:message', handler);
+const unsub = EventBroadcaster.onBeforeSend('event:message', handler);
 
 // Broadcast (ZaloLoginHelper khi nhận tin)
-EventBroadcaster.getInstance().broadcast('event:message', data);
+EventBroadcaster.sendDirect('event:message', data);
 ```
 
 ### Key Channels
@@ -86,7 +91,7 @@ EventBroadcaster.getInstance().broadcast('event:message', data);
 - `event:friendRequest` — nhận lời mời kết bạn
 - `event:reaction` — reaction vào tin
 - `event:groupEvent` — sự kiện nhóm (thêm/xóa thành viên)
-- `db:localLabelThreadChanged` — nhãn local thay đổi → trigger workflow
+- `db:workflowChanged` — workflow thay đổi
 
 ---
 

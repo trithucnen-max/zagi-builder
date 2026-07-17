@@ -105,15 +105,22 @@ if (AI_WRITE_CHANNELS.has(channel) && activeWs?.type === 'remote') {
 ## Security Patterns
 
 ### Multi-account Event Isolation
-Khi Boss có nhiều tài khoản Zalo, PHẢI verify `zaloId` trước khi show UI hoặc load data:
+Khi Boss có nhiều tài khoản Zalo, hệ thống tự động cách ly sự kiện ở mức Main Process (Backend) trước khi gửi về Renderer hoặc gọi Workflow:
 ```typescript
-// 3-layer guard:
-// Layer 1: useZaloEvents hook — check accounts array
+// 4-layer guard:
+// Layer 0: EventBroadcaster.shouldFilterEvent (Main process) — tự động hủy sự kiện nếu zaloId không thuộc db.getAccounts() của workspace hiện tại, và chặn lặp event:friendRequest nếu đã kết bạn.
+// Layer 1: useZaloEvents hook (Renderer) — check accounts array trong Zustand store
 const accounts = useAccountStore.getState().accounts;
 if (!accounts.find(a => a.zalo_id === event.zaloId)) return;
 
 // Layer 2: handleReminderEvent — check ownedAccount
 // Layer 3: onOpenThread — check isValidAccount + isValidThread
+```
+
+### Zalo Group ID Prefix Stripping (v3.0.0)
+Các API tương tác nhóm Zalo của `zca-js` (như `addUserToGroup` và `inviteUserToGroups`) yêu cầu mã nhóm `groupId` dạng chuỗi số nguyên bản, không được chứa tiền tố `'g'` (ví dụ: gửi `277983691919864278` thay vì `g277983691919864278`). Hãy luôn chuẩn hóa bằng cách cắt tiền tố `'g'` trước khi gọi thư viện.
+```typescript
+const cleanGroupId = groupId.startsWith('g') ? groupId.slice(1) : groupId;
 ```
 
 ### Employee Permission Check (Boss side)

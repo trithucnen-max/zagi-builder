@@ -974,6 +974,27 @@ export default function App() {
     return () => unsub?.();
   }, []);
 
+  // ─── Handle auth expired: token hết hạn → dừng retry loop, yêu cầu login lại ───
+  useEffect(() => {
+    const unsub = window.electronAPI?.on('workspace:authExpired', (data: any) => {
+      if (!data?.workspaceId) return;
+      const activeWsId = useWorkspaceStore.getState().activeWorkspaceId;
+      if (data.workspaceId === activeWsId) {
+        const empStore = useEmployeeStore.getState();
+        if (empStore.mode === 'employee') {
+          empStore.setBossConnected(false);
+          // Hiện thông báo rõ ràng để nhân viên biết cần đăng nhập lại
+          // (thay vì thấy màn hình "Mất kết nối" mà không biết lý do)
+          useAppStore.getState().showNotification(
+            '⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.',
+            'error'
+          );
+        }
+      }
+    });
+    return () => unsub?.();
+  }, []);
+
   // ─── Handle sync completion — reload data after full/delta sync ────────────
   useEffect(() => {
     const unsub = window.electronAPI?.on('workspace:syncComplete', async (data: any) => {

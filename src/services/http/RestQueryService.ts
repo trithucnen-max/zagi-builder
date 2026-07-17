@@ -29,7 +29,7 @@ interface RestResponse<T = any> {
   };
 }
 
-const MAX_CONSECUTIVE_FAILURES = 2;
+const MAX_CONSECUTIVE_FAILURES = 6;
 const HEALTH_CHECK_INTERVAL_MS = 15_000;
 
 class RestQueryService {
@@ -109,7 +109,7 @@ class RestQueryService {
         const start = Date.now();
         const res = await fetch(`${this.baseUrl}/api/health`, {
           headers: { 'Authorization': `Bearer ${this.token}` },
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(15_000),
         });
         const elapsed = Date.now() - start;
 

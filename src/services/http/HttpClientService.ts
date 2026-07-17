@@ -1841,7 +1841,7 @@ class HttpClientService {
             const url = `http://${ip}:${port}`;
             try {
                 // Short timeout for LAN checks
-                const res = await this.httpGet(`${url}/api/health`, {}, 1500);
+                const res = await this.httpGet(`${url}/api/health`, {}, 3500);
                 if (res?.status === 'ok') {
                     return url;
                 }

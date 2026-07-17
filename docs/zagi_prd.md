@@ -179,12 +179,14 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 
 ### Chi tiết các cập nhật từng phiên bản
 
-#### 🚀 v3.0.0 — Thư viện Media LAN Fix, Phân loại Âm thanh & Đồng bộ tự động từ Chat
+#### 🚀 v3.0.0 — Thư viện Media LAN Fix, Phân loại Âm thanh & Đồng bộ tự động từ Chat, Lọc sự kiện chéo & Sửa lỗi thêm nhóm
 
 - **LAN Client Fix**: Sửa lỗi DataAccessor giải nén mảng folders/tags từ REST API của Boss.
 - **Audio Classification**: Hỗ trợ nhận diện tệp audio/ghi âm với tab "Âm thanh" riêng và biểu tượng nhạc 🎵.
 - **Auto-Sync to Library**: Hook vào updateLocalPaths của DatabaseService, tự động copy và lưu trữ file chat vào Thư viện.
 - **Biểu tượng Emoji sinh động**: Thay thế icon text PDF/DOC thành icon emoji 📄/📝/🎵 trực quan.
+- **Middleware lọc sự kiện (Layer 0 Event Filter)**: Tích hợp bộ lọc sự kiện tại Main Process (`EventBroadcaster.ts`) chặn tin nhắn/thông báo chéo giữa các nhân viên và lọc trùng lặp thông báo kết bạn cũ lúc login/reconnect.
+- **Sửa lỗi thêm thành viên nhóm (Group ID Normalization)**: Tự động chuẩn hóa và loại bỏ tiền tố `'g'` (ví dụ: `g123456` -> `123456`) trước khi truyền sang Zalo API (`zca-js`), khắc phục hoàn toàn lỗi "Tham số không hợp lệ".
 
 \n#### 🚀 v3.0.0 — Persistent Delayed Execution, Checkpoint Engine, Tab Đang Chờ & Quản lý Bước Chờ Workflow, Sapo Private App & Zalo Group Join
 *   **Tính năng mới (New):**
