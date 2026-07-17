@@ -16,4 +16,5 @@ export interface Account {
     listener_active?: number;
     channel?: string;
     proxy_id?: number | null;
+    facebook_id?: string;
 }

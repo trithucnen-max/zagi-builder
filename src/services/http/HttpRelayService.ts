@@ -311,6 +311,8 @@ class HttpRelayService {
                     is_business: a.is_business || 0,
                     is_active: a.is_active,
                     listener_active: a.listener_active,
+                    channel: a.channel || 'zalo',
+                    facebook_id: a.facebook_id || undefined,
                 }));
 
             return {

@@ -98,7 +98,7 @@ const PRIVACY_FILTERED_ERP_TABLES = new Set([
 ]);
 
 /** Account info to sync (no imei/user_agent/cookies — employee doesn't need login credentials) */
-const ACCOUNT_SAFE_COLUMNS = 'zalo_id, full_name, avatar_url, phone, is_business, is_active, last_seen, listener_active, channel';
+const ACCOUNT_SAFE_COLUMNS = 'zalo_id, full_name, avatar_url, phone, is_business, is_active, last_seen, listener_active, channel, facebook_id';
 
 export interface SyncPayload {
     /** Timestamp of this sync snapshot */

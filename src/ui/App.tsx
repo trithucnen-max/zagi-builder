@@ -75,21 +75,23 @@ function normalizeWorkspaceAccounts(accounts?: WorkspaceAccountCache[]) {
     const listenerState = account.listener_active ?? account.listenerActive ?? (account.isConnected ? 1 : 0);
     const fullName = account.full_name || account.display_name || account.zalo_id;
     return {
-    zalo_id: account.zalo_id,
-    display_name: fullName,
-    full_name: fullName,
-    avatar_url: account.avatar_url || '',
-    phone: account.phone || '',
-    is_business: account.is_business || 0,
-    imei: '',
-    user_agent: '',
-    cookies: '',
-    is_active: account.is_active ?? 1,
-    created_at: '',
-    listenerActive: !!listenerState,
-    isConnected: !!listenerState,
-    isOnline: !!listenerState,
-  };
+      zalo_id: account.zalo_id,
+      display_name: fullName,
+      full_name: fullName,
+      avatar_url: account.avatar_url || '',
+      phone: account.phone || '',
+      is_business: account.is_business || 0,
+      imei: '',
+      user_agent: '',
+      cookies: '',
+      is_active: account.is_active ?? 1,
+      created_at: '',
+      listenerActive: !!listenerState,
+      isConnected: !!listenerState,
+      isOnline: !!listenerState,
+      channel: account.channel || 'zalo',
+      facebook_id: account.facebook_id || '',
+    };
   });
 }
 
