@@ -650,6 +650,52 @@ class LibraryService {
         Logger.warn(`[LibraryService] Tag sync migration warning: ${syncErr.message}`);
       }
 
+      // Tự động dọn dẹp các tệp trùng lặp lịch sử (phát hiện theo kích thước file và khoảng thời gian tạo trong vòng 10 giây)
+      try {
+        const allItems = db.query<any>(
+          "SELECT uuid, owner_zalo_id, name, size, file_path, thumb_path, created_at FROM media_library_items ORDER BY owner_zalo_id, size, created_at ASC"
+        ) || [];
+
+        const toDelete: any[] = [];
+        for (let i = 0; i < allItems.length - 1; i++) {
+          const current = allItems[i];
+          const next = allItems[i + 1];
+          
+          if (
+            current.owner_zalo_id === next.owner_zalo_id &&
+            current.size === next.size &&
+            current.size > 0 &&
+            Math.abs(current.created_at - next.created_at) <= 10000 // trong vòng 10 giây
+          ) {
+            toDelete.push(next);
+            allItems[i + 1] = current; // Giữ lại phần tử gốc để so sánh tiếp nếu có nhiều trùng lặp
+          }
+        }
+
+        if (toDelete.length > 0) {
+          Logger.log(`[LibraryService] Found ${toDelete.length} historical duplicate media items to clean up.`);
+          for (const item of toDelete) {
+            db.run("DELETE FROM media_library_items WHERE uuid = ?", [item.uuid]);
+            db.run("DELETE FROM media_library_item_tags WHERE item_uuid = ?", [item.uuid]);
+            
+            // Xóa file vật lý trên đĩa
+            try {
+              if (item.file_path && fs.existsSync(item.file_path)) {
+                fs.unlinkSync(item.file_path);
+              }
+              if (item.thumb_path && fs.existsSync(item.thumb_path)) {
+                fs.unlinkSync(item.thumb_path);
+              }
+            } catch (fileErr: any) {
+              Logger.warn(`[LibraryService] Failed to delete physical file during duplicate cleanup: ${fileErr.message}`);
+            }
+          }
+          Logger.log(`[LibraryService] Successfully cleaned up ${toDelete.length} duplicate media items.`);
+        }
+      } catch (cleanupErr: any) {
+        Logger.warn(`[LibraryService] Duplicate cleanup error: ${cleanupErr.message}`);
+      }
+
       Logger.log('[LibraryService] ✅ Tables migrated');
     } catch (err: any) {
       Logger.warn(`[LibraryService] Migration error: ${err.message}`);
