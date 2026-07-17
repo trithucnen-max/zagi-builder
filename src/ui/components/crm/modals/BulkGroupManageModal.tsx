@@ -74,6 +74,10 @@ export default function BulkGroupManageModal({
   const [managedGroupIds, setManagedGroupIds] = useState<Set<string>>(new Set());
   const [checkedGroupIds, setCheckedGroupIds] = useState<Set<string>>(new Set());
   const [searchGroup, setSearchGroup] = useState('');
+  // Internal filter tab: 'managed' | 'not_managed'. Inherit from prop, default 'managed'
+  const [activeGroupFilter, setActiveGroupFilter] = useState<'managed' | 'not_managed'>(
+    groupFilter === 'not_managed' ? 'not_managed' : 'managed'
+  );
   
   // Existing memberships mapping: groupId -> Set of memberIds
   const [existingGroupMembers, setExistingGroupMembers] = useState<Record<string, Set<string>>>({});
@@ -92,6 +96,10 @@ export default function BulkGroupManageModal({
   
   const stopRef = useRef(false);
   const logEndRef = useRef<HTMLDivElement>(null);
+  // FIX: Capture initialContactIds at mount time so parent re-renders
+  // (which create a new array reference on every render) don't trigger
+  // the data-load useEffect and reset all selections.
+  const initialContactIdsRef = useRef<string[]>(initialContactIds);
 
   useEffect(() => {
     if (logEndRef.current) {
@@ -99,9 +107,12 @@ export default function BulkGroupManageModal({
     }
   }, [logs]);
 
-  // Load contacts and groups
+  // Load contacts and groups — only re-run when isOpen or activeAccountId truly changes.
   useEffect(() => {
     if (!isOpen || !activeAccountId) return;
+    
+    // Snapshot current initialContactIds for this open session
+    initialContactIdsRef.current = initialContactIds;
     
     setLoading(true);
     stopRef.current = false;
@@ -112,6 +123,8 @@ export default function BulkGroupManageModal({
     setFailCount(0);
     setIsRunning(false);
     setIsResting(false);
+    // Reset filter tab to match prop when modal opens
+    setActiveGroupFilter(groupFilter === 'not_managed' ? 'not_managed' : 'managed');
     
     const loadData = async () => {
       try {
@@ -138,13 +151,12 @@ export default function BulkGroupManageModal({
         setExistingGroupMembers(memMap);
         setManagedGroupIds(managedIds);
 
-        // Setup initial contacts
-        if (initialContactIds && initialContactIds.length > 0) {
-          const matched = friends.filter((c: any) => initialContactIds.includes(c.contact_id));
-          // If some IDs are not in DB, create dummy contacts so we don't drop them,
-          // but look up in page_group_member rows first to preserve cached display name and avatar
+        // Setup initial contacts using the ref snapshot to avoid stale closures
+        const initIds = initialContactIdsRef.current;
+        if (initIds && initIds.length > 0) {
+          const matched = friends.filter((c: any) => initIds.includes(c.contact_id));
           const matchedIds = matched.map((c: any) => c.contact_id);
-          const dummies = initialContactIds
+          const dummies = initIds
             .filter(id => !matchedIds.includes(id))
             .map(id => {
               const cachedMember = rows.find((r: any) => r.member_id === id && (r.display_name || r.avatar));
@@ -179,7 +191,8 @@ export default function BulkGroupManageModal({
     };
     
     loadData();
-  }, [isOpen, activeAccountId, initialContactIds]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, activeAccountId]); // intentionally omit initialContactIds — captured via ref
 
   if (!isOpen) return null;
 
@@ -201,26 +214,29 @@ export default function BulkGroupManageModal({
   };
 
   const handleSelectAllGroups = () => {
-    const effectiveFilter = groupFilter || 'managed';
     const targetGroups = groups.filter(g => {
-      if (effectiveFilter === 'managed' && !managedGroupIds.has(g.contact_id)) return false;
-      if (effectiveFilter === 'not_managed' && managedGroupIds.has(g.contact_id)) return false;
+      // Use internal tab state, not the external prop
+      if (activeGroupFilter === 'managed' && !managedGroupIds.has(g.contact_id)) return false;
+      if (activeGroupFilter === 'not_managed' && managedGroupIds.has(g.contact_id)) return false;
       if (mode === 'add') {
-        // Only select groups where not ALL selected contacts have already joined
         const members = existingGroupMembers[g.contact_id] || new Set();
         const allJoined = selectedContacts.length > 0 && selectedContacts.every(c => members.has(c.contact_id));
         return !allJoined;
       } else {
-        // Only select groups where AT LEAST ONE selected contact is in it
         const members = existingGroupMembers[g.contact_id] || new Set();
-        const hasMember = selectedContacts.some(c => members.has(c.contact_id));
-        return hasMember;
+        return selectedContacts.some(c => members.has(c.contact_id));
       }
     });
     setCheckedGroupIds(new Set(targetGroups.map(g => g.contact_id)));
   };
 
   const handleDeselectAllGroups = () => {
+    setCheckedGroupIds(new Set());
+  };
+
+  const handleSwitchFilter = (f: 'managed' | 'not_managed') => {
+    setActiveGroupFilter(f);
+    // Clear group selection when switching tabs to avoid stale picks
     setCheckedGroupIds(new Set());
   };
 
@@ -352,7 +368,19 @@ export default function BulkGroupManageModal({
                 });
               } else {
                 setFailCount(c => c + 1);
-                addLog(`[Thất bại] Thêm ${cName} vào nhóm "${groupName}". Lỗi: ${res?.error || 'Không rõ'}`, 'error');
+                // Detect approval-required groups and surface a clear warning
+                const errMsg: string = res?.error || res?.message || '';
+                const needsApproval =
+                  /approval|confirm|pending|admin|ch.{1,5}nh.{0,5}nh.{1,5}m|ph.{1,5} duy.{1,5}t/i.test(errMsg) ||
+                  res?.code === 26 || res?.code === 29; // Zalo error codes for approval-required
+                if (needsApproval) {
+                  addLog(
+                    `[Cần xác nhận] Nhóm "${groupName}" yêu cầu chủ nhóm/cộng đồng phê duyệt trước khi ${cName} được vào. Hãy liên hệ chủ nhóm để chấp thuận.`,
+                    'warning'
+                  );
+                } else {
+                  addLog(`[Thất bại] Thêm ${cName} vào nhóm "${groupName}". Lỗi: ${errMsg || 'Không rõ'}`, 'error');
+                }
               }
             } else {
               const res = await ipc.zalo?.removeUserFromGroup({ auth, userId: contact.contact_id, groupId });
@@ -439,9 +467,9 @@ export default function BulkGroupManageModal({
   );
 
   const filteredGroups = groups.filter(g => {
-    const effectiveFilter = groupFilter || 'managed';
-    if (effectiveFilter === 'managed' && !managedGroupIds.has(g.contact_id)) return false;
-    if (effectiveFilter === 'not_managed' && managedGroupIds.has(g.contact_id)) return false;
+    // Use internal tab state for filtering, not the external prop
+    if (activeGroupFilter === 'managed' && !managedGroupIds.has(g.contact_id)) return false;
+    if (activeGroupFilter === 'not_managed' && managedGroupIds.has(g.contact_id)) return false;
     
     const matchesSearch = !searchGroup.trim() ||
       g.display_name.toLowerCase().includes(searchGroup.toLowerCase()) ||
@@ -457,6 +485,10 @@ export default function BulkGroupManageModal({
     
     return true;
   });
+
+  // Count groups by category for the tab badges
+  const managedCount = groups.filter(g => managedGroupIds.has(g.contact_id)).length;
+  const notManagedCount = groups.filter(g => !managedGroupIds.has(g.contact_id)).length;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -609,7 +641,7 @@ export default function BulkGroupManageModal({
 
             {/* Step 2: Select Groups */}
             <div className="mb-4 flex flex-col overflow-hidden flex-1 min-h-[220px]">
-              <div className="flex items-center justify-between mb-1.5 flex-shrink-0">
+              <div className="flex items-center justify-between mb-2 flex-shrink-0">
                 <span className="text-xs font-semibold text-gray-300">
                   {(!initialContactIds || initialContactIds.length === 0) ? '2. Chọn nhóm' : 'Chọn các nhóm muốn áp dụng'}
                 </span>
@@ -620,6 +652,33 @@ export default function BulkGroupManageModal({
                   <button onClick={handleDeselectAllGroups} disabled={selectedContacts.length === 0}
                     className="text-[10px] text-gray-400 hover:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium">Bỏ chọn</button>
                 </div>
+              </div>
+              {/* Filter tabs: Managed / Not Managed */}
+              <div className="flex gap-1 mb-2 flex-shrink-0">
+                <button
+                  onClick={() => handleSwitchFilter('managed')}
+                  className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[10px] font-semibold transition-colors border ${
+                    activeGroupFilter === 'managed'
+                      ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
+                      : 'bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  Nhóm tôi quản lý
+                  <span className="ml-0.5 px-1 rounded bg-gray-700 text-gray-400 text-[9px]">{managedCount}</span>
+                </button>
+                <button
+                  onClick={() => handleSwitchFilter('not_managed')}
+                  className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[10px] font-semibold transition-colors border ${
+                    activeGroupFilter === 'not_managed'
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                      : 'bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Nhóm không quản lý
+                  <span className="ml-0.5 px-1 rounded bg-gray-700 text-gray-400 text-[9px]">{notManagedCount}</span>
+                </button>
               </div>
               
               <input type="text" value={searchGroup} onChange={e => setSearchGroup(e.target.value)}
@@ -632,9 +691,9 @@ export default function BulkGroupManageModal({
                   <div className="text-center py-8 text-xs text-gray-500 italic">Vui lòng chọn liên hệ trước</div>
                 ) : filteredGroups.length === 0 ? (
                   <div className="text-center py-8 text-xs text-gray-500">
-                    {mode === 'remove' 
-                      ? 'Không tìm thấy nhóm quản lý nào có chứa các liên hệ này.'
-                      : 'Không có nhóm quản lý phù hợp.'}
+                    {mode === 'remove'
+                      ? `Không có nhóm ${activeGroupFilter === 'managed' ? 'quản lý' : 'không quản lý'} nào có chứa các liên hệ này.`
+                      : `Không có nhóm ${activeGroupFilter === 'managed' ? 'tôi quản lý' : 'không quản lý'} phù hợp.`}
                   </div>
                 ) : (
                   filteredGroups.map(g => {
