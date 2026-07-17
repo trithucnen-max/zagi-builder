@@ -7,7 +7,7 @@ import { playNotificationSound, requestNotificationPermission, showDesktopNotifi
 import { showConfirm } from '../common/ConfirmDialog';
 import { extractApiError } from '@/utils/apiError';
 import IntroductionSettings from './IntroductionSettings';
-import ChangelogSettings from './ChangelogSettings';
+
 import ConversationSettings from './ConversationSettings';
 import EmployeeSettings from './EmployeeSettings';
 import WorkspaceSettings from './WorkspaceSettings';
@@ -18,13 +18,13 @@ import { loadSeenTabs, markTabSeen, SETTINGS_WATCHLIST, hasUnseenChangelog, mark
 import AccountSettings from './AccountSettings';
 import AppIcon, { IconType } from '../common/AppIcon';
 
-type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'changelog' | 'appearance' | 'proxy' | 'security' | 'webhook';
+type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'appearance' | 'proxy' | 'security' | 'webhook';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('conversation');
   const [introSubtab, setIntroSubtab] = useState<string | null>(null);
   const [seenTabs, setSeenTabs] = useState<Set<string>>(() => loadSeenTabs());
-  const [unreadChangelog, setUnreadChangelog] = useState(() => hasUnseenChangelog());
+
   const [storagePath, setStoragePath] = useState<string>('');
   const [defaultStoragePath, setDefaultStoragePath] = useState<string>('');
   const [actualDbPath, setActualDbPath] = useState<string>('');
@@ -65,11 +65,6 @@ export default function Settings() {
     if ((SETTINGS_WATCHLIST as readonly string[]).includes(activeTab)) {
       markTabSeen(activeTab);
       setSeenTabs(loadSeenTabs());
-    }
-    // Changelog: đánh dấu đã đọc log phiên bản hiện tại
-    if (activeTab === 'changelog') {
-      markChangelogSeen();
-      setUnreadChangelog(false);
     }
   }, [activeTab]);
 
@@ -178,7 +173,6 @@ export default function Settings() {
     { id: 'webhook',       icon: 'integration',   label: 'Webhooks' },
     { id: 'storage',       icon: 'storage',       label: 'Lưu trữ' },
     { id: 'introduction',  icon: 'introduction',  label: 'Giới thiệu' },
-    { id: 'changelog',     icon: 'changelog',     label: 'Log phiên bản' },
   ];
 
   // Filter nav items by permission — employee/simulation mode may hide certain tabs
@@ -218,10 +212,6 @@ export default function Settings() {
               <span className="font-medium">{item.label}</span>
               {/* Chấm đỏ "mới" — chỉ hiện khi tab chưa được xem lần nào */}
               {(SETTINGS_WATCHLIST as readonly string[]).includes(item.id) && !seenTabs.has(item.id) && (
-                <span className="ml-auto w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-              )}
-              {/* Chấm đỏ cho changelog — hiện khi có bản cập nhật chưa đọc */}
-              {item.id === 'changelog' && unreadChangelog && (
                 <span className="ml-auto w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
               )}
             </button>
@@ -544,8 +534,7 @@ export default function Settings() {
         {/* ── Introduction ── */}
         {activeTab === 'introduction' && <IntroductionSettings initialSubtab={introSubtab as any} />}
 
-        {/* ── Changelog ── */}
-        {activeTab === 'changelog' && <ChangelogSettings />}
+
 
         {/* ── Webhooks / Tunnel ── */}
         {activeTab === 'webhook' && <TunnelSettings />}
