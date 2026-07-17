@@ -1360,7 +1360,15 @@ class HttpRelayService {
                 }
 
                 // Safe path resolution - prevent directory traversal!
-                const resolvedPath = path.resolve(mediaBasePath, filePath);
+                // Strip leading /media/ or media/ prefix to prevent double-media resolution since mediaBasePath already ends with /media
+                let cleanPath = filePath || '';
+                if (cleanPath.startsWith('media/') || cleanPath.startsWith('media\\')) {
+                    cleanPath = cleanPath.slice(6);
+                } else if (cleanPath.startsWith('/media/') || cleanPath.startsWith('\\media\\')) {
+                    cleanPath = cleanPath.slice(7);
+                }
+
+                const resolvedPath = path.resolve(mediaBasePath, cleanPath);
                 if (!resolvedPath.startsWith(path.resolve(mediaBasePath))) {
                     return this.json(res, 403, { success: false, error: 'Access denied: invalid file path' });
                 }
