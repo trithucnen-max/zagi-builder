@@ -466,6 +466,8 @@ npm run production
 - 🔧 **Sửa lỗi contextBridge Proxy TypeError**: Khắc phục crash runtime `TypeError: 'get' on proxy: property 'getPinConversations' is a read-only and non-configurable data property` — nguyên nhân do wrap `window.electronAPI.zalo` bằng `new Proxy`. Refactor sang `wrapZaloApi` trả về plain object.
 - 🕵️ **Chẩn đoán lỗi Facebook Scraper**: Xác định nguyên nhân lỗi `Không thể tìm docId cho search` do Facebook thay đổi Relay Query name. Cải thiện xử lý và thông báo lỗi cho người dùng.
 - 📋 **Ghi nhận kịch bản lỗi CRM Campaign**: Phân tích và tài liệu hoá 4 tình huống khiến nhân viên không thêm được người vào chiến dịch (mất kết nối LAN, nhóm chưa sync, định dạng SĐT sai, SQLite lock).
+- 🔨 **Sửa lỗi TypeScript TS2305**: Bổ sung `hasUnseenChangelog()` và `markChangelogSeen()` vào `settingsSeenTabs.ts` — Settings.tsx đã import nhưng module chưa export.
+- 🧹 **Dọn dẹp dead code (−116 dòng)**: Xóa `autoImportFromChat()` (bị vô hiệu hoá từ v3.0.0), `scheduleSave()` (no-op), `TEMPLATE_VARS` local copy; thêm hằng số `MAX_CAMPAIGN_CONTACTS` thay magic number.
 
 </details>
 

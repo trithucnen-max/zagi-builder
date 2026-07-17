@@ -24,9 +24,20 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Định dạng SĐT không hợp lệ hoặc chiến dịch đã đạt giới hạn 1000 người
   - Khóa SQLite (`SQLITE_BUSY/SQLITE_READONLY`) trên máy có phân quyền thư mục cài đặt hạn chế
 
+- **Sửa lỗi TypeScript TS2305 — Missing exports `hasUnseenChangelog` / `markChangelogSeen`:** Khắc phục
+  lỗi biên dịch xảy ra do `Settings.tsx` import 2 hàm chưa được khai báo trong `settingsSeenTabs.ts`.
+  Bổ sung implement cả 2 hàm: so sánh `localStorage` với `__APP_VERSION__` để nhận biết changelog mới.
+
+- **Dọn dẹp code (Clean-code Priority 1 — -116 dòng):** Loại bỏ dead code tích lũy:
+  - Xóa `autoImportFromChat()` (`LibraryService.ts`) — 95 dòng bị vô hiệu hoá từ v3.0.0, không có caller
+  - Xóa `scheduleSave()` (`DatabaseService.ts`) — private no-op method không còn cần thiết (WAL auto-write)
+  - Xóa bản copy `TEMPLATE_VARS` cục bộ (`CampaignCreateModal.tsx`) — khai báo nhưng không dùng
+  - Thêm `MAX_CAMPAIGN_CONTACTS = 1000` — đặt tên cho magic number giới hạn liên hệ/chiến dịch
+
 ---
 
 ## [v3.0.0] - 2026-07-17
+
 
 
 ### 🚀 Tính năng lớn · Thư viện Media Chung · Kết nối LAN Boss-Nhân Viên · Tự đồng bộ · Âm thanh
