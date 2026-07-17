@@ -38,3 +38,22 @@ export function hasUnseenSettingsTabs(): boolean {
   return SETTINGS_WATCHLIST.some(t => !seen.has(t));
 }
 
+/**
+ * Returns true if the user has NOT seen the changelog for the current app version.
+ * Compares the stored version with the bundled __APP_VERSION__.
+ */
+export function hasUnseenChangelog(): boolean {
+  try {
+    const lastSeen = localStorage.getItem(LS_CHANGELOG_KEY);
+    return lastSeen !== __APP_VERSION__;
+  } catch {
+    return false;
+  }
+}
+
+/** Mark the current version's changelog as seen */
+export function markChangelogSeen(): void {
+  try {
+    localStorage.setItem(LS_CHANGELOG_KEY, __APP_VERSION__);
+  } catch {}
+}
