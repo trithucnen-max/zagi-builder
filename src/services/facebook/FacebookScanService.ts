@@ -51,6 +51,25 @@ function logError(...args: any[]) {
   console.error('[FacebookScan ERROR]', ...args);
 }
 
+// ─── Regex phone number extractor ─────────────────────────────────────
+
+function extractPhoneNumbers(text: string): string {
+  if (!text) return '';
+  const phoneRegex = /(?:\+84|84|0)(?:[35789]\d[\s.-]*\d{3}[\s.-]*\d{3,4})/g;
+  const matches = text.match(phoneRegex);
+  if (!matches) return '';
+  const cleaned = matches.map(m => {
+    let clean = m.replace(/[\s.-]/g, '');
+    if (clean.startsWith('+84')) {
+      clean = '0' + clean.slice(3);
+    } else if (clean.startsWith('84') && clean.length > 10) {
+      clean = '0' + clean.slice(2);
+    }
+    return clean;
+  });
+  return Array.from(new Set(cleaned)).join(', ');
+}
+
 // ─── Cookie key helper ─────────────────────────────────────────────────
 
 function fbCookieKey(accountId: string): string {
@@ -1510,10 +1529,12 @@ export class FacebookScanService {
             || edge?.comment_count?.count
             || item?.comment_count?.count
             || 0;
+          const postContent = story?.comet_sections?.content?.story?.message?.text || viewModel?.primary_snippet?.text || edge?.message?.text || item?.message?.text || '';
           items.push({
             postId,
             authorId: profile?.id || '',
-            content: story?.comet_sections?.content?.story?.message?.text || viewModel?.primary_snippet?.text || edge?.message?.text || item?.message?.text || '',
+            content: postContent,
+            phone: extractPhoneNumbers(postContent),
             timestamp: story?.comet_sections?.timestamp?.story?.creation_time || edge?.creation_time || item?.creation_time || edge?.timestamp || 0,
             url: postId ? `https://www.facebook.com/${postId}` : (story?.url || edge?.url || item?.url || ''),
             reactions: reactionCount,
@@ -1766,15 +1787,17 @@ export class FacebookScanService {
           // Kiểm tra feedback để hỗ trợ nested comments (giống original)
           const feedback = node?.feedback;
           const hasSubComments = feedback?.total_comment_count > 0;
+          const commentBody = node?.body?.text || '';
           items.push({
             commentId: node.id,
             authorId: node?.author?.id || '',
             authorName: node?.author?.name || '',
             authorAvatar: node?.author?.profile_picture?.uri || '',
-            body: node?.body?.text || '',
+            body: commentBody,
+            phone: extractPhoneNumbers(commentBody),
             timestamp: node?.created_time || node?.timestamp || 0,
             reactions: node?.comment_reactions?.count || 0,
-            // Hỗ trợ nested comments
+            // Kiểm tra feedback để hỗ trợ nested comments (giống original)
             _hasSubComments: hasSubComments,
             _feedbackId: hasSubComments ? feedback?.id : null,
             _expansionToken: hasSubComments ? feedback?.expansion_info?.expansion_token : null,

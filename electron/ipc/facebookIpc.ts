@@ -18,10 +18,51 @@ import FacebookService from "../../src/services/facebook/FacebookService";
 
 const originalHandle = ipcMain.handle.bind(ipcMain);
 ipcMain.handle = (channel: string, listener: any) => {
-  originalHandle(channel, listener);
+  const wrappedListener = async (event: any, params: any) => {
+    try {
+      const WorkspaceManager = require('../../src/utils/WorkspaceManager').default;
+      const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+      if (activeWs?.type === 'remote' && !params?._fromRelay) {
+        try {
+          const { uploadEmployeeMedia } = require('./proxyHelper');
+          const FileStorageService = require('../../src/services/file/FileStorageService').default;
+          let preparedParams = { ...params };
+          const singleFields = ['filePath', 'videoPath', 'thumbPath', 'voicePath', 'avatarPath', 'mediaPath'];
+          for (const field of singleFields) {
+            if (preparedParams[field] && typeof preparedParams[field] === 'string' && preparedParams[field].length > 0) {
+              const absPath = FileStorageService.resolveAbsolutePath(preparedParams[field]);
+              const bossPaths = await uploadEmployeeMedia([absPath]);
+              if (bossPaths && bossPaths[0]) {
+                preparedParams[field] = bossPaths[0];
+              }
+            }
+          }
+          if (preparedParams.filePaths && Array.isArray(preparedParams.filePaths) && preparedParams.filePaths.length > 0) {
+            const resolvedPaths = preparedParams.filePaths.map((fp: string) => FileStorageService.resolveAbsolutePath(fp));
+            const bossPaths = await uploadEmployeeMedia(resolvedPaths);
+            if (bossPaths && bossPaths.length > 0) {
+              preparedParams.filePaths = bossPaths;
+            }
+          }
+
+          const HttpConnectionManager = require('../../src/services/http/HttpConnectionManager').default;
+          return await HttpConnectionManager.getInstance().proxyAction(activeWs.id, channel, preparedParams);
+        } catch (proxyErr: any) {
+          Logger.error(`[facebookIpc] Proxy error (${channel}): ${proxyErr.message}`);
+          return { success: false, error: `Proxy: ${proxyErr.message}` };
+        }
+      }
+    } catch (err: any) {
+      Logger.error(`[facebookIpc] Proxy resolution failed for ${channel}: ${err.message}`);
+    }
+
+    return await listener(event, params);
+  };
+
+  originalHandle(channel, wrappedListener);
   try {
     const { ipcHandlerRegistry } = require('./zaloIpc');
-    ipcHandlerRegistry.set(channel, listener);
+    ipcHandlerRegistry.set(channel, wrappedListener);
   } catch {}
   return ipcMain;
 };
