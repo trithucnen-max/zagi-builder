@@ -571,6 +571,25 @@ class FileStorageService {
                     if (dirDate.getTime() < cutoff) {
                         fs.rmSync(fullPath, { recursive: true, force: true });
                         deletedCount++;
+
+                        // Cập nhật Database để đánh dấu đã dọn dẹp
+                        try {
+                            const DatabaseService = require('../database/DatabaseService').default;
+                            const db = DatabaseService.getInstance();
+                            if (db.getIsInitialized()) {
+                                const likePattern1 = `%${zaloId}/${entry}%`;
+                                const likePattern2 = `%${zaloId}\\${entry}%`;
+                                db.run(
+                                    `UPDATE messages 
+                                     SET local_paths = '{"cleaned":true}' 
+                                     WHERE owner_zalo_id = ? 
+                                       AND (local_paths LIKE ? OR local_paths LIKE ?)`,
+                                    [zaloId, likePattern1, likePattern2]
+                                );
+                            }
+                        } catch (dbErr: any) {
+                            Logger.error(`[FileStorageService] Failed to update local_paths in DB: ${dbErr.message}`);
+                        }
                     }
                 } catch {
                     // Skip entries we can't stat

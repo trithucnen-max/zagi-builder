@@ -312,7 +312,7 @@ Quản lý thư viện media dùng chung của hệ thống (Ảnh, Video, Âm t
 
 ### Key Methods
 - `upload(params)` — Nhận buffer file tải lên, tự động phân loại loại file, lưu trữ vật lý độc lập và tạo thumbnail (cho ảnh/video) trước khi ghi dữ liệu vào SQLite.
-- `autoImportFromChat(zaloId, filePath, fileName, mimeType)` — Tự động nền hóa sao chép các tệp tin tải về hoặc gửi đi trong lịch sử chat vào Thư viện chung để quản lý và tránh trùng lặp.
+- `autoImportFromChat(zaloId, filePath, fileName, mimeType)` — *(Đã vô hiệu hoá ở v3.0.0)* Từng dùng để tự động nền hóa sao chép các tệp tin tải về hoặc gửi đi trong lịch sử chat vào Thư viện chung để quản lý và tránh trùng lặp.
 - `getItems(params)` / `getFolders(zaloId, type)` / `getTags(zaloId)` — Truy vấn tệp tin, thư mục và nhãn dán từ cơ sở dữ liệu SQLite.
 
 ### Gotchas

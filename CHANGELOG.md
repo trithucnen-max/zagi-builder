@@ -22,7 +22,7 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 - **Hỗ trợ Âm thanh (Audio):** Thêm loại `audio` vào thư viện, gửi file âm thanh vào chat Zalo.
 
-- **Tự đồng bộ media từ chat:** Ảnh, file từ chat Zalo tự động import vào thư viện Boss, tránh trùng lặp.
+- **Vô hiệu hoá đồng bộ Thư viện & Tích hợp dọn dẹp Database:** Loại bỏ hoàn toàn cơ chế tự động đồng bộ ảnh/video chat vào Thư viện dùng chung nhằm tránh rác dung lượng ổ cứng. Đồng thời tích hợp đồng bộ Database dọn dẹp (Option B): cập nhật SQLite đánh dấu `{"cleaned":true}` khi xoá tệp vật lý cũ, giúp hiển thị nhãn chữ thay thế thân thiện trên khung chat (`[Ảnh/Video/File đã dọn dẹp...]`) thay vì hiển thị hình ảnh lỗi. Phần văn bản lịch sử chat luôn được bảo toàn nguyên vẹn.
 
 - **Sửa lỗi thêm thành viên vào nhóm:**
   - Khắc phục lỗi "1 người không thêm được" do `groupId` bị double prefix `gg...`.

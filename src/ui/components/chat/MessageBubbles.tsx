@@ -369,9 +369,11 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
   React.useEffect(() => { setLoadFailed(false); setUseRemote(false); repairAttemptedRef.current = false; }, [localPathsStr]);
 
   let localUrl = '';
+  let isCleaned = false;
   try {
-    const lp: Record<string, string> = typeof msg.local_paths === 'string'
+    const lp: any = typeof msg.local_paths === 'string'
       ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
+    if (lp.cleaned) isCleaned = true;
     const localFilePath = lp.main || lp.hd || (Object.values(lp)[0] as string) || '';
     if (localFilePath) localUrl = toLocalMediaUrl(localFilePath);
   } catch {}
@@ -385,6 +387,8 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
       if (!localUrl && fbLocalUrls.length > 0) localUrl = fbLocalUrls[0];
     } catch {}
   }
+
+  if (isCleaned) return <span className="text-xs opacity-60 italic">[Ảnh đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
 
   let remoteUrl = '';
   let caption = '';
@@ -483,9 +487,11 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
   let width = 0;
   let height = 0;
 
+  let isCleaned = false;
   try {
-    const lp: Record<string, string> = typeof msg.local_paths === 'string'
+    const lp: any = typeof msg.local_paths === 'string'
       ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
+    if (lp.cleaned) isCleaned = true;
     // Zalo stores: { thumb: "thumbnail_path", file: "video_path" }
     thumbLocalPath = lp.thumb || lp.main || '';
     videoLocalPath = lp.file || lp.video || '';
@@ -514,6 +520,10 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
     // Zalo: open in external player (VLC, etc.)
     if (videoLocalPath) ipc.file?.openPath(videoLocalPath);
   };
+
+  if (isCleaned) {
+    return <span className="text-xs opacity-60 italic">[Video đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
+  }
 
   return (
     <div className="relative group/video cursor-pointer rounded-xl overflow-hidden bg-black ring-1 ring-black/[0.12]"
@@ -549,10 +559,12 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
 function FacebookVideoBubble({ msg }: { msg: any }) {
   const [showPlayer, setShowPlayer] = React.useState(false);
   let videoLocalPath = '';
+  let isCleaned = false;
 
   try {
-    const lp: Record<string, string> = typeof msg.local_paths === 'string'
+    const lp: any = typeof msg.local_paths === 'string'
       ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
+    if (lp.cleaned) isCleaned = true;
     // FB stores video in: lp.main (E2EE), lp.file (download), or att_N keys
     videoLocalPath = lp.file || lp.video || lp.main || '';
     // Fallback: scan att_* keys (from downloadNonE2EEAttachments)
@@ -570,6 +582,10 @@ function FacebookVideoBubble({ msg }: { msg: any }) {
   } catch {}
 
   const videoUrl = videoLocalPath ? toLocalMediaUrl(videoLocalPath) : '';
+
+  if (isCleaned) {
+    return <span className="text-xs opacity-60 italic">[Video đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
+  }
 
   // Inline player mode
   if (showPlayer && videoUrl) {
@@ -620,6 +636,15 @@ function VoiceBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
   const [duration, setDuration] = React.useState(0);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const animRef = React.useRef<number>(0);
+
+  const isCleaned = React.useMemo(() => {
+    try {
+      const lp = typeof msg.local_paths === 'string' ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
+      return !!lp.cleaned;
+    } catch {
+      return false;
+    }
+  }, [msg.local_paths]);
 
   // Parse voice URL + duration from Zalo message content (memo to avoid re-parse)
   const { voiceUrl, paramsDurationSec, localPath } = React.useMemo(() => {
@@ -708,6 +733,10 @@ function VoiceBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
     setProgress(pct);
     setCurrentTime(audio.currentTime);
   };
+
+  if (isCleaned) {
+    return <span className="text-xs opacity-60 italic">[Tin nhắn thoại đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
+  }
 
   return (
     <div className={`flex items-center gap-2.5 px-3 py-2 rounded-2xl min-w-[200px] max-w-[280px] ${
@@ -812,8 +841,10 @@ function FileBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
   }
 
   let localFilePath = '';
+  let isCleaned = false;
   try {
     const lp = typeof msg.local_paths === 'string' ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
+    if (lp.cleaned) isCleaned = true;
     localFilePath = lp.file || lp.main || '';
   } catch {}
 
@@ -875,6 +906,10 @@ function FileBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
 
   const sizeText = fmtSize(fileSize);
   const { icon, bg } = getIcon(fileExt);
+
+  if (isCleaned) {
+    return <span className="text-xs opacity-60 italic">[File đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
+  }
 
   return (
     <div className={`flex items-center gap-3 px-3 py-2.5 min-w-[200px] max-w-xs ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>

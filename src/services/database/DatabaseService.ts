@@ -3636,65 +3636,6 @@ class DatabaseService {
                 'UPDATE messages SET local_paths = ? WHERE owner_zalo_id = ? AND msg_id = ?',
                 [JSON.stringify(merged), ownerZaloId, String(msgId)]
             );
-
-            // Hook tự động đồng bộ file chat vào Thư viện chung
-            setImmediate(async () => {
-                try {
-                    const msg = this.queryOne<{ msg_type: string; content: string }>(
-                        'SELECT msg_type, content FROM messages WHERE owner_zalo_id = ? AND msg_id = ?',
-                        [ownerZaloId, String(msgId)]
-                    );
-                    if (!msg) return;
-
-                    const filePath = localPaths.file || localPaths.main || localPaths.hd || localPaths.video;
-                    if (!filePath || typeof filePath !== 'string') return;
-
-                    const fs = require('fs');
-                    const path = require('path');
-                    const absPath = path.isAbsolute(filePath) ? filePath : path.join(path.dirname(this.dbPath || ''), filePath);
-
-                    if (!fs.existsSync(absPath)) return;
-
-                    let fileName = path.basename(absPath);
-                    let mimeType = '';
-
-                    try {
-                        const c = JSON.parse(msg.content || '{}');
-                        if (c.title) fileName = c.title;
-                    } catch {}
-
-                    if (msg.msg_type === 'image') {
-                        mimeType = 'image/jpeg';
-                    } else if (msg.msg_type === 'chat.video.msg' || msg.msg_type === 'video') {
-                        mimeType = 'video/mp4';
-                    } else if (msg.msg_type === 'audio') {
-                        mimeType = 'audio/mp3';
-                    } else {
-                        const ext = path.extname(fileName).toLowerCase();
-                        const mimes = {
-                            '.pdf': 'application/pdf',
-                            '.doc': 'application/msword',
-                            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            '.xls': 'application/vnd.ms-excel',
-                            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                            '.png': 'image/png',
-                            '.jpg': 'image/jpeg',
-                            '.jpeg': 'image/jpeg',
-                            '.gif': 'image/gif',
-                            '.mp4': 'video/mp4',
-                            '.mp3': 'audio/mpeg',
-                            '.wav': 'audio/wav',
-                            '.amr': 'audio/amr',
-                        } as any;
-                        mimeType = mimes[ext] || 'application/octet-stream';
-                    }
-
-                    const LibraryService = require('../library/LibraryService').default;
-                    await LibraryService.getInstance().autoImportFromChat(ownerZaloId, absPath, fileName, mimeType);
-                } catch (err: any) {
-                    Logger.error(`[DatabaseService] autoImportFromChat hook error: ${err.message}`);
-                }
-            });
         } catch (err: any) {
             Logger.error(`[DatabaseService] updateLocalPaths error: ${err.message}`);
         }
