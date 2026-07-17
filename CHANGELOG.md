@@ -8,10 +8,12 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ### 🐛 Sửa lỗi & Cải thiện ổn định
 
-- **Sửa lỗi contextBridge Proxy (TypeError `getPinConversations`):** Khắc phục triệt để lỗi runtime
-  `TypeError: 'get' on proxy: property 'getPinConversations' is a read-only and non-configurable data property`
-  xảy ra do wrap `window.electronAPI.zalo` bằng `new Proxy`. Thay bằng hàm mapper `wrapZaloApi` trả
-  về plain object, đảm bảo tuân thủ invariant của Electron `contextBridge` (frozen/sealed object).
+- **Sửa lỗi contextBridge Proxy & ReferenceError `require is not defined`:**
+  - Khắc phục lỗi `TypeError: 'get' on proxy: property 'getPinConversations' is a read-only and non-configurable data property` bằng plain object mapper `wrapZaloApi` thay cho Proxy.
+  - Sửa lỗi `ReferenceError: require is not defined` xảy ra khi gọi `getPinConversations` trong quá trình tự động chèn `zaloId`/`zalo_id` bằng cách loại bỏ việc sử dụng Node.js `require` động trong môi trường Renderer (Vite/React), chuyển sang `import` tĩnh `useAccountStore`.
+
+- **Sửa lỗi link tải xuống thủ công (404 Error):** Cập nhật đường dẫn tải về thủ công tại TopBar, UpdateNotification và Notification Center trỏ đúng về các tệp tin theo quy định đặt tên thống nhất đã công bố (`Zagi v${version} MacOS M1+ arm64.dmg`, `Zagi v${version} MacOS Intel.dmg`, `Zagi v${version} Linux Debian.deb`) thay vì định dạng cũ gây 404 trên GitHub Releases.
+
 
 - **Chẩn đoán & phân tích lỗi tính năng Facebook Scraper:** Xác định nguyên nhân lỗi
   `Không thể tìm docId cho search` do Facebook thay đổi Relay Query name/obfuscation hoặc session

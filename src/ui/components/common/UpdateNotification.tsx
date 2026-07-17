@@ -129,11 +129,11 @@ export function UpdateNotification() {
 
 /** macOS: hiện 2 link tải DMG (ARM64 / Intel) */
 export function MacDownloadLinks({ version, isLight }: { version: string; isLight: boolean }) {
-  const baseUrl = 'https://zagiapp.com/file';
+  const baseUrl = `https://github.com/trithucnen-max/zagi-builder/releases/download/v${version}`;
   return (
     <div className="flex-1 flex flex-col gap-1">
       <a
-        href={`${baseUrl}/Zagi-${version}-arm64.dmg`}
+        href={`${baseUrl}/Zagi%20v${version}%20MacOS%20M1%2B%20arm64.dmg`}
         target="_blank"
         rel="noopener noreferrer"
         className={`text-xs font-semibold py-1 rounded-lg text-center transition-colors ${
@@ -145,7 +145,7 @@ export function MacDownloadLinks({ version, isLight }: { version: string; isLigh
         🍎 Apple Silicon
       </a>
       <a
-        href={`${baseUrl}/Zagi-${version}.dmg`}
+        href={`${baseUrl}/Zagi%20v${version}%20MacOS%20Intel.dmg`}
         target="_blank"
         rel="noopener noreferrer"
         className={`text-xs font-semibold py-1 rounded-lg text-center transition-colors ${

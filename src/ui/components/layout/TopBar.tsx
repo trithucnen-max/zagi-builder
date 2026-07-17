@@ -238,11 +238,11 @@ export default function TopBar() {
     if (isMac) {
       const arch = (window as any).electronAPI?.arch || 'x64';
       const url = arch === 'arm64'
-        ? `https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/Zagi-${updateInfo.version}-arm64.dmg`
-        : `https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/Zagi-${updateInfo.version}.dmg`;
+        ? `https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/Zagi%20v${updateInfo.version}%20MacOS%20M1%2B%20arm64.dmg`
+        : `https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/Zagi%20v${updateInfo.version}%20MacOS%20Intel.dmg`;
       (window as any).electronAPI?.shell?.openExternal(url);
     } else if (platform === 'linux') {
-      const url = `https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/zagi_${updateInfo.version}_amd64.deb`;
+      const url = `https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/Zagi%20v${updateInfo.version}%20Linux%20Debian.deb`;
       (window as any).electronAPI?.shell?.openExternal(url);
     } else {
       // Windows: trigger auto-update download

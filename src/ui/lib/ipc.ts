@@ -2,6 +2,7 @@
 // Dùng trong React components thay vì gọi trực tiếp
 
 import { useAppStore } from '../store/appStore';
+import { useAccountStore } from '../store/accountStore';
 
 
 declare global {
@@ -780,14 +781,14 @@ function wrapZaloApi(api: any): any {
         if (params.auth && typeof params.auth === 'object') {
           params.auth = { ...params.auth };
           if (!params.auth.zaloId && !params.auth.zalo_id) {
-            const activeAccountId = require('../store/accountStore').useAccountStore.getState().activeAccountId;
+            const activeAccountId = useAccountStore.getState().activeAccountId;
             if (activeAccountId) {
               params.auth.zaloId = activeAccountId;
             }
           }
         }
         if (!params.zaloId && !params.zalo_id) {
-          const activeAccountId = require('../store/accountStore').useAccountStore.getState().activeAccountId;
+          const activeAccountId = useAccountStore.getState().activeAccountId;
           if (activeAccountId) {
             params.zaloId = activeAccountId;
           }
