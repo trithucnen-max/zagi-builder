@@ -763,9 +763,42 @@ const shell = window.electronAPI?.shell ? {
 
 const erp = wrapErpApi(window.electronAPI?.erp);
 
+const zalo = window.electronAPI?.zalo ? new Proxy(window.electronAPI.zalo, {
+  get(target, prop) {
+    const original = target[prop];
+    if (typeof original === 'function') {
+      return function(...args: any[]) {
+        let params = args[0];
+        if (params && typeof params === 'object') {
+          params = { ...params };
+          args[0] = params;
+
+          if (params.auth && typeof params.auth === 'object') {
+            params.auth = { ...params.auth };
+            if (!params.auth.zaloId && !params.auth.zalo_id) {
+              const activeAccountId = require('../store/accountStore').useAccountStore.getState().activeAccountId;
+              if (activeAccountId) {
+                params.auth.zaloId = activeAccountId;
+              }
+            }
+          }
+          if (!params.zaloId && !params.zalo_id) {
+            const activeAccountId = require('../store/accountStore').useAccountStore.getState().activeAccountId;
+            if (activeAccountId) {
+              params.zaloId = activeAccountId;
+            }
+          }
+        }
+        return original.apply(target, args);
+      };
+    }
+    return original;
+  }
+}) : undefined;
+
 export const ipc = {
   login: window.electronAPI?.login,
-  zalo: window.electronAPI?.zalo,
+  zalo,
   db: window.electronAPI?.db,
   file: window.electronAPI?.file,
   app: window.electronAPI?.app,
