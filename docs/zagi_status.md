@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
 > **Ngày cập nhật:** 17/07/2026  
-> **Phiên bản:** v3.0.0 (Stable)  
+> **Phiên bản:** v3.0.1 (Stable)  
 > **Nhánh Git hiện tại:** `main` (Working tree dơ do chỉnh sửa)
 
 ---
@@ -99,7 +99,7 @@
     *   **Tự động điền Xưng hô (Salutation)**: Tự động hóa điền xưng hô "Anh"/"Chị"/"Bạn" dựa vào giới tính khi đồng bộ profile từ Zalo, đồng thời giữ nguyên các xưng hô chỉnh sửa thủ công của người dùng.
     *   **Đồng bộ biến Chiến dịch & Workflow**: Thêm biến `{zalo_name}` / `$item.zalo_name` (tên Zalo gốc) và `{alias}` / `$item.alias` (biệt danh CRM, không tự động fallback khi rỗng). Đồng bộ `{salutation}` và `{gender_greeting}` trực tiếp với trường Xưng hô CRM.
     *   **Autocomplete trình soạn thảo**: Nhập dấu `{` tự động hiển thị popup gợi ý biến trong trình soạn tin nhắn chiến dịch & workflow, bổ sung thanh công cụ chips chèn nhanh.
-19. **Động cơ Workflow Persistent Checkpoints, Tích hợp Sapo & Tham gia nhóm Zalo (v3.0.0):**
+19. **Động cơ Workflow Persistent Checkpoints, Tích hợp Sapo & Tham gia nhóm Zalo (v3.0.1):**
     *   **Persistent Checkpoints**: Tự động lưu trạng thái hoạt động của workflow vào SQLite (`workflow_checkpoints`) khi gặp node Chờ (`logic.wait`) có thời gian chờ dài (> 5 phút), giúp giải phóng bộ nhớ RAM và CPU thay vì giữ luồng chờ dài ngày trong bộ nhớ.
     *   **Chế độ Chờ Ngày thực tế (Calendar Wait)**: Node Chờ hỗ trợ cấu hình theo ngày thực tế dịch chuyển (ví dụ: 0 là hôm nay, 1 là ngày mai) kết hợp khung giờ gửi cố định mong muốn (ví dụ: 09:00). Có bộ lọc an toàn tự động thực thi ngay nếu giờ đích trong ngày hôm nay đã trôi qua.
     *   **Động cơ Tự động Khôi phục (CheckpointScheduler)**: Khôi phục và chạy tiếp các kịch bản đang chờ dở dang sau khi tắt máy hoặc restart máy Boss/máy chủ. Tự động phát hiện và dọn dẹp các checkpoint của kịch bản đã bị xóa hoặc tắt đi trong thời gian chờ.

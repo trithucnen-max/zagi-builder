@@ -4,7 +4,30 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v3.0.1] - 2026-07-18
+
+### 🐛 Sửa lỗi & Cải thiện ổn định
+
+- **Sửa lỗi contextBridge Proxy (TypeError `getPinConversations`):** Khắc phục triệt để lỗi runtime
+  `TypeError: 'get' on proxy: property 'getPinConversations' is a read-only and non-configurable data property`
+  xảy ra do wrap `window.electronAPI.zalo` bằng `new Proxy`. Thay bằng hàm mapper `wrapZaloApi` trả
+  về plain object, đảm bảo tuân thủ invariant của Electron `contextBridge` (frozen/sealed object).
+
+- **Chẩn đoán & phân tích lỗi tính năng Facebook Scraper:** Xác định nguyên nhân lỗi
+  `Không thể tìm docId cho search` do Facebook thay đổi Relay Query name/obfuscation hoặc session
+  cookie hết hạn. Cải thiện xử lý lỗi và thông báo cho người dùng.
+
+- **Phân tích tất cả tình huống lỗi "Không thêm được người vào chiến dịch CRM":** Đã xác định 4
+  kịch bản chính gây lỗi trên các máy tính nhân viên (MacBook M1, Intel, Windows):
+  - Mất kết nối LAN/WAN giữa máy nhân viên và Boss khi `proxyToBoss` gọi bất đồng bộ
+  - Nhóm Zalo chưa đồng bộ thành viên: `getGroupMembers` trả về danh sách rỗng
+  - Định dạng SĐT không hợp lệ hoặc chiến dịch đã đạt giới hạn 1000 người
+  - Khóa SQLite (`SQLITE_BUSY/SQLITE_READONLY`) trên máy có phân quyền thư mục cài đặt hạn chế
+
+---
+
 ## [v3.0.0] - 2026-07-17
+
 
 ### 🚀 Tính năng lớn · Thư viện Media Chung · Kết nối LAN Boss-Nhân Viên · Tự đồng bộ · Âm thanh
 

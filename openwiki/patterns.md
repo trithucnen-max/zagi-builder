@@ -117,7 +117,7 @@ if (!accounts.find(a => a.zalo_id === event.zaloId)) return;
 // Layer 3: onOpenThread — check isValidAccount + isValidThread
 ```
 
-### Zalo Group ID Prefix Stripping (v3.0.0)
+### Zalo Group ID Prefix Stripping (v3.0.1)
 Các API tương tác nhóm Zalo của `zca-js` (như `addUserToGroup` và `inviteUserToGroups`) yêu cầu mã nhóm `groupId` dạng chuỗi số nguyên bản, không được chứa tiền tố `'g'` (ví dụ: gửi `277983691919864278` thay vì `g277983691919864278`). Hãy luôn chuẩn hóa bằng cách cắt tiền tố `'g'` trước khi gọi thư viện.
 ```typescript
 const cleanGroupId = groupId.startsWith('g') ? groupId.slice(1) : groupId;

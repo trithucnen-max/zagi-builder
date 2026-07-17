@@ -763,38 +763,43 @@ const shell = window.electronAPI?.shell ? {
 
 const erp = wrapErpApi(window.electronAPI?.erp);
 
-const zalo = window.electronAPI?.zalo ? new Proxy({}, {
-  get(target, prop) {
-    const original = window.electronAPI.zalo[prop];
-    if (typeof original === 'function') {
-      return function(...args: any[]) {
-        let params = args[0];
-        if (params && typeof params === 'object') {
-          params = { ...params };
-          args[0] = params;
+function wrapZaloApi(api: any): any {
+  if (!api) return api;
+  const wrapped: Record<string, any> = {};
+  for (const [key, value] of Object.entries(api)) {
+    if (typeof value !== 'function') {
+      wrapped[key] = value;
+      continue;
+    }
+    wrapped[key] = function(...args: any[]) {
+      let params = args[0];
+      if (params && typeof params === 'object') {
+        params = { ...params };
+        args[0] = params;
 
-          if (params.auth && typeof params.auth === 'object') {
-            params.auth = { ...params.auth };
-            if (!params.auth.zaloId && !params.auth.zalo_id) {
-              const activeAccountId = require('../store/accountStore').useAccountStore.getState().activeAccountId;
-              if (activeAccountId) {
-                params.auth.zaloId = activeAccountId;
-              }
-            }
-          }
-          if (!params.zaloId && !params.zalo_id) {
+        if (params.auth && typeof params.auth === 'object') {
+          params.auth = { ...params.auth };
+          if (!params.auth.zaloId && !params.auth.zalo_id) {
             const activeAccountId = require('../store/accountStore').useAccountStore.getState().activeAccountId;
             if (activeAccountId) {
-              params.zaloId = activeAccountId;
+              params.auth.zaloId = activeAccountId;
             }
           }
         }
-        return original.apply(window.electronAPI.zalo, args);
-      };
-    }
-    return original;
+        if (!params.zaloId && !params.zalo_id) {
+          const activeAccountId = require('../store/accountStore').useAccountStore.getState().activeAccountId;
+          if (activeAccountId) {
+            params.zaloId = activeAccountId;
+          }
+        }
+      }
+      return value.apply(api, args);
+    };
   }
-}) : undefined;
+  return wrapped;
+}
+
+const zalo = wrapZaloApi(window.electronAPI?.zalo);
 
 export const ipc = {
   login: window.electronAPI?.login,

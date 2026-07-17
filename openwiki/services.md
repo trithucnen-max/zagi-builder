@@ -72,7 +72,7 @@ Engine thực thi kịch bản automation. Load workflows từ DB, lắng nghe e
 ### Purpose
 Pub/sub bus trung tâm. Phát sự kiện Zalo/Facebook từ Main process tới renderer và các trước-khi-gửi (before-send) hooks của WorkflowEngineService.
 
-### Filtering Middleware (v3.0.0)
+### Filtering Middleware (v3.0.1)
 Tự động lọc sự kiện qua phương thức tĩnh `shouldFilterEvent`:
 1. **Cách ly tài khoản:** Nếu sự kiện có chứa `zaloId` nhưng tài khoản này không nằm trong danh sách gán của workspace hiện tại (`db.getAccounts()`), sự kiện sẽ bị hủy bỏ ngay lập tức để tránh hiển thị thông báo chéo giữa các nhân viên.
 2. **Lọc lặp kết bạn:** Đối với `event:friendRequest`, nếu ID người gửi đã có trong danh sách bạn bè (`db.checkIsFriend`), sự kiện sẽ bị hủy để tránh hiển thị lại thông báo kết bạn cũ lúc login/reconnect.
@@ -312,7 +312,7 @@ Quản lý thư viện media dùng chung của hệ thống (Ảnh, Video, Âm t
 
 ### Key Methods
 - `upload(params)` — Nhận buffer file tải lên, tự động phân loại loại file, lưu trữ vật lý độc lập và tạo thumbnail (cho ảnh/video) trước khi ghi dữ liệu vào SQLite.
-- `autoImportFromChat(zaloId, filePath, fileName, mimeType)` — *(Đã vô hiệu hoá ở v3.0.0)* Từng dùng để tự động nền hóa sao chép các tệp tin tải về hoặc gửi đi trong lịch sử chat vào Thư viện chung để quản lý và tránh trùng lặp.
+- `autoImportFromChat(zaloId, filePath, fileName, mimeType)` — *(Đã vô hiệu hoá ở v3.0.1)* Từng dùng để tự động nền hóa sao chép các tệp tin tải về hoặc gửi đi trong lịch sử chat vào Thư viện chung để quản lý và tránh trùng lặp.
 - `getItems(params)` / `getFolders(zaloId, type)` / `getTags(zaloId)` — Truy vấn tệp tin, thư mục và nhãn dán từ cơ sở dữ liệu SQLite.
 
 ### Gotchas
