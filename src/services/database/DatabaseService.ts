@@ -187,10 +187,7 @@ class DatabaseService {
         return this.initialized && db !== null;
     }
 
-    /** No-op: better-sqlite3 auto-persists. Kept for API compat. */
-    private scheduleSave(): void {
-        // No-op — WAL mode auto-writes
-    }
+
 
     /**
      * WAL checkpoint — ensures all writes are flushed to main DB file.
@@ -5608,6 +5605,8 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] retryFailedCampaignContacts: ${err.message}`); }
     }
 
+    private static readonly MAX_CAMPAIGN_CONTACTS = 1000;
+
     public addCampaignContacts(
         campaignId: number,
         ownerZaloId: string,
@@ -5631,7 +5630,7 @@ class DatabaseService {
             );
             const existingIds = new Set<string>(rows.map(r => r.contact_id));
 
-            let availableSlots = 1000 - existingIds.size;
+            let availableSlots = DatabaseService.MAX_CAMPAIGN_CONTACTS - existingIds.size;
 
             const stmt = db!.prepare(
                 `INSERT OR IGNORE INTO crm_campaign_contacts (campaign_id, owner_zalo_id, contact_id, display_name, avatar, phone, status, sent_at, retry_count, error) VALUES (?,?,?,?,?,?,'pending',0,0,'')`

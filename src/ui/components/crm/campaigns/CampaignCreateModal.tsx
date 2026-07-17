@@ -78,21 +78,6 @@ function parseMixedConfig(raw?: string): MixedConfig {
   return { actions: ['message', 'friend_request'] };
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-// TEMPLATE_VARS giữ lại để tương thích ngược (có thể có nơi khác dùng)
-const TEMPLATE_VARS = [
-  { key: '{name}', label: 'Tên Zalo' },
-  { key: '{userId}', label: 'ID Zalo' },
-  { key: '{salutation}', label: 'Xưng hô (tùy chỉnh)' },
-  { key: '{gender_greeting}', label: 'Anh/Chị (auto)' },
-  { key: '{alias}', label: 'Biệt danh' },
-  { key: '{campaign_name}', label: 'Chiến dịch' },
-  { key: '{date}', label: 'Ngày' },
-  { key: '{time}', label: 'Giờ' },
-  { key: '{birthday_day}', label: 'Ngày sinh' },
-  { key: '{birthday_month}', label: 'Tháng sinh' },
-];
 
 function fmtDelayRange(min: number, max: number): string {
   if (min === max) {
