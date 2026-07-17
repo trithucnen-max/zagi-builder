@@ -344,6 +344,12 @@ class HttpRelayService {
             // Employee dùng WebSocket thay SSE cho real-time event
             SocketIOService.getInstance().attach(this.httpServer);
 
+            // Đăng ký hook: mỗi khi Boss cập nhật quyền / tài khoản / thông tin nhân viên,
+            // push relay:initialState mới xuống máy nhân viên ngay lập tức (không cần restart).
+            EmployeeService.getInstance().setOnEmployeeChangedCallback((employeeId, reason) => {
+                this.refreshEmployeeState(employeeId, reason);
+            });
+
             this.hookEventBroadcaster();
             this.startOfflineCheck();
 
@@ -2774,17 +2780,13 @@ class HttpRelayService {
         }
     }
 
-    /** Push a fresh employee snapshot to the employee */
+    /** Push a fresh employee snapshot to the employee — dùng Socket.IO (primary transport).
+     *  Nếu employee offline, event vào EventBuffer → catch-up tự động khi reconnect.
+     */
     public refreshEmployeeState(employeeId: string, reason = 'manual-refresh'): void {
-        const emp = this.employees.get(employeeId);
-        if (!emp) return;
-
         const snapshot = this.buildEmployeeSnapshot(employeeId);
-        if (snapshot) {
-            if (!this.pushViaSSE(employeeId, 'relay:initialState', snapshot)) {
-                this.pushToEmployee(emp, 'relay:initialState', snapshot).catch(() => {});
-            }
-        }
+        if (!snapshot) return;
+        SocketIOService.getInstance().emitToEmployee(employeeId, 'relay:initialState', snapshot);
         Logger.log(`[HttpRelayService] refreshEmployeeState(${reason}) → employee=${employeeId}`);
     }
 

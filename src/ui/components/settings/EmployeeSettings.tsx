@@ -48,7 +48,10 @@ interface EmployeeData {
 export default function EmployeeSettings() {
     const { showNotification } = useAppStore();
     const { accounts } = useAccountStore();
-    const { employees, setEmployees, previewEmployeeId, setPreviewEmployeeId } = useEmployeeStore();
+    const { employees, setEmployees, previewEmployeeId, setPreviewEmployeeId, mode: empMode } = useEmployeeStore();
+    // RelayStatusPanel chỉ dành cho Boss thực sự — nhân viên được cấp quyền settings_employees
+    // (quản lý nhân viên) KHÔNG được xem/thay đổi cấu hình relay server.
+    const isBossMode = empMode !== 'employee';
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState<EmployeeData | null>(null);
@@ -461,8 +464,8 @@ export default function EmployeeSettings() {
             </div>
 
 
-            {/* Relay Server Panel */}
-            <RelayStatusPanel />
+            {/* Relay Server Panel — chỉ hiển thị trên máy Boss, không hiển thị với nhân viên được cấp quyền settings_employees */}
+            {isBossMode && <RelayStatusPanel />}
 
             {/* Employee form modal */}
             {showForm && (

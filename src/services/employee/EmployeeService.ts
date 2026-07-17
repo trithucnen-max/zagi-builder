@@ -14,6 +14,23 @@ class EmployeeService {
     private jwtSecret: string = '';
     private pinnedDbPath: string | null = null;
 
+    /**
+     * Hook đảng ký bởi HttpRelayService — sẽ được gọi mỗi khi quyền / tài khoản
+     * của một nhân viên thay đổi để push relay:initialState xuống máy nhân viên ngay lập tức.
+     * reason: mô tả lý do cập nhật (dùng cho log).
+     */
+    private onEmployeeChangedCallback: ((employeeId: string, reason: string) => void) | null = null;
+
+    public setOnEmployeeChangedCallback(cb: (employeeId: string, reason: string) => void): void {
+        this.onEmployeeChangedCallback = cb;
+    }
+
+    private notifyEmployeeChanged(employeeId: string, reason: string): void {
+        if (this.onEmployeeChangedCallback) {
+            try { this.onEmployeeChangedCallback(employeeId, reason); } catch {}
+        }
+    }
+
     public static getInstance(): EmployeeService {
         if (!EmployeeService.instance) {
             EmployeeService.instance = new EmployeeService();
@@ -144,7 +161,7 @@ class EmployeeService {
         group_id?: string | null;
     }): { success: boolean; error?: string } {
         try {
-            return this.runOnDb((db) => {
+            const result = this.runOnDb((db) => {
                 const emp = db.getEmployeeById(employeeId);
                 if (!emp) return { success: false, error: 'Nhân viên không tồn tại' };
 
@@ -161,6 +178,9 @@ class EmployeeService {
                 db.updateEmployee(employeeId, dbUpdates);
                 return { success: true };
             });
+            // Push cập nhật xuống máy nhân viên ngay lập tức nếu thành công
+            if (result.success) this.notifyEmployeeChanged(employeeId, 'updateEmployee');
+            return result;
         } catch (err: any) {
             Logger.error(`[EmployeeService] updateEmployee error: ${err.message}`);
             return { success: false, error: err.message };
@@ -214,10 +234,13 @@ class EmployeeService {
 
     public setPermissions(employeeId: string, permissions: Array<{ module: string; can_access: boolean }>): { success: boolean; error?: string } {
         try {
-            return this.runOnDb((db) => {
+            const result = this.runOnDb((db) => {
                 db.setEmployeePermissions(employeeId, permissions.map(p => ({ module: p.module, can_access: p.can_access ? 1 : 0 })));
                 return { success: true };
             });
+            // Push cập nhật quyền xuống máy nhân viên ngay lập tức nếu thành công
+            if (result.success) this.notifyEmployeeChanged(employeeId, 'setPermissions');
+            return result;
         } catch (err: any) {
             return { success: false, error: err.message };
         }
@@ -246,10 +269,13 @@ class EmployeeService {
 
     public assignAccounts(employeeId: string, zaloIds: string[]): { success: boolean; error?: string } {
         try {
-            return this.runOnDb((db) => {
+            const result = this.runOnDb((db) => {
                 db.setEmployeeAccountAccess(employeeId, zaloIds);
                 return { success: true };
             });
+            // Push cập nhật tài khoản được giao xuống máy nhân viên ngay lập tức nếu thành công
+            if (result.success) this.notifyEmployeeChanged(employeeId, 'assignAccounts');
+            return result;
         } catch (err: any) {
             return { success: false, error: err.message };
         }
