@@ -763,9 +763,9 @@ const shell = window.electronAPI?.shell ? {
 
 const erp = wrapErpApi(window.electronAPI?.erp);
 
-const zalo = window.electronAPI?.zalo ? new Proxy(window.electronAPI.zalo, {
+const zalo = window.electronAPI?.zalo ? new Proxy({}, {
   get(target, prop) {
-    const original = target[prop];
+    const original = window.electronAPI.zalo[prop];
     if (typeof original === 'function') {
       return function(...args: any[]) {
         let params = args[0];
@@ -789,7 +789,7 @@ const zalo = window.electronAPI?.zalo ? new Proxy(window.electronAPI.zalo, {
             }
           }
         }
-        return original.apply(target, args);
+        return original.apply(window.electronAPI.zalo, args);
       };
     }
     return original;
