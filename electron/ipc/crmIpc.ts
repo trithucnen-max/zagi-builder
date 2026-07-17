@@ -363,8 +363,17 @@ export function registerCRMIpc(): void {
             const res = DatabaseService.getInstance().addCampaignContacts(campaignId, zaloId, contacts);
             DatabaseService.getInstance().save();
             EventBroadcaster.emit('crm:campaignChanged', { action: 'contactsAdded', ownerZaloId: zaloId, campaignId });
-            proxyToBoss('crm:addCampaignContacts', { zaloId, campaignId, contacts });
-            return { success: true, ...res };
+
+            // Dùng proxyToBossAsync để phát hiện lỗi mạng LAN — root cause lỗi CRM trên máy nhân viên
+            let bossSync = true;
+            try {
+                await proxyToBossAsync('crm:addCampaignContacts', { zaloId, campaignId, contacts });
+            } catch (proxyErr: any) {
+                bossSync = false;
+                Logger.warn(`[CRM] addCampaignContacts: Boss sync failed — ${proxyErr.message}`);
+            }
+
+            return { success: true, ...res, bossSync };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 

@@ -463,7 +463,19 @@ class HttpRelayService {
     // ─── HTTP Router ──────────────────────────────────────────────────
 
     private handleHttpRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        // CORS — chỉ cho phép Electron renderer và Employee HTTP clients (không có Origin header)
+        // Không dùng '*' để tránh cross-site requests từ browser trên cùng mạng LAN
+        const origin = req.headers.origin || '';
+        const ALLOWED_ORIGINS = [
+            'app://.',                   // Electron production renderer
+            'http://localhost:27799',    // Dev renderer
+            'http://127.0.0.1:27799',   // Dev renderer (alt)
+        ];
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+            res.setHeader('Access-Control-Allow-Origin', origin || '*');
+        } else {
+            res.setHeader('Access-Control-Allow-Origin', 'app://.');
+        }
         res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, PATCH, PUT, DELETE');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.setHeader('Access-Control-Allow-Private-Network', 'true');

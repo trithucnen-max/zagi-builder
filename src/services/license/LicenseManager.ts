@@ -400,11 +400,6 @@ export class LicenseManager {
   }
   
   needsActivation(): boolean {
-    // Bỏ qua kiểm tra license khi chạy dev build để lập trình thuận tiện
-    // if (!app.isPackaged) {
-    //   return false;
-    // }
-
     const license = this.getCurrentLicense();
     if (!license) return true;
 

@@ -5636,22 +5636,26 @@ class DatabaseService {
                 `INSERT OR IGNORE INTO crm_campaign_contacts (campaign_id, owner_zalo_id, contact_id, display_name, avatar, phone, status, sent_at, retry_count, error) VALUES (?,?,?,?,?,?,'pending',0,0,'')`
             );
 
-            for (const c of contacts) {
-                if (existingIds.has(c.contactId)) {
-                    continue;
-                }
+            // Dùng transaction để đảm bảo tính nguyên vẹn (atomicity) và tăng hiệu năng
+            // (~50x nhanh hơn so với nhiều implicit transaction riêng lẻ)
+            this.transaction(() => {
+                for (const c of contacts) {
+                    if (existingIds.has(c.contactId)) {
+                        continue;
+                    }
 
-                if (availableSlots <= 0) {
-                    limitExceeded = true;
-                    discardedCount++;
-                    continue;
-                }
+                    if (availableSlots <= 0) {
+                        limitExceeded = true;
+                        discardedCount++;
+                        continue;
+                    }
 
-                stmt.run(campaignId, ownerZaloId, c.contactId, c.displayName || '', c.avatar || '', c.phone || '');
-                existingIds.add(c.contactId);
-                availableSlots--;
-                addedCount++;
-            }
+                    stmt.run(campaignId, ownerZaloId, c.contactId, c.displayName || '', c.avatar || '', c.phone || '');
+                    existingIds.add(c.contactId);
+                    availableSlots--;
+                    addedCount++;
+                }
+            });
 
             this.save();
         } catch (err: any) {

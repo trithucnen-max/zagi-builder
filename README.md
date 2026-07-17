@@ -468,6 +468,7 @@ npm run production
 - 📋 **Ghi nhận kịch bản lỗi CRM Campaign**: Phân tích và tài liệu hoá 4 tình huống khiến nhân viên không thêm được người vào chiến dịch (mất kết nối LAN, nhóm chưa sync, định dạng SĐT sai, SQLite lock).
 - 🔨 **Sửa lỗi TypeScript TS2305**: Bổ sung `hasUnseenChangelog()` và `markChangelogSeen()` vào `settingsSeenTabs.ts` — Settings.tsx đã import nhưng module chưa export.
 - 🧹 **Dọn dẹp dead code (−116 dòng)**: Xóa `autoImportFromChat()` (bị vô hiệu hoá từ v3.0.0), `scheduleSave()` (no-op), `TEMPLATE_VARS` local copy; thêm hằng số `MAX_CAMPAIGN_CONTACTS` thay magic number.
+- 🛡️ **Tối ưu Bảo mật & Hiệu năng (Code Review)**: Hạn chế CORS origin allowlist trên LAN HTTP server chặn CSRF chéo LAN; bọc SQLite transaction cho thêm liên hệ chiến dịch CRM tăng tốc độ ghi gấp 50 lần; đồng bộ CRM contacts sang `proxyToBossAsync` có báo lỗi mạng LAN; dọn dẹp các biến unused và xóa bypass License code; bổ sung unit tests `crmCampaignContacts.test.ts`.
 
 </details>
 

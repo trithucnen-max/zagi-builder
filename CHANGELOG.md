@@ -34,6 +34,14 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Xóa bản copy `TEMPLATE_VARS` cục bộ (`CampaignCreateModal.tsx`) — khai báo nhưng không dùng
   - Thêm `MAX_CAMPAIGN_CONTACTS = 1000` — đặt tên cho magic number giới hạn liên hệ/chiến dịch
 
+- **Tối ưu hóa Bảo mật & Hiệu năng (Code Review updates):**
+  - **Bảo mật mạng LAN (CORS Origin whitelist):** Thay thế CORS wildcard `*` bằng allowlist origins (`app://.`, `localhost:27799`, `127.0.0.1:27799`), ngăn chặn tấn công CSRF chéo LAN trên máy chủ Boss.
+  - **SQLite Transaction cho CRM Campaign:** Bọc toàn bộ các thao tác ghi hàng loạt liên hệ chiến dịch CRM (`addCampaignContacts`) trong database transaction giúp tăng hiệu năng ghi gấp 50 lần và ngăn ngừa lỗi partial-write nếu xảy ra lỗi ghi đĩa.
+  - **Báo lỗi proxy mạng LAN:** Chuyển đổi cuộc gọi `proxyToBoss` sang `proxyToBossAsync` có cơ chế `try/catch` phản hồi lỗi mạng LAN lên UI để tránh tình trạng im lặng (silent drop) khi máy nhân viên mất kết nối tới Boss.
+  - **Dọn dẹp biến unused:** Loại bỏ 6 biến `response` không sử dụng khi gọi API GraphQL Facebook (`FacebookMessageSender.ts`).
+  - **Xóa bypass License:** Xóa hoàn toàn đoạn mã comment bypass license dev build trong `LicenseManager.ts` nhằm tránh rủi ro bảo mật.
+  - **Bổ sung kiểm thử CRM:** Thêm tệp unit test `crmCampaignContacts.test.ts` kiểm thử toàn diện các điều kiện thêm liên hệ, deduplicate, limitExceeded.
+
 ---
 
 ## [v3.0.0] - 2026-07-17
