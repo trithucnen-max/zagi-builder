@@ -1,9 +1,12 @@
-# ─── Build Zagi — Windows x64 + Windows ARM64 (Surface) + macOS + Linux ─────────
-# CI/CD tổng hợp: trigger tự động khi push tag v*, chạy song song 4 job
+# ─── Build Zagi — Windows x64 + Windows ARM64 (Surface) + Linux ──────────────
+# CI/CD tổng hợp: trigger tự động khi push tag v*, chạy song song 3 job
 # Publish lên cùng 1 GitHub Release kèm release notes tự động từ CHANGELOG.md
+#
+# ⚠️  macOS KHÔNG BUILD trên CI — build local bằng build-mac.sh (cần signing key
+#    Apple Developer ID BASAN CORPORATION JFT5TLZ3HK) rồi upload thủ công lên Release.
 # ─────────────────────────────────────────────────────────────────────────────
 
-name: 🚀 Build All Platforms
+name: 🚀 Build Windows + Linux
 
 permissions:
   contents: write
@@ -228,79 +231,6 @@ jobs:
           draft: false
           prerelease: false
           make_latest: false
-          fail_on_unmatched_files: false
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # macOS (x64 Intel + arm64 Apple Silicon) — build trên macos-14 (M1 runner)
-  # ═══════════════════════════════════════════════════════════════════════════
-  build-macos:
-    needs: resolve-tag
-    runs-on: macos-14
-    timeout-minutes: 40
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🟢 Setup Node.js 22.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: 🟢 Setup Go (stable)
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
-          cache: false
-
-      - name: 📦 Install npm dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: 🏗️ Build E2EE bridge (Go)
-        run: npm run build:bridge-e2ee
-
-      - name: 🏗️ Compile TypeScript (Electron main)
-        run: npx tsc -p tsconfig.electron.prod.json
-
-      - name: 🧹 Strip console.* từ dist-electron (production)
-        run: node scripts/strip-console.js
-
-      - name: 🏗️ Build renderer (Vite)
-        run: npx vite build
-        env:
-          NODE_ENV: production
-          BUILD_TARGET: production
-
-      - name: 📦 Build macOS app (x64 + arm64)
-        run: npx electron-builder --mac --x64 --arm64 --publish never
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: 🏷️ Rename macOS installers
-        shell: bash
-        run: |
-          VERSION="${{ needs.resolve-tag.outputs.version }}"
-          mv "dist-electron-build/Zagi-${VERSION}-arm64.dmg" "dist-electron-build/Zagi v${VERSION} MacOS M1+ arm64.dmg"
-          mv "dist-electron-build/Zagi-${VERSION}.dmg" "dist-electron-build/Zagi v${VERSION} MacOS Intel.dmg"
-
-      - name: 🚀 Upload macOS → GitHub Release
-        if: needs.resolve-tag.outputs.should_publish == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          repository: ${{ github.repository }}
-          tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
-          body: ${{ needs.resolve-tag.outputs.release_notes }}
-          files: |
-            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} MacOS M1+ arm64.dmg
-            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} MacOS Intel.dmg
-            dist-electron-build/latest-mac.yml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          draft: false
-          prerelease: false
-          make_latest: true
           fail_on_unmatched_files: false
 
   # ═══════════════════════════════════════════════════════════════════════════
