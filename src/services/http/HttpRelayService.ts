@@ -1398,14 +1398,14 @@ class HttpRelayService {
                     return this.json(res, 404, { success: false, error: 'File not found' });
                 }
 
-                // Read file and send binary
-                const data = fs.readFileSync(resolvedPath);
+                // Read file and send binary via stream
+                const stat = fs.statSync(resolvedPath);
                 res.writeHead(200, {
                     'Content-Type': 'application/octet-stream', // Force octet-stream for HttpClientService.requestMedia
-                    'Content-Length': data.length,
+                    'Content-Length': stat.size,
                     'Content-Disposition': `attachment; filename="${path.basename(resolvedPath)}"`,
                 });
-                res.end(data);
+                fs.createReadStream(resolvedPath).pipe(res);
             } catch (err: any) {
                 this.json(res, 500, { success: false, error: err.message });
             }

@@ -60,7 +60,7 @@ export default function GlobalSupportChat() {
   ];
 
   return (
-    <div className="fixed bottom-6 right-6 z-[99] flex flex-col items-end">
+    <div className="fixed bottom-[25%] right-6 z-[99] flex flex-col items-end">
       {/* Chat Window */}
       {isOpen && (
         <div className="w-[380px] h-[520px] bg-gray-850/98 backdrop-blur border border-gray-700/80 rounded-2xl shadow-2xl flex flex-col mb-4 overflow-hidden animate-in slide-in-from-bottom-5 duration-200">

@@ -112,7 +112,7 @@ export default class ZaloService {
      * @param isReconnection Whether this is a reconnection (force delete old connection and create new)
      */
     public static async getInstance(auth: any, isReconnection: boolean = false): Promise<ZaloService> {
-        const parsedAuth = JSON.parse(auth);
+        const parsedAuth = typeof auth === 'string' ? JSON.parse(auth) : auth;
         const key = Buffer.from(parsedAuth.cookies).toString('base64');
 
         // If reconnection, remove existing instance to force recreation

@@ -287,6 +287,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     scheduleMessage: (params: any) => ipcRenderer.invoke('crm:scheduleMessage', params),
     getScheduledMessages: (params: any) => ipcRenderer.invoke('crm:getScheduledMessages', params),
     cancelScheduledMessage: (params: any) => ipcRenderer.invoke('crm:cancelScheduledMessage', params),
+    getPhoneScanBatches: (params: any) => ipcRenderer.invoke('crm:getPhoneScanBatches', params),
+    getPhoneScanItems: (params: any) => ipcRenderer.invoke('crm:getPhoneScanItems', params),
+    createPhoneScanBatch: (params: any) => ipcRenderer.invoke('crm:createPhoneScanBatch', params),
+    deletePhoneScanBatch: (params: any) => ipcRenderer.invoke('crm:deletePhoneScanBatch', params),
+    updatePhoneScanBatchStatus: (params: any) => ipcRenderer.invoke('crm:updatePhoneScanBatchStatus', params),
+    startPhoneScanImmediate: (params: any) => ipcRenderer.invoke('crm:startPhoneScanImmediate', params),
+    getPhoneScanLimitStatus: () => ipcRenderer.invoke('crm:getPhoneScanLimitStatus'),
+    updatePhoneScanBatchPriority: (params: any) => ipcRenderer.invoke('crm:updatePhoneScanBatchPriority', params),
   },
 
   // ─── Analytics / Reporting ──────────────────────────────────────────
@@ -475,6 +483,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     disconnectRemote:     (id: string) => ipcRenderer.invoke('workspace:disconnectRemote', { id }),
     getConnectionStatus:  (id: string) => ipcRenderer.invoke('workspace:getConnectionStatus', { id }),
     getAllStatuses:        () => ipcRenderer.invoke('workspace:getAllStatuses'),
+    probeAndSwitchToLan:  (id: string) => ipcRenderer.invoke('workspace:probeAndSwitchToLan', { id }),
+    revertToWan:          (id: string) => ipcRenderer.invoke('workspace:revertToWan', { id }),
     loginRemote:          (bossUrl: string, username: string, password: string) =>
                             ipcRenderer.invoke('workspace:loginRemote', { bossUrl, username, password }),
      notifyNetworkOnline:  () => ipcRenderer.send('workspace:network-online'),
@@ -745,6 +755,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'erp:event:departmentUpdated',
       'erp:event:employeeProfileUpdated',
       'event:aiProfileUpdated',
+      'crm:phoneScanUpdate',
     ];
     if (validChannels.includes(channel)) {
       const subscription = (_event: any, ...args: any[]) => callback(...args);

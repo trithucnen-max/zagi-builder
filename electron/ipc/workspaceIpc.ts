@@ -368,6 +368,26 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
         }
     });
 
+    ipcMain.handle('workspace:probeAndSwitchToLan', async (_e, { id }: { id: string }) => {
+        try {
+            const res = await HttpConnectionManager.getInstance().probeAndSwitchToLan(id);
+            return res;
+        } catch (err: any) {
+            Logger.error(`[workspaceIpc] probeAndSwitchToLan error: ${err.message}`);
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcMain.handle('workspace:revertToWan', async (_e, { id }: { id: string }) => {
+        try {
+            HttpConnectionManager.getInstance().revertToWan(id);
+            return { success: true };
+        } catch (err: any) {
+            Logger.error(`[workspaceIpc] revertToWan error: ${err.message}`);
+            return { success: false, error: err.message };
+        }
+    });
+
     // ─── Get Connection Status for a workspace ────────────────────────
 
     ipcMain.handle('workspace:getConnectionStatus', async (_e, { id }: { id: string }) => {

@@ -279,6 +279,14 @@ declare global {
         scheduleMessage: (params: { ownerZaloId: string; threadId: string; threadType: string; channel: string; message: string; attachments?: any[]; sendAt: number }) => Promise<{ success: boolean; id?: string; error?: string }>;
         getScheduledMessages: (params: { ownerZaloId: string; threadId: string }) => Promise<{ success: boolean; scheduledMessages: any[]; error?: string }>;
         cancelScheduledMessage: (params: { id: string }) => Promise<{ success: boolean; error?: string }>;
+        getPhoneScanBatches: () => Promise<{ success: boolean; batches?: any[]; error?: string }>;
+        getPhoneScanItems: (params: { batchId: number; limit?: number; offset?: number; status?: string }) => Promise<{ success: boolean; items?: any[]; total?: number; error?: string }>;
+        createPhoneScanBatch: (params: { name: string; assignedAccountId: string | null; autoTagIds: number[]; dailyLimit: number; hourlyLimit: number; priority: number; phones: string[] }) => Promise<{ success: boolean; batchId?: number; error?: string }>;
+        deletePhoneScanBatch: (params: { batchId: number }) => Promise<{ success: boolean; error?: string }>;
+        updatePhoneScanBatchStatus: (params: { batchId: number; status: string }) => Promise<{ success: boolean; error?: string }>;
+        startPhoneScanImmediate: () => Promise<{ success: boolean; error?: string }>;
+        getPhoneScanLimitStatus: () => Promise<{ success: boolean; accountsStatus?: Array<{ zaloId: string; fullName: string; todayCount: number; hourlyCount: number }>; error?: string }>;
+        updatePhoneScanBatchPriority: (params: { batchId: number; priority: number }) => Promise<{ success: boolean; error?: string }>;
       };
       analytics: {
         dashboardOverview: (params: { zaloId: string }) => Promise<{
@@ -495,6 +503,8 @@ declare global {
         getConnectionStatus: (id: string) => Promise<{ success: boolean; connected: boolean; bossUrl: string; latency: number; error?: string }>;
         getAllStatuses: () => Promise<{ success: boolean; statuses: Record<string, { connected: boolean; bossUrl: string; latency: number }>; error?: string }>;
         loginRemote: (bossUrl: string, username: string, password: string) => Promise<{ success: boolean; token?: string; employee?: any; error?: string }>;
+        probeAndSwitchToLan: (id: string) => Promise<{ success: boolean; isUsingLan?: boolean; error?: string }>;
+        revertToWan: (id: string) => Promise<{ success: boolean; error?: string }>;
         notifyNetworkOnline: () => void;
         notifyNetworkOffline: () => void;
       };

@@ -241,6 +241,13 @@ class ConnectionManager {
 
         return results;
     }
+
+    public static async disconnectAll(): Promise<void> {
+        const zaloIds = Array.from(this.connections.keys());
+        for (const zaloId of zaloIds) {
+            await this.forceDisconnectAndCleanup(zaloId);
+        }
+    }
 }
 
 export default ConnectionManager;

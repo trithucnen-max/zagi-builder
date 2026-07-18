@@ -1058,16 +1058,38 @@ async function startupAfterLicenseCheck(): Promise<void> {
     }
   };
 
-  powerMonitor.on('resume', () => {
-    console.log('[main.ts] 🔋 System woke up from sleep — marking connections degraded immediately...');
-    // Đánh dấu người dùng mất kết nối ngay (hiện UI overlay “Mất kết nối”), không đợi heartbeat
+  powerMonitor.on('suspend', () => {
+    console.log('[main.ts] 💤 System is going to sleep — destroying connections to prevent socket leaks...');
     try {
-      const mgr = HttpConnectionManager.getInstance();
-      for (const [wsId] of (mgr as any).clients ?? new Map()) {
-        const svc = mgr.getServiceForWorkspace(wsId);
-        svc?.markDisconnectedImmediately?.();
-      }
-    } catch {}
+      HttpConnectionManager.getInstance().disconnectAll();
+    } catch (err: any) {
+      console.warn('[main.ts] disconnectAll on suspend warning:', err.message);
+    }
+    try {
+      const ConnMgr = require('../src/utils/ConnectionManager').default;
+      ConnMgr.disconnectAll().catch(() => {});
+    } catch (err: any) {
+      console.warn('[main.ts] Zalo listener disconnectAll on suspend warning:', err.message);
+    }
+  });
+
+  powerMonitor.on('lock-screen', () => {
+    console.log('[main.ts] 🔒 System screen locked — destroying connections to protect data...');
+    try {
+      HttpConnectionManager.getInstance().disconnectAll();
+    } catch (err: any) {
+      console.warn('[main.ts] disconnectAll on lock-screen warning:', err.message);
+    }
+    try {
+      const ConnMgr = require('../src/utils/ConnectionManager').default;
+      ConnMgr.disconnectAll().catch(() => {});
+    } catch (err: any) {
+      console.warn('[main.ts] Zalo listener disconnectAll on lock-screen warning:', err.message);
+    }
+  });
+
+  powerMonitor.on('resume', () => {
+    console.log('[main.ts] 🔋 System woke up from sleep — executing delayed reconnect...');
     // Sau 5s mới thử kết nối lại (để card mạng kịp nhận IP mới)
     setTimeout(() => {
       console.log('[main.ts] 🔋 System woke up from sleep (delayed) — executing reconnect...');
@@ -1078,14 +1100,7 @@ async function startupAfterLicenseCheck(): Promise<void> {
   });
 
   powerMonitor.on('unlock-screen', () => {
-    console.log('[main.ts] 🔑 System unlocked — marking connections degraded immediately...');
-    try {
-      const mgr = HttpConnectionManager.getInstance();
-      for (const [wsId] of (mgr as any).clients ?? new Map()) {
-        const svc = mgr.getServiceForWorkspace(wsId);
-        svc?.markDisconnectedImmediately?.();
-      }
-    } catch {}
+    console.log('[main.ts] 🔑 System unlocked — executing delayed reconnect...');
     setTimeout(() => {
       console.log('[main.ts] 🔑 System unlocked (delayed) — executing reconnect...');
       HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
@@ -1149,6 +1164,13 @@ async function startupAfterLicenseCheck(): Promise<void> {
   }), 3000);
   // Resume any active CRM campaigns after restart
   setTimeout(() => CRMQueueService.getInstance().resumeActiveCampaigns(), 3000);
+  // Initialize Zalo Bulk Phone Scanner background service
+  setTimeout(() => {
+    try {
+      const PhoneScanService = require('../src/services/crm/PhoneScanService').default;
+      PhoneScanService.getInstance().start();
+    } catch (err: any) { console.error('[main] PhoneScan scheduler init error:', err.message); }
+  }, 3200);
   // Initialize ERP Calendar reminders scheduler
   setTimeout(() => {
     try {
@@ -1352,6 +1374,12 @@ app.on('before-quit', () => {
   try {
     // Dừng webhook gateway
     WebhookGatewayService.getInstance().stop();
+  } catch {}
+
+  try {
+    // Dừng PhoneScanService
+    const PhoneScanService = require('../src/services/crm/PhoneScanService').default;
+    PhoneScanService.getInstance().stop();
   } catch {}
 
   try {

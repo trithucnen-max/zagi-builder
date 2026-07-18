@@ -30,6 +30,7 @@ import { getCapability, type Channel } from '../../../configs/channelConfig';
 import ScanPanel from './scan/ScanPanel';
 import ScanHistoryTab from './scan/ScanHistoryTab';
 import ScanStatsTab from './scan/ScanStatsTab';
+import PhoneScanPanel from './scan/PhoneScanPanel';
 const TAB_ICONS: Record<string, any> = {
   search: 'search',
   contacts: 'users',
@@ -41,6 +42,7 @@ const TAB_ICONS: Record<string, any> = {
   scan: 'zap',
   scan_history: 'file_text',
   scan_stats: 'chart',
+  phone_scan: 'phone',
 };
 
 
@@ -237,6 +239,7 @@ export default function CRMPage() {
       scan: !channelCap.supportsScanData,
       scan_history: !channelCap.supportsScanData,
       scan_stats: !channelCap.supportsScanData,
+      phone_scan: isFacebookAccount,
     };
     if (disabledTabs[store.tab]) store.setTab('contacts');
     loadContacts(); loadCampaigns(); loadGroupCount(); loadRequestCount();
@@ -717,13 +720,14 @@ export default function CRMPage() {
       {/* Top bar */}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-700 flex-shrink-0 bg-gray-850">
         <div className="flex bg-gray-800 rounded-lg p-0.5">
-          {(['search', 'contacts', 'groups', 'requests', 'pipeline', 'campaigns', 'history', 'scan', 'scan_history', 'scan_stats'] as const).filter(t => {
+          {(['search', 'contacts', 'groups', 'requests', 'pipeline', 'campaigns', 'history', 'scan', 'scan_history', 'scan_stats', 'phone_scan'] as const).filter(t => {
             if (t === 'search') return channelCap.supportsCRMSearch;
             if (t === 'requests') return channelCap.supportsFriendRequest;
             if (t === 'campaigns') return channelCap.supportsCampaigns;
             if (t === 'history') return channelCap.supportsCRMHistory;
             if (t === 'groups') return channelCap.supportsCRMGroups;
             if (t === 'scan' || t === 'scan_history' || t === 'scan_stats') return channelCap.supportsScanData;
+            if (t === 'phone_scan') return !isFacebookAccount;
             return true; // contacts and pipeline always shown
           }).map(t => (
             <button key={t} onClick={() => store.setTab(t)}
@@ -745,6 +749,7 @@ export default function CRMPage() {
                     : t === 'scan' ? 'Quét dữ liệu'
                     : t === 'scan_history' ? 'Lịch sử quét'
                     : t === 'scan_stats' ? 'Thống kê'
+                    : t === 'phone_scan' ? 'Quét SĐT hàng loạt'
                     : t}
                 </span>
                 {t === 'requests' && hasUnreadRequestDot && (
@@ -983,6 +988,13 @@ export default function CRMPage() {
           {store.tab === 'scan_stats' && (
             <div className="flex-1 overflow-hidden">
               <ScanStatsTab accountId={activeAccountId || ''} />
+            </div>
+          )}
+
+          {/* ── Phone Scan tab ── */}
+          {store.tab === 'phone_scan' && (
+            <div className="flex-1 overflow-hidden">
+              <PhoneScanPanel />
             </div>
           )}
 

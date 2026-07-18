@@ -4,7 +4,41 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v3.0.2] - 2026-07-19
+
+### 🚀 Tính năng mới
+
+- **Quét số điện thoại Zalo hàng loạt (Bulk Phone Scanner):**
+  - Cho phép nạp danh sách số điện thoại qua file CSV hoặc nhập tay. Hệ thống quét dần theo giới hạn: tối đa **100 số/ngày** và **30 số/giờ** trên mỗi tài khoản Zalo (có thể cấu hình độc lập cho từng lô quét và từng tài khoản).
+  - Cơ chế **Sliding Window**: Sử dụng cửa sổ trượt 60 phút để đếm số đã quét, tự động dừng và chờ khi đạt giới hạn giờ rồi tự tiếp tục — không cần thao tác thủ công.
+  - **Chạy đơn lô**: Tại một thời điểm chỉ có 1 lô Active, các lô khác xếp hàng chờ. Hỗ trợ đặt mức ưu tiên (Ngôi sao ⭐) cho lô quan trọng.
+  - Tự động gán nhãn CRM và nhãn hệ thống **"Zalo Active"** cho số tìm thấy, đồng bộ vào danh bạ.
+  - Cơ chế jitter ngẫu nhiên (3–8 giây) giữa các lần quét để giảm thiểu rủi ro bị Zalo block.
+  - Tạo nhãn CRM mới trực tiếp từ form khởi tạo lô quét (không cần chuyển sang trang cài đặt).
+
+- **Kết nối LAN chủ động từ Topbar (Nhân viên):**
+  - Thay thế hoàn toàn cơ chế tự động dò quét mạng LAN liên tục bằng **nút bấm chủ động** trên Topbar.
+  - Khi đang kết nối Tunnel: Hiển thị nút **"Chuyển sang kết nối LAN"** — nhân viên tự chọn thời điểm muốn dùng LAN (ví dụ: khi vào văn phòng).
+  - Khi đang kết nối LAN: Hiển thị nút **"Chuyển kết nối từ xa (WAN)"** để hoàn về Tunnel khi rời văn phòng.
+
+### 🐛 Sửa lỗi
+
+- **Sửa lỗi Thư viện Media Chung bị loop/mất kết nối qua LAN:**
+  - Nguyên nhân: Handler `/api/media/request` trên Boss dùng `fs.readFileSync` đọc file đồng bộ gây block toàn bộ Event Loop Node.js khi có nhiều request ảnh đồng thời từ nhân viên qua LAN.
+  - Khắc phục: Chuyển sang `fs.createReadStream().pipe(res)` — truyền phát file không đồng bộ, Event Loop không bị chặn, heartbeat và Socket.IO hoạt động bình thường.
+
+- **Sửa lỗi ứng dụng treo cứng khi máy ngủ lâu rồi thức dậy:**
+  - Nguyên nhân: Các socket TCP cũ (Socket.IO, Zalo Listener) bị đóng băng trong trạng thái half-open khi máy sleep, gây xung đột khi kết nối mới được thiết lập sau wakeup, dẫn tới rò rỉ socket và đơ cứng Main Process.
+  - Khắc phục (Phương án A — Clean State): Đăng ký sự kiện `powerMonitor.suspend` và `powerMonitor.lock-screen`. Khi máy chuẩn bị ngủ hoặc khóa màn hình, Zagi chủ động ngắt **toàn bộ** kết nối HTTP/Socket.IO đến Boss và Zalo Listener. Khi thức dậy (`resume`/`unlock-screen`), đợi 3–5 giây để mạng ổn định rồi thiết lập kết nối mới tinh sạch sẽ.
+
+- **Sửa lỗi `"[object Object]" is not valid JSON` khi chạy quét ngầm:**
+  - `ZaloService.getInstance(auth)` nhận tham số `auth` đã là Object (từ `ConnectionManager`) nhưng cố gắng `JSON.parse()` gây SyntaxError.
+  - Khắc phục: Kiểm tra `typeof auth === 'string'` trước khi parse, xử lý an toàn cả 2 trường hợp.
+
+---
+
 ## [v3.0.1] - 2026-07-18
+
 
 ### 🐛 Sửa lỗi & Cải thiện ổn định
 

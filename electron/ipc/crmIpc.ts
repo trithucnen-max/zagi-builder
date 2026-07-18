@@ -584,5 +584,132 @@ export function registerCRMIpc(): void {
             return { success: false, error: err.message };
         }
     });
+
+    // ─── Zalo Bulk Phone Scanner IPC Handlers ─────────────────────────────────────
+    ipcHandle('crm:getPhoneScanBatches', async () => {
+        try {
+            const db = DatabaseService.getInstance();
+            return { success: true, batches: db.getPhoneScanBatches() };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:getPhoneScanItems', async (_e, { batchId, limit, offset, status }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const res = db.getPhoneScanItems(batchId, limit, offset, status);
+            return { success: true, ...res };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:createPhoneScanBatch', async (_e, { name, assignedAccountId, autoTagIds, dailyLimit, hourlyLimit, priority, phones }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const batchId = db.createPhoneScanBatch({
+                name,
+                assignedAccountId,
+                autoTagIds,
+                dailyLimit,
+                hourlyLimit,
+                priority,
+                phones
+            });
+            if (batchId !== -1) {
+                // Trigger background scheduler immediately to start scanning
+                try {
+                    const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                    PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
+                } catch {}
+                return { success: true, batchId };
+            }
+            return { success: false, error: 'Could not create batch' };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:deletePhoneScanBatch', async (_e, { batchId }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.deletePhoneScanBatch(batchId);
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:getPhoneScanLimitStatus', async () => {
+        try {
+            const db = DatabaseService.getInstance();
+            const activeAccounts = db.getAccounts() || [];
+            const zaloAccounts = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+            
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+            const startOfTodayTimestamp = startOfToday.getTime();
+            const oneHourAgoTimestamp = Date.now() - 60 * 60 * 1000;
+            
+            const statusList = zaloAccounts.map((a: any) => {
+                const todayCount = db.getDailyScanCountForAccount(a.zalo_id, startOfTodayTimestamp);
+                const hourlyCount = db.getHourlyScanCountForAccount(a.zalo_id, oneHourAgoTimestamp);
+                return {
+                    zaloId: a.zalo_id,
+                    fullName: a.full_name || a.zalo_id,
+                    todayCount,
+                    hourlyCount
+                };
+            });
+            return { success: true, accountsStatus: statusList };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:updatePhoneScanBatchStatus', async (_e, { batchId, status }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.updatePhoneScanBatchStatus(batchId, status);
+            // Trigger scanner immediately if resumed
+            if (status === 'active') {
+                try {
+                    const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                    PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
+                } catch {}
+            }
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:updatePhoneScanBatchPriority', async (_e, { batchId, priority }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.updatePhoneScanBatchPriority(batchId, priority);
+            // Trigger scanner immediately if prioritized
+            if (priority > 0) {
+                try {
+                    const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                    PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
+                } catch {}
+            }
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:startPhoneScanImmediate', async () => {
+        try {
+            const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+            await PhoneScanService.getInstance().triggerImmediateScan();
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
 }
 

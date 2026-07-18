@@ -237,6 +237,21 @@ class HttpConnectionManager {
         }
     }
 
+    public async probeAndSwitchToLan(workspaceId: string): Promise<{ success: boolean; error?: string }> {
+        const client = this.clients.get(workspaceId);
+        if (!client) {
+            return { success: false, error: 'Workspace chưa kết nối' };
+        }
+        return client.service.triggerManualLanProbe();
+    }
+
+    public revertToWan(workspaceId: string): void {
+        const client = this.clients.get(workspaceId);
+        if (client) {
+            client.service.revertToWan();
+        }
+    }
+
     public disconnectAll(): void {
         for (const [wsId] of this.clients) this.disconnect(wsId);
     }

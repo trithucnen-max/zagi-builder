@@ -32,6 +32,8 @@ class HttpClientService {
     private consecutiveHeartbeatFailures = 0;
     private static MAX_HEARTBEAT_FAILURES = 5;
     private callbackUrl = '';
+    private lastKnownLocalIps: string[] = [];
+    private lastKnownPort: number = 3000;
 
     private onStatusChange: ((connected: boolean, latency: number, isUsingLan?: boolean) => void) | null = null;
     private onInitialState: ((data: any) => void) | null = null;
@@ -189,9 +191,10 @@ class HttpClientService {
                 // Non-critical
             }
 
-            // 6. Trigger LAN probe if we connected via a Tunnel (WAN) address and Boss returned local IPs
-            if (!this.isLocalAddress(this.bossUrl) && Array.isArray(hbResult.localIps) && hbResult.port) {
-                this.probeAndSwitchToLan(hbResult.localIps, hbResult.port).catch(() => {});
+            // 6. Save last known LAN details for manual triggering
+            if (Array.isArray(hbResult.localIps) && hbResult.port) {
+                this.lastKnownLocalIps = hbResult.localIps;
+                this.lastKnownPort = hbResult.port;
             }
 
             return { success: true };
@@ -242,6 +245,44 @@ class HttpClientService {
 
     public getStatus(): { connected: boolean; bossUrl: string; latency: number; isUsingLan: boolean } {
         return { connected: this.connected, bossUrl: this.bossUrl, latency: this.latencyMs, isUsingLan: this.isUsingLan };
+    }
+
+    public async triggerManualLanProbe(): Promise<{ success: boolean; error?: string }> {
+        if (this.isUsingLan) {
+            return { success: true };
+        }
+        if (this.lastKnownLocalIps.length === 0) {
+            return { success: false, error: 'Chưa nhận được danh sách IP LAN từ Boss' };
+        }
+        
+        await this.probeAndSwitchToLan(this.lastKnownLocalIps, this.lastKnownPort);
+        
+        if (this.isUsingLan) {
+            return { success: true };
+        } else {
+            return { success: false, error: 'Không tìm thấy máy Boss trong mạng LAN' };
+        }
+    }
+
+    public revertToWan(): void {
+        if (!this.isUsingLan) return;
+        Logger.log(`[HttpClientService] Manually reverting bossUrl to configured WAN URL: ${this.configuredBossUrl}`);
+        this.bossUrl = this.configuredBossUrl;
+        this.isUsingLan = false;
+        
+        // Reconnect Socket.IO to WAN
+        this.socketIOClient.connect(this.bossUrl, this.token);
+        
+        // Notify manager and UI of status change to WAN
+        this.onStatusChange?.(true, this.latencyMs, false);
+        
+        // Update RestQueryService too
+        try {
+            const RestQueryService = require('./RestQueryService').default;
+            RestQueryService.getInstance().init(this.bossUrl, this.token);
+        } catch (err: any) {
+            Logger.warn(`[HttpClientService] Failed to reinit RestQueryService: ${err.message}`);
+        }
     }
 
     // ─── Proxy actions through Boss ──────────────────────────────────
@@ -1525,9 +1566,10 @@ class HttpClientService {
                     this.degraded = false;
                     this.onStatusChange?.(true, this.latencyMs, this.isUsingLan);
 
-                    // Periodically probe for LAN if currently connected via Tunnel (WAN)
-                    if (!this.isUsingLan && !this.isLocalAddress(this.bossUrl) && Array.isArray(result.localIps) && result.port) {
-                        this.probeAndSwitchToLan(result.localIps, result.port).catch(() => {});
+                    // Save last known LAN details for manual triggering
+                    if (Array.isArray(result.localIps) && result.port) {
+                        this.lastKnownLocalIps = result.localIps;
+                        this.lastKnownPort = result.port;
                     }
                 } else {
                     this.consecutiveHeartbeatFailures++;

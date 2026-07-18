@@ -81,7 +81,14 @@ class DatabaseService {
             // eslint-disable-next-line @typescript-eslint/no-require-imports
             const AppModeManager = require('../../utils/AppModeManager').default;
             if (AppModeManager.getInstance().isEmployeeMode()) {
-                Logger.log('[DatabaseService] Running in Employee Mode - Bypassing local database file initialization');
+                Logger.log('[DatabaseService] Running in Employee Mode - Initializing local database for settings only');
+                this.dbPath = path.join(app.getPath('userData'), 'zagi-tool.db');
+                const dir = path.dirname(this.dbPath);
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                }
+                db = this.openDb(this.dbPath);
+                this.createTables();
                 this.initialized = true;
                 return;
             }
@@ -265,16 +272,7 @@ class DatabaseService {
         const AppModeManager = require('../../utils/AppModeManager').default;
         if (AppModeManager.getInstance().isEmployeeMode()) {
             Logger.log(`[DatabaseService] Running in Employee Mode - Bypassing switch to workspace DB: ${newDbPath}`);
-            if (global.db) {
-                try {
-                    global.db.close();
-                } catch (err: any) {
-                    Logger.error(`[DatabaseService] Failed to close database: ${err.message}`);
-                }
-                global.db = null;
-                global.db_initialized = false;
-            }
-            this.dbPath = '';
+            // Keep local settings DB open in Employee Mode
             return;
         }
 
@@ -1125,6 +1123,59 @@ class DatabaseService {
                 updated_at INTEGER NOT NULL
             );
         `);
+
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS phone_scan_batches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                assigned_account_id TEXT,
+                auto_tag_ids TEXT NOT NULL DEFAULT '[]',
+                daily_limit INTEGER NOT NULL DEFAULT 100,
+                hourly_limit INTEGER NOT NULL DEFAULT 30,
+                priority INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'active',
+                total_count INTEGER NOT NULL DEFAULT 0,
+                scanned_count INTEGER NOT NULL DEFAULT 0,
+                found_count INTEGER NOT NULL DEFAULT 0,
+                not_found_count INTEGER NOT NULL DEFAULT 0,
+                error_count INTEGER NOT NULL DEFAULT 0,
+                duplicate_count INTEGER NOT NULL DEFAULT 0,
+                completed_at INTEGER,
+                created_at INTEGER NOT NULL
+            );
+        `);
+
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS phone_scan_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                phone TEXT NOT NULL,
+                phone_normalized TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                zalo_uid TEXT,
+                zalo_name TEXT,
+                zalo_avatar TEXT,
+                error_msg TEXT,
+                scanned_by_account_id TEXT,
+                scanned_at INTEGER,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY(batch_id) REFERENCES phone_scan_batches(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_psi_batch ON phone_scan_items(batch_id);
+            CREATE INDEX IF NOT EXISTS idx_psi_status ON phone_scan_items(status);
+        `);
+
+        // Migration: add hourly_limit column to phone_scan_batches if not exists
+        try {
+            const cols = this.query<any>('PRAGMA table_info(phone_scan_batches)');
+            const hasHourlyLimit = cols.some((c: any) => c.name === 'hourly_limit');
+            if (!hasHourlyLimit) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN hourly_limit INTEGER NOT NULL DEFAULT 30`);
+                Logger.log('[DatabaseService] ✅ Migration: added hourly_limit column to phone_scan_batches');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration hourly_limit column: ${err.message}`);
+        }
     }
 
     // ─── ERP Schema ────────────────────────────────────────────────────────────
@@ -8689,6 +8740,289 @@ class DatabaseService {
     public getCalendarEventsByContact(params: { contactId: string }): { success: boolean; events: any[] } {
         const events = this.query<any>(`SELECT * FROM erp_calendar_events WHERE linked_contact_id = ?`, [params.contactId]);
         return { success: true, events };
+    }
+
+    // ─── Zalo Bulk Phone Scan Methods ──────────────────────────────────────────
+
+    public getPhoneScanBatches(): any[] {
+        if (!this.initialized) return [];
+        try {
+            return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY created_at DESC`);
+        } catch (err: any) {
+            Logger.error(`[DB] getPhoneScanBatches: ${err.message}`);
+            return [];
+        }
+    }
+
+    public getPhoneScanItems(batchId: number, limit: number = 100, offset: number = 0, status?: string): { items: any[]; total: number } {
+        if (!this.initialized) return { items: [], total: 0 };
+        try {
+            let queryStr = `SELECT * FROM phone_scan_items WHERE batch_id = ?`;
+            let countQueryStr = `SELECT COUNT(*) as total FROM phone_scan_items WHERE batch_id = ?`;
+            const params: any[] = [batchId];
+            const countParams: any[] = [batchId];
+
+            if (status && status !== 'all') {
+                queryStr += ` AND status = ?`;
+                countQueryStr += ` AND status = ?`;
+                params.push(status);
+                countParams.push(status);
+            }
+
+            queryStr += ` ORDER BY id ASC LIMIT ? OFFSET ?`;
+            params.push(limit, offset);
+
+            const items = this.query<any>(queryStr, params);
+            const total = this.queryOne<any>(countQueryStr, countParams)?.total ?? 0;
+
+            return { items, total };
+        } catch (err: any) {
+            Logger.error(`[DB] getPhoneScanItems: ${err.message}`);
+            return { items: [], total: 0 };
+        }
+    }
+
+    public createPhoneScanBatch(params: {
+        name: string;
+        assignedAccountId: string | null;
+        autoTagIds: number[];
+        dailyLimit: number;
+        hourlyLimit: number;
+        priority: number;
+        phones: string[];
+    }): number {
+        if (!this.initialized) return -1;
+        try {
+            const now = Date.now();
+            const autoTagIdsStr = JSON.stringify(params.autoTagIds);
+
+            // Start a manual transaction for safety
+            this.run('BEGIN TRANSACTION');
+
+            // 1. Insert batch
+            this.run(`
+                INSERT INTO phone_scan_batches 
+                (name, assigned_account_id, auto_tag_ids, daily_limit, hourly_limit, priority, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
+            `, [params.name, params.assignedAccountId, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, now]);
+
+            const batchId = this.queryOne<any>(`SELECT last_insert_rowid() as id`)?.id;
+            if (!batchId) {
+                this.run('ROLLBACK');
+                return -1;
+            }
+
+            // 2. Insert items (deduplicating in this batch)
+            const seenPhones = new Set<string>();
+            let dupCount = 0;
+            let totalCount = 0;
+
+            for (const rawPhone of params.phones) {
+                const cleanPhone = rawPhone.trim().replace(/[\s.\-()]/g, '');
+                if (!cleanPhone) continue;
+
+                // Normalize phone number (e.g. +84 or 84 to 0)
+                let normalized = cleanPhone;
+                if (cleanPhone.startsWith('+84')) normalized = '0' + cleanPhone.slice(3).replace(/^0+/, '');
+                else if (cleanPhone.startsWith('84') && cleanPhone.length >= 10) normalized = '0' + cleanPhone.slice(2).replace(/^0+/, '');
+
+                if (seenPhones.has(normalized)) {
+                    dupCount++;
+                    continue;
+                }
+                seenPhones.add(normalized);
+                totalCount++;
+
+                this.run(`
+                    INSERT INTO phone_scan_items 
+                    (batch_id, phone, phone_normalized, status, created_at)
+                    VALUES (?, ?, ?, 'pending', ?)
+                `, [batchId, rawPhone, normalized, now]);
+            }
+
+            // 3. Update batch totals
+            this.run(`
+                UPDATE phone_scan_batches 
+                SET total_count = ?, duplicate_count = ?
+                WHERE id = ?
+            `, [totalCount, dupCount, batchId]);
+
+            this.run('COMMIT');
+            this.save();
+            return batchId;
+        } catch (err: any) {
+            Logger.error(`[DB] createPhoneScanBatch error: ${err.message}`);
+            try { this.run('ROLLBACK'); } catch {}
+            return -1;
+        }
+    }
+
+    public deletePhoneScanBatch(batchId: number): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`DELETE FROM phone_scan_batches WHERE id = ?`, [batchId]);
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] deletePhoneScanBatch error: ${err.message}`);
+        }
+    }
+
+    public updatePhoneScanBatchStatus(batchId: number, status: string): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`UPDATE phone_scan_batches SET status = ? WHERE id = ?`, [status, batchId]);
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] updatePhoneScanBatchStatus error: ${err.message}`);
+        }
+    }
+
+    public updatePhoneScanBatchPriority(batchId: number, priority: number): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`UPDATE phone_scan_batches SET priority = ? WHERE id = ?`, [priority, batchId]);
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] updatePhoneScanBatchPriority error: ${err.message}`);
+        }
+    }
+
+    public getPendingPhoneScanItems(limit: number = 10): any[] {
+        if (!this.initialized) return [];
+        try {
+            // Join with active batches, order by priority DESC, batch id ASC, item id ASC
+            return this.query<any>(`
+                SELECT psi.*, psb.assigned_account_id, psb.auto_tag_ids, psb.daily_limit, psb.hourly_limit
+                FROM phone_scan_items psi
+                INNER JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                WHERE psi.status = 'pending' AND psb.status = 'active'
+                ORDER BY psb.priority DESC, psb.id ASC, psi.id ASC
+                LIMIT ?
+            `, [limit]);
+        } catch (err: any) {
+            Logger.error(`[DB] getPendingPhoneScanItems: ${err.message}`);
+            return [];
+        }
+    }
+
+    public updatePhoneScanItemStatus(params: {
+        itemId: number;
+        status: string;
+        scannedByAccountId?: string;
+        zaloUid?: string;
+        zaloName?: string;
+        zaloAvatar?: string;
+        errorMsg?: string;
+    }): void {
+        if (!this.initialized) return;
+        try {
+            const now = Date.now();
+            
+            // Get current item state to adjust stats correctly
+            const item = this.queryOne<any>(`SELECT batch_id, status FROM phone_scan_items WHERE id = ?`, [params.itemId]);
+            if (!item) return;
+
+            // Start transaction
+            this.run('BEGIN TRANSACTION');
+
+            // Update item
+            this.run(`
+                UPDATE phone_scan_items
+                SET status = ?, 
+                    scanned_by_account_id = ?, 
+                    zalo_uid = ?, 
+                    zalo_name = ?, 
+                    zalo_avatar = ?, 
+                    error_msg = ?, 
+                    scanned_at = ?
+                WHERE id = ?
+            `, [
+                params.status,
+                params.scannedByAccountId || null,
+                params.zaloUid || null,
+                params.zaloName || null,
+                params.zaloAvatar || null,
+                params.errorMsg || null,
+                now,
+                params.itemId
+            ]);
+
+            // Adjust batch counters
+            const batchId = item.batch_id;
+            const oldStatus = item.status;
+            const newStatus = params.status;
+
+            if (oldStatus !== newStatus) {
+                // If moving away from pending, increment scanned count
+                let isScannedInc = (oldStatus === 'pending') ? 1 : 0;
+                
+                // Track detail counts
+                let foundInc = (newStatus === 'found') ? 1 : (oldStatus === 'found') ? -1 : 0;
+                let notFoundInc = (newStatus === 'not_found') ? 1 : (oldStatus === 'not_found') ? -1 : 0;
+                let errorInc = (newStatus === 'error') ? 1 : (oldStatus === 'error') ? -1 : 0;
+                let duplicateInc = (newStatus === 'duplicate') ? 1 : (oldStatus === 'duplicate') ? -1 : 0;
+
+                this.run(`
+                    UPDATE phone_scan_batches
+                    SET scanned_count = scanned_count + ?,
+                        found_count = found_count + ?,
+                        not_found_count = not_found_count + ?,
+                        error_count = error_count + ?,
+                        duplicate_count = duplicate_count + ?
+                    WHERE id = ?
+                `, [isScannedInc, foundInc, notFoundInc, errorInc, duplicateInc, batchId]);
+
+                // Check if the batch is completely finished (no more pending items)
+                const pendingCount = this.queryOne<any>(`
+                    SELECT COUNT(*) as pending FROM phone_scan_items 
+                    WHERE batch_id = ? AND status = 'pending'
+                `, [batchId])?.pending ?? 0;
+
+                if (pendingCount === 0) {
+                    this.run(`
+                        UPDATE phone_scan_batches
+                        SET status = 'completed', completed_at = ?
+                        WHERE id = ?
+                    `, [now, batchId]);
+                }
+            }
+
+            this.run('COMMIT');
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] updatePhoneScanItemStatus error: ${err.message}`);
+            try { this.run('ROLLBACK'); } catch {}
+        }
+    }
+
+    public getDailyScanCountForAccount(zaloId: string, sinceTimestamp: number): number {
+        if (!this.initialized) return 0;
+        try {
+            const row = this.queryOne<any>(`
+                SELECT COUNT(*) as count 
+                FROM phone_scan_items 
+                WHERE scanned_by_account_id = ? AND scanned_at >= ?
+            `, [zaloId, sinceTimestamp]);
+            return row?.count ?? 0;
+        } catch (err: any) {
+            Logger.error(`[DB] getDailyScanCountForAccount: ${err.message}`);
+            return 0;
+        }
+    }
+
+    public getHourlyScanCountForAccount(zaloId: string, sinceTimestamp: number): number {
+        if (!this.initialized) return 0;
+        try {
+            const row = this.queryOne<any>(`
+                SELECT COUNT(*) as count 
+                FROM phone_scan_items 
+                WHERE scanned_by_account_id = ? AND scanned_at >= ?
+            `, [zaloId, sinceTimestamp]);
+            return row?.count ?? 0;
+        } catch (err: any) {
+            Logger.error(`[DB] getHourlyScanCountForAccount: ${err.message}`);
+            return 0;
+        }
     }
 }
 

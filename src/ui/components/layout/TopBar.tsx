@@ -53,6 +53,7 @@ export default function TopBar() {
   // Boss connection popup (Employee mode)
   const [bossPopupOpen, setBossPopupOpen] = useState(false);
   const [bossReconnecting, setBossReconnecting] = useState(false);
+  const [lanSwitching, setLanSwitching] = useState(false);
   const [bossLatency, setBossLatency] = useState<number | null>(null);
   const bossPopupRef = useRef<HTMLDivElement>(null);
 
@@ -107,6 +108,40 @@ export default function TopBar() {
         await ipc.workspace?.disconnectRemote?.(activeWs.workspace.id);
       }
       showNotification('Dắt kết nối Boss', 'success');
+    } catch (err: any) {
+      showNotification('Lỗi: ' + err.message, 'error');
+    } finally {
+      setBossPopupOpen(false);
+    }
+  }, [showNotification]);
+
+  const handleLanSwitch = useCallback(async () => {
+    setLanSwitching(true);
+    try {
+      const activeWs = await ipc.workspace?.getActive?.();
+      if (activeWs?.success && activeWs.workspace?.id) {
+        const res = await ipc.workspace?.probeAndSwitchToLan?.(activeWs.workspace.id);
+        if (res?.success) {
+          showNotification('Đã chuyển sang kết nối LAN thành công', 'success');
+        } else {
+          showNotification(res?.error || 'Không tìm thấy máy Boss trong mạng LAN', 'error');
+        }
+      }
+    } catch (err: any) {
+      showNotification('Lỗi quét LAN: ' + err.message, 'error');
+    } finally {
+      setLanSwitching(false);
+      setBossPopupOpen(false);
+    }
+  }, [showNotification]);
+
+  const handleRevertToWan = useCallback(async () => {
+    try {
+      const activeWs = await ipc.workspace?.getActive?.();
+      if (activeWs?.success && activeWs.workspace?.id) {
+        await ipc.workspace?.revertToWan?.(activeWs.workspace.id);
+        showNotification('Đã hoàn nguyên về kết nối Tunnel/WAN', 'success');
+      }
     } catch (err: any) {
       showNotification('Lỗi: ' + err.message, 'error');
     } finally {
@@ -343,6 +378,52 @@ export default function TopBar() {
                     )}
                     <span>{bossReconnecting ? 'Đang kết nối lại...' : 'Kết nối lại'}</span>
                   </button>
+
+                  {/* LAN Probe / WAN Revert */}
+                  {bossConnected && (
+                    isUsingLan ? (
+                      <button
+                        onClick={handleRevertToWan}
+                        className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs transition-colors ${
+                          isLightTheme
+                            ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                            : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-500 flex-shrink-0">
+                          <path d="M21 16V8a2 2 0 0 0-2-2h-5c-1.1 0-2 .9-2 2v8" />
+                          <path d="M12 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                          <path d="M3 16V8a2 2 0 0 1 2-2h5" />
+                        </svg>
+                        <span>Chuyển kết nối từ xa (WAN)</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleLanSwitch}
+                        disabled={lanSwitching}
+                        className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs transition-colors disabled:opacity-50 ${
+                          isLightTheme
+                            ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                            : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        {lanSwitching ? (
+                          <svg className="animate-spin w-3.5 h-3.5 text-green-500 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-500 flex-shrink-0">
+                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                            <line x1="6" y1="6" x2="6.01" y2="6" />
+                            <line x1="6" y1="18" x2="6.01" y2="18" />
+                          </svg>
+                        )}
+                        <span>{lanSwitching ? 'Đang dò quét LAN...' : 'Chuyển sang kết nối LAN'}</span>
+                      </button>
+                    )
+                  )}
 
                   {/* Disconnect */}
                   <button
