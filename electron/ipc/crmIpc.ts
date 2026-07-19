@@ -68,9 +68,60 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
+    function sanitizeCRMContactsOpts(rawOpts: any): any {
+        if (!rawOpts || typeof rawOpts !== 'object') return {};
+        const sanitized = { ...rawOpts };
+
+        // 1. Sanitize tagIds (Local labels) - ensure valid number array
+        if (sanitized.tagIds && Array.isArray(sanitized.tagIds)) {
+            sanitized.tagIds = sanitized.tagIds
+                .map((id: any) => {
+                    const s = String(id).trim();
+                    if (s.startsWith('local:')) return Number(s.split(':')[1]);
+                    return Number(s);
+                })
+                .filter((id: number) => !isNaN(id));
+        }
+
+        // 2. Sanitize gender (handle both English and Vietnamese inputs)
+        if (sanitized.gender) {
+            const g = String(sanitized.gender).trim().toLowerCase();
+            if (g === 'male' || g === 'nam' || g === '0') sanitized.gender = 'male';
+            else if (g === 'female' || g === 'nữ' || g === 'nu' || g === '1') sanitized.gender = 'female';
+            else if (g === 'unknown' || g === 'không xác định' || g === 'khong xac dinh') sanitized.gender = 'unknown';
+            else if (g === 'all' || g === 'tất cả') sanitized.gender = 'all';
+        }
+
+        // 3. Sanitize birthdayFilter
+        if (sanitized.birthdayFilter) {
+            const b = String(sanitized.birthdayFilter).trim().toLowerCase();
+            if (b === 'today' || b === 'hôm nay') sanitized.birthdayFilter = 'today';
+            else if (b === 'this_week' || b === 'tuần này') sanitized.birthdayFilter = 'this_week';
+            else if (b === 'this_month' || b === 'tháng này') sanitized.birthdayFilter = 'this_month';
+            else if (b === 'has_birthday' || b === 'có sinh nhật') sanitized.birthdayFilter = 'has_birthday';
+            else if (b === 'no_birthday' || b === 'chưa có sinh nhật') sanitized.birthdayFilter = 'no_birthday';
+            else if (b === 'all' || b === 'tất cả') sanitized.birthdayFilter = 'all';
+        }
+
+        // 4. Sanitize salutation
+        if (sanitized.salutation) {
+            const s = String(sanitized.salutation).trim();
+            if (s.toLowerCase() === 'all' || s === 'Tất cả') sanitized.salutation = undefined;
+        }
+
+        // 5. Sanitize boolean flags
+        if (sanitized.hasPhone !== undefined) sanitized.hasPhone = Boolean(sanitized.hasPhone);
+        if (sanitized.hasNotes !== undefined) sanitized.hasNotes = Boolean(sanitized.hasNotes);
+
+        return sanitized;
+    }
+
     // ─── Contacts ──────────────────────────────────────────────────────────
     ipcHandle('crm:getContacts', async (_e, { zaloId, opts }: { zaloId: string; opts?: any }) => {
-        try { return { success: true, ...DatabaseService.getInstance().getCRMContacts(zaloId, opts || {}) }; }
+        try {
+            const cleanOpts = sanitizeCRMContactsOpts(opts || {});
+            return { success: true, ...DatabaseService.getInstance().getCRMContacts(zaloId, cleanOpts) };
+        }
         catch (e: any) { return { success: false, error: e.message, contacts: [], total: 0 }; }
     });
 
@@ -124,45 +175,6 @@ export function registerCRMIpc(): void {
 
     ipcHandle('crm:previewWorkflowContacts', async (_e, { zaloId, cfg }: { zaloId: string; cfg: any }) => {
         try {
-            let sql = `
-              SELECT contact_id, display_name, avatar_url as avatar, phone, is_friend, contact_type, gender, birthday, pipeline_stage_id, channel, salutation, alias, ai_profile, extra_data
-              FROM contacts
-              WHERE owner_zalo_id = ?
-            `;
-            const params: any[] = [zaloId];
-
-            if (cfg.channel && cfg.channel !== 'all') {
-              sql += ` AND channel = ?`;
-              params.push(cfg.channel);
-            }
-
-            if (cfg.gender !== undefined && cfg.gender !== null && cfg.gender !== '') {
-              sql += ` AND gender = ?`;
-              params.push(Number(cfg.gender));
-            }
-
-            if (cfg.salutation !== undefined && cfg.salutation !== null && cfg.salutation !== '') {
-              sql += ` AND salutation LIKE ?`;
-              params.push(`%${cfg.salutation}%`);
-            }
-
-            if (cfg.searchQuery !== undefined && cfg.searchQuery !== null && cfg.searchQuery !== '') {
-              sql += ` AND (display_name LIKE ? OR alias LIKE ? OR contact_id LIKE ? OR phone LIKE ?)`;
-              const queryParam = `%${cfg.searchQuery}%`;
-              params.push(queryParam, queryParam, queryParam, queryParam);
-            }
-
-            if (cfg.pipelineStageId !== undefined && cfg.pipelineStageId !== null && cfg.pipelineStageId !== '') {
-              sql += ` AND pipeline_stage_id = ?`;
-              params.push(Number(cfg.pipelineStageId));
-            }
-
-            if (cfg.isFriend === 'friend') {
-              sql += ` AND is_friend = 1`;
-            } else if (cfg.isFriend === 'non_friend') {
-              sql += ` AND is_friend = 0`;
-            }
-
             // Extract local and Zalo labels from unified labelIds or legacy fields
             const unifiedLocalIds = [
               ...(cfg.localLabelIds || []),
@@ -173,86 +185,44 @@ export function registerCRMIpc(): void {
               ...(cfg.labelIds || []).filter((id: string) => String(id).startsWith('zalo:'))
             ];
 
-            // Resolve local labels
             const resolvedLocalLabelIds = await resolveDbLabelIds(zaloId, unifiedLocalIds, []);
-            if (resolvedLocalLabelIds.length > 0) {
-              const placeholders = resolvedLocalLabelIds.map(() => '?').join(',');
-              sql += ` AND contact_id IN (
-                SELECT thread_id FROM local_label_threads 
-                WHERE label_id IN (${placeholders})
-              )`;
-              params.push(...resolvedLocalLabelIds);
-            }
-
-            // Resolve Zalo labels
             const resolvedZaloLabelIds = await resolveDbLabelIds(zaloId, [], unifiedZaloIds);
+
+            // Fetch Zalo label contact IDs if any
+            let selectedZaloLabelContactIds: string[] | undefined = undefined;
             if (resolvedZaloLabelIds.length > 0) {
               const placeholders = resolvedZaloLabelIds.map(() => '?').join(',');
-              sql += ` AND contact_id IN (
-                SELECT thread_id FROM local_label_threads 
-                WHERE label_id IN (${placeholders})
-              )`;
-              params.push(...resolvedZaloLabelIds);
+              const threadIdsRows = DatabaseService.getInstance().query<any>(
+                `SELECT thread_id FROM local_label_threads WHERE owner_zalo_id = ? AND label_id IN (${placeholders})`,
+                [zaloId, ...resolvedZaloLabelIds]
+              ) || [];
+              selectedZaloLabelContactIds = threadIdsRows.map(r => String(r.thread_id).startsWith('g') ? String(r.thread_id).slice(1) : String(r.thread_id));
             }
-
-            if (cfg.tagIds && Array.isArray(cfg.tagIds) && cfg.tagIds.length > 0) {
-              const placeholders = cfg.tagIds.map(() => '?').join(',');
-              sql += ` AND contact_id IN (
-                SELECT contact_id FROM crm_contact_tags 
-                WHERE tag_id IN (${placeholders})
-              )`;
-              params.push(...cfg.tagIds);
-            }
-
-            let rows = DatabaseService.getInstance().query<any>(sql, params) || [];
-            Logger.log(`[crmIpc:previewWorkflowContacts] SQL: ${sql}, Params: ${JSON.stringify(params)}, Result Count: ${rows.length}`);
 
             let birthdayFilter = cfg.birthdayFilter || '';
             if (cfg.birthdayToday === true && !birthdayFilter) {
               birthdayFilter = 'today';
             }
 
-            if (birthdayFilter) {
-              const vnTime = getVietnamTime();
+            const ctype = cfg.isFriend === 'friend' ? 'friend' : cfg.isFriend === 'non_friend' ? 'non_friend' : 'all';
 
-              rows = rows.filter((c: any) => {
-                if (!c.birthday) return false;
-                const parts = c.birthday.split('/');
-                if (parts.length < 2) return false;
-                const d = parseInt(parts[0], 10);
-                const m = parseInt(parts[1], 10);
-                if (isNaN(d) || isNaN(m)) return false;
+            const opts = {
+              search: cfg.searchQuery || undefined,
+              tagIds: resolvedLocalLabelIds.length > 0 ? resolvedLocalLabelIds : undefined,
+              contactIds: selectedZaloLabelContactIds,
+              contactType: ctype as any,
+              pipelineStageId: cfg.pipelineStageId || undefined,
+              gender: cfg.gender || undefined,
+              birthdayFilter: birthdayFilter || undefined,
+              salutation: cfg.salutation || undefined,
+              limit: 500, // Safe default preview limit
+              offset: 0
+            };
 
-                if (birthdayFilter === 'today') {
-                  const currentDay = vnTime.getDate();
-                  const currentMonth = vnTime.getMonth() + 1;
-                  return d === currentDay && m === currentMonth;
-                }
+            const result = DatabaseService.getInstance().getCRMContacts(zaloId, opts);
+            let rows = result.contacts || [];
 
-                if (birthdayFilter === 'this_week') {
-                  const dayOfWeek = vnTime.getDay();
-                  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-                  const monday = new Date(vnTime.getTime());
-                  monday.setDate(vnTime.getDate() + diffToMonday);
-
-                  const weekDays = new Set<string>();
-                  for (let i = 0; i < 7; i++) {
-                    const day = new Date(monday.getTime());
-                    day.setDate(monday.getDate() + i);
-                    weekDays.add(`${day.getDate()}/${day.getMonth() + 1}`);
-                  }
-                  return weekDays.has(`${d}/${m}`);
-                }
-
-                if (birthdayFilter === 'this_month') {
-                  const currentMonth = vnTime.getMonth() + 1;
-                  return m === currentMonth;
-                }
-
-                return false;
-              });
-            }
-
+            // Add labels to response
             if (rows.length > 0) {
               const labelRows = DatabaseService.getInstance().query<any>(
                 `SELECT llt.thread_id as contact_id, ll.id, ll.name, ll.color, ll.text_color as textColor, ll.shortcut

@@ -406,13 +406,13 @@ function SalutationFilterDropdown({ contacts, value, onChange }: {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // Thu thập tập hợp xưng hô từ contacts (dùng mặc định khi không có salutation)
-  const salutationValues = Array.from(new Set(
-    contacts
+  // Luôn giữ các xưng hô mặc định để không bị biến mất khi chọn lọc
+  const defaultSals = ['Anh', 'Chị', 'Bạn'];
+  const customSals = contacts
       .filter(c => c.contact_type !== 'group')
-      .map(c => c.salutation || (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Bạn'))
-      .filter(Boolean)
-  )).sort();
+      .map(c => c.salutation)
+      .filter((s): s is string => !!s && !defaultSals.includes(s));
+  const salutationValues = Array.from(new Set([...defaultSals, ...customSals])).sort();
 
   if (salutationValues.length === 0) return null;
 

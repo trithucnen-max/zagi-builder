@@ -4961,7 +4961,7 @@ function NodePickerModal({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConfigChange, onLabelChange, onClose }: Props) {
-  const { accounts } = useAccountStore();
+  const { accounts, activeAccountId } = useAccountStore();
   const [config, setConfig]             = useState<Record<string, any>>(node.config || {});
   const [label, setLabel]               = useState(node.label || '');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -4994,7 +4994,7 @@ export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConf
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   const handlePreviewCRMContacts = async () => {
-    const activeZaloId = accounts[0]?.zalo_id;
+    const activeZaloId = activeAccountId || accounts.find(a => (a.channel || 'zalo') === 'zalo')?.zalo_id || accounts[0]?.zalo_id;
     if (!activeZaloId) {
       alert('Vui lòng kết nối ít nhất một tài khoản Zalo để thực hiện xem trước.');
       return;

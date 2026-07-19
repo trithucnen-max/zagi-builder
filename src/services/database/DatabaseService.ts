@@ -3363,7 +3363,14 @@ class DatabaseService {
         if (fields.salutation !== undefined) { sets.push('salutation=?'); vals.push(fields.salutation || null); }
         if (fields.phone !== undefined)      { sets.push('phone=?');      vals.push(this.normalizeVietnamPhone(fields.phone ?? '')); }
         if (fields.gender !== undefined)     { sets.push('gender=?');     vals.push(fields.gender); }
-        if (fields.birthday !== undefined)   { sets.push('birthday=?');   vals.push(fields.birthday || null); }
+        if (fields.birthday !== undefined)   {
+            let b = fields.birthday ? fields.birthday.trim() : null;
+            if (b) {
+                b = b.replace(/[\.-]/g, '/');
+            }
+            sets.push('birthday=?');
+            vals.push(b || null);
+        }
         if (sets.length === 0) return;
         vals.push(ownerZaloId, contactId);
         try {
@@ -6062,6 +6069,11 @@ class DatabaseService {
         limit?: number; offset?: number;
         contactIds?: string[];
         pipelineStageId?: number | null | 'unclassified' | 'any';
+        gender?: 'male' | 'female' | 'unknown' | 'all' | string;
+        birthdayFilter?: 'today' | 'this_week' | 'this_month' | 'has_birthday' | 'no_birthday' | 'all' | string;
+        salutation?: string;
+        hasPhone?: boolean;
+        hasNotes?: boolean;
     } = {}): { contacts: any[]; total: number } {
         if (!this.initialized) return { contacts: [], total: 0 };
         try {
@@ -6155,30 +6167,37 @@ class DatabaseService {
 
             // Apply local label (tagIds) filter
             if (tagIds && tagIds.length > 0) {
-                const threadLabelsMap: Record<string, Set<number>> = {};
-                const labelRows = this.query<any>(
-                    `SELECT thread_id, label_id FROM local_label_threads WHERE owner_zalo_id=?`,
-                    [ownerZaloId]
-                );
-                for (const row of labelRows) {
-                    const cleanTid = row.thread_id.startsWith('g') ? row.thread_id.slice(1) : row.thread_id;
-                    if (!threadLabelsMap[cleanTid]) {
-                        threadLabelsMap[cleanTid] = new Set();
+                const numericTagIds = tagIds.map(id => Number(id)).filter(id => !isNaN(id));
+                if (numericTagIds.length > 0) {
+                    const threadLabelsMap: Record<string, Set<number>> = {};
+                    const labelRows = this.query<any>(
+                        `SELECT thread_id, label_id FROM local_label_threads WHERE owner_zalo_id=?`,
+                        [ownerZaloId]
+                    );
+                    for (const row of labelRows) {
+                        const cleanTid = row.thread_id.startsWith('g') ? row.thread_id.slice(1) : row.thread_id;
+                        if (!threadLabelsMap[cleanTid]) {
+                            threadLabelsMap[cleanTid] = new Set();
+                        }
+                        threadLabelsMap[cleanTid].add(Number(row.label_id));
                     }
-                    threadLabelsMap[cleanTid].add(Number(row.label_id));
-                }
 
-                all = all.filter(c => {
-                    const lIds = threadLabelsMap[c.contact_id];
-                    if (!lIds) return false;
-                    return tagIds.every(id => lIds.has(id));
-                });
+                    all = all.filter(c => {
+                        const cleanCid = c.contact_id.startsWith('g') ? c.contact_id.slice(1) : c.contact_id;
+                        const lIds = threadLabelsMap[cleanCid];
+                        if (!lIds) return false;
+                        return numericTagIds.every(id => lIds.has(id));
+                    });
+                }
             }
 
             // Apply contactIds filter (Zalo labels)
             if (contactIds && contactIds.length > 0) {
-                const allowedIds = new Set(contactIds);
-                all = all.filter(c => allowedIds.has(c.contact_id));
+                const allowedIds = new Set(contactIds.map(id => id.startsWith('g') ? id.slice(1) : id));
+                all = all.filter(c => {
+                    const cleanCid = c.contact_id.startsWith('g') ? c.contact_id.slice(1) : c.contact_id;
+                    return allowedIds.has(cleanCid);
+                });
             }
 
             // Apply search filter
@@ -6193,29 +6212,140 @@ class DatabaseService {
             }
 
             // Apply pipelineStageId filter
-            if (opts.pipelineStageId !== undefined) {
+            if (opts.pipelineStageId !== undefined && opts.pipelineStageId !== null && (opts.pipelineStageId as any) !== '') {
                 const psId = opts.pipelineStageId;
                 if (psId === 'unclassified' || psId === null) {
-                    all = all.filter(c => !c.pipeline_stage_id);
+                    all = all.filter(c => c.pipeline_stage_id === null || c.pipeline_stage_id === undefined || c.pipeline_stage_id === '');
                 } else if (psId === 'any') {
                     all = all.filter(c => c.pipeline_stage_id != null);
                 } else {
-                    all = all.filter(c => c.pipeline_stage_id === psId);
+                    const targetId = Number(psId);
+                    all = all.filter(c => Number(c.pipeline_stage_id) === targetId);
                 }
+            }
+
+            const getVietnamTime = (): Date => {
+                const options = { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: 'numeric', day: 'numeric' } as const;
+                const formatter = new Intl.DateTimeFormat('en-US', options);
+                const parts = formatter.formatToParts(new Date());
+                const partMap = Object.fromEntries(parts.map(p => [p.type, p.value]));
+                const y = parseInt(partMap.year, 10);
+                const m = parseInt(partMap.month, 10);
+                const d = parseInt(partMap.day, 10);
+                return new Date(y, m - 1, d, 12, 0, 0);
+            };
+
+            // Apply gender filter
+            if (opts.gender !== undefined && opts.gender !== null && opts.gender !== 'all' && opts.gender !== '') {
+                const g = String(opts.gender).toLowerCase();
+                if (g === 'male' || g === '0') {
+                    all = all.filter(c => c.gender === 0 || c.gender === '0');
+                } else if (g === 'female' || g === '1') {
+                    all = all.filter(c => c.gender === 1 || c.gender === '1');
+                } else if (g === 'unknown') {
+                    all = all.filter(c => c.gender === null || c.gender === undefined || c.gender === '' || c.gender === 'null');
+                }
+            }
+
+            // Apply birthday filter
+            if (opts.birthdayFilter && opts.birthdayFilter !== 'all' && opts.birthdayFilter !== '') {
+                const filter = opts.birthdayFilter;
+                if (filter === 'has_birthday') {
+                    all = all.filter(c => !!c.birthday);
+                } else if (filter === 'no_birthday') {
+                    all = all.filter(c => !c.birthday);
+                } else {
+                    const vnTime = getVietnamTime();
+                    const currentMonthNum = vnTime.getMonth() + 1;
+                    const currentDay = vnTime.getDate();
+
+                    if (filter === 'today') {
+                        all = all.filter(c => {
+                            if (!c.birthday) return false;
+                            const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                            const parts = cleanBday.split('/');
+                            if (parts.length < 2) return false;
+                            const d = parseInt(parts[0], 10);
+                            const m = parseInt(parts[1], 10);
+                            return d === currentDay && m === currentMonthNum;
+                        });
+                    } else if (filter === 'this_week') {
+                        const weekDates = new Set<string>();
+                        const monday = new Date(vnTime);
+                        const day = vnTime.getDay();
+                        const diff = day === 0 ? -6 : 1 - day;
+                        monday.setDate(vnTime.getDate() + diff);
+                        for (let i = 0; i < 7; i++) {
+                            const d = new Date(monday);
+                            d.setDate(monday.getDate() + i);
+                            weekDates.add(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`);
+                        }
+                        all = all.filter(c => {
+                            if (!c.birthday) return false;
+                            const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                            const parts = cleanBday.split('/');
+                            if (parts.length < 2) return false;
+                            const cleanDate = `${String(parseInt(parts[0], 10)).padStart(2, '0')}/${String(parseInt(parts[1], 10)).padStart(2, '0')}`;
+                            return weekDates.has(cleanDate);
+                        });
+                    } else if (filter === 'this_month') {
+                        all = all.filter(c => {
+                            if (!c.birthday) return false;
+                            const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                            const parts = cleanBday.split('/');
+                            if (parts.length < 2) return false;
+                            return parseInt(parts[1], 10) === currentMonthNum;
+                        });
+                    }
+                }
+            }
+
+            // Apply salutation filter
+            if (opts.salutation && opts.salutation !== 'all') {
+                const targetSal = opts.salutation;
+                all = all.filter(c => {
+                    const effectiveSalutation = c.salutation ||
+                        (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Bạn');
+                    return effectiveSalutation === targetSal;
+                });
+            }
+
+            // Apply hasPhone filter
+            if (opts.hasPhone) {
+                all = all.filter(c => !!c.phone);
+            }
+
+            // Apply hasNotes filter
+            if (opts.hasNotes) {
+                const notesRows = this.query<any>(
+                    `SELECT DISTINCT contact_id FROM crm_notes WHERE owner_zalo_id=?`,
+                    [ownerZaloId]
+                ) || [];
+                const notesContactIds = new Set(notesRows.map((r: any) => {
+                    const cid = String(r.contact_id);
+                    return cid.startsWith('g') ? cid.slice(1) : cid;
+                }));
+                all = all.filter(c => {
+                    const cleanCid = c.contact_id.startsWith('g') ? c.contact_id.slice(1) : c.contact_id;
+                    return notesContactIds.has(cleanCid);
+                });
             }
 
             // Sort
             all.sort((a, b) => {
-                let va: any, vb: any;
                 if (sortBy === 'last_message') {
-                    va = a.last_message_time; vb = b.last_message_time;
+                    const va = a.last_message_time;
+                    const vb = b.last_message_time;
+                    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+                    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+                    return 0;
                 } else {
-                    va = (a.alias || a.display_name || '').toLowerCase();
-                    vb = (b.alias || b.display_name || '').toLowerCase();
+                    const va = a.alias || a.display_name || '';
+                    const vb = b.alias || b.display_name || '';
+                    return sortDir === 'asc'
+                        ? va.localeCompare(vb, 'vi', { sensitivity: 'base' })
+                        : vb.localeCompare(va, 'vi', { sensitivity: 'base' });
                 }
-                if (va < vb) return sortDir === 'asc' ? -1 : 1;
-                if (va > vb) return sortDir === 'asc' ? 1 : -1;
-                return 0;
             });
 
             const total = all.length;

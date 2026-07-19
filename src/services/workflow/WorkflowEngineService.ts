@@ -1821,49 +1821,6 @@ class WorkflowEngineService {
       // ── CRM Actions ─────────────────────────────────────────────────────
       case 'crm.getContacts': {
         const ownerZaloId = _wf.pageIds?.[0] || _wf.pageId || ctx.trigger?.zaloId || '';
-        let sql = `
-          SELECT contact_id, display_name, display_name AS zalo_name, avatar_url as avatar, phone, is_friend, contact_type, gender, birthday, pipeline_stage_id, channel, salutation, alias, ai_profile, extra_data
-          FROM contacts
-          WHERE 1=1
-        `;
-        const params: any[] = [];
-        if (ownerZaloId) {
-          sql += ` AND owner_zalo_id = ?`;
-          params.push(ownerZaloId);
-        }
-
-        if (cfg.channel && cfg.channel !== 'all') {
-          sql += ` AND channel = ?`;
-          params.push(cfg.channel);
-        }
-
-        if (cfg.gender !== undefined && cfg.gender !== null && cfg.gender !== '') {
-          sql += ` AND gender = ?`;
-          params.push(Number(cfg.gender));
-        }
-
-        if (cfg.salutation !== undefined && cfg.salutation !== null && cfg.salutation !== '') {
-          sql += ` AND salutation LIKE ?`;
-          params.push(`%${cfg.salutation}%`);
-        }
-
-        if (cfg.searchQuery !== undefined && cfg.searchQuery !== null && cfg.searchQuery !== '') {
-          sql += ` AND (display_name LIKE ? OR alias LIKE ? OR contact_id LIKE ? OR phone LIKE ?)`;
-          const queryParam = `%${cfg.searchQuery}%`;
-          params.push(queryParam, queryParam, queryParam, queryParam);
-        }
-
-        if (cfg.pipelineStageId !== undefined && cfg.pipelineStageId !== null && cfg.pipelineStageId !== '') {
-          sql += ` AND pipeline_stage_id = ?`;
-          params.push(Number(cfg.pipelineStageId));
-        }
-
-        if (cfg.isFriend === 'friend') {
-          sql += ` AND is_friend = 1`;
-        } else if (cfg.isFriend === 'non_friend') {
-          sql += ` AND is_friend = 0`;
-        }
-
         const resolveDbLabelIds = async (zaloId: string, localLabelIds?: string[], zaloLabelIds?: string[]): Promise<number[]> => {
           const resolvedIds: number[] = [];
 
@@ -1901,17 +1858,6 @@ class WorkflowEngineService {
           return resolvedIds;
         };
 
-        const getVietnamTime = (): Date => {
-          const options = { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: 'numeric', day: 'numeric' } as const;
-          const formatter = new Intl.DateTimeFormat('en-US', options);
-          const parts = formatter.formatToParts(new Date());
-          const partMap = Object.fromEntries(parts.map(p => [p.type, p.value]));
-          const y = parseInt(partMap.year, 10);
-          const m = parseInt(partMap.month, 10);
-          const d = parseInt(partMap.day, 10);
-          return new Date(y, m - 1, d, 12, 0, 0);
-        };
-
         // Extract local and Zalo labels from unified labelIds or legacy fields
         const unifiedLocalIds = [
           ...(cfg.localLabelIds || []),
@@ -1924,90 +1870,49 @@ class WorkflowEngineService {
 
         // Resolve local labels
         const resolvedLocalLabelIds = await resolveDbLabelIds(ownerZaloId, unifiedLocalIds, []);
-        if (resolvedLocalLabelIds.length > 0) {
-          const placeholders = resolvedLocalLabelIds.map(() => '?').join(',');
-          sql += ` AND contact_id IN (
-            SELECT thread_id FROM local_label_threads 
-            WHERE label_id IN (${placeholders})
-          )`;
-          params.push(...resolvedLocalLabelIds);
-        }
-
-        // Resolve Zalo labels
         const resolvedZaloLabelIds = await resolveDbLabelIds(ownerZaloId, [], unifiedZaloIds);
+
+        // Fetch Zalo label contact IDs if any
+        let selectedZaloLabelContactIds: string[] | undefined = undefined;
         if (resolvedZaloLabelIds.length > 0) {
           const placeholders = resolvedZaloLabelIds.map(() => '?').join(',');
-          sql += ` AND contact_id IN (
-            SELECT thread_id FROM local_label_threads 
-            WHERE label_id IN (${placeholders})
-          )`;
-          params.push(...resolvedZaloLabelIds);
+          const threadIdsRows = DatabaseService.getInstance().query<any>(
+            `SELECT thread_id FROM local_label_threads WHERE owner_zalo_id = ? AND label_id IN (${placeholders})`,
+            [ownerZaloId, ...resolvedZaloLabelIds]
+          ) || [];
+          selectedZaloLabelContactIds = threadIdsRows.map(r => String(r.thread_id).startsWith('g') ? String(r.thread_id).slice(1) : String(r.thread_id));
         }
 
-        if (cfg.tagIds && Array.isArray(cfg.tagIds) && cfg.tagIds.length > 0) {
-          const placeholders = cfg.tagIds.map(() => '?').join(',');
-          sql += ` AND contact_id IN (
-            SELECT contact_id FROM crm_contact_tags 
-            WHERE tag_id IN (${placeholders})
-          )`;
-          params.push(...cfg.tagIds);
-        }
-
-        // Execute query
-        let rows = DatabaseService.getInstance().query<any>(sql, params) || [];
-
-        // Apply birthday filter in JS if enabled
         let birthdayFilter = cfg.birthdayFilter || '';
         if (cfg.birthdayToday === true && !birthdayFilter) {
           birthdayFilter = 'today';
         }
 
-        if (birthdayFilter) {
-          const vnTime = getVietnamTime();
+        const ctype = cfg.isFriend === 'friend' ? 'friend' : cfg.isFriend === 'non_friend' ? 'non_friend' : 'all';
 
-          rows = rows.filter((c: any) => {
-            if (!c.birthday) return false;
-            const parts = c.birthday.split('/');
-            if (parts.length < 2) return false;
-            const d = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10);
-            if (isNaN(d) || isNaN(m)) return false;
+        const opts = {
+          search: cfg.searchQuery || undefined,
+          tagIds: resolvedLocalLabelIds.length > 0 ? resolvedLocalLabelIds : undefined,
+          contactIds: selectedZaloLabelContactIds,
+          contactType: ctype as any,
+          pipelineStageId: cfg.pipelineStageId || undefined,
+          gender: cfg.gender || undefined,
+          birthdayFilter: birthdayFilter || undefined,
+          salutation: cfg.salutation || undefined,
+          hasPhone: cfg.hasPhone === true || cfg.hasPhone === 'true' ? true : undefined,
+          hasNotes: cfg.hasNotes === true || cfg.hasNotes === 'true' ? true : undefined,
+          limit: 999999, // Fetch all matching contacts for execution
+          offset: 0
+        };
 
-            if (birthdayFilter === 'today') {
-              const currentDay = vnTime.getDate();
-              const currentMonth = vnTime.getMonth() + 1;
-              return d === currentDay && m === currentMonth;
-            }
+        const result = DatabaseService.getInstance().getCRMContacts(ownerZaloId, opts);
+        let rows = result.contacts || [];
 
-            if (birthdayFilter === 'this_week') {
-              const dayOfWeek = vnTime.getDay();
-              const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-              const monday = new Date(vnTime.getTime());
-              monday.setDate(vnTime.getDate() + diffToMonday);
-
-              const weekDays = new Set<string>();
-              for (let i = 0; i < 7; i++) {
-                const day = new Date(monday.getTime());
-                day.setDate(monday.getDate() + i);
-                weekDays.add(`${day.getDate()}/${day.getMonth() + 1}`);
-              }
-              return weekDays.has(`${d}/${m}`);
-            }
-
-            if (birthdayFilter === 'this_month') {
-              const currentMonth = vnTime.getMonth() + 1;
-              return m === currentMonth;
-            }
-
-            return false;
-          });
-        }
-
-        // Bổ sung: Lấy nhãn (local & Zalo) của các liên hệ
+        // Bổ sung: Làm giàu dữ liệu đầy đủ nhất cho các Node phía sau sử dụng
         if (rows.length > 0) {
-          const ownerZaloId = _wf.pageIds?.[0] || _wf.pageId || ctx.trigger?.zaloId || '';
           if (ownerZaloId) {
             try {
+              // 1. Lấy thông tin nhãn (Local & Zalo)
               const labelRows = DatabaseService.getInstance().query<any>(
                 `SELECT llt.thread_id as contact_id, ll.id, ll.name, ll.color, ll.text_color as textColor, ll.shortcut
                  FROM local_label_threads llt
@@ -2028,10 +1933,42 @@ class WorkflowEngineService {
                 });
               }
 
+              // 2. Lấy thông tin ghi chú (CRM Notes)
+              const noteRows = DatabaseService.getInstance().query<any>(
+                `SELECT contact_id, content, created_at FROM crm_notes WHERE owner_zalo_id = ? ORDER BY created_at DESC`,
+                [ownerZaloId]
+              ) || [];
+
+              const noteMap: Record<string, any[]> = {};
+              for (const nr of noteRows) {
+                if (!noteMap[nr.contact_id]) noteMap[nr.contact_id] = [];
+                noteMap[nr.contact_id].push({
+                  content: nr.content,
+                  created_at: nr.created_at
+                });
+              }
+
+              // 3. Lấy thông tin bước phễu (Pipeline Stages)
+              const stageRows = DatabaseService.getInstance().query<any>(
+                `SELECT id, name, color FROM crm_pipeline_stages`
+              ) || [];
+              const stageMap: Record<number, { name: string; color: string }> = {};
+              for (const sr of stageRows) {
+                stageMap[sr.id] = { name: sr.name, color: sr.color };
+              }
+
+              // 4. Enrich từng liên hệ
               for (const r of rows) {
                 r.labels = labelMap[r.contact_id] || [];
+                r.notes = noteMap[r.contact_id] || [];
+                r.notesText = (noteMap[r.contact_id] || []).map((n: any) => n.content).join('\n');
                 r.salutation = r.salutation || '';
+                r.salutationLabel = r.salutation || (r.gender === 0 ? 'Anh' : r.gender === 1 ? 'Chị' : 'Bạn');
+                r.genderLabel = r.gender === 0 ? 'Nam' : r.gender === 1 ? 'Nữ' : 'Không xác định';
+                r.pipelineStageName = r.pipeline_stage_id ? (stageMap[r.pipeline_stage_id]?.name || '') : 'Chưa phân loại';
+                r.pipelineStageColor = r.pipeline_stage_id ? (stageMap[r.pipeline_stage_id]?.color || '') : '#6b7280';
                 r.alias = r.alias || '';
+                r.phone = r.phone || '';
                 r.aiProfile = r.ai_profile || '';
                 r.extraData = r.extra_data || '';
                 try {
@@ -2041,7 +1978,7 @@ class WorkflowEngineService {
                 }
               }
             } catch (err: any) {
-              Logger.error(`[WorkflowEngine] crm.getContacts labels fetch error: ${err.message}`);
+              Logger.error(`[WorkflowEngine] crm.getContacts enrichment error: ${err.message}`);
             }
           }
         }

@@ -185,6 +185,11 @@ export default function CRMPage() {
         sortDir: store.sortDir,
         limit: store.pageSize,
         offset: store.page * store.pageSize,
+        gender: store.filterGender,
+        birthdayFilter: store.filterBirthday,
+        salutation: store.filterSalutation,
+        hasPhone: store.filterContactTypes.includes('has_phone'),
+        hasNotes: store.filterContactTypes.includes('has_notes'),
       },
     });
     store.setContactsLoading(false);
@@ -198,7 +203,10 @@ export default function CRMPage() {
     zaloLabels,
     store.sortBy,
     store.sortDir,
-    store.page
+    store.page,
+    store.filterGender,
+    store.filterBirthday,
+    store.filterSalutation
   ]);
 
   const loadCampaigns = useCallback(async () => {
@@ -244,7 +252,7 @@ export default function CRMPage() {
     if (disabledTabs[store.tab]) store.setTab('contacts');
     loadContacts(); loadCampaigns(); loadGroupCount(); loadRequestCount();
   }, [activeAccountId]);
-  useEffect(() => { loadContacts(); }, [store.searchText, store.filterContactTypes, store.filterLabelIds, store.filterLocalLabelIds, store.sortBy, store.sortDir, store.page]);
+  useEffect(() => { loadContacts(); }, [store.searchText, store.filterContactTypes, store.filterLabelIds, store.filterLocalLabelIds, store.sortBy, store.sortDir, store.page, store.filterGender, store.filterBirthday, store.filterSalutation]);
   useEffect(() => {
     if (activeAccountId && store.tab === 'requests') {
       clearCRMRequestUnseen(activeAccountId);
@@ -639,81 +647,8 @@ export default function CRMPage() {
   const activeCampaign = store.campaigns.find(c => c.id === store.activeCampaignId) || null;
   const activeContact = store.contacts.find(c => c.contact_id === store.activeContactId) || null;
 
-  // Client-side filtering: has_phone, has_notes
-  const filteredContacts = (() => {
-    let result = store.contacts;
-
-    // Client-side filter: has_phone
-    if (store.filterContactTypes.includes('has_phone')) {
-      result = result.filter(c => !!c.phone);
-    }
-
-    // Client-side filter: has_notes
-    if (store.filterContactTypes.includes('has_notes')) {
-      result = result.filter(c => c.note_count > 0);
-    }
-
-
-    // Client-side filter: gender
-    if (store.filterGender === 'male') {
-      result = result.filter(c => c.gender === 0);
-    } else if (store.filterGender === 'female') {
-      result = result.filter(c => c.gender === 1);
-    } else if (store.filterGender === 'unknown') {
-      result = result.filter(c => c.gender === null || c.gender === undefined);
-    }
-
-    // Client-side filter: birthday
-    if (store.filterBirthday === 'has_birthday') {
-      result = result.filter(c => !!c.birthday);
-    } else if (store.filterBirthday === 'no_birthday') {
-      result = result.filter(c => !c.birthday);
-    } else if (store.filterBirthday === 'today') {
-      const now = new Date();
-      const todayDD = String(now.getDate()).padStart(2, '0');
-      const todayMM = String(now.getMonth() + 1).padStart(2, '0');
-      result = result.filter(c => {
-        if (!c.birthday) return false;
-        const parts = c.birthday.split('/');
-        return parts.length >= 2 && parts[0] === todayDD && parts[1] === todayMM;
-      });
-    } else if (store.filterBirthday === 'this_week') {
-      const now = new Date();
-      // Build set of DD/MM for the next 7 days (including today)
-      const weekDates = new Set<string>();
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(now);
-        d.setDate(d.getDate() + i);
-        weekDates.add(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`);
-      }
-      result = result.filter(c => {
-        if (!c.birthday) return false;
-        const parts = c.birthday.split('/');
-        if (parts.length < 2) return false;
-        return weekDates.has(`${parts[0]}/${parts[1]}`);
-      });
-    } else if (store.filterBirthday === 'this_month') {
-      const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
-      result = result.filter(c => {
-        if (!c.birthday) return false;
-        // birthday format: DD/MM/YYYY
-        const parts = c.birthday.split('/');
-        return parts.length >= 2 && parts[1] === currentMonth;
-      });
-    }
-
-    // Client-side filter: salutation
-    if (store.filterSalutation && store.filterSalutation !== 'all') {
-      const targetSal = store.filterSalutation;
-      result = result.filter(c => {
-        const effectiveSalutation = c.salutation ||
-          (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Bạn');
-        return effectiveSalutation === targetSal;
-      });
-    }
-
-    return result;
-  })();
+  // Client-side filtering: now handled entirely at DB/Backend level
+  const filteredContacts = store.contacts;
 
   return (
     <div className="flex flex-col h-full bg-gray-900">
@@ -787,14 +722,7 @@ export default function CRMPage() {
               <div className="flex-1 flex flex-col overflow-hidden">
                 <CRMContactList
                   contacts={filteredContacts}
-                  total={
-                    (store.filterLabelIds.length === 0 && store.filterLocalLabelIds.length === 0
-                      && !store.filterContactTypes.includes('has_phone') && !store.filterContactTypes.includes('has_notes')
-                      && store.filterGender === 'all' && store.filterBirthday === 'all'
-                      && (!store.filterSalutation || store.filterSalutation === 'all'))
-                      ? store.totalContacts
-                      : filteredContacts.length
-                  }
+                  total={store.totalContacts}
                   page={store.page}
                   pageSize={store.pageSize}
                   loading={store.contactsLoading}
