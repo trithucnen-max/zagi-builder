@@ -110,11 +110,13 @@ describe('CRM Name and Salutation Separation Logic', () => {
             contact.avatar_url = avatar_url;
             contact.phone = phone;
           }
-        } else if (sql.includes('gender=?') && sql.includes('salutation')) {
+        } else if ((sql.includes('gender=?') || sql.includes('gender = CASE')) && sql.includes('salutation')) {
           const [gender, salutation, owner_zalo_id, contact_id] = params;
           const contact = mockContacts.find(c => c.contact_id === contact_id);
           if (contact) {
-            contact.gender = gender;
+            if (contact.gender === null || contact.gender === undefined) {
+              contact.gender = gender;
+            }
             if (!contact.salutation || contact.salutation === '') {
               contact.salutation = salutation;
             }

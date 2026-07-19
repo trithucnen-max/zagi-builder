@@ -3281,7 +3281,7 @@ class DatabaseService {
                 const autoSalutation = gender === 0 ? 'Anh' : (gender === 1 ? 'Chị' : 'Bạn');
                 this.run(
                     `UPDATE contacts SET 
-                       gender=?,
+                       gender = CASE WHEN gender IS NULL THEN ? ELSE gender END,
                        salutation = CASE WHEN salutation IS NULL OR salutation = '' THEN ? ELSE salutation END
                      WHERE owner_zalo_id=? AND contact_id=?`,
                     [gender, autoSalutation, ownerZaloId, contactId]
@@ -3289,7 +3289,7 @@ class DatabaseService {
             }
             if (birthday !== undefined && birthday !== null && birthday !== '') {
                 this.run(
-                    `UPDATE contacts SET birthday=? WHERE owner_zalo_id=? AND contact_id=?`,
+                    `UPDATE contacts SET birthday = CASE WHEN birthday IS NULL OR birthday = '' THEN ? ELSE birthday END WHERE owner_zalo_id=? AND contact_id=?`,
                     [birthday, ownerZaloId, contactId]
                 );
             }

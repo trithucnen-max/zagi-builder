@@ -1,0 +1,11 @@
+version: 3.0.2
+files:
+  - url: Zagi-3.0.2.dmg
+    sha512: QJrRx5R5Jln/E26KqdL1ob0nLvvqXnWk8aulYc14NTHH9qrmhzE5vLokVHxMyojfa+InNnyVaJ4Vqqz9lpX4Sg==
+    size: 216351703
+  - url: Zagi-3.0.2-arm64.dmg
+    sha512: vL4vf8VGHfuVhmdUun6ccZFVchRPoosbXKTWaUO+LVwaYucy0OqTD6zX9oAQCGWeOY1qB8xpRsbZpFBjcP1+Tg==
+    size: 209573660
+path: Zagi-3.0.2.dmg
+sha512: QJrRx5R5Jln/E26KqdL1ob0nLvvqXnWk8aulYc14NTHH9qrmhzE5vLokVHxMyojfa+InNnyVaJ4Vqqz9lpX4Sg==
+releaseDate: '2026-07-18T16:37:13.376Z'

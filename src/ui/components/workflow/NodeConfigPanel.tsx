@@ -296,8 +296,8 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       key: 'gender', label: 'Giới tính', type: 'select',
       options: [
         { value: '', label: 'Tất cả giới tính' },
-        { value: '1', label: 'Nam' },
-        { value: '2', label: 'Nữ' },
+        { value: '0', label: 'Nam' },
+        { value: '1', label: 'Nữ' },
       ],
       desc: 'Lọc khách hàng theo giới tính.',
     },
@@ -6431,8 +6431,8 @@ function CRMPreviewContactsModal({
               {contacts.map((c, idx) => {
                 const getGenderLabel = () => {
                   if (c.contact_type === 'group') return '👥 Nhóm';
-                  if (c.gender === 1) return '♂️ Nam';
-                  if (c.gender === 2) return '♀️ Nữ';
+                  if (c.gender === 0) return '♂️ Nam';
+                  if (c.gender === 1) return '♀️ Nữ';
                   return '⚧️ Chưa rõ';
                 };
 

@@ -74,6 +74,86 @@ export function registerCRMIpc(): void {
         catch (e: any) { return { success: false, error: e.message, contacts: [], total: 0 }; }
     });
 
+    async function resolveDbLabelIds(zaloId: string, localLabelIds?: string[], zaloLabelIds?: string[]): Promise<number[]> {
+        const resolvedIds: number[] = [];
+
+        if (localLabelIds && Array.isArray(localLabelIds)) {
+            for (const val of localLabelIds) {
+                const s = String(val);
+                if (s.startsWith('local:')) {
+                    const id = Number(s.split(':')[1]);
+                    if (!isNaN(id)) resolvedIds.push(id);
+                } else {
+                    const id = Number(s);
+                    if (!isNaN(id)) resolvedIds.push(id);
+                }
+            }
+        }
+
+        if (zaloLabelIds && Array.isArray(zaloLabelIds) && zaloLabelIds.length > 0) {
+            const zaloLabelMap: Record<string, string[]> = {};
+            for (const val of zaloLabelIds) {
+                const s = String(val);
+                if (s.startsWith('zalo:')) {
+                    const parts = s.split(':');
+                    if (parts.length >= 3) {
+                        const accId = parts[1];
+                        const rawId = parts[2];
+                        if (!zaloLabelMap[accId]) zaloLabelMap[accId] = [];
+                        zaloLabelMap[accId].push(rawId);
+                    }
+                }
+            }
+
+            for (const [accId, rawIds] of Object.entries(zaloLabelMap)) {
+                try {
+                    let labels: any[] = [];
+                    try {
+                        const ConnectionManager = require('../../src/utils/ConnectionManager').default;
+                        const api = ConnectionManager.getConnection(accId)?.api;
+                        if (api) {
+                            const labelsRes = await api.getLabels();
+                            labels = labelsRes?.labelData || labelsRes?.data?.labelData || [];
+                        }
+                    } catch (e: any) {
+                        Logger.warn(`[CRM:resolveDbLabelIds] Connection fetch error for account ${accId}: ${e.message}`);
+                    }
+
+                    for (const rawId of rawIds) {
+                        const zLabel = labels.find((l: any) => String(l.id) === String(rawId));
+                        if (zLabel) {
+                            const name = (zLabel.text || zLabel.name || zLabel.title || '').trim();
+                            if (name) {
+                                const dbRow = DatabaseService.getInstance().queryOne<any>(
+                                    `SELECT id FROM local_labels WHERE name = ? AND (page_ids = '' OR page_ids LIKE ?) LIMIT 1`,
+                                    [name, `%${accId}%`]
+                                );
+                                if (dbRow?.id) {
+                                    resolvedIds.push(dbRow.id);
+                                }
+                            }
+                        }
+                    }
+                } catch (err: any) {
+                    Logger.error(`[CRM] Failed to resolve Zalo labels for account ${accId}: ${err.message}`);
+                }
+            }
+        }
+
+        return resolvedIds;
+    }
+
+    function getVietnamTime(): Date {
+        const options = { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: 'numeric', day: 'numeric' } as const;
+        const formatter = new Intl.DateTimeFormat('en-US', options);
+        const parts = formatter.formatToParts(new Date());
+        const partMap = Object.fromEntries(parts.map(p => [p.type, p.value]));
+        const y = parseInt(partMap.year, 10);
+        const m = parseInt(partMap.month, 10);
+        const d = parseInt(partMap.day, 10);
+        return new Date(y, m - 1, d, 12, 0, 0);
+    }
+
     ipcHandle('crm:previewWorkflowContacts', async (_e, { zaloId, cfg }: { zaloId: string; cfg: any }) => {
         try {
             let sql = `
@@ -115,22 +195,26 @@ export function registerCRMIpc(): void {
               sql += ` AND is_friend = 0`;
             }
 
-            if (cfg.localLabelIds && Array.isArray(cfg.localLabelIds) && cfg.localLabelIds.length > 0) {
-              const placeholders = cfg.localLabelIds.map(() => '?').join(',');
+            // Resolve local labels
+            const resolvedLocalLabelIds = await resolveDbLabelIds(zaloId, cfg.localLabelIds, []);
+            if (resolvedLocalLabelIds.length > 0) {
+              const placeholders = resolvedLocalLabelIds.map(() => '?').join(',');
               sql += ` AND contact_id IN (
                 SELECT thread_id FROM local_label_threads 
                 WHERE label_id IN (${placeholders})
               )`;
-              params.push(...cfg.localLabelIds);
+              params.push(...resolvedLocalLabelIds);
             }
 
-            if (cfg.zaloLabelIds && Array.isArray(cfg.zaloLabelIds) && cfg.zaloLabelIds.length > 0) {
-              const placeholders = cfg.zaloLabelIds.map(() => '?').join(',');
+            // Resolve Zalo labels
+            const resolvedZaloLabelIds = await resolveDbLabelIds(zaloId, [], cfg.zaloLabelIds);
+            if (resolvedZaloLabelIds.length > 0) {
+              const placeholders = resolvedZaloLabelIds.map(() => '?').join(',');
               sql += ` AND contact_id IN (
                 SELECT thread_id FROM local_label_threads 
                 WHERE label_id IN (${placeholders})
               )`;
-              params.push(...cfg.zaloLabelIds);
+              params.push(...resolvedZaloLabelIds);
             }
 
             if (cfg.tagIds && Array.isArray(cfg.tagIds) && cfg.tagIds.length > 0) {
@@ -150,9 +234,7 @@ export function registerCRMIpc(): void {
             }
 
             if (birthdayFilter) {
-              const today = new Date();
-              const utc = today.getTime() + today.getTimezoneOffset() * 60000;
-              const vnTime = new Date(utc + 3600000 * 7);
+              const vnTime = getVietnamTime();
 
               rows = rows.filter((c: any) => {
                 if (!c.birthday) return false;
