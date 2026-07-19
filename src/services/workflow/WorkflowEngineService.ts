@@ -1869,7 +1869,8 @@ class WorkflowEngineService {
 
           if (localLabelIds && Array.isArray(localLabelIds)) {
             for (const val of localLabelIds) {
-              const s = String(val);
+              const s = String(val).trim();
+              if (!s) continue;
               if (s.startsWith('local:')) {
                 const id = Number(s.split(':')[1]);
                 if (!isNaN(id)) resolvedIds.push(id);
@@ -1880,51 +1881,19 @@ class WorkflowEngineService {
             }
           }
 
-          if (zaloLabelIds && Array.isArray(zaloLabelIds) && zaloLabelIds.length > 0) {
-            const zaloLabelMap: Record<string, string[]> = {};
+          if (zaloLabelIds && Array.isArray(zaloLabelIds)) {
             for (const val of zaloLabelIds) {
-              const s = String(val);
+              const s = String(val).trim();
+              if (!s) continue;
               if (s.startsWith('zalo:')) {
                 const parts = s.split(':');
                 if (parts.length >= 3) {
-                  const accId = parts[1];
-                  const rawId = parts[2];
-                  if (!zaloLabelMap[accId]) zaloLabelMap[accId] = [];
-                  zaloLabelMap[accId].push(rawId);
+                  const id = Number(parts[2]);
+                  if (!isNaN(id)) resolvedIds.push(id);
                 }
-              }
-            }
-
-            for (const [accId, rawIds] of Object.entries(zaloLabelMap)) {
-              try {
-                let labels: any[] = [];
-                try {
-                  const api = ConnectionManager.getConnection(accId)?.api;
-                  if (api) {
-                    const labelsRes: any = await api.getLabels();
-                    labels = labelsRes?.labelData || labelsRes?.data?.labelData || [];
-                  }
-                } catch (e: any) {
-                  Logger.warn(`[WorkflowEngine:resolveDbLabelIds] Connection fetch error for account ${accId}: ${e.message}`);
-                }
-
-                for (const rawId of rawIds) {
-                  const zLabel = labels.find((l: any) => String(l.id) === String(rawId));
-                  if (zLabel) {
-                    const name = (zLabel.text || zLabel.name || zLabel.title || '').trim();
-                    if (name) {
-                      const dbRow = DatabaseService.getInstance().queryOne<any>(
-                        `SELECT id FROM local_labels WHERE name = ? AND (page_ids = '' OR page_ids LIKE ?) LIMIT 1`,
-                        [name, `%${accId}%`]
-                      );
-                      if (dbRow?.id) {
-                        resolvedIds.push(dbRow.id);
-                      }
-                    }
-                  }
-                }
-              } catch (err: any) {
-                Logger.error(`[WorkflowEngine] Failed to resolve Zalo labels for account ${accId}: ${err.message}`);
+              } else {
+                const id = Number(s);
+                if (!isNaN(id)) resolvedIds.push(id);
               }
             }
           }
@@ -1943,8 +1912,18 @@ class WorkflowEngineService {
           return new Date(y, m - 1, d, 12, 0, 0);
         };
 
+        // Extract local and Zalo labels from unified labelIds or legacy fields
+        const unifiedLocalIds = [
+          ...(cfg.localLabelIds || []),
+          ...(cfg.labelIds || []).filter((id: string) => String(id).startsWith('local:'))
+        ];
+        const unifiedZaloIds = [
+          ...(cfg.zaloLabelIds || []),
+          ...(cfg.labelIds || []).filter((id: string) => String(id).startsWith('zalo:'))
+        ];
+
         // Resolve local labels
-        const resolvedLocalLabelIds = await resolveDbLabelIds(ownerZaloId, cfg.localLabelIds, []);
+        const resolvedLocalLabelIds = await resolveDbLabelIds(ownerZaloId, unifiedLocalIds, []);
         if (resolvedLocalLabelIds.length > 0) {
           const placeholders = resolvedLocalLabelIds.map(() => '?').join(',');
           sql += ` AND contact_id IN (
@@ -1955,7 +1934,7 @@ class WorkflowEngineService {
         }
 
         // Resolve Zalo labels
-        const resolvedZaloLabelIds = await resolveDbLabelIds(ownerZaloId, [], cfg.zaloLabelIds);
+        const resolvedZaloLabelIds = await resolveDbLabelIds(ownerZaloId, [], unifiedZaloIds);
         if (resolvedZaloLabelIds.length > 0) {
           const placeholders = resolvedZaloLabelIds.map(() => '?').join(',');
           sql += ` AND contact_id IN (

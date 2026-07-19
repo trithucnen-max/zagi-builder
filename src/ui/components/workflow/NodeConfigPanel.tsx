@@ -321,12 +321,8 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       desc: 'Lọc khách hàng theo bước phễu bán hàng hiện tại.',
     },
     {
-      key: 'localLabelIds', label: 'Nhãn Local (Chọn nhiều)', type: 'label-picker', labelMode: 'multi',
-      desc: 'Lọc khách hàng được gán các nhãn local này.',
-    },
-    {
-      key: 'zaloLabelIds', label: 'Nhãn Zalo (Chọn nhiều)', type: 'label-picker', labelMode: 'multi',
-      desc: 'Lọc khách hàng được gán các nhãn Zalo đã đồng bộ này.',
+      key: 'labelIds', label: 'Chọn nhãn', type: 'label-picker', labelMode: 'multi',
+      desc: 'Lọc khách hàng được gán các nhãn local hoặc Zalo này.',
     },
   ],
   'trigger.message': [
