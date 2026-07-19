@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
+import { useWorkspaceStore } from '@/store/workspaceStore';
 import LibraryPickerModal from '../chat/library/LibraryPickerModal';
 import { getNodeLabel } from './workflowConfig';
 import GroupAvatar from '@/components/common/GroupAvatar';
@@ -4086,7 +4087,15 @@ function FilePickerField({
       const result = await ipc.file?.openDialog({ filters });
 
       if (result?.success && !result.canceled && result.filePaths?.[0]) {
-        onChange(result.filePaths[0]);
+        let filePath = result.filePaths[0];
+        const activeWs = useWorkspaceStore.getState().activeWorkspace();
+        if (activeWs && activeWs.type === 'remote' && ipc.workflow?.uploadMedia) {
+          const uploaded = await ipc.workflow.uploadMedia({ filePaths: [filePath] });
+          if (uploaded?.[0]) {
+            filePath = uploaded[0];
+          }
+        }
+        onChange(filePath);
         setPreviewError(false);
       }
     } catch (err) {
@@ -4291,7 +4300,15 @@ function MultiImageSelector({
       const filters = [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] }];
       const result = await ipc.file?.openDialog({ filters, multiSelect: true });
       if (result?.success && !result.canceled && result.filePaths?.length) {
-        const added = result.filePaths.filter((p: string) => !currentPaths.includes(p));
+        let filePaths = result.filePaths;
+        const activeWs = useWorkspaceStore.getState().activeWorkspace();
+        if (activeWs && activeWs.type === 'remote' && ipc.workflow?.uploadMedia) {
+          const uploaded = await ipc.workflow.uploadMedia({ filePaths });
+          if (uploaded && uploaded.length > 0) {
+            filePaths = uploaded.filter(Boolean);
+          }
+        }
+        const added = filePaths.filter((p: string) => !currentPaths.includes(p));
         updatePathsList([...currentPaths, ...added]);
       }
     } catch (err) {
@@ -4617,7 +4634,15 @@ function MultiFileSelector({
       }
       const result = await ipc.file?.openDialog({ filters, multiSelect: true });
       if (result?.success && !result.canceled && result.filePaths?.length) {
-        const added = result.filePaths.filter((p: string) => !currentPaths.includes(p));
+        let filePaths = result.filePaths;
+        const activeWs = useWorkspaceStore.getState().activeWorkspace();
+        if (activeWs && activeWs.type === 'remote' && ipc.workflow?.uploadMedia) {
+          const uploaded = await ipc.workflow.uploadMedia({ filePaths });
+          if (uploaded && uploaded.length > 0) {
+            filePaths = uploaded.filter(Boolean);
+          }
+        }
+        const added = filePaths.filter((p: string) => !currentPaths.includes(p));
         updatePathsList([...currentPaths, ...added]);
       }
     } catch (err) {
