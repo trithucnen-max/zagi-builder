@@ -4,6 +4,19 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v3.0.3] - 2026-07-20
+
+### 🐛 Sửa lỗi & Nâng cấp
+
+- **Sửa lỗi cơ chế lọc CRM trên máy Nhân viên (Employee Mode & Proxy):**
+  - Khắc phục lỗi giao diện không phát lệnh truy vấn lọc về Máy Boss khi thay đổi các bộ lọc Giới tính, Sinh nhật, Xưng hô, Có SĐT, Có Ghi chú.
+  - Thêm lớp chuẩn hóa dữ liệu `sanitizeCRMContactsOpts` tại Máy Boss để xử lý chính xác mảng ID nhãn và các chuỗi lọc truyền từ Máy Nhân viên qua Proxy HTTP.
+- **Nâng cấp Node Truy vấn CRM trong Workflow (`crm_query` / `crm.getContacts`):**
+  - Bổ sung bộ lọc `hasPhone` và `hasNotes` vào Node Workflow.
+  - Bổ sung dữ liệu đầu ra phong phú cho các Node phía sau: danh sách Ghi chú CRM (`notes`), tên/màu bước phễu (`pipelineStageName`, `pipelineStageColor`), nhãn chuẩn hóa (`genderLabel`, `salutationLabel`).
+
+---
+
 ## [v3.0.2] - 2026-07-19
 
 ### 🚀 Tính năng mới
