@@ -788,14 +788,18 @@ export function registerZaloIpc() {
                     const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
                     const zaloService = await getService(auth);
                     const linkRes: any = await zaloService.getGroupLinkInfo(groupId, 1);
-                    if (!linkRes?.success || !linkRes?.response?.groupId) {
-                        return { success: false, error: linkRes?.error || 'Không lấy được thông tin nhóm từ link. Kiểm tra lại đường dẫn.' };
+                    const rawInfo = linkRes?.response || linkRes;
+                    const resolvedGroupId = rawInfo?.groupId || rawInfo?.group_id || rawInfo?.id;
+                    
+                    if (!resolvedGroupId) {
+                        return { success: false, error: linkRes?.error || linkRes?.message || 'Không lấy được thông tin nhóm từ link. Kiểm tra lại đường dẫn.' };
                     }
-                    groupId = String(linkRes.response.groupId);
-                    const name = linkRes.response.name || groupId;
-                    const avatar = linkRes.response.fullAvt || linkRes.response.avt || '';
-                    const creatorId = String(linkRes.response.creatorId || '').replace(/_0$/, '');
-                    const adminIds: string[] = (linkRes.response.adminIds || []).map((a: string) => String(a).replace(/_0$/, ''));
+                    
+                    groupId = String(resolvedGroupId);
+                    const name = rawInfo.name || groupId;
+                    const avatar = rawInfo.fullAvt || rawInfo.avt || rawInfo.avatar || '';
+                    const creatorId = String(rawInfo.creatorId || rawInfo.ownerId || '').replace(/_0$/, '');
+                    const adminIds: string[] = (rawInfo.adminIds || []).map((a: any) => String(a).replace(/_0$/, ''));
                     groupInfoFromLink = { groupId, name, avatar, creatorId, adminIds };
 
                     // Lưu profile nhóm vào SQLite Boss
