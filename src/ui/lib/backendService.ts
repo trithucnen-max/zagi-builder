@@ -41,8 +41,9 @@ export interface ScanGroupResult {
  */
 async function encryptBody(body: object): Promise<string> {
   try {
-    const cryptoModule = typeof window !== 'undefined' && (window as any)?.require 
-      ? (window as any).require('crypto') 
+    const g = globalThis as any;
+    const cryptoModule = g?.window?.require 
+      ? g.window.require('crypto') 
       : await import('crypto');
     const key = Buffer.from(SECRET_KEY, 'hex').slice(0, 16);
     const iv = Buffer.alloc(16, 0);
@@ -52,7 +53,8 @@ async function encryptBody(body: object): Promise<string> {
     return encrypted;
   } catch (err) {
     console.warn('[backendService] encryptBody failed, sending plain text:', err);
-    return btoa(JSON.stringify(body));
+    const g = globalThis as any;
+    return g?.btoa ? g.btoa(JSON.stringify(body)) : Buffer.from(JSON.stringify(body)).toString('base64');
   }
 }
 
