@@ -50,8 +50,12 @@ Tách biệt cột **Biệt danh CRM** (do doanh nghiệp tự đặt, click đ�
 **Xưng hô (Salutation)**: Tự sinh "Anh"/"Chị"/"Bạn" dựa vào giới tính khi đồng bộ profile từ Zalo và bảo toàn các xưng hô chỉnh sửa thủ công của người dùng (có thể sửa trong danh sách CRM hoặc ngay bên cạnh khung chat khi đang tương tác).
 **Đồng bộ biến Chiến dịch & Workflow**: hỗ trợ chèn biến linh hoạt: `{zalo_name}` / `$item.zalo_name` (tên Zalo gốc), `{alias}` / `$item.alias` (biệt danh CRM, không tự động fallback ra tên Zalo khi rỗng), `{name}` / `$item.display_name` (tên liên hệ thông minh: alias > display_name), `{salutation}` và `{gender_greeting}` (đồng bộ trực tiếp với trường xưng hô CRM).
 **Autocomplete & Toolbar**: Soạn tin nhắn chiến dịch & workflow hỗ trợ nhập dấu `{` tự động hiển thị gợi ý biến thông minh và thanh công cụ chip chèn nhanh tiện dụng.
-Nhãn Zalo (Label): đồng bộ hai chiều với Zalo điện thoại — gán trong app thì hiện trên điện thoại. Dùng nhãn làm điều kiện trong Workflow.
-Quản lý nhóm & rời nhóm hàng loạt: xem/tìm kiếm thành viên, rời nhiều nhóm cùng lúc, tự động chuyển quyền trưởng nhóm trước khi rời để tránh nhóm bị giải tán, AI soạn lời tạm biệt lịch sự. Có tính năng quét thành viên nhóm ẩn và quét nhóm chưa tham gia qua link mời.
+Quản lý nhóm & rời nhóm hàng loạt: xem/tìm kiếm thành viên, rời nhiều nhóm cùng lúc, tự động chuyển quyền trưởng nhóm trước khi rời để tránh nhóm bị giải tán, AI soạn lời tạm biệt lịch sự.
+**Tính năng Quét nâng cao (Premium Group Scan)**: Chuyển sang sub-tab "Quét nâng cao" trong giao diện Nhóm Zalo:
+1. Dán đường dẫn nhóm Zalo (`https://zalo.me/g/...`) hoặc Group ID vào ô tìm kiếm.
+2. Bấm nút **Tham gia** nếu tài khoản Zalo hiện tại chưa phải là thành viên trong nhóm.
+3. Bấm **Quét** — hệ thống sẽ tự động bóc tách danh sách thành viên (kể cả nhóm ẩn danh sách thành viên) và tự động lưu đồng bộ về CSDL máy Boss.
+4. Chuyển sang tab **Thành viên nhóm** để xem kết quả chi tiết, chọn thành viên và thêm trực tiếp vào Chiến dịch gửi tin hàng loạt, kết bạn hoặc xuất thông tin liên hệ.
 Chăm sóc theo sinh nhật/giới tính (điểm bán hàng mạnh): lọc khách sinh nhật hôm nay/tuần/tháng để gửi lời chúc + ưu đãi; chiến dịch theo giới tính (8/3, 20/10 cho khách nữ; 14/2 cho khách nam); kéo lại khách cũ chưa nhắn > 30 ngày. Cách dùng: CRM → Danh sách liên hệ → Bộ lọc → chọn tiêu chí → Chọn hết → Thêm vào chiến dịch → soạn nội dung → Gửi.
 Chiến dịch gửi tin (Campaign): gửi tin/kết bạn/mời nhóm hàng loạt có kiểm soát, cài delay tránh spam, theo dõi realtime (đã gửi/thất bại/chờ/đã phản hồi).
 ###
