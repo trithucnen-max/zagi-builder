@@ -2,6 +2,15 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.4] - 2026-07-20
+
+### 🚀 Tính năng mới & Nâng cấp
+
+- **Tính năng Quét thành viên nhóm Nâng cao (Premium Zalo Group Scan):**
+  - Tích hợp sub-tab Quét nâng cao trong giao diện Nhóm Zalo với thiết kế đồng nhất theo chuẩn Zagi Theme (Card Light Mode, Alert Warning Box, Accent Blue Button, 4-Feature Highlights grid).
+  - Tự động bóc tách danh sách thành viên từ đường dẫn link nhóm (`https://zalo.me/g/...`) hoặc Group ID (bất chấp nhóm bị ẩn thành viên hoặc tài khoản chưa tham gia).
+  - Tự động kiểm tra bản quyền Premium qua Server API và đồng bộ toàn bộ dữ liệu thành viên vừa quét về CSDL local máy Boss (`contact_profile` và `group_members`), phục vụ ngay cho các chiến dịch CRM Marketing & Workflow.
+
 ---
 
 ## [v3.0.3] - 2026-07-20
