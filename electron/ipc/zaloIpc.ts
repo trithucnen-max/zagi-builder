@@ -742,5 +742,134 @@ export function registerZaloIpc() {
     wrap('zalo:updateActiveStatus', (s, p) =>
         s.updateActiveStatus(p.active)
     );
+
+    // ─── Quét nhóm Nâng cao (Premium Group Scan) ─────────────────────────
+    const activeScanMap = new Map<string, Promise<any>>();
+
+    const scanAdvancedHandler = async (event: any, params: { zaloId: string; linkOrGroupId: string }) => {
+        const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+        if (activeWs?.type === 'remote' && !(params as any)?._fromRelay) {
+            try {
+                return await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:scanAdvancedGroup', params);
+            } catch (err: any) {
+                Logger.error(`[zaloIpc] Error forwarding zalo:scanAdvancedGroup to Boss: ${err.message}`);
+                return { success: false, error: err.message };
+            }
+        }
+
+        const { zaloId, linkOrGroupId } = params || {};
+        if (!zaloId || !linkOrGroupId) {
+            return { success: false, error: 'Thiếu zaloId hoặc link/ID nhóm' };
+        }
+
+        const cleanInput = linkOrGroupId.trim();
+        const scanKey = `${zaloId}_${cleanInput}`;
+
+        // Kiểm tra ghép luồng trùng (Pending Scan Deduplication)
+        if (activeScanMap.has(scanKey)) {
+            Logger.log(`[zaloIpc] Ghép luồng quét trùng đang chạy cho key: ${scanKey}`);
+            return await activeScanMap.get(scanKey);
+        }
+
+        const scanPromise = (async () => {
+            try {
+                // 1. Boss tự lấy auth từ DatabaseService
+                const accounts = DatabaseService.getInstance().getAccounts() || [];
+                const account = accounts.find(a => String(a.zalo_id) === String(zaloId));
+                if (!account || !account.cookies) {
+                    return { success: false, error: `Không tìm thấy thông tin đăng nhập tài khoản Zalo ${zaloId} trên máy Boss` };
+                }
+
+                // 2. Resolve link Zalo me nếu có
+                let groupId = cleanInput;
+                let groupInfoFromLink: any = null;
+
+                if (groupId.includes('zalo.me') || groupId.includes('chat.zalo.me') || !/^\d+$/.test(groupId)) {
+                    const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
+                    const zaloService = await getService(auth);
+                    const linkRes: any = await zaloService.getGroupLinkInfo(groupId, 1);
+                    if (!linkRes?.success || !linkRes?.response?.groupId) {
+                        return { success: false, error: linkRes?.error || 'Không lấy được thông tin nhóm từ link. Kiểm tra lại đường dẫn.' };
+                    }
+                    groupId = String(linkRes.response.groupId);
+                    const name = linkRes.response.name || groupId;
+                    const avatar = linkRes.response.fullAvt || linkRes.response.avt || '';
+                    const creatorId = String(linkRes.response.creatorId || '').replace(/_0$/, '');
+                    const adminIds: string[] = (linkRes.response.adminIds || []).map((a: string) => String(a).replace(/_0$/, ''));
+                    groupInfoFromLink = { groupId, name, avatar, creatorId, adminIds };
+
+                    // Lưu profile nhóm vào SQLite Boss
+                    DatabaseService.getInstance().updateContactProfile(
+                        zaloId,
+                        groupId,
+                        name,
+                        avatar,
+                        '',
+                        'group'
+                    );
+                }
+
+                // 3. Boss gọi scanGroupViaBackend tới deplaoapp.com
+                const { scanGroupViaBackend } = await import('../../src/ui/lib/backendService');
+                const result = await scanGroupViaBackend({
+                    pageId: zaloId,
+                    cookie: account.cookies,
+                    imei: account.imei || '',
+                    groupId,
+                });
+
+                if (!result?.success) {
+                    return { success: false, error: result?.error || 'Quét thất bại từ máy chủ Backend' };
+                }
+
+                const members = result.members || [];
+                if (members.length === 0) {
+                    return { success: false, error: 'Không tìm thấy thành viên nào trong nhóm.' };
+                }
+
+                // 4. Lưu kết quả thành viên vào SQLite Boss
+                const creatorId = groupInfoFromLink?.creatorId || '';
+                const adminIdList = groupInfoFromLink?.adminIds || [];
+                const adminSet = new Set([creatorId, ...adminIdList].filter(Boolean));
+
+                const memberList = members.map((m: any) => {
+                    const mid = String(m.userId || m.id);
+                    let role = 0;
+                    if (mid === creatorId) role = 2;
+                    else if (adminSet.has(mid)) role = 1;
+                    return {
+                        memberId: mid,
+                        displayName: m.displayName || m.zaloName || m.userId || m.id,
+                        avatar: m.avatar || '',
+                        role,
+                    };
+                });
+
+                DatabaseService.getInstance().saveGroupMembers(zaloId, groupId, memberList);
+
+                DatabaseService.getInstance().save();
+
+                // 5. Phát sự kiện Real-time Broadcast cho các máy Nhân viên đang kết nối
+                EventBroadcaster.emit('crm:groupMembersChanged', { ownerZaloId: zaloId, groupId, totalMembers: members.length });
+
+                return {
+                    success: true,
+                    groupId,
+                    totalMembers: members.length,
+                    savedCount: memberList.length,
+                    groupInfo: groupInfoFromLink,
+                    members: members.slice(0, 50),
+                };
+            } finally {
+                activeScanMap.delete(scanKey);
+            }
+        })();
+
+        activeScanMap.set(scanKey, scanPromise);
+        return await scanPromise;
+    };
+
+    ipcMain.handle('zalo:scanAdvancedGroup', scanAdvancedHandler);
+    ipcHandlerRegistry.set('zalo:scanAdvancedGroup', scanAdvancedHandler);
 }
 

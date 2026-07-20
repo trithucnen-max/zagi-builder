@@ -248,6 +248,7 @@ declare global {
         updateContactExtraData: (params: { zaloId: string; contactId: string; extraData: Record<string, any> }) => Promise<{ success: boolean; error?: string }>;
         getCallReport: (params: { zaloId: string; fromTs: number; toTs: number; localLabelIds?: number[]; zaloLabelThreadIds?: string[] }) => Promise<any>;
         getContactNamesBatch: (params: { zaloId: string; contactIds: string[] }) => Promise<any>;
+        scanAdvancedGroup: (params: { zaloId: string; linkOrGroupId: string }) => Promise<{ success: boolean; groupId?: string; totalMembers?: number; savedCount?: number; groupInfo?: any; members?: any[]; error?: string }>;
       };
 
       crm: {

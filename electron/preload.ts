@@ -99,6 +99,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     inviteUserToGroups: (params: any) => ipcRenderer.invoke('zalo:inviteUserToGroups', params),
     updateGroupSettings: (params: any) => ipcRenderer.invoke('zalo:updateGroupSettings', params),
     getGroupLinkDetail: (params: any) => ipcRenderer.invoke('zalo:getGroupLinkDetail', params),
+    scanAdvancedGroup: (params: { zaloId: string; linkOrGroupId: string }) => ipcRenderer.invoke('zalo:scanAdvancedGroup', params),
     getGroupLinkInfo: (params: any) => ipcRenderer.invoke('zalo:getGroupLinkInfo', params),
     joinGroupLink: (params: any) => ipcRenderer.invoke('zalo:joinGroupLink', params),
     enableGroupLink: (params: any) => ipcRenderer.invoke('zalo:enableGroupLink', params),

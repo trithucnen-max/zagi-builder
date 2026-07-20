@@ -9,7 +9,12 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 - **Tính năng Quét thành viên nhóm Nâng cao (Premium Zalo Group Scan):**
   - Tích hợp sub-tab Quét nâng cao trong giao diện Nhóm Zalo với thiết kế đồng nhất theo chuẩn Zagi Theme (Card Light Mode, Alert Warning Box, Accent Blue Button, 4-Feature Highlights grid).
   - Tự động bóc tách danh sách thành viên từ đường dẫn link nhóm (`https://zalo.me/g/...`) hoặc Group ID (bất chấp nhóm bị ẩn thành viên hoặc tài khoản chưa tham gia).
-  - Tự động kiểm tra bản quyền Premium qua Server API và đồng bộ toàn bộ dữ liệu thành viên vừa quét về CSDL local máy Boss (`contact_profile` và `group_members`), phục vụ ngay cho các chiến dịch CRM Marketing & Workflow.
+  - Ủy quyền toàn bộ luồng Quét & Kiểm tra Premium về Máy Boss (`zalo:scanAdvancedGroup`). Session cookie Zalo bảo mật tuyệt đối trên Boss.
+  - Tích hợp cơ chế **Ghép luồng quét trùng (Pending Scan Deduplication)**: Tự động ghép các nhân viên quét cùng nhóm vào 1 request duy nhất, tránh tốn tài nguyên và ngăn chặn bị rate limit từ máy chủ backend.
+  - Phát sự kiện **Socket.IO Real-time Broadcast (`crm:groupMembersChanged`)**: Tự động làm mới danh sách thành viên trên giao diện của tất cả nhân viên đang mở cùng tài khoản Zalo theo thời gian thực.
+- **Sửa lỗi gửi ảnh Chiến dịch CRM ở Chế độ Nhân viên (Employee Mode):**
+  - Sửa lỗi không đọc được ảnh từ máy tính nhân viên do bị proxy nhầm đường dẫn cục bộ về máy Boss (`file:readImageAsBase64`).
+  - Sửa lỗi mất đường dẫn ảnh Thư viện Media khi lưu chiến dịch ở máy Nhân viên khiến chiến dịch chỉ gửi tin nhắn văn bản mà bỏ qua ảnh (`uploadEmployeeMedia`).
 
 ---
 

@@ -41,10 +41,12 @@ export interface ScanGroupResult {
  */
 async function encryptBody(body: object): Promise<string> {
   try {
-    const crypto = window.require ? window.require('crypto') : await import('crypto');
+    const cryptoModule = typeof window !== 'undefined' && (window as any)?.require 
+      ? (window as any).require('crypto') 
+      : await import('crypto');
     const key = Buffer.from(SECRET_KEY, 'hex').slice(0, 16);
     const iv = Buffer.alloc(16, 0);
-    const cipher = crypto.createCipheriv('aes-128-cbc', key, iv);
+    const cipher = cryptoModule.createCipheriv('aes-128-cbc', key, iv);
     let encrypted = cipher.update(JSON.stringify(body), 'utf8', 'base64');
     encrypted += cipher.final('base64');
     return encrypted;

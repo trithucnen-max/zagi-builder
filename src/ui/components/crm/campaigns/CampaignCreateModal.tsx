@@ -471,9 +471,13 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
         
         if (uploadedPaths.length > 0) {
           onUpdate({ images: [...cleanExisting, ...uploadedPaths] });
+          useAppStore.getState().showNotification(`Đã tải ${uploadedPaths.length} ảnh lên thư viện máy chủ thành công`, 'success');
+        } else {
+          useAppStore.getState().showNotification('Không thể tải ảnh lên máy chủ. Vui lòng kiểm tra lại kết nối.', 'error');
         }
       } catch (err) {
         console.error('[CampaignCreateModal] pickFromComputer failed:', err);
+        useAppStore.getState().showNotification('Lỗi khi tải ảnh từ máy tính', 'error');
       } finally {
         setUploading(false);
       }

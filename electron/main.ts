@@ -106,6 +106,15 @@ ipcMain.handle = (channel: string, listener: any) => {
       const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
       if (activeWs?.type === 'remote' && !(args[0]?._fromRelay)) {
         try {
+          if (channel === 'file:readImageAsBase64' || channel === 'file:exists' || channel === 'file:getVideoMeta') {
+            const pathToCheck = args[0]?.localPath || args[0]?.filePath;
+            if (pathToCheck && typeof pathToCheck === 'string') {
+              const resolved = FileStorageService.resolveAbsolutePath(pathToCheck);
+              if (resolved && fs.existsSync(resolved)) {
+                return await listener(event, ...args);
+              }
+            }
+          }
           return await HttpConnectionManager.getInstance().proxyAction(activeWs.id, channel, args[0] || {});
         } catch (err: any) {
           console.error(`[ipcProxy] Error forwarding ${channel} to Boss:`, err.message);

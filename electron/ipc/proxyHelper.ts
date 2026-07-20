@@ -130,8 +130,10 @@ export async function uploadEmployeeMedia(filePaths: string[], zaloId?: string):
         if (!fp || typeof fp !== 'string') { bossPaths[index] = ''; return; }
         const absPath = FileStorageService.resolveAbsolutePath(fp);
         if (!absPath || !fs.existsSync(absPath)) {
-            Logger.warn(`[uploadEmployeeMedia] File not found on Employee: ${absPath || fp}`);
-            bossPaths[index] = '';
+            // File is not on Employee local disk (e.g. Media Library item / Boss path / URL).
+            // Preserve the original path reference so Boss can locate it on Boss storage.
+            Logger.log(`[uploadEmployeeMedia] Preserving Boss media reference: ${fp}`);
+            bossPaths[index] = fp;
             return;
         }
         const buffer = fs.readFileSync(absPath);
