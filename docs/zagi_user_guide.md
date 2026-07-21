@@ -46,6 +46,10 @@ Hạn chế quan trọng phải nói rõ với khách: Zagi không hỗ trợ ng
 ###
 3.4. CRM & Khách hàng
 Toàn bộ bạn bè và thành viên các nhóm Zalo được đồng bộ tự động vào CRM, kèm hồ sơ đầy đủ: tên, SĐT, giới tính, ngày sinh (đồng bộ từ profile Zalo thật). Hỗ trợ tìm kiếm, sắp xếp, bộ lọc kết hợp, chọn hàng loạt.
+- **Thanh Thao Tác Hàng Loạt & Cửa Sổ Gán Nhãn Nâng Cao (`🏷️ Gán nhãn`):** Khi chọn 1 hoặc nhiều liên hệ trong CRM, bấm **`🏷️ Gán nhãn`** trên thanh thao tác phía dưới để mở cửa sổ quản lý nhãn toàn diện.
+  - Hỗ trợ xem và gán đồng thời **💾 Nhãn Local** (lưu trên máy) và **☁️ Nhãn Zalo** (đồng bộ Zalo API), phân loại theo từng Tài khoản Zalo/Facebook ở cột bên trái.
+  - Cho phép gõ tên + chọn emoji + màu sắc để **Tạo mới Nhãn Local** trực tiếp ngay trong cửa sổ.
+  - Tích chọn nhiều nhãn để áp dụng cùng lúc. Nếu **bỏ chọn tất cả (để trống)** và bấm Xác nhận ➔ Hệ thống tự động xóa toàn bộ nhãn (Local & Zalo) của các liên hệ đã chọn.
 Tách biệt cột **Biệt danh CRM** (do doanh nghiệp tự đặt, click đúp sửa nhanh) và **Tên Zalo gốc** (tên khách hàng đăng ký Zalo) để tránh lẫn lộn thông tin.
 **Xưng hô (Salutation)**: Tự sinh "Anh"/"Chị"/"Bạn" dựa vào giới tính khi đồng bộ profile từ Zalo và bảo toàn các xưng hô chỉnh sửa thủ công của người dùng (có thể sửa trong danh sách CRM hoặc ngay bên cạnh khung chat khi đang tương tác).
 **Đồng bộ biến Chiến dịch & Workflow**: hỗ trợ chèn biến linh hoạt: `{zalo_name}` / `$item.zalo_name` (tên Zalo gốc), `{alias}` / `$item.alias` (biệt danh CRM, không tự động fallback ra tên Zalo khi rỗng), `{name}` / `$item.display_name` (tên liên hệ thông minh: alias > display_name), `{salutation}` và `{gender_greeting}` (đồng bộ trực tiếp với trường xưng hô CRM).

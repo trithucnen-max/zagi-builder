@@ -6,6 +6,14 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ### 🚀 Tính năng mới & Nâng cấp UI/UX
 
+- **Tích Hợp Modal Chọn Nhãn Nâng Cao & Nút "🏷️ Gán nhãn" Hàng Loạt (`UnifiedLabelPickerModal.tsx` & `BulkActionBar.tsx`):**
+  - Đổi tên nút từ `🏷️ Nhãn Local` ➔ **`🏷️ Gán nhãn`** trên Thanh thao tác hàng loạt (`BulkActionBar.tsx`).
+  - Xây dựng Component **`UnifiedLabelPickerModal.tsx`** dùng chung chuẩn giao diện 2 cột: Cột trái lọc theo Tài khoản Zalo/Facebook, Cột phải phân tab **`💾 Nhãn Local`** và **`☁️ Nhãn Zalo`**.
+  - **Tạo mới Nhãn Local nhanh:** Tích hợp ô nhập tên nhãn local + bộ chọn Emoji (`🏷️`, `🎯`, `🔥`...) + Color Picker + nút `Tạo mới` ngay trong Modal.
+  - **Gán / Gỡ đồng thời cả 2 loại nhãn:** Hỗ trợ tích chọn nhiều nhãn Local và Zalo cùng lúc.
+  - **Xóa toàn bộ nhãn khi để trống:** Hiển thị thông báo hướng dẫn màu cam `⚠️ Để trống sẽ xóa toàn bộ nhãn (Local & Zalo) của các liên hệ đã chọn`, tự động dọn dẹp toàn bộ nhãn đã gán khi bấm Xác nhận.
+  - Tái sử dụng đồng bộ cho cả CRM Bulk Action Bar và Workflow Node Config Editor.
+
 - **Chuẩn Hóa & Tự Động Bổ Sung Số 0 Cho SĐT Việt Nam (`phoneUtils.ts`):**
   - Tự động phát hiện và bổ sung số `0` ở đầu cho các số điện thoại 9 chữ số bị thiếu (VD: `904665731` ➔ `0904665731`).
   - Xử lý mượt mà các tiền tố `+84`, `84`, tự động loại bỏ khoảng trắng, dấu gạch ngang, dấu chấm.
