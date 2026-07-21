@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
+import LibraryPickerModal from '../chat/library/LibraryPickerModal';
 
 export interface UnifiedMediaPickerProps {
   config: Record<string, any>;
@@ -9,6 +10,14 @@ export interface UnifiedMediaPickerProps {
   mediaType?: 'image' | 'video' | 'file' | 'all';
   label?: string;
 }
+
+const getSafeFileUrl = (pathStr: string): string => {
+  if (!pathStr) return '';
+  if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('data:')) return pathStr;
+  if (pathStr.startsWith('file://') || pathStr.startsWith('local-media://')) return pathStr;
+  const cleanPath = pathStr.replace(/\\/g, '/').replace(/^\/+/, '');
+  return `local-media:///${cleanPath}`;
+};
 
 export default function UnifiedMediaPicker({
   config,
@@ -277,44 +286,44 @@ export default function UnifiedMediaPicker({
           <div className="flex items-center justify-between">
             <span className="font-semibold text-[11px] text-gray-400">⚙️ Chế độ đính kèm Media:</span>
             <span className="text-[10px] text-cyan-400 font-medium">
-              {sendMode === 'random' ? '🎲 Ngẫu nhiên 1 file' : sendMode === 'all' || sendMode === 'multiple' ? '📚 Gửi tất cả thành Album' : '📌 1 File cố định'}
+              {sendMode === 'random' ? '🎲 Ngẫu nhiên' : sendMode === 'all' || sendMode === 'multiple' ? '📚 Tất cả' : '📌 1 file'}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-1.5">
             <button
               type="button"
               onClick={() => updatePathsList(currentPaths, 'single')}
-              className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
+              className={`px-2 py-1.5 rounded text-[11px] font-medium transition-all ${
                 sendMode === 'single'
                   ? 'bg-cyan-600 text-white shadow-sm'
                   : isLight ? 'bg-white text-gray-600 hover:bg-gray-100' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}
             >
-              📌 1 File
+              📌 1 file
             </button>
             <button
               type="button"
               onClick={() => updatePathsList(currentPaths, 'random')}
-              className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
+              className={`px-2 py-1.5 rounded text-[11px] font-medium transition-all ${
                 sendMode === 'random'
                   ? 'bg-amber-600 text-white shadow-sm'
                   : isLight ? 'bg-white text-gray-600 hover:bg-gray-100' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}
               title="Mỗi lần gửi sẽ lấy ngẫu nhiên 1 file trong danh sách"
             >
-              🎲 Ngẫu nhiên 1
+              🎲 Ngẫu nhiên
             </button>
             <button
               type="button"
               onClick={() => updatePathsList(currentPaths, 'all')}
-              className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
+              className={`px-2 py-1.5 rounded text-[11px] font-medium transition-all ${
                 sendMode === 'all' || sendMode === 'multiple'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : isLight ? 'bg-white text-gray-600 hover:bg-gray-100' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}
               title="Gửi toàn bộ ảnh/video thành 1 Album kèm Caption"
             >
-              📚 Tất cả (Album)
+              📚 Tất cả
             </button>
           </div>
         </div>
@@ -338,6 +347,7 @@ export default function UnifiedMediaPicker({
               const filename = pathItem.split(/[\/\\]/).pop() || pathItem;
               const isVid = isVideoFile(pathItem);
               const isImg = isImageFile(pathItem);
+              const safeUrl = getSafeFileUrl(pathItem);
 
               return (
                 <div
@@ -348,11 +358,12 @@ export default function UnifiedMediaPicker({
                 >
                   {isImg ? (
                     <img
-                      src={pathItem.startsWith('http') || pathItem.startsWith('file://') ? pathItem : `file://${pathItem}`}
+                      src={safeUrl}
                       alt={filename}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        (e.target as any).style.display = 'none';
+                        // Fallback image display
+                        (e.target as any).style.opacity = '0.5';
                       }}
                     />
                   ) : isVid ? (
@@ -388,12 +399,17 @@ export default function UnifiedMediaPicker({
         </div>
       )}
 
-      {/* Media Library Picker Modal (For Employee / Remote Workspace) */}
+      {/* Real Shared Media Library Picker Modal (For Employee / Remote Workspace) */}
       {showLibPicker && (
-        <MediaLibraryPickerModal
+        <LibraryPickerModal
+          zaloId=""
+          initialType={mediaType === 'image' ? 'image' : mediaType === 'video' ? 'video' : mediaType === 'file' ? 'file' : 'all'}
           onClose={() => setShowLibPicker(false)}
-          onSelect={(selectedPaths) => {
-            updatePathsList([...currentPaths, ...selectedPaths]);
+          onSelect={(selectedItems) => {
+            const pickedPaths = selectedItems.map(item => item._localPath || item.fileUrl).filter(Boolean);
+            if (pickedPaths.length > 0) {
+              updatePathsList([...currentPaths, ...pickedPaths]);
+            }
             setShowLibPicker(false);
           }}
         />
