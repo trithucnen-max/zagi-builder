@@ -6,6 +6,23 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ### 🚀 Tính năng mới & Nâng cấp UI/UX
 
+- **Tự Động Nhận Diện Liên Hệ Đã Chặn Tin Nhắn (Auto-Detect Blocked Contacts):**
+  - Tự động bắt mã lỗi phản hồi từ Zalo API (Lỗi `-201`, `-202`, `108`, `300` hoặc các thông báo *"Bạn đã bị đối phương chặn"*, *"Không nhận tin nhắn người lạ"*) trong tiến trình gửi tin chiến dịch `CRMQueueService`.
+  - Tự động gắn cờ `is_blocked = 1` cho liên hệ trong CSDL local và tự động gán Nhãn Local **`🚫 Đã chặn`**.
+
+- **Bộ Lọc & Xuất File Excel Danh Sách Đã Chặn (`CRMContactList.tsx`):**
+  - Thêm lựa chọn bộ lọc **`🚫 Đã chặn mình`** trong menu lọc Loại liên hệ CRM (`ContactTypeFilterDropdown`).
+  - Hiển thị Badge **`🚫 Đã chặn mình`** màu đỏ trực quan trên từng thẻ liên hệ trong danh sách.
+  - Hỗ trợ chọn danh sách và xuất file CSV/Excel danh sách các số điện thoại / UID của những người đã chặn để loại bỏ hoặc xử lý riêng.
+
+- **Tính Năng Chuyển Liên Hệ Sang Zalo Khác Chăm Sóc (`BulkActionBar.tsx` & `CRMPage.tsx`):**
+  - Thêm thao tác **`🔀 Chuyển sang Zalo khác`** trong menu hành động hàng loạt (`BulkActionBar`).
+  - Cửa sổ Modal hiển thị danh sách các tài khoản Zalo đang kết nối trên Zagi để chọn tài khoản tiếp quản.
+  - Tự động chuyển nhượng dữ liệu liên hệ sang CSDL của tài khoản Zalo mới được chọn để chủ động chăm sóc lại từ đầu.
+
+- **Tối Ưu Giao Diện Quét Nhóm Nâng Cao (`GroupMembersTab.tsx`):**
+  - Tinh giản giao diện theo chuẩn thiết kế: Đổi tên thành **"Gói Quét Nâng Cao"**, loại bỏ toàn bộ các liên kết/banner hỗ trợ công khai.
+
 - **Node Workflow `crm.addToCampaign` (Thêm Khách Vào Chiến Dịch CRM):**
   - Khai báo Node `[Hành động CRM] ➔ Thêm vào Chiến dịch` trong giao diện thiết kế Workflow (`WorkflowEditor`).
   - Tự động bóc tách `contactId` từ sự kiện kích hoạt (tin nhắn, gán nhãn, lướt quét SĐT) và nạp khách hàng vào Chiến dịch CRM chỉ định.

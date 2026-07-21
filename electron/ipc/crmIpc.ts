@@ -746,5 +746,25 @@ export function registerCRMIpc(): void {
             return { success: false, error: err.message };
         }
     });
+
+    ipcHandle('crm:reassignContactsOwner', async (_e, { fromZaloId, targetZaloId, contactIds }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const res = db.reassignContactsOwner(fromZaloId, targetZaloId, contactIds);
+            return { success: true, ...res };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:markContactBlocked', async (_e, { ownerZaloId, contactId, isBlocked }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.markContactBlocked(ownerZaloId, contactId, isBlocked);
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
 }
 

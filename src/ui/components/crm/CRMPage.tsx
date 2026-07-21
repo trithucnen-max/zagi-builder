@@ -81,6 +81,94 @@ function WizardStepIndicator({ currentStep }: { currentStep: number }) {
   );
 }
 
+function ReassignOwnerModal({
+  selectedCount,
+  fromZaloId,
+  accounts,
+  onConfirm,
+  onClose,
+}: {
+  selectedCount: number;
+  fromZaloId: string;
+  accounts: any[];
+  onConfirm: (targetZaloId: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const otherAccounts = accounts.filter(a => a.zalo_id !== fromZaloId);
+  const [targetId, setTargetId] = useState<string>(otherAccounts[0]?.zalo_id || '');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!targetId) return;
+    setSubmitting(true);
+    try {
+      await onConfirm(targetId);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-700">
+          <h3 className="text-base font-semibold text-white flex items-center gap-2">
+            <span>🔀</span> Chuyển liên hệ sang Zalo khác
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">✕</button>
+        </div>
+
+        <p className="text-xs text-gray-300">
+          Bạn đang chọn <strong className="text-blue-400 font-bold">{selectedCount}</strong> liên hệ. Chọn tài khoản Zalo đích để chuyển các liên hệ này sang chăm sóc:
+        </p>
+
+        {otherAccounts.length === 0 ? (
+          <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-xs text-yellow-300">
+            ⚠️ Bạn chỉ đang đăng nhập 1 tài khoản Zalo. Vui lòng đăng nhập thêm tài khoản Zalo khác trên Zagi để thực hiện chuyển liên hệ.
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-400">Chọn tài khoản Zalo đích:</label>
+            <select
+              value={targetId}
+              onChange={e => setTargetId(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-blue-500 transition-colors"
+            >
+              {otherAccounts.map(acc => (
+                <option key={acc.zalo_id} value={acc.zalo_id}>
+                  {acc.name || acc.display_name || acc.zalo_id} ({acc.phone || acc.zalo_id})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-700">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            disabled={submitting || otherAccounts.length === 0 || !targetId}
+            onClick={handleConfirm}
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40 transition-colors flex items-center gap-1.5"
+          >
+            {submitting && (
+              <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            )}
+            Xác nhận chuyển
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CRMPage() {
   const { activeAccountId, accounts, setActiveAccount } = useAccountStore();
   const { showNotification, openQuickChat, labels, setLabels, navigateToAnalytics, crmRequestUnseenByAccount, clearCRMRequestUnseen } = useAppStore();
@@ -650,6 +738,35 @@ export default function CRMPage() {
   // Client-side filtering: now handled entirely at DB/Backend level
   const filteredContacts = store.contacts;
 
+  const [showReassignModal, setShowReassignModal] = useState(false);
+
+  const handleConfirmReassign = async (targetZaloId: string) => {
+    if (!activeAccountId || !targetZaloId) return;
+    const contactIds = Array.from(store.selectedContactIds);
+    if (!contactIds.length) return;
+
+    try {
+      const res = await ipc.crm?.reassignContactsOwner({
+        fromZaloId: activeAccountId,
+        targetZaloId,
+        contactIds,
+      });
+
+      if (res?.success) {
+        const targetAcc = accounts.find(a => a.zalo_id === targetZaloId);
+        const targetName = targetAcc?.name || targetAcc?.display_name || targetZaloId;
+        showNotification(`Đã chuyển ${res.reassignedCount || contactIds.length} liên hệ sang tài khoản ${targetName}`, 'success');
+        store.clearSelection();
+        setShowReassignModal(false);
+        loadContacts();
+      } else {
+        showNotification(res?.error || 'Lỗi: Không thể chuyển liên hệ', 'error');
+      }
+    } catch (err: any) {
+      showNotification(err?.message || 'Có lỗi xảy ra', 'error');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {/* Top bar */}
@@ -941,10 +1058,20 @@ export default function CRMPage() {
         onBulkTagZalo={handleBulkTagZalo}
         onManageGroups={handleManageGroups}
         onBulkManageGroups={(mode) => setShowBulkGroupModal(mode)}
+        onReassignOwner={() => setShowReassignModal(true)}
         onDeleteSelected={handleDeleteSelected}
       />
 
       {/* ── Modals ── */}
+      {showReassignModal && (
+        <ReassignOwnerModal
+          selectedCount={store.selectedContactIds.size}
+          fromZaloId={activeAccountId || ''}
+          accounts={accounts}
+          onConfirm={handleConfirmReassign}
+          onClose={() => setShowReassignModal(false)}
+        />
+      )}
       {showCreateCampaign && (
         <CampaignCreateModal
           zaloId={activeAccountId || ''}

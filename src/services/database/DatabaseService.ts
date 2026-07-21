@@ -5,6 +5,7 @@ import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
 import ContactAISummarizer from '../ai/ContactAISummarizer';
+import EventBroadcaster from '../event/EventBroadcaster';
 
 // declare global db variables to prevent multiple instances load issues
 declare global {
@@ -1187,6 +1188,13 @@ class DatabaseService {
             if (!hasAutoWorkflowId) {
                 this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN auto_workflow_id INTEGER`);
                 Logger.log('[DatabaseService] ✅ Migration: added auto_workflow_id column to phone_scan_batches');
+            }
+
+            const contactCols = this.query<any>('PRAGMA table_info(contacts)');
+            const hasIsBlocked = contactCols.some((c: any) => c.name === 'is_blocked');
+            if (!hasIsBlocked) {
+                this.exec(`ALTER TABLE contacts ADD COLUMN is_blocked INTEGER DEFAULT 0`);
+                Logger.log('[DatabaseService] ✅ Migration: added is_blocked column to contacts');
             }
         } catch (err: any) {
             Logger.warn(`[DatabaseService] Migration phone_scan_batches columns: ${err.message}`);
@@ -6135,17 +6143,18 @@ class DatabaseService {
         salutation?: string;
         hasPhone?: boolean;
         hasNotes?: boolean;
+        isBlocked?: boolean;
     } = {}): { contacts: any[]; total: number } {
         if (!this.initialized) return { contacts: [], total: 0 };
         try {
-            const { search, tagIds, contactIds, isFriendOnly, contactType = 'all', contactTypes, sortBy = 'name', sortDir = 'asc', limit = 50, offset = 0 } = opts;
+            const { search, tagIds, contactIds, isFriendOnly, contactType = 'all', contactTypes, isBlocked, sortBy = 'name', sortDir = 'asc', limit = 50, offset = 0 } = opts;
 
             let all: any[] = [];
 
             // Determine effective type filter
             // contactTypes (array) takes priority; fallback to legacy contactType
             const effectiveTypes: ('friend' | 'group' | 'non_friend')[] | null =
-                (contactTypes && contactTypes.length > 0) ? contactTypes : null;
+                (contactTypes && contactTypes.length > 0) ? contactTypes.filter(t => t as string !== 'is_blocked') as any : null;
             const legacyType = isFriendOnly ? 'friend' : (contactType || 'all');
 
             if (!effectiveTypes && legacyType === 'group') {
@@ -6155,7 +6164,8 @@ class DatabaseService {
                         COALESCE(avatar_url,'') as avatar, '' as phone,
                         0 as is_friend, COALESCE(last_message_time,0) as last_message_time, 'group' as contact_type,
                         gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
-                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter
+                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter,
+                        COALESCE(is_blocked, 0) as is_blocked
                      FROM contacts WHERE owner_zalo_id=? AND contact_type='group'
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -6169,7 +6179,8 @@ class DatabaseService {
                         COALESCE(NULLIF(c.phone,''), NULLIF(f.phone,''), '') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation,
+                        COALESCE(c.is_blocked, 0) as is_blocked
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -6185,7 +6196,8 @@ class DatabaseService {
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
                         c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation,
-                        c.ai_assistant_id, c.ai_auto_summary, c.ai_auto_summary_threshold, c.ai_auto_summary_counter
+                        c.ai_assistant_id, c.ai_auto_summary, c.ai_auto_summary_threshold, c.ai_auto_summary_counter,
+                        COALESCE(c.is_blocked, 0) as is_blocked
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -6198,7 +6210,8 @@ class DatabaseService {
                         is_friend, COALESCE(last_message_time,0) as last_message_time,
                         COALESCE(contact_type,'user') as contact_type,
                         gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
-                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter
+                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter,
+                        COALESCE(is_blocked, 0) as is_blocked
                      FROM contacts WHERE owner_zalo_id=?
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -6224,6 +6237,11 @@ class DatabaseService {
                     // Default 'all' in CRM Contacts: exclude groups by default!
                     all = all.filter((c: any) => c.contact_type !== 'group');
                 }
+            }
+
+            // Filter by isBlocked if requested or if 'is_blocked' in contactTypes
+            if (isBlocked || (contactTypes && contactTypes.includes('is_blocked' as any))) {
+                all = all.filter((c: any) => Number(c.is_blocked || 0) === 1);
             }
 
             // Apply local label (tagIds) filter
@@ -6430,6 +6448,87 @@ class DatabaseService {
 
             return { contacts, total };
         } catch (err: any) { Logger.error(`[DB] getCRMContacts: ${err.message}`); return { contacts: [], total: 0 }; }
+    }
+
+    public markContactBlocked(ownerZaloId: string, contactId: string, isBlocked: boolean = true): void {
+        if (!this.initialized) return;
+        try {
+            const val = isBlocked ? 1 : 0;
+            const existing = this.queryOne<any>(`SELECT id FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [ownerZaloId, contactId]);
+            if (existing) {
+                this.run(`UPDATE contacts SET is_blocked = ? WHERE owner_zalo_id = ? AND contact_id = ?`, [val, ownerZaloId, contactId]);
+            } else {
+                this.run(`INSERT INTO contacts (owner_zalo_id, contact_id, is_blocked) VALUES (?, ?, ?)`, [ownerZaloId, contactId, val]);
+            }
+
+            if (isBlocked) {
+                let labelId = -1;
+                try {
+                    const existingLabels = this.getLocalLabels(ownerZaloId) || [];
+                    const blockedLabel = existingLabels.find((l: any) => l.name === '🚫 Đã chặn' || l.name === 'Đã chặn');
+                    if (blockedLabel) {
+                        labelId = blockedLabel.id;
+                    } else {
+                        labelId = this.upsertLocalLabel({
+                            name: '🚫 Đã chặn',
+                            color: '#EF4444',
+                            emoji: '🚫',
+                            pageIds: ownerZaloId
+                        });
+                    }
+                } catch (err: any) {
+                    Logger.error(`[DB] Error ensuring Blocked label: ${err.message}`);
+                }
+
+                if (labelId !== -1) {
+                    try {
+                        this.assignLocalLabelToThread(ownerZaloId, labelId, contactId);
+                    } catch {}
+                }
+            }
+
+            this.save();
+            EventBroadcaster.emit('crm:contactUpdated', { ownerZaloId, contactId, isBlocked });
+            EventBroadcaster.emit('local-labels-changed', { zaloId: ownerZaloId });
+            Logger.log(`[DB] Marked contact ${contactId} as ${isBlocked ? 'BLOCKED' : 'UNBLOCKED'} for ${ownerZaloId}`);
+        } catch (err: any) {
+            Logger.error(`[DB] markContactBlocked error: ${err.message}`);
+        }
+    }
+
+    public reassignContactsOwner(fromZaloId: string, targetZaloId: string, contactIds: string[]): { success: boolean; reassignedCount: number } {
+        if (!this.initialized || !contactIds.length) return { success: false, reassignedCount: 0 };
+        try {
+            this.run('BEGIN TRANSACTION');
+            let count = 0;
+            for (const cid of contactIds) {
+                const old = this.queryOne<any>(`SELECT * FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [fromZaloId, cid]);
+                if (old) {
+                    const targetExisting = this.queryOne<any>(`SELECT id FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [targetZaloId, cid]);
+                    if (targetExisting) {
+                        this.run(
+                            `UPDATE contacts SET display_name = ?, avatar_url = ?, phone = ?, alias = ?, is_blocked = 0 WHERE owner_zalo_id = ? AND contact_id = ?`,
+                            [old.display_name || '', old.avatar_url || '', old.phone || '', old.alias || '', targetZaloId, cid]
+                        );
+                    } else {
+                        this.run(
+                            `INSERT INTO contacts (owner_zalo_id, contact_id, display_name, avatar_url, phone, is_friend, contact_type, last_message, last_message_time, alias, gender, birthday, salutation, is_blocked)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+                            [targetZaloId, cid, old.display_name || '', old.avatar_url || '', old.phone || '', old.is_friend || 0, old.contact_type || 'user', old.last_message || '', old.last_message_time || 0, old.alias || '', old.gender ?? null, old.birthday ?? null, old.salutation ?? null]
+                        );
+                    }
+                    count++;
+                }
+            }
+            this.run('COMMIT');
+            this.save();
+            Logger.log(`[DB] Reassigned ${count} contact(s) from ${fromZaloId} to ${targetZaloId}`);
+            return { success: true, reassignedCount: count };
+        } catch (err: any) {
+            try { this.run('ROLLBACK'); } catch {}
+            Logger.error(`[DB] reassignContactsOwner error: ${err.message}`);
+            return { success: false, reassignedCount: 0 };
+        }
     }
 
     /** Activity stats for a given time window — used by CRM Dashboard */

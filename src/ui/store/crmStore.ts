@@ -83,7 +83,7 @@ export interface PipelineStage {
 
 export type CRMTabView = 'contacts' | 'campaigns' | 'history' | 'groups' | 'search' | 'requests' | 'scan' | 'scan_history' | 'scan_stats' | 'pipeline';
 
-export type ContactTypeFilter = 'friend' | 'group' | 'non_friend' | 'has_phone' | 'has_notes';
+export type ContactTypeFilter = 'friend' | 'group' | 'non_friend' | 'has_phone' | 'has_notes' | 'is_blocked';
 
 /** 'all' = tất cả, 'male' = Nam (gender=0), 'female' = Nữ (gender=1), 'unknown' = chưa xác định */
 export type GenderFilter = 'all' | 'male' | 'female' | 'unknown';

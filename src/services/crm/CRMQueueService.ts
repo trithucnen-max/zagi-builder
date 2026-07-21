@@ -840,6 +840,22 @@ class CRMQueueService {
         } catch (err: any) {
             const errMsg = err?.message || String(err);
             Logger.error(`[CRMQueue] ❌ Failed to send to ${effectiveContactId}: ${errMsg}`);
+
+            // Auto-detect if user blocked messaging
+            const isBlockedErr = (() => {
+                const lower = errMsg.toLowerCase();
+                const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
+                if (code === -201 || code === -202 || code === 108 || code === 300) return true;
+                return lower.includes('chặn') || lower.includes('blocked') || lower.includes('không thể gửi tin') || lower.includes('người lạ');
+            })();
+
+            if (isBlockedErr) {
+                Logger.warn(`[CRMQueue] 🚫 Auto-detected BLOCKED contact ${effectiveContactId} for Zalo ${zaloId}`);
+                try {
+                    db.markContactBlocked(zaloId, String(effectiveContactId), true);
+                } catch {}
+            }
+
             // Always save log on failure — use describeBlock for human-readable message
             const fallbackLogMsg = blocksToSend.length > 0
                 ? blocksToSend.map(describeBlock).join(' | ')

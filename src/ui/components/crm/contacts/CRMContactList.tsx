@@ -190,6 +190,7 @@ function ContactTypeFilterDropdown({ filterContactTypes, onChange }: {
   const OPTIONS: { key: ContactTypeFilter; label: string; icon: string }[] = [
     { key: 'friend', label: 'Bạn bè', icon: '🤝' },
     { key: 'non_friend', label: 'Chưa là bạn bè', icon: '👻' },
+    { key: 'is_blocked', label: 'Đã chặn mình', icon: '🚫' },
     { key: 'has_phone', label: 'Có SĐT', icon: '📞' },
     { key: 'has_notes', label: 'Có ghi chú', icon: '📝' },
   ];
