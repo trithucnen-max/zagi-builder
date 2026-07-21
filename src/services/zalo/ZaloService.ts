@@ -235,41 +235,16 @@ export default class ZaloService {
                     // Đọc metadata nếu là ảnh
                     // nếu không phải ảnh thì gửi thẳng file url
                     message.attachments = filesPath.map(rawPath => {
-                        let attachment: any;
                         const filePath = FileStorageService.resolveAbsolutePath(this.stripFileProtocol(rawPath));
-
-                        if (isImageFile(filePath)) {
-                            try {
-                                if (fs.existsSync(filePath)) {
-                                    const buffer = fs.readFileSync(filePath);
-                                    const baseName = path.basename(filePath);
-                                    const metadata: any = { totalSize: buffer.length };
-                                    try {
-                                        const { width, height } = imageSize(buffer);
-                                        metadata.width = width ?? 0;
-                                        metadata.height = height ?? 0;
-                                    } catch {}
-
-                                    attachment = {
-                                        data: buffer,
-                                        filename: baseName,
-                                        metadata: metadata,
-                                    };
-                                } else {
-                                    Logger.warn(`[ZaloService] File đính kèm không tồn tại: ${filePath}`);
-                                }
-                            } catch (err) {
-                                Logger.warn(`[ZaloService] Không đọc được tệp ảnh: ${filePath}`, err);
-                            }
-                        } else {
-                            attachment = filePath;
+                        if (filePath && fs.existsSync(filePath)) {
+                            return filePath;
                         }
-
-                        return attachment;
+                        Logger.warn(`[ZaloService] File đính kèm không tồn tại trên đĩa: ${filePath || rawPath}`);
+                        return null;
                     }).filter(Boolean);
 
                     if (message.attachments.length === 0) {
-                        throw new Error(`Không đọc được bất kỳ tệp đính kèm nào từ máy chủ (Đường dẫn gốc: ${filesPath.join(', ')})`);
+                        throw new Error(`Không tìm thấy tệp đính kèm nào trên máy chủ (Đường dẫn gốc: ${filesPath.join(', ')})`);
                     }
                     messageContent = message;
                 } else {
