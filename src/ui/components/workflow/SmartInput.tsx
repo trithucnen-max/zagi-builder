@@ -593,41 +593,77 @@ const SmartRichEditor = ({
     }
   };
 
+  const [isRawMode, setIsRawMode] = useState(false);
   const isEmpty = !value || value === '';
   const minHeight = rows ? `${rows * 20 + 16}px` : undefined;
 
   return (
-    <div className="relative w-full" ref={wrapperRef}>
-      <div
-        ref={editorRef}
-        contentEditable
-        onFocus={onFocus}
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        className={`${className} outline-none focus:ring-1 focus:ring-blue-500 overflow-y-auto cursor-text`}
-        style={{
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          minHeight: minHeight || '38px',
-          maxHeight: isSingleLine ? '38px' : '200px',
-        }}
-      />
-      {isEmpty && (
-        <div className="absolute left-3 top-2 text-gray-500 text-sm pointer-events-none select-none">
-          {placeholder}
-        </div>
-      )}
-      {showDropdown && (
-        <VarDropdown
-          search={searchQuery}
-          nodeType={nodeType}
-          allNodes={allNodes}
-          currentId={currentId}
-          selectedIndex={selectedIndex}
-          onSelect={handleSelect}
-          isLight={isLight}
-          isInsideLoop={isInsideLoop}
-        />
+    <div className="relative w-full group/smartinput" ref={wrapperRef}>
+      {/* Raw Code Edit Mode Toggle Button */}
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => setIsRawMode(prev => !prev)}
+        className="absolute right-2 top-1.5 z-10 text-[9px] text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-1.5 py-0.5 rounded transition-colors font-mono opacity-80 group-hover/smartinput:opacity-100"
+        title={isRawMode ? "Chuyển sang chế độ hiển thị thẻ Chip" : "Chuyển sang chế độ sửa văn bản thô (dễ dàng chỉnh sửa .contacts, .salutation...)"}
+      >
+        {isRawMode ? '🏷️ Thẻ Chip' : '✏️ Sửa mã thô'}
+      </button>
+
+      {isRawMode ? (
+        isSingleLine ? (
+          <input
+            type="text"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            onFocus={onFocus}
+            placeholder={placeholder}
+            className={`${className} outline-none focus:ring-1 focus:ring-blue-500 font-mono text-xs pr-16`}
+          />
+        ) : (
+          <textarea
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            onFocus={onFocus}
+            placeholder={placeholder}
+            rows={rows || 3}
+            className={`${className} outline-none focus:ring-1 focus:ring-blue-500 font-mono text-xs resize-y pr-16`}
+          />
+        )
+      ) : (
+        <>
+          <div
+            ref={editorRef}
+            contentEditable
+            onFocus={onFocus}
+            onInput={handleInput}
+            onKeyDown={handleKeyDown}
+            className={`${className} outline-none focus:ring-1 focus:ring-blue-500 overflow-y-auto cursor-text pr-16`}
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              minHeight: minHeight || '38px',
+              maxHeight: isSingleLine ? '100px' : '220px',
+            }}
+          />
+          {isEmpty && (
+            <div className="absolute left-3 top-2 text-gray-500 text-sm pointer-events-none select-none">
+              {placeholder}
+            </div>
+          )}
+          {showDropdown && (
+            <VarDropdown
+              search={searchQuery}
+              nodeType={nodeType}
+              allNodes={allNodes}
+              currentId={currentId}
+              selectedIndex={selectedIndex}
+              onSelect={handleSelect}
+              isLight={isLight}
+              isInsideLoop={isInsideLoop}
+            />
+          )}
+        </>
       )}
     </div>
   );

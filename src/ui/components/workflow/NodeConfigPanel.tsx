@@ -4986,6 +4986,7 @@ export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConf
   const [showNodePicker, setShowNodePicker] = useState(false);
   const [showTemplatePopup, setShowTemplatePopup] = useState(false);
   const [templatePopupField, setTemplatePopupField] = useState<string>('');
+  const [lastFocusedField, setLastFocusedField] = useState<string>('');
   const [copiedNodeId, setCopiedNodeId] = useState<string | null>(null);
   const [showExpandModal, setShowExpandModal] = useState(false);
   const [expandFieldKey, setExpandFieldKey] = useState<string>('');
@@ -5408,11 +5409,25 @@ HƯỚNG DẪN SOẠN THẢO:
   };
 
   const appendVar = (key: string, v: string) => {
+    const targetKey = key || templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+    if (!targetKey) {
+      navigator.clipboard.writeText(v).catch(() => {});
+      return;
+    }
+
     const match = v.match(/\{\{\s*([\s\S]*?)\s*\}\}/);
     const varKey = match ? match[1].trim() : v;
+
+    // 1. Dispatch custom event for DOM elements (SmartInput/SmartTextarea)
     window.dispatchEvent(new CustomEvent('zagi-insert-var', {
-      detail: { fieldKey: key, value: varKey }
+      detail: { fieldKey: targetKey, value: varKey }
     }));
+
+    // 2. Direct fallback update: append to config[targetKey]
+    const currentVal = String(config[targetKey] ?? '');
+    const tagToAppend = v.startsWith('{{') ? v : `{{ ${v} }}`;
+    const newVal = currentVal ? `${currentVal} ${tagToAppend}` : tagToAppend;
+    update(targetKey, newVal);
   };
 
   const renderVarToolbar = (field: Field) => {
@@ -5639,12 +5654,12 @@ HƯỚNG DẪN SOẠN THẢO:
               placeholder={field.placeholder} className={inputCls}
               nodeType={node?.type} allNodes={nodes} currentId={node?.id}
               isInsideLoop={isNodeInsideLoop}
-              onFocus={() => setTemplatePopupField(field.key)}
+              onFocus={() => { setTemplatePopupField(field.key); setLastFocusedField(field.key); }}
               fieldKey={field.key} />
           ) : (
             <input value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
               placeholder={field.placeholder} className={inputCls}
-              onFocus={() => setTemplatePopupField(field.key)} />
+              onFocus={() => { setTemplatePopupField(field.key); setLastFocusedField(field.key); }} />
           )
         )}
         {(field.type === 'textarea' || field.type === 'multiline') && (
@@ -5665,14 +5680,14 @@ HƯỚNG DẪN SOẠN THẢO:
                     className={`${inputCls} resize-none rounded-t-none border-t-0`}
                     nodeType={node?.type} allNodes={nodes} currentId={node?.id}
                     isInsideLoop={isNodeInsideLoop}
-                    onFocus={() => setTemplatePopupField(field.key)}
+                    onFocus={() => { setTemplatePopupField(field.key); setLastFocusedField(field.key); }}
                     fieldKey={field.key} />
                 </>
               ) : (
                 <textarea value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
                   placeholder={field.placeholder} rows={field.type === 'multiline' ? 5 : 3}
                   className={`${inputCls} resize-none`}
-                  onFocus={() => setTemplatePopupField(field.key)} />
+                  onFocus={() => { setTemplatePopupField(field.key); setLastFocusedField(field.key); }} />
               )
             )}
             {showAiInput[field.key] && (
@@ -6020,14 +6035,22 @@ HƯỚNG DẪN SOẠN THẢO:
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowNodePicker(true)}
+              onClick={() => {
+                const target = templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+                setTemplatePopupField(target);
+                setShowNodePicker(true);
+              }}
               className="text-[10px] text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 px-2 py-0.5 rounded-lg transition-colors font-medium"
             >
               + Output node
             </button>
             <button
               type="button"
-              onClick={() => { setTemplatePopupField(''); setShowTemplatePopup(true); }}
+              onClick={() => {
+                const target = templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+                setTemplatePopupField(target);
+                setShowTemplatePopup(true);
+              }}
               className="text-[10px] text-white bg-blue-500 hover:bg-blue-500/60 px-2 py-0.5 rounded-lg transition-colors font-medium"
             >
               + Chèn Biến
@@ -6048,11 +6071,8 @@ HƯỚNG DẪN SOẠN THẢO:
           currentId={node?.id}
           onInsert={(nodeLabel) => {
             const tag = `{{ $node.${nodeLabel}.output }}`;
-            if (templatePopupField) {
-              appendVar(templatePopupField, tag);
-            } else {
-              navigator.clipboard.writeText(tag).catch(() => {});
-            }
+            const target = templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+            appendVar(target, tag);
           }}
           onCopy={(nodeLabel) => {
             const tag = `{{ $node.${nodeLabel}.output }}`;
@@ -6068,17 +6088,12 @@ HƯỚNG DẪN SOẠN THẢO:
         nodeType={node?.type}
         allNodes={allNodeList}
         currentId={node?.id}
-        currentField={templatePopupField}
+        currentField={templatePopupField || lastFocusedField || (allFields[0]?.key) || ''}
         isInsideLoop={isNodeInsideLoop}
         onSelect={(varKey) => {
           const tag = `{{ ${varKey} }}`;
-          if (templatePopupField) {
-            // Insert into specific field
-            appendVar(templatePopupField, tag);
-          } else {
-            // No specific field — just copy to clipboard
-            navigator.clipboard.writeText(tag).catch(() => {});
-          }
+          const target = templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+          appendVar(target, tag);
         }}
       />
       {showExpandModal && (
