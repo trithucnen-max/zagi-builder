@@ -11,6 +11,7 @@ import { SmartInput, SmartTextarea } from './SmartInput';
 import { showConfirm } from '@/components/common/ConfirmDialog';
 import { getTemplateVarsForNode, getNodeOutputVars, TEMPLATE_VARS } from './templateVars';
 import UnifiedLabelPickerModal from '../crm/modals/UnifiedLabelPickerModal';
+import UnifiedMediaPicker from '../media/UnifiedMediaPicker';
 
 const getSafeFileUrl = (path: string): string => {
   if (!path) return '';
@@ -5062,19 +5063,57 @@ HƯỚNG DẪN SOẠN THẢO:
   };
 
   const renderField = (field: Field) => {
-    // Custom Interceptor for zalo.sendImage
-    if (node.type === 'zalo.sendImage') {
+    // Custom Interceptor for zalo.sendMessage (unified text + media attachments)
+    if (node.type === 'zalo.sendMessage') {
+      if (field.key === 'filePath' || field.key === 'filePaths' || field.key === 'sendMode') {
+        return null;
+      }
+      if (field.key === 'message') {
+        return (
+          <React.Fragment key="custom-send-message-unified">
+            <div className="space-y-1.5 mb-3">
+              <label className="text-xs font-semibold text-gray-300">{field.label}</label>
+              {renderVarToolbar(field)}
+              <SmartTextarea
+                fieldKey={field.key}
+                value={config.message || ''}
+                onChange={(val) => update('message', val)}
+                onFocus={() => setLastFocusedField('message')}
+                placeholder={field.placeholder}
+                rows={3}
+              />
+              {field.desc && <p className="text-[11px] text-gray-400">{field.desc}</p>}
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t border-gray-800">
+              <UnifiedMediaPicker
+                config={config}
+                mediaType="all"
+                label="📸 Đính kèm phương tiện (Ảnh / Video / File)"
+                onChange={(updates) => {
+                  const next = { ...config, ...updates };
+                  setConfig(next);
+                  onConfigChange(next);
+                }}
+              />
+            </div>
+          </React.Fragment>
+        );
+      }
+    }
+
+    // Custom Interceptor for zalo.sendImage & fb.action.sendImage
+    if (node.type === 'zalo.sendImage' || node.type === 'fb.action.sendImage') {
       if (field.key === 'sendMode' || field.key === 'filePaths') {
         return null;
       }
       if (field.key === 'filePath') {
         return (
-          <div key="custom-multi-image" className="space-y-1.5">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-gray-300">Danh sách ảnh gửi</label>
-            </div>
-            <MultiImageSelector
+          <div key="custom-unified-image" className="space-y-1.5">
+            <UnifiedMediaPicker
               config={config}
+              mediaType="image"
+              label="📸 Danh sách ảnh gửi"
               onChange={(updates) => {
                 const next = { ...config, ...updates };
                 setConfig(next);
@@ -5093,13 +5132,11 @@ HƯỚNG DẪN SOẠN THẢO:
       }
       if (field.key === 'filePath') {
         return (
-          <div key="custom-multi-file" className="space-y-1.5">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-gray-300">Danh sách file gửi</label>
-            </div>
-            <MultiFileSelector
+          <div key="custom-unified-file" className="space-y-1.5">
+            <UnifiedMediaPicker
               config={config}
-              fileType="file"
+              mediaType="file"
+              label="📁 Danh sách file gửi"
               onChange={(updates) => {
                 const next = { ...config, ...updates };
                 setConfig(next);
@@ -5115,13 +5152,11 @@ HƯỚNG DẪN SOẠN THẢO:
     if (node.type === 'zalo.sendVideo') {
       if (field.key === 'videoUrl') {
         return (
-          <div key="custom-multi-video" className="space-y-1.5">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-gray-300">Danh sách video gửi</label>
-            </div>
-            <MultiFileSelector
+          <div key="custom-unified-video" className="space-y-1.5">
+            <UnifiedMediaPicker
               config={config}
-              fileType="video"
+              mediaType="video"
+              label="🎥 Danh sách video gửi"
               onChange={(updates) => {
                 const next = { ...config, ...updates };
                 setConfig(next);

@@ -2247,15 +2247,35 @@ class WorkflowEngineService {
           return { msgId: lastMsgId, success: true, structured: true, segmentCount: segments.length };
         }
 
-        // ─── Plain text: loop qua nhiều thread ────────────────────────────
+        // ─── Plain text & Media attachments: loop qua nhiều thread ───────
+        const sendMode = cfg.sendMode || 'single';
+        let attachments: string[] = [];
+        const rawPaths = (cfg.filePaths || cfg.attachments || '').toString().split('\n').map((p: string) => p.trim()).filter(Boolean);
+        if (rawPaths.length === 0 && cfg.filePath) {
+          rawPaths.push(cfg.filePath.trim());
+        }
+
+        if (rawPaths.length > 0) {
+          if (sendMode === 'random') {
+            const randomItem = rawPaths[Math.floor(Math.random() * rawPaths.length)];
+            attachments.push(randomItem);
+          } else {
+            attachments = rawPaths;
+          }
+        }
+
         let lastResult: any = { success: false, error: 'Không gửi được đến hội thoại nào' };
         for (const tid of targetThreadIds) {
           try {
             const activeApi = this.resolveApiForThread(tid, defaultApi);
             const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
-            const result = await activeApi.sendMessage({ msg: cfg.message }, tid, activeThreadType);
+            const msgPayload = attachments.length > 0
+              ? { msg: cfg.message || '', attachments }
+              : { msg: cfg.message || '' };
+            const msgType = attachments.length > 0 ? 'file' : undefined;
+            const result = await activeApi.sendMessage(msgPayload, tid, activeThreadType, msgType);
             lastResult = result;
-            Logger.log(`[WorkflowEngine] zalo.sendMessage to ${tid}: success=true, msgId=${(result as any)?.message?.msgId}`);
+            Logger.log(`[WorkflowEngine] zalo.sendMessage to ${tid}: success=true, attachmentsCount=${attachments.length}, msgId=${(result as any)?.message?.msgId}`);
           } catch (err: any) {
             Logger.warn(`[WorkflowEngine] zalo.sendMessage to ${tid} failed: ${err.message}`);
             lastResult = { success: false, error: err.message };
@@ -2265,6 +2285,7 @@ class WorkflowEngineService {
         return {
           msgId: (lastResult as any)?.message?.msgId || '',
           success: true,
+          attachmentsCount: attachments.length,
           _targetCount: targetThreadIds.length,
         };
       }
