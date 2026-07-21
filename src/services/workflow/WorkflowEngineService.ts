@@ -22,7 +22,7 @@ export type NodeType =
   | 'trigger.message' | 'trigger.friendRequest' | 'trigger.groupEvent'
   | 'trigger.reaction' | 'trigger.undo' | 'trigger.schedule' | 'trigger.manual'
   | 'trigger.labelAssigned' | 'trigger.webhook'
-  | 'crm.getContacts'
+  | 'crm.getContacts' | 'crm.addToCampaign'
   | 'zalo.sendMessage' | 'zalo.sendImage' | 'zalo.sendFile' | 'zalo.sendVoice' | 'zalo.sendVideo'
   | 'zalo.forwardMessage' | 'zalo.addReaction' | 'zalo.undoMessage'
   | 'zalo.sendTyping'
@@ -352,6 +352,79 @@ class WorkflowEngineService {
     this.clearDebounceForWorkflow(workflowId);
   }
 
+  public async triggerWorkflowByPhoneScan(params: { workflowId: string; zaloId: string; phone: string; zaloUid: string; zaloName: string }): Promise<void> {
+    try {
+      const db = DatabaseService.getInstance();
+      const wf = this.workflows.get(params.workflowId) || (() => {
+        const row = db.getWorkflowById(params.workflowId);
+        if (!row) return null;
+        return {
+          id: row.id, name: row.name, description: row.description || '',
+          enabled: row.enabled === 1 || row.enabled === true,
+          channel: this.normalizeWorkflowChannel(row.channel),
+          pageId: (row.page_ids || row.page_id || '').split(',').filter(Boolean)[0] || '',
+          pageIds: (row.page_ids || row.page_id || '').split(',').filter(Boolean),
+          nodes: JSON.parse(row.nodes_json || '[]'),
+          edges: JSON.parse(row.edges_json || '[]'),
+          createdAt: row.created_at, updatedAt: row.updated_at,
+        } as Workflow;
+      })();
+
+      if (!wf || !wf.enabled) return;
+
+      const contact = db.getContactById(params.zaloId, params.zaloUid) || {
+        fullName: params.zaloName,
+        phone: params.phone,
+        zaloId: params.zaloUid
+      };
+
+      const triggerPayload = {
+        type: 'trigger.manual',
+        zaloId: params.zaloId,
+        ownerZaloId: params.zaloId,
+        threadId: params.zaloUid,
+        phone: params.phone,
+        senderName: params.zaloName,
+        senderId: params.zaloUid,
+        contact
+      };
+
+      Logger.info(`[WorkflowEngine] Auto-triggering workflow "${wf.name}" (#${wf.id}) for scanned contact ${params.phone}`);
+      await this.executeWorkflow(wf, triggerPayload, 'phone_scan');
+    } catch (err: any) {
+      Logger.error(`[WorkflowEngine] triggerWorkflowByPhoneScan failed: ${err.message}`);
+    }
+  }
+
+  public async checkMissedScheduledWorkflows(): Promise<void> {
+    // [BUG-I Fix] Guard workspace type — chỉ Boss mới được chạy missed schedule
+    try {
+      const WorkspaceManager = require('../../utils/WorkspaceManager').default;
+      const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+      if (activeWs?.type === 'remote') {
+        Logger.log('[WorkflowEngine] checkMissedScheduled: remote workspace — skipped');
+        return;
+      }
+    } catch {
+      Logger.warn('[WorkflowEngine] checkMissedScheduled: WorkspaceManager unavailable — skipped');
+      return;
+    }
+    try {
+      const activeWorkflows = Array.from(this.workflows.values()).filter(w => w.enabled);
+      for (const wf of activeWorkflows) {
+        const scheduleNode = wf.nodes.find(n => n.type === 'trigger.schedule');
+        if (!scheduleNode) continue;
+
+        // Re-evaluate and re-register cron timers if missed
+        this.unregisterCron(wf.id);
+        this.registerCronForWorkflow(wf);
+      }
+      Logger.info(`[WorkflowEngine] Refreshed ${activeWorkflows.length} workflow schedule timers after system resume.`);
+    } catch (err: any) {
+      Logger.error(`[WorkflowEngine] checkMissedScheduledWorkflows error: ${err.message}`);
+    }
+  }
+
   /** Clear all debounce timers and buffers whose key starts with workflowId: */
   private clearDebounceForWorkflow(workflowId: string): void {
     const prefix = workflowId + ':';
@@ -464,7 +537,10 @@ class WorkflowEngineService {
         return;
       }
     } catch (e) {
-      // Safe default: continue cron registration
+      // [BUG-H Fix] Fail-safe: nếu WorkspaceManager lỗi → KHÔNG đăng ký cron
+      // Tránh worker node vô tình đăng ký cron khi import fail
+      Logger.warn('[WorkflowEngine] WorkspaceManager unavailable — skipping cron registration as safe default');
+      return;
     }
     for (const wf of this.workflows.values()) {
       if (wf.enabled && this.isRunnableWorkflow(wf)) this.registerCronForWorkflow(wf);
@@ -520,9 +596,18 @@ class WorkflowEngineService {
         }
       }
       
+      // [BUG-J Fix] Redact sensitive fields before logging filter mismatch
+      const safeConfig = Object.fromEntries(
+        Object.entries(triggerNode.config || {}).map(([k, v]) =>
+          ['secretKey', 'apiKey', 'password', 'token'].some(s => k.toLowerCase().includes(s))
+            ? [k, '[REDACTED]'] : [k, v]
+        )
+      );
+      const safeEventData = { ...eventData, headers: eventData.headers ? { ...eventData.headers, authorization: '[REDACTED]', 'x-webhook-secret': '[REDACTED]' } : undefined };
+
       Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) matching filter conditions...`);
       if (!this.matchesTriggerFilter(triggerNode, eventData)) {
-        Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) filter match failed. Config: ${JSON.stringify(triggerNode.config)}, Event: ${JSON.stringify(eventData)}`);
+        Logger.log(`[WorkflowEngine] Workflow "${wf.name}" (${wf.id}) filter match failed. Config: ${JSON.stringify(safeConfig)}, Event: ${JSON.stringify(safeEventData)}`);
         continue;
       }
       
@@ -1024,8 +1109,17 @@ class WorkflowEngineService {
     const order = this.topologicalSort(wf);
     let status: 'success' | 'error' | 'partial' = 'success';
     let errorMessage: string | undefined;
+    let executedStepCount = 0;
 
     for (const nodeId of order) {
+      executedStepCount++;
+      if (executedStepCount > 200) {
+        errorMessage = 'Workflow đã bị ngắt do vượt quá giới hạn 200 bước thực thi (Phát hiện nghi vấn vòng lặp vô tận)';
+        Logger.error(`[WorkflowEngine] Infinite loop guard triggered for workflow "${wf.name}" (#${wf.id})`);
+        status = 'error';
+        break;
+      }
+
       const node = wf.nodes.find(n => n.id === nodeId);
       if (!node) continue;
       const t0 = Date.now();
@@ -1156,6 +1250,22 @@ class WorkflowEngineService {
                   });
                   break;
                 }
+                // [BUG-01 Fix] logic.wait với delay dài không hỗ trợ bên trong forEach
+                // Checkpoint không thể lưu trạng thái vòng lặp → chặn trước khi gây lỗi gửi trùng tin
+                if (childErr instanceof CheckpointError) {
+                  nodeResults.push({
+                    nodeId: childNodeId,
+                    nodeType: childNode.type,
+                    label: `${childNode.label} (Lần ${index + 1})`,
+                    status: 'error',
+                    input: this.truncateData(childRenderedConfig),
+                    output: { _errorMessage: 'logic.wait với delay > 5 phút không hỗ trợ bên trong vòng lặp forEach. Hãy chuyển Wait ra ngoài vòng lặp.' },
+                    durationMs: Date.now() - childT0,
+                    error: 'logic.wait > 5 phút không hỗ trợ trong forEach'
+                  });
+                  if (!childNode.config.continueOnError) throw new Error('logic.wait > 5 phút không hỗ trợ trong forEach loop');
+                  continue;
+                }
                 const errorOutput: Record<string, any> = {};
                 errorOutput._errorType = 'execution_error';
                 if (childErr.response) {
@@ -1186,6 +1296,9 @@ class WorkflowEngineService {
               }
             }
           }
+          // Clean up loop variable scope after forEach completes
+          delete context.variables[itemVar];
+          delete context.variables['index'];
         } else {
           output = await this.executeNode(node, renderedConfig, context, wf);
           context.nodes[nodeId] = { output };
@@ -1195,17 +1308,15 @@ class WorkflowEngineService {
           Logger.info(`[WorkflowEngine] AI chat output stored: keys=${output ? Object.keys(output).join(',') : 'null'}, result="${typeof output === 'object' && output ? (output.result || '').substring(0, 200) : String(output).substring(0, 200)}"`);
         }
 
-        // If this is an IF node, mark the wrong branch as skipped
+        // If this is an IF node, mark the wrong branch as skipped (unless node has other active incoming paths)
         if (node.type === 'logic.if') {
           const result = output.result as boolean;
           for (const edge of wf.edges.filter(e => e.source === nodeId)) {
             if (edge.sourceHandle === 'true' && !result) {
-              context.skippedNodes.add(edge.target);
-              this.markDownstreamSkipped(edge.target, wf, context.skippedNodes);
+              this.trySkipNode(edge.target, wf, context.skippedNodes);
             }
             if (edge.sourceHandle === 'false' && result) {
-              context.skippedNodes.add(edge.target);
-              this.markDownstreamSkipped(edge.target, wf, context.skippedNodes);
+              this.trySkipNode(edge.target, wf, context.skippedNodes);
             }
           }
         }
@@ -1215,8 +1326,7 @@ class WorkflowEngineService {
           const matchedHandle = output.matchedHandle as string;
           for (const edge of wf.edges.filter(e => e.source === nodeId)) {
             if (edge.sourceHandle !== matchedHandle) {
-              context.skippedNodes.add(edge.target);
-              this.markDownstreamSkipped(edge.target, wf, context.skippedNodes);
+              this.trySkipNode(edge.target, wf, context.skippedNodes);
             }
           }
         }
@@ -1391,7 +1501,12 @@ class WorkflowEngineService {
               nodeResults,
             };
             db.saveWorkflowRunLog(log);
+            // [BUG-02 Fix] Đánh dấu checkpoint cũ là done ngay tại đây.
+            // CheckpointScheduler sẽ KHÔNG gọi markCheckpointDone thêm nữa
+            // vì hàm resumeFromCheckpoint đã return (scheduler check return value)
             db.markCheckpointDone(cp.id);
+            // Emit để CheckpointScheduler biết checkpoint đã được xử lý
+            EventBroadcaster.emit('workflow:checkpointResumedToNext', { checkpointId: cp.id });
             return log;
           }
           nodeResults.push({ nodeId, nodeType: node.type, label: node.label, status: 'error', input: this.truncateData(renderedConfig), output: { _errorMessage: err.message }, durationMs: Date.now() - t0, error: err.message });
@@ -1421,12 +1536,19 @@ class WorkflowEngineService {
     return log;
   }
 
+  private trySkipNode(targetId: string, wf: Workflow, skipped: Set<string>): void {
+    const incomingEdges = wf.edges.filter(e => e.target === targetId);
+    // A node is ONLY skipped if ALL incoming edges originate from skipped parent nodes
+    const allParentsSkipped = incomingEdges.length > 0 && incomingEdges.every(e => skipped.has(e.source));
+    if (allParentsSkipped && !skipped.has(targetId)) {
+      skipped.add(targetId);
+      this.markDownstreamSkipped(targetId, wf, skipped);
+    }
+  }
+
   private markDownstreamSkipped(nodeId: string, wf: Workflow, skipped: Set<string>): void {
     for (const edge of wf.edges.filter(e => e.source === nodeId)) {
-      if (!skipped.has(edge.target)) {
-        skipped.add(edge.target);
-        this.markDownstreamSkipped(edge.target, wf, skipped);
-      }
+      this.trySkipNode(edge.target, wf, skipped);
     }
   }
 
@@ -1483,6 +1605,7 @@ class WorkflowEngineService {
         fromName:    data.fromName      || msgData.dName            || (msg as any).fromName || '',
         fromPhone:   data.fromPhone     || (msg as any).fromPhone   || '',
         content,
+        message:     content,
         images,
         threadId:    (msg as any).threadId || data.threadId        || msgData.idTo   || '',
         threadType,
@@ -1646,6 +1769,7 @@ class WorkflowEngineService {
         fromId: msg.userID || data.userId || data.fromId || '',
         content: msg.body || '',
         body: msg.body || '',
+        message: msg.body || '',
         attachments: msg.attachments || null,
         isSelf: !!(msg.isSelf || data.isSelf),
         emoji: data.emoji || '',
@@ -1815,8 +1939,21 @@ class WorkflowEngineService {
       case 'trigger.undo':
       case 'trigger.schedule':
       case 'trigger.manual':
-      case 'trigger.webhook':
+      case 'trigger.labelAssigned':
         return { ...ctx.trigger };
+
+      case 'trigger.webhook': {
+        if (cfg.secretKey && typeof cfg.secretKey === 'string' && cfg.secretKey.trim()) {
+          const reqSecret = ctx.trigger?.headers?.['x-webhook-secret'] || ctx.trigger?.headers?.['authorization'] || ctx.trigger?.secretKey || ctx.trigger?.secret;
+          const expectedSecret = cfg.secretKey.trim();
+          const authBearer = `Bearer ${expectedSecret}`;
+          if (reqSecret !== expectedSecret && reqSecret !== authBearer) {
+            Logger.warn(`[WorkflowEngine] Webhook unauthorized attempt for workflow "${_wf.name}"`);
+            throw new Error('Unauthorized: Webhook Secret Key không hợp lệ');
+          }
+        }
+        return { ...ctx.trigger };
+      }
 
       // ── CRM Actions ─────────────────────────────────────────────────────
       case 'crm.getContacts': {
@@ -1901,7 +2038,8 @@ class WorkflowEngineService {
           salutation: cfg.salutation || undefined,
           hasPhone: cfg.hasPhone === true || cfg.hasPhone === 'true' ? true : undefined,
           hasNotes: cfg.hasNotes === true || cfg.hasNotes === 'true' ? true : undefined,
-          limit: 999999, // Fetch all matching contacts for execution
+          // [BUG-05 Fix] Giới hạn 10,000 contacts để tránh OOM và checkpoint JSON khổng lồ
+          limit: 10000,
           offset: 0
         };
 
@@ -1912,14 +2050,27 @@ class WorkflowEngineService {
         if (rows.length > 0) {
           if (ownerZaloId) {
             try {
-              // 1. Lấy thông tin nhãn (Local & Zalo)
-              const labelRows = DatabaseService.getInstance().query<any>(
-                `SELECT llt.thread_id as contact_id, ll.id, ll.name, ll.color, ll.text_color as textColor, ll.shortcut
-                 FROM local_label_threads llt
-                 JOIN local_labels ll ON llt.label_id = ll.id
-                 WHERE llt.owner_zalo_id = ?`,
-                [ownerZaloId]
-              ) || [];
+              // [BUG-D Fix] Chỉ fetch labels/notes cho các contacts đã lấy được
+              // tránh load toàn bộ DB vào RAM (N+1 anti-pattern với 50k+ contacts)
+              const fetchedIds = rows.map((r: any) => r.contact_id);
+
+              // Helper: chunk mảng thành nhóm ≤ 999 (SQLite IN clause limit)
+              const chunk = <T>(arr: T[], size: number): T[][] =>
+                Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, (i + 1) * size));
+
+              // 1. Lấy thông tin nhãn (Local & Zalo) — chỉ cho contacts đã lấy
+              let labelRows: any[] = [];
+              for (const idChunk of chunk(fetchedIds, 999)) {
+                const ph = idChunk.map(() => '?').join(',');
+                const partial = DatabaseService.getInstance().query<any>(
+                  `SELECT llt.thread_id as contact_id, ll.id, ll.name, ll.color, ll.text_color as textColor, ll.shortcut
+                   FROM local_label_threads llt
+                   JOIN local_labels ll ON llt.label_id = ll.id
+                   WHERE llt.owner_zalo_id = ? AND llt.thread_id IN (${ph})`,
+                  [ownerZaloId, ...idChunk]
+                ) || [];
+                labelRows = labelRows.concat(partial);
+              }
 
               const labelMap: Record<string, any[]> = {};
               for (const lr of labelRows) {
@@ -1933,11 +2084,18 @@ class WorkflowEngineService {
                 });
               }
 
-              // 2. Lấy thông tin ghi chú (CRM Notes)
-              const noteRows = DatabaseService.getInstance().query<any>(
-                `SELECT contact_id, content, created_at FROM crm_notes WHERE owner_zalo_id = ? ORDER BY created_at DESC`,
-                [ownerZaloId]
-              ) || [];
+              // 2. Lấy thông tin ghi chú (CRM Notes) — chỉ cho contacts đã lấy
+              let noteRows: any[] = [];
+              for (const idChunk of chunk(fetchedIds, 999)) {
+                const ph = idChunk.map(() => '?').join(',');
+                const partial = DatabaseService.getInstance().query<any>(
+                  `SELECT contact_id, content, created_at FROM crm_notes
+                   WHERE owner_zalo_id = ? AND contact_id IN (${ph})
+                   ORDER BY created_at DESC`,
+                  [ownerZaloId, ...idChunk]
+                ) || [];
+                noteRows = noteRows.concat(partial);
+              }
 
               const noteMap: Record<string, any[]> = {};
               for (const nr of noteRows) {
@@ -1987,6 +2145,47 @@ class WorkflowEngineService {
         return {
           contacts: rows,
           count: rows.length
+        };
+      }
+
+      case 'crm.addToCampaign': {
+        const campaignId = Number(cfg.campaignId || cfg.campaign_id);
+        if (!campaignId || isNaN(campaignId)) {
+          throw new Error('[crm.addToCampaign] Chưa chọn Chiến dịch CRM');
+        }
+
+        const ownerZaloId = cfg.zaloId || cfg.pageId || ctx.trigger?.zaloId || ctx.trigger?.ownerZaloId || ctx.pageId || '';
+        let targetContactId = cfg.contactId ? String(cfg.contactId).trim() : '';
+        if (!targetContactId) {
+          targetContactId = ctx.trigger?.threadId || ctx.trigger?.fromId || ctx.trigger?.senderId || ctx.trigger?.contact?.zaloId || '';
+        }
+
+        if (!targetContactId) {
+          throw new Error('[crm.addToCampaign] Không xác định được Contact ID của khách hàng');
+        }
+
+        const db = DatabaseService.getInstance();
+        let contactInfo = db.getContactById(ownerZaloId, targetContactId);
+        let displayName = contactInfo?.alias || contactInfo?.display_name || ctx.trigger?.senderName || ctx.trigger?.zaloName || targetContactId;
+        let avatar = contactInfo?.avatar_url || ctx.trigger?.avatar || '';
+        let phone = contactInfo?.phone || ctx.trigger?.phone || '';
+
+        const addedCount = db.addContactToCampaign(campaignId, ownerZaloId, targetContactId, displayName, avatar, phone);
+        Logger.info(`[WorkflowEngine] crm.addToCampaign: added contact ${targetContactId} to campaign #${campaignId} (addedCount=${addedCount})`);
+
+        // Automatically start queue for this account
+        try {
+          const CRMQueueService = require('../crm/CRMQueueService').default;
+          CRMQueueService.getInstance().startForAccount(ownerZaloId);
+        } catch (queueErr: any) {
+          Logger.warn(`[WorkflowEngine] CRMQueueService startForAccount error: ${queueErr.message}`);
+        }
+
+        return {
+          success: true,
+          campaignId,
+          contactId: targetContactId,
+          added: addedCount > 0
         };
       }
 
@@ -2503,12 +2702,40 @@ class WorkflowEngineService {
 
       case 'zalo.getMessageHistory': {
         const api = this.getApi(ctx.pageId, ctx.trigger?.zaloId);
-        const result: any = await api.getGroupChatHistory({
-          groupId: cfg.threadId,
-          lastMsgId: cfg.lastMsgId || '',
-          count: Number(cfg.count ?? 20),
-        } as any);
-        return { messages: result?.data || [] };
+        // [BUG-07 Fix] Dùng đúng API theo loại thread: DM dùng getMessagesBoxDetails, Group dùng getGroupChatHistory
+        const mhThreadType = Number(cfg.threadType ?? ctx.trigger?.threadType ?? 0);
+        const mhThreadId = String(cfg.threadId || ctx.trigger?.threadId || '');
+        let mhMessages: any[] = [];
+        try {
+          if (mhThreadType === 1 || mhThreadId.startsWith('g')) {
+            // Nhóm
+            const result: any = await api.getGroupChatHistory({
+              groupId: mhThreadId,
+              lastMsgId: cfg.lastMsgId || '',
+              count: Number(cfg.count ?? 20),
+            } as any);
+            mhMessages = result?.data || [];
+          } else {
+            // DM — getGroupChatHistory không hoạt động cho DM, đọc từ DB local thay thế
+            const db = DatabaseService.getInstance();
+            const dbMsgs = db.getMessages(ctx.pageId || ctx.trigger?.zaloId || '', mhThreadId, Number(cfg.count ?? 20));
+            mhMessages = dbMsgs.map((m: any) => ({
+              msgId: m.msg_id,
+              content: m.content,
+              isSelf: m.is_sent === 1,
+              timestamp: m.timestamp,
+            }));
+          }
+        } catch (mhErr: any) {
+          Logger.warn(`[WorkflowEngine] getMessageHistory error for ${mhThreadId}: ${mhErr.message}`);
+        }
+        // Build human-readable output string
+        const outputText = mhMessages.map((m: any) => {
+          const who = m.isSelf ? 'Shop' : 'Khách hàng';
+          const text = m.content?.msg || (typeof m.content === 'string' ? m.content : '') || '';
+          return `${who}: ${text}`;
+        }).filter(Boolean).join('\n');
+        return { messages: mhMessages, output: outputText, count: mhMessages.length };
       }
 
       case 'zalo.forwardMessage': {
@@ -2698,9 +2925,13 @@ class WorkflowEngineService {
 
       // ── Logic Nodes ──────────────────────────────────────────────────────
       case 'logic.if': {
-        const left  = String(cfg.left  ?? '');
-        const right = String(cfg.right ?? '');
+        // [BUG-B Fix] Trim whitespace cho equals/not_equals để nhất quán với logic.switch
+        // Không trim cho contains/starts_with/ends_with vì whitespace có thể intentional
+        const rawLeft  = String(cfg.left  ?? '');
+        const rawRight = String(cfg.right ?? '');
         const op    = cfg.operator ?? 'equals';
+        const left  = (op === 'equals' || op === 'not_equals') ? rawLeft.trim() : rawLeft;
+        const right = (op === 'equals' || op === 'not_equals') ? rawRight.trim() : rawRight;
         let result = false;
         switch (op) {
           case 'equals':       result = left === right; break;
@@ -2711,8 +2942,8 @@ class WorkflowEngineService {
           case 'ends_with':    result = left.endsWith(right); break;
           case 'greater_than': result = this.compareValues(left, right) > 0; break;
           case 'less_than':    result = this.compareValues(left, right) < 0; break;
-          case 'is_empty':     result = !left || left.trim() === ''; break;
-          case 'not_empty':    result = !!left && left.trim() !== ''; break;
+          case 'is_empty':     result = !rawLeft || rawLeft.trim() === ''; break;
+          case 'not_empty':    result = !!rawLeft && rawLeft.trim() !== ''; break;
           case 'regex':
             try { result = new RegExp(right, 'i').test(left); } catch { result = false; } break;
         }
@@ -2721,11 +2952,12 @@ class WorkflowEngineService {
       }
 
       case 'logic.switch': {
-        const val = String(cfg.value ?? '');
+        // [BUG-06 Fix] Trim whitespace trước khi so sánh để tránh false mismatch
+        const val = String(cfg.value ?? '').trim();
         const cases: Array<{ match: string; label: string }> = cfg.cases || [];
         let matchedHandle = cfg.defaultLabel || 'default';
         for (const c of cases) {
-          if (String(c.match) === val) { matchedHandle = c.label; break; }
+          if (String(c.match).trim() === val) { matchedHandle = c.label; break; }
         }
         ctx.variables[`__switch_${node.id}`] = matchedHandle;
         return { value: val, matchedHandle };
@@ -2734,18 +2966,20 @@ class WorkflowEngineService {
       case 'logic.wait': {
         let ms = 0;
         if (cfg.waitType === 'calendar') {
+          // [BUG-E Fix] Tính toán target time luôn theo Asia/Ho_Chi_Minh (+07:00)
+          // bất kể timezone của máy chủ (có thể là UTC nếu deploy trên Linux server)
           const now = new Date();
-          const targetDate = new Date(now.getTime());
-          
-          // Dịch chuyển số ngày thực tế
           const daysToShift = Number(cfg.calendarDays ?? 1);
-          targetDate.setDate(targetDate.getDate() + daysToShift);
-          
-          // Thiết lập giờ và phút đích
           const timeStr = cfg.targetTime || '09:00';
           const [hh, mm] = timeStr.split(':').map(Number);
-          targetDate.setHours(hh || 0, mm || 0, 0, 0);
-          
+
+          // Lấy ngày mục tiêu theo VN timezone
+          const futureDate = new Date(now.getTime() + daysToShift * 86400_000);
+          const futureDateVN = futureDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+          // en-CA trả về YYYY-MM-DD — đủ để ghép chuỗi ISO với offset cố định +07:00
+          const vnIsoStr = `${futureDateVN}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+07:00`;
+          const targetDate = new Date(vnIsoStr);
+
           const diffMs = targetDate.getTime() - now.getTime();
           ms = diffMs > 0 ? diffMs : 0;
         } else if (cfg.delayMs !== undefined && cfg.delayMs !== null) {
@@ -2815,8 +3049,10 @@ class WorkflowEngineService {
       }
 
       case 'logic.setVariable': {
-        ctx.variables[cfg.name] = cfg.value;
-        return { [cfg.name]: cfg.value };
+        // [BUG-C Fix] Render tên biến để hỗ trợ tên động như {{ $trigger.threadId }}
+        const varName = this.renderTemplate(String(cfg.name || ''), ctx, node.id) || cfg.name;
+        ctx.variables[varName] = cfg.value;
+        return { [varName]: cfg.value };
       }
 
       case 'logic.stopIf': {
@@ -2850,6 +3086,10 @@ class WorkflowEngineService {
 
       // ── Data Nodes ───────────────────────────────────────────────────────
       case 'data.textFormat':
+        // [BUG-A Analysis] renderConfig() đã render {{ }} trong cfg.template trước khi
+        // gọi executeNode. Node này trả về giá trị đã render — hoạt động đúng.
+        // Không cần double-render: nếu cfg.template là output của node khác (object/string),
+        // renderConfig đã xử lý rồi. Double-render sẽ gây lỗi nếu value chứa {{ }} thật.
         return { result: cfg.template || '' };
 
       case 'data.jsonParse': {
@@ -2940,8 +3180,9 @@ class WorkflowEngineService {
       case 'sheets.appendRow': {
         if (!cfg.spreadsheetId) throw new Error('[sheets.appendRow] spreadsheetId required');
         if (!cfg.serviceAccountPath) throw new Error('[sheets.appendRow] serviceAccountPath required');
+        const validKeyFile = this.validateServiceAccountPath(cfg.serviceAccountPath);
         const auth = new google.auth.GoogleAuth({
-          keyFile: cfg.serviceAccountPath,
+          keyFile: validKeyFile,
           scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
         const sheets = google.sheets({ version: 'v4', auth });
@@ -2972,8 +3213,9 @@ class WorkflowEngineService {
       case 'sheets.readValues': {
         if (!cfg.spreadsheetId) throw new Error('[sheets.readValues] spreadsheetId required');
         if (!cfg.serviceAccountPath) throw new Error('[sheets.readValues] serviceAccountPath required');
+        const validKeyFile = this.validateServiceAccountPath(cfg.serviceAccountPath);
         const auth = new google.auth.GoogleAuth({
-          keyFile: cfg.serviceAccountPath,
+          keyFile: validKeyFile,
           scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
         });
         const sheets = google.sheets({ version: 'v4', auth });
@@ -2990,8 +3232,9 @@ class WorkflowEngineService {
         if (!cfg.spreadsheetId) throw new Error('[sheets.updateCell] spreadsheetId required');
         if (!cfg.serviceAccountPath) throw new Error('[sheets.updateCell] serviceAccountPath required');
         if (!cfg.range) throw new Error('[sheets.updateCell] range required');
+        const validKeyFile = this.validateServiceAccountPath(cfg.serviceAccountPath);
         const auth = new google.auth.GoogleAuth({
-          keyFile: cfg.serviceAccountPath,
+          keyFile: validKeyFile,
           scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
         const sheets = google.sheets({ version: 'v4', auth });
@@ -3056,11 +3299,22 @@ class WorkflowEngineService {
 
             const promptContent = (cfg.prompt && cfg.prompt.trim()) || String(ctx.trigger.content || '') || 'Xin chào';
             chatMsgs.push({ role: 'user', content: promptContent });
-            
-            const result = await AIAssistantService.getInstance().chatForWorkflow(cfg.assistantId, chatMsgs);
+
+            // [BUG-F Fix] Wrap với timeout 25s để tránh workflow treo vĩnh viễn
+            const assistantTimeoutMs = Number(cfg.timeoutMs ?? 25000);
+            const result = await Promise.race([
+              AIAssistantService.getInstance().chatForWorkflow(cfg.assistantId, chatMsgs),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error(`AI Assistant timeout sau ${assistantTimeoutMs / 1000}s`)), assistantTimeoutMs)
+              ),
+            ]);
             Logger.info(`[WorkflowEngine] AI assistant response: success=${!!result.result}, length=${result.result?.length || 0}, preview="${(result.result || '').substring(0, 200)}", tokens=${result.totalTokens}`);
-            return { result: result.result, totalTokens: result.totalTokens, model: 'assistant' };
+            return { result: result.result || cfg.fallbackText || '', totalTokens: result.totalTokens, model: 'assistant' };
           } catch (e: any) {
+            Logger.warn(`[WorkflowEngine] AI Assistant Error: ${e.message}. Using fallback if available.`);
+            if (cfg.fallbackText !== undefined || cfg.continueOnError) {
+              return { result: cfg.fallbackText || '', totalTokens: 0, model: 'fallback', error: e.message };
+            }
             throw new Error(`Trợ lý AI lỗi: ${e.message}`);
           }
         }
@@ -3214,6 +3468,19 @@ class WorkflowEngineService {
           .split(',').map((s: string) => s.trim()).filter(Boolean);
         const systemMsg = `Bạn là bộ phân loại văn bản. Hãy phân loại đoạn văn bản đầu vào vào MỘT trong các danh mục sau: ${categories.join(', ')}. Chỉ trả về đúng tên danh mục, không giải thích thêm.`;
 
+        // Helper: validate category output từ AI — nếu không khớp danh mục nào → 'unknown'
+        const validateCategory = (raw: string): string => {
+          const trimmed = raw.trim();
+          // [BUG-G Fix] So sánh case-insensitive với danh sách categories
+          const match = categories.find(c => c.toLowerCase() === trimmed.toLowerCase());
+          if (match) return match;
+          // Fuzzy: check if any category is contained in the response (AI đôi khi thêm chữ thừa)
+          const fuzzy = categories.find(c => trimmed.toLowerCase().includes(c.toLowerCase()));
+          if (fuzzy) return fuzzy;
+          Logger.warn(`[WorkflowEngine] ai.classify: AI returned unrecognized category "${trimmed}". Expected one of: ${categories.join(', ')}`);
+          return 'unknown';
+        };
+
         // If assistantId is provided, delegate to AIAssistantService
         if (cfg.assistantId) {
           try {
@@ -3223,7 +3490,7 @@ class WorkflowEngineService {
               { role: 'user', content: cfg.input },
             ];
             const result = await AIAssistantService.getInstance().chat(cfg.assistantId, chatMsgs);
-            const category = (result.result || '').trim();
+            const category = validateCategory(result.result || '');
             return { category, input: cfg.input };
           } catch (e: any) {
             throw new Error(`Trợ lý AI lỗi: ${e.message}`);
@@ -3247,7 +3514,7 @@ class WorkflowEngineService {
             },
             { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
           );
-          const category = res.data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+          const category = validateCategory(res.data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '');
           return { category, input: cfg.input };
         } else if (platform === 'claude') {
           // Anthropic Claude Messages API
@@ -3271,7 +3538,7 @@ class WorkflowEngineService {
               timeout: 15000,
             }
           );
-          const category = res.data.content?.[0]?.text?.trim() || '';
+          const category = validateCategory(res.data.content?.[0]?.text?.trim() || '');
           return { category, input: cfg.input };
         } else {
           // OpenAI-compatible API (OpenAI, Deepseek, Grok/xAI, Mistral, OpenRouter)
@@ -3290,7 +3557,7 @@ class WorkflowEngineService {
               timeout: 15000,
             }
           );
-          const category = res.data.choices?.[0]?.message?.content?.trim() || '';
+          const category = validateCategory(res.data.choices?.[0]?.message?.content?.trim() || '');
           return { category, input: cfg.input };
         }
       }
@@ -4386,6 +4653,23 @@ class WorkflowEngineService {
     };
   }
 
+  /**
+   * [BUG-K Fix] Validate Service Account JSON path để tránh path traversal và nạp file ngoài ý muốn
+   */
+  private validateServiceAccountPath(filePath: string): string {
+    if (!filePath || typeof filePath !== 'string') {
+      throw new Error('Google Service Account path không hợp lệ');
+    }
+    const normalized = path.normalize(filePath.trim());
+    if (!normalized.toLowerCase().endsWith('.json')) {
+      throw new Error('File Google Service Account phải có định dạng .json');
+    }
+    if (!fs.existsSync(normalized)) {
+      throw new Error(`Không tìm thấy file Google Service Account tại: ${normalized}`);
+    }
+    return normalized;
+  }
+
   private topologicalSort(wf: Workflow): string[] {
     const inDegree = new Map<string, number>();
     const adj = new Map<string, string[]>();
@@ -4405,9 +4689,12 @@ class WorkflowEngineService {
         if (d === 0) queue.push(next);
       }
     }
-    // ⚠️ Nếu graph có cycle, topological sort không thể xử lý
-    // Chỉ trả về nodes có thể sort được (không cycle)
-    Logger.warn(`[WorkflowEngine] topologicalSort: ${result.length}/${wf.nodes.length} nodes sorted, ${wf.nodes.length - result.length} nodes skipped due to cycle(s)`);
+    // [BUG-03 Fix] Chỉ warn khi thực sự có node bị bỏ qua do cycle, không warn mỗi lần execute
+    if (result.length < wf.nodes.length) {
+      Logger.warn(`[WorkflowEngine] topologicalSort: ${result.length}/${wf.nodes.length} nodes sorted — ${wf.nodes.length - result.length} node(s) skipped due to cycle(s) in workflow "${wf.name}"`);
+    } else {
+      Logger.log(`[WorkflowEngine] topologicalSort: ${result.length} nodes for "${wf.name}"`);
+    }
     return result;
   }
 
@@ -4508,6 +4795,21 @@ class WorkflowEngineService {
       // Resolve base expression
       if (baseExpr.startsWith('$trigger.')) {
         val = this.getNestedValue(ctx.trigger, baseExpr.slice(9));
+      } else if (baseExpr.startsWith('trigger.')) {
+        val = this.getNestedValue(ctx.trigger, baseExpr.slice(8));
+      } else if (baseExpr.startsWith('$contact.') || baseExpr.startsWith('contact.')) {
+        const field = baseExpr.startsWith('$contact.') ? baseExpr.slice(9) : baseExpr.slice(8);
+        val = this.getNestedValue(ctx.variables?.contact || ctx.trigger?.contact, field);
+        if (val === undefined || val === null || val === '') {
+          // Automatic contact fallback for missing CRM contacts
+          if (field === 'fullName' || field === 'name' || field === 'displayName') {
+            val = ctx.variables?.contact?.fullName || ctx.trigger?.senderName || ctx.trigger?.zaloName || ctx.trigger?.name || ctx.variables?.item?.zaloName || ctx.variables?.item?.phone || ctx.trigger?.phone || ctx.trigger?.senderId || 'Khách hàng';
+          } else if (field === 'phone' || field === 'phoneNumber') {
+            val = ctx.variables?.contact?.phone || ctx.trigger?.phone || ctx.variables?.item?.phone || '';
+          } else if (field === 'salutation') {
+            val = ctx.variables?.contact?.salutation || 'Anh/Chị';
+          }
+        }
       } else if (baseExpr.startsWith('$var.')) {
         val = this.getNestedValue(ctx.variables, baseExpr.slice(5));
       } else if (baseExpr.startsWith('$vars.')) {
@@ -4527,9 +4829,12 @@ class WorkflowEngineService {
       } else if (baseExpr === 'index' || baseExpr === '$index') {
         val = ctx.variables['index'];
       } else if (baseExpr.startsWith('$prev.') && currentNodeId && ctx._wfEdges) {
-        const edge = ctx._wfEdges.find(e => e.target === currentNodeId);
-        if (edge) {
-          const prevNodeId = edge.source;
+        // [BUG-04 Fix] Tìm edge từ node đã thực thi (có trong ctx.nodes), không phải edge đầu tiên
+        // Quan trọng khi node có nhiều incoming edges (sau IF / SWITCH merge)
+        const incomingEdges = ctx._wfEdges.filter(e => e.target === currentNodeId);
+        const executedEdge = incomingEdges.find(e => ctx.nodes[e.source] !== undefined) || incomingEdges[0];
+        if (executedEdge) {
+          const prevNodeId = executedEdge.source;
           const field = baseExpr.slice(6);
           const ndata = ctx.nodes[prevNodeId];
           if (ndata) {

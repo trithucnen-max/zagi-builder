@@ -52,6 +52,7 @@ export default function PhoneScanPanel() {
     const [itemsTotal, setItemsTotal] = useState(0);
     const [itemsPage, setItemsPage] = useState(0);
     const [itemsStatusFilter, setItemsStatusFilter] = useState<string>('all');
+    const [batchFilterTab, setBatchFilterTab] = useState<'all' | 'active' | 'paused' | 'completed'>('all');
     
     // Creation Form
     const [showCreateForm, setShowCreateForm] = useState(false);
@@ -60,10 +61,15 @@ export default function PhoneScanPanel() {
     const [formDailyLimit, setFormDailyLimit] = useState<number>(100);
     const [formHourlyLimit, setFormHourlyLimit] = useState<number>(30);
     const [formPriority, setFormPriority] = useState<number>(0);
+    const [formStatus, setFormStatus] = useState<'paused' | 'active'>('paused');
+    const [formScheduledTime, setFormScheduledTime] = useState<string>('');
+    const [formSkipCrmExisting, setFormSkipCrmExisting] = useState<boolean>(true);
+    const [formAutoWorkflowId, setFormAutoWorkflowId] = useState<string>('');
     const [formPhonesText, setFormPhonesText] = useState('');
     const [formAutoTagIds, setFormAutoTagIds] = useState<number[]>([]);
     const [csvPhones, setCsvPhones] = useState<string[]>([]);
     const [csvFilename, setCsvFilename] = useState('');
+    const [availableWorkflows, setAvailableWorkflows] = useState<any[]>([]);
     
     // Inline label creation form state
     const [isCreatingLabel, setIsCreatingLabel] = useState(false);
@@ -77,6 +83,21 @@ export default function PhoneScanPanel() {
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pollingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Fetch Workflows for dropdown
+    const fetchAvailableWorkflows = useCallback(async () => {
+        try {
+            const res = await ipc.db?.getWorkflows();
+            if (res) {
+                const list = Array.isArray(res) ? res : (res.workflows || []);
+                setAvailableWorkflows(list.filter((w: any) => w.enabled));
+            }
+        } catch {}
+    }, []);
+
+    useEffect(() => {
+        fetchAvailableWorkflows();
+    }, [fetchAvailableWorkflows]);
 
     // Fetch batches
     const fetchBatches = useCallback(async () => {
@@ -258,17 +279,25 @@ export default function PhoneScanPanel() {
                 dailyLimit: formDailyLimit,
                 hourlyLimit: formHourlyLimit,
                 priority: formPriority,
+                status: formStatus,
+                scheduledTime: formScheduledTime,
+                skipCrmExisting: formSkipCrmExisting,
+                autoWorkflowId: formAutoWorkflowId ? Number(formAutoWorkflowId) : null,
                 phones
             });
 
             if (res?.success) {
-                showNotification('Đã khởi tạo lô quét thành công!', 'success');
+                showNotification(formStatus === 'paused' ? 'Đã tạo lô nháp (Tạm dừng) thành công! Bấm nút Bật để bắt đầu quét.' : 'Đã khởi tạo lô quét thành công!', 'success');
                 // Reset form
                 setFormName('');
                 setFormAssignedAccount('');
                 setFormDailyLimit(100);
                 setFormHourlyLimit(30);
                 setFormPriority(0);
+                setFormStatus('paused');
+                setFormScheduledTime('');
+                setFormSkipCrmExisting(true);
+                setFormAutoWorkflowId('');
                 setFormPhonesText('');
                 setFormAutoTagIds([]);
                 setCsvPhones([]);
@@ -580,30 +609,54 @@ export default function PhoneScanPanel() {
             <div className="flex-1 flex overflow-hidden">
                 {/* Left panel: List of batches */}
                 <div className={`flex-shrink-0 border-r border-gray-200 dark:border-gray-800 overflow-y-auto p-5 transition-all duration-300 ${selectedBatch ? 'w-2/5' : 'w-full'}`}>
-                    <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-                        <AppIcon name="layers" size={14} className="text-gray-400" />
-                        Danh sách các lô quét
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <AppIcon name="layers" size={14} className="text-gray-400" />
+                            Danh sách các lô quét
+                        </h3>
+                        {/* Status Filter Tabs */}
+                        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                            {[
+                                { key: 'all', label: 'Tất cả' },
+                                { key: 'active', label: '▶️ Đang chạy' },
+                                { key: 'paused', label: '⏸️ Tạm dừng' },
+                                { key: 'completed', label: '✓ Hoàn thành' }
+                            ].map(tab => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setBatchFilterTab(tab.key as any)}
+                                    className={`px-2 py-0.5 text-[10px] font-semibold rounded-md transition-colors ${
+                                        batchFilterTab === tab.key
+                                            ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
                     {loadingBatches && batches.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
                             <span>Đang tải thông tin...</span>
                         </div>
-                    ) : batches.length === 0 ? (
+                    ) : batches.filter(b => batchFilterTab === 'all' ? true : b.status === batchFilterTab).length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-900/30">
-                            <span className="text-gray-400 dark:text-gray-500 text-xs">Chưa có lô quét số điện thoại nào được tạo.</span>
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Không có lô quét nào phù hợp bộ lọc.</span>
                             <button
                                 onClick={() => setShowCreateForm(true)}
                                 className="mt-4 px-4 py-1.5 bg-blue-50 dark:bg-blue-600/25 border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-600/40 text-xs font-semibold rounded-lg transition-colors"
                             >
-                                Tạo lô quét đầu tiên
+                                Tạo lô quét mới
                             </button>
                         </div>
                     ) : (
                         <div className="flex flex-col gap-3">
-                            {batches.map(batch => {
+                            {batches.filter(b => batchFilterTab === 'all' ? true : b.status === batchFilterTab).map(batch => {
                                 const progress = batch.total_count > 0 ? Math.round((batch.scanned_count / batch.total_count) * 100) : 0;
+                                const conversionRate = batch.scanned_count > 0 ? Math.round((batch.found_count / batch.scanned_count) * 100) : 0;
                                 const isSelected = selectedBatch?.id === batch.id;
                                 
                                 return (
@@ -613,13 +666,28 @@ export default function PhoneScanPanel() {
                                         className={`p-4 rounded-xl border transition-all cursor-pointer ${
                                             isSelected
                                                 ? 'bg-white dark:bg-gray-800 border-blue-500 shadow-md'
-                                                : 'bg-white dark:bg-gray-855/60 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700/80 hover:bg-gray-50 dark:hover:bg-gray-855'
+                                                : batch.status === 'active'
+                                                    ? 'bg-blue-50/20 dark:bg-blue-955/10 border-blue-200 dark:border-blue-900/40 hover:border-blue-400'
+                                                    : 'bg-white dark:bg-gray-855/60 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700/80 hover:bg-gray-50 dark:hover:bg-gray-855'
                                         }`}
                                     >
                                         <div className="flex items-start justify-between">
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-bold text-gray-900 dark:text-white text-xs">{batch.name}</span>
+                                                    {batch.status === 'active' ? (
+                                                        <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 rounded-full animate-pulse">
+                                                            ▶️ Đang chạy (#1)
+                                                        </span>
+                                                    ) : batch.status === 'completed' ? (
+                                                        <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full">
+                                                            ✓ Hoàn thành
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2 py-0.5 text-[9px] font-bold bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800/60 text-amber-700 dark:text-amber-300 rounded-full">
+                                                            ⏸️ Tạm dừng (Nháp)
+                                                        </span>
+                                                    )}
                                                     {batch.priority === 1 && (
                                                         <span className="px-1.5 py-0.5 text-[8px] font-bold bg-rose-50 dark:bg-rose-955/80 border border-rose-200 dark:border-rose-800/40 text-rose-600 dark:text-rose-400 rounded">
                                                             Ưu tiên
@@ -627,11 +695,11 @@ export default function PhoneScanPanel() {
                                                     )}
                                                 </div>
                                                 <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-2.5 mt-1.5">
-                                                    <span>Tổng số: <strong className="text-gray-800 dark:text-gray-200">{batch.total_count}</strong></span>
+                                                    <span>Tổng: <strong className="text-gray-800 dark:text-gray-200">{batch.total_count}</strong></span>
                                                     <span>•</span>
                                                     <span>Có Zalo: <strong className="text-emerald-600 dark:text-emerald-400">{batch.found_count}</strong></span>
                                                     <span>•</span>
-                                                    <span>Ngày tạo: {new Date(batch.created_at).toLocaleDateString('vi-VN')}</span>
+                                                    <span className="text-blue-600 dark:text-blue-400 font-semibold">Tỷ lệ Zalo: {conversionRate}%</span>
                                                 </div>
                                             </div>
 
@@ -653,16 +721,17 @@ export default function PhoneScanPanel() {
                                                 <button
                                                     onClick={() => handleToggleStatus(batch)}
                                                     disabled={batch.status === 'completed'}
-                                                    className={`p-1.5 rounded-lg border transition-colors ${
+                                                    className={`px-2 py-1 rounded-lg border font-semibold text-xs transition-colors flex items-center gap-1 ${
                                                         batch.status === 'active'
-                                                            ? 'bg-amber-50 dark:bg-amber-955/20 border-amber-200 dark:border-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-955/45'
+                                                            ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'
                                                             : batch.status === 'completed'
                                                                 ? 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                                                : 'bg-emerald-50 dark:bg-emerald-955/20 border-emerald-200 dark:border-emerald-900/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-955/45'
+                                                                : 'bg-blue-600 text-white border-blue-500 hover:bg-blue-500'
                                                     }`}
-                                                    title={batch.status === 'active' ? 'Tạm dừng quét' : 'Tiếp tục quét'}
+                                                    title={batch.status === 'active' ? 'Tạm dừng lô (Pause)' : 'Bật lô quét (Nổi lên đầu & Quét ngay)'}
                                                 >
                                                     <AppIcon name={batch.status === 'active' ? 'pause' : 'play'} size={12} />
+                                                    <span>{batch.status === 'active' ? 'Tắt' : 'Bật'}</span>
                                                 </button>
                                                 <button
                                                     onClick={() => handleExportCSV(batch)}
@@ -681,22 +750,27 @@ export default function PhoneScanPanel() {
                                             </div>
                                         </div>
 
-                                        {/* Progress Bar */}
-                                        <div className="mt-4">
+                                        {/* Progress Bar & Zalo conversion indicator */}
+                                        <div className="mt-3">
                                             <div className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400 mb-1">
-                                                <span>Tiến độ quét: {batch.scanned_count}/{batch.total_count} số</span>
-                                                <span className="font-semibold">{progress}%</span>
+                                                <span>Tiến độ: {batch.scanned_count}/{batch.total_count} số</span>
+                                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Tỷ lệ Zalo Active: {conversionRate}%</span>
                                             </div>
-                                            <div className="w-full bg-gray-100 dark:bg-gray-850 rounded-full h-1.5 overflow-hidden">
+                                            <div className="w-full bg-gray-100 dark:bg-gray-850 rounded-full h-1.5 overflow-hidden flex">
                                                 <div
-                                                    className={`h-full rounded-full transition-all duration-500 ${
-                                                        batch.status === 'completed'
-                                                            ? 'bg-emerald-500'
-                                                            : batch.status === 'paused'
-                                                                ? 'bg-amber-500'
-                                                                : 'bg-blue-500'
-                                                    }`}
-                                                    style={{ width: `${progress}%` }}
+                                                    className="h-full bg-emerald-500 transition-all duration-500"
+                                                    style={{ width: `${batch.total_count > 0 ? (batch.found_count / batch.total_count) * 100 : 0}%` }}
+                                                    title={`Có Zalo: ${batch.found_count}`}
+                                                />
+                                                <div
+                                                    className="h-full bg-amber-500 transition-all duration-500"
+                                                    style={{ width: `${batch.total_count > 0 ? (batch.not_found_count / batch.total_count) * 100 : 0}%` }}
+                                                    title={`Không Zalo: ${batch.not_found_count}`}
+                                                />
+                                                <div
+                                                    className="h-full bg-rose-500 transition-all duration-500"
+                                                    style={{ width: `${batch.total_count > 0 ? (batch.error_count / batch.total_count) * 100 : 0}%` }}
+                                                    title={`Lỗi: ${batch.error_count}`}
                                                 />
                                             </div>
                                         </div>
@@ -928,6 +1002,77 @@ export default function PhoneScanPanel() {
                                                 className="w-full bg-white dark:bg-gray-905 border border-gray-305 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                                             />
                                         </div>
+                                    </div>
+
+                                    {/* Initial Status & Scheduled Start Time */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Trạng thái khởi tạo</label>
+                                            <div className="flex gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormStatus('paused')}
+                                                    className={`flex-1 py-1.5 px-2 border rounded-lg text-xs font-semibold transition-all ${
+                                                        formStatus === 'paused'
+                                                            ? 'bg-amber-50 dark:bg-amber-955/40 border-amber-500 text-amber-700 dark:text-amber-300 shadow-sm'
+                                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                                                    }`}
+                                                >
+                                                    ⏸️ Tạm dừng
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormStatus('active')}
+                                                    className={`flex-1 py-1.5 px-2 border rounded-lg text-xs font-semibold transition-all ${
+                                                        formStatus === 'active'
+                                                            ? 'bg-blue-50 dark:bg-blue-955/40 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                                                    }`}
+                                                >
+                                                    ▶️ Chạy ngay
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Hẹn giờ khởi động (Tùy chọn)</label>
+                                            <input
+                                                type="time"
+                                                value={formScheduledTime}
+                                                onChange={e => setFormScheduledTime(e.target.value)}
+                                                className="w-full bg-white dark:bg-gray-905 border border-gray-305 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Skip CRM Existing Option */}
+                                    <div className="flex items-center gap-2 p-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl">
+                                        <input
+                                            type="checkbox"
+                                            id="skipCrmExisting"
+                                            checked={formSkipCrmExisting}
+                                            onChange={e => setFormSkipCrmExisting(e.target.checked)}
+                                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                                        />
+                                        <label htmlFor="skipCrmExisting" className="text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                                            Bỏ qua các SĐT đã tồn tại trong danh bạ CRM (Tiết kiệm hạn ngạch quét)
+                                        </label>
+                                    </div>
+
+                                    {/* Auto Trigger Workflow Selection */}
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Kích hoạt Workflow tự động (khi tìm thấy Zalo)</label>
+                                        <select
+                                            value={formAutoWorkflowId}
+                                            onChange={e => setFormAutoWorkflowId(e.target.value)}
+                                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                                        >
+                                            <option value="">-- Không tự động chạy kịch bản --</option>
+                                            {availableWorkflows.map((wf: any) => (
+                                                <option key={wf.id} value={wf.id}>
+                                                    ⚡ {wf.name} ({wf.channel === 'zalo' ? 'Zalo' : 'Facebook'})
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
 
                                     {/* Priority Selection: styled matching image 3 pill choice */}

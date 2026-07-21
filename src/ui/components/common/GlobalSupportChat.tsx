@@ -9,7 +9,22 @@ interface Message {
 }
 
 export default function GlobalSupportChat() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('zagi_ai_widget_open') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [isMinimized, setIsMinimized] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('zagi_ai_widget_minimized') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'Xin chào! Em là Trợ lý AI hỗ trợ Zagi. Anh/chị cần em tư vấn hay hướng dẫn thao tác gì hôm nay ạ?' }
   ]);
@@ -23,10 +38,22 @@ export default function GlobalSupportChat() {
   };
 
   useEffect(() => {
-    if (isOpen) {
+    try {
+      localStorage.setItem('zagi_ai_widget_open', String(isOpen));
+    } catch {}
+  }, [isOpen]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('zagi_ai_widget_minimized', String(isMinimized));
+    } catch {}
+  }, [isMinimized]);
+
+  useEffect(() => {
+    if (isOpen && !isMinimized) {
       scrollToBottom();
     }
-  }, [isOpen, messages]);
+  }, [isOpen, isMinimized, messages]);
 
   const handleSend = async (text: string) => {
     if (!text.trim() || sending) return;
@@ -59,11 +86,50 @@ export default function GlobalSupportChat() {
     'Cách bật Tunnel để kết nối từ xa?'
   ];
 
+  const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant')?.content || '';
+
   return (
-    <div className="fixed bottom-[25%] right-6 z-[99] flex flex-col items-end">
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="w-[380px] h-[520px] bg-gray-850/98 backdrop-blur border border-gray-700/80 rounded-2xl shadow-2xl flex flex-col mb-4 overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
+    <div className="fixed bottom-5 right-5 z-[99] flex flex-col items-end pointer-events-none">
+      {/* Minimized Compact Bar */}
+      {isOpen && isMinimized && (
+        <div
+          onClick={() => setIsMinimized(false)}
+          className="pointer-events-auto w-[320px] h-11 bg-gray-900/95 backdrop-blur border border-blue-500/40 rounded-xl shadow-2xl flex items-center justify-between px-3 mb-3 cursor-pointer hover:bg-gray-850 transition-all text-xs text-gray-200"
+          title="Bấm để phóng to cửa sổ AI"
+        >
+          <div className="flex items-center gap-2 overflow-hidden mr-2">
+            <BrandLogo type="ai" className="w-4 h-4 text-blue-400 flex-shrink-0" />
+            <span className="font-semibold text-blue-300 flex-shrink-0">ZaGi AI:</span>
+            <span className="truncate text-gray-300 text-[11px]">
+              {sending ? 'Đang soạn câu trả lời...' : lastAssistantMsg || 'Đang chờ câu hỏi...'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsMinimized(false); }}
+              className="p-1 text-gray-400 hover:text-white transition-colors"
+              title="Phóng to"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+              </svg>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+              className="p-1 text-gray-400 hover:text-white transition-colors"
+              title="Đóng"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Full Chat Window */}
+      {isOpen && !isMinimized && (
+        <div className="pointer-events-auto w-[380px] sm:w-[420px] h-[520px] max-h-[calc(100vh-100px)] bg-gray-850/98 backdrop-blur border border-gray-700/80 rounded-2xl shadow-2xl flex flex-col mb-3 overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
           {/* Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-blue-600/30 to-indigo-600/20 border-b border-gray-700 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -76,14 +142,26 @@ export default function GlobalSupportChat() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-gray-400 hover:text-white transition-colors p-1"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsMinimized(true)}
+                className="text-gray-400 hover:text-white transition-colors p-1"
+                title="Thu nhỏ"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors p-1"
+                title="Đóng"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Messages list */}
@@ -161,22 +239,24 @@ export default function GlobalSupportChat() {
       )}
 
       {/* Floating Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-2xl transition-all hover:scale-105 active:scale-95 duration-150"
-        title="Hỏi đáp về Zagi"
-      >
-        {isOpen ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        ) : (
-          <div className="relative flex items-center justify-center">
-            <BrandLogo type="ai" className="w-6 h-6 text-white" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-green-400 border border-blue-600 animate-pulse"/>
-          </div>
-        )}
-      </button>
+      {!isMinimized && (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="pointer-events-auto w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-2xl transition-all hover:scale-105 active:scale-95 duration-150"
+          title="Hỏi đáp về Zagi"
+        >
+          {isOpen ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          ) : (
+            <div className="relative flex items-center justify-center">
+              <BrandLogo type="ai" className="w-6 h-6 text-white" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-green-400 border border-blue-600 animate-pulse"/>
+            </div>
+          )}
+        </button>
+      )}
     </div>
   );
 }

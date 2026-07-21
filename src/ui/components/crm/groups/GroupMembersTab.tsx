@@ -1108,18 +1108,6 @@ export default function GroupMembersTab() {
         /* ── Tab: Quét nâng cao (Light Mode UI matching Zagi theme) ────────────── */
         <div className="flex-1 overflow-y-auto bg-gray-50/60 p-6">
           <div className="max-w-3xl mx-auto space-y-6">
-
-            {/* Header Alert Warning Banner - Matching user's screenshot style */}
-            <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3 shadow-sm">
-              <span className="text-lg leading-none flex-shrink-0">⚠️</span>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-amber-950 text-sm">Tránh gửi link/spam cho người lạ để hạn chế bị khóa tài khoản.</p>
-                <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
-                  Tính năng Quét nâng cao hỗ trợ tự động bóc tách danh sách thành viên từ nhóm Zalo ẩn hoặc chưa tham gia. Hãy tuân thủ quy định cộng đồng và cài đặt giãn cách an toàn khi thực hiện chiến dịch.
-                </p>
-              </div>
-            </div>
-
             {/* Title & Description */}
             <div className="text-center py-2 space-y-1">
               <h2 className="text-xl font-bold text-gray-900 tracking-tight">Quét thành viên nhóm nâng cao</h2>
@@ -1289,11 +1277,11 @@ export default function GroupMembersTab() {
             )}
 
             {/* Premium status */}
-            <div className="bg-white border border-gray-200/80 rounded-2xl p-5 space-y-3.5 shadow-sm">
+            <div className="bg-white border border-gray-200/80 rounded-2xl p-4 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <span className={`w-2.5 h-2.5 rounded-full ${isPremium ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                  <span className="text-sm text-gray-900 font-bold">Gói Premium Quét Nâng Cao</span>
+                  <span className="text-sm text-gray-900 font-bold">Gói Quét Nâng Cao</span>
                   <button
                     onClick={() => loadPremiumStatus(true)}
                     disabled={premiumLoading}
@@ -1312,21 +1300,6 @@ export default function GroupMembersTab() {
                   )}
                 </div>
               </div>
-              {!isPremium && (
-                <div className="pt-2 border-t border-gray-100 space-y-3">
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    Kích hoạt bản quyền Premium để không giới hạn lượt quét thành viên nhóm Zalo ẩn / nhóm chưa tham gia.
-                  </p>
-                  <button
-                    onClick={() => window.open('https://t.me/babyvibe9', '_blank')}
-                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.692-1.653-1.123-2.678-1.799-1.185-.78-.417-1.21.258-1.911.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.492-1.302.484-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635.099-.002.321.023.465.141a.506.506 0 0 1 .171.325c.016.093.036.306.02.472z"/>
-                    </svg>
-                    Liên hệ nâng cấp gói Premium
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* How it works */}

@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v3.0.1** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v3.0.5** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>

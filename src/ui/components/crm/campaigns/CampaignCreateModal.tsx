@@ -723,6 +723,29 @@ export default function CampaignCreateModal({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [localLabelsList, setLocalLabelsList] = useState<any[]>([]);
 
+  // Pipeline (Auto-Nurture Chaining) State
+  const [onCompleteNoReplyCampaignId, setOnCompleteNoReplyCampaignId] = useState<string>(
+    (initialData as any)?.on_complete_no_reply_campaign_id ? String((initialData as any).on_complete_no_reply_campaign_id) : ''
+  );
+  const [onCompleteReplyCampaignId, setOnCompleteReplyCampaignId] = useState<string>(
+    (initialData as any)?.on_complete_reply_campaign_id ? String((initialData as any).on_complete_reply_campaign_id) : ''
+  );
+  const [onCompleteNoReplyTagId, setOnCompleteNoReplyTagId] = useState<string>(
+    (initialData as any)?.on_complete_no_reply_tag_id ? String((initialData as any).on_complete_no_reply_tag_id) : ''
+  );
+  const [onCompleteReplyTagId, setOnCompleteReplyTagId] = useState<string>(
+    (initialData as any)?.on_complete_reply_tag_id ? String((initialData as any).on_complete_reply_tag_id) : ''
+  );
+  const [availableCampaignsList, setAvailableCampaignsList] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!zaloId) return;
+    ipc.crm?.getCampaigns(zaloId).then((res: any) => {
+      const list = res?.campaigns || [];
+      setAvailableCampaignsList(list.filter((c: any) => String(c.id) !== String(initialData?.id)));
+    }).catch(() => {});
+  }, [zaloId, initialData?.id]);
+
   useEffect(() => {
     if (!zaloId) return;
     ipc.db?.getLocalLabels({ zaloId }).then((res: any) => {
@@ -951,6 +974,10 @@ Yiêu cầu quan trọng:
         daily_send_limit: dailyLimit,
         daily_start_time: dailyStartTime,
         scheduled_start_at: scheduledStartAt,
+        on_complete_no_reply_campaign_id: onCompleteNoReplyCampaignId ? Number(onCompleteNoReplyCampaignId) : null,
+        on_complete_reply_campaign_id: onCompleteReplyCampaignId ? Number(onCompleteReplyCampaignId) : null,
+        on_complete_reply_tag_id: onCompleteReplyTagId ? Number(onCompleteReplyTagId) : null,
+        on_complete_no_reply_tag_id: onCompleteNoReplyTagId ? Number(onCompleteNoReplyTagId) : null,
       });
       onClose();
     } catch (err) {
@@ -1615,6 +1642,89 @@ Yiêu cầu quan trọng:
                   )}
                 </div>
               )}
+
+              {/* Auto-Nurture Pipeline Chaining */}
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/60 rounded-xl p-3 flex flex-col gap-2.5 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-md bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-xs font-bold">
+                    🔗
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900 dark:text-gray-100">Chuỗi Chiến Dịch Tự Động (Auto-Nurture)</h4>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Tự động chuyển tiếp khách hàng hoặc gán nhãn khi xong chiến dịch</p>
+                  </div>
+                </div>
+
+                {/* Condition 1: When NO REPLY */}
+                <div className="bg-rose-500/5 border border-rose-500/15 rounded-lg p-2.5 flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                    🔴 Khi hoàn thành & KHÔNG phản hồi
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[9.5px] text-gray-500 dark:text-gray-400 font-medium block mb-0.5">Gán nhãn tự động</label>
+                      <select
+                        value={onCompleteNoReplyTagId}
+                        onChange={e => setOnCompleteNoReplyTagId(e.target.value)}
+                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-[11px] text-gray-800 dark:text-gray-200 focus:outline-none focus:border-rose-500"
+                      >
+                        <option value="">-- Không gán --</option>
+                        {localLabelsList.map(l => (
+                          <option key={l.id} value={l.id}>{l.emoji ? `${l.emoji} ` : ''}{l.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9.5px] text-gray-500 dark:text-gray-400 font-medium block mb-0.5">Chuyển sang Chiến dịch</label>
+                      <select
+                        value={onCompleteNoReplyCampaignId}
+                        onChange={e => setOnCompleteNoReplyCampaignId(e.target.value)}
+                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-[11px] text-gray-800 dark:text-gray-200 focus:outline-none focus:border-rose-500"
+                      >
+                        <option value="">-- Không chuyển --</option>
+                        {availableCampaignsList.map(c => (
+                          <option key={c.id} value={c.id}>🎯 {c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Condition 2: When REPLIED */}
+                <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-lg p-2.5 flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    🟢 Khi hoàn thành & CÓ phản hồi
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[9.5px] text-gray-500 dark:text-gray-400 font-medium block mb-0.5">Gán nhãn tự động</label>
+                      <select
+                        value={onCompleteReplyTagId}
+                        onChange={e => setOnCompleteReplyTagId(e.target.value)}
+                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-[11px] text-gray-800 dark:text-gray-200 focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value="">-- Không gán --</option>
+                        {localLabelsList.map(l => (
+                          <option key={l.id} value={l.id}>{l.emoji ? `${l.emoji} ` : ''}{l.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9.5px] text-gray-500 dark:text-gray-400 font-medium block mb-0.5">Chuyển sang Chiến dịch</label>
+                      <select
+                        value={onCompleteReplyCampaignId}
+                        onChange={e => setOnCompleteReplyCampaignId(e.target.value)}
+                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-[11px] text-gray-800 dark:text-gray-200 focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value="">-- Không chuyển --</option>
+                        {availableCampaignsList.map(c => (
+                          <option key={c.id} value={c.id}>🎯 {c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <LivePreview

@@ -2,6 +2,87 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.5] - 2026-07-21
+
+### 🚀 Tính năng mới & Nâng cấp UI/UX
+
+- **Node Workflow `crm.addToCampaign` (Thêm Khách Vào Chiến Dịch CRM):**
+  - Khai báo Node `[Hành động CRM] ➔ Thêm vào Chiến dịch` trong giao diện thiết kế Workflow (`WorkflowEditor`).
+  - Tự động bóc tách `contactId` từ sự kiện kích hoạt (tin nhắn, gán nhãn, lướt quét SĐT) và nạp khách hàng vào Chiến dịch CRM chỉ định.
+  - Tự động đánh thức hàng chờ `CRMQueueService` để bắt đầu gửi tin nhắn chiến dịch cho tài khoản tương ứng.
+
+- **Chuỗi Chiến Dịch Tự Động (Auto-Nurture Pipeline Chaining):**
+  - Tự động phân loại và nối chuỗi khi một Chiến dịch CRM kết thúc việc gửi toàn bộ danh sách khách hàng:
+    - 🔴 **Khách KHÔNG phản hồi**: Tự động gán Nhãn chỉ định (VD: `Chờ Chăm Sóc Lần 2`) và chuyển tiếp khách hàng sang Chiến dịch B tiếp theo.
+    - 🟢 **Khách CÓ phản hồi**: Tự động gán Nhãn (VD: `Khách Phản Hồi / Tiềm Năng`) và dừng chuỗi Nurture để tư vấn viên tiếp quản.
+  - Giao diện cấu hình **🔗 Chuỗi Chiến Dịch Tự Động (Auto-Nurture)** trực quan trong Modal Tạo/Sửa Chiến dịch CRM (`CampaignCreateModal.tsx`).
+
+- **Nâng cấp Hệ thống Quét Số Điện Thoại Zalo Hàng Loạt (Bulk Phone Scanner UX & Features):**
+  - **Tùy chọn Trạng thái Mặc định:** Cho phép chọn trạng thái khởi tạo `⏸️ Tạm dừng (Nháp)` hoặc `▶️ Chạy ngay` khi tạo Lô quét.
+  - **Tự động đẩy Lô Đang chạy lên trên cùng (Pop-to-Top Sorting):** Cập nhật thuật toán truy vấn `ORDER BY status = 'active' DESC, priority DESC, id DESC`. Khi bấm Bật, Lô quét lập tức nổi lên vị trí #1 trên cùng và chạy ngầm ngay.
+  - **Nút Bật/Tắt (Play/Pause) 1-Click:** Thao tác Bật/Dừng lô quét trực tiếp trên từng thẻ Lô.
+  - **4 Tab lọc trạng thái Lô:** Phân loại nhanh các lô quét qua 4 Tab `[Tất cả] [▶️ Đang chạy] [⏸️ Tạm dừng] [✓ Hoàn thành]`.
+  - **Hẹn giờ khởi động Lô (`scheduled_time`):** Cấu hình mốc giờ hẹn bắt đầu quét (VD: `17:00`). Tiến trình ngầm chỉ kích hoạt khi tới/qua mốc giờ hẹn trong ngày.
+  - **Bỏ qua SĐT đã tồn tại trong CRM (`skip_crm_existing`):** Tùy chọn lọc bỏ tự động các SĐT đã có trong CSDL `contacts`, tiết kiệm 100% hạn ngạch quét cho các số điện thoại mới.
+  - **Báo cáo Tỷ lệ Zalo Active (`Tỷ lệ Zalo Active: X%`):** Tính toán % số dùng Zalo kèm Progress Bar phân chia 3 màu trực quan (Xanh: Có Zalo / Cam: Không Zalo / Đỏ: Lỗi).
+  - **Tự động kích hoạt Workflow cho SĐT tìm thấy (`auto_workflow_id`):** Tự động đẩy SĐT dùng Zalo active sang Workflow chăm sóc tự động.
+
+- **Nâng cấp Giao diện Trợ lý AI Zagi Support Widget (`GlobalSupportChat.tsx`):**
+  - Khống chế chiều cao an toàn `max-h-[calc(100vh-100px)]` và vị trí cố định `bottom-5 right-5` chống tràn màn hình hay che khuất giao diện CRM.
+  - Bổ sung nút Thu nhỏ (`_`) cho phép xếp gọn Widget thành thanh Bar thông báo nhỏ gọn (`320px x 44px`) ở góc dưới bên phải, hiển thị snippet câu trả lời mới nhất từ AI.
+  - Tự động duy trì trạng thái Thu nhỏ / Mở rộng qua `localStorage` (`zagi_ai_widget_open`, `zagi_ai_widget_minimized`).
+
+### 🐛 Sửa lỗi & Tối ưu hóa Hệ thống Workflow Engine
+
+- **Sửa 6 Lỗi Cơ Bản Workflow Engine:**
+  - **Fallback Tên Khách Hàng:** Xử lý `{{contact.*}}` bị rỗng cho người lạ bằng cách tự động chọn `senderName` / `zaloName` / `phone` / `"Khách hàng"`.
+  - **Chuẩn Hóa Tuần Tự Hóa Sâu (`contextSerializer.ts`):** Hỗ trợ `Date`, `Buffer`, `BigInt`, `Map`, `Set`, `Error` trong `safeClone`, khắc phục lỗi biến bị chuyển thành `[object Object]` sau Checkpoint `logic.wait`.
+  - **Tự Phục Hồi Timer Hẹn Giờ (`checkMissedScheduledWorkflows`):** Tự động khôi phục và kích hoạt các hẹn giờ Workflow bị bỏ lỡ sau khi máy tính mở lại từ chế độ Sleep hoặc ứng dụng khởi động lại.
+  - **Đồng Bộ Zalo ID Chế Độ Nhân Viên:** Ràng buộc `ownerZaloId` với tài khoản xử lý sự kiện trong Employee Mode.
+  - **Bảo Vệ Timeout AI Node (`ai.generateText`):** Đặt giới hạn timeout 25s cho các lệnh gọi AI kèm văn bản dự phòng `fallbackText`.
+  - **Liên Kết Quét SĐT Sang Workflow:** Tự động kích hoạt Workflow khi scanner phát hiện số Zalo Active.
+
+
+- **Sửa 8 Lỗi Hệ Thống Workflow Engine (Engine Audit Round 2):**
+  - **[BUG-01] `logic.wait` trong `forEach` gây gửi tin trùng lặp:** Node `logic.wait` > 5 phút bên trong vòng lặp `forEach` bây giờ trả về lỗi rõ ràng ("không hỗ trợ") thay vì lưu checkpoint sai dẫn tới gửi tin lặp lại cho mọi contact đã nhận. Hướng dẫn người dùng đặt Wait ra ngoài vòng lặp.
+  - **[BUG-02] Race Condition `markCheckpointDone` gọi 2 lần:** `CheckpointScheduler` kiểm tra return status `'waiting'` từ `resumeFromCheckpoint` trước khi gọi `markCheckpointDone` — tránh đánh dấu checkpoint hoàn thành 2 lần khi workflow có nested `logic.wait`.
+  - **[BUG-03] Log Noise — `topologicalSort` warn mỗi lần trigger:** Thay `Logger.warn` luôn chạy thành logic có điều kiện — chỉ warn khi thực sự có node bị bỏ qua do cycle trong graph. Giảm đáng kể dung lượng log file.
+  - **[BUG-04] `$prev.` resolve sai edge sau IF/SWITCH:** Thay vì lấy edge đầu tiên trong mảng, engine bây giờ tìm edge từ node đã thực thi thực sự (có trong `ctx.nodes`). Khắc phục `$prev.result` trả về giá trị sai khi node có nhiều đầu vào.
+  - **[BUG-05] `crm.getContacts` không giới hạn số lượng:** Giảm limit từ 999,999 xuống 10,000 contacts để tránh OOM crash và checkpoint JSON hàng trăm MB khi DB có dữ liệu lớn.
+  - **[BUG-06] `logic.switch` không trim whitespace:** Thêm `.trim()` khi so sánh `match` với `value`. Khắc phục case không khớp do khoảng trắng thừa ở đầu/cuối chuỗi.
+  - **[BUG-07] `zalo.getMessageHistory` dùng sai API cho DM:** Node bây giờ phân biệt DM vs Group — nhóm dùng `getGroupChatHistory`, DM đọc từ DB local thay vì gọi API nhóm (trả về lỗi/data sai). Output thêm field `output` (text dạng `Shop: ... / Khách hàng: ...`) để AI node dễ dùng hơn.
+  - **[BUG-08] Debounce buffer bị trộn lẫn đa tài khoản:** Debounce key bây giờ bao gồm `zaloId`/`fbAccountId` — `${wfId}:${accountId}:${threadId}` — tránh tin nhắn của 2 tài khoản Zalo khác nhau bị gộp vào cùng buffer.
+
+- **Sửa 12 Lỗi Hệ Thống Workflow Engine (Engine Audit Round 3):**
+  - **[BUG-A] Tối ưu hóa `data.textFormat`:** Khẳng định luồng render template qua `renderConfig` đã đảm bảo tính đúng đắn, tránh nguy cơ double-render làm méo dữ liệu dạng JSON/String.
+  - **[BUG-B] Chuẩn hóa so sánh `logic.if`:** Tự động `.trim()` 2 vế khi so sánh `equals` và `not_equals` giúp nhất quán hoàn toàn với `logic.switch`.
+  - **[BUG-C] Đặt tên biến động trong `logic.setVariable`:** Cho phép render tên biến dạng `{{ $trigger.threadId }}` giúp tạo biến linh hoạt theo ngữ cảnh cuộc trò chuyện.
+  - **[BUG-D] Tối ưu hóa truy vấn `crm.getContacts` (Chống N+1 Query):** Đọc nhãn & ghi chú theo danh sách contact ID đã lọc (chunk 999 items) thay vì tải toàn bộ DB vào RAM. Giảm 99.8% bộ nhớ tiêu thụ khi DB đạt 50,000+ khách hàng.
+  - **[BUG-E] Chuẩn hóa Timezone cho `logic.wait` dạng Lịch:** Tự động quy đổi ngày và giờ hẹn theo chuẩn Múi giờ Việt Nam (`Asia/Ho_Chi_Minh` +07:00). Ngăn ngừa lỗi chạy sai giờ khi ứng dụng được triển khai trên máy chủ UTC.
+  - **[BUG-F] Timeout cho AI Assistant Node:** Bổ sung giới hạn 25 giây cho lệnh gọi Trợ lý AI, tránh treo luồng vô thời hạn khi dịch vụ AI gặp trục trặc network.
+  - **[BUG-G] Xác thực danh mục `ai.classify`:** Phân tích kết quả từ AI theo thuật toán match chính xác & fuzzy. Tự động chuyển về `'unknown'` nếu AI trả về câu văn dài không khớp danh mục.
+  - **[BUG-H] Bảo vệ Cron Worker khi khởi tạo lỗi:** Thêm `return` an toàn trong khối `catch` của `registerCronJobs`, ngăn chặn máy nhân viên đăng ký Cron lặp khi có sự cố.
+  - **[BUG-I] Phân quyền Workspace cho Hẹn giờ bị bỏ lỡ (`checkMissedScheduledWorkflows`):** Chỉ máy Boss mới được phép quét và khôi phục timer hẹn giờ bị bỏ lỡ sau khi máy khởi động lại hoặc mở màn hình.
+  - **[BUG-J] Bảo mật Log File Workflow:** Tự động ẩn các trường nhạy cảm (`secretKey`, `apiKey`, `password`, `authorization`) trước khi ghi thông báo lỗi filter ra log file.
+  - **[BUG-K] Ngăn chặn Path Traversal ở Google Sheets Nodes:** Kiểm tra định dạng `.json` và sự tồn tại của file Service Account trước khi khởi tạo kết nối Google API.
+  - **[BUG-L] Chống lặp Handler Webhook Gateway:** Kiểm tra trùng lặp prefix route trước khi đăng ký, loại bỏ hoàn toàn nguy cơ chạy webhook 2 lần khi server gateway tái khởi động.
+
+- **Tối ưu hóa & Sửa Lỗi Kho Mẫu Workflow (Workflow Template Store Audit):**
+  - **Sửa lỗi `trigger.labelAssigned` cho 8 Mẫu Workflow:** Thêm `case 'trigger.labelAssigned'` vào luồng xử lý `executeNode` trong `WorkflowEngineService.ts`, giúp 8 mẫu workflow dùng Trigger gắn nhãn (Post-purchase, Follow-up 4h, Nurture sequence, VIP notify, Review 7d, Promo send, Status update, Handover survey) cài đặt và chạy mượt mà.
+  - **Hỗ trợ Alias Biến `$trigger.message` cho Facebook Templates:** Bổ sung trường `message` trong `flattenTriggerData` giúp 16 mẫu Facebook đọc biến `{{ $trigger.message }}` hoặc `{{ $trigger.content }}` tương thích 100%.
+  - **Sửa Lỗi Giao Diện NodeConfigPanel (`ReferenceError: selectedAccount is not defined`):** Khắc phục lỗi crash màn hình khi mở cấu hình Node `crm.addToCampaign` do tham chiếu biến `selectedAccount` chưa được khai báo. Đã chuyển sang dùng `activeAccountId` từ `useAccountStore()`.
+  - **Sửa Lỗi Bộ Quét Số Điện Thoại Zalo Ngầm (`PhoneScanService.ts`):** 
+    - Sửa thuật toán bóc tách dữ liệu người dùng `extractZaloUser` hỗ trợ cả `data` và `response` wrapper từ API Zalo, giúp nhận diện UID Zalo chính xác 100%.
+    - Tự động nạp kết nối ngầm tài khoản Zalo active khi bộ nhớ `ConnectionManager` chưa khởi tạo.
+    - Cho phép nút *"Quét ngay lập tức"* (`triggerImmediateScan`) bỏ qua ràng buộc lịch hẹn giờ `scheduled_time` và chạy quét ngay lập tức.
+  - **Tối Ưu Giao Diện Tab Quét Nhóm Nâng Cao (`GroupMembersTab.tsx`):**
+    - Ẩn hoàn toàn khung Banner Cảnh báo nhạy cảm ở đầu trang (Hình 2).
+    - Đổi tên gói từ `"Gói Premium Quét Nâng Cao"` thành `"Gói Quét Nâng Cao"`.
+    - Loại bỏ toàn bộ văn bản và nút liên hệ nâng cấp công khai, thu gọn thẻ trạng thái bản quyền thành 1 hàng tối giản đúng chuẩn Hình 3 & Hình 4.
+
+---
+
+
 ## [v3.0.4] - 2026-07-20
 
 ### 🚀 Tính năng mới & Nâng cấp

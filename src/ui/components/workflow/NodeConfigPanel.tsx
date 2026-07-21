@@ -268,6 +268,18 @@ function cronToHuman(expr: string): string {
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const CONFIG_SCHEMA: Record<string, Field[]> = {
+  'crm.addToCampaign': [
+    {
+      key: 'campaignId', label: 'Chiến dịch CRM', type: 'select',
+      options: [],
+      desc: 'Chọn Chiến dịch CRM để tự động đưa khách hàng vào phễu gửi tin nhắn.'
+    },
+    {
+      key: 'contactId', label: 'ID / SĐT Khách hàng', type: 'text',
+      placeholder: '{{ $trigger.threadId }} (Để trống sẽ tự lấy từ Khách nhắn)',
+      desc: 'ID Zalo / SĐT khách hàng. Nếu để trống hệ thống sẽ tự động dùng ID của khách hàng kích hoạt Workflow.'
+    }
+  ],
   'crm.getContacts': [
     {
       key: 'searchQuery', label: 'Tìm kiếm liên hệ', type: 'text',
@@ -5094,6 +5106,21 @@ HƯỚNG DẪN SOẠN THẢO:
   const basicFields = allFields.filter(f => !f.advanced);
   const advFields   = allFields.filter(f =>  f.advanced);
 
+  const [campaignOptions, setCampaignOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (node.type !== 'crm.addToCampaign') return;
+    const activeZaloId = activeAccountId || accounts[0]?.zalo_id || '';
+    ipc.crm?.getCampaigns(activeZaloId).then((res: any) => {
+      if (res?.success && res.campaigns) {
+        setCampaignOptions(res.campaigns.map((c: any) => ({
+          value: String(c.id),
+          label: `🎯 ${c.name} (#${c.id})`,
+        })));
+      }
+    }).catch(() => {});
+  }, [node.type, activeAccountId, accounts]);
+
   useEffect(() => {
     setConfig(node.config || {});
     setLabel(node.label || '');
@@ -5686,6 +5713,9 @@ HƯỚNG DẪN SOẠN THẢO:
         )}
         {field.type === 'select' && (() => {
           let opts = field.options ?? [];
+          if (node.type === 'crm.addToCampaign' && field.key === 'campaignId') {
+            opts = campaignOptions.length > 0 ? campaignOptions : [{ value: '', label: '-- Chọn Chiến dịch CRM --' }];
+          }
           if (field.optionsFilter) {
             const filterVal = config[field.optionsFilter.key] as string | undefined;
             const allowed = filterVal ? field.optionsFilter.map[filterVal] : null;

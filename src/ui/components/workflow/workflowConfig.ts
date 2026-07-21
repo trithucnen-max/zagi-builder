@@ -189,6 +189,7 @@ export const NODE_GROUPS: NodeGroup[] = [
     color: 'bg-emerald-500',
     items: [
       { type: 'crm.getContacts', label: 'Truy vấn khách hàng CRM', desc: 'Lấy danh sách khách hàng từ CRM theo bộ lọc (sinh nhật, nhãn, phễu...)' },
+      { type: 'crm.addToCampaign', label: 'Thêm vào Chiến dịch CRM', desc: 'Đẩy khách hàng vào Chiến dịch CRM tự động gửi tin nhắn' },
     ],
   },
 ];
@@ -197,6 +198,7 @@ const ALL_NODE_GROUPS: NodeGroup[] = NODE_GROUPS;
 
 export const DEFAULT_CONFIGS: Record<string, Record<string, any>> = {
   'crm.getContacts': { birthdayToday: false, birthdayFilter: '', tagIds: [], localLabelIds: [], pipelineStageId: '', gender: '', channel: 'all', isFriend: 'all' },
+  'crm.addToCampaign': { campaignId: '', contactId: '' },
   'trigger.message':       { threadType: 'all', keyword: '', keywordMode: 'contains_any', ignoreOwn: true, debounceSeconds: 0 },
   'trigger.friendRequest': {},
   'trigger.groupEvent':    { groupId: '', eventType: 'all' },

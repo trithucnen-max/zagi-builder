@@ -1165,7 +1165,7 @@ class DatabaseService {
             CREATE INDEX IF NOT EXISTS idx_psi_status ON phone_scan_items(status);
         `);
 
-        // Migration: add hourly_limit column to phone_scan_batches if not exists
+        // Migration: add hourly_limit, scheduled_time, skip_crm_existing columns to phone_scan_batches if not exists
         try {
             const cols = this.query<any>('PRAGMA table_info(phone_scan_batches)');
             const hasHourlyLimit = cols.some((c: any) => c.name === 'hourly_limit');
@@ -1173,8 +1173,23 @@ class DatabaseService {
                 this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN hourly_limit INTEGER NOT NULL DEFAULT 30`);
                 Logger.log('[DatabaseService] ✅ Migration: added hourly_limit column to phone_scan_batches');
             }
+            const hasScheduledTime = cols.some((c: any) => c.name === 'scheduled_time');
+            if (!hasScheduledTime) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN scheduled_time TEXT NOT NULL DEFAULT ''`);
+                Logger.log('[DatabaseService] ✅ Migration: added scheduled_time column to phone_scan_batches');
+            }
+            const hasSkipCrmExisting = cols.some((c: any) => c.name === 'skip_crm_existing');
+            if (!hasSkipCrmExisting) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN skip_crm_existing INTEGER NOT NULL DEFAULT 0`);
+                Logger.log('[DatabaseService] ✅ Migration: added skip_crm_existing column to phone_scan_batches');
+            }
+            const hasAutoWorkflowId = cols.some((c: any) => c.name === 'auto_workflow_id');
+            if (!hasAutoWorkflowId) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN auto_workflow_id INTEGER`);
+                Logger.log('[DatabaseService] ✅ Migration: added auto_workflow_id column to phone_scan_batches');
+            }
         } catch (err: any) {
-            Logger.warn(`[DatabaseService] Migration hourly_limit column: ${err.message}`);
+            Logger.warn(`[DatabaseService] Migration phone_scan_batches columns: ${err.message}`);
         }
     }
 
@@ -2524,6 +2539,21 @@ class DatabaseService {
             }
         } catch (err: any) {
             Logger.warn(`[DatabaseService] delay_min/max migration: ${err.message}`);
+        }
+
+        // Migration: add Campaign Pipeline columns (on_complete_no_reply_campaign_id, etc.) to crm_campaigns
+        try {
+            const campColsPipeline = this.query<any>(`PRAGMA table_info(crm_campaigns)`);
+            if (campColsPipeline.length > 0 && !campColsPipeline.some((c: any) => c.name === 'on_complete_no_reply_campaign_id')) {
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN on_complete_no_reply_campaign_id INTEGER DEFAULT NULL`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN on_complete_reply_campaign_id INTEGER DEFAULT NULL`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN on_complete_reply_tag_id INTEGER DEFAULT NULL`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN on_complete_no_reply_tag_id INTEGER DEFAULT NULL`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added Campaign Pipeline columns to crm_campaigns');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Campaign Pipeline migration: ${err.message}`);
         }
 
         // ── fb_threads.is_e2ee ──────────────────────────────────────────────
@@ -5541,17 +5571,22 @@ class DatabaseService {
             const perContactMax = (campaign as any).per_contact_delay_max_seconds ?? perContactMin;
             // Still write delay_seconds as the midpoint for backward compat
             const compatDelaySeconds = campaign.delay_seconds || Math.round((delayMin + delayMax) / 2);
+            const onCompleteNoReplyCampId = (campaign as any).on_complete_no_reply_campaign_id ?? null;
+            const onCompleteReplyCampId = (campaign as any).on_complete_reply_campaign_id ?? null;
+            const onCompleteReplyTagId = (campaign as any).on_complete_reply_tag_id ?? null;
+            const onCompleteNoReplyTagId = (campaign as any).on_complete_no_reply_tag_id ?? null;
+
             if (campaign.id) {
                 const rows = this.query<any>(`SELECT id FROM crm_campaigns WHERE id=? AND owner_zalo_id=?`, [campaign.id, campaign.owner_zalo_id]);
                 if (rows.length > 0) {
                     this.run(
-                        `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                        [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, campaign.id, campaign.owner_zalo_id]
+                        `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, on_complete_no_reply_campaign_id=?, on_complete_reply_campaign_id=?, on_complete_reply_tag_id=?, on_complete_no_reply_tag_id=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, onCompleteNoReplyCampId, onCompleteReplyCampId, onCompleteReplyTagId, onCompleteNoReplyTagId, now, campaign.id, campaign.owner_zalo_id]
                     );
                 } else {
                     this.run(
-                        `INSERT INTO crm_campaigns (id, owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                        [campaign.id, campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, now]
+                        `INSERT INTO crm_campaigns (id, owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, on_complete_no_reply_campaign_id, on_complete_reply_campaign_id, on_complete_reply_tag_id, on_complete_no_reply_tag_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        [campaign.id, campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, onCompleteNoReplyCampId, onCompleteReplyCampId, onCompleteReplyTagId, onCompleteNoReplyTagId, now, now]
                     );
                 }
                 return campaign.id;
@@ -5567,11 +5602,25 @@ class DatabaseService {
                 }
 
                 return this.runInsert(
-                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, now]
+                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, on_complete_no_reply_campaign_id, on_complete_reply_campaign_id, on_complete_reply_tag_id, on_complete_no_reply_tag_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, onCompleteNoReplyCampId, onCompleteReplyCampId, onCompleteReplyTagId, onCompleteNoReplyTagId, now, now]
                 );
             }
         } catch (err: any) { Logger.error(`[DB] saveCRMCampaign: ${err.message}`); return 0; }
+    }
+
+    public hasContactRepliedSince(ownerZaloId: string, contactId: string, sinceTimestamp: number): boolean {
+        if (!this.initialized) return false;
+        try {
+            const row = this.queryOne<any>(
+                `SELECT id FROM messages WHERE owner_zalo_id = ? AND thread_id = ? AND is_sent = 0 AND timestamp > ? LIMIT 1`,
+                [ownerZaloId, contactId, sinceTimestamp]
+            );
+            return !!row;
+        } catch (err: any) {
+            Logger.error(`[DB] hasContactRepliedSince: ${err.message}`);
+            return false;
+        }
     }
 
     public updateCRMCampaignStatus(campaignId: number, status: CRMCampaignStatus): void {
@@ -5721,6 +5770,18 @@ class DatabaseService {
         }
 
         return { addedCount, discardedCount, limitExceeded };
+    }
+
+    public addContactToCampaign(
+        campaignId: number,
+        ownerZaloId: string,
+        contactId: string,
+        displayName?: string,
+        avatar?: string,
+        phone?: string
+    ): number {
+        const res = this.addCampaignContacts(campaignId, ownerZaloId, [{ contactId, displayName, avatar, phone }]);
+        return res.addedCount;
     }
 
     public getCampaignContacts(campaignId: number): CRMCampaignContact[] {
@@ -8877,7 +8938,7 @@ class DatabaseService {
     public getPhoneScanBatches(): any[] {
         if (!this.initialized) return [];
         try {
-            return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY created_at DESC`);
+            return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY status = 'active' DESC, priority DESC, id DESC`);
         } catch (err: any) {
             Logger.error(`[DB] getPhoneScanBatches: ${err.message}`);
             return [];
@@ -8919,12 +8980,20 @@ class DatabaseService {
         dailyLimit: number;
         hourlyLimit: number;
         priority: number;
+        status?: string;
+        scheduledTime?: string;
+        skipCrmExisting?: boolean;
+        autoWorkflowId?: number | null;
         phones: string[];
     }): number {
         if (!this.initialized) return -1;
         try {
             const now = Date.now();
             const autoTagIdsStr = JSON.stringify(params.autoTagIds);
+            const initialStatus = params.status || 'paused';
+            const scheduledTime = params.scheduledTime || '';
+            const skipCrmExisting = params.skipCrmExisting ? 1 : 0;
+            const autoWorkflowId = params.autoWorkflowId ? Number(params.autoWorkflowId) : null;
 
             // Start a manual transaction for safety
             this.run('BEGIN TRANSACTION');
@@ -8932,9 +9001,9 @@ class DatabaseService {
             // 1. Insert batch
             this.run(`
                 INSERT INTO phone_scan_batches 
-                (name, assigned_account_id, auto_tag_ids, daily_limit, hourly_limit, priority, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
-            `, [params.name, params.assignedAccountId, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, now]);
+                (name, assigned_account_id, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [params.name, params.assignedAccountId, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, now]);
 
             const batchId = this.queryOne<any>(`SELECT last_insert_rowid() as id`)?.id;
             if (!batchId) {
@@ -8942,7 +9011,19 @@ class DatabaseService {
                 return -1;
             }
 
-            // 2. Insert items (deduplicating in this batch)
+            // Get set of existing phones in CRM if skipCrmExisting is enabled
+            let existingCrmPhones = new Set<string>();
+            if (skipCrmExisting) {
+                try {
+                    const rows = this.query<{ phone: string }>('SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != ""');
+                    for (const r of rows) {
+                        const norm = this.normalizeVietnamPhone(r.phone);
+                        if (norm) existingCrmPhones.add(norm);
+                    }
+                } catch {}
+            }
+
+            // 2. Insert items (deduplicating in this batch and optionally checking CRM)
             const seenPhones = new Set<string>();
             let dupCount = 0;
             let totalCount = 0;
@@ -8956,7 +9037,7 @@ class DatabaseService {
                 if (cleanPhone.startsWith('+84')) normalized = '0' + cleanPhone.slice(3).replace(/^0+/, '');
                 else if (cleanPhone.startsWith('84') && cleanPhone.length >= 10) normalized = '0' + cleanPhone.slice(2).replace(/^0+/, '');
 
-                if (seenPhones.has(normalized)) {
+                if (seenPhones.has(normalized) || (skipCrmExisting && existingCrmPhones.has(normalized))) {
                     dupCount++;
                     continue;
                 }

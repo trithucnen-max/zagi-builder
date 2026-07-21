@@ -64,17 +64,20 @@ export function deserializeContext(json: string): any {
 }
 
 /**
- * Deep-clone an object, skipping non-serializable values (functions, undefined).
- * Giữ lại các primitive, arrays, plain objects.
- * Truncate strings > 10KB để tránh context_json bloat trong SQLite.
+ * Deep-clone an object, skipping non-serializable values (functions).
+ * Supports Date, Buffer, BigInt, Map, Set, arrays, and plain objects.
+ * Truncate strings > 50KB to avoid context_json bloat in SQLite.
  */
 function safeClone(obj: any, depth = 0): any {
-  if (depth > 10) return null;
+  if (depth > 12) return null;
   if (obj === null || obj === undefined) return null;
   if (typeof obj === 'function') return undefined;
+  if (typeof obj === 'bigint') return obj.toString();
   if (typeof obj === 'string') {
-    return obj.length > 10_000 ? obj.slice(0, 10_000) + '…[truncated]' : obj;
+    return obj.length > 50_000 ? obj.slice(0, 50_000) + '…[truncated]' : obj;
   }
+  if (obj instanceof Date) return obj.toISOString();
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(obj)) return obj.toString('base64');
   if (typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(item => safeClone(item, depth + 1));
   if (obj instanceof Set) return Array.from(obj).map(item => safeClone(item, depth + 1));
@@ -83,6 +86,11 @@ function safeClone(obj: any, depth = 0): any {
     obj.forEach((v, k) => { result[String(k)] = safeClone(v, depth + 1); });
     return result;
   }
+  // Handle Error instances or custom objects
+  if (obj instanceof Error) {
+    return { message: obj.message, name: obj.name, stack: obj.stack };
+  }
+
   const result: Record<string, any> = {};
   for (const [k, v] of Object.entries(obj)) {
     const cloned = safeClone(v, depth + 1);

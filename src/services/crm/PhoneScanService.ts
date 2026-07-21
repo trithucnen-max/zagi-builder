@@ -24,10 +24,10 @@ class PhoneScanService {
         if (this.timer) return;
         Logger.log('[PhoneScanService] Starting background phone scan scheduler...');
         this.timer = setInterval(() => {
-            this.tick().catch(err => {
+            this.tick(false).catch(err => {
                 Logger.error(`[PhoneScanService] Tick error: ${err.message}`);
             });
-        }, 5000); // Check every 5 seconds
+        }, 4000); // Check every 4 seconds
     }
 
     public stop(): void {
@@ -40,10 +40,10 @@ class PhoneScanService {
 
     public async triggerImmediateScan(): Promise<void> {
         Logger.log('[PhoneScanService] Immediate scan triggered manually.');
-        await this.tick();
+        await this.tick(true);
     }
 
-    private async tick(): Promise<void> {
+    private async tick(isManual: boolean = false): Promise<void> {
         if (this.isProcessing) return;
         this.isProcessing = true;
 
@@ -54,15 +54,42 @@ class PhoneScanService {
                 return;
             }
 
-            // 1. Find the single active batch to process (only 1 batch runs at any given time, highest priority first)
-            const activeBatch = db.queryOne<any>(`
-                SELECT DISTINCT psb.id
+            // 1. Find the single active batch to process (highest priority first)
+            const activeBatches = db.query<any>(`
+                SELECT DISTINCT psb.id, psb.scheduled_time
                 FROM phone_scan_batches psb
                 INNER JOIN phone_scan_items psi ON psi.batch_id = psb.id
                 WHERE psb.status = 'active' AND psi.status = 'pending'
                 ORDER BY psb.priority DESC, psb.id ASC
-                LIMIT 1
+                LIMIT 5
             `);
+
+            if (!activeBatches || activeBatches.length === 0) {
+                this.isProcessing = false;
+                return;
+            }
+
+            // Find first batch whose scheduled_time is eligible for today
+            let activeBatch: any = null;
+            const nowTime = new Date();
+            const currentTotalMin = nowTime.getHours() * 60 + nowTime.getMinutes();
+
+            for (const b of activeBatches) {
+                if (!isManual && b.scheduled_time && typeof b.scheduled_time === 'string' && b.scheduled_time.includes(':')) {
+                    const [hStr, mStr] = b.scheduled_time.split(':');
+                    const targetHour = parseInt(hStr, 10);
+                    const targetMin = parseInt(mStr, 10);
+                    if (!isNaN(targetHour) && !isNaN(targetMin)) {
+                        const targetTotalMin = targetHour * 60 + targetMin;
+                        if (currentTotalMin < targetTotalMin) {
+                            // Target scheduled time for today has not arrived yet
+                            continue;
+                        }
+                    }
+                }
+                activeBatch = b;
+                break;
+            }
 
             if (!activeBatch) {
                 this.isProcessing = false;
@@ -85,8 +112,35 @@ class PhoneScanService {
             }
 
             // 2. Resolve eligible Zalo accounts currently online/connected on this machine
-            const onlineConnections = ConnectionManager.getAllConnections();
+            let onlineConnections = ConnectionManager.getAllConnections();
+
+            // Auto-connect active Zalo accounts if no connections in memory yet
             if (onlineConnections.size === 0) {
+                const activeAccounts = db.getAccounts() || [];
+                const activeZalo = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+                if (activeZalo.length > 0) {
+                    try {
+                        const LoginService = require('../login/LoginService').default;
+                        const loginService = new LoginService();
+                        for (const acc of activeZalo) {
+                            if (acc.cookies) {
+                                Logger.log(`[PhoneScanService] Auto-connecting Zalo account ${acc.zalo_id} for scanner...`);
+                                await loginService.connectUser({
+                                    cookies: acc.cookies,
+                                    imei: acc.imei || '',
+                                    userAgent: acc.user_agent || ''
+                                }).catch(() => {});
+                            }
+                        }
+                        onlineConnections = ConnectionManager.getAllConnections();
+                    } catch (err: any) {
+                        Logger.warn(`[PhoneScanService] Auto-connect failed: ${err.message}`);
+                    }
+                }
+            }
+
+            if (onlineConnections.size === 0) {
+                Logger.warn('[PhoneScanService] ⚠️ Cannot run scan: No online Zalo connections available. Please log in to a Zalo account.');
                 this.isProcessing = false;
                 return;
             }
@@ -105,8 +159,7 @@ class PhoneScanService {
                 const empAccounts = db.getEmployeeAccountAccess(employeeId) || [];
                 allowedZaloIds = empAccounts.filter(zaloId => activeZaloAccounts.some((a: any) => a.zalo_id === zaloId));
             } else {
-                // Boss or standalone mode can use any active Zalo accounts in DB
-                allowedZaloIds = activeZaloAccounts.map((a: any) => a.zalo_id);
+                allowedZaloIds = activeZaloAccounts.map((a: any) => String(a.zalo_id));
             }
 
             // Filter by online connections
@@ -116,6 +169,7 @@ class PhoneScanService {
             });
 
             if (eligibleZaloIds.length === 0) {
+                Logger.warn(`[PhoneScanService] ⚠️ No eligible connected Zalo accounts found among allowed: [${allowedZaloIds.join(', ')}]. Online connections: [${Array.from(onlineConnections.keys()).join(', ')}]`);
                 this.isProcessing = false;
                 return;
             }
@@ -124,9 +178,7 @@ class PhoneScanService {
             const now = new Date();
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-            // Process one item per tick or loop through items, but enforce jitter/delays
             for (const item of pendingItems) {
-                // Determine which account to use for this item
                 let targetZaloId: string | null = null;
                 const assignedId = item.assigned_account_id;
                 const dailyLimit = item.daily_limit || 100;
@@ -135,7 +187,6 @@ class PhoneScanService {
 
                 if (assignedId) {
                     if (eligibleZaloIds.includes(assignedId)) {
-                        // Check daily & hourly limit for assigned account
                         const todayCount = db.getDailyScanCountForAccount(assignedId, startOfToday);
                         const hourlyCount = db.getHourlyScanCountForAccount(assignedId, oneHourAgo);
                         if (todayCount < dailyLimit && hourlyCount < hourlyLimit) {
@@ -143,7 +194,6 @@ class PhoneScanService {
                         }
                     }
                 } else {
-                    // Automatically choose an online eligible account with remaining daily & hourly quota
                     let bestZaloId: string | null = null;
                     let minScannedCount = Infinity;
 
@@ -162,16 +212,14 @@ class PhoneScanService {
                 }
 
                 if (!targetZaloId) {
-                    // No eligible online account or limit reached for this item/batch, skip
                     continue;
                 }
 
                 // Check Jitter: don't request too fast on the same account
                 const lastScan = this.lastScanTimePerAccount.get(targetZaloId) || 0;
-                // Random delay between 3 and 8 seconds
-                const randomDelay = 3000 + Math.random() * 5000;
-                if (Date.now() - lastScan < randomDelay) {
-                    continue; // Skip this tick for this account, wait next time
+                const randomDelay = 2500 + Math.random() * 3500;
+                if (!isManual && Date.now() - lastScan < randomDelay) {
+                    continue;
                 }
 
                 // Picked! Lock item status to scanning
@@ -182,15 +230,16 @@ class PhoneScanService {
                 });
                 EventBroadcaster.emit('crm:phoneScanUpdate', { batchId: item.batch_id });
 
-                // Execute scan in a background promise to avoid blocking the main tick loop, but with locking
+                // Update last scan time
+                this.lastScanTimePerAccount.set(targetZaloId, Date.now());
+
+                // Execute scan in background
                 this.executeScan(item.id, item.phone, item.phone_normalized, item.batch_id, targetZaloId, item.auto_tag_ids)
                     .catch(err => {
                         Logger.error(`[PhoneScanService] Scan execution error for item ${item.id}: ${err.message}`);
                     });
 
-                // Update last scan time
-                this.lastScanTimePerAccount.set(targetZaloId, Date.now());
-                break; // Break the items loop to process only 1 item per tick per online connection to keep rates safe
+                break; // 1 item per tick per account for rate safety
             }
         } catch (err: any) {
             Logger.error(`[PhoneScanService] tick error: ${err.message}`);
@@ -223,17 +272,29 @@ class PhoneScanService {
 
             const zaloService = await ZaloService.getInstance(conn.auth);
 
-            // Execute Zalo lookup (API calls)
-            let zaloUser: any = null;
+            let zaloUser: { uid: string; name: string; avatar: string } | null = null;
+
+            // Helper to extract user profile from various zca-js response structures
+            const extractZaloUser = (raw: any): { uid: string; name: string; avatar: string } | null => {
+                if (!raw) return null;
+                const u = raw.data ?? raw.response ?? raw;
+                if (!u) return null;
+                const uid = String(u.uid || u.userId || u.uId || u.id || '');
+                if (!uid || uid === '0' || uid === 'undefined' || uid === 'null') return null;
+                const name = u.displayName || u.display_name || u.zaloName || u.zalo_name || u.name || u.dpName || phone;
+                const avatar = u.avatar || u.avatarUrl || u.avatar_url || '';
+                return { uid, name, avatar };
+            };
+
+            // 1. Try getMultiUsersByPhones bulk lookup first
             try {
-                // Try batch lookups (though we pass 1 phone, Zalo's bulk API is safer/faster)
-                const res = await zaloService.getMultiUsersByPhones([phoneNormalized]);
-                if (res?.success && res.response) {
-                    // Key can be starts with 84, e.g. 84xxxxxxxxx
-                    for (const [phoneKey, user] of Object.entries(res.response)) {
-                        const norm = phoneKey.startsWith('84') ? '0' + phoneKey.slice(2) : phoneKey;
-                        if (norm === phoneNormalized || phoneKey === phoneNormalized) {
-                            zaloUser = user;
+                const res: any = await zaloService.getMultiUsersByPhones([phoneNormalized]);
+                const mapObj = res?.data ?? res?.response ?? res;
+                if (mapObj && typeof mapObj === 'object') {
+                    for (const [phoneKey, userRaw] of Object.entries(mapObj)) {
+                        const parsed = extractZaloUser(userRaw);
+                        if (parsed) {
+                            zaloUser = parsed;
                             break;
                         }
                     }
@@ -242,14 +303,11 @@ class PhoneScanService {
                 Logger.warn(`[PhoneScanService] getMultiUsersByPhones failed for ${phoneNormalized}: ${err.message}. Trying findUser fallback...`);
             }
 
-            // Fallback to findUser if bulk lookup did not find the user
+            // 2. Fallback to findUser if bulk lookup did not find the user
             if (!zaloUser) {
                 try {
                     const findRes: any = await zaloService.findUser(phoneNormalized);
-                    const user = findRes?.response ?? findRes;
-                    if (user?.uid) {
-                        zaloUser = user;
-                    }
+                    zaloUser = extractZaloUser(findRes);
                 } catch (err: any) {
                     Logger.error(`[PhoneScanService] findUser failed for ${phoneNormalized}: ${err.message}`);
                     db.updatePhoneScanItemStatus({
@@ -264,10 +322,9 @@ class PhoneScanService {
             }
 
             if (zaloUser?.uid) {
-                // Found Zalo account!
-                const uid = String(zaloUser.uid);
-                const name = zaloUser.display_name || zaloUser.zalo_name || zaloUser.name || phone;
-                const avatar = zaloUser.avatar || zaloUser.avatarUrl || '';
+                const uid = zaloUser.uid;
+                const name = zaloUser.name || phone;
+                const avatar = zaloUser.avatar || '';
 
                 db.updatePhoneScanItemStatus({
                     itemId,
@@ -278,16 +335,15 @@ class PhoneScanService {
                     zaloAvatar: avatar
                 });
 
-                // Check and create/update CRM contact
+                // Create/update CRM contact
                 db.updateContactProfile(zaloId, uid, name, avatar, phoneNormalized, 'user');
 
-                // Auto-tagging logic
+                // Auto-tagging
                 let tagIds: number[] = [];
                 try {
                     tagIds = JSON.parse(autoTagIdsStr || '[]');
                 } catch {}
 
-                // Ensure the "Zalo Active" system label exists and add it to tagIds
                 let activeLabelId = -1;
                 try {
                     const existingLabels = db.getLocalLabels(zaloId) || [];
@@ -295,10 +351,9 @@ class PhoneScanService {
                     if (activeLabel) {
                         activeLabelId = activeLabel.id;
                     } else {
-                        // Create it!
                         activeLabelId = db.upsertLocalLabel({
                             name: 'Zalo Active',
-                            color: '#3B82F6', // Blue
+                            color: '#3B82F6',
                             emoji: '✓',
                             pageIds: zaloId
                         });
@@ -311,7 +366,6 @@ class PhoneScanService {
                     tagIds.push(activeLabelId);
                 }
 
-                // Assign tags to contact
                 for (const tagId of tagIds) {
                     try {
                         db.assignLocalLabelToThread(zaloId, tagId, uid);
@@ -320,10 +374,25 @@ class PhoneScanService {
                     }
                 }
 
-                // Dispatch label change event so UI refreshes
                 EventBroadcaster.emit('local-labels-changed', { zaloId });
+
+                // Auto-trigger workflow if configured on batch
+                try {
+                    const batchInfo = db.queryOne<any>('SELECT auto_workflow_id FROM phone_scan_batches WHERE id = ?', [batchId]);
+                    if (batchInfo?.auto_workflow_id) {
+                        const WorkflowEngineService = require('../workflow/WorkflowEngineService').default;
+                        WorkflowEngineService.getInstance().triggerWorkflowByPhoneScan({
+                            workflowId: String(batchInfo.auto_workflow_id),
+                            zaloId,
+                            phone: phoneNormalized,
+                            zaloUid: uid,
+                            zaloName: name
+                        });
+                    }
+                } catch (wfErr: any) {
+                    Logger.warn(`[PhoneScanService] Auto-workflow trigger error: ${wfErr.message}`);
+                }
             } else {
-                // User does not exist on Zalo
                 db.updatePhoneScanItemStatus({
                     itemId,
                     status: 'not_found',
