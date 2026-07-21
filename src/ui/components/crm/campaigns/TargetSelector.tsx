@@ -4,7 +4,7 @@ import type { LabelData } from '@/store/appStore';
 import ipc from '@/lib/ipc';
 import ZaloLabelBadge from '../tags/ZaloLabelBadge';
 import GroupAvatar from '@/components/common/GroupAvatar';
-import { formatPhone } from '@/utils/phoneUtils';
+import { formatPhone, normalizePhone } from '@/utils/phoneUtils';
 import AppIcon from '@/components/common/AppIcon';
 
 export interface LocalLabelItem {
@@ -27,15 +27,6 @@ interface TargetSelectorProps {
 }
 
 type SelectMode = 'manual' | 'by_label' | 'friends_only' | 'groups_only' | 'by_phone' | 'by_uid';
-
-/** Normalize a phone string: remove spaces/dashes, convert +84/84 prefix → 0 */
-function normalizePhone(raw: string): string {
-  let s = raw.replace(/[\s\-().]/g, '');
-  if (s.startsWith('+84')) s = '0' + s.slice(3);
-  else if (s.startsWith('84') && s.length >= 11) s = '0' + s.slice(2);
-  return s;
-}
-
 
 export default function TargetSelector({ zaloId, allLabels, localLabels, localLabelThreadMap, existingContactIds, onConfirm, onClose, headerContent }: TargetSelectorProps) {
   const [mode, setMode] = useState<SelectMode>('by_label');

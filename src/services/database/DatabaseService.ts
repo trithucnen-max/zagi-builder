@@ -505,18 +505,21 @@ class DatabaseService {
         }
     }
 
-    /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0 */
+    /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0, tự thêm 0 nếu thiếu */
     private normalizeVietnamPhone(phone?: string): string {
         if (!phone) return '';
-        const cleaned = String(phone).trim().replace(/[\s().-]/g, '');
+        let cleaned = String(phone).trim().replace(/[\s().-]/g, '');
         if (!cleaned) return '';
         if (cleaned.startsWith('+84')) {
             const local = cleaned.slice(3).replace(/^0+/, '');
-            return `0${local}`;
+            return local ? `0${local}` : '';
         }
-        if (cleaned.startsWith('84')) {
+        if (cleaned.startsWith('84') && cleaned.length >= 10) {
             const local = cleaned.slice(2).replace(/^0+/, '');
-            return `0${local}`;
+            return local ? `0${local}` : '';
+        }
+        if (/^[35789]\d{8}$/.test(cleaned)) {
+            return `0${cleaned}`;
         }
         return cleaned;
     }
@@ -9118,13 +9121,8 @@ class DatabaseService {
             let totalCount = 0;
 
             for (const rawPhone of params.phones) {
-                const cleanPhone = rawPhone.trim().replace(/[\s.\-()]/g, '');
-                if (!cleanPhone) continue;
-
-                // Normalize phone number (e.g. +84 or 84 to 0)
-                let normalized = cleanPhone;
-                if (cleanPhone.startsWith('+84')) normalized = '0' + cleanPhone.slice(3).replace(/^0+/, '');
-                else if (cleanPhone.startsWith('84') && cleanPhone.length >= 10) normalized = '0' + cleanPhone.slice(2).replace(/^0+/, '');
+                const normalized = this.normalizeVietnamPhone(rawPhone);
+                if (!normalized) continue;
 
                 if (seenPhones.has(normalized) || (skipCrmExisting && existingCrmPhones.has(normalized))) {
                     dupCount++;

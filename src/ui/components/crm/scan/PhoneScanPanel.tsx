@@ -3,6 +3,7 @@ import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
+import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
 import AppIcon from '../../common/AppIcon';
 
 interface Batch {
@@ -195,12 +196,9 @@ export default function PhoneScanPanel() {
         };
     }, [selectedBatch, itemsPage, itemsStatusFilter, fetchBatches, fetchItems]);
 
-    // Normalize phone numbers
+    // Normalize phone numbers using central utility
     const normalizePhoneNumber = (raw: string): string => {
-        const s = raw.trim().replace(/[\s.\-()]/g, '');
-        if (s.startsWith('+84')) return '0' + s.slice(3).replace(/^0+/, '');
-        if (s.startsWith('84') && s.length >= 10) return '0' + s.slice(2).replace(/^0+/, '');
-        return s;
+        return normalizePhone(raw);
     };
 
     // Parse phones from text + csv combined
@@ -213,8 +211,8 @@ export default function PhoneScanPanel() {
         const combined = [...textPhones, ...csvPhones];
         const unique = new Set<string>();
         combined.forEach(p => {
-            const normalized = normalizePhoneNumber(p);
-            if (normalized && /^0\d{8,9}$/.test(normalized)) {
+            const normalized = normalizePhone(p);
+            if (normalized && isValidVietnamPhone(normalized)) {
                 unique.add(normalized);
             }
         });
@@ -237,10 +235,9 @@ export default function PhoneScanPanel() {
             lines.forEach(line => {
                 // Split by comma/tab/semicolon
                 const cols = line.split(/[,\t;]+/).map(c => c.trim().replace(/^"|"$/g, ''));
-                // Find column that looks like a phone
+                // Find column that looks like a valid phone
                 for (const col of cols) {
-                    const clean = col.replace(/[\s.\-()]/g, '');
-                    if (/^(?:\+84|84|0)\d{8,10}$/.test(clean)) {
+                    if (isValidVietnamPhone(col)) {
                         parsedPhones.push(col);
                         break;
                     }
