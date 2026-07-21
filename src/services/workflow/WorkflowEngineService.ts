@@ -4,6 +4,7 @@ import ConnectionManager from '../../utils/ConnectionManager';
 import { FacebookService } from '../facebook/FacebookService';
 import { FacebookSendService } from '../facebook/FacebookSendService';
 import Logger from '../../utils/Logger';
+import FileStorageService from '../file/FileStorageService';
 import IntegrationRegistry from '../integrations/IntegrationRegistry';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
@@ -4265,7 +4266,8 @@ class WorkflowEngineService {
                 const uploadedPaths = [];
                 for (const rawItem of p1.attachments) {
                   try {
-                    const filePath = typeof rawItem === 'string' ? FileStorageService.resolveAbsolutePath(this.stripFileProtocol(rawItem)) : rawItem;
+                    const cleanPath = typeof rawItem === 'string' ? rawItem.replace(/^(file|local-media):\/\/\/?/i, '') : rawItem;
+                    const filePath = typeof cleanPath === 'string' ? FileStorageService.resolveAbsolutePath(cleanPath) : cleanPath;
                     if (typeof filePath === 'string' && !filePath.startsWith('http://') && !filePath.startsWith('https://') && fs.existsSync(filePath)) {
                       const buffer = fs.readFileSync(filePath);
                       const base64 = buffer.toString('base64');
