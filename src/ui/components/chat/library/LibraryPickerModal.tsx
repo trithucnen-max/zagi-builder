@@ -24,6 +24,7 @@ import * as channelIpc from '../../../lib/channelIpc';
 import DataAccessor, { refreshLibraryCache } from '../../../lib/data/DataAccessor';
 import { useEmployeeStore } from '../../../store/employeeStore';
 import { useAppStore } from '../../../store/appStore';
+import { useWorkspaceStore } from '../../../store/workspaceStore';
 import { useResolvedTheme } from '@/theme/useResolvedTheme';
 import { BookIcon, ChartIcon, CloseIcon, EditIcon, FileTextIcon, FolderIcon, ImageIcon, MonitorIcon, RefreshIcon, SearchIcon, SendIcon, StarIcon, TrashIcon } from '@/components/common/icons';
 
@@ -106,6 +107,8 @@ export default function LibraryPickerModal({
 }: Props) {
   const resolvedTheme = useResolvedTheme();
   const isLightTheme = resolvedTheme === 'light';
+  const activeWs = useWorkspaceStore(s => s.activeWorkspace());
+  const isRemote = activeWs?.type === 'remote';
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [quickTagName, setQuickTagName] = useState('');
@@ -1701,14 +1704,21 @@ export default function LibraryPickerModal({
         <div className="flex items-center gap-3 px-5 py-3 border-t border-gray-700/50">
           <input ref={fileInputRef} type="file" multiple accept={getAcceptType(initialType)} onChange={handleUploadAndSend} className="hidden" />
           <input ref={directInputRef} type="file" multiple accept={getAcceptType(initialType)} onChange={handleDirectFile} className="hidden" />
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700/80 hover:bg-indigo-600 text-white-important text-xs rounded-lg transition-colors disabled:opacity-50"><SendIcon className="w-4 h-4 inline" /> {uploading ? 'Đang tải...' : 'Upload vào thư viện'}
-          </button>
-          {!onSelect && (
-            <button onClick={() => directInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs rounded-lg transition-colors"><MonitorIcon className="w-4 h-4 inline" /> Chọn từ Máy tính
+          
+          {/* Employee mode: Render 'Từ Thư viện' upload button + 'Từ máy tính' button */}
+          {isRemote && (
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700/80 hover:bg-indigo-600 text-white-important text-xs rounded-lg transition-colors disabled:opacity-50">
+              <SendIcon className="w-4 h-4 inline" /> {uploading ? 'Đang tải...' : 'Upload vào Thư viện'}
             </button>
           )}
+
+          {/* Available button: 'Từ máy tính' */}
+          <button onClick={() => directInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs rounded-lg transition-colors">
+            <MonitorIcon className="w-4 h-4 inline" /> Từ máy tính
+          </button>
+
           <div className="flex-1" />
           <span className="text-xs text-gray-400">{selectedItems.length} file</span>
           <button onClick={handleSendSelected} disabled={selectedItems.length === 0}

@@ -180,7 +180,7 @@ export default function UnifiedMediaPicker({
 
       {/* Action Buttons: Boss vs Employee Mode */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {/* Button 1: Tải từ máy tính (Available for both Boss & Employee) */}
+        {/* Button 1: Từ máy tính (Available for both Boss & Employee) */}
         <button
           type="button"
           onClick={handleSelectLocalFiles}
@@ -191,10 +191,10 @@ export default function UnifiedMediaPicker({
           }`}
         >
           <span>🖥️</span>
-          <span>{isRemote ? 'Tải từ máy tính Nhân viên' : 'Chọn tệp từ máy tính'}</span>
+          <span>Từ máy tính</span>
         </button>
 
-        {/* Button 2: Thư viện Media Boss (ONLY FOR EMPLOYEE / REMOTE MODE) */}
+        {/* Button 2: Từ Thư viện (ONLY FOR EMPLOYEE / REMOTE MODE) */}
         {isRemote ? (
           <button
             type="button"
@@ -202,7 +202,7 @@ export default function UnifiedMediaPicker({
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-medium border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 transition-all"
           >
             <span>📂</span>
-            <span>Chọn từ Thư viện Media Boss</span>
+            <span>Từ Thư viện</span>
           </button>
         ) : (
           /* Option for Boss: Add Direct URL */

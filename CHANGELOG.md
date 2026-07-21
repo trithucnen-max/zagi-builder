@@ -6,12 +6,13 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ### 🚀 Tính năng mới & Nâng cấp UI/UX
 
-- **Nâng Cấp Gửi Tin Nhắn Gộp (Text + Media 1 Lần) Trong Workflow (`WorkflowEngineService.ts` & `UnifiedMediaPicker.tsx`):**
-  - **Gửi 1 tin nhắn duy nhất chứa Text + Media:** Cho phép đính kèm Ảnh / Video / File trực tiếp trong Node `zalo.sendMessage`. Zalo sẽ phát 1 tin nhắn duy nhất chứa cả văn bản chú thích (Caption) + Hình ảnh/Video.
-  - **Component Dùng Chung `UnifiedMediaPicker.tsx`:** Tích hợp Native File Picker (chọn nhiều file `Ctrl`/`Cmd`), thao tác Kéo - Thả (Drag & Drop), Live Thumbnail Preview kèm nút xóa `❌`, và bộ chuyển đổi 3 chế độ đính kèm (`📌 1 File cố định`, `🎲 Ngẫu nhiên 1 file trong danh sách`, `📚 Gửi tất cả thành Album`).
-  - **Phân Định Nguồn Media Chuẩn Xác Boss / Nhân Viên:**
-    - **Máy Boss (Master Workspace):** Hiển thị 1 tùy chọn duy nhất: `🖥️ Tải/Chọn từ máy tính`.
-    - **Máy Nhân viên (Remote Workspace):** Hiển thị 2 tùy chọn phân biệt: `📂 Chọn từ Thư viện Media Boss` & `🖥️ Tải lên từ máy tính Nhân viên` (tự động đẩy file về lưu tại máy Boss).
+- **Nâng Cấp Gửi Tin Nhắn Gộp & Phân Định Nguồn Media Boss / Nhân Viên Đồng Bộ Trên Chat & Workflow (`LibraryPickerModal.tsx` & `UnifiedMediaPicker.tsx`):**
+  - **Thống nhất 1 Kho Thư viện Media CSDL Boss:** Thư viện Media mục Chat và Workflow dùng chung 1 kho dữ liệu media duy nhất.
+  - **Chuẩn hóa nhãn nút bấm ngắn gọn:** Đổi tên các nút chọn phương tiện trên tất cả phân hệ thành **`🖥️ Từ máy tính`** và **`📂 Từ Thư viện`**.
+  - **Phân định hiển thị chuẩn Boss / Nhân viên:**
+    - **Máy Boss (Local Workspace):** Hiển thị duy nhất 1 nút bấm: **`🖥️ Từ máy tính`** (loại bỏ nút Upload gây rắc rối).
+    - **Máy Nhân viên (Remote Workspace):** Hiển thị 2 nút bấm rõ ràng: **`🖥️ Từ máy tính`** (upload file từ máy Nhân viên về máy Boss) và **`📂 Từ Thư viện`** (mở Modal xem kho dùng chung CSDL Boss).
+  - **Gửi 1 tin duy nhất đính kèm Text + Media (`WorkflowEngineService.ts`):** Hỗ trợ đính kèm Ảnh/Video/File ngay trong node `zalo.sendMessage`, Zalo API sẽ phát 1 tin nhắn duy nhất chứa cả Caption + Album ảnh/video.
 
 - **Tích Hợp Modal Chọn Nhãn Nâng Cao & Nút "🏷️ Gán nhãn" Hàng Loạt (`UnifiedLabelPickerModal.tsx` & `BulkActionBar.tsx`):**
   - Đổi tên nút từ `🏷️ Nhãn Local` ➔ **`🏷️ Gán nhãn`** trên Thanh thao tác hàng loạt (`BulkActionBar.tsx`).
