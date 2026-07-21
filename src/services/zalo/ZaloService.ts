@@ -618,8 +618,17 @@ export default class ZaloService {
             throw new Error("API not initialized. Please ensure you've called initialize() first.");
         }
 
+        const cleanGroupId = groupId.startsWith('g') ? groupId.slice(1) : groupId;
+
         try {
-            return await this.api.removeUserFromGroup(memberId, groupId);
+            const res = await this.api.removeUserFromGroup(memberId, cleanGroupId);
+            if (res && typeof res === 'object' && (res as any).error) {
+                const errCode = (res as any).error;
+                const errMsg = (res as any).message || (res as any).error_message || `Lỗi ${errCode}`;
+                Logger.warn(`[ZaloService] removeUserFromGroup returned error ${errCode}: ${errMsg}`);
+                throw new Error(errMsg);
+            }
+            return res;
         } catch (error) {
             throw error;
         }
@@ -864,13 +873,22 @@ export default class ZaloService {
 
         try {
             // Thử thêm trực tiếp trước bằng API mặc định
-            return await this.api.addUserToGroup(memberId, cleanGroupId);
+            const res = await this.api.addUserToGroup(memberId, cleanGroupId);
+            if (res && typeof res === 'object' && (res as any).error) {
+                const errCode = (res as any).error;
+                const errMsg = (res as any).message || (res as any).error_message || `Lỗi ${errCode}`;
+                throw new Error(errMsg);
+            }
+            return res;
         } catch (error: any) {
             Logger.warn(`[ZaloService] Direct addUserToGroup failed: ${error.message}. Trying inviteUserToGroups fallback...`);
             try {
                 // Nếu lỗi, thử dùng API mời vào nhóm (inviteUserToGroups)
                 if (typeof memberId === 'string') {
                     const res = await (this.api as any).inviteUserToGroups(memberId, [cleanGroupId]);
+                    if (res && typeof res === 'object' && (res as any).error) {
+                        throw new Error((res as any).message || (res as any).error_message || `Lỗi ${(res as any).error}`);
+                    }
                     return { success: true, ...res } as any;
                 } else if (Array.isArray(memberId)) {
                     const results = [];
