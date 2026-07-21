@@ -1705,19 +1705,19 @@ export default function LibraryPickerModal({
           <input ref={fileInputRef} type="file" multiple accept={getAcceptType(initialType)} onChange={handleUploadAndSend} className="hidden" />
           <input ref={directInputRef} type="file" multiple accept={getAcceptType(initialType)} onChange={handleDirectFile} className="hidden" />
           
-          {/* Employee mode: Render 'Từ Thư viện' upload button + 'Từ máy tính' button */}
-          {isRemote && (
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700/80 hover:bg-indigo-600 text-white-important text-xs rounded-lg transition-colors disabled:opacity-50">
-              <SendIcon className="w-4 h-4 inline" /> {uploading ? 'Đang tải...' : 'Upload vào Thư viện'}
+          {/* Button 1: Upload vào Thư viện (Mở dialog chọn file và gán nhãn/thư mục) */}
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-700/80 hover:bg-indigo-600 text-white-important text-xs font-medium rounded-lg transition-colors disabled:opacity-50">
+            <SendIcon className="w-4 h-4 inline" /> {uploading ? 'Đang tải...' : 'Upload vào Thư viện'}
+          </button>
+
+          {/* Button 2: Từ máy tính (Gửi trực tiếp không lưu thư viện) */}
+          {!onSelect && (
+            <button onClick={() => directInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-medium rounded-lg transition-colors">
+              <MonitorIcon className="w-4 h-4 inline" /> Từ máy tính
             </button>
           )}
-
-          {/* Available button: 'Từ máy tính' */}
-          <button onClick={() => directInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs rounded-lg transition-colors">
-            <MonitorIcon className="w-4 h-4 inline" /> Từ máy tính
-          </button>
 
           <div className="flex-1" />
           <span className="text-xs text-gray-400">{selectedItems.length} file</span>
