@@ -2348,18 +2348,33 @@ class HttpRelayService {
 
             // ── Workflow CRUD ──
             if (pathname === '/api/command/workflows') {
-                db.saveWorkflow(params.workflow || params);
-                EventBroadcaster.emit('workflow:executed', { action: 'save', workflowId: params.workflow?.id || params.id });
+                const wfData = params.workflow || params;
+                db.saveWorkflow(wfData);
+                db.save();
+                if (wfData?.id) {
+                    const WorkflowEngineService = require('../workflow/WorkflowEngineService').default;
+                    WorkflowEngineService.getInstance().reloadWorkflow(wfData.id);
+                }
+                EventBroadcaster.emit('workflow:executed', { action: 'save', workflowId: wfData?.id || params.id });
                 return { success: true };
             }
             if (pathname.match(/^\/api\/command\/workflows\/[^/]+\/toggle$/)) {
                 const id = pathname.split('/')[3];
-                db.toggleWorkflow(id, params.enabled !== false);
+                const isEnabled = params.enabled === true || params.enabled === 1 || params.enabled === 'true' || params.enabled === '1';
+                db.toggleWorkflow(id, isEnabled);
+                db.save();
+                const WorkflowEngineService = require('../workflow/WorkflowEngineService').default;
+                WorkflowEngineService.getInstance().reloadWorkflow(id);
+                EventBroadcaster.emit('db:workflowChanged', { action: 'toggle', id, enabled: isEnabled });
                 return { success: true };
             }
             if (pathname.match(/^\/api\/command\/workflows\/[^/]+$/)) {
                 const id = pathname.split('/').pop() || '';
                 db.deleteWorkflow(id);
+                db.save();
+                const WorkflowEngineService = require('../workflow/WorkflowEngineService').default;
+                WorkflowEngineService.getInstance().removeWorkflow(id);
+                EventBroadcaster.emit('db:workflowChanged', { action: 'delete', id });
                 return { success: true };
             }
 

@@ -308,7 +308,7 @@ class WorkflowEngineService {
         const pageIdsRaw: string = row.page_ids || row.page_id || '';
         const wf: Workflow = {
           id: row.id, name: row.name, description: row.description || '',
-          enabled: row.enabled === 1 || row.enabled === true,
+          enabled: row.enabled === 1 || row.enabled === true || row.enabled === '1' || row.enabled === 'true',
           channel: this.normalizeWorkflowChannel(row.channel),
           pageId: pageIdsRaw.split(',').filter(Boolean)[0] || '',
           pageIds: pageIdsRaw.split(',').filter(Boolean),
@@ -330,7 +330,7 @@ class WorkflowEngineService {
       const pageIdsRaw: string = row.page_ids || row.page_id || '';
       const wf: Workflow = {
         id: row.id, name: row.name, description: row.description || '',
-        enabled: row.enabled === 1 || row.enabled === true,
+        enabled: row.enabled === 1 || row.enabled === true || row.enabled === '1' || row.enabled === 'true',
         channel: this.normalizeWorkflowChannel(row.channel),
         pageId: pageIdsRaw.split(',').filter(Boolean)[0] || '',
         pageIds: pageIdsRaw.split(',').filter(Boolean),
