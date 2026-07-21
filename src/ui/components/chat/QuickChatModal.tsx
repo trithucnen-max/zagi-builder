@@ -11,7 +11,7 @@ import ipc from '@/lib/ipc';
 import { sendSeenForThread } from '@/lib/sendSeenHelper';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import { fetchQuickMessages, QuickMessage, LocalMediaFile } from './QuickMessageManager';
-import { formatPhone } from '@/utils/phoneUtils';
+import { formatPhone, normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
 import ChatHistoryList from './ChatHistoryList';
 import SharedMessageContent from './SharedMessageContent';
 
@@ -216,14 +216,15 @@ function RecipientRow({ zaloId, contacts, accounts, onSelect }: {
       return n.includes(q) || p.includes(q) || c.contact_id.includes(q);
     }).slice(0, 20));
 
-    if (/^(\+84|0)\d{8,10}$/.test(query.trim().replace(/\s/g,''))) {
+    const normQuery = normalizePhone(query);
+    if (isValidVietnamPhone(normQuery)) {
       const acc = accounts.find(a => a.zalo_id === zaloId);
       if (!acc) return;
       setSearching(true);
       const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
-      ipc.zalo?.findUser({ auth, phone: query.trim() }).then((res: any) => {
+      ipc.zalo?.findUser({ auth, phone: normQuery }).then((res: any) => {
         const p = res?.response?.info || res?.response;
-        if (p?.userId) setPhoneResult({ contact_id: p.userId, display_name: p.displayName||p.zaloName||query.trim(), avatar_url: p.avatar||'', phone: query.trim(), contact_type: 'user', unread_count: 0 });
+        if (p?.userId) setPhoneResult({ contact_id: p.userId, display_name: p.displayName||p.zaloName||normQuery, avatar_url: p.avatar||'', phone: normQuery, contact_type: 'user', unread_count: 0 });
       }).catch(()=>{}).finally(()=>setSearching(false));
     } else { setPhoneResult(null); }
   }, [query, contacts, zaloId]);

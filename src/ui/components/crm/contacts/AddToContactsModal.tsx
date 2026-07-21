@@ -5,6 +5,7 @@ import { useAppStore, LabelData } from '@/store/appStore';
 import ZaloLabelBadge from '../tags/ZaloLabelBadge';
 import type { LocalLabelItem } from '@/components/common/LocalLabelSelector';
 import { extractUserProfile } from '../../../../utils/profileUtils';
+import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,10 +77,16 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
 
   // ── Parse phone numbers ──────────────────────────────────────────────────
   const parsePhones = useCallback((): string[] => {
-    return phoneInput
+    const unique = new Set<string>();
+    phoneInput
       .split(/[\n,;]+/)
-      .map(s => s.trim().replace(/\s+/g, ''))
-      .filter(s => /^(\+84|0)\d{8,10}$/.test(s));
+      .forEach(s => {
+        const norm = normalizePhone(s);
+        if (norm && isValidVietnamPhone(norm)) {
+          unique.add(norm);
+        }
+      });
+    return Array.from(unique);
   }, [phoneInput]);
 
   // ── Resolve phone numbers → user info via Zalo API ───────────────────────

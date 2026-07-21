@@ -18,6 +18,7 @@ import { ChannelBadgeOverlay } from '../common/ChannelBadge';
 import { getCapability, channelSupports, type Channel } from '@/../configs/channelConfig';
 import { extractUserProfile } from '../../../utils/profileUtils';
 import { refreshContactAlias } from '../../hooks/useZaloEvents';
+import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
 
 interface LabelData { id: number; text: string; color: string; emoji: string; conversations: string[]; textKey?: string; offset?: number; createTime?: number; }
 interface LocalLabelData {
@@ -32,7 +33,7 @@ interface LocalLabelData {
 type LabelSource = 'local' | 'zalo';
 
 function isPhoneNumber(s: string): boolean {
-  return /^(\+84|0)\d{9,10}$/.test(s.trim().replace(/\s/g, ''));
+  return isValidVietnamPhone(s);
 }
 
 type FilterType = 'all' | 'unread' | 'unreplied' | 'others' | 'label';
@@ -873,7 +874,7 @@ export default function ConversationList() {
     setPhoneSearching(true); setPhoneResult(null);
     try {
       const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
-      const res = await ipc.zalo?.findUser({ auth, phone: phone.trim() });
+      const res = await ipc.zalo?.findUser({ auth, phone: normalizePhone(phone) });
       const user = res?.response;
       if (user?.uid) {
         try {

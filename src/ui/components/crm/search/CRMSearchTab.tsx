@@ -4,6 +4,7 @@ import { useAppStore } from '@/store/appStore';
 import { useChatStore } from '@/store/chatStore';
 import ipc from '@/lib/ipc';
 import { extractApiError } from '@/utils/apiError';
+import { normalizePhone } from '@/utils/phoneUtils';
 import PhoneDisplay from '../../common/PhoneDisplay';
 import { UserProfilePopup } from '../../common/UserProfilePopup';
 import AddFriendModal from '../../common/AddFriendModal';
@@ -68,11 +69,12 @@ export default function CRMSearchTab() {
 
   const handleSearch = async () => {
     const auth = getAuth();
-    if (!auth || !searchPhone.trim()) return;
+    const normalized = normalizePhone(searchPhone);
+    if (!auth || !normalized) return;
     setSearching(true);
     setSearchResult(null);
     try {
-      const res = await ipc.zalo?.findUser({ auth, phone: searchPhone.trim() });
+      const res = await ipc.zalo?.findUser({ auth, phone: normalized });
       const user = res?.response || null;
       if (user?.uid) {
         try {

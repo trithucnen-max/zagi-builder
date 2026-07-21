@@ -3,6 +3,7 @@ import ipc from '@/lib/ipc';
 import GroupAvatar from '../common/GroupAvatar';
 import AddFriendModal from '../common/AddFriendModal';
 import { channelSupports } from '@/../configs/channelConfig';
+import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
 
 // ─── Vietnamese-aware normalization for fuzzy matching ────────────────────────
 function normalizeStr(s: string): string {
@@ -29,7 +30,7 @@ function matchQuery(haystack: string, needle: string): boolean {
 }
 
 function isPhoneNumber(s: string): boolean {
-  return /^(\+84|0)\d{8,10}$/.test(s.trim().replace(/\s/g, ''));
+  return isValidVietnamPhone(s);
 }
 
 // ─── Highlight matching text ──────────────────────────────────────────────────
@@ -447,7 +448,7 @@ export default function GlobalSearchPanel({
     setPhoneSearching(true); setPhoneResult(null); setPhonePendingAccounts(false);
     try {
       const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
-      const res = await ipc.zalo?.findUser({ auth, phone: phone.trim() });
+      const res = await ipc.zalo?.findUser({ auth, phone: normalizePhone(phone) });
       const user = res?.response;
       if (user?.uid) {
         try {

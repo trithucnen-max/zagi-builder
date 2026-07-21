@@ -49,8 +49,8 @@ describe('CRM Import Logic & Phone Normalization', () => {
       expect(normalizePhone('+84 (091) 234-5678')).toBe('0912345678');
     });
 
-    it('should return raw if no country code or invalid prefix', () => {
-      expect(normalizePhone('912345678')).toBe('912345678');
+    it('should auto-prepend leading 0 for 9-digit numbers and return raw for invalid lengths', () => {
+      expect(normalizePhone('912345678')).toBe('0912345678');
       expect(normalizePhone('123')).toBe('123');
     });
   });
