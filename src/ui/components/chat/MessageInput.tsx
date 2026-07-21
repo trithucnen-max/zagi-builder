@@ -797,8 +797,8 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
   }, [activeThreadId]);
 
   // ─── Phone number detection → contact card suggestion ──────────────────
-  // Pattern: 0 + 10 digits (SĐT Việt Nam)
-  const PHONE_REGEX = /0\d{10}/g;
+  // Pattern: 0 + 9 digits = 10 total digits (SĐT Việt Nam chuẩn)
+  const PHONE_REGEX = /0\d{9}/g;
 
   // Clear suggestion when thread changes
   useEffect(() => {
@@ -853,8 +853,9 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         const account = getActiveAccount();
         if (!account) { setContactCardLoading(false); return; }
         const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
+        const { normalizePhone: _normPhone } = await import('@/utils/phoneUtils');
 
-        const findRes = await ipc.zalo?.findUser({ phone });
+        const findRes = await ipc.zalo?.findUser({ auth, phone: _normPhone(phone) });
         const foundUser = findRes?.response || findRes?.data;
         if (foundUser?.userId || foundUser?.uid || foundUser?.id) {
           const uid = foundUser.userId || foundUser.uid || foundUser.id;

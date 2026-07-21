@@ -4,7 +4,7 @@ import { useAppStore } from '@/store/appStore';
 import { useChatStore } from '@/store/chatStore';
 import ipc from '@/lib/ipc';
 import { extractApiError } from '@/utils/apiError';
-import { normalizePhone } from '@/utils/phoneUtils';
+import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
 import PhoneDisplay from '../../common/PhoneDisplay';
 import { UserProfilePopup } from '../../common/UserProfilePopup';
 import AddFriendModal from '../../common/AddFriendModal';
@@ -71,6 +71,10 @@ export default function CRMSearchTab() {
     const auth = getAuth();
     const normalized = normalizePhone(searchPhone);
     if (!auth || !normalized) return;
+    if (!isValidVietnamPhone(normalized)) {
+      showNotification('Số điện thoại không hợp lệ. Vui lòng nhập SĐT Việt Nam (10 chữ số).', 'error');
+      return;
+    }
     setSearching(true);
     setSearchResult(null);
     try {
@@ -82,12 +86,16 @@ export default function CRMSearchTab() {
           const profile = infoRes?.response?.changed_profiles?.[user.uid];
           setSearchResult(profile ? { ...user, isFr: profile.isFr ?? 0, isBlocked: profile.isBlocked ?? 0 } : user);
         } catch { setSearchResult(user); }
-      } else { setSearchResult(user); }
+      } else {
+        // No uid found → show "not found" message
+        setSearchResult(null);
+      }
     } catch (err: any) {
       showNotification(extractApiError(err, 'Lỗi tìm kiếm'), 'error');
     }
     setSearching(false);
   };
+
 
   const openAddFriendModal = (userId: string, displayName: string, avatar: string) => {
     setAddFriendModal({ userId, displayName, avatar });

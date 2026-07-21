@@ -11,6 +11,7 @@ import type { LocalLabelItem } from '@/components/common/LocalLabelSelector';
 import PhoneDisplay from '@/components/common/PhoneDisplay';
 import type { PinnedNote } from '@/components/chat/PinnedMessages';
 import CRMCallLogTab from './CRMCallLogTab';
+import { normalizePhone } from '@/utils/phoneUtils';
 
 function defaultSalutation(gender?: number | null): string {
   if (gender === 0) return 'Anh';
@@ -1036,7 +1037,7 @@ ${notesText}`;
                   defaultValue={contact.phone || ''}
                   onBlur={e => {
                     setEditingField(null);
-                    handleSaveField('phone', e.target.value.trim());
+                    handleSaveField('phone', normalizePhone(e.target.value.trim()) || e.target.value.trim());
                   }}
                   onKeyDown={e => {
                     if (e.key === 'Enter') e.currentTarget.blur();

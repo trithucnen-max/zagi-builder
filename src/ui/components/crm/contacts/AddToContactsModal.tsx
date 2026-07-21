@@ -89,7 +89,9 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
     return Array.from(unique);
   }, [phoneInput]);
 
-  // ── Resolve phone numbers → user info via Zalo API ───────────────────────
+  // ── Resolve phone numbers → user info via Zalo API (Batch mode) ──────────
+  // Dùng getMultiUsersByPhones (batch API như PhoneScan) thay vì vòng lặp findUser.
+  // Batch API tìm thấy nhiều user hơn vì xử lý như "tra cứu từ danh bạ".
   const handleResolvePhones = useCallback(async () => {
     const phones = parsePhones();
     if (phones.length === 0) {
@@ -103,63 +105,90 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
     setResolving(true);
     setResolveProgress({ current: 0, total: phones.length });
     stopRef.current = false;
-    const results: ContactToAdd[] = [];
 
-    for (let i = 0; i < phones.length; i++) {
+    // ── Bước 1: Batch lookup (getMultiUsersByPhones) ────────────────────────
+    // API trả về key = 84xxxxxxxxx, cần normalize về 0xxxxxxxxx
+    const BATCH_SIZE = 100;
+    const zaloMap: Record<string, any> = {}; // phone (0xxx) → user object
+
+    for (let b = 0; b < phones.length; b += BATCH_SIZE) {
       if (stopRef.current) break;
-      setResolveProgress({ current: i + 1, total: phones.length });
+      const batch = phones.slice(b, b + BATCH_SIZE);
       try {
-        const res = await ipc.zalo?.findUser({ auth, phone: phones[i] });
-        const user = res?.response;
-        if (user?.uid) {
-          // Try to get more info
-          try {
-            const infoRes = await ipc.zalo?.getUserInfo({ auth, userId: user.uid });
-            const profile = infoRes?.response?.changed_profiles?.[user.uid];
-            const extracted = profile ? extractUserProfile(profile) : null;
-            results.push({
-              contactId: user.uid,
-              displayName: extracted?.displayName || profile?.displayName || user.display_name || user.zalo_name || user.uid,
-              avatar: extracted?.avatar || profile?.avatar || user.avatar || '',
-              phone: phones[i],
-            });
-            // Pre-save gender/birthday so they appear in CRM right away
-            if (extracted && (extracted.gender !== null || extracted.birthday)) {
-              ipc.db?.updateContactProfile({
-                zaloId: accountId,
-                contactId: user.uid,
-                displayName: extracted.displayName,
-                avatarUrl: extracted.avatar,
-                phone: phones[i],
-                gender: extracted.gender,
-                birthday: extracted.birthday,
-              }).catch(() => {});
-            }
-          } catch {
-            results.push({
-              contactId: user.uid,
-              displayName: user.display_name || user.zalo_name || user.uid,
-              avatar: user.avatar || '',
-              phone: phones[i],
-            });
+        const res = await ipc.zalo?.getMultiUsersByPhones({ auth, phones: batch });
+        if (res?.success && res?.response) {
+          for (const [phoneKey, user] of Object.entries(res.response as Record<string, any>)) {
+            // Zalo trả key dạng "84933640999" → normalize về "0933640999"
+            const normalized = phoneKey.startsWith('84') ? '0' + phoneKey.slice(2) : phoneKey;
+            const matched = batch.find(p => p === normalized || p === phoneKey);
+            if (matched) zaloMap[matched] = user;
           }
         }
-        // Delay to avoid rate limiting
-        if (i < phones.length - 1) {
-          await new Promise(r => setTimeout(r, 500));
+      } catch {
+        // Batch thất bại → fallback findUser từng số trong batch
+        for (const phone of batch) {
+          if (stopRef.current) break;
+          try {
+            const res = await ipc.zalo?.findUser({ auth, phone });
+            if (res?.response?.uid) zaloMap[phone] = res.response;
+          } catch {}
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+      setResolveProgress({ current: Math.min(b + BATCH_SIZE, phones.length), total: phones.length });
+    }
+
+    // ── Bước 2: Enrich từng user đã tìm được với getUserInfo ─────────────────
+    const foundPhones = phones.filter(p => zaloMap[p]?.uid);
+    const results: ContactToAdd[] = [];
+
+    setResolveProgress({ current: 0, total: foundPhones.length });
+    for (let i = 0; i < foundPhones.length; i++) {
+      if (stopRef.current) break;
+      setResolveProgress({ current: i + 1, total: foundPhones.length });
+      const phone = foundPhones[i];
+      const user = zaloMap[phone];
+      try {
+        const infoRes = await ipc.zalo?.getUserInfo({ auth, userId: user.uid });
+        const profile = infoRes?.response?.changed_profiles?.[user.uid];
+        const extracted = profile ? extractUserProfile(profile) : null;
+        results.push({
+          contactId: user.uid,
+          displayName: extracted?.displayName || profile?.displayName || user.display_name || user.zalo_name || user.uid,
+          avatar: extracted?.avatar || profile?.avatar || user.avatar || '',
+          phone,
+        });
+        // Pre-save gender/birthday
+        if (extracted && (extracted.gender !== null || extracted.birthday)) {
+          ipc.db?.updateContactProfile({
+            zaloId: accountId,
+            contactId: user.uid,
+            displayName: extracted.displayName,
+            avatarUrl: extracted.avatar,
+            phone,
+            gender: extracted.gender,
+            birthday: extracted.birthday,
+          }).catch(() => {});
         }
       } catch {
-        // Skip failed numbers
+        // getUserInfo thất bại → dùng thông tin cơ bản từ batch
+        results.push({
+          contactId: user.uid,
+          displayName: user.display_name || user.zalo_name || user.uid,
+          avatar: user.avatar || '',
+          phone,
+        });
       }
+      if (i < foundPhones.length - 1) await new Promise(r => setTimeout(r, 200));
     }
 
     setResolvedContacts(results);
     setResolving(false);
     setResolveProgress(null);
     if (results.length === 0) {
-      showNotification('Không tìm thấy người dùng nào từ danh sách SĐT', 'info');
+      showNotification('Không tìm thấy người dùng Zalo nào từ danh sách SĐT', 'info');
     }
-  }, [parsePhones, getActiveAccount, showNotification]);
+  }, [parsePhones, getActiveAccount, showNotification, accountId]);
 
   // ── Remove a resolved contact ────────────────────────────────────────────
   const removeResolved = (contactId: string) => {
