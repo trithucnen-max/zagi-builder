@@ -814,58 +814,70 @@ function EmployeeFormModal({ employee, accounts, groups, onClose, onSaved }: {
                         </div>
                     </div>
 
-                    {/* Account access — with avatar + phone */}
+                    {/* Account access — with avatar + phone + channel badge */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tài khoản Zalo được quản lý</p>
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tài khoản được phân công quản lý (Zalo &amp; Facebook &amp; Fanpage)</p>
                             <button onClick={toggleAllAccounts} className="text-[11px] text-blue-400 hover:text-blue-300">
                                 {selectedAccounts.size === accounts.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
                             </button>
                         </div>
                         {accounts.length === 0 ? (
-                            <p className="text-xs text-gray-500 py-2">Chưa có tài khoản Zalo nào</p>
+                            <p className="text-xs text-gray-500 py-2">Chưa có tài khoản nào (Zalo hoặc Facebook)</p>
                         ) : (
                             <div className="space-y-1 max-h-48 overflow-y-auto">
-                                {accounts.map(acc => (
-                                    <label
-                                        key={acc.zalo_id}
-                                        className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${
-                                            selectedAccounts.has(acc.zalo_id) ? 'bg-green-600/15 border border-green-500/30' : 'bg-gray-700/50 border border-transparent hover:bg-gray-700'
-                                        }`}
-                                    >
-                                        <input
-                                            type="checkbox" checked={selectedAccounts.has(acc.zalo_id)}
-                                            onChange={() => toggleAccount(acc.zalo_id)}
-                                            className="sr-only"
-                                        />
-                                        <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                                            selectedAccounts.has(acc.zalo_id) ? 'bg-green-600 border-green-500' : 'border-gray-500'
-                                        }`}>
-                                            {selectedAccounts.has(acc.zalo_id) && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
-                                        </span>
-                                        {/* Account avatar */}
-                                        <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gray-600">
-                                            {acc.avatar_url ? (
-                                                <img src={acc.avatar_url} className="w-full h-full object-cover" alt=""
-                                                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-bold">
-                                                    {(acc.full_name || acc.zalo_id).charAt(0).toUpperCase()}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${acc.isOnline ? 'bg-green-400' : 'bg-gray-500'}`} />
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-xs text-gray-200 font-medium truncate">{acc.full_name || acc.zalo_id}</p>
-                                            <div className="flex items-center gap-2">
-                                                {acc.phone && (
-                                                    <p className="text-[10px] text-gray-500">📞 {acc.phone}</p>
+                                {accounts.map(acc => {
+                                    const isFB = acc.channel === 'facebook';
+                                    return (
+                                        <label
+                                            key={acc.zalo_id}
+                                            className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors ${
+                                                selectedAccounts.has(acc.zalo_id) ? 'bg-green-600/15 border border-green-500/30' : 'bg-gray-700/50 border border-transparent hover:bg-gray-700'
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox" checked={selectedAccounts.has(acc.zalo_id)}
+                                                onChange={() => toggleAccount(acc.zalo_id)}
+                                                className="sr-only"
+                                            />
+                                            <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                                selectedAccounts.has(acc.zalo_id) ? 'bg-green-600 border-green-500' : 'border-gray-500'
+                                            }`}>
+                                                {selectedAccounts.has(acc.zalo_id) && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
+                                            </span>
+                                            {/* Account avatar */}
+                                            <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gray-600">
+                                                {acc.avatar_url ? (
+                                                    <img src={acc.avatar_url} className="w-full h-full object-cover" alt=""
+                                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-bold">
+                                                        {(acc.full_name || acc.zalo_id).charAt(0).toUpperCase()}
+                                                    </div>
                                                 )}
-                                                <p className="text-[10px] text-gray-600">{acc.zalo_id}</p>
                                             </div>
-                                        </div>
-                                    </label>
-                                ))}
+                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${acc.isOnline ? 'bg-green-400' : 'bg-gray-500'}`} />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5">
+                                                    <p className="text-xs text-gray-200 font-medium truncate">{acc.full_name || acc.zalo_id}</p>
+                                                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                                        isFB
+                                                            ? 'bg-blue-600/30 text-blue-300 border border-blue-500/30'
+                                                            : 'bg-sky-600/30 text-sky-300 border border-sky-500/30'
+                                                    }`}>
+                                                        {isFB ? 'Facebook' : 'Zalo'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    {acc.phone && (
+                                                        <p className="text-[10px] text-gray-500">📞 {acc.phone}</p>
+                                                    )}
+                                                    <p className="text-[10px] text-gray-600">{acc.zalo_id}</p>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
