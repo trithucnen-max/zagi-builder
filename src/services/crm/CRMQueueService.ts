@@ -895,85 +895,11 @@ class CRMQueueService {
                 db.save();
                 Logger.log(`[CRMQueue] Campaign ${campaignId} completed`);
                 EventBroadcaster.emit('crm:campaignDone', { zaloId, campaignId });
-                
-                // Auto-Nurture Pipeline: Handle On-Completion Campaign Chaining
-                this.processCampaignPipelineCompletion(campaignId, zaloId, contacts);
 
                 this.checkAndStopIfIdle(zaloId);
             }
         } catch (err: any) {
             Logger.warn(`[CRMQueue] checkCampaignCompletion: ${err.message}`);
-        }
-    }
-
-    private processCampaignPipelineCompletion(campaignId: number, zaloId: string, contacts: any[]): void {
-        try {
-            const db = DatabaseService.getInstance();
-            const campaign = db.getCRMCampaign(campaignId);
-            if (!campaign) return;
-
-            const noReplyCampId = (campaign as any).on_complete_no_reply_campaign_id;
-            const replyCampId = (campaign as any).on_complete_reply_campaign_id;
-            const noReplyTagId = (campaign as any).on_complete_no_reply_tag_id;
-            const replyTagId = (campaign as any).on_complete_reply_tag_id;
-
-            // If no pipeline actions configured, do nothing
-            if (!noReplyCampId && !replyCampId && !noReplyTagId && !replyTagId) return;
-
-            Logger.log(`[CRMQueue] 🔗 Processing Auto-Nurture Pipeline for Campaign #${campaignId} ("${campaign.name}")`);
-
-            const sentContacts = contacts.filter(c => c.status === 'sent');
-            let nextNoReplyAdded = 0;
-            let nextReplyAdded = 0;
-
-            for (const c of sentContacts) {
-                const contactId = c.contact_id;
-                const sentAt = c.sent_at || c.created_at || campaign.created_at || 0;
-                const hasReplied = db.hasContactRepliedSince(zaloId, contactId, sentAt);
-
-                if (hasReplied) {
-                    // Contact REPLIED
-                    if (replyTagId && Number(replyTagId) > 0) {
-                        try {
-                            db.assignLocalLabelToThread(zaloId, Number(replyTagId), contactId);
-                            Logger.log(`[CRMQueue] Pipeline: Assigned reply tag ${replyTagId} to contact ${contactId}`);
-                        } catch {}
-                    }
-                    if (replyCampId && Number(replyCampId) > 0) {
-                        try {
-                            const added = db.addContactToCampaign(Number(replyCampId), zaloId, contactId, c.display_name || '', c.avatar || '', c.phone || '');
-                            if (added > 0) nextReplyAdded++;
-                        } catch {}
-                    }
-                } else {
-                    // Contact did NOT reply
-                    if (noReplyTagId && Number(noReplyTagId) > 0) {
-                        try {
-                            db.assignLocalLabelToThread(zaloId, Number(noReplyTagId), contactId);
-                            Logger.log(`[CRMQueue] Pipeline: Assigned no-reply tag ${noReplyTagId} to contact ${contactId}`);
-                        } catch {}
-                    }
-                    if (noReplyCampId && Number(noReplyCampId) > 0) {
-                        try {
-                            const added = db.addContactToCampaign(Number(noReplyCampId), zaloId, contactId, c.display_name || '', c.avatar || '', c.phone || '');
-                            if (added > 0) nextNoReplyAdded++;
-                        } catch {}
-                    }
-                }
-            }
-
-            Logger.log(`[CRMQueue] Pipeline summary for Campaign #${campaignId}: Replied next added=${nextReplyAdded}, No-Reply next added=${nextNoReplyAdded}`);
-
-            if (nextNoReplyAdded > 0 && noReplyCampId) {
-                db.updateCRMCampaignStatus(Number(noReplyCampId), 'active');
-            }
-            if (nextReplyAdded > 0 && replyCampId) {
-                db.updateCRMCampaignStatus(Number(replyCampId), 'active');
-            }
-
-            EventBroadcaster.emit('local-labels-changed', { zaloId });
-        } catch (err: any) {
-            Logger.error(`[CRMQueue] processCampaignPipelineCompletion error: ${err.message}`);
         }
     }
 

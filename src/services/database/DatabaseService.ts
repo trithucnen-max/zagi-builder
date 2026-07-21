@@ -5579,22 +5579,18 @@ class DatabaseService {
             const perContactMax = (campaign as any).per_contact_delay_max_seconds ?? perContactMin;
             // Still write delay_seconds as the midpoint for backward compat
             const compatDelaySeconds = campaign.delay_seconds || Math.round((delayMin + delayMax) / 2);
-            const onCompleteNoReplyCampId = (campaign as any).on_complete_no_reply_campaign_id ?? null;
-            const onCompleteReplyCampId = (campaign as any).on_complete_reply_campaign_id ?? null;
-            const onCompleteReplyTagId = (campaign as any).on_complete_reply_tag_id ?? null;
-            const onCompleteNoReplyTagId = (campaign as any).on_complete_no_reply_tag_id ?? null;
 
             if (campaign.id) {
                 const rows = this.query<any>(`SELECT id FROM crm_campaigns WHERE id=? AND owner_zalo_id=?`, [campaign.id, campaign.owner_zalo_id]);
                 if (rows.length > 0) {
                     this.run(
-                        `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, on_complete_no_reply_campaign_id=?, on_complete_reply_campaign_id=?, on_complete_reply_tag_id=?, on_complete_no_reply_tag_id=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                        [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, onCompleteNoReplyCampId, onCompleteReplyCampId, onCompleteReplyTagId, onCompleteNoReplyTagId, now, campaign.id, campaign.owner_zalo_id]
+                        `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, campaign.id, campaign.owner_zalo_id]
                     );
                 } else {
                     this.run(
-                        `INSERT INTO crm_campaigns (id, owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, on_complete_no_reply_campaign_id, on_complete_reply_campaign_id, on_complete_reply_tag_id, on_complete_no_reply_tag_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                        [campaign.id, campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, onCompleteNoReplyCampId, onCompleteReplyCampId, onCompleteReplyTagId, onCompleteNoReplyTagId, now, now]
+                        `INSERT INTO crm_campaigns (id, owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        [campaign.id, campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, now]
                     );
                 }
                 return campaign.id;
@@ -5610,25 +5606,11 @@ class DatabaseService {
                 }
 
                 return this.runInsert(
-                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, on_complete_no_reply_campaign_id, on_complete_reply_campaign_id, on_complete_reply_tag_id, on_complete_no_reply_tag_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, onCompleteNoReplyCampId, onCompleteReplyCampId, onCompleteReplyTagId, onCompleteNoReplyTagId, now, now]
+                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, now, now]
                 );
             }
         } catch (err: any) { Logger.error(`[DB] saveCRMCampaign: ${err.message}`); return 0; }
-    }
-
-    public hasContactRepliedSince(ownerZaloId: string, contactId: string, sinceTimestamp: number): boolean {
-        if (!this.initialized) return false;
-        try {
-            const row = this.queryOne<any>(
-                `SELECT id FROM messages WHERE owner_zalo_id = ? AND thread_id = ? AND is_sent = 0 AND timestamp > ? LIMIT 1`,
-                [ownerZaloId, contactId, sinceTimestamp]
-            );
-            return !!row;
-        } catch (err: any) {
-            Logger.error(`[DB] hasContactRepliedSince: ${err.message}`);
-            return false;
-        }
     }
 
     public updateCRMCampaignStatus(campaignId: number, status: CRMCampaignStatus): void {
