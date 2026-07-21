@@ -4263,8 +4263,9 @@ class WorkflowEngineService {
                 const fs = require('fs');
                 const path = require('path');
                 const uploadedPaths = [];
-                for (const filePath of p1.attachments) {
+                for (const rawItem of p1.attachments) {
                   try {
+                    const filePath = typeof rawItem === 'string' ? FileStorageService.resolveAbsolutePath(this.stripFileProtocol(rawItem)) : rawItem;
                     if (typeof filePath === 'string' && !filePath.startsWith('http://') && !filePath.startsWith('https://') && fs.existsSync(filePath)) {
                       const buffer = fs.readFileSync(filePath);
                       const base64 = buffer.toString('base64');
@@ -4277,11 +4278,11 @@ class WorkflowEngineService {
                         uploadedPaths.push(filePath);
                       }
                     } else {
-                      uploadedPaths.push(filePath);
+                      uploadedPaths.push(rawItem);
                     }
                   } catch (err: any) {
-                    Logger.error(`[WorkflowEngine] Proxy upload read error for ${filePath}: ${err.message}`);
-                    uploadedPaths.push(filePath);
+                    Logger.error(`[WorkflowEngine] Proxy upload read error for ${rawItem}: ${err.message}`);
+                    uploadedPaths.push(rawItem);
                   }
                 }
                 messageParam = { ...p1, attachments: uploadedPaths };
