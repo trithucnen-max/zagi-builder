@@ -984,6 +984,21 @@ class WorkflowEngineService {
 
     const runId = uuidv4();
     const startedAt = Date.now();
+
+    if (!wf.enabled && triggeredBy !== 'manual' && !isSandbox) {
+      Logger.warn(`[WorkflowEngine] Skipping execution of disabled workflow "${wf.name}" (${wf.id})`);
+      return {
+        id: runId,
+        workflowId: wf.id,
+        workflowName: wf.name,
+        triggeredBy,
+        startedAt,
+        finishedAt: Date.now(),
+        status: 'error',
+        errorMessage: 'Workflow is disabled',
+        nodeResults: [],
+      };
+    }
     const nodeResults: NodeResult[] = [];
 
     // Flatten trigger data for template access
