@@ -36,9 +36,16 @@ export default function AddToCampaignModal({
   const handleAddContactsToCampaign = async () => {
     if (!selectedCampaignForAdd || !activeAccountId) return;
     try {
-      const contacts = storeContacts
-        .filter(c => selectedContactIds.has(c.contact_id))
-        .map(c => ({ contactId: c.contact_id, displayName: c.alias || c.display_name, avatar: c.avatar }));
+      const contactMap = new Map((storeContacts || []).map(c => [c.contact_id, c]));
+      const contacts = Array.from(selectedContactIds).map(id => {
+        const c = contactMap.get(id);
+        return {
+          contactId: id,
+          displayName: c?.alias || c?.display_name || c?.name || id,
+          avatar: c?.avatar_url || c?.avatar || '',
+          phone: c?.phone || '',
+        };
+      });
 
       const res = await ipc.crm?.addCampaignContacts({
         zaloId: activeAccountId,
@@ -74,7 +81,32 @@ export default function AddToCampaignModal({
       const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
       if (res?.success) {
         onSuccess();
-        if (res.id) setSelectedCampaignForAdd(res.id);
+        if (res.id) {
+          setSelectedCampaignForAdd(res.id);
+          const contactMap = new Map((storeContacts || []).map(c => [c.contact_id, c]));
+          const contacts = Array.from(selectedContactIds).map(id => {
+            const c = contactMap.get(id);
+            return {
+              contactId: id,
+              displayName: c?.alias || c?.display_name || c?.name || id,
+              avatar: c?.avatar_url || c?.avatar || '',
+              phone: c?.phone || '',
+            };
+          });
+          if (contacts.length > 0) {
+            const addRes = await ipc.crm?.addCampaignContacts({
+              zaloId: activeAccountId,
+              campaignId: res.id,
+              contacts,
+            });
+            if (addRes?.success) {
+              showNotification(`Đã tạo chiến dịch và thêm ${addRes.addedCount || contacts.length} liên hệ`, 'success');
+              store.clearSelection();
+              onClose();
+              return;
+            }
+          }
+        }
         showNotification('Đã tạo chiến dịch mới', 'success');
         setShowCreateInAddModal(false);
       } else {

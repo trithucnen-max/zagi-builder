@@ -512,8 +512,26 @@ export default function CRMPage() {
       const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
       if (res?.success) {
         await loadCampaigns();
-        if (res.id) setSelectedCampaignForAdd(res.id);
-        showNotification('Đã tạo chiến dịch', 'success');
+        showNotification('Đã tạo chiến dịch mới', 'success');
+        if (res.id) {
+          setSelectedCampaignForAdd(res.id);
+          const contactMap = new Map(store.contacts.map(c => [c.contact_id, c]));
+          const contacts = Array.from(store.selectedContactIds).map(id => {
+            const c = contactMap.get(id);
+            return {
+              contactId: id,
+              displayName: c?.alias || c?.display_name || c?.name || id,
+              avatar: c?.avatar_url || c?.avatar || '',
+              phone: c?.phone || '',
+            };
+          });
+          if (contacts.length > 0) {
+            await handleAddContactsToCampaign(res.id, contacts);
+            store.clearSelection();
+          }
+          setShowCreateInAddModal(false);
+          setAddToCampaignModal(false);
+        }
       }
     } finally {
       creatingCampaignRef.current = false;
@@ -1280,9 +1298,16 @@ export default function CRMPage() {
                     <button disabled={!selectedCampaignForAdd}
                       onClick={async () => {
                         if (!selectedCampaignForAdd || !activeAccountId) return;
-                        const contacts = store.contacts
-                          .filter(c => store.selectedContactIds.has(c.contact_id))
-                          .map(c => ({ contactId: c.contact_id, displayName: c.alias || c.display_name, avatar: c.avatar }));
+                        const contactMap = new Map(store.contacts.map(c => [c.contact_id, c]));
+                        const contacts = Array.from(store.selectedContactIds).map(id => {
+                          const c = contactMap.get(id);
+                          return {
+                            contactId: id,
+                            displayName: c?.alias || c?.display_name || c?.name || id,
+                            avatar: c?.avatar_url || c?.avatar || '',
+                            phone: c?.phone || '',
+                          };
+                        });
                         await handleAddContactsToCampaign(selectedCampaignForAdd, contacts);
                         store.clearSelection();
                         setAddToCampaignModal(false);
