@@ -25,6 +25,7 @@ import AppIcon from '@/components/common/AppIcon';
 
 import BulkGroupManageModal from './modals/BulkGroupManageModal';
 import SmartGroupModal from './modals/SmartGroupModal';
+import UnifiedLabelPickerModal, { LoadedLabelOption } from './modals/UnifiedLabelPickerModal';
 import AccountSelectorDropdown from '@/components/common/AccountSelectorDropdown';
 import { getCapability, type Channel } from '../../../configs/channelConfig';
 import ScanPanel from './scan/ScanPanel';
@@ -582,15 +583,52 @@ export default function CRMPage() {
     }
   };
 
+  const [selectedUnifiedLabelValues, setSelectedUnifiedLabelValues] = useState<string[]>([]);
+
+  const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
+    const localOpts: LoadedLabelOption[] = localLabels.map((l: any) => ({
+      value: `local:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
+      source: 'local',
+      color: l.color || '#14b8a6',
+      textColor: l.text_color || l.textColor || '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.name,
+      pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
+    }));
+
+    const zaloOpts: LoadedLabelOption[] = zaloLabels.map(l => ({
+      value: `zalo:${(l as any).zalo_id || (l as any).pageId || activeAccountId || ''}:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.text} (Zalo)`,
+      source: 'zalo',
+      color: l.color || '#3b82f6',
+      textColor: '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.text,
+      pageId: (l as any).zalo_id || (l as any).pageId || activeAccountId || '',
+    }));
+
+    return [...localOpts, ...zaloOpts];
+  }, [localLabels, zaloLabels, activeAccountId]);
+
   const handleBulkTagLocal = () => {
-    // Pre-load the union of label IDs that the selected contacts already have
     const selectedIds = Array.from(store.selectedContactIds);
-    const existingLabelIdSet = new Set<number>();
+    const existingSet = new Set<string>();
+
     for (const contactId of selectedIds) {
       const labelIds = localLabelThreadMap[contactId] || [];
-      labelIds.forEach(id => existingLabelIdSet.add(id));
+      labelIds.forEach(id => existingSet.add(`local:${id}`));
     }
-    setBulkLocalLabelIds(Array.from(existingLabelIdSet));
+
+    for (const contactId of selectedIds) {
+      zaloLabels.forEach(zl => {
+        if (zl.conversations && zl.conversations.includes(contactId)) {
+          existingSet.add(`zalo:${(zl as any).zalo_id || (zl as any).pageId || activeAccountId || ''}:${zl.id}`);
+        }
+      });
+    }
+
+    setSelectedUnifiedLabelValues(Array.from(existingSet));
     setShowBulkLocalModal(true);
   };
 
@@ -641,7 +679,6 @@ export default function CRMPage() {
       if (res?.success) {
         const finalLabels: LabelData[] = res.response?.labelData || updated;
         setLabels(activeAccountId, finalLabels);
-        // Note: Workflow events are emitted by backend (zaloIpc.ts) to avoid duplicates
         showNotification(`Đã gán nhãn Zalo cho ${store.selectedContactIds.size} liên hệ`, 'success');
         setShowBulkZaloModal(false);
         setBulkLabelIds([]);
@@ -655,41 +692,80 @@ export default function CRMPage() {
     setApplyingBulkLabel(false);
   };
 
-  /** Bulk-sync local labels for all selected contacts (add new, remove old, empty = clear all) */
-  const handleApplyBulkLocalLabel = async () => {
+  /** Bulk-sync both local and Zalo labels for all selected contacts (empty = clear all) */
+  const handleApplyUnifiedLabels = async (selectedValues: string[]) => {
     if (!activeAccountId) return;
     setApplyingBulkLabel(true);
     try {
       const selectedContactIds = [...store.selectedContactIds];
-      const targetLabelIds = new Set(bulkLocalLabelIds);
+      const targetLocalLabelIds = new Set<number>();
+      const targetZaloLabelIds = new Set<number>();
 
+      selectedValues.forEach(val => {
+        if (val.startsWith('local:')) {
+          const id = parseInt(val.replace('local:', ''), 10);
+          if (!isNaN(id)) targetLocalLabelIds.add(id);
+        } else if (val.startsWith('zalo:')) {
+          const parts = val.split(':');
+          const id = parseInt(parts[parts.length - 1], 10);
+          if (!isNaN(id)) targetZaloLabelIds.add(id);
+        }
+      });
+
+      // 1. Process Local Labels
       for (const contactId of selectedContactIds) {
         const currentLabelIds = new Set(localLabelThreadMap[contactId] || []);
 
-        // Remove labels that are no longer selected
         for (const oldId of currentLabelIds) {
-          if (!targetLabelIds.has(oldId)) {
+          if (!targetLocalLabelIds.has(oldId)) {
             await ipc.db?.removeLocalLabelFromThread({ zaloId: activeAccountId, labelId: oldId, threadId: contactId });
           }
         }
 
-        // Add newly selected labels
-        for (const newId of targetLabelIds) {
+        for (const newId of targetLocalLabelIds) {
           if (!currentLabelIds.has(newId)) {
             await ipc.db?.assignLocalLabelToThread({ zaloId: activeAccountId, labelId: newId, threadId: contactId });
           }
         }
       }
 
-      const isClearing = bulkLocalLabelIds.length === 0;
+      // 2. Process Zalo Labels (if present)
+      if (zaloLabels.length > 0) {
+        const acc = useAccountStore.getState().getActiveAccount();
+        if (acc) {
+          const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+          const freshRes = await ipc.zalo?.getLabels({ auth });
+          const freshLabels: LabelData[] = freshRes?.response?.labelData || zaloLabels;
+          const version: number = freshRes?.response?.version || 0;
+
+          const updated = freshLabels.map(label => {
+            let conversations = label.conversations || [];
+            if (targetZaloLabelIds.has(label.id)) {
+              selectedContactIds.forEach(cid => {
+                if (!conversations.includes(cid)) conversations = [...conversations, cid];
+              });
+            } else {
+              conversations = conversations.filter(cid => !selectedContactIds.includes(cid));
+            }
+            return { ...label, conversations };
+          });
+
+          const res = await ipc.zalo?.updateLabels({ auth, labelData: updated, version });
+          if (res?.success) {
+            setLabels(activeAccountId, res.response?.labelData || updated);
+          }
+        }
+      }
+
+      const isClearing = selectedValues.length === 0;
       showNotification(
         isClearing
-          ? `Đã xóa toàn bộ Nhãn Local cho ${selectedContactIds.length} liên hệ`
-          : `Đã cập nhật Nhãn Local cho ${selectedContactIds.length} liên hệ`,
+          ? `Đã xóa toàn bộ nhãn cho ${selectedContactIds.length} liên hệ`
+          : `Đã cập nhật nhãn cho ${selectedContactIds.length} liên hệ`,
         'success'
       );
       setShowBulkLocalModal(false);
-      setBulkLocalLabelIds([]);
+      setSelectedUnifiedLabelValues([]);
       store.clearSelection();
       window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId: activeAccountId } }));
       loadLocalLabels();
@@ -1124,55 +1200,22 @@ export default function CRMPage() {
         ) : null;
       })()}
 
-      {/* Bulk local label modal (multi-select, supports empty = clear all) */}
+      {/* Unified Label Picker modal (multi-select, supports empty = clear all, local & zalo) */}
       {showBulkLocalModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-          onClick={() => setShowBulkLocalModal(false)}>
-          <div className="bg-gray-800 border border-gray-600 rounded-2xl w-80 p-5 shadow-2xl"
-            onClick={e => e.stopPropagation()}>
-            <h3 className="font-semibold text-white mb-1">🏷️ Gán / Xóa Nhãn Local</h3>
-            <p className="text-xs text-gray-400 mb-3">
-              Áp dụng cho <span className="text-blue-400 font-medium">{store.selectedContactIds.size}</span> liên hệ đã chọn
-              <span className="text-gray-500 ml-1">(chọn nhiều)</span>
-            </p>
-            {localLabels.length === 0 ? (
-              <p className="text-xs text-gray-500 py-4 text-center">Chưa có Nhãn Local nào.</p>
-            ) : (
-              <LocalLabelSelector
-                labels={localLabels}
-                selectedIds={bulkLocalLabelIds}
-                onChange={setBulkLocalLabelIds}
-                placeholder="Chọn Nhãn Local..."
-                emptyText="Chưa có Nhãn Local nào"
-              />
-            )}
-            {bulkLocalLabelIds.length === 0 && localLabels.length > 0 && (
-              <p className="text-xs text-orange-400 mt-2 text-center">
-                ⚠️ Để trắng sẽ <strong>xóa toàn bộ nhãn</strong> của các liên hệ đã chọn
-              </p>
-            )}
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setShowBulkLocalModal(false)}
-                className="flex-1 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600">
-                Hủy
-              </button>
-              <button onClick={handleApplyBulkLocalLabel}
-                disabled={applyingBulkLabel}
-                className={`flex-1 py-2 rounded-xl text-white text-sm disabled:opacity-40 ${
-                  bulkLocalLabelIds.length === 0
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}>
-                {applyingBulkLabel
-                  ? 'Đang xử lý...'
-                  : bulkLocalLabelIds.length === 0
-                    ? 'Xóa tất cả nhãn'
-                    : 'Áp dụng'
-                }
-              </button>
-            </div>
-          </div>
-        </div>
+        <UnifiedLabelPickerModal
+          open={showBulkLocalModal}
+          onClose={() => setShowBulkLocalModal(false)}
+          options={unifiedLabelOptions}
+          selected={selectedUnifiedLabelValues}
+          onChange={setSelectedUnifiedLabelValues}
+          onConfirm={handleApplyUnifiedLabels}
+          accounts={accounts}
+          selectedCount={store.selectedContactIds.size}
+          applying={applyingBulkLabel}
+          onNewLabelCreated={() => {
+            loadLocalLabels();
+          }}
+        />
       )}
 
       {/* Bulk Zalo label modal (single-select) */}
