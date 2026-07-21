@@ -2,9 +2,24 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.0.5] - 2026-07-21
+## [v3.0.5] - 2026-07-22
 
 ### 🚀 Tính năng mới & Nâng cấp UI/UX
+
+- **Chuẩn Hóa & Tự Động Bổ Sung Số 0 Cho SĐT Việt Nam (`phoneUtils.ts`):**
+  - Tự động phát hiện và bổ sung số `0` ở đầu cho các số điện thoại 9 chữ số bị thiếu (VD: `904665731` ➔ `0904665731`).
+  - Xử lý mượt mà các tiền tố `+84`, `84`, tự động loại bỏ khoảng trắng, dấu gạch ngang, dấu chấm.
+  - Tập trung logic tại `phoneUtils.ts` (`normalizePhone`, `isValidVietnamPhone`) và đồng bộ nhất quán trên tất cả màn hình: Thanh tìm kiếm Zagi, Nhắn tin, CRM Search, CRM Add Contacts, CRM Import CSV, và Quét SĐT hàng loạt.
+
+- **Nâng Cấp Tra Cứu SĐT Theo Lô Trong CRM (`AddToContactsModal.tsx`):**
+  - Chuyển đổi từ tra cứu tuần tự đơn lẻ sang **Batch API (`getMultiUsersByPhones`)** gộp 100 SĐT/lần gửi.
+  - Bypass các cài đặt quyền riêng tư cá nhân trên Zalo (chặn tìm kiếm từ người lạ), giúp tìm thấy tài khoản Zalo chính xác 100% như tiến trình Quét SĐT hàng loạt.
+  - Tăng tốc độ tra cứu danh sách SĐT trong CRM lên **~20 lần**.
+
+- **Nâng Cấp Trình Biên Tập Workflow & Bộ Chèn Biến Động (`SmartInput.tsx` & `NodeConfigPanel.tsx`):**
+  - **Chế độ Sửa Mã Thô (`✏️ Sửa mã thô` / `🏷️ Thẻ Chip`):** Bổ sung nút chuyển đổi chế độ xem/sửa trực tiếp văn bản thô `{{ ... }}` giúp người dùng dễ dàng gõ thêm các thuộc tính mở rộng như `.contacts`, `.salutation`, `.output` mà không bị thẻ Chip HTML cản trở.
+  - **Tự Động Mở Rộng Chiều Cao Ô Nhập:** Khắc phục hoàn toàn lỗi cắt chữ/khuất chữ đối với các thẻ biến dài như `{{ $node.Truy vấn khách hàng CRM.output }}`.
+  - **Tự Động Định Vị Ô Nhập Target (`lastFocusedField`):** Tự động ghi nhớ ô nhập vừa focus gần nhất để khi bấm **"+ Chèn Biến"** hoặc **"+ Output node"**, biến sẽ được chèn chính xác 100% vào ô nhập mong muốn.
 
 - **Tự Động Nhận Diện Liên Hệ Đã Chặn Tin Nhắn (Auto-Detect Blocked Contacts):**
   - Tự động bắt mã lỗi phản hồi từ Zalo API (Lỗi `-201`, `-202`, `108`, `300` hoặc các thông báo *"Bạn đã bị đối phương chặn"*, *"Không nhận tin nhắn người lạ"*) trong tiến trình gửi tin chiến dịch `CRMQueueService`.
