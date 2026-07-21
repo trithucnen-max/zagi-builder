@@ -2269,9 +2269,13 @@ class WorkflowEngineService {
           try {
             const activeApi = this.resolveApiForThread(tid, defaultApi);
             const activeThreadType = this.resolveThreadType(ctx.trigger?.zaloId, tid, threadType);
+            const msgContent = (cfg.message && String(cfg.message).trim()) ? String(cfg.message) : (attachments.length > 0 ? ' ' : '');
+            if (!msgContent && attachments.length === 0) {
+              throw new Error('Nội dung tin nhắn và đính kèm phương tiện đều trống');
+            }
             const msgPayload = attachments.length > 0
-              ? { msg: cfg.message || '', attachments }
-              : { msg: cfg.message || '' };
+              ? { msg: msgContent, attachments }
+              : { msg: msgContent };
             const msgType = attachments.length > 0 ? 'file' : undefined;
             const result = await activeApi.sendMessage(msgPayload, tid, activeThreadType, msgType);
             lastResult = result;

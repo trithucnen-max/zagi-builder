@@ -266,6 +266,10 @@ export default class ZaloService {
                 }
             }
 
+            if (!messageContent.msg || !messageContent.msg.trim()) {
+                messageContent.msg = ' ';
+            }
+
             if (mentions) {
                 messageContent.mentions = typeof mentions === 'string' ? JSON.parse(mentions) : mentions;
             }
