@@ -5723,16 +5723,18 @@ class DatabaseService {
     private static readonly MAX_CAMPAIGN_CONTACTS = 1000;
 
     public addCampaignContacts(
-        campaignId: number,
+        campaignId: number | string,
         ownerZaloId: string,
-        contacts: Array<{ contactId: string; displayName?: string; avatar?: string; phone?: string }>
+        contacts: Array<any>
     ): { addedCount: number; discardedCount: number; limitExceeded: boolean } {
         if (!this.initialized) {
-            return { addedCount: 0, discardedCount: contacts.length, limitExceeded: false };
+            return { addedCount: 0, discardedCount: contacts ? contacts.length : 0, limitExceeded: false };
         }
-        if (!contacts.length) {
+        if (!contacts || !contacts.length) {
             return { addedCount: 0, discardedCount: 0, limitExceeded: false };
         }
+
+        const numCampaignId = typeof campaignId === 'number' ? campaignId : (parseInt(String(campaignId), 10) || 0);
 
         let addedCount = 0;
         let discardedCount = 0;
@@ -5741,7 +5743,7 @@ class DatabaseService {
         try {
             const rows = this.query<{ contact_id: string }>(
                 `SELECT contact_id FROM crm_campaign_contacts WHERE campaign_id=?`,
-                [campaignId]
+                [numCampaignId]
             );
             const existingIds = new Set<string>(rows.map(r => r.contact_id));
 
@@ -5751,11 +5753,13 @@ class DatabaseService {
                 `INSERT OR IGNORE INTO crm_campaign_contacts (campaign_id, owner_zalo_id, contact_id, display_name, avatar, phone, status, sent_at, retry_count, error) VALUES (?,?,?,?,?,?,'pending',0,0,'')`
             );
 
-            // Dùng transaction để đảm bảo tính nguyên vẹn (atomicity) và tăng hiệu năng
-            // (~50x nhanh hơn so với nhiều implicit transaction riêng lẻ)
             this.transaction(() => {
                 for (const c of contacts) {
-                    if (existingIds.has(c.contactId)) {
+                    if (!c) continue;
+                    const cid = String(c.contactId || c.contact_id || c.id || c.uid || c.phone || '').trim();
+                    if (!cid) continue;
+
+                    if (existingIds.has(cid)) {
                         continue;
                     }
 
@@ -5765,8 +5769,12 @@ class DatabaseService {
                         continue;
                     }
 
-                    stmt.run(campaignId, ownerZaloId, c.contactId, c.displayName || '', c.avatar || '', c.phone || '');
-                    existingIds.add(c.contactId);
+                    const dName = String(c.displayName || c.display_name || c.name || c.full_name || cid).trim();
+                    const avt = String(c.avatar || c.avatar_url || c.avatarUrl || '').trim();
+                    const ph = String(c.phone || c.phone_number || '').trim();
+
+                    stmt.run(numCampaignId, ownerZaloId, cid, dName, avt, ph);
+                    existingIds.add(cid);
                     availableSlots--;
                     addedCount++;
                 }

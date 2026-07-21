@@ -1643,7 +1643,8 @@ Yiêu cầu quan trọng:
                 </div>
               )}
 
-              {/* Auto-Nurture Pipeline Chaining */}
+              {/* Auto-Nurture Pipeline Chaining (Tạm thời disable theo yêu cầu) */}
+              {false && (
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/60 rounded-xl p-3 flex flex-col gap-2.5 shadow-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 rounded-md bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-xs font-bold">
@@ -1725,6 +1726,7 @@ Yiêu cầu quan trọng:
                   </div>
                 </div>
               </div>
+              )}
             </div>
 
             <LivePreview
