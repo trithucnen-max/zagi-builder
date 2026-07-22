@@ -505,24 +505,9 @@ class CRMQueueService {
                         }
                     }
 
-                    const attachments: any[] = [];
-                    for (const filePath of resolvedPaths) {
-                        try {
-                            const buffer = fs.readFileSync(filePath);
-                            const baseName = path.basename(filePath);
-                            const ext = path.extname(baseName) || '.jpg';
-                            const safeFilename = (path.extname(baseName) ? baseName : `${baseName}${ext}`) as `${string}.${string}`;
-                            let width = 0, height = 0;
-                            try { const dim = imageSize(buffer); width = dim.width ?? 0; height = dim.height ?? 0; } catch {}
-                            attachments.push({ data: buffer, filename: safeFilename, metadata: { totalSize: buffer.length, width, height } });
-                        } catch (readErr: any) {
-                            Logger.error(`[CRMQueue] Image read failed: ${filePath} → ${readErr.message}`);
-                            throw new Error(`Không đọc được ảnh: ${filePath} — ${readErr.message}`);
-                        }
-                    }
-                    if (attachments.length > 0) {
-                        // Gửi cả text và ảnh trong 1 tin nhắn duy nhất để vượt qua giới hạn chặn người lạ của Zalo (chỉ được gửi tối đa 1 tin nhắn)
-                        const resp = await (conn.api as any).sendMessage({ msg: text, attachments }, threadId, threadType);
+                    if (resolvedPaths.length > 0) {
+                        // Gửi cả text và file/ảnh đính kèm (dưới dạng đường dẫn chuỗi trực tiếp) trong 1 tin nhắn
+                        const resp = await (conn.api as any).sendMessage({ msg: text, attachments: resolvedPaths }, threadId, threadType);
                         responses.push(resp);
                     }
                 } else {
