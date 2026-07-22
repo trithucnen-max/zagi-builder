@@ -5704,21 +5704,13 @@ async function sendOneForward(
   // Zalo path
   if (channel === 'zalo' || !channel) {
     const isTempId = String(msg.msg_id).startsWith('temp_');
-    const canSendAsFile = isAttachment && Boolean(effectivePath);
 
-    if (canSendAsFile) {
-      if (isImage) {
-        await ipc.zalo?.sendImage({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType, message: '' });
-      } else {
-        // Send file, video, and voice messages using sendFile (safe E2EE attachment proxy fallback)
-        await ipc.zalo?.sendFile({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
-      }
-      if (composeText && composeText.trim()) {
-        await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
-      }
-      return;
-    }
-
+    // Ưu tiên forwardMessage API khi có msg_id thật.
+    // Lý do KHÔNG dùng canSendAsFile trước:
+    // - Boss: effectivePath có thể là CDN URL → ZaloService.sendImage() chỉ đọc từ disk, sẽ crash
+    // - Employee: localPath là đường dẫn trên máy Boss → không tồn tại trên máy employee,
+    //   uploadEmployeeMedia() sẽ cố fs.readFileSync trên path không hợp lệ → crash
+    // forwardMessage API dùng msg_id reference → Zalo server xử lý nội bộ, không cần file trên disk.
     if (!isTempId && msg.msg_id) {
       let forwardText = extractMsgText(msg);
       // Xóa placeholder "[Tin nhắn]" để Zalo API forward chính xác đối tượng reference.id mà không bị gửi đè văn bản "[Tin nhắn]"
@@ -5748,22 +5740,30 @@ async function sendOneForward(
       }
       return;
     }
+
+    // Fallback cho temp message (không có msg_id): chỉ dùng sendFile/sendImage
+    // với local file path thật (không phải CDN URL) để tránh ZaloService crash.
+    const localFileOnly = localPath && !localPath.startsWith('http');
+    if (isAttachment && localFileOnly) {
+      if (isImage) {
+        await ipc.zalo?.sendImage({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType, message: '' });
+      } else {
+        await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
+      }
+      if (composeText && composeText.trim()) {
+        await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
+      }
+      return;
+    }
   }
 
-  // Fallback Zalo path (for temp messages or local only)
-  if ((isFile || isVideo || isVoice) && effectivePath) {
-    await ipc.zalo?.sendFile({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
-  } else if (isImage && effectivePath) {
-    await ipc.zalo?.sendImage({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType, message: '' });
-  } else {
+  // Fallback cuối: temp message không có local file → gửi text nội dung
+  if (channel === 'zalo' || !channel) {
     let text = composeText || extractMsgText(msg);
     if (text === '[Tin nhắn]') text = '';
     if (text.trim()) {
       await ipc.zalo?.sendMessage({ auth, message: text, threadId: target.threadId, type: target.threadType });
     }
-  }
-  if (composeText && isAttachment && effectivePath) {
-    await ipc.zalo?.sendMessage({ auth, message: composeText, threadId: target.threadId, type: target.threadType });
   }
 }
 

@@ -617,7 +617,7 @@ export default function LibraryPickerModal({
         }
       } else {
         // Image hoặc File
-        const opts: any = { auth: auth || {}, zaloId, threadId, threadType };
+        const opts: any = { auth: auth || {}, zaloId, threadId, threadType, type: threadType };
         // Employee: fileUrl là full HTTP URL → dùng _libraryUuid để boss resolve path từ DB
         // Boss: fileUrl là relative path → dùng _localPath trực tiếp
         if (item.fileUrl && item.fileUrl.startsWith('http') && item.uuid) {
@@ -741,7 +741,7 @@ export default function LibraryPickerModal({
         if (imageItems.length === 1) {
           // 1 ảnh → sendImage như cũ
           const item = imageItems[0];
-          const opts: any = { auth: auth || {}, zaloId, threadId, threadType };
+          const opts: any = { auth: auth || {}, zaloId, threadId, threadType, type: threadType };
           if (item._localPath) {
             opts.filePath = item._localPath;
           } else {
