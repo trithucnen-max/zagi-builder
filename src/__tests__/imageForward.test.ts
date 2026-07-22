@@ -102,4 +102,10 @@ describe('ZaloService Safe Image Forwarding & Path Resolution', () => {
       zaloService.sendImage('/non/existent/path/image.jpg', '123456', 0 as any)
     ).rejects.toThrow('File does not exist on disk');
   });
+
+  it('should preserve HTTP and HTTPS URLs when calling FileStorageService.resolveAbsolutePath', () => {
+    const FileStorageService = require('../services/file/FileStorageService').default;
+    const url = 'https://s240-ava-talk.zadn.vn/photo.jpg';
+    expect(FileStorageService.resolveAbsolutePath(url)).toEqual(url);
+  });
 });

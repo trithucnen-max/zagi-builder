@@ -1690,9 +1690,10 @@ export default class ZaloService {
         if (!rawPath) throw new Error("Image path is empty");
         const cleanPath = this.stripFileProtocol(rawPath).trim();
 
-        // Check 1: If path is an HTTP/HTTPS URL
-        if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
-            const tempPath = await this.downloadUrlToTempFile(cleanPath);
+        // Check 1: If path contains an HTTP/HTTPS URL
+        const urlMatch = cleanPath.match(/https?:\/\/[^\s"']+/);
+        if (urlMatch) {
+            const tempPath = await this.downloadUrlToTempFile(urlMatch[0]);
             return { resolvedPath: tempPath, isTemp: true };
         }
 
@@ -1705,15 +1706,6 @@ export default class ZaloService {
         // Check 3: Check cleanPath directly on disk
         if (fs.existsSync(cleanPath)) {
             return { resolvedPath: cleanPath, isTemp: false };
-        }
-
-        // Check 4: If rawPath had file protocol or encoded URL
-        if (rawPath.includes('http://') || rawPath.includes('https://')) {
-            const urlMatch = rawPath.match(/https?:\/\/[^\s"']+/);
-            if (urlMatch) {
-                const tempPath = await this.downloadUrlToTempFile(urlMatch[0]);
-                return { resolvedPath: tempPath, isTemp: true };
-            }
         }
 
         throw new Error(`File does not exist on disk: ${cleanPath} (resolved: ${resolved})`);

@@ -84,10 +84,14 @@ class FileStorageService {
      */
     public static resolveAbsolutePath(relOrAbsPath: string): string {
         if (!relOrAbsPath) return '';
-        if (!path.isAbsolute(relOrAbsPath)) {
+        const trimmed = relOrAbsPath.trim();
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+            return trimmed;
+        }
+        if (!path.isAbsolute(trimmed)) {
             // Relative: "media/zaloId/date/img.jpg" → configFolder/media/zaloId/...
             const configFolder = path.dirname(this.getBaseDir());
-            return path.join(configFolder, relOrAbsPath);
+            return path.join(configFolder, trimmed);
         }
         // Absolute path — serve as-is if it exists
         if (fs.existsSync(relOrAbsPath)) return relOrAbsPath;
