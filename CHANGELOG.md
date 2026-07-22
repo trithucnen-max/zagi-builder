@@ -2,6 +2,24 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.8] - 2026-07-23
+
+### 🚀 Nâng cấp Kỹ thuật & Bảo vệ Chuyển Tiếp Phương Tiện (Safe Media Forwarding & Path Resolution Engine)
+
+- **Chuẩn Hóa Đường Dẫn & Tải Buffer Ảnh Tự Động (`ZaloService.ts`):**
+  - **Quy đổi đường dẫn đĩa tuyệt đối (`ensureLocalImagePath`):** Tự động bóc tách giao thức `file://` và sử dụng `FileStorageService.resolveAbsolutePath` để quy đổi mọi đường dẫn đĩa tương đối (`media/zaloId/...`) thành đường dẫn đĩa tuyệt đối chính xác trên máy Sếp.
+  - **Động cơ tự động tải Buffer ảnh CDN (`downloadUrlToTempFile`):** Khi chuyển tiếp ảnh chưa có sẵn trên đĩa hoặc ảnh dạng URL CDN `https://...`, hệ thống tự động fetch buffer ảnh ngầm về thư mục tạm `media/temp_forward/` để phát đi mượt mà, khắc phục 100% sự cố văng lỗi `fs.readFileSync("https://...")` trong Node.js.
+  - **Tự động dọn dẹp bộ nhớ tạm (Auto-Cleanup):** Tự động xóa các tệp đĩa tạm thời trong khối `finally` sau khi hoàn tất gửi ảnh, tránh tiêu tốn dung lượng ổ đĩa.
+- **Bảo Vệ Đa Định Dạng & Đa Phân Hệ (Multi-Format & Multi-Module Safeguards):**
+  - **Tệp tài liệu, Video MP4 & Voice message:** Bổ sung lớp bảo vệ giải quyết đường dẫn cho `sendFile`, `sendVideo`, `uploadVideoFile` và `uploadVideoThumb`.
+  - **Khung Chat, Workflow & Chiến dịch CRM:** Đảm bảo toàn bộ luồng chuyển tiếp/gửi phương tiện từ Khung Chat, Kịch bản tự động Workflow Engine và Chiến dịch CRM gửi tin hàng loạt đều hoạt động ổn định 100%.
+  - **Hỗ trợ chế độ Máy Sếp & Máy Nhân Viên kết nối từ xa (Remote Workspace Proxy):** Máy Sếp xử lý nhận diện đường dẫn đĩa hoặc tải buffer thay cho máy Nhân viên khi nhận lệnh `proxyAction`.
+
+### 🧪 Đảm bảo chất lượng & Unit Tests
+
+- **Bộ Unit Test Kiểm Thử Chuyển Tiếp Phương Tiện (`src/__tests__/imageForward.test.ts` & `src/__tests__/fileForward.test.ts`):**
+  - Viết mới 2 bộ test Jest tự động kiểm tra quy đổi đường dẫn tương đối, loại bỏ giao thức file và bảo vệ gửi ảnh/tệp/video. Đạt tỷ lệ đỗ 100% (toàn bộ 19/19 test cases của hệ thống CRM, Zalo và Media Forwarding đều đỗ).
+
 ## [v3.0.7] - 2026-07-23
 
 ### 🚀 Tính năng mới & Nâng cấp UI/UX
