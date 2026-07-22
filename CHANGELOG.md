@@ -6,6 +6,15 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ### 🚀 Tính năng mới & Nâng cấp UI/UX
 
+- **Khắc Phục Lỗi Gửi Tệp Tài Liệu & Video (PDF, DOC, DOCX, XLS, MP4...) Trong Chat, Workflow & CRM (`ZaloService.ts`, `CRMQueueService.ts` & `zca-js`):**
+  - **Tự động ánh xạ đường dẫn tuyệt đối cho tệp:** Cập nhật `ZaloService.ts` tự động kiểm tra `message.attachments` để chuẩn hóa đường dẫn tuyệt đối bằng `FileStorageService.resolveAbsolutePath`, khắc phục hoàn toàn lỗi `File not found` khi truyền đường dẫn kiểu `local-media://` hoặc tương đối.
+  - **Tích hợp Fallback Timeout 8 giây cho `uploadAttachment` (`zca-js`):** Thêm cơ chế tự động giải phóng Promise sau 8s nếu phản hồi WebSocket `file_done` của Zalo bị đứt đoạn hoặc phản hồi chậm. Tệp PDF, DOCX, Video MP4 tự động dùng dữ liệu HTTP POST để phát tin nhắn thành công, loại bỏ 100% hiện tượng treo tệp.
+  - **Đồng bộ đường dẫn chuỗi cho Chiến dịch CRM (`CRMQueueService.ts`):** Chuyển đổi đính kèm tệp trong CRM từ Buffer sang mảng đường dẫn chuỗi đĩa trực tiếp (`resolvedPaths`), giúp phát tệp PDF và Video MP4 tới hàng ngàn khách hàng trong chiến dịch CRM mượt mà và ổn định.
+
+- **Khóa Bảo Vệ Workflow Đã Tắt & Sửa Lỗi Toggle REST API (`WorkflowEngineService.ts` & `HttpRelayService.ts`):**
+  - **Sửa bóc tách Boolean khi Toggle Workflow:** Sửa lỗi bóc tách `params.enabled` trên REST API `/api/command/workflows/:id/toggle` (xử lý chính xác các dạng `"false"`, `0`, `false`), tự động lưu SQLite và gọi `WorkflowEngineService.reloadWorkflow(id)`.
+  - **Khóa bảo vệ tức thì tại Engine (`!wf.enabled` Guard):** Thêm lớp guard kiểm tra `!wf.enabled` ngay đầu phương thức `executeWorkflow`, đảm bảo các kịch bản tự động đã tắt sẽ tuyệt đối không bị kích hoạt ngoài ý muốn khi gán nhãn hoặc nhận tin nhắn.
+
 - **Nâng Cấp Gửi Tin Nhắn Gộp & Phân Định Nguồn Media Boss / Nhân Viên Đồng Bộ Trên Chat & Workflow (`LibraryPickerModal.tsx` & `UnifiedMediaPicker.tsx`):**
   - **Thống nhất 1 Kho Thư viện Media CSDL Boss:** Thư viện Media mục Chat và Workflow dùng chung 1 kho dữ liệu media duy nhất.
   - **Chuẩn hóa nhãn nút bấm ngắn gọn:** Đổi tên các nút chọn phương tiện trên tất cả phân hệ thành **`🖥️ Từ máy tính`** và **`📂 Từ Thư viện`**.

@@ -29,7 +29,7 @@ PHẦN 3: TÍNH NĂNG CỐT LÕI
 Chín nhóm tính năng nổi bật: đa tài khoản Zalo & Facebook; quản lý hội thoại tập trung; CRM khách hàng; Workflow tự động hóa; Trợ lý AI; kết nối POS/thanh toán/vận chuyển; ERP quản trị nội bộ; cài đặt nhân viên & workspace; báo cáo thống kê.
 ###
 3.1. Yêu cầu hệ thống (bot cần thuộc để trả lời nhanh)
-Windows 10/11 (64-bit) hoặc macOS, đề xuất chạy trên PC/máy chủ ổn định. RAM tối thiểu 4 GB, đề xuất 8 GB trở lên. Cần Internet ổn định để đồng bộ tin nhắn theo thời gian thực. Nên chạy 24/7 để nhận tin nhắn và để workflow/tự động hóa hoạt động liên tục.
+Windows 10/11 (64-bit) hoặc macOS, đề xuất chạy trên PC/máy chủ ổn định. (Lưu ý đối với người dùng Windows 7: Do Microsoft và Chromium chính thức dừng hỗ trợ Win 7 từ 2023, các máy Windows 7 truy cập Zagi qua Trình duyệt Web `http://<IP_MÁY_BOSS>:27799` để sử dụng mượt mà 100% các tính năng mà không cần cài ứng dụng Desktop `.exe`). RAM tối thiểu 4 GB, đề xuất 8 GB trở lên. Cần Internet ổn định để đồng bộ tin nhắn theo thời gian thực. Nên chạy 24/7 để nhận tin nhắn và để workflow/tự động hóa hoạt động liên tục.
 ###
 3.2. Đa tài khoản
 Zagi cho phép đăng nhập và quản lý không giới hạn tài khoản Zalo và Facebook trong một giao diện, mỗi tài khoản hoạt động độc lập.

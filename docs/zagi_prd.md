@@ -417,9 +417,16 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 *   **Tính năng mới (New):**
     *   Cho phép chọn nhãn local hoặc Zalo trực tiếp trong `AddToContactsModal` ngay khi vừa mở lên (giao đoạn nhập SĐT).
     *   Tích hợp tùy chọn Xóa liên hệ đã chọn vào danh sách tác vụ Khác trên thanh BulkActionBar hành động nổi dưới màn hình.
-*   **Cải tiến (Improved):**
-    *   Đồng bộ hóa màu nền và màu hover của nút Xác nhận Import (CSV) và nút Thêm liên hệ (SĐT) sang tông màu xanh dương thương hiệu.
-    *   Lược bỏ nút xóa hàng loạt ở menu Thao tác cũ để tối giản hóa giao diện.
+#### 🚀 v3.0.5 — Hoàn Thiện Gửi File Đa Định Dạng (PDF, DOCX, Video MP4), Khóa Bảo Vệ Workflow & Tương Thích Windows 7
+*   **Khắc phục & Tối ưu hóa gửi File (Fixed & Improved):**
+    *   Tự động chuẩn hóa đường dẫn tuyệt đối cho tệp đính kèm (`FileStorageService.resolveAbsolutePath`), khắc phục lỗi `File not found` khi gửi qua Chat và Workflow.
+    *   Tích hợp cơ chế Fallback Timeout 8 giây cho `uploadAttachment` (`zca-js`), đảm bảo tệp PDF, DOCX, Video MP4 không bao giờ bị treo khi phản hồi WebSocket Zalo bị đứt đoạn.
+    *   Chuẩn hóa truyền đường dẫn đĩa trực tiếp (`resolvedPaths`) trong `CRMQueueService`, giúp chiến dịch CRM gửi tệp PDF và Video MP4 tới hàng ngàn khách hàng mượt mà.
+*   **Bảo vệ Workflow & REST API (Fixed):**
+    *   Thêm khóa guard `!wf.enabled` ngay tại đầu nhân `executeWorkflow`, ngăn chặn 100% các Workflow đã tắt tự động chạy lại ngoài ý muốn.
+    *   Sửa lỗi bóc tách Boolean trên REST API `/api/command/workflows/:id/toggle` và tự động lưu đĩa SQLite + reload Engine memory.
+*   **Hướng dẫn tương thích Windows 7:**
+    *   Bổ sung chỉ dẫn máy Windows 7 truy cập Zagi qua Trình duyệt Web `http://<IP_MÁY_BOSS>:27799` để sử dụng đầy đủ tính năng mà không bị rào cản từ việc Microsoft/Chromium ngưng hỗ trợ Win 7.
 
 #### 👥 v27.1.3 — Quản lý nhóm, Rời nhóm hàng loạt & AI Farewell
 *   **Tính năng mới (New):**
