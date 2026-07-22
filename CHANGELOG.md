@@ -2,7 +2,7 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.0.8] - 2026-07-23
+## [v3.0.5] - 2026-07-23
 
 ### 🚀 Nâng cấp Kỹ thuật & Bảo vệ Chuyển Tiếp Phương Tiện (Safe Media Forwarding & Path Resolution Engine)
 
@@ -15,14 +15,7 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - **Khung Chat, Workflow & Chiến dịch CRM:** Đảm bảo toàn bộ luồng chuyển tiếp/gửi phương tiện từ Khung Chat, Kịch bản tự động Workflow Engine và Chiến dịch CRM gửi tin hàng loạt đều hoạt động ổn định 100%.
   - **Hỗ trợ chế độ Máy Sếp & Máy Nhân Viên kết nối từ xa (Remote Workspace Proxy):** Máy Sếp xử lý nhận diện đường dẫn đĩa hoặc tải buffer thay cho máy Nhân viên khi nhận lệnh `proxyAction`.
 
-### 🧪 Đảm bảo chất lượng & Unit Tests
-
-- **Bộ Unit Test Kiểm Thử Chuyển Tiếp Phương Tiện (`src/__tests__/imageForward.test.ts` & `src/__tests__/fileForward.test.ts`):**
-  - Viết mới 2 bộ test Jest tự động kiểm tra quy đổi đường dẫn tương đối, loại bỏ giao thức file và bảo vệ gửi ảnh/tệp/video. Đạt tỷ lệ đỗ 100% (toàn bộ 19/19 test cases của hệ thống CRM, Zalo và Media Forwarding đều đỗ).
-
-## [v3.0.7] - 2026-07-23
-
-### 🚀 Tính năng mới & Nâng cấp UI/UX
+### 🚀 Nâng cấp UI/UX & Cô Lập Bộ Lọc Tài Khoản CRM
 
 - **Tùy Chọn Cột Hiển Thị CRM Ẩn Mặc Định (CRM Column Visibility Selector - `CRMContactList.tsx`):**
   - **Ẩn mặc định 3 cột không cần thiết:** Tự động ẩn 3 trường `Tên Zalo`, `Trợ lý AI`, `Tự động tổng hợp` khi mở danh sách Liên hệ CRM, giúp giao diện tập trung và gọn gàng.
@@ -30,36 +23,20 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - **Lưu thiết lập cá nhân (`localStorage`):** Lựa chọn ẩn/hiện cột được tự động lưu vào `crm_column_visibility` và giữ nguyên qua các phiên làm việc.
 
 - **Cô Lập Bộ Lọc & Trạng Thái Chọn 100% Theo Tài Khoản Zalo (100% Account Isolation & Filter Reset - `CRMPage.tsx` & `DatabaseService.ts`):**
-  - **Tách biệt tuyệt đối bộ lọc từng Zalo:** Mỗi khi nhân viên bấm chuyển đổi tài khoản Zalo trên TopBar (`activeAccountId` thay đổi), ứng dụng tự động làm sạch 100%:
-    - 🧹 Clear nhãn Local & Zalo Cloud (`filterLabelIds`, `filterLocalLabelIds`)
-    - 🧹 Clear từ khóa tìm kiếm (`searchText`)
-    - 🧹 Clear các bộ lọc phân loại: `filterContactTypes`, `filterGender`, `filterBirthday`, `filterSalutation`
-    - 🧹 Reset phân trang về 0 (`page`)
-    - 🛡️ **Bảo vệ an toàn thao tác hàng loạt:** Reset 100% danh sách UID đang tích chọn (`selectedContactIds`) và đóng drawer chi tiết khách hàng cũ (`activeContactId`), ngăn chặn triệt để nguy cơ gán nhãn hay thêm nhầm liên hệ giữa các tài khoản Zalo.
+  - **Tách biệt tuyệt đối bộ lọc từng Zalo:** Mỗi khi nhân viên bấm chuyển đổi tài khoản Zalo trên TopBar (`activeAccountId` thay đổi), ứng dụng tự động làm sạch 100% bộ lọc và lựa chọn liên hệ, ngăn chặn triệt để nguy cơ gán nhãn hay thêm nhầm liên hệ giữa các tài khoản Zalo.
   - **Lọc nhãn Local theo tên tương đương:** Nâng cấp `DatabaseService.ts` hỗ trợ tự động mở rộng truy vấn nhãn Local theo tên tương đương đối với từng tài khoản Zalo.
+
+### 🚀 Đặt Tên Theo Quy Tắc Chiến Dịch & Tự Động Đồng Bộ Tên Gợi Nhớ
+
+- **Tùy chọn Đặt tên theo Chiến dịch:** Bổ sung checkbox `☑ Cập nhật tên gợi nhớ Zalo & CRM theo quy tắc chiến dịch` (mặc định chọn). Tự động chuẩn hóa tên gợi nhớ Zalo & CRM theo công thức `[Tên lô] - [Tên Zalo khách] - [SĐT]` (Ví dụ: `VIN - Tùng Nguyễn Novaland - 0777778878`). Đồng thời gọi API `changeFriendAlias` của Zalo Server để cập nhật tên gợi nhớ ngay trên điện thoại & Zalo PC cho cả người lạ và bạn bè.
+- **Động cơ Auto-Backfill Tên Cho SĐT Đã Quét (`DatabaseService.ts`):** Tự động rà soát toàn bộ các SĐT `Tìm thấy` thuộc các lô quét và điền tên biệt danh CRM chuẩn theo SĐT và UID khi mở ứng dụng.
 
 ### 🧪 Đảm bảo chất lượng & Unit Tests
 
-- **Bộ Unit Test Kiểm Thử Cô Lập Tài Khoản (`src/__tests__/accountIsolation.test.ts`):**
-  - Viết mới bộ test Jest tự động kiểm tra cơ chế cô lập và làm sạch bộ lọc/selection khi switch tài khoản Zalo. Đạt tỷ lệ thành công 100% (14/14 test cases toàn hệ thống CRM đều đỗ).
+- **Bộ Unit Test Toàn Diện (19/19 Test Cases Đỗ 100%):**
+  - Viết mới các bộ test Jest tự động kiểm tra cô lập bộ lọc tài khoản CRM (`accountIsolation.test.ts`), chuyển tiếp ảnh (`imageForward.test.ts`), và bảo vệ gửi file/video (`fileForward.test.ts`).
 
-## [v3.0.6] - 2026-07-23
-
-### 🚀 Tính năng mới & Nâng cấp
-
-- **Đặt Tên Theo Quy Tắc Chiến Dịch & Tự Động Đồng Bộ Tên Gợi Nhớ (Bulk Phone Scan Campaign Naming & Auto-Backfill):**
-  - **Tùy chọn Đặt tên theo Chiến dịch:** Bổ sung checkbox `☑ Cập nhật tên gợi nhớ Zalo & CRM theo quy tắc chiến dịch` (mặc định chọn). Tự động chuẩn hóa tên gợi nhớ Zalo & CRM theo công thức `[Tên lô] - [Tên Zalo khách] - [SĐT]` (Ví dụ: `VIN - Tùng Nguyễn Novaland - 0777778878`). Đồng thời gọi API `changeFriendAlias` của Zalo Server để cập nhật tên gợi nhớ ngay trên điện thoại & Zalo PC cho cả người lạ và bạn bè.
-  - **Động cơ Auto-Backfill Tên Cho SĐT Đã Quét (`DatabaseService.ts`):** Tự động rà soát toàn bộ các SĐT `Tìm thấy` thuộc các lô quét và điền tên biệt danh CRM chuẩn theo SĐT và UID khi mở ứng dụng.
-
-### 🧹 Cải tiến & Sửa lỗi
-
-- **Gỡ bỏ Nhãn Gán Cứng `Zalo Active` (`PhoneScanService.ts`):**
-  - Loại bỏ hoàn toàn logic tự động tạo và ép dán nhãn `Zalo Active` trong luồng quét SĐT hàng loạt, đảm bảo chỉ gán đúng các nhãn do người dùng chọn khi tạo lô quét.
-- **Sửa Lỗi Khóa Tham Số Electron IPC & Lệch Alias CRM (`crmIpc.ts` & `DatabaseService.ts`):**
-  - Bổ sung tham số `updateZaloAlias` trong Electron IPC handler `crm:createPhoneScanBatch`.
-  - Nâng cấp SQL trong `getCRMContacts` bổ sung subquery fallback cho `alias`, khắc phục lỗi biệt danh rỗng khi hiển thị danh bạ giữa các tài khoản.
-
-## [v3.0.5] - 2026-07-22
+---
 
 ### 🚀 Tính năng mới & Nâng cấp UI/UX
 
