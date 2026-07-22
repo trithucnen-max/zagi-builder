@@ -224,11 +224,10 @@ export default class ZaloService {
             if (typeof message === 'string') {
                 messageContent = {msg: message};
             } else {
-                if (typeMessage == 'file') {
+                if (typeMessage === 'file' || (message && typeof message === 'object' && Array.isArray((message as any).attachments) && (message as any).attachments.length > 0)) {
                     if (!message?.attachments || message?.attachments.length === 0) {
                         throw new Error("No attachments provided for file type message");
                     }
-
 
                     filesPath = await this.handleDownloadAttachments(message.attachments);
 
@@ -1734,7 +1733,7 @@ export default class ZaloService {
         if (!this.api) throw new Error("API not initialized");
         try {
             const content: MessageContent = { msg: '', attachments: [filePath] };
-            return await this.sendMessage(content as any, threadId, type, null, quote);
+            return await this.sendMessage(content as any, threadId, type, 'file', quote);
         } catch (error: any) {
             throw new Error('sendFile error: ' + error.message);
         }
