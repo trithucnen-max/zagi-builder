@@ -2,6 +2,29 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.7] - 2026-07-23
+
+### 🚀 Tính năng mới & Nâng cấp UI/UX
+
+- **Tùy Chọn Cột Hiển Thị CRM Ẩn Mặc Định (CRM Column Visibility Selector - `CRMContactList.tsx`):**
+  - **Ẩn mặc định 3 cột không cần thiết:** Tự động ẩn 3 trường `Tên Zalo`, `Trợ lý AI`, `Tự động tổng hợp` khi mở danh sách Liên hệ CRM, giúp giao diện tập trung và gọn gàng.
+  - **Menu Popover `👁️ Cột hiển thị`:** Thêm bộ chọn cột hiển thị linh hoạt trên thanh công cụ CRM. Người dùng có thể tự do bật/tắt hiển thị từng cột (Biệt danh CRM, Tên Zalo, Giới tính, Xưng hô, Sinh nhật, SĐT, Trợ lý AI, Tự động tổng hợp) hoặc bấm **"Đặt lại mặc định"**.
+  - **Lưu thiết lập cá nhân (`localStorage`):** Lựa chọn ẩn/hiện cột được tự động lưu vào `crm_column_visibility` và giữ nguyên qua các phiên làm việc.
+
+- **Cô Lập Bộ Lọc & Trạng Thái Chọn 100% Theo Tài Khoản Zalo (100% Account Isolation & Filter Reset - `CRMPage.tsx` & `DatabaseService.ts`):**
+  - **Tách biệt tuyệt đối bộ lọc từng Zalo:** Mỗi khi nhân viên bấm chuyển đổi tài khoản Zalo trên TopBar (`activeAccountId` thay đổi), ứng dụng tự động làm sạch 100%:
+    - 🧹 Clear nhãn Local & Zalo Cloud (`filterLabelIds`, `filterLocalLabelIds`)
+    - 🧹 Clear từ khóa tìm kiếm (`searchText`)
+    - 🧹 Clear các bộ lọc phân loại: `filterContactTypes`, `filterGender`, `filterBirthday`, `filterSalutation`
+    - 🧹 Reset phân trang về 0 (`page`)
+    - 🛡️ **Bảo vệ an toàn thao tác hàng loạt:** Reset 100% danh sách UID đang tích chọn (`selectedContactIds`) và đóng drawer chi tiết khách hàng cũ (`activeContactId`), ngăn chặn triệt để nguy cơ gán nhãn hay thêm nhầm liên hệ giữa các tài khoản Zalo.
+  - **Lọc nhãn Local theo tên tương đương:** Nâng cấp `DatabaseService.ts` hỗ trợ tự động mở rộng truy vấn nhãn Local theo tên tương đương đối với từng tài khoản Zalo.
+
+### 🧪 Đảm bảo chất lượng & Unit Tests
+
+- **Bộ Unit Test Kiểm Thử Cô Lập Tài Khoản (`src/__tests__/accountIsolation.test.ts`):**
+  - Viết mới bộ test Jest tự động kiểm tra cơ chế cô lập và làm sạch bộ lọc/selection khi switch tài khoản Zalo. Đạt tỷ lệ thành công 100% (14/14 test cases toàn hệ thống CRM đều đỗ).
+
 ## [v3.0.6] - 2026-07-23
 
 ### 🚀 Tính năng mới & Nâng cấp
