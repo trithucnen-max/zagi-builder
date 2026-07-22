@@ -5634,14 +5634,28 @@ function extractMsgText(msg: any): string {
   try {
     const c = msg.content;
     if (!c || c === 'null') return '[Tin nhắn]';
-    const parsed = JSON.parse(c);
+    const parsed = typeof c === 'string' ? JSON.parse(c) : c;
     if (typeof parsed === 'string') return parsed;
     if (parsed?.msg && typeof parsed.msg === 'string') return parsed.msg;
     if (parsed?.message && typeof parsed.message === 'string') return parsed.message;
     if (parsed?.content && typeof parsed.content === 'string') return parsed.content;
+    if (parsed?.description && typeof parsed.description === 'string') return parsed.description;
     if (parsed?.title) return `📂 ${parsed.title}`;
     return '[Tin nhắn]';
-  } catch { return msg.content || '[Tin nhắn]'; }
+  } catch { return (typeof msg.content === 'string' ? msg.content : '') || '[Tin nhắn]'; }
+}
+
+/** Trích xuất URL hình ảnh/tệp từ msg.content khi localPath không tồn tại trên máy nhân viên */
+function extractImageUrl(msg: any): string {
+  try {
+    const c = msg.content;
+    if (!c || c === 'null') return '';
+    const parsed = typeof c === 'string' ? JSON.parse(c) : c;
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed.href || parsed.hdUrl || parsed.url || parsed.hd || parsed.thumb || parsed.normalUrl || '';
+    }
+  } catch {}
+  return '';
 }
 
 /** Gửi 1 tin nhắn đến 1 target — dùng trong forward loop */
@@ -5663,18 +5677,25 @@ async function sendOneForward(
     }
   } catch {}
 
+  const isAttachment = isFile || isVideo || isImage || isVoice;
+  const mediaUrl = isAttachment ? extractImageUrl(msg) : '';
+  const effectivePath = localPath || mediaUrl;
+
   if (channel === 'facebook' && accountId) {
-    if ((isFile || isVideo || isImage || isVoice) && localPath) {
+    if (isAttachment && effectivePath) {
       let fileType: 'image' | 'video' | 'audio' | 'file' = 'file';
       if (isImage) fileType = 'image';
       else if (isVideo) fileType = 'video';
       else if (isVoice) fileType = 'audio';
-      await channelIpc.sendAttachment('facebook', { accountId, threadId: target.threadId, filePath: localPath, threadType: target.threadType, fileType });
+      await channelIpc.sendAttachment('facebook', { accountId, threadId: target.threadId, filePath: effectivePath, threadType: target.threadType, fileType });
     } else {
-      const text = composeText || extractMsgText(msg);
-      await channelIpc.sendMessage('facebook', { accountId, threadId: target.threadId, body: text, threadType: target.threadType });
+      let text = composeText || extractMsgText(msg);
+      if (text === '[Tin nhắn]') text = '';
+      if (text.trim()) {
+        await channelIpc.sendMessage('facebook', { accountId, threadId: target.threadId, body: text, threadType: target.threadType });
+      }
     }
-    if (composeText && (isFile || isVideo || isImage || isVoice) && localPath) {
+    if (composeText && isAttachment && effectivePath) {
       await channelIpc.sendMessage('facebook', { accountId, threadId: target.threadId, body: composeText, threadType: target.threadType });
     }
     return;
@@ -5683,23 +5704,14 @@ async function sendOneForward(
   // Zalo path
   if (channel === 'zalo' || !channel) {
     const isTempId = String(msg.msg_id).startsWith('temp_');
-    const isAttachment = isFile || isVideo || isImage || isVoice;
-    let fileExists = false;
-    if (isAttachment && localPath) {
-      try {
-        fileExists = await ipc.file?.exists?.(localPath) ?? false;
-      } catch {}
-    }
-
-    const isEmployee = useEmployeeStore.getState().mode === 'employee';
-    const canSendAsFile = isAttachment && localPath && (isEmployee || fileExists);
+    const canSendAsFile = isAttachment && Boolean(effectivePath);
 
     if (canSendAsFile) {
       if (isImage) {
-        await ipc.zalo?.sendImage({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType, message: '' });
+        await ipc.zalo?.sendImage({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType, message: '' });
       } else {
         // Send file, video, and voice messages using sendFile (safe E2EE attachment proxy fallback)
-        await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
+        await ipc.zalo?.sendFile({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
       }
       if (composeText && composeText.trim()) {
         await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
@@ -5708,8 +5720,13 @@ async function sendOneForward(
     }
 
     if (!isTempId && msg.msg_id) {
+      let forwardText = extractMsgText(msg);
+      // Xóa placeholder "[Tin nhắn]" để Zalo API forward chính xác đối tượng reference.id mà không bị gửi đè văn bản "[Tin nhắn]"
+      if (isAttachment || forwardText === '[Tin nhắn]') {
+        forwardText = '';
+      }
       const payload = {
-        message: extractMsgText(msg),
+        message: forwardText,
         reference: {
           id: String(msg.msg_id),
           ts: Number(msg.timestamp || Date.now()),
@@ -5734,15 +5751,18 @@ async function sendOneForward(
   }
 
   // Fallback Zalo path (for temp messages or local only)
-  if ((isFile || isVideo || isVoice) && localPath) {
-    await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
-  } else if (isImage && localPath) {
-    await ipc.zalo?.sendImage({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType, message: '' });
+  if ((isFile || isVideo || isVoice) && effectivePath) {
+    await ipc.zalo?.sendFile({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
+  } else if (isImage && effectivePath) {
+    await ipc.zalo?.sendImage({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType, message: '' });
   } else {
-    const text = composeText || extractMsgText(msg);
-    await ipc.zalo?.sendMessage({ auth, message: text, threadId: target.threadId, type: target.threadType });
+    let text = composeText || extractMsgText(msg);
+    if (text === '[Tin nhắn]') text = '';
+    if (text.trim()) {
+      await ipc.zalo?.sendMessage({ auth, message: text, threadId: target.threadId, type: target.threadType });
+    }
   }
-  if (composeText && (isFile || isVideo || isImage || isVoice) && localPath) {
+  if (composeText && isAttachment && effectivePath) {
     await ipc.zalo?.sendMessage({ auth, message: composeText, threadId: target.threadId, type: target.threadType });
   }
 }

@@ -1192,6 +1192,11 @@ class DatabaseService {
                 this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN auto_workflow_id INTEGER`);
                 Logger.log('[DatabaseService] ✅ Migration: added auto_workflow_id column to phone_scan_batches');
             }
+            const hasUpdateZaloAlias = cols.some((c: any) => c.name === 'update_zalo_alias');
+            if (!hasUpdateZaloAlias) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN update_zalo_alias INTEGER NOT NULL DEFAULT 1`);
+                Logger.log('[DatabaseService] ✅ Migration: added update_zalo_alias column to phone_scan_batches');
+            }
 
             const contactCols = this.query<any>('PRAGMA table_info(contacts)');
             const hasIsBlocked = contactCols.some((c: any) => c.name === 'is_blocked');
@@ -3280,9 +3285,16 @@ class DatabaseService {
      */
     public setContactAlias(ownerZaloId: string, contactId: string, alias: string): void {
         if (!this.initialized || !contactId) return;
+        const newAlias = alias || '';
+        if (ownerZaloId) {
+            this.run(
+                `UPDATE contacts SET alias=? WHERE owner_zalo_id=? AND contact_id=?`,
+                [newAlias, ownerZaloId, contactId]
+            );
+        }
         this.run(
-            `UPDATE contacts SET alias=? WHERE owner_zalo_id=? AND contact_id=?`,
-            [alias || '', ownerZaloId, contactId]
+            `UPDATE contacts SET alias=? WHERE contact_id=? AND (alias IS NULL OR alias = '' OR alias != ?)`,
+            [newAlias, contactId, newAlias]
         );
     }
 
@@ -6140,6 +6152,7 @@ class DatabaseService {
     } = {}): { contacts: any[]; total: number } {
         if (!this.initialized) return { contacts: [], total: 0 };
         try {
+            this.backfillPhoneScanAliases();
             const { search, tagIds, contactIds, isFriendOnly, contactType = 'all', contactTypes, isBlocked, sortBy = 'name', sortDir = 'asc', limit = 50, offset = 0 } = opts;
 
             let all: any[] = [];
@@ -6182,7 +6195,8 @@ class DatabaseService {
             } else {
                 // Build full list: friends + non-friend contacts (including groups)
                 const friends = this.query<any>(
-                    `SELECT f.user_id as contact_id, COALESCE(c.alias,'') as alias,
+                    `SELECT f.user_id as contact_id,
+                        COALESCE(NULLIF(c.alias,''), (SELECT alias FROM contacts WHERE contact_id = f.user_id AND alias IS NOT NULL AND alias != '' LIMIT 1), '') as alias,
                         COALESCE(c.display_name, f.display_name,'') as display_name,
                         COALESCE(c.avatar_url, f.avatar,'') as avatar,
                         COALESCE(c.phone, f.phone,'') as phone,
@@ -9027,9 +9041,54 @@ class DatabaseService {
 
     // ─── Zalo Bulk Phone Scan Methods ──────────────────────────────────────────
 
+    public backfillPhoneScanAliases(): void {
+        if (!this.initialized) return;
+        try {
+            const items = this.query<any>(`
+                SELECT psi.zalo_uid, psi.zalo_name, psi.phone, psi.phone_normalized, psi.scanned_by_account_id, psb.name as batch_name, psb.update_zalo_alias
+                FROM phone_scan_items psi
+                INNER JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                WHERE psi.status = 'found'
+            `);
+
+            let updatedCount = 0;
+            for (const item of items) {
+                const batchName = (item.batch_name || '').trim();
+                if (!batchName) continue;
+
+                const phoneDisplay = item.phone || item.phone_normalized || '';
+                const rawZaloName = (item.zalo_name && item.zalo_name !== phoneDisplay && item.zalo_name !== item.phone_normalized) ? item.zalo_name : 'Khách';
+                const formattedAlias = `${batchName} - ${rawZaloName} - ${phoneDisplay}`;
+                const zaloId = item.scanned_by_account_id || '';
+                const uid = item.zalo_uid || '';
+                const normPhone = this.normalizeVietnamPhone(phoneDisplay);
+
+                if (uid) {
+                    this.setContactAlias(zaloId, uid, formattedAlias);
+                }
+                if (normPhone) {
+                    this.run(
+                        `UPDATE contacts SET alias=? WHERE (phone=? OR phone=?) AND (alias IS NULL OR alias = '' OR alias != ?)`,
+                        [formattedAlias, normPhone, phoneDisplay, formattedAlias]
+                    );
+                }
+                if (zaloId || uid) {
+                    EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: zaloId, contactId: uid, alias: formattedAlias });
+                }
+                updatedCount++;
+            }
+            if (updatedCount > 0) {
+                this.save();
+            }
+        } catch (err: any) {
+            Logger.error(`[DB] backfillPhoneScanAliases: ${err.message}`);
+        }
+    }
+
     public getPhoneScanBatches(): any[] {
         if (!this.initialized) return [];
         try {
+            this.backfillPhoneScanAliases();
             return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY status = 'active' DESC, priority DESC, id DESC`);
         } catch (err: any) {
             Logger.error(`[DB] getPhoneScanBatches: ${err.message}`);
@@ -9076,6 +9135,7 @@ class DatabaseService {
         scheduledTime?: string;
         skipCrmExisting?: boolean;
         autoWorkflowId?: number | null;
+        updateZaloAlias?: boolean;
         phones: string[];
     }): number {
         if (!this.initialized) return -1;
@@ -9086,6 +9146,7 @@ class DatabaseService {
             const scheduledTime = params.scheduledTime || '';
             const skipCrmExisting = params.skipCrmExisting ? 1 : 0;
             const autoWorkflowId = params.autoWorkflowId ? Number(params.autoWorkflowId) : null;
+            const updateZaloAlias = params.updateZaloAlias !== false ? 1 : 0;
 
             // Start a manual transaction for safety
             this.run('BEGIN TRANSACTION');
@@ -9093,9 +9154,9 @@ class DatabaseService {
             // 1. Insert batch
             this.run(`
                 INSERT INTO phone_scan_batches 
-                (name, assigned_account_id, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [params.name, params.assignedAccountId, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, now]);
+                (name, assigned_account_id, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [params.name, params.assignedAccountId, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, now]);
 
             const batchId = this.queryOne<any>(`SELECT last_insert_rowid() as id`)?.id;
             if (!batchId) {

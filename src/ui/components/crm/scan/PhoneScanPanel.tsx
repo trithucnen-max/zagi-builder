@@ -68,6 +68,7 @@ export default function PhoneScanPanel() {
     const [formStatus, setFormStatus] = useState<'paused' | 'active'>('paused');
     const [formScheduledTime, setFormScheduledTime] = useState<string>('');
     const [formSkipCrmExisting, setFormSkipCrmExisting] = useState<boolean>(true);
+    const [formUpdateZaloAlias, setFormUpdateZaloAlias] = useState<boolean>(true);
     const [formAutoWorkflowId, setFormAutoWorkflowId] = useState<string>('');
     const [formPhonesText, setFormPhonesText] = useState('');
     const [formAutoTagIds, setFormAutoTagIds] = useState<number[]>([]);
@@ -316,6 +317,7 @@ export default function PhoneScanPanel() {
                 scheduledTime: formScheduledTime,
                 skipCrmExisting: formSkipCrmExisting,
                 autoWorkflowId: formAutoWorkflowId ? Number(formAutoWorkflowId) : null,
+                updateZaloAlias: formUpdateZaloAlias,
                 phones
             });
 
@@ -330,6 +332,7 @@ export default function PhoneScanPanel() {
                 setFormStatus('paused');
                 setFormScheduledTime('');
                 setFormSkipCrmExisting(true);
+                setFormUpdateZaloAlias(true);
                 setFormAutoWorkflowId('');
                 setFormPhonesText('');
                 setFormAutoTagIds([]);
@@ -1187,6 +1190,25 @@ export default function PhoneScanPanel() {
                                         />
                                         <label htmlFor="skipCrmExisting" className="text-xs font-medium text-gray-300 cursor-pointer select-none">
                                             Bỏ qua các SĐT đã tồn tại trong danh bạ CRM (Tiết kiệm hạn ngạch quét)
+                                        </label>
+                                    </div>
+
+                                    {/* Campaign Alias Option */}
+                                    <div className="flex items-start gap-2.5 p-3 bg-blue-955/30 border border-blue-800/40 rounded-xl">
+                                        <input
+                                            type="checkbox"
+                                            id="updateZaloAlias"
+                                            checked={formUpdateZaloAlias}
+                                            onChange={e => setFormUpdateZaloAlias(e.target.checked)}
+                                            className="mt-0.5 w-4 h-4 text-blue-600 rounded border-gray-700 focus:ring-blue-500 cursor-pointer"
+                                        />
+                                        <label htmlFor="updateZaloAlias" className="text-xs cursor-pointer select-none">
+                                            <span className="font-semibold text-gray-200 block">
+                                                Cập nhật tên gợi nhớ Zalo & CRM theo quy tắc chiến dịch
+                                            </span>
+                                            <span className="text-[11px] text-gray-400 block mt-0.5 leading-snug">
+                                                Định dạng: <code className="text-blue-400 font-mono font-bold">[Tên lô] - [Tên Zalo] - [SĐT]</code> (Đổi biệt danh hiển thị trực tiếp trên App Zalo điện thoại kể cả với Người Lạ)
+                                            </span>
                                         </label>
                                     </div>
 

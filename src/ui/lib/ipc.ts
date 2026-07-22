@@ -282,7 +282,7 @@ declare global {
         cancelScheduledMessage: (params: { id: string }) => Promise<{ success: boolean; error?: string }>;
         getPhoneScanBatches: () => Promise<{ success: boolean; batches?: any[]; error?: string }>;
         getPhoneScanItems: (params: { batchId: number; limit?: number; offset?: number; status?: string }) => Promise<{ success: boolean; items?: any[]; total?: number; error?: string }>;
-        createPhoneScanBatch: (params: { name: string; assignedAccountId: string | null; autoTagIds: number[]; dailyLimit: number; hourlyLimit: number; priority: number; status?: string; scheduledTime?: string; skipCrmExisting?: boolean; autoWorkflowId?: number | null; phones: string[] }) => Promise<{ success: boolean; batchId?: number; error?: string }>;
+        createPhoneScanBatch: (params: { name: string; assignedAccountId: string | null; autoTagIds: number[]; dailyLimit: number; hourlyLimit: number; priority: number; status?: string; scheduledTime?: string; skipCrmExisting?: boolean; autoWorkflowId?: number | null; updateZaloAlias?: boolean; phones: string[] }) => Promise<{ success: boolean; batchId?: number; error?: string }>;
         deletePhoneScanBatch: (params: { batchId: number }) => Promise<{ success: boolean; error?: string }>;
         updatePhoneScanBatchStatus: (params: { batchId: number; status: string }) => Promise<{ success: boolean; error?: string }>;
         startPhoneScanImmediate: () => Promise<{ success: boolean; error?: string }>;

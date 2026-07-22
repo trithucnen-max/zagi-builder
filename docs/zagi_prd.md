@@ -298,6 +298,16 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
     *   **Tối ưu hóa Toolbar chèn biến**: Giới hạn thanh công cụ chèn biến chỉ xuất hiện trên các trường nhập liệu văn bản tin nhắn (`textarea`, `multiline`).
     *   **Tối ưu hóa các biến chào CRM**: Đổi biến chào cũ sang định dạng Zalo-native lịch sự hơn là `{{ $item.salutation }} {{ $item.display_name }}`.
 
+#### 📱 v27.2.2 — Bulk Phone Scan Campaign Naming, Auto-Backfill Aliases & Tag Cleanups
+
+*   **Tính năng mới (New):**
+    *   **Đặt tên theo Chiến dịch trong Quét SĐT hàng loạt:** Tự động chuẩn hóa tên gợi nhớ Zalo & CRM theo công thức `[Tên lô] - [Tên Zalo khách] - [SĐT]` (Ví dụ: `VIN - Tùng Nguyễn Novaland - 0777778878`). Đồng thời đồng bộ trực tiếp tên mới lên Server Zalo qua API `changeFriendAlias` cho cả người lạ và bạn bè.
+    *   **Động cơ Tự động Đồng bộ lại Tên cho SĐT đã quét (Auto-Backfill Engine):** Bổ sung hàm `backfillPhoneScanAliases()` tự động rà soát, ghép tên và cập nhật biệt danh CRM dựa trên UID và Số điện thoại cho tất cả các số điện thoại đã tìm thấy trước đó ngay khi mở ứng dụng.
+*   **Cải tiến & Sửa lỗi (Improved & Fixed):**
+    *   **Gỡ bỏ nhãn gán cứng `Zalo Active`:** Loại bỏ hoàn toàn logic tự động tạo và ép dán nhãn `Zalo Active` trong luồng quét SĐT hàng loạt, đảm bảo chỉ gán đúng các nhãn do người dùng chủ động tích chọn khi tạo lô quét.
+    *   **Sửa lỗi Electron IPC Destructuring:** Bổ sung tham số `updateZaloAlias` vào IPC handler `crm:createPhoneScanBatch` trong `electron/ipc/crmIpc.ts`.
+    *   **Tối ưu SQL Truy vấn Danh bạ CRM:** Bổ sung subquery fallback cho `alias` trong `getCRMContacts` (`DatabaseService.ts`), khắc phục lỗi rỗng biệt danh khi xem danh bạ liên khoản.
+
 #### 📱 v27.2.1 — Zalo Group History Cleanup, Staff-to-Boss CRM Proxy Sync, Staff Webhooks Protection, System Light Theme Fix, Advanced Workflow CRM Filters & Preview Contacts Modal Sync, Staff Webhooks Protection, System Light Theme Fix, Advanced Workflow CRM Filters & Preview Contacts Modal
 
 *   **Tính năng mới (New):**

@@ -338,33 +338,40 @@ class PhoneScanService {
                 // Create/update CRM contact
                 db.updateContactProfile(zaloId, uid, name, avatar, phoneNormalized, 'user');
 
-                // Auto-tagging
+                // Update Zalo & CRM Alias based on Campaign/Batch rule if enabled
+                try {
+                    const batchInfo = db.queryOne<any>('SELECT name, update_zalo_alias FROM phone_scan_batches WHERE id = ?', [batchId]);
+                    const shouldUpdateAlias = !batchInfo || batchInfo.update_zalo_alias === undefined || batchInfo.update_zalo_alias === null || Number(batchInfo.update_zalo_alias) !== 0;
+                    if (shouldUpdateAlias && batchInfo?.name) {
+                        const batchName = batchInfo.name.trim();
+                        const phoneDisplay = phone || phoneNormalized;
+                        const rawZaloName = (name && name !== phoneDisplay && name !== phoneNormalized) ? name : 'Khách';
+                        const formattedAlias = `${batchName} - ${rawZaloName} - ${phoneDisplay}`;
+
+                        // 1. Update in local CRM DB
+                        db.setContactAlias(zaloId, uid, formattedAlias);
+                        EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: zaloId, contactId: uid, alias: formattedAlias });
+
+                        // 2. Sync to Zalo server (mobile/PC app)
+                        if (zaloService && typeof (zaloService as any).changeFriendAlias === 'function') {
+                            zaloService.changeFriendAlias(formattedAlias, uid)
+                                .then(() => {
+                                    Logger.log(`[PhoneScanService] ✅ Updated Zalo alias for ${uid} to "${formattedAlias}"`);
+                                })
+                                .catch(aliasErr => {
+                                    Logger.warn(`[PhoneScanService] ⚠️ Sync Zalo alias error for ${uid}: ${aliasErr.message}`);
+                                });
+                        }
+                    }
+                } catch (aliasErr: any) {
+                    Logger.error(`[PhoneScanService] Alias update error: ${aliasErr.message}`);
+                }
+
+                // Auto-tagging (only user-selected batch tags)
                 let tagIds: number[] = [];
                 try {
                     tagIds = JSON.parse(autoTagIdsStr || '[]');
                 } catch {}
-
-                let activeLabelId = -1;
-                try {
-                    const existingLabels = db.getLocalLabels(zaloId) || [];
-                    const activeLabel = existingLabels.find((l: any) => l.name === 'Zalo Active');
-                    if (activeLabel) {
-                        activeLabelId = activeLabel.id;
-                    } else {
-                        activeLabelId = db.upsertLocalLabel({
-                            name: 'Zalo Active',
-                            color: '#3B82F6',
-                            emoji: '✓',
-                            pageIds: zaloId
-                        });
-                    }
-                } catch (err: any) {
-                    Logger.error(`[PhoneScanService] Error ensuring Zalo Active label: ${err.message}`);
-                }
-
-                if (activeLabelId !== -1 && !tagIds.includes(activeLabelId)) {
-                    tagIds.push(activeLabelId);
-                }
 
                 for (const tagId of tagIds) {
                     try {
@@ -374,7 +381,9 @@ class PhoneScanService {
                     }
                 }
 
-                EventBroadcaster.emit('local-labels-changed', { zaloId });
+                if (tagIds.length > 0) {
+                    EventBroadcaster.emit('local-labels-changed', { zaloId });
+                }
 
                 // Auto-trigger workflow if configured on batch
                 try {
