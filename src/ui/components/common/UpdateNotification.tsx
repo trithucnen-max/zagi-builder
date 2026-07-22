@@ -16,7 +16,8 @@ export function UpdateNotification() {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const postponeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isLight = useAppStore(s => s.theme) === 'light';
+  const theme = useAppStore(s => s.resolvedTheme || (s.theme === 'light' ? 'light' : 'dark'));
+  const isLight = theme === 'light';
   const isMac = platform === 'darwin';
 
   // Bắt đầu đếm ngược khi đã tải xong

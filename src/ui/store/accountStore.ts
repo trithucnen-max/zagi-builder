@@ -52,28 +52,13 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
     if (current.length === 0 && accounts.length === 0) return;
     // If length differs → always update immediately (new account added or removed)
     // Do NOT deep-compare in this case — it would block legitimate new-account updates
-    if (current.length !== accounts.length) {
-      set({ accounts });
-      return;
+    let nextActiveId = get().activeAccountId;
+    if (accounts.length === 1) {
+      nextActiveId = accounts[0].zalo_id;
+    } else if (nextActiveId && !accounts.some(a => a.zalo_id === nextActiveId) && accounts.length > 0) {
+      nextActiveId = accounts[0].zalo_id;
     }
-    // Same length: deep-ish compare — skip only when ALL key fields are identical
-    if (
-      current.every((a, i) => {
-        const b = accounts[i];
-        return a.zalo_id === b?.zalo_id
-          && a.full_name === b?.full_name
-          && a.avatar_url === b?.avatar_url
-          && a.phone === b?.phone
-          && a.is_active === b?.is_active
-          && a.isOnline === b?.isOnline
-          && a.isConnected === b?.isConnected
-          && a.listenerActive === b?.listenerActive
-          && a.channel === b?.channel;
-      })
-    ) {
-      return;
-    }
-    set({ accounts });
+    set({ accounts, activeAccountId: nextActiveId });
   },
 
   addAccount: (account) =>

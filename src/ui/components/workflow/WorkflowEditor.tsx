@@ -1144,6 +1144,13 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
     return accChannel === workflowMeta.channel;
   });
 
+  // Auto-select account when there is only 1 account connected for the channel
+  useEffect(() => {
+    if (filteredAccounts.length === 1 && workflowMeta.pageIds.length === 0) {
+      setWorkflowMeta(m => ({ ...m, pageIds: [filteredAccounts[0].zalo_id] }));
+    }
+  }, [filteredAccounts, workflowMeta.pageIds.length]);
+
   // Page selector label
   const pageLabel = workflowMeta.pageIds.length === 0
     ? <span className="text-amber-400">⚠ Tất cả tài khoản {channelLabel} ({filteredAccounts.length})</span>

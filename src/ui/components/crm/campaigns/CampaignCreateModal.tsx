@@ -174,13 +174,13 @@ function LivePreview({
       )}
 
       {/* Phone-style preview */}
-      <div className="flex-1 min-h-0 flex flex-col border border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-gray-800">
+      <div className="flex-1 min-h-0 flex flex-col border border-gray-700 rounded-xl overflow-hidden shadow-sm bg-gray-900">
         {/* Top bar */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 bg-gray-850 border-b border-gray-700 flex-shrink-0">
           <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">Z</div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate">Nguyễn Văn A</p>
-            <p className="text-[9px] text-gray-550 dark:text-gray-400">Zalo</p>
+            <p className="text-[11px] font-semibold text-gray-200 truncate">Nguyễn Văn A</p>
+            <p className="text-[9px] text-gray-400">Zalo</p>
           </div>
         </div>
 
@@ -582,7 +582,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
           }
         }}
         placeholder={'Soạn nội dung tin nhắn...\nGõ { để chèn biến nhanh, hoặc dùng nút Chèn bên trên'}
-        className="min-h-[200px] h-[200px] w-full bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
+        className="min-h-[200px] h-[200px] w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
       />
 
       {/* Warning on link */}
@@ -998,16 +998,16 @@ Yiêu cầu quan trọng:
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-[1060px] shadow-2xl flex flex-col text-gray-900 dark:text-gray-100"
+        className="bg-gray-850 border border-gray-700/60 rounded-2xl w-full max-w-[1060px] shadow-2xl flex flex-col text-gray-100"
         style={{ height: 'min(92vh, 42.5rem)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* ── Topbar ── */}
-        <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-850">
+        <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-700 flex-shrink-0 bg-gray-900">
           <div className="flex items-center gap-4 flex-1">
             {/* Campaign Name Input */}
             <div className="flex items-center gap-2 flex-1 max-w-[360px]">
-              <span className="text-xs font-bold text-gray-700 dark:text-gray-300 flex-shrink-0">
+              <span className="text-xs font-bold text-gray-300 flex-shrink-0">
                 {editMode ? 'Chỉnh sửa tên:' : 'Tên chiến dịch:'}
               </span>
               <input
@@ -1015,16 +1015,16 @@ Yiêu cầu quan trọng:
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Nhập tên chiến dịch..."
-                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors font-medium"
               />
             </div>
             {/* Small Warning Text */}
-            <span className="text-[11px] text-amber-600 dark:text-amber-500 font-medium truncate hidden md:inline-block">
+            <span className="text-[11px] text-amber-500 font-medium truncate hidden md:inline-block">
               ⚠️ Tránh gửi link/spam cho người lạ để hạn chế bị khóa tài khoản.
             </span>
           </div>
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-750 transition-colors">
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-100 hover:bg-gray-750 transition-colors">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -1035,7 +1035,7 @@ Yiêu cầu quan trọng:
         <div className="flex-1 min-h-0 flex overflow-hidden">
 
           {/* ── LEFT: Settings ── */}
-          <div className="w-52 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto p-4 gap-5 bg-gray-50 dark:bg-gray-850">
+          <div className="w-52 flex-shrink-0 border-r border-gray-700 flex flex-col overflow-y-auto p-4 gap-5 bg-gray-900">
 
             {/* Type */}
             <div>
@@ -1197,9 +1197,9 @@ Yiêu cầu quan trọng:
           </div>
 
           {/* ── CENTER: Editor ── */}
-          <div className="flex-1 min-w-0 flex flex-col overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden border-r border-gray-700 bg-gray-850">
             {/* Center topbar */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 min-h-[44px] bg-gray-50 dark:bg-gray-850">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700 flex-shrink-0 min-h-[44px] bg-gray-900">
               {hasMsg ? (
                 <>
                   {/* Block tabs */}
@@ -1210,7 +1210,7 @@ Yiêu cầu quan trọng:
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 border ${
                           i === activeBlock
                             ? 'bg-blue-600 border-blue-500 text-white'
-                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500'
+                            : 'bg-gray-800 border-gray-700 text-gray-300 hover:text-white hover:border-gray-600'
                         }`}>
                         <span className="w-4 h-4 rounded-full bg-current/20 flex items-center justify-center text-[9px] font-bold leading-none">
                           {i + 1}
@@ -1278,10 +1278,10 @@ Yiêu cầu quan trọng:
             <div className="flex-1 min-h-0 p-4 overflow-y-auto flex flex-col gap-3.5">
               
               {/* ── Config Panel: Giới hạn/Ngày & Hẹn giờ chạy ── */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-gray-50 dark:bg-gray-850 border border-gray-200 dark:border-gray-700/60 rounded-xl flex-shrink-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-gray-900 border border-gray-700/60 rounded-xl flex-shrink-0">
                 {/* Giới hạn ngày */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                     <AppIcon name="chart" className="text-gray-500" size={10} />
                     Giới hạn gửi trong ngày
                   </label>
@@ -1293,21 +1293,21 @@ Yiêu cầu quan trọng:
                       value={dailyLimit || ''}
                       onChange={e => setDailyLimit(Math.max(0, parseInt(e.target.value) || 0))}
                       placeholder="Không giới hạn"
-                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-955 dark:text-gray-250 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                     />
                     <span className="text-[10px] text-gray-500 flex-shrink-0">liên hệ</span>
                   </div>
                   {isStrangerTarget && (
                     dailyLimit === 0 ? (
-                      <p className="text-[9px] text-red-500 dark:text-red-400 font-semibold mt-1 leading-relaxed">
+                      <p className="text-[9px] text-red-400 font-semibold mt-1 leading-relaxed">
                         ⚠️ Không nên để không giới hạn khi gửi người lạ/kết bạn. Zalo giới hạn 50 người/ngày.
                       </p>
                     ) : dailyLimit > 50 ? (
-                      <p className="text-[9px] text-red-600 dark:text-red-500 font-semibold mt-1 leading-relaxed">
+                      <p className="text-[9px] text-red-500 font-semibold mt-1 leading-relaxed">
                         ⚠️ Nguy hiểm: Vượt quá giới hạn 50 người/ngày của Zalo. Tài khoản dễ bị khóa!
                       </p>
                     ) : dailyLimit > 20 ? (
-                      <p className="text-[9px] text-amber-600 dark:text-amber-500 font-medium mt-1 leading-relaxed">
+                      <p className="text-[9px] text-amber-500 font-medium mt-1 leading-relaxed">
                         ⚠️ Khuyến nghị: Nên đặt hạn mức từ 10 - 20 người/ngày để an toàn tối đa.
                       </p>
                     ) : null
@@ -1319,11 +1319,11 @@ Yiêu cầu quan trọng:
                   <label className="flex items-center gap-2 cursor-pointer">
                     <div onClick={() => setIsScheduled(!isScheduled)}
                       className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-                        isScheduled ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-500 hover:border-blue-400'
+                        isScheduled ? 'bg-blue-600 border-blue-600' : 'border-gray-500 hover:border-blue-400'
                       }`}>
                       {isScheduled && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </div>
-                    <span className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider">🗓 Hẹn giờ chạy</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">🗓 Hẹn giờ chạy</span>
                   </label>
 
                   {isScheduled ? (
@@ -1333,7 +1333,7 @@ Yiêu cầu quan trọng:
                           type="date"
                           value={schedDate}
                           onChange={e => setSchedDate(e.target.value)}
-                          className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2 py-1 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
                         />
                       </div>
                       <div>
@@ -1341,7 +1341,7 @@ Yiêu cầu quan trọng:
                           type="time"
                           value={schedTime}
                           onChange={e => setSchedTime(e.target.value)}
-                          className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2 py-1 text-xs text-gray-955 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
                         />
                       </div>
                     </div>
@@ -1548,9 +1548,9 @@ Yiêu cầu quan trọng:
           </div>
 
           {/* ── RIGHT: Preview ── */}
-          <div className="w-60 flex-shrink-0 p-4 overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-855">
+          <div className="w-60 flex-shrink-0 p-4 overflow-hidden flex flex-col bg-gray-900">
             {/* Auto label on success */}
-            <div className="mb-4 pb-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <div className="mb-4 pb-3 border-b border-gray-700 flex-shrink-0">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -1562,9 +1562,9 @@ Yiêu cầu quan trọng:
                       setShowLabelSelectorPopup(true);
                     }
                   }}
-                  className="w-3.5 h-3.5 rounded border border-gray-300 dark:border-gray-600 text-blue-650 focus:ring-0 focus:ring-offset-0 bg-transparent cursor-pointer"
+                  className="w-3.5 h-3.5 rounded border border-gray-600 text-blue-650 focus:ring-0 focus:ring-offset-0 bg-transparent cursor-pointer"
                 />
-                <span className="text-[10px] font-bold text-gray-750 dark:text-gray-300 uppercase tracking-wider">🏷️ Gắn nhãn tự động</span>
+                <span className="text-[10px] font-bold text-gray-300 uppercase tracking-wider">🏷️ Gắn nhãn tự động</span>
               </label>
               {autoLabelEnabled && (
                 <div className="mt-2 pl-5">
@@ -1634,7 +1634,7 @@ Yiêu cầu quan trọng:
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex items-center gap-3 px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+        <div className="flex items-center gap-3 px-5 py-3 border-t border-gray-700 flex-shrink-0 bg-gray-900">
           <div className="flex-1 text-[11px] text-gray-550">
             {hasMsg && contentConfig.blocks.length > 1 && (
               <span>{contentConfig.blocks.length} biến thể · {contentConfig.mode === 'random' ? '🎲 random' : '📨 gửi tất cả'}</span>

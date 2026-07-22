@@ -6,6 +6,14 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ### 🚀 Tính năng mới & Nâng cấp UI/UX
 
+- **Khử Trùng Lặp Thông Báo Lời Mời Kết Bạn & Thông Báo Lịch Hẹn (`useZaloEvents.ts`):**
+  - Tích hợp bộ nhớ lưu vết `localStorage` (`notified_friend_req_${zaloId}_${userId}` và `notified_reminder_${zaloId}_${threadId}_${reminderId}`) giúp mỗi lời mời kết bạn và thông báo lịch hẹn chỉ bật popup thông báo **đúng 1 lần duy nhất**.
+  - Khắc phục hoàn toàn sự cố mỗi lần đăng nhập lại hoặc mở lại ứng dụng, Zalo server phát lại gói tin đồng bộ sự kiện làm bắn lại các popup thông báo cũ gây phiền toái cho người dùng.
+
+- **Tối Ưu Giao Diện Quét Số Điện Thoại Zalo Hàng Loạt (`PhoneScanPanel.tsx`):**
+  - Bỏ nút thủ công **"Quét ngay lập tức"** trên thanh Header màn hình Quét SĐT Zalo để giao diện tối giản và gọn gàng hơn.
+  - Hệ thống tự động vận hành cơ chế quét ngầm qua `PhoneScanService` (định kỳ 4 giây/lần), tự động nhận diện và xử lý các số `pending` trong lô quét mà không bắt buộc người dùng bấm thêm nút thủ công.
+
 - **Khắc Phục Lỗi Gửi Tệp Tài Liệu & Video (PDF, DOC, DOCX, XLS, MP4...) Trong Chat, Workflow & CRM (`ZaloService.ts`, `CRMQueueService.ts` & `zca-js`):**
   - **Tự động ánh xạ đường dẫn tuyệt đối cho tệp:** Cập nhật `ZaloService.ts` tự động kiểm tra `message.attachments` để chuẩn hóa đường dẫn tuyệt đối bằng `FileStorageService.resolveAbsolutePath`, khắc phục hoàn toàn lỗi `File not found` khi truyền đường dẫn kiểu `local-media://` hoặc tương đối.
   - **Tích hợp Fallback Timeout 8 giây cho `uploadAttachment` (`zca-js`):** Thêm cơ chế tự động giải phóng Promise sau 8s nếu phản hồi WebSocket `file_done` của Zalo bị đứt đoạn hoặc phản hồi chậm. Tệp PDF, DOCX, Video MP4 tự động dùng dữ liệu HTTP POST để phát tin nhắn thành công, loại bỏ 100% hiện tượng treo tệp.

@@ -22,7 +22,8 @@ export default function FriendRequestNotification({ data, onAccept, onReject, on
   const [show, setShow] = useState(false);
   const [acting, setActing] = useState<'accept' | 'reject' | null>(null);
   const [result, setResult] = useState<'accepted' | 'rejected' | null>(null);
-  const isLight = useAppStore(s => s.theme) === 'light';
+  const theme = useAppStore(s => s.resolvedTheme || (s.theme === 'light' ? 'light' : 'dark'));
+  const isLight = theme === 'light';
 
   useEffect(() => {
     requestAnimationFrame(() => setShow(true));

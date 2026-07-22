@@ -417,7 +417,13 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 *   **Tính năng mới (New):**
     *   Cho phép chọn nhãn local hoặc Zalo trực tiếp trong `AddToContactsModal` ngay khi vừa mở lên (giao đoạn nhập SĐT).
     *   Tích hợp tùy chọn Xóa liên hệ đã chọn vào danh sách tác vụ Khác trên thanh BulkActionBar hành động nổi dưới màn hình.
-#### 🚀 v3.0.5 — Hoàn Thiện Gửi File Đa Định Dạng (PDF, DOCX, Video MP4), Khóa Bảo Vệ Workflow & Tương Thích Windows 7
+#### 🚀 v3.0.5 — Hoàn Thiện Gửi File Đa Định Dạng, Khử Trùng Lặp Thông Báo, Khóa Bảo Vệ Workflow & Tương Thích Windows 7
+*   **Khử trùng lặp Thông báo Kết bạn & Lịch hẹn (Fixed & Improved):**
+    *   Tích hợp bộ nhớ lưu vết `localStorage` (`notified_friend_req_${zaloId}_${userId}` & `notified_reminder_${zaloId}_${threadId}_${reminderId}`) giúp mỗi lời mời kết bạn và thông báo lịch hẹn chỉ phát popup thông báo đúng **1 lần duy nhất**.
+    *   Giải quyết triệt để vấn đề Zalo socket đồng bộ lại gói tin sự kiện cũ khi đăng nhập lại/khởi động lại app khiến popup nhảy lại nhiều lần.
+*   **Tối ưu hóa UI Quét SĐT Zalo (Improved):**
+    *   Loại bỏ nút *"Quét ngay lập tức"* thừa trên thanh công cụ [PhoneScanPanel.tsx](file:///Users/kimtrungduong/Downloads/deplao/src/ui/components/crm/scan/PhoneScanPanel.tsx).
+    *   Vận hành hoàn toàn tự động ngầm qua scheduler `PhoneScanService` (chu kỳ 4s/lần) xử lý danh sách `pending` trong lô quét mà không đòi hỏi thao tác thủ công.
 *   **Khắc phục & Tối ưu hóa gửi File (Fixed & Improved):**
     *   Tự động chuẩn hóa đường dẫn tuyệt đối cho tệp đính kèm (`FileStorageService.resolveAbsolutePath`), khắc phục lỗi `File not found` khi gửi qua Chat và Workflow.
     *   Tích hợp cơ chế Fallback Timeout 8 giây cho `uploadAttachment` (`zca-js`), đảm bảo tệp PDF, DOCX, Video MP4 không bao giờ bị treo khi phản hồi WebSocket Zalo bị đứt đoạn.

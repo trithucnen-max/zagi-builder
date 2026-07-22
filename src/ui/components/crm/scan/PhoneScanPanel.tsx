@@ -12,6 +12,9 @@ interface Batch {
     assigned_account_id: string | null;
     auto_tag_ids: string; // JSON array
     daily_limit: number;
+    hourly_limit?: number;
+    skip_crm_existing?: number | boolean;
+    auto_workflow_id?: number | string | null;
     priority: number;
     status: 'active' | 'paused' | 'completed';
     total_count: number;
@@ -88,7 +91,7 @@ export default function PhoneScanPanel() {
     // Fetch Workflows for dropdown
     const fetchAvailableWorkflows = useCallback(async () => {
         try {
-            const res = await ipc.db?.getWorkflows();
+            const res = await (ipc.db as any)?.getWorkflows();
             if (res) {
                 const list = Array.isArray(res) ? res : (res.workflows || []);
                 setAvailableWorkflows(list.filter((w: any) => w.enabled));
@@ -131,7 +134,7 @@ export default function PhoneScanPanel() {
         try {
             const res = await ipc.db?.getLocalLabels({ zaloId: activeAccountId || undefined });
             if (res) {
-                setLocalLabels(res.labels || res || []);
+                setLocalLabels(Array.isArray(res) ? res : (res.labels || []));
             }
         } catch {}
     }, [activeAccountId]);
@@ -195,6 +198,39 @@ export default function PhoneScanPanel() {
             if (unsub) unsub();
         };
     }, [selectedBatch, itemsPage, itemsStatusFilter, fetchBatches, fetchItems]);
+
+    // Auto-select single Zalo account if only 1 account connected
+    useEffect(() => {
+        if (visibleAccounts.length === 1 && !formAssignedAccount) {
+            setFormAssignedAccount(visibleAccounts[0].zalo_id);
+        }
+    }, [visibleAccounts, formAssignedAccount]);
+
+    // Parse auto-assigned tag IDs for selected batch
+    const parsedAutoTagIds: number[] = React.useMemo(() => {
+        if (!selectedBatch?.auto_tag_ids) return [];
+        try {
+            const parsed = JSON.parse(selectedBatch.auto_tag_ids);
+            return Array.isArray(parsed) ? parsed.map(Number) : [];
+        } catch {
+            return [];
+        }
+    }, [selectedBatch?.auto_tag_ids]);
+
+    const selectedBatchTags = React.useMemo(() => {
+        if (parsedAutoTagIds.length === 0 || localLabels.length === 0) return [];
+        return localLabels.filter(lbl => parsedAutoTagIds.includes(lbl.id));
+    }, [parsedAutoTagIds, localLabels]);
+
+    const selectedBatchAccount = React.useMemo(() => {
+        if (!selectedBatch?.assigned_account_id) return null;
+        return visibleAccounts.find(a => a.zalo_id === selectedBatch.assigned_account_id) || null;
+    }, [selectedBatch?.assigned_account_id, visibleAccounts]);
+
+    const selectedBatchWorkflow = React.useMemo(() => {
+        if (!selectedBatch?.auto_workflow_id) return null;
+        return availableWorkflows.find(w => String(w.id) === String(selectedBatch.auto_workflow_id)) || null;
+    }, [selectedBatch?.auto_workflow_id, availableWorkflows]);
 
     // Normalize phone numbers using central utility
     const normalizePhoneNumber = (raw: string): string => {
@@ -411,19 +447,6 @@ export default function PhoneScanPanel() {
         }
     };
 
-    // Trigger scan immediately
-    const handleScanNow = async () => {
-        try {
-            const res = await ipc.crm?.startPhoneScanImmediate();
-            if (res?.success) {
-                showNotification('Đã chạy kích hoạt quét ngay lập tức!', 'success');
-                fetchBatches();
-            }
-        } catch (err: any) {
-            showNotification('Kích hoạt thất bại: ' + err.message, 'error');
-        }
-    };
-
     // Export Scan results to CSV file
     const handleExportCSV = async (batch: Batch) => {
         try {
@@ -431,8 +454,22 @@ export default function PhoneScanPanel() {
             const res = await ipc.crm?.getPhoneScanItems({ batchId: batch.id, limit: 100000, offset: 0, status: 'all' });
             if (res?.success && res.items) {
                 const itemsList: ScanItem[] = res.items;
+                // Parse tag names for CSV export
+                let batchTagNames = '';
+                if (batch.auto_tag_ids) {
+                    try {
+                        const parsedIds: number[] = JSON.parse(batch.auto_tag_ids);
+                        if (Array.isArray(parsedIds) && parsedIds.length > 0) {
+                            batchTagNames = localLabels
+                                .filter(l => parsedIds.includes(l.id))
+                                .map(l => l.name)
+                                .join('; ');
+                        }
+                    } catch {}
+                }
+
                 let csvContent = '\uFEFF'; // BOM for Excel UTF-8 display
-                csvContent += 'Số điện thoại,SĐT chuẩn hóa,Trạng thái,UID Zalo,Tên Zalo,Thời gian quét,Lỗi nếu có\n';
+                csvContent += 'Số điện thoại,SĐT chuẩn hóa,Trạng thái,UID Zalo,Tên Zalo,Nhãn CRM đã gán,Thời gian quét,Lỗi nếu có\n';
                 
                 itemsList.forEach(item => {
                     const timeStr = item.scanned_at ? new Date(item.scanned_at).toLocaleString('vi-VN') : '';
@@ -442,6 +479,7 @@ export default function PhoneScanPanel() {
                                     : item.status === 'error' ? 'Lỗi'
                                     : item.status === 'duplicate' ? 'Trùng'
                                     : 'Chờ quét';
+                    const assignedTagsStr = item.status === 'found' ? batchTagNames : '';
                                     
                     const row = [
                         item.phone,
@@ -449,6 +487,7 @@ export default function PhoneScanPanel() {
                         statusStr,
                         item.zalo_uid || '',
                         `"${(item.zalo_name || '').replace(/"/g, '""')}"`,
+                        `"${assignedTagsStr.replace(/"/g, '""')}"`,
                         timeStr,
                         `"${(item.error_msg || '').replace(/"/g, '""')}"`
                     ];
@@ -500,26 +539,18 @@ export default function PhoneScanPanel() {
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden">
             {/* Header / Top Dashboard Stats */}
-            <div className="bg-white dark:bg-gray-850 border-b border-gray-200 dark:border-gray-800 p-5 flex-shrink-0">
+            <div className="bg-gray-850 border-b border-gray-700/60 p-5 flex-shrink-0">
                 <div className="flex items-center justify-between mb-5">
                     <div>
-                        <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <h2 className="text-base font-bold text-gray-100 flex items-center gap-2">
                             <AppIcon name="phone" className="text-blue-500" size={16} />
                             Quét số điện thoại Zalo hàng loạt
                         </h2>
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        <p className="text-[11px] text-gray-400 mt-0.5">
                             Quét danh sách số điện thoại số lượng lớn, tự động nhận diện và gán nhãn CRM định kỳ hàng ngày.
                         </p>
                     </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleScanNow}
-                            title="Buộc quét ngay các số đang chờ, không đợi đến lượt Scheduler kế tiếp"
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-gray-800 border border-gray-350 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300"
-                        >
-                            <AppIcon name="sync" size={13} />
-                            Quét ngay lập tức
-                        </button>
+                    <div>
                         <button
                             onClick={() => setShowCreateForm(true)}
                             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors"
@@ -547,28 +578,28 @@ export default function PhoneScanPanel() {
                         const progress = totals.total > 0 ? Math.round((totals.scanned / totals.total) * 100) : 0;
                         return (
                             <>
-                                <div className="bg-gray-100/50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/50 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tổng SĐT tải lên</span>
-                                    <span className="text-xl font-bold text-gray-900 dark:text-white mt-1">{totals.total.toLocaleString()}</span>
+                                <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tổng SĐT tải lên</span>
+                                    <span className="text-xl font-bold text-white mt-1">{totals.total.toLocaleString()}</span>
                                 </div>
-                                <div className="bg-gray-100/50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/50 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Đã quét</span>
+                                <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Đã quét</span>
                                     <div className="flex items-baseline justify-between mt-1">
-                                        <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{totals.scanned.toLocaleString()}</span>
-                                        <span className="text-[10px] text-gray-500 dark:text-gray-400">({progress}%)</span>
+                                        <span className="text-xl font-bold text-blue-400">{totals.scanned.toLocaleString()}</span>
+                                        <span className="text-[10px] text-gray-400">({progress}%)</span>
                                     </div>
                                 </div>
-                                <div className="bg-gray-100/50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/50 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Có Zalo (found)</span>
-                                    <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{totals.found.toLocaleString()}</span>
+                                <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Có Zalo (found)</span>
+                                    <span className="text-xl font-bold text-emerald-400 mt-1">{totals.found.toLocaleString()}</span>
                                 </div>
-                                <div className="bg-gray-100/50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/50 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Không có Zalo</span>
-                                    <span className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-1">{totals.notFound.toLocaleString()}</span>
+                                <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Không có Zalo</span>
+                                    <span className="text-xl font-bold text-amber-400 mt-1">{totals.notFound.toLocaleString()}</span>
                                 </div>
-                                <div className="bg-gray-100/50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/50 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Số lượng còn lại</span>
-                                    <span className="text-xl font-bold text-gray-700 dark:text-gray-300 mt-1">{(totals.total - totals.scanned).toLocaleString()}</span>
+                                <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Số lượng còn lại</span>
+                                    <span className="text-xl font-bold text-gray-300 mt-1">{(totals.total - totals.scanned).toLocaleString()}</span>
                                 </div>
                             </>
                         );
@@ -662,10 +693,10 @@ export default function PhoneScanPanel() {
                                         onClick={() => setSelectedBatch(batch)}
                                         className={`p-4 rounded-xl border transition-all cursor-pointer ${
                                             isSelected
-                                                ? 'bg-white dark:bg-gray-800 border-blue-500 shadow-md'
+                                                ? 'bg-gray-850 border-blue-500 shadow-md'
                                                 : batch.status === 'active'
-                                                    ? 'bg-blue-50/20 dark:bg-blue-955/10 border-blue-200 dark:border-blue-900/40 hover:border-blue-400'
-                                                    : 'bg-white dark:bg-gray-855/60 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700/80 hover:bg-gray-50 dark:hover:bg-gray-855'
+                                                    ? 'bg-blue-955/20 border-blue-900/40 hover:border-blue-400'
+                                                    : 'bg-gray-850 border-gray-700/80 hover:border-gray-600 hover:bg-gray-800'
                                         }`}
                                     >
                                         <div className="flex items-start justify-between">
@@ -798,6 +829,87 @@ export default function PhoneScanPanel() {
                             </button>
                         </div>
 
+                        {/* Option C Banner: Cấu hình Setup ban đầu & Báo cáo Nhãn đã gán */}
+                        <div className="mx-5 mt-4 p-3.5 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/80 rounded-xl space-y-2 text-xs flex-shrink-0">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-700/60 pb-2">
+                                <div className="flex items-center gap-1.5 font-bold text-gray-800 dark:text-gray-200 text-xs">
+                                    <AppIcon name="settings" size={14} className="text-blue-500" />
+                                    <span>Cấu hình Setup ban đầu & Báo cáo Lô #{selectedBatch.id}</span>
+                                </div>
+                                <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                                    Tạo lúc: {new Date(selectedBatch.created_at).toLocaleString('vi-VN')}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-gray-600 dark:text-gray-300 text-[11px]">
+                                {/* Account */}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-gray-400">Tài khoản chạy:</span>
+                                    {selectedBatchAccount ? (
+                                        <div className="flex items-center gap-1 font-medium text-gray-900 dark:text-white">
+                                            {selectedBatchAccount.avatar_url && (
+                                                <img src={selectedBatchAccount.avatar_url} className="w-4 h-4 rounded-full" alt="" />
+                                            )}
+                                            <span>{selectedBatchAccount.full_name || selectedBatchAccount.zalo_id}</span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-blue-600 dark:text-blue-400 font-medium">Tất cả tài khoản</span>
+                                    )}
+                                </div>
+
+                                {/* Limits */}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-gray-400">Giới hạn:</span>
+                                    <span className="font-medium text-gray-900 dark:text-white">
+                                        {selectedBatch.daily_limit} số/ngày {selectedBatch.hourly_limit ? `(${selectedBatch.hourly_limit} số/giờ)` : ''}
+                                    </span>
+                                </div>
+
+                                {/* Skip CRM */}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-gray-400">Lọc CRM:</span>
+                                    <span className="font-medium text-gray-900 dark:text-white">
+                                        {selectedBatch.skip_crm_existing ? '✓ Bỏ qua SĐT đã có trong CRM' : 'Quét toàn bộ'}
+                                    </span>
+                                </div>
+
+                                {/* Auto Workflow */}
+                                {selectedBatchWorkflow && (
+                                    <div className="flex items-center gap-1.5 col-span-full">
+                                        <span className="font-semibold text-gray-400">Workflow tự động:</span>
+                                        <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium">
+                                            ⚡ {selectedBatchWorkflow.name}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Auto-assigned Tags */}
+                            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-200 dark:border-gray-700/40">
+                                <span className="font-semibold text-gray-400 text-[11px] flex-shrink-0">🏷️ Nhãn đã gán tự động ({selectedBatchTags.length}):</span>
+                                {selectedBatchTags.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {selectedBatchTags.map(tag => (
+                                            <span
+                                                key={tag.id}
+                                                className="px-2 py-0.5 text-[10px] font-semibold rounded-full flex items-center gap-1 border shadow-xs"
+                                                style={{
+                                                    backgroundColor: `${tag.color || '#3B82F6'}15`,
+                                                    borderColor: `${tag.color || '#3B82F6'}50`,
+                                                    color: tag.color || '#3B82F6'
+                                                }}
+                                            >
+                                                <span>{tag.emoji || '🏷️'}</span>
+                                                <span>{tag.name}</span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <span className="text-gray-400 italic text-[11px]">Không cài đặt nhãn tự động</span>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Status Tabs inside detail */}
                         <div className="px-5 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex gap-2 flex-shrink-0">
                             {[
@@ -844,6 +956,7 @@ export default function PhoneScanPanel() {
                                                 <th className="py-2.5 px-3 font-semibold">Số điện thoại</th>
                                                 <th className="py-2.5 px-3 font-semibold">Trạng thái</th>
                                                 <th className="py-2.5 px-3 font-semibold">Zalo profile</th>
+                                                <th className="py-2.5 px-3 font-semibold">Nhãn CRM đã gán</th>
                                                 <th className="py-2.5 px-3 font-semibold">Thời gian</th>
                                                 <th className="py-2.5 px-3 font-semibold">Ghi chú lỗi</th>
                                             </tr>
@@ -869,6 +982,28 @@ export default function PhoneScanPanel() {
                                                             </div>
                                                         ) : (
                                                             <span className="text-gray-400 dark:text-gray-600">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3 px-3">
+                                                        {item.status === 'found' && selectedBatchTags.length > 0 ? (
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {selectedBatchTags.map(tag => (
+                                                                    <span
+                                                                        key={tag.id}
+                                                                        className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md flex items-center gap-0.5 border"
+                                                                        style={{
+                                                                            backgroundColor: `${tag.color || '#3B82F6'}15`,
+                                                                            borderColor: `${tag.color || '#3B82F6'}50`,
+                                                                            color: tag.color || '#3B82F6'
+                                                                        }}
+                                                                    >
+                                                                        <span>{tag.emoji || '🏷️'}</span>
+                                                                        <span>{tag.name}</span>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-gray-400 dark:text-gray-600 text-[10px]">-</span>
                                                         )}
                                                     </td>
                                                     <td className="py-3 px-3 text-gray-500 dark:text-gray-400 text-[10px]">
@@ -917,22 +1052,22 @@ export default function PhoneScanPanel() {
             {showCreateForm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div
-                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-[960px] shadow-2xl flex flex-col text-gray-900 dark:text-gray-100"
+                        className="bg-gray-850 border border-gray-700/60 rounded-2xl w-full max-w-[960px] shadow-2xl flex flex-col text-gray-100"
                         style={{ height: 'min(92vh, 41rem)' }}
                     >
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-850">
+                        <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-700 flex-shrink-0 bg-gray-900">
                             <div className="flex items-center gap-4 flex-1">
-                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                <span className="text-xs font-bold text-gray-300">
                                     Khởi tạo lô quét SĐT Zalo mới
                                 </span>
-                                <span className="text-[11px] text-amber-600 dark:text-amber-500 font-medium truncate hidden md:inline-block">
+                                <span className="text-[11px] text-amber-500 font-medium truncate hidden md:inline-block">
                                     ⚠️ Tránh quét dồn dập nhiều số điện thoại cùng lúc để hạn chế bị khóa tài khoản.
                                 </span>
                             </div>
                             <button
                                 onClick={() => setShowCreateForm(false)}
-                                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-750 transition-colors"
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-750 transition-colors"
                             >
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -944,28 +1079,28 @@ export default function PhoneScanPanel() {
                         <form onSubmit={handleCreateBatch} className="flex-1 min-h-0 flex flex-col justify-between">
                             <div className="flex-1 min-h-0 flex overflow-hidden">
                                 {/* LEFT COLUMN: Configuration */}
-                                <div className="w-1/2 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto p-5 gap-4 bg-gray-50 dark:bg-gray-850">
+                                <div className="w-1/2 flex-shrink-0 border-r border-gray-700 flex flex-col overflow-y-auto p-5 gap-4 bg-gray-900">
                                     {/* Batch Name */}
                                     <div>
-                                        <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Tên lô quét *</label>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Tên lô quét *</label>
                                         <input
                                             type="text"
                                             required
                                             value={formName}
                                             onChange={e => setFormName(e.target.value)}
                                             placeholder="VD: Lô khách hàng VIP Tháng 7..."
-                                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                                            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                                         />
                                     </div>
 
                                     {/* Assigned Account & Limits */}
                                     <div className="grid grid-cols-3 gap-3">
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Tài khoản Zalo quét</label>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Tài khoản Zalo quét</label>
                                             <select
                                                 value={formAssignedAccount}
                                                 onChange={e => setFormAssignedAccount(e.target.value)}
-                                                className="w-full bg-white dark:bg-gray-905 border border-gray-305 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                                             >
                                                 <option value="">-- Tự động chia --</option>
                                                 {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
@@ -976,7 +1111,7 @@ export default function PhoneScanPanel() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Quét / ngày</label>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Quét / ngày</label>
                                             <input
                                                 type="number"
                                                 required
@@ -984,11 +1119,11 @@ export default function PhoneScanPanel() {
                                                 max={1000}
                                                 value={formDailyLimit}
                                                 onChange={e => setFormDailyLimit(Number(e.target.value))}
-                                                className="w-full bg-white dark:bg-gray-905 border border-gray-305 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Quét / giờ</label>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Quét / giờ</label>
                                             <input
                                                 type="number"
                                                 required
@@ -996,7 +1131,7 @@ export default function PhoneScanPanel() {
                                                 max={200}
                                                 value={formHourlyLimit}
                                                 onChange={e => setFormHourlyLimit(Number(e.target.value))}
-                                                className="w-full bg-white dark:bg-gray-905 border border-gray-305 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                                             />
                                         </div>
                                     </div>
@@ -1004,15 +1139,15 @@ export default function PhoneScanPanel() {
                                     {/* Initial Status & Scheduled Start Time */}
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Trạng thái khởi tạo</label>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Trạng thái khởi tạo</label>
                                             <div className="flex gap-1.5">
                                                 <button
                                                     type="button"
                                                     onClick={() => setFormStatus('paused')}
                                                     className={`flex-1 py-1.5 px-2 border rounded-lg text-xs font-semibold transition-all ${
                                                         formStatus === 'paused'
-                                                            ? 'bg-amber-50 dark:bg-amber-955/40 border-amber-500 text-amber-700 dark:text-amber-300 shadow-sm'
-                                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                                                            ? 'bg-amber-955/40 border-amber-500 text-amber-300 shadow-sm'
+                                                            : 'bg-gray-800 border-gray-700 text-gray-400'
                                                     }`}
                                                 >
                                                     ⏸️ Tạm dừng
@@ -1022,8 +1157,8 @@ export default function PhoneScanPanel() {
                                                     onClick={() => setFormStatus('active')}
                                                     className={`flex-1 py-1.5 px-2 border rounded-lg text-xs font-semibold transition-all ${
                                                         formStatus === 'active'
-                                                            ? 'bg-blue-50 dark:bg-blue-955/40 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
-                                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                                                            ? 'bg-blue-955/40 border-blue-500 text-blue-400 shadow-sm'
+                                                            : 'bg-gray-800 border-gray-700 text-gray-400'
                                                     }`}
                                                 >
                                                     ▶️ Chạy ngay
@@ -1031,18 +1166,18 @@ export default function PhoneScanPanel() {
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Hẹn giờ khởi động (Tùy chọn)</label>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Hẹn giờ khởi động (Tùy chọn)</label>
                                             <input
                                                 type="time"
                                                 value={formScheduledTime}
                                                 onChange={e => setFormScheduledTime(e.target.value)}
-                                                className="w-full bg-white dark:bg-gray-905 border border-gray-305 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                                             />
                                         </div>
                                     </div>
 
                                     {/* Skip CRM Existing Option */}
-                                    <div className="flex items-center gap-2 p-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl">
+                                    <div className="flex items-center gap-2 p-2.5 bg-gray-900 border border-gray-700 rounded-xl">
                                         <input
                                             type="checkbox"
                                             id="skipCrmExisting"
@@ -1050,18 +1185,18 @@ export default function PhoneScanPanel() {
                                             onChange={e => setFormSkipCrmExisting(e.target.checked)}
                                             className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
                                         />
-                                        <label htmlFor="skipCrmExisting" className="text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                                        <label htmlFor="skipCrmExisting" className="text-xs font-medium text-gray-300 cursor-pointer select-none">
                                             Bỏ qua các SĐT đã tồn tại trong danh bạ CRM (Tiết kiệm hạn ngạch quét)
                                         </label>
                                     </div>
 
                                     {/* Auto Trigger Workflow Selection */}
                                     <div>
-                                        <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Kích hoạt Workflow tự động (khi tìm thấy Zalo)</label>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Kích hoạt Workflow tự động (khi tìm thấy Zalo)</label>
                                         <select
                                             value={formAutoWorkflowId}
                                             onChange={e => setFormAutoWorkflowId(e.target.value)}
-                                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+                                            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                                         >
                                             <option value="">-- Không tự động chạy kịch bản --</option>
                                             {availableWorkflows.map((wf: any) => (
@@ -1192,10 +1327,10 @@ export default function PhoneScanPanel() {
                                 </div>
 
                                 {/* RIGHT COLUMN: CSV Upload + Paste text area */}
-                                <div className="w-1/2 flex-shrink-0 p-5 overflow-hidden flex flex-col gap-4 bg-white dark:bg-gray-800">
+                                <div className="w-1/2 flex-shrink-0 p-5 overflow-hidden flex flex-col gap-4 bg-gray-900">
                                     {/* File CSV select */}
                                     <div>
-                                        <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Tải lên tệp CSV số điện thoại</label>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Tải lên tệp CSV số điện thoại</label>
                                         <div className="flex items-center gap-2">
                                             <input
                                                 type="file"
@@ -1207,13 +1342,13 @@ export default function PhoneScanPanel() {
                                             <button
                                                 type="button"
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 transition-colors"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 border border-gray-700 hover:bg-gray-750 text-gray-300 transition-colors"
                                             >
                                                 <AppIcon name="download" size={13} className="transform rotate-180" />
                                                 Chọn file CSV...
                                             </button>
                                             {csvFilename && (
-                                                <span className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5 bg-gray-50 dark:bg-gray-900 px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-755 truncate max-w-[200px]">
+                                                <span className="text-[11px] text-gray-400 flex items-center gap-1.5 bg-gray-900 px-2 py-1 rounded-lg border border-gray-755 truncate max-w-[200px]">
                                                     {csvFilename} ({csvPhones.length} số)
                                                     <button
                                                         type="button"
@@ -1229,18 +1364,18 @@ export default function PhoneScanPanel() {
 
                                     {/* Textarea input */}
                                     <div className="flex-1 flex flex-col min-h-0">
-                                        <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Nhập số điện thoại thủ công</label>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Nhập số điện thoại thủ công</label>
                                         <textarea
                                             value={formPhonesText}
                                             onChange={e => setFormPhonesText(e.target.value)}
                                             placeholder="Nhập danh sách số điện thoại, phân tách bằng dấu xuống dòng, dấu phẩy hoặc chấm phẩy...&#10;VD:&#10;0912345678&#10;0987654321"
-                                            className="w-full flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:outline-none focus:border-blue-500 rounded-lg px-2.5 py-2 text-xs font-mono text-gray-900 dark:text-gray-200 placeholder-gray-450 dark:placeholder-gray-500 transition-colors resize-none overflow-y-auto"
+                                            className="w-full flex-1 bg-gray-900 border border-gray-700 focus:outline-none focus:border-blue-500 rounded-lg px-2.5 py-2 text-xs font-mono text-gray-200 placeholder-gray-500 transition-colors resize-none overflow-y-auto"
                                         />
                                     </div>
 
                                     {/* Preview and validation box */}
                                     {getParsedPhones().length > 0 && (
-                                        <div className="p-2.5 bg-emerald-50 dark:bg-emerald-955/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs flex justify-between items-center font-medium">
+                                        <div className="p-2.5 bg-emerald-955/20 border border-emerald-900/40 text-emerald-400 rounded-lg text-xs flex justify-between items-center font-medium">
                                             <span>Tổng số điện thoại hợp lệ sẵn sàng thêm:</span>
                                             <strong className="text-xs font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">{getParsedPhones().length} số</strong>
                                         </div>
@@ -1249,7 +1384,7 @@ export default function PhoneScanPanel() {
                             </div>
 
                             {/* Warning Box + Modal Footer actions */}
-                            <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-855 p-4">
+                            <div className="flex-shrink-0 border-t border-gray-700 bg-gray-900 p-4">
                                 <div className="border border-yellow-500/20 bg-yellow-500/5 rounded-xl px-3 py-2.5 mb-4">
                                     <p className="text-[10px] text-yellow-600 dark:text-yellow-400 font-semibold mb-0.5">⚠️ Cảnh báo</p>
                                     <p className="text-[9px] text-yellow-600/70 dark:text-yellow-400/60 leading-relaxed">

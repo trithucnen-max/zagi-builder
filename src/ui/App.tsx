@@ -236,6 +236,11 @@ export default function App() {
         resolved = systemPrefersDark ? 'dark' : 'light';
       }
       document.documentElement.dataset.theme = resolved;
+      if (resolved === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
       setResolvedTheme(resolved as any);
     };
 
@@ -246,6 +251,11 @@ export default function App() {
       const listener = (e: MediaQueryListEvent) => {
         const resolved = e.matches ? 'dark' : 'light';
         document.documentElement.dataset.theme = resolved;
+        if (resolved === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
         setResolvedTheme(resolved as any);
       };
       

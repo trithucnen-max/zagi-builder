@@ -27,7 +27,8 @@ function getColorHex(colorValue: number): string {
 
 export default function ReminderNotification({ data, onClose, onOpenThread }: Props) {
   const [show, setShow] = useState(false);
-  const isLight = useAppStore(s => s.theme) === 'light';
+  const theme = useAppStore(s => s.resolvedTheme || (s.theme === 'light' ? 'light' : 'dark'));
+  const isLight = theme === 'light';
 
   useEffect(() => {
     // Trigger animation

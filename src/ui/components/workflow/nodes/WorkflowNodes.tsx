@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore';
 import AppIcon from '@/components/common/AppIcon';
 
 const useIsLight = () => {
-  return useAppStore(s => s.theme === 'light' || (s.theme === 'system' && typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches));
+  return useAppStore(s => (s.resolvedTheme ? s.resolvedTheme === 'light' : s.theme === 'light'));
 };
 
 // ─── Custom deletable edge ────────────────────────────────────────────────────
