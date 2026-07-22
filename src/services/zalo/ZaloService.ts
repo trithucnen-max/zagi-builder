@@ -233,7 +233,11 @@ export default class ZaloService {
 
                     // Đọc metadata nếu là ảnh
                     // nếu không phải ảnh thì gửi thẳng file url
-                    message.attachments = filesPath.map(rawPath => {
+                    message.attachments = filesPath.map(rawItem => {
+                        if (typeof rawItem === 'object' && rawItem !== null) {
+                            return rawItem;
+                        }
+                        const rawPath = String(rawItem);
                         const filePath = FileStorageService.resolveAbsolutePath(this.stripFileProtocol(rawPath));
                         if (filePath && fs.existsSync(filePath)) {
                             return filePath;
@@ -409,8 +413,17 @@ export default class ZaloService {
             fs.mkdirSync(imageDir, {recursive: true});
         }
 
-        for (let fileUrl of attachments) {
-            fileUrl = this.stripFileProtocol(fileUrl);
+        for (let item of attachments as any[]) {
+            if (typeof item === 'object' && item !== null) {
+                if (item.data && Buffer.isBuffer(item.data)) {
+                    downloadedFiles.push(item);
+                    continue;
+                }
+                item = item.url || item.filePath || item.path || '';
+            }
+            if (typeof item !== 'string' || !item) continue;
+
+            let fileUrl = this.stripFileProtocol(item);
             if (!fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
                 // Nếu là đường dẫn tệp cục bộ, sử dụng trực tiếp không tải xuống
                 downloadedFiles.push(FileStorageService.resolveAbsolutePath(fileUrl));
@@ -1639,14 +1652,87 @@ export default class ZaloService {
     }
 
     /**
-     * Gửi ảnh từ local file path
+     * Tải URL về tệp đĩa tạm trong media/temp_forward/
+     */
+    private async downloadUrlToTempFile(url: string): Promise<string> {
+        try {
+            const tempDir = path.join(FileStorageService.getBaseDir(), 'temp_forward');
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true });
+            }
+            const cleanUrl = url.split('?')[0] || url;
+            let ext = path.extname(cleanUrl);
+            if (!ext || ext.length > 5) ext = '.jpg';
+            const tempPath = path.join(tempDir, `fw_${Date.now()}_${Math.floor(Math.random() * 100000)}${ext}`);
+            
+            const response = await axios.get(url, {
+                responseType: 'arraybuffer',
+                timeout: 10000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Referer': 'https://chat.zalo.me/',
+                }
+            });
+            fs.writeFileSync(tempPath, Buffer.from(response.data));
+            Logger.info(`[ZaloService] Downloaded image URL to temp file: ${tempPath} (${response.data.byteLength} bytes)`);
+            return tempPath;
+        } catch (err: any) {
+            Logger.error(`[ZaloService] downloadUrlToTempFile error for ${url}: ${err.message}`);
+            throw new Error(`Cannot download image from URL: ${err.message}`);
+        }
+    }
+
+    /**
+     * Quy đổi và kiểm tra đường dẫn ảnh địa phương.
+     * Tự động giải quyết đường dẫn tương đối (media/...) hoặc tải URL CDN về tệp đĩa tạm.
+     */
+    private async ensureLocalImagePath(rawPath: string): Promise<{ resolvedPath: string; isTemp: boolean }> {
+        if (!rawPath) throw new Error("Image path is empty");
+        const cleanPath = this.stripFileProtocol(rawPath).trim();
+
+        // Check 1: If path is an HTTP/HTTPS URL
+        if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+            const tempPath = await this.downloadUrlToTempFile(cleanPath);
+            return { resolvedPath: tempPath, isTemp: true };
+        }
+
+        // Check 2: Try resolving relative path (media/zaloId/...) or remapped absolute path
+        const resolved = FileStorageService.resolveAbsolutePath(cleanPath);
+        if (resolved && fs.existsSync(resolved)) {
+            return { resolvedPath: resolved, isTemp: false };
+        }
+
+        // Check 3: Check cleanPath directly on disk
+        if (fs.existsSync(cleanPath)) {
+            return { resolvedPath: cleanPath, isTemp: false };
+        }
+
+        // Check 4: If rawPath had file protocol or encoded URL
+        if (rawPath.includes('http://') || rawPath.includes('https://')) {
+            const urlMatch = rawPath.match(/https?:\/\/[^\s"']+/);
+            if (urlMatch) {
+                const tempPath = await this.downloadUrlToTempFile(urlMatch[0]);
+                return { resolvedPath: tempPath, isTemp: true };
+            }
+        }
+
+        throw new Error(`File does not exist on disk: ${cleanPath} (resolved: ${resolved})`);
+    }
+
+    /**
+     * Gửi ảnh từ local file path hoặc URL HTTP/HTTPS
      */
     public async sendImage(filePath: string, threadId: string, type: ThreadType = ThreadType.User, caption?: string, quote: any = null): Promise<any> {
         if (!this.api) throw new Error("API not initialized");
+        let tempCreated = false;
+        let resolvedPath = filePath;
         try {
-            filePath = this.stripFileProtocol(filePath);
-            const buffer = fs.readFileSync(filePath);
-            const baseName = path.basename(filePath);
+            const target = await this.ensureLocalImagePath(filePath);
+            resolvedPath = target.resolvedPath;
+            tempCreated = target.isTemp;
+
+            const buffer = fs.readFileSync(resolvedPath);
+            const baseName = path.basename(resolvedPath);
             let width = 0, height = 0;
             try { const dim = imageSize(buffer); width = dim.width ?? 0; height = dim.height ?? 0; } catch {}
             const attachment: any = {
@@ -1655,9 +1741,14 @@ export default class ZaloService {
                 metadata: { totalSize: buffer.length, width, height },
             };
             const content: MessageContent = { msg: caption || '', attachments: [attachment] };
-            return await this.sendMessage(content as any, threadId, type, null, quote);
+            const result = await this.sendMessage(content as any, threadId, type, null, quote);
+            return result;
         } catch (error: any) {
             throw new Error('sendImage error: ' + error.message);
+        } finally {
+            if (tempCreated && resolvedPath && fs.existsSync(resolvedPath)) {
+                try { fs.unlinkSync(resolvedPath); } catch {}
+            }
         }
     }
 
@@ -1703,11 +1794,17 @@ export default class ZaloService {
         if (!filePaths.length) return [];
         // Nếu chỉ 1 ảnh, dùng sendImage thông thường
         if (filePaths.length === 1) return this.sendImage(filePaths[0], threadId, type, undefined, quote);
+        
+        const tempPathsToClean: string[] = [];
         try {
-            const attachments = filePaths.map(rawPath => {
-                const filePath = this.stripFileProtocol(rawPath);
-                const buffer = fs.readFileSync(filePath);
-                const baseName = path.basename(filePath);
+            const resolvedTargets = await Promise.all(
+                filePaths.map(p => this.ensureLocalImagePath(p))
+            );
+
+            const attachments = resolvedTargets.map(({ resolvedPath, isTemp }) => {
+                if (isTemp) tempPathsToClean.push(resolvedPath);
+                const buffer = fs.readFileSync(resolvedPath);
+                const baseName = path.basename(resolvedPath);
                 // zca-js requires filename to contain an extension (`${string}.${string}`)
                 const ext = path.extname(baseName) || '.jpg';
                 const safeFilename = (path.extname(baseName) ? baseName : `${baseName}${ext}`) as `${string}.${string}`;
@@ -1720,9 +1817,16 @@ export default class ZaloService {
                 };
             });
             const content: MessageContent = { msg: '', attachments };
-            return await this.sendMessage(content as any, threadId, type, null, quote);
+            const result = await this.sendMessage(content as any, threadId, type, null, quote);
+            return result;
         } catch (error: any) {
             throw new Error('sendImages error: ' + error.message);
+        } finally {
+            for (const tPath of tempPathsToClean) {
+                if (fs.existsSync(tPath)) {
+                    try { fs.unlinkSync(tPath); } catch {}
+                }
+            }
         }
     }
 
