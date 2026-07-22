@@ -6251,10 +6251,28 @@ class DatabaseService {
                 all = all.filter((c: any) => Number(c.is_blocked || 0) === 1);
             }
 
-            // Apply local label (tagIds) filter
+            // Apply local label (tagIds) filter (Option B: Name-based + ID matching)
             if (tagIds && tagIds.length > 0) {
                 const numericTagIds = tagIds.map(id => Number(id)).filter(id => !isNaN(id));
                 if (numericTagIds.length > 0) {
+                    // Resolve label names for requested tagIds
+                    const placeholders = numericTagIds.map(() => '?').join(',');
+                    const targetLabelRows = this.query<any>(
+                        `SELECT DISTINCT name FROM local_labels WHERE id IN (${placeholders})`,
+                        numericTagIds
+                    );
+                    const targetNames = targetLabelRows.map((l: any) => l.name).filter(Boolean);
+
+                    // Expand validLabelIds to include any label ID under ownerZaloId matching targetNames
+                    let validLabelIds = new Set<number>(numericTagIds);
+                    if (targetNames.length > 0 && ownerZaloId) {
+                        const accountLabels = this.getLocalLabels(ownerZaloId);
+                        const equivalentIds = accountLabels
+                            .filter((l: any) => targetNames.includes(l.name))
+                            .map((l: any) => Number(l.id));
+                        validLabelIds = new Set<number>([...numericTagIds, ...equivalentIds]);
+                    }
+
                     const threadLabelsMap: Record<string, Set<number>> = {};
                     const labelRows = this.query<any>(
                         `SELECT thread_id, label_id FROM local_label_threads WHERE owner_zalo_id=?`,
@@ -6272,7 +6290,7 @@ class DatabaseService {
                         const cleanCid = c.contact_id.startsWith('g') ? c.contact_id.slice(1) : c.contact_id;
                         const lIds = threadLabelsMap[cleanCid];
                         if (!lIds) return false;
-                        return numericTagIds.every(id => lIds.has(id));
+                        return Array.from(validLabelIds).some(id => lIds.has(id));
                     });
                 }
             }

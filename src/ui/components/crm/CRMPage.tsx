@@ -247,6 +247,52 @@ export default function CRMPage() {
     return () => window.removeEventListener('local-labels-changed', handler);
   }, [loadLocalLabels]);
 
+  // Smart label filter remapping when switching activeAccountId (Option B)
+  const prevAccountIdRef = useRef(activeAccountId);
+  useEffect(() => {
+    if (prevAccountIdRef.current !== activeAccountId) {
+      const prevZaloId = prevAccountIdRef.current;
+      prevAccountIdRef.current = activeAccountId;
+
+      // 1. Remap filterLocalLabelIds to matching names on new account
+      if (store.filterLocalLabelIds.length > 0 && activeAccountId) {
+        const activeLocalNames = localLabels
+          .filter(l => store.filterLocalLabelIds.includes(l.id))
+          .map(l => l.name);
+
+        ipc.db?.getLocalLabels({ zaloId: activeAccountId }).then(res => {
+          const newAccountLabels = res?.labels || [];
+          if (activeLocalNames.length > 0) {
+            const newMatchingIds = newAccountLabels
+              .filter((l: any) => activeLocalNames.includes(l.name))
+              .map((l: any) => Number(l.id));
+            store.setFilterLocalLabelIds(newMatchingIds);
+          } else {
+            store.setFilterLocalLabelIds([]);
+          }
+        }).catch(() => store.setFilterLocalLabelIds([]));
+      }
+
+      // 2. Remap filterLabelIds (Zalo Cloud Labels) by matching name
+      if (store.filterLabelIds.length > 0 && activeAccountId && prevZaloId) {
+        const prevZaloLabels = labels[prevZaloId] || [];
+        const activeZaloNames = prevZaloLabels
+          .filter((l: any) => store.filterLabelIds.includes(l.id))
+          .map((l: any) => l.name);
+
+        const newZaloLabels = labels[activeAccountId] || [];
+        if (activeZaloNames.length > 0 && newZaloLabels.length > 0) {
+          const newMatchingCloudIds = newZaloLabels
+            .filter((l: any) => activeZaloNames.includes(l.name))
+            .map((l: any) => Number(l.id));
+          store.setFilterLabelIds(newMatchingCloudIds);
+        } else {
+          store.setFilterLabelIds([]);
+        }
+      }
+    }
+  }, [activeAccountId, localLabels, labels, store]);
+
   // ── Load data ────────────────────────────────────────────────────────────
   const loadContacts = useCallback(async () => {
     if (!activeAccountId) return;
