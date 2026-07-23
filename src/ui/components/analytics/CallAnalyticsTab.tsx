@@ -5,6 +5,7 @@ import {
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
+import UnifiedLabelPickerModal, { LoadedLabelOption } from '../crm/modals/UnifiedLabelPickerModal';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface CallTotals {
@@ -205,6 +206,61 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
     setCurrentPage(0);
   }, [selectedAccountId, sinceTs, untilTs, selectedLocalLabelIds, selectedZaloLabelIds]);
 
+  const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
+
+  const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
+    const localOpts: LoadedLabelOption[] = (localLabels || []).map((l: any) => ({
+      value: `local:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
+      source: 'local',
+      color: l.color || '#14b8a6',
+      textColor: l.text_color || l.textColor || '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.name,
+      pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
+    }));
+
+    const zaloOpts: LoadedLabelOption[] = (availableZaloLabels || []).map((l: any) => ({
+      value: `zalo:${(l as any).zalo_id || (l as any).pageId || selectedAccountId || ''}:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.text || l.name} (Zalo)`,
+      source: 'zalo',
+      color: l.color || '#3b82f6',
+      textColor: '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.text || l.name,
+      pageId: (l as any).zalo_id || (l as any).pageId || selectedAccountId || '',
+    }));
+
+    return [...localOpts, ...zaloOpts];
+  }, [localLabels, availableZaloLabels, selectedAccountId]);
+
+  const selectedUnifiedValues = useMemo(() => {
+    const localValues = selectedLocalLabelIds.map(id => `local:${id}`);
+    const zaloValues = selectedZaloLabelIds.map(id => {
+      const opt = unifiedLabelOptions.find(o => o.source === 'zalo' && o.value.endsWith(`:${id}`));
+      return opt ? opt.value : `zalo:${selectedAccountId}:${id}`;
+    });
+    return [...localValues, ...zaloValues];
+  }, [selectedLocalLabelIds, selectedZaloLabelIds, unifiedLabelOptions, selectedAccountId]);
+
+  const handleUnifiedChange = (newValues: string[]) => {
+    const newLocalIds: number[] = [];
+    const newZaloIds: number[] = [];
+
+    for (const val of newValues) {
+      if (val.startsWith('local:')) {
+        const id = Number(val.split(':')[1]);
+        if (!isNaN(id)) newLocalIds.push(id);
+      } else if (val.startsWith('zalo:')) {
+        const parts = val.split(':');
+        const id = Number(parts[parts.length - 1]);
+        if (!isNaN(id)) newZaloIds.push(id);
+      }
+    }
+    setSelectedLocalLabelIds(newLocalIds);
+    setSelectedZaloLabelIds(newZaloIds);
+  };
+
   // Load report
   const load = useCallback(async () => {
     if (!selectedAccountId) return;
@@ -321,6 +377,13 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
             <span>💬</span>
             <span>Nhãn Zalo {selectedZaloLabelIds.length > 0 ? `(${selectedZaloLabelIds.length})` : ''}</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setShowLabelPickerModal(true)}
+            className="text-xs px-2.5 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg font-semibold border border-blue-200 dark:border-blue-800/60 transition-colors ml-auto cursor-pointer"
+          >
+            🏷️ Chọn nhãn nâng cao
+          </button>
           {(selectedLocalLabelIds.length > 0 || selectedZaloLabelIds.length > 0) && (
             <button
               type="button"
@@ -328,7 +391,7 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
                 setSelectedLocalLabelIds([]);
                 setSelectedZaloLabelIds([]);
               }}
-              className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold"
             >
               Đặt lại lọc nhãn
             </button>
@@ -560,6 +623,17 @@ export default function CallAnalyticsTab({ sinceTs, untilTs, periodDays, isBoss 
           <p className="text-sm">Không có cuộc gọi nào trong khoảng thời gian này</p>
           <p className="text-xs text-gray-600">Thử chọn khoảng thời gian rộng hơn</p>
         </div>
+      )}
+
+      {showLabelPickerModal && (
+        <UnifiedLabelPickerModal
+          open={showLabelPickerModal}
+          onClose={() => setShowLabelPickerModal(false)}
+          options={unifiedLabelOptions}
+          selected={selectedUnifiedValues}
+          onChange={handleUnifiedChange}
+          accounts={accounts}
+        />
       )}
     </div>
   );

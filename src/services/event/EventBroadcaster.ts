@@ -294,14 +294,39 @@ class EventBroadcaster {
                 message._silent = true;
             }
 
+            // ─── Intercept undo/recall messages ─────────────────────────────────────
+            const earlyMsgType = String(message.data?.msgType || '');
+            const earlyContent = message.data?.content;
+            let parsedEarlyContent: any = null;
+            if (earlyContent) {
+                if (typeof earlyContent === 'object') parsedEarlyContent = earlyContent;
+                else if (typeof earlyContent === 'string' && earlyContent.startsWith('{')) {
+                    try { parsedEarlyContent = JSON.parse(earlyContent); } catch {}
+                }
+            }
+
+            const isUndoEvent = earlyMsgType === 'chat.undo' || earlyMsgType === 'undo' || earlyMsgType === 'user_undo' || earlyMsgType === 'group_undo' ||
+                (parsedEarlyContent && (parsedEarlyContent.globalMsgId || parsedEarlyContent.cliMsgId) && parsedEarlyContent.deleteMsg !== undefined);
+
+            if (isUndoEvent) {
+                const recalledMsgId = String(
+                    parsedEarlyContent?.globalMsgId ||
+                    parsedEarlyContent?.cliMsgId ||
+                    message.data?.msgId || ''
+                );
+                const threadId = message.threadId || String(parsedEarlyContent?.srcId || '');
+                if (recalledMsgId) {
+                    EventBroadcaster.broadcastUndo(zaloId, recalledMsgId, threadId);
+                }
+                return; // DO NOT save or render as a new message bubble
+            }
+
             // ─── Early-detect webchat/msginfo.actionlist notifications ───────────────
             // Zalo sends general conversation notifications (group setting changes,
             // reminders, member actions, etc.) as regular "message" events with
             //   msgType = "webchat"  and  content.action = "msginfo.actionlist"
             // These must be displayed as centred notification pills for ALL thread types,
             // NOT as regular message bubbles.
-            const earlyMsgType = String(message.data?.msgType || '');
-            const earlyContent = message.data?.content;
             if (
                 earlyMsgType === 'webchat' &&
                 earlyContent && typeof earlyContent === 'object' &&

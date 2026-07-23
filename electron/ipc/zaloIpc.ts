@@ -174,16 +174,40 @@ export function registerZaloIpc() {
         s.sendSticker(p.stickerId, p.threadId, p.type)
     );
 
+    function resolveLibFilePath(p: any): string {
+        if (p.filePath) return p.filePath;
+        if (p._libraryUuid) {
+            try {
+                const LibraryService = require('../../src/services/library/LibraryService').default;
+                const item = LibraryService.getInstance().getItem(p._libraryUuid);
+                if (item?.file_path) return item.file_path;
+            } catch {}
+        }
+        return '';
+    }
+
+    function resolveLibFilePaths(p: any): string[] {
+        if (p.filePaths && Array.isArray(p.filePaths) && p.filePaths.length > 0) return p.filePaths;
+        if (p._libraryUuids && Array.isArray(p._libraryUuids) && p._libraryUuids.length > 0) {
+            try {
+                const LibraryService = require('../../src/services/library/LibraryService').default;
+                const paths = p._libraryUuids.map((uuid: string) => LibraryService.getInstance().getItem(uuid)?.file_path).filter(Boolean);
+                if (paths.length > 0) return paths;
+            } catch {}
+        }
+        return [];
+    }
+
     wrap('zalo:sendImage', (s, p) =>
-        s.sendImage(FileStorageService.resolveAbsolutePath(p.filePath), p.threadId, p.type, p.message, p.quote)
+        s.sendImage(FileStorageService.resolveAbsolutePath(resolveLibFilePath(p)), p.threadId, p.type, p.message, p.quote)
     );
 
     wrap('zalo:sendImages', (s, p) =>
-        s.sendImages((p.filePaths || []).map((fp: string) => FileStorageService.resolveAbsolutePath(fp)), p.threadId, p.type, p.quote)
+        s.sendImages(resolveLibFilePaths(p).map((fp: string) => FileStorageService.resolveAbsolutePath(fp)), p.threadId, p.type, p.quote)
     );
 
     wrap('zalo:sendFile', (s, p) =>
-        s.sendFile(FileStorageService.resolveAbsolutePath(p.filePath), p.threadId, p.type, p.quote)
+        s.sendFile(FileStorageService.resolveAbsolutePath(resolveLibFilePath(p)), p.threadId, p.type, p.quote)
     );
 
     wrap('zalo:sendVoice', (s, p) =>

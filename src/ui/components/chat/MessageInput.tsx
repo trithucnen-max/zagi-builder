@@ -1589,7 +1589,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           timestamp: now + 2 + vi,
           is_sent: 1,
           status: 'sending',
-          local_paths: JSON.stringify({ main: vp }),
+          local_paths: JSON.stringify({ video: vp }),
         });
       });
 

@@ -60,7 +60,7 @@ class PhoneScanService {
                 FROM phone_scan_batches psb
                 INNER JOIN phone_scan_items psi ON psi.batch_id = psb.id
                 WHERE psb.status = 'active' AND psi.status = 'pending'
-                ORDER BY psb.priority DESC, psb.id ASC
+                ORDER BY psb.priority DESC, psb.sort_order ASC, psb.id ASC
                 LIMIT 5
             `);
 
@@ -338,10 +338,10 @@ class PhoneScanService {
                 // Create/update CRM contact
                 db.updateContactProfile(zaloId, uid, name, avatar, phoneNormalized, 'user');
 
-                // Update Zalo & CRM Alias based on Campaign/Batch rule if enabled
+                // Update Zalo & CRM Alias based on Campaign/Batch rule if explicitly enabled (update_zalo_alias === 1)
                 try {
                     const batchInfo = db.queryOne<any>('SELECT name, update_zalo_alias FROM phone_scan_batches WHERE id = ?', [batchId]);
-                    const shouldUpdateAlias = !batchInfo || batchInfo.update_zalo_alias === undefined || batchInfo.update_zalo_alias === null || Number(batchInfo.update_zalo_alias) !== 0;
+                    const shouldUpdateAlias = Boolean(batchInfo && batchInfo.update_zalo_alias != null && Number(batchInfo.update_zalo_alias) === 1);
                     if (shouldUpdateAlias && batchInfo?.name) {
                         const batchName = batchInfo.name.trim();
                         const phoneDisplay = phone || phoneNormalized;
@@ -355,8 +355,12 @@ class PhoneScanService {
                         // 2. Sync to Zalo server (mobile/PC app)
                         if (zaloService && typeof (zaloService as any).changeFriendAlias === 'function') {
                             zaloService.changeFriendAlias(formattedAlias, uid)
-                                .then(() => {
-                                    Logger.log(`[PhoneScanService] ✅ Updated Zalo alias for ${uid} to "${formattedAlias}"`);
+                                .then((res: any) => {
+                                    if (res && (res.error_code === 0 || res.error_code === '0' || res.status === 0)) {
+                                        Logger.log(`[PhoneScanService] ✅ Updated Zalo alias for ${uid} to "${formattedAlias}"`);
+                                    } else {
+                                        Logger.warn(`[PhoneScanService] ⚠️ Zalo server alias note for ${uid} (Code ${res?.error_code || res?.error}): ${res?.message || res?.error_message || 'Zalo API requires friend relationship to change alias on Zalo mobile/PC app'}`);
+                                    }
                                 })
                                 .catch(aliasErr => {
                                     Logger.warn(`[PhoneScanService] ⚠️ Sync Zalo alias error for ${uid}: ${aliasErr.message}`);

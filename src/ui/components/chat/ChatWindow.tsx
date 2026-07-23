@@ -5703,20 +5703,57 @@ async function sendOneForward(
 
   // Zalo path
   if (channel === 'zalo' || !channel) {
-    const isTempId = String(msg.msg_id).startsWith('temp_');
+    let captionText = extractMsgText(msg);
+    if (captionText === '[Tin nhắn]') captionText = '';
+    const hasCompose = Boolean(composeText && composeText.trim());
 
-    // Ưu tiên forwardMessage API khi có msg_id thật.
-    // Lý do KHÔNG dùng canSendAsFile trước:
-    // - Boss: effectivePath có thể là CDN URL → ZaloService.sendImage() chỉ đọc từ disk, sẽ crash
-    // - Employee: localPath là đường dẫn trên máy Boss → không tồn tại trên máy employee,
-    //   uploadEmployeeMedia() sẽ cố fs.readFileSync trên path không hợp lệ → crash
-    // forwardMessage API dùng msg_id reference → Zalo server xử lý nội bộ, không cần file trên disk.
-    if (!isTempId && msg.msg_id) {
-      let forwardText = extractMsgText(msg);
-      // Xóa placeholder "[Tin nhắn]" để Zalo API forward chính xác đối tượng reference.id mà không bị gửi đè văn bản "[Tin nhắn]"
-      if (isAttachment || forwardText === '[Tin nhắn]') {
-        forwardText = '';
+    // ── Nhánh 1: Tệp đính kèm (Ảnh / Video / File / Voice) ──
+    // Dùng effectivePath (local path hoặc URL CDN Zalo):
+    // ZaloService.sendImage / sendFile tự động tải URL CDN về đĩa tạm nếu chưa có trên đĩa local.
+    // Giúp chuyển tiếp ảnh/video/file hoạt động 100% giữa các nick Zalo, nhóm, hoặc hội thoại khác nhau.
+    if (isAttachment && effectivePath) {
+      if (isImage) {
+        const res = await ipc.zalo?.sendImage({
+          auth,
+          filePath: effectivePath,
+          threadId: target.threadId,
+          type: target.threadType,
+          message: captionText,
+        });
+        if (res && !res.success) {
+          throw new Error(res.error || 'Gửi ảnh chuyển tiếp thất bại');
+        }
+      } else if (isVideo) {
+        const res = await channelIpc.sendVideo('zalo', {
+          auth,
+          accountId: accountId || '',
+          filePath: effectivePath,
+          threadId: target.threadId,
+          threadType: target.threadType,
+          body: captionText,
+        });
+        if (res && !res.success) {
+          const fileRes = await ipc.zalo?.sendFile({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
+          if (fileRes && !fileRes.success) throw new Error(fileRes.error || 'Gửi video chuyển tiếp thất bại');
+        }
+      } else {
+        // File hoặc Voice
+        const res = await ipc.zalo?.sendFile({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
+        if (res && !res.success) {
+          throw new Error(res.error || 'Gửi file chuyển tiếp thất bại');
+        }
       }
+
+      if (hasCompose) {
+        await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
+      }
+      return;
+    }
+
+    // ── Nhánh 2: Tin nhắn văn bản (Text message) ──
+    const isTempId = String(msg.msg_id).startsWith('temp_');
+    if (!isTempId && msg.msg_id) {
+      let forwardText = captionText || ' ';
       const payload = {
         message: forwardText,
         reference: {
@@ -5732,37 +5769,35 @@ async function sendOneForward(
         threadIds: [target.threadId],
         type: target.threadType,
       });
-      if (res && !res.success) {
-        throw new Error(res.error || 'Server rejected forward request');
+
+      // Check xem forwardMessage API có thực sự thành công hay không
+      const apiSuccess = res?.success && res?.response && (!Array.isArray(res.response.fail) || res.response.fail.length === 0);
+
+      if (!apiSuccess) {
+        // Fallback: Gửi tin nhắn mới nếu forwardMessage API thất bại
+        const fallbackText = composeText ? `${forwardText}\n${composeText.trim()}` : forwardText;
+        if (fallbackText.trim()) {
+          const sendRes = await ipc.zalo?.sendMessage({ auth, message: fallbackText.trim(), threadId: target.threadId, type: target.threadType });
+          if (sendRes && !sendRes.success) {
+            throw new Error(sendRes.error || 'Chuyển tiếp tin nhắn thất bại');
+          }
+        }
+        return;
       }
-      if (composeText && composeText.trim()) {
+
+      if (hasCompose) {
         await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
       }
       return;
     }
 
-    // Fallback cho temp message (không có msg_id): chỉ dùng sendFile/sendImage
-    // với local file path thật (không phải CDN URL) để tránh ZaloService crash.
-    const localFileOnly = localPath && !localPath.startsWith('http');
-    if (isAttachment && localFileOnly) {
-      if (isImage) {
-        await ipc.zalo?.sendImage({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType, message: '' });
-      } else {
-        await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
-      }
-      if (composeText && composeText.trim()) {
-        await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
-      }
-      return;
-    }
-  }
-
-  // Fallback cuối: temp message không có local file → gửi text nội dung
-  if (channel === 'zalo' || !channel) {
-    let text = composeText || extractMsgText(msg);
-    if (text === '[Tin nhắn]') text = '';
+    // ── Nhánh 3: Fallback cuối cho text hoặc temp message ──
+    let text = composeText ? `${captionText}\n${composeText.trim()}` : captionText;
     if (text.trim()) {
-      await ipc.zalo?.sendMessage({ auth, message: text, threadId: target.threadId, type: target.threadType });
+      const res = await ipc.zalo?.sendMessage({ auth, message: text.trim(), threadId: target.threadId, type: target.threadType });
+      if (res && !res.success) {
+        throw new Error(res.error || 'Gửi tin nhắn thất bại');
+      }
     }
   }
 }

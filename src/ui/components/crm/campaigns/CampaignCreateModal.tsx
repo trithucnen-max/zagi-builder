@@ -14,7 +14,8 @@ type CampaignType = 'message' | 'friend_request' | 'mixed' | 'invite_to_group';
 type MixedAction  = 'message' | 'friend_request' | 'invite_to_groups';
 type SendMode     = 'random' | 'all';
 
-export interface MixedConfig   { actions: MixedAction[]; group_ids?: string[]; }
+export type ZaloAliasRule = 'none' | 'campaign_name_phone' | 'name_phone';
+export interface MixedConfig   { actions: MixedAction[]; group_ids?: string[]; zalo_alias_rule?: ZaloAliasRule; }
 export interface ContentBlock  { id: string; text: string; images: string[]; }
 export interface ContentConfig { mode: SendMode; blocks: ContentBlock[]; }
 
@@ -69,13 +70,18 @@ function parseContentConfig(raw?: string): ContentConfig {
 }
 
 function parseMixedConfig(raw?: string): MixedConfig {
-  if (!raw) return { actions: ['message', 'friend_request'] };
+  if (!raw) return { actions: ['message', 'friend_request'], zalo_alias_rule: 'none' };
   try {
     const p = JSON.parse(raw);
-    if (p && Array.isArray(p.actions)) return p as MixedConfig;
-    if (p && Array.isArray(p.group_ids)) return { actions: [], group_ids: p.group_ids };
+    if (p && typeof p === 'object') {
+      return {
+        actions: Array.isArray(p.actions) ? p.actions : ['message', 'friend_request'],
+        group_ids: Array.isArray(p.group_ids) ? p.group_ids : [],
+        zalo_alias_rule: (p.zalo_alias_rule === 'campaign_name_phone' || p.zalo_alias_rule === 'name_phone') ? p.zalo_alias_rule : 'none',
+      };
+    }
   } catch {}
-  return { actions: ['message', 'friend_request'] };
+  return { actions: ['message', 'friend_request'], zalo_alias_rule: 'none' };
 }
 
 
@@ -105,7 +111,6 @@ const PC_DELAY_PRESETS = [
   { label: '5-15s',   min: 5,   max: 15  },
   { label: '15-30s',  min: 15,  max: 30  },
   { label: '30-60s',  min: 30,  max: 60  },
-  { label: '1-2m',    min: 60,  max: 120 },
 ];
 
 const TYPE_OPTIONS: { value: CampaignType; icon: string; label: string }[] = [
@@ -176,7 +181,7 @@ function LivePreview({
       {/* Phone-style preview */}
       <div className="flex-1 min-h-0 flex flex-col border border-gray-700 rounded-xl overflow-hidden shadow-sm bg-gray-900">
         {/* Top bar */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-gray-850 border-b border-gray-700 flex-shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">Z</div>
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-semibold text-gray-200 truncate">Nguyễn Văn A</p>
@@ -332,7 +337,7 @@ function GroupPicker({
                     ? <img src={g.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
                     : <div className="w-6 h-6 rounded-full bg-blue-700 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">{(g.display_name||'?').charAt(0).toUpperCase()}</div>
                   }
-                  <span className={`flex-1 text-xs truncate ${checked ? 'text-blue-700 dark:text-white font-semibold' : 'text-gray-750 dark:text-gray-300'}`}>{g.display_name}</span>
+                  <span className={`flex-1 text-xs truncate ${checked ? 'text-blue-700 dark:text-white font-semibold' : 'text-gray-700 dark:text-gray-300'}`}>{g.display_name}</span>
                 </label>
               );
             })}
@@ -345,7 +350,7 @@ function GroupPicker({
             <summary className="text-[10px] text-gray-600 cursor-pointer hover:text-gray-500 select-none">📋 Mã lỗi thường gặp</summary>
             <div className="mt-1 flex flex-wrap gap-1">
               {Object.entries(INVITE_ERROR_LABELS).map(([c, l]) => (
-                <span key={c} className="text-[9px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-650">{c}: {l}</span>
+                <span key={c} className="text-[9px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-600">{c}: {l}</span>
               ))}
             </div>
           </details>
@@ -540,7 +545,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               placeholder="Yêu cầu AI viết tin nhắn mẫu..."
-              className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   if (e.nativeEvent.isComposing) return;
@@ -582,7 +587,7 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
           }
         }}
         placeholder={'Soạn nội dung tin nhắn...\nGõ { để chèn biến nhanh, hoặc dùng nút Chèn bên trên'}
-        className="min-h-[200px] h-[200px] w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
+        className="min-h-[200px] h-[200px] w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none transition-colors"
       />
 
       {/* Warning on link */}
@@ -669,12 +674,12 @@ export default function CampaignCreateModal({
   // ── Delay range between contacts ──
   const getInitMinMax = (): [number, number] => {
     const d = initialData;
-    if (!d) return [120, 180];
+    if (!d) return [5, 15];
     const dm = (d as any).delay_min_seconds;
     const dx = (d as any).delay_max_seconds;
     if (dm != null && dx != null) return [dm, dx];
-    const fallback = d.delay_seconds || 120;
-    return [Math.max(5, fallback - 10), fallback + 10];
+    const fallback = d.delay_seconds || 10;
+    return [Math.max(5, fallback - 5), fallback + 5];
   };
   const initRange = getInitMinMax();
   const [delayMin, setDelayMin] = useState(initRange[0]);
@@ -840,6 +845,7 @@ Yiêu cầu quan trọng:
   const initMixed = parseMixedConfig(initialData?.mixed_config);
   const [mixedActions,   setMixedActions]   = useState<MixedAction[]>(initMixed.actions);
   const [inviteGroupIds, setInviteGroupIds] = useState<string[]>(initMixed.group_ids ?? []);
+  const [zaloAliasRule,  setZaloAliasRule]  = useState<ZaloAliasRule>(() => initMixed.zalo_alias_rule || 'none');
 
   const hasMsg    = type === 'message' || (type === 'mixed' && mixedActions.includes('message'));
   const hasFR     = type === 'friend_request' || (type === 'mixed' && mixedActions.includes('friend_request'));
@@ -879,7 +885,7 @@ Yiêu cầu quan trọng:
     setInviteGroupIds(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
 
   const buildMixedConfig = (): string => {
-    let cfg: any = {};
+    let cfg: any = { zalo_alias_rule: zaloAliasRule };
     if (type === 'invite_to_group') {
       cfg.group_ids = inviteGroupIds;
     } else if (type === 'mixed') {
@@ -919,6 +925,44 @@ Yiêu cầu quan trọng:
       if (!isCreatingNewLabel && !selectedLabelId) return false;
     }
     return true;
+  };
+
+  const getValidationReason = (): string | null => {
+    const missing: string[] = [];
+    if (!name.trim()) {
+      missing.push('Tên chiến dịch');
+    }
+    if (type === 'invite_to_group') {
+      if (inviteGroupIds.length === 0) missing.push('Nhóm Zalo để mời');
+    } else if (type === 'mixed') {
+      if (mixedActions.length === 0) {
+        missing.push('Chọn ít nhất 1 hành động (Tin nhắn, Kết bạn, Mời nhóm)');
+      } else {
+        if (mixedActions.includes('message') && !contentConfig.blocks.some(b => b.text.trim() || b.images.length)) {
+          missing.push('Nội dung tin nhắn');
+        }
+        if (mixedActions.includes('friend_request') && !friendReqMsg.trim()) {
+          missing.push('Lời nhắn kết bạn');
+        }
+        if (mixedActions.includes('invite_to_groups') && inviteGroupIds.length === 0) {
+          missing.push('Nhóm Zalo để mời');
+        }
+      }
+    } else {
+      if (hasMsg && !contentConfig.blocks.some(b => b.text.trim() || b.images.length)) {
+        missing.push('Nội dung tin nhắn');
+      }
+      if (hasFR && !friendReqMsg.trim()) {
+        missing.push('Lời nhắn kết bạn');
+      }
+    }
+    if (autoLabelEnabled) {
+      if (isCreatingNewLabel && !newLabelName.trim()) missing.push('Tên nhãn mới');
+      if (!isCreatingNewLabel && !selectedLabelId) missing.push('Nhãn tự động áp dụng');
+    }
+
+    if (missing.length === 0) return null;
+    return `Cần nhập bổ sung: ${missing.join(', ')}`;
   };
 
   const handleSave = async () => {
@@ -998,34 +1042,40 @@ Yiêu cầu quan trọng:
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-gray-850 border border-gray-700/60 rounded-2xl w-full max-w-[1060px] shadow-2xl flex flex-col text-gray-100"
-        style={{ height: 'min(92vh, 42.5rem)' }}
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700/60 rounded-2xl w-full max-w-[1360px] shadow-2xl flex flex-col text-gray-900 dark:text-gray-100"
+        style={{ height: 'min(95vh, 52rem)' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* ── Topbar ── */}
-        <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-700 flex-shrink-0 bg-gray-900">
-          <div className="flex items-center gap-4 flex-1">
-            {/* Campaign Name Input */}
-            <div className="flex items-center gap-2 flex-1 max-w-[360px]">
-              <span className="text-xs font-bold text-gray-300 flex-shrink-0">
-                {editMode ? 'Chỉnh sửa tên:' : 'Tên chiến dịch:'}
-              </span>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Nhập tên chiến dịch..."
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors font-medium"
-              />
-            </div>
-            {/* Small Warning Text */}
-            <span className="text-[11px] text-amber-500 font-medium truncate hidden md:inline-block">
-              ⚠️ Tránh gửi link/spam cho người lạ để hạn chế bị khóa tài khoản.
-            </span>
+        {/* ── Header Topbar ── */}
+        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-700/60 flex-shrink-0 bg-white dark:bg-gray-900 rounded-t-2xl gap-4 flex-wrap">
+          {/* Title & Subtitle */}
+          <div className="flex-shrink-0">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+              {editMode ? 'Chỉnh sửa chiến dịch' : (type === 'message' ? 'Tạo chiến dịch tin nhắn' : type === 'friend_request' ? 'Tạo chiến dịch kết bạn' : type === 'invite_to_group' ? 'Tạo chiến dịch mời nhóm' : 'Tạo chiến dịch hỗn hợp')}
+            </h2>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              Gửi tin nhắn hàng loạt đến khách hàng
+            </p>
           </div>
+
+          {/* Campaign Name Input */}
+          <div className="flex items-center gap-2.5 flex-1 max-w-[560px]">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-gray-800 dark:text-gray-200 flex-shrink-0">
+              TÊN CHIẾN DỊCH
+            </span>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Nhập tên chiến dịch (vd: VIN, NOVA, CSKH)..."
+              className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-3.5 py-1.5 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors font-medium shadow-2xs"
+            />
+          </div>
+
+          {/* Close button */}
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-100 hover:bg-gray-750 transition-colors">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
@@ -1035,24 +1085,45 @@ Yiêu cầu quan trọng:
         <div className="flex-1 min-h-0 flex overflow-hidden">
 
           {/* ── LEFT: Settings ── */}
-          <div className="w-52 flex-shrink-0 border-r border-gray-700 flex flex-col overflow-y-auto p-4 gap-5 bg-gray-900">
+          <div className="w-[280px] flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto p-4 gap-5 bg-gray-50/50 dark:bg-gray-900">
 
             {/* Type */}
             <div>
-              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Loại *</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">LOẠI CHIẾN DỊCH</label>
               <div className="space-y-1">
                 {TYPE_OPTIONS.map(opt => (
                   <button key={opt.value} type="button" onClick={() => setType(opt.value)}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border text-left transition-colors ${
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left transition-colors ${
                       type === opt.value
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-gray-100 font-semibold'
-                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold shadow-2xs'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}>
-                    <AppIcon name={opt.icon as any} className={type === opt.value ? 'text-blue-500' : 'text-gray-500'} size={14} />
-                    <span className="text-xs font-medium">{opt.label}</span>
-                    {type === opt.value && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                    )}
+                    <AppIcon name={opt.icon as any} className={type === opt.value ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'} size={15} />
+                    <span className="text-xs">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tên Zalo sau khi gửi */}
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
+                TÊN ZALO SAU KHI GỬI
+              </label>
+              <div className="space-y-1">
+                {[
+                  { value: 'none' as const,                label: 'Không đổi' },
+                  { value: 'campaign_name_phone' as const, label: '[Tên chiến dịch] - [Tên Zalo] - [SĐT]' },
+                  { value: 'name_phone' as const,          label: '[Tên Zalo] - [SĐT]' },
+                ].map(opt => (
+                  <button key={opt.value} type="button" onClick={() => setZaloAliasRule(opt.value)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border text-left text-xs transition-colors ${
+                      zaloAliasRule === opt.value
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold shadow-2xs'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}>
+                    <span className="leading-snug break-words flex-1 text-[11px] font-medium">{opt.label}</span>
+                    {zaloAliasRule === opt.value && <span className="text-blue-600 dark:text-blue-400 font-bold ml-1.5 flex-shrink-0">✓</span>}
                   </button>
                 ))}
               </div>
@@ -1061,7 +1132,7 @@ Yiêu cầu quan trọng:
             {/* Mixed actions */}
             {type === 'mixed' && (
               <div>
-                <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Hành động</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Hành động</label>
                 <div className="space-y-1">
                   {([
                     { action: 'message' as MixedAction,         icon: 'chat' as const, label: 'Tin nhắn' },
@@ -1090,18 +1161,17 @@ Yiêu cầu quan trọng:
 
             {/* ⏱ Delay giữa các liên hệ */}
             <div>
-              <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
-                <AppIcon name="clock" className="text-gray-500" size={10} />
-                Delay giữa các liên hệ
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
+                DELAY GIỮA CÁC LIÊN HỆ
               </label>
-              <div className="grid grid-cols-2 gap-1">
+              <div className="grid grid-cols-2 gap-1.5">
                 {DELAY_PRESETS.map(p => {
                   const active = !customDelayMode && delayMin === p.min && delayMax === p.max;
                   return (
                     <button key={p.label} type="button" onClick={() => { setDelayMin(p.min); setDelayMax(p.max); setCustomDelayMode(false); }}
-                      className={`py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
-                        active ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold'
-                          : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-900 dark:hover:text-gray-300'
+                      className={`py-2 rounded-xl border text-xs font-semibold transition-colors ${
+                        active ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-300 shadow-2xs font-bold'
+                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                       }`}>
                       {p.label}
                     </button>
@@ -1109,40 +1179,36 @@ Yiêu cầu quan trọng:
                 })}
               </div>
               <button type="button" onClick={() => setCustomDelayMode(!customDelayMode)}
-                className={`flex items-center gap-1 mt-1.5 text-[11px] px-2 py-1 rounded-lg border transition-colors w-full ${
-                  customDelayMode ? 'border-blue-500 bg-blue-500/10 text-blue-300'
-                    : 'border-gray-350 dark:border-gray-600 text-gray-500 hover:text-gray-300 hover:border-gray-500'
+                className={`flex items-center justify-between mt-2 text-xs px-3 py-2 rounded-xl border transition-colors w-full font-semibold ${
+                  customDelayMode ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                    : 'border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100/50'
                 }`}>
-                <span>{customDelayMode ? '▾' : '▸'}</span> Tùy chỉnh khoảng
+                <span>▾ Tùy chỉnh khoảng</span>
               </button>
               {customDelayMode && (
-                <div className="flex items-center gap-1.5 mt-1.5">
+                <div className="flex items-center gap-1.5 mt-2 bg-white dark:bg-gray-800 p-2 rounded-xl border border-gray-200 dark:border-gray-700">
                   <input type="number" min={5} value={delayMin || ''}
                     onChange={e => setDelayMin(Math.max(5, parseInt(e.target.value) || 0))}
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
-                    placeholder="Tối thiểu (s)" />
-                  <span className="text-gray-500 text-xs">→</span>
+                    className="w-16 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-xs text-center text-gray-900 dark:text-gray-100 font-bold focus:outline-none focus:border-blue-500"
+                    placeholder="5" />
+                  <span className="text-gray-400 text-xs">➔</span>
                   <input type="number" min={delayMin} value={delayMax || ''}
                     onChange={e => setDelayMax(Math.max(delayMin || 5, parseInt(e.target.value) || 0))}
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-750 rounded-lg px-2.5 py-1.5 text-[11px] text-gray-900 dark:text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
-                    placeholder="Tối đa (s)" />
-                  <span className="text-gray-500 text-[10px] flex-shrink-0">giây</span>
+                    className="w-16 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-xs text-center text-gray-900 dark:text-gray-100 font-bold focus:outline-none focus:border-blue-500"
+                    placeholder="15" />
+                  <span className="text-gray-500 text-xs font-medium ml-0.5">giây</span>
                 </div>
               )}
-              <p className="text-[10px] text-gray-550 mt-1">
-                ⏱ Ngẫu nhiên <span className="text-gray-750 dark:text-gray-400 font-semibold">{fmtDelayRange(delayMin, delayMax)}</span> giữa các liên hệ
+              <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-2 leading-relaxed flex items-start gap-1">
+                <span className="flex-shrink-0">⏱</span>
+                <span>Ngẫu nhiên <strong className="font-bold text-gray-900 dark:text-gray-100">{fmtDelayRange(delayMin, delayMax)}</strong> giữa các liên hệ để tăng tỉ lệ thành công.</span>
               </p>
-              {isStrangerTarget && delayMin < 180 && (
-                <p className="text-[10px] text-amber-600 dark:text-amber-500 font-medium mt-1.5 leading-relaxed">
-                  ⚠️ Khuyến nghị: Nên giãn cách 3 - 5 phút (180s - 300s) khi gửi tin cho người lạ/kết bạn để tránh bị Zalo quét.
-                </p>
-              )}
             </div>
 
             {/* ⏱ Delay giữa các tin nhắn (chỉ khi gửi nhiều tin/liên hệ) */}
             {hasMultiSend && (
               <div>
-                <label className="text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
                   <AppIcon name="clock" className="text-gray-500" size={10} />
                   Delay giữa các tin nhắn
                 </label>
@@ -1189,17 +1255,12 @@ Yiêu cầu quan trọng:
               </div>
             )}
 
-
-
-
-
-
           </div>
 
           {/* ── CENTER: Editor ── */}
-          <div className="flex-1 min-w-0 flex flex-col overflow-hidden border-r border-gray-700 bg-gray-850">
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
             {/* Center topbar */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700 flex-shrink-0 min-h-[44px] bg-gray-900">
+            <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-200 dark:border-gray-700/60 flex-shrink-0 min-h-[44px] bg-gray-50/30 dark:bg-gray-900">
               {hasMsg ? (
                 <>
                   {/* Block tabs */}
@@ -1209,8 +1270,8 @@ Yiêu cầu quan trọng:
                         onClick={() => setActiveBlock(i)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 border ${
                           i === activeBlock
-                            ? 'bg-blue-600 border-blue-500 text-white'
-                            : 'bg-gray-800 border-gray-700 text-gray-300 hover:text-white hover:border-gray-600'
+                            ? 'bg-blue-600 border-blue-500 text-white font-bold'
+                            : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}>
                         <span className="w-4 h-4 rounded-full bg-current/20 flex items-center justify-center text-[9px] font-bold leading-none">
                           {i + 1}
@@ -1278,11 +1339,11 @@ Yiêu cầu quan trọng:
             <div className="flex-1 min-h-0 p-4 overflow-y-auto flex flex-col gap-3.5">
               
               {/* ── Config Panel: Giới hạn/Ngày & Hẹn giờ chạy ── */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-gray-900 border border-gray-700/60 rounded-xl flex-shrink-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700/60 rounded-2xl flex-shrink-0">
                 {/* Giới hạn ngày */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                    <AppIcon name="chart" className="text-gray-500" size={10} />
+                  <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                    <AppIcon name="chart" className="text-gray-400" size={12} />
                     Giới hạn gửi trong ngày
                   </label>
                   <div className="flex items-center gap-2 mt-1">
@@ -1293,21 +1354,21 @@ Yiêu cầu quan trọng:
                       value={dailyLimit || ''}
                       onChange={e => setDailyLimit(Math.max(0, parseInt(e.target.value) || 0))}
                       placeholder="Không giới hạn"
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                      className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                     />
-                    <span className="text-[10px] text-gray-500 flex-shrink-0">liên hệ</span>
+                    <span className="text-xs text-gray-500 font-medium flex-shrink-0">liên hệ</span>
                   </div>
                   {isStrangerTarget && (
                     dailyLimit === 0 ? (
-                      <p className="text-[9px] text-red-400 font-semibold mt-1 leading-relaxed">
+                      <p className="text-[10px] text-red-500 font-semibold mt-1 leading-relaxed">
                         ⚠️ Không nên để không giới hạn khi gửi người lạ/kết bạn. Zalo giới hạn 50 người/ngày.
                       </p>
                     ) : dailyLimit > 50 ? (
-                      <p className="text-[9px] text-red-500 font-semibold mt-1 leading-relaxed">
+                      <p className="text-[10px] text-red-500 font-semibold mt-1 leading-relaxed">
                         ⚠️ Nguy hiểm: Vượt quá giới hạn 50 người/ngày của Zalo. Tài khoản dễ bị khóa!
                       </p>
                     ) : dailyLimit > 20 ? (
-                      <p className="text-[9px] text-amber-500 font-medium mt-1 leading-relaxed">
+                      <p className="text-[10px] text-amber-600 font-medium mt-1 leading-relaxed">
                         ⚠️ Khuyến nghị: Nên đặt hạn mức từ 10 - 20 người/ngày để an toàn tối đa.
                       </p>
                     ) : null
@@ -1318,12 +1379,12 @@ Yiêu cầu quan trọng:
                 <div className="flex flex-col gap-1">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <div onClick={() => setIsScheduled(!isScheduled)}
-                      className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-                        isScheduled ? 'bg-blue-600 border-blue-600' : 'border-gray-500 hover:border-blue-400'
+                      className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                        isScheduled ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
                       }`}>
                       {isScheduled && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">🗓 Hẹn giờ chạy</span>
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">🗓 Hẹn giờ chạy</span>
                   </label>
 
                   {isScheduled ? (
@@ -1333,7 +1394,7 @@ Yiêu cầu quan trọng:
                           type="date"
                           value={schedDate}
                           onChange={e => setSchedDate(e.target.value)}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                          className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                         />
                       </div>
                       <div>
@@ -1341,17 +1402,17 @@ Yiêu cầu quan trọng:
                           type="time"
                           value={schedTime}
                           onChange={e => setSchedTime(e.target.value)}
-                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors"
+                          className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 transition-colors font-medium"
                         />
                       </div>
                     </div>
                   ) : (
-                    <p className="text-[10px] text-gray-500 mt-1.5">
+                    <p className="text-xs text-gray-500 mt-1.5 font-medium">
                       Chạy ngay khi kích hoạt chiến dịch
                     </p>
                   )}
                   {isScheduled && getScheduleMessage() && (
-                    <p className={`text-[9px] mt-1 leading-relaxed ${getScheduleMessage().startsWith('⚠️') ? 'text-amber-500 font-semibold' : 'text-cyan-500 dark:text-cyan-400'}`}>
+                    <p className={`text-[10px] mt-1 leading-relaxed ${getScheduleMessage().startsWith('⚠️') ? 'text-amber-600 font-semibold' : 'text-blue-600 dark:text-cyan-400'}`}>
                       {getScheduleMessage()}
                     </p>
                   )}
@@ -1373,7 +1434,7 @@ Yiêu cầu quan trọng:
               {hasFR && hasMsg && (
                 <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 pt-3">
                   <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                    <span className="text-[11px] font-semibold text-gray-650 dark:text-gray-400">🤝 Lời nhắn kết bạn</span>
+                    <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-400">🤝 Lời nhắn kết bạn</span>
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className="text-[9px] text-gray-500">Chèn:</span>
                       {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'}].map(v => (
@@ -1537,39 +1598,36 @@ Yiêu cầu quan trọng:
               )}
 
             </div>
-
-            {/* Warning Box — outside scroll area so it never overlaps BlockEditor buttons */}
-            <div className="flex-shrink-0 mx-4 mb-3 border border-yellow-500/20 bg-yellow-500/5 rounded-xl px-3 py-2">
-              <p className="text-[10px] text-yellow-500 dark:text-yellow-400 font-semibold mb-0.5">⚠️ Cảnh báo</p>
-              <p className="text-[9px] text-yellow-600/70 dark:text-yellow-400/60 leading-relaxed">
-                Hành động càng nhiều, nội dung càng dài, và delay càng ngắn sẽ làm tăng nguy cơ bị Zalo đánh spam. Hãy cân nhắc kỹ lưỡng khi cấu hình chiến dịch, và luôn tuân thủ nguyên tắc cộng đồng của Zalo.
-              </p>
-            </div>
           </div>
 
           {/* ── RIGHT: Preview ── */}
-          <div className="w-60 flex-shrink-0 p-4 overflow-hidden flex flex-col bg-gray-900">
+          <div className="w-64 flex-shrink-0 p-4 overflow-hidden flex flex-col bg-gray-50/50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700">
             {/* Auto label on success */}
-            <div className="mb-4 pb-3 border-b border-gray-700 flex-shrink-0">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoLabelEnabled}
-                  onChange={(e) => {
-                    const val = e.target.checked;
+            <div className="mb-4 pb-3 border-b border-gray-200 dark:border-gray-700/60 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                  🏷️ GẮN NHÃN TỰ ĐỘNG
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const val = !autoLabelEnabled;
                     setAutoLabelEnabled(val);
-                    if (val) {
-                      setShowLabelSelectorPopup(true);
-                    }
+                    if (val) setShowLabelSelectorPopup(true);
                   }}
-                  className="w-3.5 h-3.5 rounded border border-gray-600 text-blue-650 focus:ring-0 focus:ring-offset-0 bg-transparent cursor-pointer"
-                />
-                <span className="text-[10px] font-bold text-gray-300 uppercase tracking-wider">🏷️ Gắn nhãn tự động</span>
-              </label>
+                  className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${
+                    autoLabelEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-700'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform transform absolute top-0.5 ${
+                    autoLabelEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
+                  }`} />
+                </button>
+              </div>
               {autoLabelEnabled && (
-                <div className="mt-2 pl-5">
+                <div className="mt-2.5">
                   {selectedLabelId || newLabelName ? (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold text-white shadow-sm"
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-white shadow-xs"
                       style={isCreatingNewLabel
                         ? { backgroundColor: newLabelColor, color: '#ffffff' }
                         : (() => {
@@ -1582,14 +1640,14 @@ Yiêu cầu quan trọng:
                       {isCreatingNewLabel ? (
                         <>
                           <span>{newLabelEmoji}</span>
-                          <span className="truncate max-w-[90px]">{newLabelName} (Mới)</span>
+                          <span className="truncate max-w-[100px]">{newLabelName} (Mới)</span>
                         </>
                       ) : (() => {
                           const label = localLabelsList.find(l => l.id === Number(selectedLabelId));
                           return (
                             <>
                               {label?.emoji && <span>{label.emoji}</span>}
-                              <span className="truncate max-w-[90px]">{label?.name || 'Nhãn đã chọn'}</span>
+                              <span className="truncate max-w-[100px]">{label?.name || 'Nhãn đã chọn'}</span>
                             </>
                           );
                       })()}
@@ -1599,7 +1657,7 @@ Yiêu cầu quan trọng:
                           e.stopPropagation();
                           setShowLabelSelectorPopup(true);
                         }}
-                        className="text-[9px] underline ml-1 hover:text-opacity-80 font-medium"
+                        className="text-[10px] underline ml-1 hover:text-opacity-80 font-medium"
                       >
                         Sửa
                       </button>
@@ -1608,286 +1666,295 @@ Yiêu cầu quan trọng:
                     <button
                       type="button"
                       onClick={() => setShowLabelSelectorPopup(true)}
-                      className="text-[10px] text-blue-500 hover:text-blue-400 font-semibold underline"
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold"
                     >
-                      Chọn nhãn áp dụng
+                      + Chọn nhãn áp dụng
                     </button>
                   )}
                 </div>
               )}
-
-              {/* Auto-Nurture Pipeline Chaining (Tạm thời disable theo yêu cầu) */}
-
             </div>
 
-            <LivePreview
-              blocks={contentConfig.blocks}
-              activeIdx={activeBlock}
-              mode={contentConfig.mode}
-              type={type}
-              friendMsg={friendReqMsg}
-              campaignName={name}
-              onTabChange={setActiveBlock}
-              zaloId={zaloId}
-            />
+            {/* Live Preview */}
+            <div className="flex-1 min-h-0 flex flex-col">
+              <LivePreview
+                blocks={contentConfig.blocks}
+                activeIdx={activeBlock}
+                mode={contentConfig.mode}
+                type={type}
+                friendMsg={friendReqMsg}
+                campaignName={name}
+                onTabChange={setActiveBlock}
+                zaloId={zaloId}
+              />
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 text-center mt-3 font-medium">
+                Lưu ý: Nội dung hiển thị chỉ mang tính chất minh họa.
+              </p>
+            </div>
           </div>
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex items-center gap-3 px-5 py-3 border-t border-gray-700 flex-shrink-0 bg-gray-900">
-          <div className="flex-1 text-[11px] text-gray-550">
+        <div className="flex items-center justify-between px-6 py-3.5 border-t border-gray-200 dark:border-gray-700/60 flex-shrink-0 bg-white dark:bg-gray-900 rounded-b-2xl">
+          <div className="text-xs text-gray-500 font-medium">
             {hasMsg && contentConfig.blocks.length > 1 && (
               <span>{contentConfig.blocks.length} biến thể · {contentConfig.mode === 'random' ? '🎲 random' : '📨 gửi tất cả'}</span>
             )}
           </div>
-          <button onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-transparent transition-colors font-medium">
-            Hủy
-          </button>
-          <button onClick={handleSave} disabled={saving || !isValid()}
-            className="px-6 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-semibold flex items-center gap-2">
-            {saving && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
-            {saving ? (editMode ? 'Đang lưu...' : 'Đang tạo...') : (editMode ? 'Lưu thay đổi' : 'Tạo chiến dịch')}
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={onClose}
+              className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs font-semibold transition-colors">
+              Hủy
+            </button>
+            <div className="relative group">
+              <button onClick={handleSave} disabled={saving || !isValid()}
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                {saving && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
+                <span>{saving ? (editMode ? 'Đang lưu...' : 'Đang tạo...') : (editMode ? 'Lưu thay đổi' : 'Tạo chiến dịch →')}</span>
+              </button>
+
+              {/* Hover Tooltip when invalid */}
+              {!isValid() && !saving && (
+                <div className="absolute bottom-full right-0 mb-2.5 hidden group-hover:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/90 text-red-600 dark:text-red-400 text-xs font-bold whitespace-nowrap shadow-2xl border border-red-200 dark:border-red-800 z-50 animate-fadeIn pointer-events-none">
+                  <span className="text-red-600 dark:text-red-400 font-bold">⚠️</span>
+                  <span className="font-bold text-red-600 dark:text-red-400">{getValidationReason()}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* ── Chọn nhãn Popup Modal (Hình 2) ── */}
-        {showLabelSelectorPopup && (() => {
-          const { accounts } = useAppStore.getState ? { accounts: [] } : { accounts: [] }; // Fallback lookup if not needed
-          // Let's resolve active account details
-          const accountDisplayName = zaloId || 'Tài khoản';
-          const accountAvatar = '';
-          return (
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setShowLabelSelectorPopup(false)}>
-              <div
-                className="bg-[#f4f5f7] dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-[680px] shadow-2xl flex flex-col overflow-hidden text-gray-900 dark:text-gray-100"
-                style={{ height: '420px' }}
-                onClick={e => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-850">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white text-base shadow-sm">
-                      🏷️
+        {/* ── Chọn nhãn Popup Modal ── */}
+        {showLabelSelectorPopup && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setShowLabelSelectorPopup(false)}>
+            <div
+              className="bg-[#f4f5f7] dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-[680px] shadow-2xl flex flex-col overflow-hidden text-gray-900 dark:text-gray-100"
+              style={{ height: '420px' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-900">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white text-base shadow-sm">
+                    🏷️
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 dark:text-white text-[14px]">Chọn nhãn</h4>
+                    <p className="text-[10px] text-gray-500">Có thể chọn nhiều nhãn</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLabelSelectorPopup(false)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Body split */}
+              <div className="flex-1 min-h-0 flex overflow-hidden">
+                {/* Left Sidebar */}
+                <div className="w-44 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-gray-900 p-3 gap-1">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider px-2 mb-1.5 block">TÀI KHOẢN</span>
+                  
+                  {/* All item */}
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs bg-blue-500/10 text-blue-500 font-semibold border border-blue-500/10"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center text-[10px]">
+                      📋
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900 dark:text-white text-[14px]">Chọn nhãn</h4>
-                      <p className="text-[10px] text-gray-500">Có thể chọn nhiều nhãn</p>
+                      <p className="font-semibold">Tất cả</p>
+                      <p className="text-[9px] text-blue-500/70">{localLabelsList.length} nhãn</p>
+                    </div>
+                  </button>
+
+                  {/* Account profile item */}
+                  <div className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs text-gray-600 dark:text-gray-400">
+                    <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
+                      {(zaloId || 'T').slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="truncate flex-1">
+                      <p className="font-semibold truncate">{zaloId || 'Tài khoản'}</p>
+                      <p className="text-[9px] text-gray-500 truncate">{localLabelsList.length} nhãn</p>
                     </div>
                   </div>
+                </div>
+
+                {/* Right content panel */}
+                <div className="flex-1 min-h-0 flex flex-col bg-gray-50 dark:bg-gray-900">
+                  {/* Tabs header */}
+                  <div className="flex border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 flex-shrink-0">
+                    <button
+                      type="button"
+                      className="px-4 py-2.5 text-xs font-semibold text-teal-600 dark:text-teal-400 border-b-2 border-teal-500 flex items-center gap-1.5"
+                    >
+                      💾 Nhãn Local <span className="bg-teal-500/15 text-teal-500 text-[10px] px-1.5 py-0.5 rounded-full font-bold">{localLabelsList.length}</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      className="px-4 py-2.5 text-xs font-semibold text-gray-400 flex items-center gap-1.5 cursor-not-allowed opacity-40"
+                    >
+                      ☁️ Nhãn Zalo
+                    </button>
+                  </div>
+
+                  {/* Selector body */}
+                  <div className="flex-1 min-h-0 p-4 overflow-y-auto flex flex-col gap-3">
+                    
+                    {/* Create Form */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col gap-3 flex-shrink-0">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={newLabelName}
+                          onChange={e => setNewLabelName(e.target.value)}
+                          placeholder="Tên nhãn local mới..."
+                          className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:border-teal-500 transition-colors"
+                        />
+                        
+                        {/* Emoji Trigger */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowColorPicker(false); }}
+                            className="bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-1 min-w-[44px]"
+                          >
+                            <span>{newLabelEmoji}</span>
+                            <span className="text-[9px] text-gray-500">▼</span>
+                          </button>
+                          {showEmojiPicker && (
+                            <div className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2 shadow-2xl z-50 grid grid-cols-5 gap-1 w-44">
+                              {['🎯', '🏷️', '📞', '🔄', '🔥', '⭐', '✅', '❌', '💎', '👤'].map(em => (
+                                <button
+                                  key={em}
+                                  type="button"
+                                  onClick={() => { setNewLabelEmoji(em); setShowEmojiPicker(false); }}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"
+                                >
+                                  {em}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Color Selector Square */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => { setShowColorPicker(!showColorPicker); setShowEmojiPicker(false); }}
+                            className="w-7 h-7 rounded-lg border border-gray-300 dark:border-gray-700 transition-transform hover:scale-105 flex-shrink-0"
+                            style={{ backgroundColor: newLabelColor }}
+                          />
+                          {showColorPicker && (
+                            <div className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2 shadow-2xl z-50 grid grid-cols-3 gap-1.5 w-32">
+                              {['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'].map(bg => (
+                                <button
+                                  key={bg}
+                                  type="button"
+                                  onClick={() => { setNewLabelColor(bg); setShowColorPicker(false); }}
+                                  className={`w-7 h-7 rounded-lg border transition-transform hover:scale-110 ${newLabelColor === bg ? 'border-white ring-2 ring-blue-500/50' : 'border-transparent'}`}
+                                  style={{ backgroundColor: bg }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleCreateNewLabelInPopup();
+                          }}
+                          disabled={!newLabelName.trim()}
+                          className="px-3 py-1.5 bg-[#4f9e8a] hover:bg-[#3f8472] disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-colors flex-shrink-0"
+                        >
+                          Tạo mới
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Labels List */}
+                    <div className="flex flex-col gap-2">
+                      {localLabelsList.map(label => {
+                        const isActive = Number(selectedLabelId) === label.id;
+                        return (
+                          <div
+                            key={label.id}
+                            onClick={() => {
+                              setSelectedLabelId(label.id);
+                              setIsCreatingNewLabel(false);
+                            }}
+                            className={`border rounded-xl p-2.5 flex items-center justify-between cursor-pointer transition-colors bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                              isActive ? 'border-blue-600/50 bg-blue-500/5 dark:bg-blue-500/5' : 'border-gray-200 dark:border-gray-800/80'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              {/* Checkbox radio look */}
+                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                                isActive ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600'
+                              }`}>
+                                {isActive && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                              </div>
+                              {/* Label badge */}
+                              <span
+                                className="text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 text-white shadow-sm"
+                                style={{ backgroundColor: label.color || '#3b82f6', color: label.text_color || '#ffffff' }}
+                              >
+                                {label.emoji && <span>{label.emoji}</span>}
+                                <span>{label.name}</span>
+                              </span>
+                            </div>
+                            {/* Profile Owner */}
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                              <div className="w-4.5 h-4.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">
+                                {(zaloId || 'T').slice(0, 1).toUpperCase()}
+                              </div>
+                              <span>{zaloId || 'Tài khoản'}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3.5 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between flex-shrink-0 bg-[#f4f5f7] dark:bg-gray-900">
+                <span className="text-[11px] text-gray-500">Chọn nhãn để áp dụng</span>
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setShowLabelSelectorPopup(false)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-transparent transition-colors font-semibold"
                   >
-                    ✕
+                    Đóng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedLabelId) {
+                        setAutoLabelEnabled(true);
+                      }
+                      setShowLabelSelectorPopup(false);
+                    }}
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors"
+                  >
+                    Xác nhận
                   </button>
                 </div>
-
-                {/* Body split */}
-                <div className="flex-1 min-h-0 flex overflow-hidden">
-                  {/* Left Sidebar */}
-                  <div className="w-44 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-gray-850 p-3 gap-1">
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider px-2 mb-1.5 block">TÀI KHOẢN</span>
-                    
-                    {/* All item */}
-                    <button
-                      type="button"
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs bg-blue-500/10 text-blue-500 font-semibold border border-blue-500/10"
-                    >
-                      <div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center text-[10px]">
-                        📋
-                      </div>
-                      <div>
-                        <p className="font-semibold">Tất cả</p>
-                        <p className="text-[9px] text-blue-500/70">{localLabelsList.length} nhãn</p>
-                      </div>
-                    </button>
-
-                    {/* Account profile item */}
-                    <div className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs text-gray-600 dark:text-gray-400">
-                      <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
-                        {accountDisplayName.slice(0, 1).toUpperCase()}
-                      </div>
-                      <div className="truncate flex-1">
-                        <p className="font-semibold truncate">{accountDisplayName}</p>
-                        <p className="text-[9px] text-gray-505 truncate">{localLabelsList.length} nhãn</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right content panel */}
-                  <div className="flex-1 min-h-0 flex flex-col bg-gray-50 dark:bg-gray-900">
-                    {/* Tabs header */}
-                    <div className="flex border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-850 px-4 flex-shrink-0">
-                      <button
-                        type="button"
-                        className="px-4 py-2.5 text-xs font-semibold text-teal-600 dark:text-teal-400 border-b-2 border-teal-500 flex items-center gap-1.5"
-                      >
-                        💾 Nhãn Local <span className="bg-teal-500/15 text-teal-500 text-[10px] px-1.5 py-0.5 rounded-full font-bold">{localLabelsList.length}</span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled
-                        className="px-4 py-2.5 text-xs font-semibold text-gray-450 flex items-center gap-1.5 cursor-not-allowed opacity-40"
-                      >
-                        ☁️ Nhãn Zalo
-                      </button>
-                    </div>
-
-                    {/* Selector body */}
-                    <div className="flex-1 min-h-0 p-4 overflow-y-auto flex flex-col gap-3">
-                      
-                      {/* Create Form */}
-                      <div className="bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col gap-3 flex-shrink-0">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={newLabelName}
-                            onChange={e => setNewLabelName(e.target.value)}
-                            placeholder="Tên nhãn local mới..."
-                            className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-450 focus:outline-none focus:border-teal-500 transition-colors"
-                          />
-                          
-                          {/* Emoji Trigger */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowColorPicker(false); }}
-                              className="bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-700 dark:text-gray-350 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-1 min-w-[44px]"
-                            >
-                              <span>{newLabelEmoji}</span>
-                              <span className="text-[9px] text-gray-500">▼</span>
-                            </button>
-                            {showEmojiPicker && (
-                              <div className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2 shadow-2xl z-50 grid grid-cols-5 gap-1 w-44">
-                                {['🎯', '🏷️', '📞', '🔄', '🔥', '⭐', '✅', '❌', '💎', '👤'].map(em => (
-                                  <button
-                                    key={em}
-                                    type="button"
-                                    onClick={() => { setNewLabelEmoji(em); setShowEmojiPicker(false); }}
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"
-                                  >
-                                    {em}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Color Selector Square */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => { setShowColorPicker(!showColorPicker); setShowEmojiPicker(false); }}
-                              className="w-7 h-7 rounded-lg border border-gray-300 dark:border-gray-700 transition-transform hover:scale-105 flex-shrink-0"
-                              style={{ backgroundColor: newLabelColor }}
-                            />
-                            {showColorPicker && (
-                              <div className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2 shadow-2xl z-50 grid grid-cols-3 gap-1.5 w-32">
-                                {['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'].map(bg => (
-                                  <button
-                                    key={bg}
-                                    type="button"
-                                    onClick={() => { setNewLabelColor(bg); setShowColorPicker(false); }}
-                                    className={`w-7 h-7 rounded-lg border transition-transform hover:scale-110 ${newLabelColor === bg ? 'border-white ring-2 ring-blue-500/50' : 'border-transparent'}`}
-                                    style={{ backgroundColor: bg }}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleCreateNewLabelInPopup();
-                            }}
-                            disabled={!newLabelName.trim()}
-                            className="px-3 py-1.5 bg-[#4f9e8a] hover:bg-[#3f8472] disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-colors flex-shrink-0"
-                          >
-                            Tạo mới
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Labels List */}
-                      <div className="flex flex-col gap-2">
-                        {localLabelsList.map(label => {
-                          const isActive = Number(selectedLabelId) === label.id;
-                          return (
-                            <div
-                              key={label.id}
-                              onClick={() => {
-                                setSelectedLabelId(label.id);
-                                setIsCreatingNewLabel(false);
-                              }}
-                              className={`border rounded-xl p-2.5 flex items-center justify-between cursor-pointer transition-colors bg-white dark:bg-gray-850 hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                                isActive ? 'border-blue-600/50 bg-blue-500/5 dark:bg-blue-500/5' : 'border-gray-200 dark:border-gray-800/80'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                {/* Checkbox radio look */}
-                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                                  isActive ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-650'
-                                }`}>
-                                  {isActive && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                </div>
-                                {/* Label badge */}
-                                <span
-                                  className="text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 text-white shadow-sm"
-                                  style={{ backgroundColor: label.color || '#3b82f6', color: label.text_color || '#ffffff' }}
-                                >
-                                  {label.emoji && <span>{label.emoji}</span>}
-                                  <span>{label.name}</span>
-                                </span>
-                              </div>
-                              {/* Profile Owner */}
-                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                                <div className="w-4.5 h-4.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">
-                                  {accountDisplayName.slice(0, 1).toUpperCase()}
-                                </div>
-                                <span>{accountDisplayName}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="px-5 py-3.5 border-t border-gray-200 dark:border-gray-850 flex items-center justify-between flex-shrink-0 bg-[#f4f5f7] dark:bg-gray-850">
-                  <span className="text-[11px] text-gray-550">Chọn nhãn để áp dụng</span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowLabelSelectorPopup(false)}
-                      className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-transparent transition-colors font-semibold"
-                    >
-                      Đóng
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (selectedLabelId) {
-                          setAutoLabelEnabled(true);
-                        }
-                        setShowLabelSelectorPopup(false);
-                      }}
-                      className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors"
-                    >
-                      Xác nhận
-                    </button>
-                  </div>
-                </div>
-
               </div>
+
             </div>
-          );
-        })()}
+          </div>
+        )}
       </div>
     </div>
   );

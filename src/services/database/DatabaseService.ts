@@ -1194,8 +1194,16 @@ class DatabaseService {
             }
             const hasUpdateZaloAlias = cols.some((c: any) => c.name === 'update_zalo_alias');
             if (!hasUpdateZaloAlias) {
-                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN update_zalo_alias INTEGER NOT NULL DEFAULT 1`);
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN update_zalo_alias INTEGER NOT NULL DEFAULT 0`);
                 Logger.log('[DatabaseService] ✅ Migration: added update_zalo_alias column to phone_scan_batches');
+            }
+            const hasSortOrder = cols.some((c: any) => c.name === 'sort_order');
+            if (!hasSortOrder) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`);
+                this.exec(`UPDATE phone_scan_batches SET sort_order = id`);
+                Logger.log('[DatabaseService] ✅ Migration: added sort_order column to phone_scan_batches');
+            } else {
+                this.exec(`UPDATE phone_scan_batches SET sort_order = id WHERE sort_order = 0 OR sort_order IS NULL`);
             }
 
             const contactCols = this.query<any>('PRAGMA table_info(contacts)');
@@ -4300,13 +4308,22 @@ class DatabaseService {
         );
     }
 
-    /** Xóa hội thoại khỏi DB (xóa contact + toàn bộ tin nhắn) */
+    /** Xóa hội thoại khỏi DB (xóa contact, friend + toàn bộ tin nhắn + nhãn + ghi chú + tags) */
     public deleteConversation(ownerZaloId: string, contactId: string): void {
         if (!this.initialized) return;
         try {
             this.runNoSave('DELETE FROM messages WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
             this.runNoSave('DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?', [ownerZaloId, contactId]);
-            this.runNoSave('DELETE FROM page_group_member WHERE owner_zalo_id = ? AND group_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM friends WHERE owner_zalo_id = ? AND user_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM page_group_member WHERE owner_zalo_id = ? AND (group_id = ? OR member_id = ?)', [ownerZaloId, contactId, contactId]);
+            this.runNoSave('DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM crm_notes WHERE owner_zalo_id = ? AND contact_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM crm_contact_tags WHERE owner_zalo_id = ? AND contact_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM crm_campaign_contacts WHERE contact_id = ?', [contactId]);
+            this.runNoSave('DELETE FROM local_pinned_conversations WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM message_drafts WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM links WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM friend_requests WHERE owner_zalo_id = ? AND user_id = ?', [ownerZaloId, contactId]);
             this.save();
             Logger.log(`[DatabaseService] Deleted conversation ${contactId} for ${ownerZaloId}`);
         } catch (err: any) {
@@ -9107,7 +9124,7 @@ class DatabaseService {
         if (!this.initialized) return [];
         try {
             this.backfillPhoneScanAliases();
-            return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY status = 'active' DESC, priority DESC, id DESC`);
+            return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY sort_order ASC, priority DESC, id ASC`);
         } catch (err: any) {
             Logger.error(`[DB] getPhoneScanBatches: ${err.message}`);
             return [];
@@ -9166,15 +9183,19 @@ class DatabaseService {
             const autoWorkflowId = params.autoWorkflowId ? Number(params.autoWorkflowId) : null;
             const updateZaloAlias = params.updateZaloAlias !== false ? 1 : 0;
 
+            // Get max sort_order
+            const maxSort = this.queryOne<any>('SELECT MAX(sort_order) as m FROM phone_scan_batches')?.m ?? 0;
+            const nextSortOrder = Number(maxSort) + 1;
+
             // Start a manual transaction for safety
             this.run('BEGIN TRANSACTION');
 
             // 1. Insert batch
             this.run(`
                 INSERT INTO phone_scan_batches 
-                (name, assigned_account_id, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [params.name, params.assignedAccountId, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, now]);
+                (name, assigned_account_id, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, sort_order, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [params.name, params.assignedAccountId, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, nextSortOrder, now]);
 
             const batchId = this.queryOne<any>(`SELECT last_insert_rowid() as id`)?.id;
             if (!batchId) {
@@ -9261,6 +9282,19 @@ class DatabaseService {
             this.save();
         } catch (err: any) {
             Logger.error(`[DB] updatePhoneScanBatchPriority error: ${err.message}`);
+        }
+    }
+
+    public reorderPhoneScanBatches(batchIds: number[]): void {
+        if (!this.initialized || !batchIds || batchIds.length === 0) return;
+        try {
+            batchIds.forEach((id, idx) => {
+                this.run(`UPDATE phone_scan_batches SET sort_order = ? WHERE id = ?`, [idx, id]);
+            });
+            this.save();
+            Logger.log(`[DB] ✅ reorderPhoneScanBatches: updated ${batchIds.length} batches`);
+        } catch (err: any) {
+            Logger.error(`[DB] reorderPhoneScanBatches error: ${err.message}`);
         }
     }
 

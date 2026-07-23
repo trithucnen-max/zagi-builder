@@ -459,7 +459,28 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v3.0.5</strong> — 2026-07-22 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v3.0.6</strong> — 2026-07-24 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật & Sửa lỗi hệ thống
+
+- 🏷️ **Quản Lý Quy Tắc Đặt Tên Gợi Nhớ Zalo (Zalo Contact Alias Renaming Rules)**:
+  - Thêm 3 tùy chọn khi tạo chiến dịch CRM: **Không đổi** (Mặc định - bảo vệ tên Zalo cố định của bạn bè), **`[Tên chiến dịch] - [Tên Zalo] - [SĐT]`**, và **`[Tên Zalo] - [SĐT]`**.
+  - Tích hợp thuật toán `extractCoreZaloName` bóc tách tên gốc, khắc phục lặp chuỗi nối biệt danh (ví dụ `Test-VIP-Khánh Ly-0898904529-0898904529` ➔ `Test-Khánh Ly-0898904529`).
+- 🎨 **Nâng Cấp Giao Diện Modal Tạo Chiến Dịch CRM & Khởi Tạo Quét SĐT Zalo**:
+  - Tăng kích thước Modal Tạo chiến dịch CRM lên **1360px x 832px**, Cột trái rộng **280px** hiển thị trọn vẹn quy tắc tên gợi nhớ, mặc định dải Delay **5-15s**.
+  - Thiết kế lại Modal Khởi tạo lô quét SĐT Zalo mới phẳng thoáng rộng **1280px x 800px**.
+  - Bổ sung nút **`📥 Tải tệp CSV/Excel mẫu (SĐT, Giới tính, Ngày sinh)`** tự động xuất file mẫu `.xlsx` chuẩn 3 cột và Dropzone kéo thả file `.xlsx`, `.xls`, `.csv`.
+- 🧠 **Động Cơ Chuẩn Hóa Dữ Liệu Tự Động (Smart Data Normalization Engine)**:
+  - Tự động bổ sung số `0` cho SĐT 9 chữ số (`912345678` ➔ `0912345678`).
+  - Tự động quy đổi Giới tính (`nam`, `male`, `1` ➔ `Nam`; `nữ`, `female`, `2` ➔ `Nữ`) và Ngày sinh (`15-08-1992` ➔ `15/08/1992`).
+- 🎨 **Sửa Lỗi Màu Sắc Giao Diện Buổi Tối (Dark Mode Contrast Fix)**:
+  - Loại bỏ toàn bộ các class Tailwind không chuẩn (`gray-850`, `gray-750`, `gray-650`) thay bằng class chuẩn (`gray-900`, `gray-800`, `gray-700`, `gray-600`).
+  - Sửa dứt điểm lỗi mảng màu trắng bị tràn trên cột giữa Editor và các ô nhập tin nhắn `textarea` ở tất cả các chế độ chiến dịch (**Tin nhắn**, **Kết bạn**, **Mời nhóm**, **Hỗn hợp**).
+
+</details>
+
+<details>
+<summary><strong>v3.0.5</strong> — 2026-07-22</summary>
 
 ### 🚀 Nâng cấp nổi bật & Sửa lỗi hệ thống
 

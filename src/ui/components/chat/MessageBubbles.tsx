@@ -478,9 +478,11 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
 }
 
 // ── ZaloVideoBubble ──────────────────────────────────────────────────────────
-// Zalo videos have thumbnail preview from msg.content.thumb, play in external player
+// Zalo videos have thumbnail preview or HTML5 video frame preview, play inside Zagi app with external player option
 function ZaloVideoBubble({ msg }: { msg: any }) {
+  const [showPlayer, setShowPlayer] = React.useState(false);
   let remoteThumb = '';
+  let remoteVideo = '';
   let videoLocalPath = '';
   let thumbLocalPath = '';
   let duration = 0;
@@ -492,15 +494,21 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
     const lp: any = typeof msg.local_paths === 'string'
       ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
     if (lp.cleaned) isCleaned = true;
-    // Zalo stores: { thumb: "thumbnail_path", file: "video_path" }
-    thumbLocalPath = lp.thumb || lp.main || '';
-    videoLocalPath = lp.file || lp.video || '';
+
+    // Parse local paths: video vs thumb
+    if (lp.file) videoLocalPath = lp.file;
+    else if (lp.video) videoLocalPath = lp.video;
+    else if (lp.main && !/\.(jpg|jpeg|png|webp)$/i.test(lp.main)) videoLocalPath = lp.main;
+
+    if (lp.thumb && /\.(jpg|jpeg|png|webp)$/i.test(lp.thumb)) {
+      thumbLocalPath = lp.thumb;
+    }
   } catch {}
 
   try {
     const parsed = JSON.parse(msg.content || '{}');
-    // Zalo video content: { href, thumb, params: { duration, video_width, video_height } }
-    remoteThumb = parsed.thumb || '';
+    remoteThumb = parsed.thumb || parsed.thumbnailUrl || parsed.thumbUrl || '';
+    remoteVideo = parsed.href || parsed.url || parsed.videoUrl || '';
     const params = typeof parsed.params === 'string' ? JSON.parse(parsed.params) : (parsed.params || {});
     duration = params.duration ? Math.round(params.duration / 1000) : 0;
     width = params.video_width || 0;
@@ -508,16 +516,15 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
   } catch {}
 
   const thumbUrl = thumbLocalPath ? toLocalMediaUrl(thumbLocalPath) : remoteThumb;
+  const videoUrl = videoLocalPath ? toLocalMediaUrl(videoLocalPath) : remoteVideo;
+
   const isHD = width >= 720 || height >= 720;
   const aspectRatio = width && height ? width / height : 16 / 9;
-  const displayHeight = Math.min(200, Math.round(280 / aspectRatio));
+  const displayHeight = Math.min(240, Math.round(280 / aspectRatio));
   const formatDur = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-  const videoUrl = videoLocalPath ? toLocalMediaUrl(videoLocalPath) : '';
-
-  const handlePlay = (e: React.MouseEvent) => {
+  const handleOpenExternal = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Zalo: open in external player (VLC, etc.)
     if (videoLocalPath) ipc.file?.openPath(videoLocalPath);
   };
 
@@ -525,18 +532,65 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
     return <span className="text-xs opacity-60 italic">[Video đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
   }
 
-  return (
-    <div className="relative group/video cursor-pointer rounded-xl overflow-hidden bg-black ring-1 ring-black/[0.12]"
-      style={{ width: '17.5rem', height: displayHeight || 160 }} onClick={handlePlay}>
-      {thumbUrl
-        ? <img src={thumbUrl} alt="video" className="w-full h-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        : <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-600">
-              <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+  // Inline video player mode (chạy trực tiếp trong Zagi)
+  if (showPlayer && videoUrl) {
+    return (
+      <div className="relative rounded-xl overflow-hidden bg-black ring-1 ring-black/[0.12]"
+        style={{ width: '17.5rem', height: displayHeight || 180 }}>
+        <video
+          src={videoUrl}
+          controls
+          autoPlay
+          className="w-full h-full object-contain"
+          onError={() => setShowPlayer(false)}
+        />
+        {videoLocalPath && (
+          <button
+            onClick={handleOpenExternal}
+            title="Mở bằng phần mềm ngoài"
+            className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 rounded-full text-white/80 hover:text-white transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
             </svg>
-          </div>
-      }
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="relative group/video cursor-pointer rounded-xl overflow-hidden bg-black ring-1 ring-black/[0.12]"
+      style={{ width: '17.5rem', height: displayHeight || 160 }}
+      onClick={() => { if (videoUrl) setShowPlayer(true); }}
+    >
+      {thumbUrl ? (
+        <img
+          src={thumbUrl}
+          alt="video thumbnail"
+          className="w-full h-full object-cover"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      ) : videoUrl ? (
+        /* Render khung xem trước video tự động khi không có ảnh thumbnail */
+        <video
+          src={videoUrl}
+          preload="metadata"
+          className="w-full h-full object-cover pointer-events-none"
+          muted
+          playsInline
+        />
+      ) : (
+        <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-600">
+            <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+        </div>
+      )}
+
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50"/>
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-14 h-14 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center group-hover/video:bg-black/80 transition-colors shadow-lg">
@@ -550,6 +604,20 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
         {isHD && <span className="text-[11px] text-white font-bold bg-blue-600/70 px-1.5 py-0.5 rounded">HD</span>}
         {!videoLocalPath && !videoUrl && <span className="text-[11px] text-yellow-300 bg-black/50 px-1.5 py-0.5 rounded">Đang tải...</span>}
       </div>
+
+      {videoLocalPath && (
+        <button
+          onClick={handleOpenExternal}
+          title="Mở bằng phần mềm ngoài"
+          className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/80 rounded-full text-white/80 hover:text-white transition-colors opacity-0 group-hover/video:opacity-100"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <polyline points="15 3 21 3 21 9" />
+            <line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -1859,9 +1927,12 @@ export function MessageBubble({ msg, isSelf, senderName, onManage, onView, onOpe
   const cls = isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver';
 
   // ── Recalled ──
-  const isRecalled = msg.is_recalled === 1 || msg.status === 'recalled' || mt === 'recalled';
+  const isUndoJson = typeof mc === 'string' && (mc.includes('"globalMsgId"') || mc.includes('"cliMsgId"')) && mc.includes('"deleteMsg"');
+  const isRecalled = msg.is_recalled === 1 || msg.status === 'recalled' || mt === 'recalled' || isUndoJson;
   if (isRecalled) {
-    const originalContent = msg.recalled_content || mc;
+    const rawOriginal = msg.recalled_content || mc;
+    const isOrigUndoJson = typeof rawOriginal === 'string' && (rawOriginal.includes('"globalMsgId"') || rawOriginal.includes('"cliMsgId"')) && rawOriginal.includes('"deleteMsg"');
+    const originalContent = isOrigUndoJson ? '' : rawOriginal;
     const hasOriginal = !!(originalContent && originalContent.trim() !== '' && originalContent !== 'null' && originalContent !== '{}');
     return (
       <div className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1 mb-0.5`}>

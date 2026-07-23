@@ -6,6 +6,8 @@ import ZaloLabelBadge from '../tags/ZaloLabelBadge';
 import GroupAvatar from '@/components/common/GroupAvatar';
 import { formatPhone, normalizePhone } from '@/utils/phoneUtils';
 import AppIcon from '@/components/common/AppIcon';
+import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
+import { useAccountStore } from '@/store/accountStore';
 
 export interface LocalLabelItem {
   id: number;
@@ -87,6 +89,62 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
     if (Object.keys(propMap).length > 0) return propMap;
     return fetchedThreadMap;
   }, [localLabelThreadMap, fetchedThreadMap]);
+
+  const accounts = useAccountStore(s => s.accounts);
+  const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
+
+  const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
+    const localOpts: LoadedLabelOption[] = (effectiveLocalLabels || []).map((l: any) => ({
+      value: `local:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
+      source: 'local',
+      color: l.color || '#14b8a6',
+      textColor: l.text_color || l.textColor || '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.name,
+      pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
+    }));
+
+    const zaloOpts: LoadedLabelOption[] = (allLabels || []).map((l: any) => ({
+      value: `zalo:${(l as any).zalo_id || (l as any).pageId || zaloId || ''}:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.text || l.name} (Zalo)`,
+      source: 'zalo',
+      color: l.color || '#3b82f6',
+      textColor: '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.text || l.name,
+      pageId: (l as any).zalo_id || (l as any).pageId || zaloId || '',
+    }));
+
+    return [...localOpts, ...zaloOpts];
+  }, [effectiveLocalLabels, allLabels, zaloId]);
+
+  const selectedUnifiedValues = useMemo(() => {
+    const localValues = selectedLocalLabelIds.map(id => `local:${id}`);
+    const zaloValues = selectedZaloLabelIds.map(id => {
+      const opt = unifiedLabelOptions.find(o => o.source === 'zalo' && o.value.endsWith(`:${id}`));
+      return opt ? opt.value : `zalo:${zaloId}:${id}`;
+    });
+    return [...localValues, ...zaloValues];
+  }, [selectedLocalLabelIds, selectedZaloLabelIds, unifiedLabelOptions, zaloId]);
+
+  const handleUnifiedChange = (newValues: string[]) => {
+    const newLocalIds: number[] = [];
+    const newZaloIds: number[] = [];
+
+    for (const val of newValues) {
+      if (val.startsWith('local:')) {
+        const id = Number(val.split(':')[1]);
+        if (!isNaN(id)) newLocalIds.push(id);
+      } else if (val.startsWith('zalo:')) {
+        const parts = val.split(':');
+        const id = Number(parts[parts.length - 1]);
+        if (!isNaN(id)) newZaloIds.push(id);
+      }
+    }
+    setSelectedLocalLabelIds(newLocalIds);
+    setSelectedZaloLabelIds(newZaloIds);
+  };
 
   // Load ALL contacts (no pagination limit, including friends, non-friends, and groups)
   useEffect(() => {
@@ -452,29 +510,40 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
         {/* ── Label filter chips (by_label mode) ── */}
         {mode === 'by_label' && (
           <div className="border-b border-gray-700 flex-shrink-0 px-4 py-2.5 space-y-2">
-            {/* Tab switcher */}
-            <div className="flex gap-1 mb-1">
-              <button onClick={() => setLabelTab('local')}
-                className={`text-[11px] px-3 py-1 rounded-md font-medium transition-colors ${
-                  labelTab === 'local'
-                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                    : 'text-gray-500 hover:text-gray-300 border border-transparent'
-                }`}>
-                <span className="flex items-center gap-1">
-                  <AppIcon name="storage" className="text-current" size={10} />
-                  Nhãn Local{effectiveLocalLabels.length > 0 ? ` (${effectiveLocalLabels.length})` : ''}
-                </span>
-              </button>
-              <button onClick={() => setLabelTab('zalo')}
-                className={`text-[11px] px-3 py-1 rounded-md font-medium transition-colors ${
-                  labelTab === 'zalo'
-                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                    : 'text-gray-500 hover:text-gray-300 border border-transparent'
-                }`}>
-                <span className="flex items-center gap-1">
-                  <AppIcon name="sync" className="text-current" size={10} />
-                  Nhãn Zalo{allLabels.length > 0 ? ` (${allLabels.length})` : ''}
-                </span>
+            {/* Tab switcher + Unified Label Picker trigger */}
+            <div className="flex items-center justify-between gap-1 mb-1">
+              <div className="flex gap-1">
+                <button onClick={() => setLabelTab('local')}
+                  className={`text-[11px] px-3 py-1 rounded-md font-medium transition-colors ${
+                    labelTab === 'local'
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                      : 'text-gray-500 hover:text-gray-300 border border-transparent'
+                  }`}>
+                  <span className="flex items-center gap-1">
+                    <AppIcon name="storage" className="text-current" size={10} />
+                    Nhãn Local{effectiveLocalLabels.length > 0 ? ` (${effectiveLocalLabels.length})` : ''}
+                  </span>
+                </button>
+                <button onClick={() => setLabelTab('zalo')}
+                  className={`text-[11px] px-3 py-1 rounded-md font-medium transition-colors ${
+                    labelTab === 'zalo'
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                      : 'text-gray-500 hover:text-gray-300 border border-transparent'
+                  }`}>
+                  <span className="flex items-center gap-1">
+                    <AppIcon name="sync" className="text-current" size={10} />
+                    Nhãn Zalo{allLabels.length > 0 ? ` (${allLabels.length})` : ''}
+                  </span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowLabelPickerModal(true)}
+                className="text-[11px] px-2.5 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 rounded-md border border-blue-500/30 font-medium flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <span>🏷️</span>
+                <span>Bảng chọn nhãn</span>
               </button>
             </div>
 
@@ -815,6 +884,16 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
             </div>
           </>
         )}
+      {showLabelPickerModal && (
+        <UnifiedLabelPickerModal
+          open={showLabelPickerModal}
+          onClose={() => setShowLabelPickerModal(false)}
+          options={unifiedLabelOptions}
+          selected={selectedUnifiedValues}
+          onChange={handleUnifiedChange}
+          accounts={accounts}
+        />
+      )}
       </div>
     </div>
   );

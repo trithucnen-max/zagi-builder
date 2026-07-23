@@ -90,8 +90,15 @@ class FileStorageService {
         }
         if (!path.isAbsolute(trimmed)) {
             // Relative: "media/zaloId/date/img.jpg" → configFolder/media/zaloId/...
+            // OR "library/zaloId/images/uuid.png" → baseDir/library/zaloId/...
             const configFolder = path.dirname(this.getBaseDir());
-            return path.join(configFolder, trimmed);
+            const resolvedConfig = path.join(configFolder, trimmed);
+            if (fs.existsSync(resolvedConfig)) return resolvedConfig;
+
+            const resolvedBase = path.join(this.getBaseDir(), trimmed);
+            if (fs.existsSync(resolvedBase)) return resolvedBase;
+
+            return resolvedConfig;
         }
         // Absolute path — serve as-is if it exists
         if (fs.existsSync(relOrAbsPath)) return relOrAbsPath;

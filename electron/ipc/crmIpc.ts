@@ -738,6 +738,20 @@ export function registerCRMIpc(): void {
         }
     });
 
+    ipcHandle('crm:reorderPhoneScanBatches', async (_e, { batchIds }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.reorderPhoneScanBatches(batchIds);
+            try {
+                const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
+            } catch {}
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
     ipcHandle('crm:startPhoneScanImmediate', async () => {
         try {
             const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;

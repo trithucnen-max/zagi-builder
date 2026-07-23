@@ -296,6 +296,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     startPhoneScanImmediate: (params: any) => ipcRenderer.invoke('crm:startPhoneScanImmediate', params),
     getPhoneScanLimitStatus: () => ipcRenderer.invoke('crm:getPhoneScanLimitStatus'),
     updatePhoneScanBatchPriority: (params: any) => ipcRenderer.invoke('crm:updatePhoneScanBatchPriority', params),
+    reorderPhoneScanBatches: (params: any) => ipcRenderer.invoke('crm:reorderPhoneScanBatches', params),
   },
 
   // ─── Analytics / Reporting ──────────────────────────────────────────

@@ -288,6 +288,7 @@ declare global {
         startPhoneScanImmediate: () => Promise<{ success: boolean; error?: string }>;
         getPhoneScanLimitStatus: () => Promise<{ success: boolean; accountsStatus?: Array<{ zaloId: string; fullName: string; todayCount: number; hourlyCount: number }>; error?: string }>;
         updatePhoneScanBatchPriority: (params: { batchId: number; priority: number }) => Promise<{ success: boolean; error?: string }>;
+        reorderPhoneScanBatches: (params: { batchIds: number[] }) => Promise<{ success: boolean; error?: string }>;
         reassignContactsOwner: (params: { fromZaloId: string; targetZaloId: string; contactIds: string[] }) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
         markContactBlocked: (params: { ownerZaloId: string; contactId: string; isBlocked?: boolean }) => Promise<{ success: boolean; error?: string }>;
       };

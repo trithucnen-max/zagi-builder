@@ -2,6 +2,40 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.6] - 2026-07-24
+
+### 🚀 Quản Lý Quy Tắc Đặt Tên Gợi Nhớ Zalo (Zalo Contact Alias Renaming Rules)
+
+- **3 Tùy Chọn Linh Hoạt Khi Tạo Chiến Dịch CRM:**
+  - **Không đổi (Mặc định):** Giữ nguyên tên Zalo/biệt danh cố định của bạn bè và liên hệ trong danh bạ, tránh làm sai lệch tên người quen khi chạy chiến dịch.
+  - **`[Tên chiến dịch] - [Tên Zalo] - [SĐT]`:** Gán tên gợi nhớ Zalo kèm tên chiến dịch và SĐT phục vụ phân loại chiến dịch marketing.
+  - **`[Tên Zalo] - [SĐT]`:** Gán tên gợi nhớ Zalo kèm SĐT tối giản.
+- **Thuật Toán Bóc Tách Tên Gốc (`extractCoreZaloName`):** Khắc phục triệt để sự cố lặp nối chuỗi biệt danh Zalo (ví dụ: biến `Test-VIP-Khánh Ly-0898904529-0898904529` thành tên chuẩn `Test-Khánh Ly-0898904529`).
+
+### 🎨 Nâng Cấp Giao Diện Modal Tạo Chiến Dịch CRM & Khởi Tạo Quét SĐT Zalo
+
+- **Modal Tạo Chiến Dịch CRM:**
+  - Tăng kích thước khung làm việc lên **1360px x 832px** (`max-w-[1360px]`, `height: min(95vh, 52rem)`).
+  - Mở rộng Cột cấu hình bên trái lên **280px**, hiển thị trọn vẹn quy tắc đặt tên gợi nhớ Zalo không bị cắt chữ (`truncate`).
+  - Đặt lại giá trị ngẫu nhiên dải Delay gửi mặc định thành **5 - 15 giây** an toàn tối đa cho tài khoản Zalo.
+- **Modal Khởi Tạo Lô Quét SĐT Zalo Mới (`PhoneScanPanel.tsx`):**
+  - Thiết kế lại giao diện 2 cột phẳng hiện đại, mở rộng kích thước lên **1280px x 800px** (`max-w-[1280px]`, `height: min(94vh, 50rem)`).
+  - Bổ sung nút **`📥 Tải tệp CSV/Excel mẫu (SĐT, Giới tính, Ngày sinh)`** tự động xuất file mẫu `.xlsx` chuẩn 3 cột (`Số điện thoại`, `Giới tính`, `Ngày sinh`).
+  - Hỗ trợ khung Dropzone kéo thả & đọc file đa định dạng (`.xlsx`, `.xls`, `.csv`) dung lượng tới 10MB qua thư viện `XLSX`.
+
+### 🧠 Động Cơ Chuẩn Hóa Dữ Liệu Tự Động (Smart Data Normalization Engine)
+
+- **Chuẩn hóa SĐT:** Tự động sửa các SĐT 9 chữ số thiếu số 0 đầu (`912345678` ➔ `0912345678`).
+- **Chuẩn hóa Giới tính:** Tự động quy đổi các giá trị nhập tự do (`nam`, `male`, `1` ➔ `Nam`; `nữ`, `female`, `2` ➔ `Nữ`).
+- **Chuẩn hóa Ngày sinh:** Tự động định dạng ngày sinh chuẩn (`15-08-1992` ➔ `15/08/1992`).
+
+### 🎨 Sửa Lỗi Màu Sắc Giao Diện Buổi Tối (Dark Mode Contrast Fix)
+
+- **Chuẩn hóa CSS Selector Tailwind:** Loại bỏ toàn bộ các class màu không chuẩn (`gray-850`, `gray-750`, `gray-650`) thay bằng các màu sắc chuẩn của Tailwind (`gray-900`, `gray-800`, `gray-700`, `gray-600`).
+- **Khắc phục lỗi mảng màu trắng bị lóa:** Sửa lỗi đè màu nền trắng trên cột giữa Editor và các ô nhập văn bản `textarea` ở tất cả các chế độ chiến dịch (**Tin nhắn**, **Kết bạn**, **Mời nhóm**, **Hỗn hợp**).
+
+---
+
 ## [v3.0.5] - 2026-07-23
 
 ### 🚀 Nâng cấp Kỹ thuật & Bảo vệ Chuyển Tiếp Phương Tiện (Safe Media Forwarding & Path Resolution Engine)
