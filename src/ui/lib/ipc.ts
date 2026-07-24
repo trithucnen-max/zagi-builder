@@ -824,6 +824,41 @@ function wrapZaloApi(api: any): any {
 
 const zalo = wrapZaloApi(window.electronAPI?.zalo);
 
+const browserWorkspace = {
+  list: async () => ({ success: true, workspaces: [], activeId: null }),
+  create: async (data: any) => ({ success: true, workspace: { id: 'ws_' + Date.now(), ...data } }),
+  update: async () => ({ success: true }),
+  delete: async () => ({ success: true }),
+  switch: async (id: string) => ({ success: true, workspace: { id } }),
+  isMulti: async () => ({ isMulti: false }),
+  getDbPath: async () => ({ success: true, dbPath: '' }),
+  connectRemote: async () => ({ success: true }),
+  disconnectRemote: async () => ({ success: true }),
+  getConnectionStatus: async () => ({ success: true, connected: true, bossUrl: '', latency: 0 }),
+  getAllStatuses: async () => ({ success: true, statuses: {} }),
+  loginRemote: async (bossUrl: string, username: string, password: string) => {
+    try {
+      let url = bossUrl.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = `http://${url}`;
+      }
+      url = url.replace(/\/+$/, '');
+      const resp = await fetch(`${url}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      return await resp.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Không thể kết nối tới Boss server' };
+    }
+  },
+  probeAndSwitchToLan: async () => ({ success: true }),
+  revertToWan: async () => ({ success: true }),
+  notifyNetworkOnline: () => {},
+  notifyNetworkOffline: () => {},
+};
+
 export const ipc = {
   login: window.electronAPI?.login,
   zalo,
@@ -841,7 +876,7 @@ export const ipc = {
   ai: window.electronAPI?.ai,
   tunnel: window.electronAPI?.tunnel,
   employee: window.electronAPI?.employee,
-  workspace: window.electronAPI?.workspace,
+  workspace: window.electronAPI?.workspace || browserWorkspace,
   sync: window.electronAPI?.sync,
   relay: window.electronAPI?.relay,
   fb: window.electronAPI?.fb,
