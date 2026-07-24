@@ -6,6 +6,7 @@ import { autoUpdater } from 'electron-updater';
 import DatabaseService from '../src/services/database/DatabaseService';
 import { registerLoginIpc } from './ipc/loginIpc';
 import { registerZaloIpc } from './ipc/zaloIpc';
+import { registerMediaIpc } from './ipc/mediaIpc';
 import { registerDatabaseIpc } from './ipc/databaseIpc';
 import { registerFileIpc } from './ipc/fileIpc';
 import { registerCRMIpc } from './ipc/crmIpc';
@@ -1017,6 +1018,7 @@ async function startupAfterLicenseCheck(): Promise<void> {
   // Register all IPC handlers
   registerLoginIpc(mainWindow);
   registerZaloIpc();
+  registerMediaIpc();
   registerDatabaseIpc();
   registerFileIpc();
   registerCRMIpc();

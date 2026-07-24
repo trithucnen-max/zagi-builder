@@ -739,32 +739,36 @@ export default function LibraryPickerModal({
         const hasLocalPath = imageItems.every(i => i._localPath);
 
         if (imageItems.length === 1) {
-          // 1 ảnh → sendImage như cũ
+          // 1 ảnh → sendImage dùng mediaToken
           const item = imageItems[0];
-          const opts: any = { auth: auth || {}, zaloId, threadId, threadType, type: threadType };
-          if (item._localPath) {
-            opts.filePath = item._localPath;
-          } else {
-            opts.fileUrl = item.fileUrl;
-            opts._libraryUuid = item.uuid;
-          }
+          const opts: any = {
+            auth: auth || {},
+            zaloId,
+            threadId,
+            threadType,
+            type: threadType,
+            mediaToken: item.uuid || item._localPath || item.fileUrl,
+            filePath: item._localPath,
+            fileUrl: item.fileUrl,
+            _libraryUuid: item.uuid,
+          };
           if (item.type === 'image') {
             await ipc.zalo.sendImage(opts);
           } else {
             await ipc.zalo.sendFile(opts);
           }
         } else {
-          // 2+ ảnh → gửi gộp bằng sendImages
-          const opts: any = { auth: auth || {}, zaloId, threadId, threadType, type: threadType };
-          if (hasLocalPath) {
-            // Boss mode: dùng local path trực tiếp
-            opts.filePaths = imageItems.map(i => i._localPath);
-          } else {
-            // Employee mode: luôn gửi kèm _libraryUuids để Boss resolve ra local paths
-            // filePaths chỉ là fallback (HTTP URL sẽ bị lọc bởi resolveLibFilePaths trên Boss)
-            opts._libraryUuids = imageItems.map(i => i.uuid).filter(Boolean);
-            opts.filePaths = imageItems.map(i => i._localPath || i.fileUrl).filter(Boolean);
-          }
+          // 2+ ảnh → gửi gộp bằng sendImages dùng mediaTokens
+          const opts: any = {
+            auth: auth || {},
+            zaloId,
+            threadId,
+            threadType,
+            type: threadType,
+            mediaTokens: imageItems.map(i => i.uuid || i._localPath || i.fileUrl).filter(Boolean),
+            _libraryUuids: imageItems.map(i => i.uuid).filter(Boolean),
+            filePaths: imageItems.map(i => i._localPath || i.fileUrl).filter(Boolean),
+          };
           await ipc.zalo.sendImages(opts);
         }
       }

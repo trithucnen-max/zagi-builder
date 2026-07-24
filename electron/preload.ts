@@ -383,6 +383,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     flashFrame: (active: boolean) => ipcRenderer.send('app:flashFrame', { active }),
   },
 
+  // ─── Media Management ──────────────────────────────────────────────
+  media: {
+    acquireToken: (params: any) => ipcRenderer.invoke('media:acquireToken', params),
+  },
+
   // ─── Auto-update ─────────────────────────────────────────────────
   update: {
     download: () => ipcRenderer.send('update:download'),

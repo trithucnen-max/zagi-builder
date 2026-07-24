@@ -186,58 +186,51 @@ export function registerZaloIpc() {
         s.sendSticker(p.stickerId, p.threadId, p.type)
     );
 
-    function resolveLibFilePath(p: any): string {
-        // 1. Explicit local path (Boss mode or already-resolved)
-        if (p.filePath && !p.filePath.startsWith('http')) return p.filePath;
-        // 2. Resolve from library uuid (works on Boss side only)
-        if (p._libraryUuid) {
-            try {
-                const LibraryService = require('../../src/services/library/LibraryService').default;
-                const item = LibraryService.getInstance().getItem(p._libraryUuid);
-                if (item?.file_path) return item.file_path;
-            } catch {}
+    function resolveMediaToken(p: any): string {
+        const token = p.mediaToken || p.filePath || p._libraryUuid;
+        if (!token) {
+            if (p.fileUrl) return p.fileUrl;
+            return '';
         }
-        // 3. Fallback: use fileUrl (http CDN url) — ZaloService.ensureLocalImagePath will download it
-        if (p.fileUrl) return p.fileUrl;
-        // 4. filePath that is an http URL (CDN forward case)
-        if (p.filePath) return p.filePath;
-        return '';
+
+        // 1. Check if token is a Library UUID
+        try {
+            const LibraryService = require('../../src/services/library/LibraryService').default;
+            const item = LibraryService.getInstance().getItem(token);
+            if (item?.file_path) return item.file_path;
+        } catch {}
+
+        // 2. Check if token is HTTP/HTTPS CDN URL
+        if (token.startsWith('http://') || token.startsWith('https://')) {
+            return token;
+        }
+
+        // 3. Absolute or relative file path
+        return token;
     }
 
-    function resolveLibFilePaths(p: any): string[] {
-        // Priority 1: Always try to resolve _libraryUuids to local paths on Boss
-        if (p._libraryUuids && Array.isArray(p._libraryUuids) && p._libraryUuids.length > 0) {
-            try {
-                const LibraryService = require('../../src/services/library/LibraryService').default;
-                const paths = p._libraryUuids.map((uuid: string) => LibraryService.getInstance().getItem(uuid)?.file_path).filter(Boolean);
-                if (paths.length > 0) {
-                    Logger.log(`[zaloIpc] resolveLibFilePaths: resolved ${paths.length} uuids to local paths`);
-                    return paths;
-                }
-            } catch {}
+    function resolveMediaTokens(p: any): string[] {
+        const rawTokens = p.mediaTokens || p._libraryUuids || p.filePaths || [];
+        if (!Array.isArray(rawTokens) || rawTokens.length === 0) return [];
+
+        const resolved: string[] = [];
+        for (const t of rawTokens) {
+            const res = resolveMediaToken({ mediaToken: t });
+            if (res) resolved.push(res);
         }
-        // Priority 2: filePaths (skip http URLs — they can't be sent directly)
-        if (p.filePaths && Array.isArray(p.filePaths) && p.filePaths.length > 0) {
-            // Filter out http URLs that are just API proxy endpoints (not downloadable CDN)
-            const localPaths = p.filePaths.filter((fp: string) => fp && !fp.startsWith('http://localhost') && !fp.includes('/api/library/'));
-            if (localPaths.length > 0) return localPaths;
-            // If all are CDN URLs (real http like cdn.zalo.me), pass them through for download
-            const cdnPaths = p.filePaths.filter((fp: string) => fp && (fp.startsWith('https://') || fp.startsWith('http://')));
-            if (cdnPaths.length > 0) return cdnPaths;
-        }
-        return [];
+        return resolved;
     }
 
     wrap('zalo:sendImage', (s, p) =>
-        s.sendImage(FileStorageService.resolveAbsolutePath(resolveLibFilePath(p)), p.threadId, p.type, p.message, p.quote)
+        s.sendImage(FileStorageService.resolveAbsolutePath(resolveMediaToken(p)), p.threadId, p.type, p.message, p.quote)
     );
 
     wrap('zalo:sendImages', (s, p) =>
-        s.sendImages(resolveLibFilePaths(p).map((fp: string) => FileStorageService.resolveAbsolutePath(fp)), p.threadId, p.type, p.quote)
+        s.sendImages(resolveMediaTokens(p).map((fp: string) => FileStorageService.resolveAbsolutePath(fp)), p.threadId, p.type, p.quote)
     );
 
     wrap('zalo:sendFile', (s, p) =>
-        s.sendFile(FileStorageService.resolveAbsolutePath(resolveLibFilePath(p)), p.threadId, p.type, p.quote)
+        s.sendFile(FileStorageService.resolveAbsolutePath(resolveMediaToken(p)), p.threadId, p.type, p.quote)
     );
 
     wrap('zalo:sendVoice', (s, p) =>

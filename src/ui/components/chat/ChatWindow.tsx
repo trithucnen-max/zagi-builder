@@ -5712,9 +5712,13 @@ async function sendOneForward(
     // ZaloService.sendImage / sendFile tự động tải URL CDN về đĩa tạm nếu chưa có trên đĩa local.
     // Giúp chuyển tiếp ảnh/video/file hoạt động 100% giữa các nick Zalo, nhóm, hoặc hội thoại khác nhau.
     if (isAttachment && effectivePath) {
+      const tokenRes = await ipc.media?.acquireToken({ cdnUrl: mediaUrl, filePath: localPath });
+      const mediaToken = tokenRes?.token || effectivePath;
+
       if (isImage) {
         const res = await ipc.zalo?.sendImage({
           auth,
+          mediaToken,
           filePath: effectivePath,
           threadId: target.threadId,
           type: target.threadType,
@@ -5727,18 +5731,18 @@ async function sendOneForward(
         const res = await channelIpc.sendVideo('zalo', {
           auth,
           accountId: accountId || '',
-          filePath: effectivePath,
+          filePath: mediaToken,
           threadId: target.threadId,
           threadType: target.threadType,
           body: captionText,
         });
         if (res && !res.success) {
-          const fileRes = await ipc.zalo?.sendFile({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
+          const fileRes = await ipc.zalo?.sendFile({ auth, mediaToken, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
           if (fileRes && !fileRes.success) throw new Error(fileRes.error || 'Gửi video chuyển tiếp thất bại');
         }
       } else {
         // File hoặc Voice
-        const res = await ipc.zalo?.sendFile({ auth, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
+        const res = await ipc.zalo?.sendFile({ auth, mediaToken, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
         if (res && !res.success) {
           throw new Error(res.error || 'Gửi file chuyển tiếp thất bại');
         }

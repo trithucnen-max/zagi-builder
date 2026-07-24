@@ -374,6 +374,9 @@ declare global {
         sendBadgeImage: (params: { dataUrl: string; count: number }) => void;
         flashFrame: (active: boolean) => void;
       };
+      media: {
+        acquireToken: (params: { filePath?: string; dataUrl?: string; ext?: string; cdnUrl?: string; libraryUuid?: string; zaloId?: string }) => Promise<{ success: boolean; token?: string; error?: string }>;
+      };
       lockScreen: {
         status: () => Promise<{ success: boolean; enabled?: boolean; biometricEnabled?: boolean; biometricAvailable?: boolean; failedAttempts?: number; isCoolingDown?: boolean; remainingCooldown?: number; error?: string }>;
         setup: (params: { password: string }) => Promise<{ success: boolean; recoveryKey?: string; error?: string }>;
@@ -826,6 +829,7 @@ export const ipc = {
   zalo,
   db: window.electronAPI?.db,
   file: window.electronAPI?.file,
+  media: window.electronAPI?.media,
   app: window.electronAPI?.app,
   window: window.electronAPI?.window,
   shell,
