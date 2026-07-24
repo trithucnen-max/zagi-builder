@@ -1010,6 +1010,110 @@ function getActiveBrowserWorkspace(): any | null {
   return null;
 }
 
+function buildProxyParams(args: any[]): any {
+  if (args.length === 0) return {};
+  const first = args[0];
+  if (first === null || first === undefined) return {};
+  if (typeof first === 'object') return first;
+  const result: Record<string, any> = { zaloId: String(first), id: String(first) };
+  if (args.length > 1 && args[1] !== undefined) {
+    result.contactId = String(args[1]);
+    result.threadId = String(args[1]);
+  }
+  return result;
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const res = reader.result as string;
+      const base64 = res.split(',')[1] || '';
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function prepareBrowserMediaParams(params: any): Promise<any> {
+  if (!params || typeof params !== 'object') return params;
+  const activeWs = getActiveBrowserWorkspace();
+  if (!activeWs || !activeWs.bossUrl || !activeWs.token) return params;
+
+  let url = activeWs.bossUrl.trim().replace(/\/+$/, '');
+  if (!url.startsWith('http://') && !url.startsWith('https://')) url = `http://${url}`;
+
+  const zaloId = params.zaloId || params.zalo_id || params.auth?.zaloId || activeWs.cachedAssignedAccounts?.[0] || '';
+
+  if (params.filePath && (typeof params.filePath !== 'string' || params.filePath.startsWith('blob:') || params.filePath.startsWith('data:') || params.fileObject)) {
+    try {
+      let base64 = '';
+      let filename = 'upload_' + Date.now() + '.jpg';
+      if (params.fileObject instanceof File) {
+        filename = params.fileObject.name;
+        base64 = await blobToBase64(params.fileObject);
+      } else if (typeof params.filePath === 'string' && (params.filePath.startsWith('blob:') || params.filePath.startsWith('data:'))) {
+        const blob = await fetch(params.filePath).then(r => r.blob());
+        base64 = await blobToBase64(blob);
+      }
+      if (base64) {
+        const uploadResp = await fetch(`${url}/api/media/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeWs.token}`,
+          },
+          body: JSON.stringify({ base64, filename, zaloId }),
+        });
+        if (uploadResp.ok) {
+          const uploadResult = await uploadResp.json();
+          if (uploadResult.success && uploadResult.bossPath) {
+            params.filePath = uploadResult.bossPath;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[ipc] prepareBrowserMediaParams single upload failed:', e);
+    }
+  }
+
+  if (Array.isArray(params.filePaths) && params.filePaths.length > 0) {
+    const newPaths: string[] = [];
+    for (let i = 0; i < params.filePaths.length; i++) {
+      const p = params.filePaths[i];
+      if (typeof p === 'string' && (p.startsWith('blob:') || p.startsWith('data:'))) {
+        try {
+          const blob = await fetch(p).then(r => r.blob());
+          const base64 = await blobToBase64(blob);
+          const filename = `image_${Date.now()}_${i}.jpg`;
+          const uploadResp = await fetch(`${url}/api/media/upload`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${activeWs.token}`,
+            },
+            body: JSON.stringify({ base64, filename, zaloId }),
+          });
+          if (uploadResp.ok) {
+            const uploadResult = await uploadResp.json();
+            if (uploadResult.success && uploadResult.bossPath) {
+              newPaths.push(uploadResult.bossPath);
+              continue;
+            }
+          }
+        } catch (e) {
+          console.warn('[ipc] prepareBrowserMediaParams multi upload failed:', e);
+        }
+      }
+      newPaths.push(p);
+    }
+    params.filePaths = newPaths;
+  }
+
+  return params;
+}
+
 function createBrowserIpcProxy(namespace: string): any {
   return new Proxy({}, {
     get(_target, prop: string) {
@@ -1019,6 +1123,26 @@ function createBrowserIpcProxy(namespace: string): any {
         if (!activeWs || !activeWs.bossUrl || !activeWs.token) {
           return { success: false, error: 'Chưa kết nối tới Boss server' };
         }
+        let params = buildProxyParams(args);
+        const activeAccountId = useAccountStore.getState().activeAccountId;
+        if (activeAccountId) {
+          if (!params.zaloId && !params.zalo_id) {
+            params.zaloId = activeAccountId;
+          }
+          if (params.auth && typeof params.auth === 'object') {
+            params.auth = { ...params.auth };
+            if (!params.auth.zaloId && !params.auth.zalo_id) {
+              params.auth.zaloId = activeAccountId;
+            }
+          } else {
+            params.auth = { zaloId: activeAccountId };
+          }
+        }
+
+        if (namespace === 'zalo' && (prop === 'sendImage' || prop === 'sendImages' || prop === 'sendFile')) {
+          params = await prepareBrowserMediaParams(params);
+        }
+
         try {
           let url = activeWs.bossUrl.trim().replace(/\/+$/, '');
           if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -1032,7 +1156,7 @@ function createBrowserIpcProxy(namespace: string): any {
             },
             body: JSON.stringify({
               channel,
-              params: args[0] || {},
+              params,
             }),
           });
           if (resp.ok) {
