@@ -65,7 +65,7 @@ export default function CRMDuplicateManagerModal({ open, onClose, accounts, onRe
         try {
             const res = await ipc.crm?.cleanupCorruptedAliases();
             if (res?.success) {
-                showNotification(`Đã dọn dẹp ${res.cleanedCount || 0} biệt danh dính chéo thành công!`, 'success');
+                showNotification(`Đã dọn dẹp biệt danh dính chéo & chuẩn hóa trạng thái Bạn bè Zalo thành công!`, 'success');
                 fetchDuplicates();
                 if (onRefreshCRM) onRefreshCRM();
             } else {

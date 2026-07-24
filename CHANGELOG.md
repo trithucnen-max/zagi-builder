@@ -54,7 +54,10 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Hỗ trợ nút **`⚡ Chuyển phân bổ liên hệ`** trực tiếp trong báo cáo lô quét để điều chỉnh luồng phân bổ bất kỳ lúc nào.
 - **Giao Diện Rà Soát & Quản Lý Trùng Lặp Đa Tài Khoản (`CRMDuplicateManagerModal.tsx`):**
   - Thêm nút **`Rà soát trùng lặp`** trên thanh công cụ TopBar CRM.
-  - **`⚡ Dọn dẹp biệt danh dính chéo`**: Tự động rà soát và gỡ bỏ các biệt danh bị gán nhầm cross-account.
+  - **`⚡ Dọn dẹp biệt danh dính chéo & chuẩn hóa trạng thái Bạn bè Zalo`**: Tự động rà soát và gỡ bỏ các biệt danh bị gán nhầm cross-account, đồng thời reset cờ `is_friend = 0` đối với các liên hệ SĐT Quét / Khách lạ không có trong bảng `friends`.
+- **🤝 Chuẩn Hóa & Đồng Bộ Trạng Thái Bạn Bè Zalo (`is_friend`):**
+  - Ép gán trạng thái bạn bè (`is_friend = 1`) dựa trên đối chiếu thực tế với bảng `friends` cho từng tài khoản Zalo.
+  - Ngăn chặn hoàn toàn việc hiển thị nhầm biểu tượng dấu tích xanh (`✓`) đối với liên hệ chưa kết bạn (SĐT Quét/Khách lạ) trên Danh sách CRM và Modal Rà soát lọc trùng.
   - **`🔄 Chuyển sang tài khoản khác`**: Di chuyển dữ liệu liên hệ từ tài khoản Zalo này sang tài khoản Zalo khác chỉ với 1 cú nhấp chuột.
   - **`🔗 Gộp về 1 tài khoản`**: Gom toàn bộ nhãn CRM & dữ liệu của các liên hệ trùng lặp về 1 tài khoản chỉ định.
 

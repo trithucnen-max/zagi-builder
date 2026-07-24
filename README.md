@@ -473,6 +473,9 @@ npm run production
 - 🧠 **Động Cơ Chuẩn Hóa Dữ Liệu Tự Động (Smart Data Normalization Engine)**:
   - Tự động bổ sung số `0` cho SĐT 9 chữ số (`912345678` ➔ `0912345678`).
   - Tự động quy đổi Giới tính (`nam`, `male`, `1` ➔ `Nam`; `nữ`, `female`, `2` ➔ `Nữ`) và Ngày sinh (`15-08-1992` ➔ `15/08/1992`).
+- 🤝 **Chuẩn Hóa & Đồng Bộ Trạng Thái Bạn Bè Zalo (`is_friend`)**:
+  - Đối chiếu cờ `is_friend` dựa trên sự tồn tại thực tế trong bảng `friends` cho từng tài khoản Zalo, loại bỏ hoàn toàn biểu tượng dấu tích xanh (`✓`) nhầm lẫn đối với SĐT Quét/Khách lạ.
+  - Tích hợp tự động reset cờ `is_friend` rác trong bảng `contacts` khi bấm nút "Dọn dẹp biệt danh dính chéo" trên Modal Rà soát lọc trùng.
 - 🎨 **Sửa Lỗi Màu Sắc Giao Diện Buổi Tối (Dark Mode Contrast Fix)**:
   - Loại bỏ toàn bộ các class Tailwind không chuẩn (`gray-850`, `gray-750`, `gray-650`) thay bằng class chuẩn (`gray-900`, `gray-800`, `gray-700`, `gray-600`).
   - Sửa dứt điểm lỗi mảng màu trắng bị tràn trên cột giữa Editor và các ô nhập tin nhắn `textarea` ở tất cả các chế độ chiến dịch (**Tin nhắn**, **Kết bạn**, **Mời nhóm**, **Hỗn hợp**).

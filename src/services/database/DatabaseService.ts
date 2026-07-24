@@ -6237,7 +6237,7 @@ class DatabaseService {
                 const otherContacts = this.query<any>(
                     `SELECT contact_id, COALESCE(alias,'') as alias, COALESCE(display_name,'') as display_name,
                         COALESCE(avatar_url,'') as avatar, COALESCE(phone,'') as phone,
-                        is_friend, COALESCE(last_message_time,0) as last_message_time,
+                        0 as is_friend, COALESCE(last_message_time,0) as last_message_time,
                         COALESCE(contact_type,'user') as contact_type,
                         gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
                         ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter,
@@ -9528,8 +9528,11 @@ class DatabaseService {
                 const keyUid = dup.contact_id || '';
 
                 const details = this.query<any>(`
-                    SELECT c.owner_zalo_id, c.contact_id, c.display_name, c.avatar_url, c.phone, c.alias, c.is_friend, c.contact_type
+                    SELECT c.owner_zalo_id, c.contact_id, c.display_name, c.avatar_url, c.phone, c.alias,
+                           CASE WHEN f.user_id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
+                           c.contact_type
                     FROM contacts c
+                    LEFT JOIN friends f ON f.owner_zalo_id = c.owner_zalo_id AND f.user_id = c.contact_id
                     WHERE (c.phone = ? AND c.phone != '') OR c.contact_id = ?
                 `, [keyPhone, keyUid]);
 
@@ -9662,6 +9665,17 @@ class DatabaseService {
                     }
                 }
             }
+            // Reset corrupted is_friend flags for contacts that do not exist in friends table
+            this.run(`
+                UPDATE contacts
+                SET is_friend = 0
+                WHERE is_friend = 1
+                  AND NOT EXISTS (
+                    SELECT 1 FROM friends f
+                    WHERE f.owner_zalo_id = contacts.owner_zalo_id AND f.user_id = contacts.contact_id
+                  )
+            `);
+
             if (cleaned > 0) this.save();
             return cleaned;
         } catch (err: any) {

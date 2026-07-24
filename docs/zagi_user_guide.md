@@ -50,6 +50,10 @@ Toàn bộ bạn bè và thành viên các nhóm Zalo được đồng bộ tự
   - Hỗ trợ xem và gán đồng thời **💾 Nhãn Local** (lưu trên máy) và **☁️ Nhãn Zalo** (đồng bộ Zalo API), phân loại theo từng Tài khoản Zalo/Facebook ở cột bên trái.
   - Cho phép gõ tên + chọn emoji + màu sắc để **Tạo mới Nhãn Local** trực tiếp ngay trong cửa sổ.
   - Tích chọn nhiều nhãn để áp dụng cùng lúc. Nếu **bỏ chọn tất cả (để trống)** và bấm Xác nhận ➔ Hệ thống tự động xóa toàn bộ nhãn (Local & Zalo) của các liên hệ đã chọn.
+- **Rà Soát Lọc Trùng Liên Hệ Đa Tài Khoản & Chuẩn Hóa Trạng Thái Bạn Bè (`is_friend`):** 
+  - Nút **`Rà soát trùng lặp`** trên thanh TopBar CRM giúp phát hiện các liên hệ có cùng SĐT/ID xuất hiện trên nhiều tài khoản Zalo.
+  - Nút **`⚡ Dọn dẹp biệt danh dính chéo & chuẩn hóa trạng thái Bạn bè Zalo`**: Tự động dọn dẹp biệt danh bị dính chéo cross-account, đồng thời quét và reset các cờ bạn bè giả (`is_friend = 1` của SĐT Quét/Khách lạ) về `0`.
+  - Hệ thống tự động kiểm tra cờ bạn bè (`is_friend = 1` - hiển thị dấu tích xanh `✓`) dựa trên sự tồn tại thực tế trong bảng bạn bè `friends` của từng tài khoản, loại bỏ hoàn toàn tình trạng hiển thị nhầm tích xanh cho liên hệ chưa kết bạn.
 Tách biệt cột **Biệt danh CRM** (do doanh nghiệp tự đặt, click đúp sửa nhanh) và **Tên Zalo gốc** (tên khách hàng đăng ký Zalo) để tránh lẫn lộn thông tin.
 **Xưng hô (Salutation)**: Tự sinh "Anh"/"Chị"/"Bạn" dựa vào giới tính khi đồng bộ profile từ Zalo và bảo toàn các xưng hô chỉnh sửa thủ công của người dùng (có thể sửa trong danh sách CRM hoặc ngay bên cạnh khung chat khi đang tương tác).
 **Đồng bộ biến Chiến dịch & Workflow**: hỗ trợ chèn biến linh hoạt: `{zalo_name}` / `$item.zalo_name` (tên Zalo gốc), `{alias}` / `$item.alias` (biệt danh CRM, không tự động fallback ra tên Zalo khi rỗng), `{name}` / `$item.display_name` (tên liên hệ thông minh: alias > display_name), `{salutation}` và `{gender_greeting}` (đồng bộ trực tiếp với trường xưng hô CRM).
