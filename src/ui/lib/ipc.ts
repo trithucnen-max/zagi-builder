@@ -850,8 +850,8 @@ export const ipc = {
   erp,
   lockScreen: window.electronAPI?.lockScreen,
   library: window.electronAPI?.library,
-  on: window.electronAPI?.on,
-  removeAllListeners: window.electronAPI?.removeAllListeners,
+  on: window.electronAPI?.on || (() => () => {}),
+  removeAllListeners: window.electronAPI?.removeAllListeners || (() => {}),
 };
 
 export default ipc;
