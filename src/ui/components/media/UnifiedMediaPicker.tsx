@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useWorkspaceStore } from '@/store/workspaceStore';
+import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
 import LibraryPickerModal from '../chat/library/LibraryPickerModal';
@@ -402,7 +403,7 @@ export default function UnifiedMediaPicker({
       {/* Real Shared Media Library Picker Modal (For Employee / Remote Workspace) */}
       {showLibPicker && (
         <LibraryPickerModal
-          zaloId=""
+          zaloId={activeAccountId || 'shared'}
           initialType={mediaType === 'image' ? 'image' : mediaType === 'video' ? 'video' : mediaType === 'file' ? 'file' : 'all'}
           onClose={() => setShowLibPicker(false)}
           onSelect={(selectedItems) => {

@@ -198,8 +198,13 @@ class LibraryService {
   }): { items: LibraryItem[]; total: number } {
     const { zaloId, type, search, folderId, tagIds, page = 1, limit = 50 } = params;
     const db = DatabaseService.getInstance();
-    const conditions: string[] = ['owner_zalo_id = ?'];
-    const values: any[] = [zaloId];
+    const conditions: string[] = [];
+    const values: any[] = [];
+
+    if (zaloId && zaloId !== 'all' && zaloId !== 'shared') {
+      conditions.push('(owner_zalo_id = ? OR owner_zalo_id = \'shared\' OR owner_zalo_id = \'\')');
+      values.push(zaloId);
+    }
 
     if (type && type !== 'all') {
       conditions.push('type = ?');
@@ -231,12 +236,12 @@ class LibraryService {
       values.push(...tagIds, tagIds.length);
     }
 
-    const where = conditions.join(' AND ');
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     const offset = (page - 1) * limit;
 
-    const total = db.queryOne<any>(`SELECT COUNT(*) as n FROM media_library_items WHERE ${where}`, values)?.n || 0;
+    const total = db.queryOne<any>(`SELECT COUNT(*) as n FROM media_library_items ${where}`, values)?.n || 0;
     const items = db.query<any>(
-      `SELECT * FROM media_library_items WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM media_library_items ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...values, limit, offset]
     ) || [];
 
@@ -327,19 +332,24 @@ class LibraryService {
     return id;
   }
 
-  public getFolders(zaloId: string, type?: string): LibraryFolder[] {
+  public getFolders(zaloId?: string, type?: string): LibraryFolder[] {
     const db = DatabaseService.getInstance();
-    const conditions = ['f.owner_zalo_id = ?'];
-    const values: any[] = [zaloId];
+    const conditions: string[] = [];
+    const values: any[] = [];
+    if (zaloId && zaloId !== 'all' && zaloId !== 'shared') {
+      conditions.push('(f.owner_zalo_id = ? OR f.owner_zalo_id = \'shared\' OR f.owner_zalo_id = \'\')');
+      values.push(zaloId);
+    }
     if (type && type !== 'all') {
       // Chỉ load folder đúng type, bỏ qua folder cũ ko có type
       conditions.push('f.type = ?');
       values.push(type);
     }
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     const folders = db.query<any>(
       `SELECT f.*,
-        (SELECT COUNT(*) FROM media_library_items i WHERE i.folder_id = f.id ${type ? `AND i.type = '${type}'` : ''}) as item_count
-       FROM media_library_folders f WHERE ${conditions.join(' AND ')} ORDER BY f.sort_order ASC`,
+        (SELECT COUNT(*) FROM media_library_items i WHERE i.folder_id = f.id ${type && type !== 'all' ? `AND i.type = '${type}'` : ''}) as item_count
+       FROM media_library_folders f ${where} ORDER BY f.sort_order ASC`,
       values
     ) || [];
     return folders;
@@ -358,13 +368,22 @@ class LibraryService {
 
   // ─── Tags ────────────────────────────────────────────────────────
 
-  public getTags(zaloId: string): LibraryTag[] {
+  public getTags(zaloId?: string): LibraryTag[] {
     const db = DatabaseService.getInstance();
+    const conditions: string[] = [];
+    const values: any[] = [];
+
+    if (zaloId && zaloId !== 'all' && zaloId !== 'shared') {
+      conditions.push('(t.owner_zalo_id = ? OR t.owner_zalo_id = \'shared\' OR t.owner_zalo_id = \'\')');
+      values.push(zaloId);
+    }
+
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     return db.query<any>(
       `SELECT t.*,
         (SELECT COUNT(*) FROM media_library_item_tags it WHERE it.tag_id = t.id) as item_count
-       FROM media_library_tags t WHERE t.owner_zalo_id = ? ORDER BY t.sort_order ASC`,
-      [zaloId]
+       FROM media_library_tags t ${where} ORDER BY t.sort_order ASC`,
+      values
     ) || [];
   }
 
