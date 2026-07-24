@@ -824,25 +824,129 @@ function wrapZaloApi(api: any): any {
 
 const zalo = wrapZaloApi(window.electronAPI?.zalo);
 
+function getSavedBrowserWorkspaces(): { workspaces: any[]; activeId: string | null } {
+  try {
+    const saved = localStorage.getItem('zagi_browser_workspaces');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch {}
+  return { workspaces: [], activeId: null };
+}
+
+function saveBrowserWorkspaces(workspaces: any[], activeId: string | null) {
+  try {
+    localStorage.setItem('zagi_browser_workspaces', JSON.stringify({ workspaces, activeId }));
+  } catch {}
+}
+
 const browserWorkspace = {
-  list: async () => ({ success: true, workspaces: [], activeId: null }),
-  create: async (data: any) => ({ success: true, workspace: { id: 'ws_' + Date.now(), ...data } }),
-  update: async () => ({ success: true }),
-  delete: async () => ({ success: true }),
-  switch: async (id: string) => ({ success: true, workspace: { id } }),
+  list: async () => {
+    const { workspaces, activeId } = getSavedBrowserWorkspaces();
+    return { success: true, workspaces, activeId };
+  },
+  create: async (data: any) => {
+    const { workspaces } = getSavedBrowserWorkspaces();
+    const snapshot = data._snapshot || {
+      accountsData: data.cachedAccountsData || [],
+      assignedAccounts: data.cachedAssignedAccounts || [],
+      permissions: data.cachedPermissions || [],
+      employeesData: data.cachedEmployeesData || [],
+    };
+    const newWs = {
+      id: data.id || ('ws_' + Date.now()),
+      name: data.name,
+      type: data.type || 'remote',
+      icon: data.icon || '👤',
+      bossUrl: data.bossUrl,
+      token: data.token,
+      employeeId: data.employeeId,
+      employeeName: data.employeeName,
+      employeeUsername: data.employeeUsername,
+      cachedAccountsData: data.cachedAccountsData || snapshot.accountsData || [],
+      cachedAssignedAccounts: data.cachedAssignedAccounts || snapshot.assignedAccounts || [],
+      cachedPermissions: data.cachedPermissions || snapshot.permissions || [],
+      cachedEmployeesData: data.cachedEmployeesData || snapshot.employeesData || [],
+      _snapshot: snapshot,
+      _connected: true,
+    };
+
+    const idx = workspaces.findIndex(w => w.bossUrl === data.bossUrl && w.employeeId === data.employeeId);
+    if (idx >= 0) {
+      workspaces[idx] = newWs;
+    } else {
+      workspaces.push(newWs);
+    }
+
+    saveBrowserWorkspaces(workspaces, newWs.id);
+    return { success: true, workspace: newWs };
+  },
+  update: async (id: string, updates: any) => {
+    const { workspaces, activeId } = getSavedBrowserWorkspaces();
+    const ws = workspaces.find(w => w.id === id);
+    if (ws) {
+      Object.assign(ws, updates);
+      saveBrowserWorkspaces(workspaces, activeId);
+    }
+    return { success: true };
+  },
+  delete: async (id: string) => {
+    const { workspaces, activeId } = getSavedBrowserWorkspaces();
+    const nextWorkspaces = workspaces.filter(w => w.id !== id);
+    const nextActiveId = activeId === id ? (nextWorkspaces[0]?.id || null) : activeId;
+    saveBrowserWorkspaces(nextWorkspaces, nextActiveId);
+    return { success: true };
+  },
+  switch: async (id: string) => {
+    const { workspaces } = getSavedBrowserWorkspaces();
+    const ws = workspaces.find(w => w.id === id);
+    saveBrowserWorkspaces(workspaces, id);
+    return { success: true, workspace: ws };
+  },
   isMulti: async () => ({ isMulti: false }),
   getDbPath: async () => ({ success: true, dbPath: '' }),
-  connectRemote: async () => ({ success: true }),
+  connectRemote: async (id: string, bossUrl: string, token: string) => {
+    try {
+      let url = bossUrl.trim().replace(/\/+$/, '');
+      if (!url.startsWith('http://') && !url.startsWith('https://')) url = `http://${url}`;
+      const resp = await fetch(`${url}/api/sync/snapshot`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success && data.snapshot) {
+          const { workspaces } = getSavedBrowserWorkspaces();
+          const ws = workspaces.find(w => w.id === id);
+          if (ws) {
+            ws._snapshot = data.snapshot;
+            ws.cachedAccountsData = data.snapshot.accountsData || ws.cachedAccountsData;
+            saveBrowserWorkspaces(workspaces, id);
+          }
+        }
+      }
+    } catch {}
+    return { success: true };
+  },
   disconnectRemote: async () => ({ success: true }),
-  getConnectionStatus: async () => ({ success: true, connected: true, bossUrl: '', latency: 0 }),
-  getAllStatuses: async () => ({ success: true, statuses: {} }),
+  getConnectionStatus: async (id: string) => {
+    const { workspaces } = getSavedBrowserWorkspaces();
+    const ws = workspaces.find(w => w.id === id);
+    return { success: true, connected: true, bossUrl: ws?.bossUrl || '', latency: 10 };
+  },
+  getAllStatuses: async () => {
+    const { workspaces } = getSavedBrowserWorkspaces();
+    const statuses: Record<string, any> = {};
+    for (const w of workspaces) {
+      statuses[w.id] = { connected: true, bossUrl: w.bossUrl, latency: 10 };
+    }
+    return { success: true, statuses };
+  },
   loginRemote: async (bossUrl: string, username: string, password: string) => {
     try {
-      let url = bossUrl.trim();
+      let url = bossUrl.trim().replace(/\/+$/, '');
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = `http://${url}`;
       }
-      url = url.replace(/\/+$/, '');
       const resp = await fetch(`${url}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -859,8 +963,43 @@ const browserWorkspace = {
   notifyNetworkOffline: () => {},
 };
 
+const browserLogin = {
+  getAccounts: async () => {
+    const state = useAccountStore.getState();
+    if (state.accounts && state.accounts.length > 0) {
+      return { success: true, accounts: state.accounts };
+    }
+    try {
+      const saved = localStorage.getItem('zagi_browser_workspaces');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const activeWs = parsed.workspaces?.find((w: any) => w.id === parsed.activeId);
+        if (activeWs && activeWs.cachedAccountsData?.length) {
+          return { success: true, accounts: activeWs.cachedAccountsData };
+        }
+      }
+    } catch {}
+    return { success: true, accounts: [] };
+  },
+  connectAccount: async () => ({ success: true }),
+  disconnectAccount: async () => ({ success: true }),
+  disconnectAll: async () => ({ success: true }),
+  removeAccount: async () => ({ success: true }),
+  getMediaAutoDelete: async () => ({ success: true, enabled: false, days: 30 }),
+  setMediaAutoDelete: async () => ({ success: true }),
+  runAllMediaCleanup: async () => ({ success: true }),
+  checkHealth: async () => ({ success: true, results: [] }),
+  checkAndRefreshAvatar: async () => ({ success: true, refreshed: false }),
+  requestOldMessages: async () => ({ success: true }),
+  reconnect: async () => ({ success: true }),
+  loginQR: async () => ({ success: false, error: 'Dùng Zagi Desktop để quét QR' }),
+  loginQRAbort: async () => ({ success: true }),
+  loginCookies: async () => ({ success: false }),
+  loginAuth: async () => ({ success: false }),
+};
+
 export const ipc = {
-  login: window.electronAPI?.login,
+  login: window.electronAPI?.login || browserLogin,
   zalo,
   db: window.electronAPI?.db,
   file: window.electronAPI?.file,

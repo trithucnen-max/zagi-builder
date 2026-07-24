@@ -47,9 +47,8 @@ export default function EmployeeLoginModal({ onClose }: Props) {
         return;
       }
 
-      // Step 2: Create workspace
-      setStep('connecting');
       const wsName = name.trim() || `NV - ${loginRes.employee?.display_name || username.trim()}`;
+      const snapshot = loginRes.snapshot || {};
       const res = await ipc.workspace?.create({
         name: wsName,
         type: 'remote',
@@ -60,6 +59,12 @@ export default function EmployeeLoginModal({ onClose }: Props) {
         employeeName: loginRes.employee?.display_name || username.trim(),
         employeeUsername: username.trim(),
         autoConnect: true,
+        cachedAccountsData: snapshot.accountsData || loginRes.accountsData || [],
+        cachedAssignedAccounts: snapshot.assignedAccounts || loginRes.employee?.assigned_accounts || [],
+        cachedPermissions: snapshot.permissions || [],
+        cachedEmployeesData: snapshot.employeesData || [],
+        _snapshot: snapshot,
+        _connected: true,
       });
 
       if (!res?.success) {
