@@ -51,6 +51,28 @@ export function handleMediaRequest(
   const url = req.url || '';
 
   try {
+    // Support GET /api/media/file?path=... for serving file by path directly
+    if (url.includes('/api/media/file?path=')) {
+      try {
+        const parsedUrl = new URL(url, `http://${req.headers.host || 'localhost'}`);
+        const filePathParam = parsedUrl.searchParams.get('path');
+        if (filePathParam && fs.existsSync(filePathParam)) {
+          const stat = fs.statSync(filePathParam);
+          const mime = detectMime(filePathParam);
+          res.writeHead(200, {
+            'Content-Type': mime,
+            'Content-Length': stat.size,
+            'Cache-Control': 'public, max-age=86400',
+            'Access-Control-Allow-Origin': '*',
+          });
+          fs.createReadStream(filePathParam).pipe(res);
+          return;
+        }
+      } catch (e: any) {
+        Logger.warn(`[MediaHandler] /api/media/file error: ${e.message}`);
+      }
+    }
+
     // Parse URL: /api/media/{zaloId}/{date}/{filename}
     //             /api/media/thumb/{zaloId}/{date}/{filename}
     //             /api/media/avatar/{zaloId}/{filename}
