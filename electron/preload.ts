@@ -297,6 +297,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getPhoneScanLimitStatus: () => ipcRenderer.invoke('crm:getPhoneScanLimitStatus'),
     updatePhoneScanBatchPriority: (params: any) => ipcRenderer.invoke('crm:updatePhoneScanBatchPriority', params),
     reorderPhoneScanBatches: (params: any) => ipcRenderer.invoke('crm:reorderPhoneScanBatches', params),
+    reassignBatchContacts: (params: any) => ipcRenderer.invoke('crm:reassignBatchContacts', params),
+    reassignContactsOwner: (params: any) => ipcRenderer.invoke('crm:reassignContactsOwner', params),
+    getDuplicateContacts: () => ipcRenderer.invoke('crm:getDuplicateContacts'),
+    transferContact: (params: any) => ipcRenderer.invoke('crm:transferContact', params),
+    mergeContacts: (params: any) => ipcRenderer.invoke('crm:mergeContacts', params),
+    cleanupCorruptedAliases: () => ipcRenderer.invoke('crm:cleanupCorruptedAliases'),
+    markContactBlocked: (params: any) => ipcRenderer.invoke('crm:markContactBlocked', params),
   },
 
   // ─── Analytics / Reporting ──────────────────────────────────────────
