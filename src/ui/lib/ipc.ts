@@ -963,67 +963,81 @@ const browserWorkspace = {
   notifyNetworkOffline: () => {},
 };
 
-const browserLogin = {
-  getAccounts: async () => {
-    const state = useAccountStore.getState();
-    if (state.accounts && state.accounts.length > 0) {
-      return { success: true, accounts: state.accounts };
+function getActiveBrowserWorkspace(): any | null {
+  try {
+    const saved = localStorage.getItem('zagi_browser_workspaces');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const activeId = parsed.activeId;
+      return parsed.workspaces?.find((w: any) => w.id === activeId) || parsed.workspaces?.[0] || null;
     }
-    try {
-      const saved = localStorage.getItem('zagi_browser_workspaces');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const activeWs = parsed.workspaces?.find((w: any) => w.id === parsed.activeId);
-        if (activeWs && activeWs.cachedAccountsData?.length) {
-          return { success: true, accounts: activeWs.cachedAccountsData };
+  } catch {}
+  return null;
+}
+
+function createBrowserIpcProxy(namespace: string): any {
+  return new Proxy({}, {
+    get(_target, prop: string) {
+      return async (...args: any[]) => {
+        const channel = `${namespace}:${prop}`;
+        const activeWs = getActiveBrowserWorkspace();
+        if (!activeWs || !activeWs.bossUrl || !activeWs.token) {
+          return { success: false, error: 'Chưa kết nối tới Boss server' };
         }
-      }
-    } catch {}
-    return { success: true, accounts: [] };
-  },
-  connectAccount: async () => ({ success: true }),
-  disconnectAccount: async () => ({ success: true }),
-  disconnectAll: async () => ({ success: true }),
-  removeAccount: async () => ({ success: true }),
-  getMediaAutoDelete: async () => ({ success: true, enabled: false, days: 30 }),
-  setMediaAutoDelete: async () => ({ success: true }),
-  runAllMediaCleanup: async () => ({ success: true }),
-  checkHealth: async () => ({ success: true, results: [] }),
-  checkAndRefreshAvatar: async () => ({ success: true, refreshed: false }),
-  requestOldMessages: async () => ({ success: true }),
-  reconnect: async () => ({ success: true }),
-  loginQR: async () => ({ success: false, error: 'Dùng Zagi Desktop để quét QR' }),
-  loginQRAbort: async () => ({ success: true }),
-  loginCookies: async () => ({ success: false }),
-  loginAuth: async () => ({ success: false }),
-};
+        try {
+          let url = activeWs.bossUrl.trim().replace(/\/+$/, '');
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = `http://${url}`;
+          }
+          const resp = await fetch(`${url}/api/proxy/action`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${activeWs.token}`,
+            },
+            body: JSON.stringify({
+              channel,
+              params: args[0] || {},
+            }),
+          });
+          if (resp.ok) {
+            return await resp.json();
+          }
+          return { success: false, error: `HTTP ${resp.status}: Server error` };
+        } catch (err: any) {
+          return { success: false, error: err?.message || 'Không thể kết nối Boss server' };
+        }
+      };
+    }
+  });
+}
 
 export const ipc = {
   login: window.electronAPI?.login || browserLogin,
-  zalo,
-  db: window.electronAPI?.db,
-  file: window.electronAPI?.file,
-  media: window.electronAPI?.media,
-  app: window.electronAPI?.app,
-  window: window.electronAPI?.window,
+  zalo: window.electronAPI?.zalo ? wrapZaloApi(window.electronAPI.zalo) : createBrowserIpcProxy('zalo'),
+  db: window.electronAPI?.db || createBrowserIpcProxy('db'),
+  file: window.electronAPI?.file || createBrowserIpcProxy('file'),
+  media: window.electronAPI?.media || createBrowserIpcProxy('media'),
+  app: window.electronAPI?.app || createBrowserIpcProxy('app'),
+  window: window.electronAPI?.window || createBrowserIpcProxy('window'),
   shell,
-  util: window.electronAPI?.util,
-  crm: window.electronAPI?.crm,
-  analytics: window.electronAPI?.analytics,
-  workflow: window.electronAPI?.workflow,
-  integration: window.electronAPI?.integration,
-  ai: window.electronAPI?.ai,
-  tunnel: window.electronAPI?.tunnel,
-  employee: window.electronAPI?.employee,
+  util: window.electronAPI?.util || createBrowserIpcProxy('util'),
+  crm: window.electronAPI?.crm || createBrowserIpcProxy('crm'),
+  analytics: window.electronAPI?.analytics || createBrowserIpcProxy('analytics'),
+  workflow: window.electronAPI?.workflow || createBrowserIpcProxy('workflow'),
+  integration: window.electronAPI?.integration || createBrowserIpcProxy('integration'),
+  ai: window.electronAPI?.ai || createBrowserIpcProxy('ai'),
+  tunnel: window.electronAPI?.tunnel || createBrowserIpcProxy('tunnel'),
+  employee: window.electronAPI?.employee || createBrowserIpcProxy('employee'),
   workspace: window.electronAPI?.workspace || browserWorkspace,
-  sync: window.electronAPI?.sync,
-  relay: window.electronAPI?.relay,
-  fb: window.electronAPI?.fb,
-  proxy: window.electronAPI?.proxy,
+  sync: window.electronAPI?.sync || createBrowserIpcProxy('sync'),
+  relay: window.electronAPI?.relay || createBrowserIpcProxy('relay'),
+  fb: window.electronAPI?.fb || createBrowserIpcProxy('fb'),
+  proxy: window.electronAPI?.proxy || createBrowserIpcProxy('proxy'),
 
   erp,
   lockScreen: window.electronAPI?.lockScreen,
-  library: window.electronAPI?.library,
+  library: window.electronAPI?.library || createBrowserIpcProxy('library'),
   on: window.electronAPI?.on || (() => () => {}),
   removeAllListeners: window.electronAPI?.removeAllListeners || (() => {}),
 };

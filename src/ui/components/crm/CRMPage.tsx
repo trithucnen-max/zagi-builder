@@ -208,11 +208,11 @@ export default function CRMPage() {
     setIsSyncingZaloFriends(true);
     try {
       const acc = useAccountStore.getState().accounts.find(a => a.zalo_id === activeAccountId);
-      if (!acc || !acc.cookies) {
-        showNotification('Tài khoản chưa đăng nhập hoặc mất phiên làm việc Zalo', 'error');
+      if (!acc) {
+        showNotification('Không tìm thấy tài khoản trong danh sách', 'error');
         return;
       }
-      const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent, zaloId: acc.zalo_id };
+      const auth = { cookies: acc.cookies || '', imei: acc.imei || '', userAgent: acc.user_agent || '', zaloId: acc.zalo_id };
       showNotification('Đang đồng bộ kéo danh sách bạn bè mới nhất từ Zalo về Zagi...', 'info');
       await forceSyncFriends(activeAccountId, auth);
       await loadContacts();
