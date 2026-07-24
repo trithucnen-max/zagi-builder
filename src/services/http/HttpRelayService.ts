@@ -2689,7 +2689,13 @@ class HttpRelayService {
      */
     private authenticateRequest(req: http.IncomingMessage): RegisteredEmployee | null {
         const authHeader = req.headers['authorization'] || '';
-        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        let token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        if (!token) {
+            try {
+                const parsedUrl = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+                token = parsedUrl.searchParams.get('token') || parsedUrl.searchParams.get('access_token') || '';
+            } catch {}
+        }
         if (!token) return null;
 
         const validation = EmployeeService.getInstance().validateToken(token);

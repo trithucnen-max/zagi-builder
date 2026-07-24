@@ -1171,6 +1171,103 @@ function createBrowserIpcProxy(namespace: string): any {
   });
 }
 
+class BrowserEventEmitter {
+  private listeners: Map<string, Set<Function>> = new Map();
+  private eventSource: EventSource | null = null;
+  private currentToken: string | null = null;
+  private currentBossUrl: string | null = null;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      setInterval(() => this.ensureConnected(), 3000);
+    }
+  }
+
+  public on(channel: string, callback: Function): () => void {
+    if (!this.listeners.has(channel)) {
+      this.listeners.set(channel, new Set());
+    }
+    this.listeners.get(channel)!.add(callback);
+    this.ensureConnected();
+
+    return () => {
+      const set = this.listeners.get(channel);
+      if (set) {
+        set.delete(callback);
+      }
+    };
+  }
+
+  public removeAllListeners(): void {
+    this.listeners.clear();
+  }
+
+  public emit(channel: string, data: any): void {
+    const set = this.listeners.get(channel);
+    if (set) {
+      for (const cb of set) {
+        try { cb(data); } catch (e) { console.error(`[BrowserEvent] Listener error for ${channel}:`, e); }
+      }
+    }
+  }
+
+  private ensureConnected(): void {
+    const activeWs = getActiveBrowserWorkspace();
+    if (!activeWs || !activeWs.bossUrl || !activeWs.token) return;
+
+    let url = activeWs.bossUrl.trim().replace(/\/+$/, '');
+    if (!url.startsWith('http://') && !url.startsWith('https://')) url = `http://${url}`;
+
+    if (this.eventSource && this.currentToken === activeWs.token && this.currentBossUrl === url) {
+      if (this.eventSource.readyState === EventSource.CLOSED) {
+        this.connectSSE(url, activeWs.token);
+      }
+      return;
+    }
+
+    this.connectSSE(url, activeWs.token);
+  }
+
+  private connectSSE(bossUrl: string, token: string): void {
+    if (this.eventSource) {
+      try { this.eventSource.close(); } catch {}
+      this.eventSource = null;
+    }
+
+    this.currentBossUrl = bossUrl;
+    this.currentToken = token;
+
+    try {
+      const sseUrl = `${bossUrl}/api/events/stream?token=${encodeURIComponent(token)}`;
+      console.log('[BrowserEvent] 🔄 Connecting SSE to Boss:', sseUrl);
+      const es = new EventSource(sseUrl);
+      this.eventSource = es;
+
+      es.onmessage = (event) => {
+        try {
+          if (!event.data || event.data.startsWith(':')) return;
+          const payload = JSON.parse(event.data);
+          if (payload.channel) {
+            console.log(`[BrowserEvent] ⚡ Event received from Boss: ${payload.channel}`, payload.data);
+            this.emit(payload.channel, payload.data);
+          }
+        } catch (e) {
+          console.warn('[BrowserEvent] SSE parse error:', e);
+        }
+      };
+
+      es.onerror = () => {
+        try { es.close(); } catch {}
+        this.eventSource = null;
+      };
+    } catch (err) {
+      console.error('[BrowserEvent] Failed to create EventSource:', err);
+    }
+  }
+}
+
+const browserEventEmitter = new BrowserEventEmitter();
+
 export const ipc = {
   login: window.electronAPI?.login || browserLogin,
   zalo: window.electronAPI?.zalo ? wrapZaloApi(window.electronAPI.zalo) : createBrowserIpcProxy('zalo'),
@@ -1197,8 +1294,19 @@ export const ipc = {
   erp,
   lockScreen: window.electronAPI?.lockScreen,
   library: window.electronAPI?.library || createBrowserIpcProxy('library'),
-  on: window.electronAPI?.on || (() => () => {}),
-  removeAllListeners: window.electronAPI?.removeAllListeners || (() => {}),
+  on: (channel: string, callback: (...args: any[]) => void) => {
+    if (window.electronAPI?.on) {
+      return window.electronAPI.on(channel, callback);
+    }
+    return browserEventEmitter.on(channel, callback);
+  },
+  removeAllListeners: () => {
+    if (window.electronAPI?.removeAllListeners) {
+      window.electronAPI.removeAllListeners();
+    } else {
+      browserEventEmitter.removeAllListeners();
+    }
+  },
 };
 
 export default ipc;
