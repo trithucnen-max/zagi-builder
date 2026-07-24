@@ -680,6 +680,22 @@ export default function CRMContactList({
   const [exportingCSV, setExportingCSV] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
+  // ─── Debounced Search State ──────────────────────────────────────────
+  const [localSearch, setLocalSearch] = useState(searchText);
+
+  useEffect(() => {
+    setLocalSearch(searchText);
+  }, [searchText]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearch !== searchText) {
+        onFilterChange({ searchText: localSearch, page: 0 });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [localSearch]);
+
   // ─── Column Visibility State ─────────────────────────────────────────
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
     try {
@@ -918,7 +934,7 @@ export default function CRMContactList({
                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input value={searchText} onChange={e => onFilterChange({ searchText: e.target.value, page: 0 })}
+          <input value={localSearch} onChange={e => setLocalSearch(e.target.value)}
                  placeholder="Tên, SĐT, UID..."
                  className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors" />
         </div>

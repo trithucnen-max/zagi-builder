@@ -612,3 +612,11 @@ export async function runAccountInit(opts: AccountInitOptions): Promise<void> {
   _markLocalDataVerified(activeAccountId);
 }
 
+export async function forceSyncFriends(
+  activeAccountId: string,
+  auth: any,
+  onProgress?: (u: InitTaskProgress) => void
+): Promise<void> {
+  await _syncFriends(activeAccountId, auth, onProgress || (() => {}));
+}
+

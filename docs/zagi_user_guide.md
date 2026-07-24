@@ -96,6 +96,7 @@ Quản lý công việc nội bộ ngay trong Zagi: Task/giao việc (Kanban, da
 3.9. Nhân viên & Workspace (Boss – Nhân viên)
 Mô hình 1 Boss – nhiều nhân viên. Boss chạy app trên máy chủ, bật Relay Server (cổng mặc định 9900). Nhân viên kết nối từ máy riêng qua LAN (nhập IP nội bộ) hoặc WAN qua Cloudflare Tunnel (làm việc từ xa). Vì Zalo chỉ cho 1 kết nối cùng lúc nên request được chuyển tiếp về máy Boss.
 Boss tạo tài khoản nhân viên, gán từng tài khoản Zalo, phân quyền chi tiết theo module (Chat, CRM, Workflow, Tích hợp, Báo cáo, Bạn bè). Có báo cáo hiệu suất nhân viên (tin nhắn gửi, giờ online, thời gian phản hồi, bảng xếp hạng).
+- **Cơ chế Truyền tải Media Đa máy (Boss-Native MediaToken Architecture):** Mọi tệp ảnh, video, tài liệu gửi từ máy Nhân viên hoặc dán từ clipboard đều được tự động đồng bộ trực tiếp lên ổ đĩa máy Boss qua luồng binary stream trong Main Process. Giúp Nhân viên chuyển tiếp ảnh/video từ Zalo sang bất kỳ liên hệ/nhóm nào mượt mà 100% mà không bị lỗi thiếu file local hay tràn bộ nhớ RAM.
 Lưu ý: đóng app boss thì server tắt và nhân viên bị ngắt; URL WAN đổi mỗi lần restart tunnel; nên đặt IP tĩnh cho máy boss hoặc gán tên miền cho BOSS
 ###
 3.10. Báo cáo & Phân tích

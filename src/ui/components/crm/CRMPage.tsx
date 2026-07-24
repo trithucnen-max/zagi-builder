@@ -26,6 +26,7 @@ import AppIcon from '@/components/common/AppIcon';
 import BulkGroupManageModal from './modals/BulkGroupManageModal';
 import SmartGroupModal from './modals/SmartGroupModal';
 import CRMDuplicateManagerModal from './modals/CRMDuplicateManagerModal';
+import { forceSyncFriends } from '@/lib/zaloInitUtils';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from './modals/UnifiedLabelPickerModal';
 import AccountSelectorDropdown from '@/components/common/AccountSelectorDropdown';
 import { getCapability, type Channel } from '../../../configs/channelConfig';
@@ -199,7 +200,28 @@ export default function CRMPage() {
   const [showPhoneImport, setShowPhoneImport] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [isSyncingZaloFriends, setIsSyncingZaloFriends] = useState(false);
   const creatingCampaignRef = useRef(false);
+
+  const handleSyncZaloFriends = async () => {
+    if (!activeAccountId) return;
+    setIsSyncingZaloFriends(true);
+    try {
+      const auth = useAccountStore.getState().getAuth(activeAccountId);
+      if (!auth) {
+        showNotification('Tài khoản chưa đăng nhập hoặc mất phiên làm việc Zalo', 'error');
+        return;
+      }
+      showNotification('Đang đồng bộ kéo danh sách bạn bè mới nhất từ Zalo về Zagi...', 'info');
+      await forceSyncFriends(activeAccountId, auth);
+      await loadContacts();
+      showNotification('Đồng bộ danh bạ từ Zalo về Zagi thành công!', 'success');
+    } catch (err: any) {
+      showNotification('Lỗi đồng bộ Zalo: ' + (err?.message || 'Lỗi không xác định'), 'error');
+    } finally {
+      setIsSyncingZaloFriends(false);
+    }
+  };
 
 
   // ── Campaign creation wizard state ──────────────────────────────────
@@ -934,14 +956,25 @@ export default function CRMPage() {
         <div className="flex-1" />
         {/* Rà soát & Lọc trùng Liên hệ */}
         {!isFacebookAccount && (
-          <button
-            onClick={() => setShowDuplicateModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-            title="Rà soát & Lọc trùng liên hệ giữa các tài khoản Zalo"
-          >
-            <AppIcon name="users" size={14} className="text-amber-400" />
-            <span>Rà soát trùng lặp</span>
-          </button>
+          <>
+            <button
+              onClick={handleSyncZaloFriends}
+              disabled={isSyncingZaloFriends}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              title="Đồng bộ kéo bạn bè mới nhất từ Zalo về Zagi"
+            >
+              <AppIcon name="zap" size={14} className={isSyncingZaloFriends ? 'animate-spin text-blue-400' : 'text-blue-400'} />
+              <span>{isSyncingZaloFriends ? 'Đang đồng bộ...' : 'Đồng bộ Zalo'}</span>
+            </button>
+            <button
+              onClick={() => setShowDuplicateModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Rà soát & Lọc trùng liên hệ giữa các tài khoản Zalo"
+            >
+              <AppIcon name="users" size={14} className="text-amber-400" />
+              <span>Rà soát trùng lặp</span>
+            </button>
+          </>
         )}
         {/* Navigate to Analytics / Reports */}
         <button

@@ -45,6 +45,19 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - **`🔄 Chuyển sang tài khoản khác`**: Di chuyển dữ liệu liên hệ từ tài khoản Zalo này sang tài khoản Zalo khác chỉ với 1 cú nhấp chuột.
   - **`🔗 Gộp về 1 tài khoản`**: Gom toàn bộ nhãn CRM & dữ liệu của các liên hệ trùng lặp về 1 tài khoản chỉ định.
 
+### 🖼️ Động Cơ Quản Lý & Chuyển Tiếp Media Đồng Bộ (Boss-Native MediaToken Architecture)
+
+- **Chuẩn Hóa Điểm Định Danh Media Token (`media:acquireToken`):**
+  - Giới thiệu **Boss-Native File Token (BFT)** — quy đổi mọi đối tượng phương tiện (File đĩa local, Thư viện Media, Ảnh dán từ clipboard, CDN URL Zalo/Facebook) thành 1 Media Token duy nhất trước khi phát lệnh gửi.
+  - Xử lý hoàn toàn trong **Electron Main Process**, tự động đọc và truyền tải binary buffer trực tiếp từ máy Nhân viên (Employee) lên máy Sếp (Boss) mà không qua nén Base64 trong Renderer, loại bỏ triệt để hiện tượng văng ứng dụng do tràn bộ nhớ RAM (heap limit overflow).
+- **Hệ Thống Giải Mã Token Tập Trung (`resolveMediaToken` & `resolveMediaTokens`):**
+  - Gom toàn bộ logic định danh đường dẫn về 1 điểm xử lý duy nhất trên máy Sếp.
+  - Đảm bảo 100% các hàm API gửi của Zalo (`sendImage`, `sendImages`, `sendFile`, `sendVoice`, `sendVideo`) giải mã chính xác tuyệt đối các tệp đĩa nguyên bản.
+- **Khắc Phục Hoàn Toàn Lỗi Chuyển Tiếp Ảnh & Video Từ Máy Nhân Viên:**
+  - Tự động bóc tách và token hóa URL CDN khi chuyển tiếp tin nhắn phương tiện từ máy Nhân viên.
+  - Loại bỏ hoàn toàn sự cố đường dẫn đĩa nội bộ của máy Sếp bị lỗi không tồn tại trên máy Nhân viên.
+  - Tối ưu hóa gửi gộp nhiều ảnh từ Thư viện Media chọn hàng loạt (`mediaTokens`).
+
 ---
 
 ## [v3.0.5] - 2026-07-23
