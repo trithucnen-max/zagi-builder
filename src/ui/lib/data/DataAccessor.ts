@@ -10,11 +10,15 @@
 
 import { useEmployeeStore } from '../../store/employeeStore';
 import RestQueryService from '../../../services/http/RestQueryService';
+import { ipc } from '../ipc';
 
 // ── Helper ──────────────────────────────────────────────────────────
 
 function isEmployee(): boolean {
   try {
+    if (typeof window !== 'undefined' && !(window as any).electronAPI) {
+      return true;
+    }
     return useEmployeeStore.getState().mode === 'employee';
   } catch {
     return false;
@@ -82,7 +86,7 @@ export class DataAccessor {
       }
       return { messages: [], items: [], pagination: { hasMore: false } };
     }
-    return window.electronAPI.db.getMessages({
+    return ipc.db.getMessages({
       zaloId: params.zaloId,
       threadId: params.threadId,
       limit: params.limit || 50,
@@ -1099,7 +1103,7 @@ export class DataAccessor {
       setCachedLibrary(cacheKey, result);
       return result;
     }
-    try { return await window.electronAPI.library.getItems(params); }
+    try { return await ipc.library.getItems(params); }
     catch { return { success: false, items: [], total: 0 }; }
   }
 
@@ -1113,7 +1117,7 @@ export class DataAccessor {
       setCachedLibrary(cacheKey, result);
       return result;
     }
-    try { return await window.electronAPI.library.getFolders(params); }
+    try { return await ipc.library.getFolders(params); }
     catch { return { success: false, items: [] }; }
   }
 
@@ -1123,14 +1127,14 @@ export class DataAccessor {
   }) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().post('/api/library/upload/json', params); }
-    try { return await window.electronAPI.library.upload(params); }
+    try { return await ipc.library.upload(params); }
     catch { return { success: false }; }
   }
 
   static async deleteLibraryItem(uuid: string) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().delete('/api/library/item/' + uuid); }
-    try { return await window.electronAPI.library.deleteItem(uuid); }
+    try { return await ipc.library.deleteItem(uuid); }
     catch { return { success: false }; }
   }
 
@@ -1139,21 +1143,21 @@ export class DataAccessor {
   }) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().post('/api/library/folders', params); }
-    try { return await window.electronAPI.library.createFolder(params); }
+    try { return await ipc.library.createFolder(params); }
     catch { return { success: false }; }
   }
 
   static async renameLibraryFolder(id: number, name: string) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().patch('/api/library/folders/' + id, { name }); }
-    try { return await window.electronAPI.library.renameFolder?.(id, name); }
+    try { return await ipc.library.renameFolder?.(id, name); }
     catch { return { success: false }; }
   }
 
   static async deleteLibraryFolder(id: number) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().delete('/api/library/folders/' + id); }
-    try { return await window.electronAPI.library.deleteFolder(id); }
+    try { return await ipc.library.deleteFolder(id); }
     catch { return { success: false }; }
   }
 
@@ -1163,7 +1167,7 @@ export class DataAccessor {
   }) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().patch('/api/library/item/' + uuid, params); }
-    try { return await window.electronAPI.library.updateItem?.(uuid, params); }
+    try { return await ipc.library.updateItem?.(uuid, params); }
     catch { return { success: false }; }
   }
 
@@ -1177,35 +1181,35 @@ export class DataAccessor {
       setCachedLibrary(cacheKey, result);
       return result;
     }
-    try { return await window.electronAPI.library.getTags(params); }
+    try { return await ipc.library.getTags(params); }
     catch { return { success: false, items: [] }; }
   }
 
   static async createLibraryTag(params: { name: string; zaloId: string; color?: string }) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().post('/api/library/tags', params); }
-    try { return await window.electronAPI.library.createTag(params); }
+    try { return await ipc.library.createTag(params); }
     catch { return { success: false }; }
   }
 
   static async updateLibraryTag(id: number, params: { name: string; color?: string }) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().patch('/api/library/tags/' + id, params); }
-    try { return await window.electronAPI.library.updateTag({ ...params, id }); }
+    try { return await ipc.library.updateTag({ ...params, id }); }
     catch { return { success: false }; }
   }
 
   static async deleteLibraryTag(id: number) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().delete('/api/library/tags/' + id); }
-    try { return await window.electronAPI.library.deleteTag(id); }
+    try { return await ipc.library.deleteTag(id); }
     catch { return { success: false }; }
   }
 
   static async assignTagsToLibraryItem(itemUuid: string, tagIds: number[], zaloId: string) {
     invalidateLibraryCache();
     if (isEmployee()) { return rest().post('/api/library/item/tags', { itemUuid, tagIds, zaloId }); }
-    try { return await window.electronAPI.library.assignTags({ itemUuid, tagIds, zaloId }); }
+    try { return await ipc.library.assignTags({ itemUuid, tagIds, zaloId }); }
     catch { return { success: false }; }
   }
 
