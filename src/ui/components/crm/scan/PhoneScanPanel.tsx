@@ -23,6 +23,7 @@ interface Batch {
     id: number;
     name: string;
     assigned_account_id: string | null;
+    contact_assignment_mode?: 'single' | 'distributed' | 'all_accounts';
     auto_tag_ids: string; // JSON array
     daily_limit: number;
     hourly_limit?: number;
@@ -75,6 +76,11 @@ export default function PhoneScanPanel() {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [formName, setFormName] = useState('');
     const [formAssignedAccount, setFormAssignedAccount] = useState<string>('');
+    const [formContactAssignmentMode, setFormContactAssignmentMode] = useState<'single' | 'distributed' | 'all_accounts'>('distributed');
+    const [showReassignModal, setShowReassignModal] = useState(false);
+    const [reassignMode, setReassignMode] = useState<'single' | 'distributed' | 'all_accounts'>('distributed');
+    const [reassignAccountId, setReassignAccountId] = useState<string>('');
+    const [isReassigning, setIsReassigning] = useState(false);
     const [formDailyLimit, setFormDailyLimit] = useState<number>(100);
     const [formHourlyLimit, setFormHourlyLimit] = useState<number>(30);
     const [formPriority, setFormPriority] = useState<number>(0);
@@ -416,10 +422,16 @@ export default function PhoneScanPanel() {
             return;
         }
 
+        if (formContactAssignmentMode === 'single' && !formAssignedAccount) {
+            showNotification('Vui lòng chọn 1 tài khoản Zalo nhận dữ liệu liên hệ', 'error');
+            return;
+        }
+
         try {
             const res = await ipc.crm?.createPhoneScanBatch({
                 name: formName.trim(),
-                assignedAccountId: formAssignedAccount || null,
+                assignedAccountId: formContactAssignmentMode === 'single' ? (formAssignedAccount || null) : null,
+                contactAssignmentMode: formContactAssignmentMode,
                 autoTagIds: formAutoTagIds,
                 dailyLimit: formDailyLimit,
                 hourlyLimit: formHourlyLimit,
@@ -437,6 +449,7 @@ export default function PhoneScanPanel() {
                 // Reset form
                 setFormName('');
                 setFormAssignedAccount('');
+                setFormContactAssignmentMode('distributed');
                 setFormDailyLimit(100);
                 setFormHourlyLimit(30);
                 setFormPriority(0);
@@ -456,6 +469,37 @@ export default function PhoneScanPanel() {
             }
         } catch (err: any) {
             showNotification('Lỗi: ' + err.message, 'error');
+        }
+    };
+
+    // Re-assign existing batch contacts
+    const handleReassignBatch = async () => {
+        if (!selectedBatch) return;
+        if (reassignMode === 'single' && !reassignAccountId) {
+            showNotification('Vui lòng chọn tài khoản Zalo đích', 'error');
+            return;
+        }
+        setIsReassigning(true);
+        try {
+            const res = await ipc.crm?.reassignBatchContacts({
+                batchId: selectedBatch.id,
+                targetMode: reassignMode,
+                targetAccountId: reassignMode === 'single' ? (reassignAccountId || null) : null
+            });
+            if (res?.success) {
+                showNotification(`Đã chuyển quy tắc phân bổ thành công cho ${res.reassignedCount || 0} liên hệ!`, 'success');
+                setShowReassignModal(false);
+                fetchBatches();
+                if (selectedBatch) {
+                    fetchItems(selectedBatch.id, itemsPage, itemsStatusFilter);
+                }
+            } else {
+                showNotification('Chuyển phân bổ thất bại: ' + (res?.error || 'Lỗi không xác định'), 'error');
+            }
+        } catch (err: any) {
+            showNotification('Lỗi: ' + err.message, 'error');
+        } finally {
+            setIsReassigning(false);
         }
     };
 
@@ -1024,6 +1068,29 @@ export default function PhoneScanPanel() {
                                     </span>
                                 </div>
 
+                                {/* Contact Assignment Mode Banner */}
+                                <div className="flex items-center gap-1.5 col-span-full justify-between bg-white dark:bg-gray-800/80 p-2 rounded-lg border border-gray-200 dark:border-gray-700/60">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="font-semibold text-gray-400">Quy tắc phân bổ CRM:</span>
+                                        <span className="font-bold text-gray-900 dark:text-white">
+                                            {selectedBatch.contact_assignment_mode === 'single' ? '🔵 Gom về 1 tài khoản chỉ định'
+                                             : selectedBatch.contact_assignment_mode === 'all_accounts' ? '🟣 Có mặt ở tất cả tài khoản Zalo'
+                                             : '🟢 Phân tán theo tài khoản trực tiếp quét'}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setReassignMode(selectedBatch.contact_assignment_mode || 'distributed');
+                                            setReassignAccountId(selectedBatch.assigned_account_id || '');
+                                            setShowReassignModal(true);
+                                        }}
+                                        className="px-2.5 py-1 text-[11px] font-bold rounded-md bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-700/50 transition-all flex items-center gap-1 cursor-pointer"
+                                    >
+                                        ⚡ Chuyển phân bổ liên hệ
+                                    </button>
+                                </div>
+
                                 {/* Auto Workflow */}
                                 {selectedBatchWorkflow && (
                                     <div className="flex items-center gap-1.5 col-span-full">
@@ -1107,6 +1174,7 @@ export default function PhoneScanPanel() {
                                                 <th className="py-2.5 px-3 font-semibold">Số điện thoại</th>
                                                 <th className="py-2.5 px-3 font-semibold">Trạng thái</th>
                                                 <th className="py-2.5 px-3 font-semibold">Zalo profile</th>
+                                                <th className="py-2.5 px-3 font-semibold">Tài khoản nhận CRM</th>
                                                 <th className="py-2.5 px-3 font-semibold">Nhãn CRM đã gán</th>
                                                 <th className="py-2.5 px-3 font-semibold">Thời gian</th>
                                                 <th className="py-2.5 px-3 font-semibold">Ghi chú lỗi</th>
@@ -1131,6 +1199,39 @@ export default function PhoneScanPanel() {
                                                                     {item.zalo_name}
                                                                 </span>
                                                             </div>
+                                                        ) : (
+                                                            <span className="text-gray-400 dark:text-gray-600">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3 px-3">
+                                                        {item.status === 'found' ? (
+                                                            selectedBatch?.contact_assignment_mode === 'all_accounts' ? (
+                                                                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 rounded border border-purple-200 dark:border-purple-800/50">
+                                                                    Tất cả ({visibleAccounts.length} TK)
+                                                                </span>
+                                                            ) : selectedBatch?.contact_assignment_mode === 'single' ? (
+                                                                (() => {
+                                                                    const acc = visibleAccounts.find(a => a.zalo_id === selectedBatch.assigned_account_id);
+                                                                    return acc ? (
+                                                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800/50 truncate max-w-[120px] inline-block">
+                                                                            {acc.full_name || acc.zalo_id}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-gray-400 text-[10px]">TK #{selectedBatch.assigned_account_id}</span>
+                                                                    );
+                                                                })()
+                                                            ) : (
+                                                                (() => {
+                                                                    const acc = visibleAccounts.find(a => a.zalo_id === item.scanned_by_account_id);
+                                                                    return acc ? (
+                                                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800/50 truncate max-w-[120px] inline-block">
+                                                                            {acc.full_name || acc.zalo_id}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-gray-400 text-[10px]">{item.scanned_by_account_id || '-'}</span>
+                                                                    );
+                                                                })()
+                                                            )
                                                         ) : (
                                                             <span className="text-gray-400 dark:text-gray-600">-</span>
                                                         )}
@@ -1217,6 +1318,7 @@ export default function PhoneScanPanel() {
                                 </span>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setShowCreateForm(false)}
                                 className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800 transition-all"
                             >
@@ -1244,6 +1346,105 @@ export default function PhoneScanPanel() {
                                         />
                                     </div>
 
+                                    {/* Quy tắc phân bổ liên hệ & nhãn CRM */}
+                                    <div className="bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl p-3.5 space-y-2 flex-shrink-0">
+                                        <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
+                                            Quy tắc phân bổ liên hệ CRM *
+                                        </label>
+                                        <div className="flex flex-col gap-2">
+                                            <label
+                                                onClick={() => setFormContactAssignmentMode('distributed')}
+                                                className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                                    formContactAssignmentMode === 'distributed'
+                                                        ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500/80 ring-1 ring-emerald-500/20'
+                                                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="contact_assignment_mode"
+                                                    checked={formContactAssignmentMode === 'distributed'}
+                                                    onChange={() => setFormContactAssignmentMode('distributed')}
+                                                    className="mt-0.5"
+                                                />
+                                                <div>
+                                                    <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                        <span>🟢 Phân tán theo tài khoản trực tiếp quét</span>
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                        Tài khoản Zalo nào trực tiếp tìm thấy SĐT thì SĐT và nhãn CRM đó thuộc về tài khoản Zalo đó.
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label
+                                                onClick={() => setFormContactAssignmentMode('single')}
+                                                className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                                    formContactAssignmentMode === 'single'
+                                                        ? 'bg-blue-50/50 dark:bg-blue-950/30 border-blue-500/80 ring-1 ring-blue-500/20'
+                                                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="contact_assignment_mode"
+                                                    checked={formContactAssignmentMode === 'single'}
+                                                    onChange={() => setFormContactAssignmentMode('single')}
+                                                    className="mt-0.5"
+                                                />
+                                                <div className="flex-1">
+                                                    <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                        <span>🔵 Gom toàn bộ về 1 tài khoản chỉ định</span>
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                        Tất cả SĐT tìm thấy (bởi bất kỳ tài khoản nào) đều lưu profile và gán nhãn CRM về 1 tài khoản Zalo duy nhất.
+                                                    </div>
+                                                    {formContactAssignmentMode === 'single' && (
+                                                        <div className="mt-2">
+                                                            <select
+                                                                value={formAssignedAccount}
+                                                                onChange={e => setFormAssignedAccount(e.target.value)}
+                                                                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100"
+                                                            >
+                                                                <option value="">-- Chọn tài khoản Zalo nhận toàn bộ --</option>
+                                                                {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
+                                                                    <option key={acc.zalo_id} value={acc.zalo_id}>
+                                                                        {acc.full_name || acc.zalo_id}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </label>
+
+                                            <label
+                                                onClick={() => setFormContactAssignmentMode('all_accounts')}
+                                                className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                                    formContactAssignmentMode === 'all_accounts'
+                                                        ? 'bg-purple-50/50 dark:bg-purple-950/30 border-purple-500/80 ring-1 ring-purple-500/20'
+                                                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="contact_assignment_mode"
+                                                    checked={formContactAssignmentMode === 'all_accounts'}
+                                                    onChange={() => setFormContactAssignmentMode('all_accounts')}
+                                                    className="mt-0.5"
+                                                />
+                                                <div>
+                                                    <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                        <span>🟣 Đồng bộ có mặt ở TẤT CẢ các tài khoản Zalo</span>
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                        Tự động tạo profile liên hệ và gán nhãn CRM cho toàn bộ danh sách tài khoản Zalo active trong ứng dụng.
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+
                                     {/* Assigned Account & Limits */}
                                     <div className="grid grid-cols-3 gap-3">
                                         <div>
@@ -1253,7 +1454,7 @@ export default function PhoneScanPanel() {
                                                 onChange={e => setFormAssignedAccount(e.target.value)}
                                                 className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-2.5 py-2 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 transition-all font-medium shadow-2xs cursor-pointer"
                                             >
-                                                <option value="">-- Tự động chia --</option>
+                                                <option value="">-- Tự động chia tất cả TK --</option>
                                                 {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
                                                     <option key={acc.zalo_id} value={acc.zalo_id}>
                                                         {acc.full_name || acc.zalo_id}
@@ -1416,7 +1617,7 @@ export default function PhoneScanPanel() {
                                                 onClick={() => setShowLabelPickerModal(true)}
                                                 className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition-all border border-blue-200 dark:border-blue-800/60 cursor-pointer shadow-2xs"
                                             >
-                                                <AppIcon name="tag" size={13} className="text-blue-500" />
+                                                <AppIcon name="settings" size={13} className="text-blue-500" />
                                                 <span>{formAutoTagIds.length > 0 ? '🏷️ Thay đổi / Thêm nhãn mới' : '🏷️ Chọn nhãn tự động gán'}</span>
                                             </button>
                                         </div>
@@ -1560,6 +1761,128 @@ export default function PhoneScanPanel() {
                         fetchLocalLabels();
                     }}
                 />
+            )}
+
+            {/* Modal: Re-assign batch contacts */}
+            {showReassignModal && selectedBatch && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700/80 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col text-gray-900 dark:text-gray-100">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+                            <h3 className="font-bold text-sm text-gray-900 dark:text-white">
+                                ⚡ Chuyển quy tắc phân bổ liên hệ CRM cho Lô #{selectedBatch.id}
+                            </h3>
+                            <button
+                                onClick={() => setShowReassignModal(false)}
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-lg"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4 text-xs">
+                            <p className="text-gray-600 dark:text-gray-300">
+                                Chọn quy tắc phân bổ mới để đồng bộ lại toàn bộ profile liên hệ và nhãn CRM cho các SĐT đã tìm thấy trong Lô quét này:
+                            </p>
+
+                            <div className="flex flex-col gap-2.5">
+                                <label
+                                    onClick={() => setReassignMode('distributed')}
+                                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                                        reassignMode === 'distributed'
+                                            ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 ring-1 ring-emerald-500/20'
+                                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                    }`}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="reassign_mode"
+                                        checked={reassignMode === 'distributed'}
+                                        onChange={() => setReassignMode('distributed')}
+                                        className="mt-0.5"
+                                    />
+                                    <div>
+                                        <div className="font-bold text-gray-900 dark:text-white">🟢 Phân tán theo tài khoản trực tiếp quét</div>
+                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Tài khoản Zalo nào quét được SĐT nào thì lưu profile và gán nhãn thuộc về tài khoản đó.</div>
+                                    </div>
+                                </label>
+
+                                <label
+                                    onClick={() => setReassignMode('single')}
+                                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                                        reassignMode === 'single'
+                                            ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-500 ring-1 ring-blue-500/20'
+                                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                    }`}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="reassign_mode"
+                                        checked={reassignMode === 'single'}
+                                        onChange={() => setReassignMode('single')}
+                                        className="mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                        <div className="font-bold text-gray-900 dark:text-white">🔵 Gom toàn bộ về 1 tài khoản chỉ định</div>
+                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Chuyển toàn bộ SĐT tìm thấy về lưu profile và gán nhãn ở 1 tài khoản Zalo đích.</div>
+                                        {reassignMode === 'single' && (
+                                            <select
+                                                value={reassignAccountId}
+                                                onChange={e => setReassignAccountId(e.target.value)}
+                                                className="w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100"
+                                            >
+                                                <option value="">-- Chọn tài khoản Zalo nhận dữ liệu --</option>
+                                                {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
+                                                    <option key={acc.zalo_id} value={acc.zalo_id}>
+                                                        {acc.full_name || acc.zalo_id}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                </label>
+
+                                <label
+                                    onClick={() => setReassignMode('all_accounts')}
+                                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                                        reassignMode === 'all_accounts'
+                                            ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-500 ring-1 ring-purple-500/20'
+                                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                    }`}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="reassign_mode"
+                                        checked={reassignMode === 'all_accounts'}
+                                        onChange={() => setReassignMode('all_accounts')}
+                                        className="mt-0.5"
+                                    />
+                                    <div>
+                                        <div className="font-bold text-gray-900 dark:text-white">🟣 Đồng bộ có mặt ở TẤT CẢ các tài khoản Zalo</div>
+                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Tự động nhân bản profile và nhãn CRM cho tất cả các tài khoản Zalo active trong hệ thống.</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-850 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowReassignModal(false)}
+                                className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleReassignBatch}
+                                disabled={isReassigning}
+                                className="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-all disabled:opacity-50"
+                            >
+                                {isReassigning ? 'Đang đồng bộ...' : 'Áp dụng quy tắc mới'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

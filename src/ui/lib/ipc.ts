@@ -282,7 +282,8 @@ declare global {
         cancelScheduledMessage: (params: { id: string }) => Promise<{ success: boolean; error?: string }>;
         getPhoneScanBatches: () => Promise<{ success: boolean; batches?: any[]; error?: string }>;
         getPhoneScanItems: (params: { batchId: number; limit?: number; offset?: number; status?: string }) => Promise<{ success: boolean; items?: any[]; total?: number; error?: string }>;
-        createPhoneScanBatch: (params: { name: string; assignedAccountId: string | null; autoTagIds: number[]; dailyLimit: number; hourlyLimit: number; priority: number; status?: string; scheduledTime?: string; skipCrmExisting?: boolean; autoWorkflowId?: number | null; updateZaloAlias?: boolean; phones: string[] }) => Promise<{ success: boolean; batchId?: number; error?: string }>;
+        createPhoneScanBatch: (params: { name: string; assignedAccountId: string | null; contactAssignmentMode?: string; autoTagIds: number[]; dailyLimit: number; hourlyLimit: number; priority: number; status?: string; scheduledTime?: string; skipCrmExisting?: boolean; autoWorkflowId?: number | null; updateZaloAlias?: boolean; phones: string[] }) => Promise<{ success: boolean; batchId?: number; error?: string }>;
+        reassignBatchContacts: (params: { batchId: number; targetMode: 'single' | 'distributed' | 'all_accounts'; targetAccountId?: string | null }) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
         deletePhoneScanBatch: (params: { batchId: number }) => Promise<{ success: boolean; error?: string }>;
         updatePhoneScanBatchStatus: (params: { batchId: number; status: string }) => Promise<{ success: boolean; error?: string }>;
         startPhoneScanImmediate: () => Promise<{ success: boolean; error?: string }>;
@@ -290,6 +291,10 @@ declare global {
         updatePhoneScanBatchPriority: (params: { batchId: number; priority: number }) => Promise<{ success: boolean; error?: string }>;
         reorderPhoneScanBatches: (params: { batchIds: number[] }) => Promise<{ success: boolean; error?: string }>;
         reassignContactsOwner: (params: { fromZaloId: string; targetZaloId: string; contactIds: string[] }) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
+        getDuplicateContacts: () => Promise<{ success: boolean; duplicates?: any[]; error?: string }>;
+        transferContact: (params: { contactId: string; phone?: string; fromZaloId: string; toZaloId: string }) => Promise<{ success: boolean; error?: string }>;
+        mergeContacts: (params: { targetZaloId: string; phone?: string; contactId: string }) => Promise<{ success: boolean; error?: string }>;
+        cleanupCorruptedAliases: () => Promise<{ success: boolean; cleanedCount?: number; error?: string }>;
         markContactBlocked: (params: { ownerZaloId: string; contactId: string; isBlocked?: boolean }) => Promise<{ success: boolean; error?: string }>;
       };
       analytics: {

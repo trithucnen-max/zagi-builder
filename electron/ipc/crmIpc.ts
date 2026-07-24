@@ -636,12 +636,13 @@ export function registerCRMIpc(): void {
         }
     });
 
-    ipcHandle('crm:createPhoneScanBatch', async (_e, { name, assignedAccountId, autoTagIds, dailyLimit, hourlyLimit, priority, status, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, phones }: any) => {
+    ipcHandle('crm:createPhoneScanBatch', async (_e, { name, assignedAccountId, contactAssignmentMode, autoTagIds, dailyLimit, hourlyLimit, priority, status, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, phones }: any) => {
         try {
             const db = DatabaseService.getInstance();
             const batchId = db.createPhoneScanBatch({
                 name,
                 assignedAccountId,
+                contactAssignmentMode,
                 autoTagIds,
                 dailyLimit,
                 hourlyLimit,
@@ -664,6 +665,56 @@ export function registerCRMIpc(): void {
             return { success: false, error: 'Could not create batch' };
         } catch (err: any) {
             return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:reassignBatchContacts', async (_e, { batchId, targetMode, targetAccountId }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const res = db.reassignBatchContacts(batchId, targetMode, targetAccountId);
+            return res;
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:getDuplicateContacts', async () => {
+        try {
+            const db = DatabaseService.getInstance();
+            const duplicates = db.getDuplicateContactsAcrossAccounts();
+            return { success: true, duplicates };
+        } catch (err: any) {
+            return { success: false, error: err.message, duplicates: [] };
+        }
+    });
+
+    ipcHandle('crm:transferContact', async (_e, params: { contactId: string; phone?: string; fromZaloId: string; toZaloId: string }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const success = db.transferContactBetweenAccounts(params);
+            return { success };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:mergeContacts', async (_e, params: { targetZaloId: string; phone?: string; contactId: string }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const success = db.mergeContactsToAccount(params);
+            return { success };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:cleanupCorruptedAliases', async () => {
+        try {
+            const db = DatabaseService.getInstance();
+            const cleanedCount = db.cleanupCrossAccountCorruptedAliases();
+            return { success: true, cleanedCount };
+        } catch (err: any) {
+            return { success: false, error: err.message, cleanedCount: 0 };
         }
     });
 

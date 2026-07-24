@@ -1205,6 +1205,11 @@ class DatabaseService {
             } else {
                 this.exec(`UPDATE phone_scan_batches SET sort_order = id WHERE sort_order = 0 OR sort_order IS NULL`);
             }
+            const hasAssignmentMode = cols.some((c: any) => c.name === 'contact_assignment_mode');
+            if (!hasAssignmentMode) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN contact_assignment_mode TEXT NOT NULL DEFAULT 'distributed'`);
+                Logger.log('[DatabaseService] ✅ Migration: added contact_assignment_mode column to phone_scan_batches');
+            }
 
             const contactCols = this.query<any>('PRAGMA table_info(contacts)');
             const hasIsBlocked = contactCols.some((c: any) => c.name === 'is_blocked');
@@ -3299,11 +3304,12 @@ class DatabaseService {
                 `UPDATE contacts SET alias=? WHERE owner_zalo_id=? AND contact_id=?`,
                 [newAlias, ownerZaloId, contactId]
             );
+        } else {
+            this.run(
+                `UPDATE contacts SET alias=? WHERE contact_id=? AND (alias IS NULL OR alias = '')`,
+                [newAlias, contactId]
+            );
         }
-        this.run(
-            `UPDATE contacts SET alias=? WHERE contact_id=? AND (alias IS NULL OR alias = '' OR alias != ?)`,
-            [newAlias, contactId, newAlias]
-        );
     }
 
     /**
@@ -6213,7 +6219,7 @@ class DatabaseService {
                 // Build full list: friends + non-friend contacts (including groups)
                 const friends = this.query<any>(
                     `SELECT f.user_id as contact_id,
-                        COALESCE(NULLIF(c.alias,''), (SELECT alias FROM contacts WHERE contact_id = f.user_id AND alias IS NOT NULL AND alias != '' LIMIT 1), '') as alias,
+                        COALESCE(c.alias, '') as alias,
                         COALESCE(c.display_name, f.display_name,'') as display_name,
                         COALESCE(c.avatar_url, f.avatar,'') as avatar,
                         COALESCE(c.phone, f.phone,'') as phone,
@@ -9101,10 +9107,10 @@ class DatabaseService {
                 if (uid) {
                     this.setContactAlias(zaloId, uid, formattedAlias);
                 }
-                if (normPhone) {
+                if (normPhone && zaloId) {
                     this.run(
-                        `UPDATE contacts SET alias=? WHERE (phone=? OR phone=?) AND (alias IS NULL OR alias = '' OR alias != ?)`,
-                        [formattedAlias, normPhone, phoneDisplay, formattedAlias]
+                        `UPDATE contacts SET alias=? WHERE owner_zalo_id=? AND (phone=? OR phone=?) AND (alias IS NULL OR alias = '' OR alias != ?)`,
+                        [formattedAlias, zaloId, normPhone, phoneDisplay, formattedAlias]
                     );
                 }
                 if (zaloId || uid) {
@@ -9162,6 +9168,7 @@ class DatabaseService {
     public createPhoneScanBatch(params: {
         name: string;
         assignedAccountId: string | null;
+        contactAssignmentMode?: string;
         autoTagIds: number[];
         dailyLimit: number;
         hourlyLimit: number;
@@ -9182,6 +9189,7 @@ class DatabaseService {
             const skipCrmExisting = params.skipCrmExisting ? 1 : 0;
             const autoWorkflowId = params.autoWorkflowId ? Number(params.autoWorkflowId) : null;
             const updateZaloAlias = params.updateZaloAlias !== false ? 1 : 0;
+            const contactAssignmentMode = params.contactAssignmentMode || (params.assignedAccountId ? 'single' : 'distributed');
 
             // Get max sort_order
             const maxSort = this.queryOne<any>('SELECT MAX(sort_order) as m FROM phone_scan_batches')?.m ?? 0;
@@ -9193,9 +9201,9 @@ class DatabaseService {
             // 1. Insert batch
             this.run(`
                 INSERT INTO phone_scan_batches 
-                (name, assigned_account_id, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, sort_order, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [params.name, params.assignedAccountId, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, nextSortOrder, now]);
+                (name, assigned_account_id, contact_assignment_mode, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, sort_order, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [params.name, params.assignedAccountId, contactAssignmentMode, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, nextSortOrder, now]);
 
             const batchId = this.queryOne<any>(`SELECT last_insert_rowid() as id`)?.id;
             if (!batchId) {
@@ -9252,6 +9260,73 @@ class DatabaseService {
             Logger.error(`[DB] createPhoneScanBatch error: ${err.message}`);
             try { this.run('ROLLBACK'); } catch {}
             return -1;
+        }
+    }
+
+    public reassignBatchContacts(batchId: number, targetMode: 'single' | 'distributed' | 'all_accounts', targetAccountId?: string | null): { success: boolean; reassignedCount: number; error?: string } {
+        if (!this.initialized) return { success: false, reassignedCount: 0, error: 'Database not initialized' };
+        try {
+            const batch = this.queryOne<any>('SELECT * FROM phone_scan_batches WHERE id = ?', [batchId]);
+            if (!batch) return { success: false, reassignedCount: 0, error: 'Batch not found' };
+
+            const finalTargetAccountId = targetAccountId !== undefined ? targetAccountId : batch.assigned_account_id;
+            
+            // Update batch contact_assignment_mode and assigned_account_id
+            this.run(
+                'UPDATE phone_scan_batches SET contact_assignment_mode = ?, assigned_account_id = ? WHERE id = ?',
+                [targetMode, finalTargetAccountId, batchId]
+            );
+
+            // Fetch all found items for this batch
+            const items = this.query<any>(
+                'SELECT * FROM phone_scan_items WHERE batch_id = ? AND status = "found" AND zalo_uid IS NOT NULL',
+                [batchId]
+            );
+
+            let tagIds: number[] = [];
+            try {
+                tagIds = JSON.parse(batch.auto_tag_ids || '[]');
+            } catch {}
+
+            const activeAccounts = this.getAccounts() || [];
+            const activeZaloAccounts = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+            const allZaloIds = activeZaloAccounts.map((a: any) => String(a.zalo_id));
+
+            let count = 0;
+            for (const item of items) {
+                const uid = item.zalo_uid;
+                const name = item.zalo_name || item.phone;
+                const avatar = item.zalo_avatar || '';
+                const phoneNorm = item.phone_normalized || item.phone;
+                const scannerId = item.scanned_by_account_id || finalTargetAccountId || (allZaloIds[0] ?? '');
+
+                let targetAccountIds: string[] = [];
+                if (targetMode === 'single') {
+                    const singleId = finalTargetAccountId || scannerId;
+                    if (singleId) targetAccountIds = [singleId];
+                } else if (targetMode === 'all_accounts') {
+                    targetAccountIds = allZaloIds.length > 0 ? allZaloIds : [scannerId];
+                } else {
+                    // distributed
+                    if (scannerId) targetAccountIds = [scannerId];
+                }
+
+                for (const accId of targetAccountIds) {
+                    if (!accId) continue;
+                    this.updateContactProfile(accId, uid, name, avatar, phoneNorm, 'user');
+                    for (const tagId of tagIds) {
+                        this.assignLocalLabelToThread(accId, tagId, uid);
+                    }
+                    EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
+                }
+                count++;
+            }
+
+            this.save();
+            return { success: true, reassignedCount: count };
+        } catch (err: any) {
+            Logger.error(`[DB] reassignBatchContacts error: ${err.message}`);
+            return { success: false, reassignedCount: 0, error: err.message };
         }
     }
 
@@ -9432,6 +9507,165 @@ class DatabaseService {
             return row?.count ?? 0;
         } catch (err: any) {
             Logger.error(`[DB] getHourlyScanCountForAccount: ${err.message}`);
+            return 0;
+        }
+    }
+
+    public getDuplicateContactsAcrossAccounts(): any[] {
+        if (!this.initialized) return [];
+        try {
+            const dups = this.query<any>(`
+                SELECT c.contact_id, c.phone, c.display_name, COUNT(DISTINCT c.owner_zalo_id) as account_count
+                FROM contacts c
+                WHERE (c.phone IS NOT NULL AND c.phone != '') OR (c.contact_id IS NOT NULL AND c.contact_id != '')
+                GROUP BY COALESCE(NULLIF(c.phone,''), c.contact_id)
+                HAVING COUNT(DISTINCT c.owner_zalo_id) > 1
+            `);
+
+            const results: any[] = [];
+            for (const dup of dups) {
+                const keyPhone = dup.phone || '';
+                const keyUid = dup.contact_id || '';
+
+                const details = this.query<any>(`
+                    SELECT c.owner_zalo_id, c.contact_id, c.display_name, c.avatar_url, c.phone, c.alias, c.is_friend, c.contact_type
+                    FROM contacts c
+                    WHERE (c.phone = ? AND c.phone != '') OR c.contact_id = ?
+                `, [keyPhone, keyUid]);
+
+                const enrichedDetails = details.map((d: any) => {
+                    const tags = this.query<any>(`
+                        SELECT lt.id, lt.name, lt.color, lt.emoji
+                        FROM local_label_threads llt
+                        JOIN local_labels lt ON llt.label_id = lt.id
+                        WHERE llt.owner_zalo_id = ? AND llt.thread_id = ?
+                    `, [d.owner_zalo_id, d.contact_id]);
+                    return { ...d, tags };
+                });
+
+                results.push({
+                    phone: keyPhone,
+                    contact_id: keyUid,
+                    name: dup.display_name,
+                    account_count: dup.account_count,
+                    accounts: enrichedDetails
+                });
+            }
+            return results;
+        } catch (err: any) {
+            Logger.error(`[DB] getDuplicateContactsAcrossAccounts error: ${err.message}`);
+            return [];
+        }
+    }
+
+    public transferContactBetweenAccounts(params: { contactId: string; phone?: string; fromZaloId: string; toZaloId: string }): boolean {
+        if (!this.initialized || !params.fromZaloId || !params.toZaloId) return false;
+        try {
+            const { contactId, phone = '', fromZaloId, toZaloId } = params;
+            const contact = this.queryOne<any>(
+                `SELECT * FROM contacts WHERE owner_zalo_id = ? AND (contact_id = ? OR (phone = ? AND phone != ''))`,
+                [fromZaloId, contactId, phone]
+            );
+
+            if (contact) {
+                this.updateContactProfile(
+                    toZaloId,
+                    contact.contact_id,
+                    contact.display_name,
+                    contact.avatar_url,
+                    contact.phone,
+                    contact.contact_type,
+                    contact.gender,
+                    contact.birthday
+                );
+                if (contact.alias) {
+                    this.setContactAlias(toZaloId, contact.contact_id, contact.alias);
+                }
+
+                const tags = this.query<any>(
+                    `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`,
+                    [fromZaloId, contact.contact_id]
+                );
+                for (const tag of tags) {
+                    this.assignLocalLabelToThread(toZaloId, contact.contact_id, tag.label_id);
+                }
+
+                this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [fromZaloId, contact.contact_id]);
+                this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [fromZaloId, contact.contact_id]);
+
+                EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: fromZaloId, contactId: contact.contact_id, alias: '' });
+                EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: toZaloId, contactId: contact.contact_id, alias: contact.alias });
+                this.save();
+                return true;
+            }
+            return false;
+        } catch (err: any) {
+            Logger.error(`[DB] transferContactBetweenAccounts error: ${err.message}`);
+            return false;
+        }
+    }
+
+    public mergeContactsToAccount(params: { targetZaloId: string; phone?: string; contactId: string }): boolean {
+        if (!this.initialized || !params.targetZaloId) return false;
+        try {
+            const { targetZaloId, phone = '', contactId } = params;
+            const allMatching = this.query<any>(
+                `SELECT * FROM contacts WHERE (phone = ? AND phone != '') OR contact_id = ?`,
+                [phone, contactId]
+            );
+
+            for (const item of allMatching) {
+                const tags = this.query<any>(
+                    `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`,
+                    [item.owner_zalo_id, item.contact_id]
+                );
+                for (const tag of tags) {
+                    this.assignLocalLabelToThread(targetZaloId, item.contact_id, tag.label_id);
+                }
+                if (item.owner_zalo_id !== targetZaloId && item.is_friend !== 1) {
+                    this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [item.owner_zalo_id, item.contact_id]);
+                    this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [item.owner_zalo_id, item.contact_id]);
+                }
+            }
+            this.save();
+            return true;
+        } catch (err: any) {
+            Logger.error(`[DB] mergeContactsToAccount error: ${err.message}`);
+            return false;
+        }
+    }
+
+    public cleanupCrossAccountCorruptedAliases(): number {
+        if (!this.initialized) return 0;
+        try {
+            let cleaned = 0;
+            const contactsWithAlias = this.query<any>(`
+                SELECT c.owner_zalo_id, c.contact_id, c.alias, c.display_name, f.display_name as friend_name
+                FROM contacts c
+                LEFT JOIN friends f ON f.owner_zalo_id = c.owner_zalo_id AND f.user_id = c.contact_id
+                WHERE c.alias IS NOT NULL AND c.alias != ''
+            `);
+
+            for (const c of contactsWithAlias) {
+                if (c.alias.startsWith('| ') || c.alias.includes('Lô ') || c.alias.includes(' - Khách - ')) {
+                    const isOwnBatch = this.queryOne<any>(`
+                        SELECT psi.id FROM phone_scan_items psi
+                        INNER JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                        WHERE (psi.scanned_by_account_id = ? OR psb.assigned_account_id = ? OR psb.contact_assignment_mode = 'all_accounts')
+                          AND (psi.zalo_uid = ? OR (psi.phone != '' AND psi.phone = (SELECT phone FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?)))
+                        LIMIT 1
+                    `, [c.owner_zalo_id, c.owner_zalo_id, c.contact_id, c.owner_zalo_id, c.contact_id]);
+
+                    if (!isOwnBatch) {
+                        this.run(`UPDATE contacts SET alias = NULL WHERE owner_zalo_id = ? AND contact_id = ?`, [c.owner_zalo_id, c.contact_id]);
+                        cleaned++;
+                    }
+                }
+            }
+            if (cleaned > 0) this.save();
+            return cleaned;
+        } catch (err: any) {
+            Logger.error(`[DB] cleanupCrossAccountCorruptedAliases error: ${err.message}`);
             return 0;
         }
     }

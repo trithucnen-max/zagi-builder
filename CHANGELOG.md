@@ -29,10 +29,21 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 - **Chuẩn hóa Giới tính:** Tự động quy đổi các giá trị nhập tự do (`nam`, `male`, `1` ➔ `Nam`; `nữ`, `female`, `2` ➔ `Nữ`).
 - **Chuẩn hóa Ngày sinh:** Tự động định dạng ngày sinh chuẩn (`15-08-1992` ➔ `15/08/1992`).
 
-### 🎨 Sửa Lỗi Màu Sắc Giao Diện Buổi Tối (Dark Mode Contrast Fix)
+### 🛡️ Phân Lập Dữ Liệu Danh Bạ Triệt Để & Bộ Công Cụ Lọc Trùng Liên Hệ Đa Tài Khoản
 
-- **Chuẩn hóa CSS Selector Tailwind:** Loại bỏ toàn bộ các class màu không chuẩn (`gray-850`, `gray-750`, `gray-650`) thay bằng các màu sắc chuẩn của Tailwind (`gray-900`, `gray-800`, `gray-700`, `gray-600`).
-- **Khắc phục lỗi mảng màu trắng bị lóa:** Sửa lỗi đè màu nền trắng trên cột giữa Editor và các ô nhập văn bản `textarea` ở tất cả các chế độ chiến dịch (**Tin nhắn**, **Kết bạn**, **Mời nhóm**, **Hỗn hợp**).
+- **Cô Lập Tuyệt Đối Dữ Liệu Biệt Danh (SQL Account Isolation):**
+  - Phân lập 100% các câu lệnh SQL `getCRMContacts`, `setContactAlias` và `backfillPhoneScanAliases` theo `owner_zalo_id`.
+  - Khắc phục triệt để lỗi dính chéo biệt danh (alias) giữa các tài khoản Zalo khác nhau (tránh trường hợp biệt danh `| ... MSH` từ tài khoản này bị lây sang tài khoản khác).
+- **Tùy Chọn Phân Bổ Liên Hệ Trong Lô Quét (`contact_assignment_mode`):**
+  - **`Chỉ thuộc tài khoản nhận (Tối ưu phân quyền)`**: Lưu profile & gán nhãn duy nhất cho tài khoản được chỉ định.
+  - **`Chia đều cho các tài khoản quét`**: Tự động phân bổ xoay vòng liên hệ cho các tài khoản đang quét.
+  - **`Có mặt ở tất cả các tài khoản`**: Đồng bộ profile & nhãn cho toàn bộ tài khoản Zalo trong hệ thống.
+  - Hỗ trợ nút **`⚡ Chuyển phân bổ liên hệ`** trực tiếp trong báo cáo lô quét để điều chỉnh luồng phân bổ bất kỳ lúc nào.
+- **Giao Diện Rà Soát & Quản Lý Trùng Lặp Đa Tài Khoản (`CRMDuplicateManagerModal.tsx`):**
+  - Thêm nút **`Rà soát trùng lặp`** trên thanh công cụ TopBar CRM.
+  - **`⚡ Dọn dẹp biệt danh dính chéo`**: Tự động rà soát và gỡ bỏ các biệt danh bị gán nhầm cross-account.
+  - **`🔄 Chuyển sang tài khoản khác`**: Di chuyển dữ liệu liên hệ từ tài khoản Zalo này sang tài khoản Zalo khác chỉ với 1 cú nhấp chuột.
+  - **`🔗 Gộp về 1 tài khoản`**: Gom toàn bộ nhãn CRM & dữ liệu của các liên hệ trùng lặp về 1 tài khoản chỉ định.
 
 ---
 

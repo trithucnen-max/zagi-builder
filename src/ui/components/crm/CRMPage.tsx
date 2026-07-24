@@ -25,6 +25,7 @@ import AppIcon from '@/components/common/AppIcon';
 
 import BulkGroupManageModal from './modals/BulkGroupManageModal';
 import SmartGroupModal from './modals/SmartGroupModal';
+import CRMDuplicateManagerModal from './modals/CRMDuplicateManagerModal';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from './modals/UnifiedLabelPickerModal';
 import AccountSelectorDropdown from '@/components/common/AccountSelectorDropdown';
 import { getCapability, type Channel } from '../../../configs/channelConfig';
@@ -197,6 +198,7 @@ export default function CRMPage() {
   const [showCreateInAddModal, setShowCreateInAddModal] = useState(false);
   const [showPhoneImport, setShowPhoneImport] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const creatingCampaignRef = useRef(false);
 
 
@@ -930,6 +932,17 @@ export default function CRMPage() {
           ))}
         </div>
         <div className="flex-1" />
+        {/* Rà soát & Lọc trùng Liên hệ */}
+        {!isFacebookAccount && (
+          <button
+            onClick={() => setShowDuplicateModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+            title="Rà soát & Lọc trùng liên hệ giữa các tài khoản Zalo"
+          >
+            <AppIcon name="users" size={14} className="text-amber-400" />
+            <span>Rà soát trùng lặp</span>
+          </button>
+        )}
         {/* Navigate to Analytics / Reports */}
         <button
           onClick={() => navigateToAnalytics('overview')}
@@ -1433,6 +1446,15 @@ export default function CRMPage() {
             loadContacts();
             store.clearSelection();
           }}
+        />
+      )}
+
+      {showDuplicateModal && (
+        <CRMDuplicateManagerModal
+          open={showDuplicateModal}
+          onClose={() => setShowDuplicateModal(false)}
+          accounts={accounts}
+          onRefreshCRM={loadContacts}
         />
       )}
     </div>

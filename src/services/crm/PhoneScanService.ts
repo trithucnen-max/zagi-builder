@@ -335,12 +335,30 @@ class PhoneScanService {
                     zaloAvatar: avatar
                 });
 
-                // Create/update CRM contact
-                db.updateContactProfile(zaloId, uid, name, avatar, phoneNormalized, 'user');
+                // Resolve target accounts based on batch assignment mode
+                const batchInfo = db.queryOne<any>('SELECT name, update_zalo_alias, auto_workflow_id, contact_assignment_mode, assigned_account_id FROM phone_scan_batches WHERE id = ?', [batchId]);
+                const assignmentMode = batchInfo?.contact_assignment_mode || (batchInfo?.assigned_account_id ? 'single' : 'distributed');
+                
+                let targetAccountIds: string[] = [];
+                if (assignmentMode === 'single') {
+                    const targetId = batchInfo?.assigned_account_id || zaloId;
+                    if (targetId) targetAccountIds = [targetId];
+                } else if (assignmentMode === 'all_accounts') {
+                    const activeAccounts = db.getAccounts() || [];
+                    const activeZaloAccounts = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+                    targetAccountIds = activeZaloAccounts.map((a: any) => String(a.zalo_id));
+                    if (targetAccountIds.length === 0) targetAccountIds = [zaloId];
+                } else {
+                    targetAccountIds = [zaloId];
+                }
+
+                // Create/update CRM contact across target account(s)
+                for (const accId of targetAccountIds) {
+                    db.updateContactProfile(accId, uid, name, avatar, phoneNormalized, 'user');
+                }
 
                 // Update Zalo & CRM Alias based on Campaign/Batch rule if explicitly enabled (update_zalo_alias === 1)
                 try {
-                    const batchInfo = db.queryOne<any>('SELECT name, update_zalo_alias FROM phone_scan_batches WHERE id = ?', [batchId]);
                     const shouldUpdateAlias = Boolean(batchInfo && batchInfo.update_zalo_alias != null && Number(batchInfo.update_zalo_alias) === 1);
                     if (shouldUpdateAlias && batchInfo?.name) {
                         const batchName = batchInfo.name.trim();
@@ -348,11 +366,13 @@ class PhoneScanService {
                         const rawZaloName = (name && name !== phoneDisplay && name !== phoneNormalized) ? name : 'Khách';
                         const formattedAlias = `${batchName} - ${rawZaloName} - ${phoneDisplay}`;
 
-                        // 1. Update in local CRM DB
-                        db.setContactAlias(zaloId, uid, formattedAlias);
-                        EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: zaloId, contactId: uid, alias: formattedAlias });
+                        for (const accId of targetAccountIds) {
+                            // 1. Update in local CRM DB
+                            db.setContactAlias(accId, uid, formattedAlias);
+                            EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: accId, contactId: uid, alias: formattedAlias });
+                        }
 
-                        // 2. Sync to Zalo server (mobile/PC app)
+                        // 2. Sync to Zalo server (mobile/PC app) for the scanner account
                         if (zaloService && typeof (zaloService as any).changeFriendAlias === 'function') {
                             zaloService.changeFriendAlias(formattedAlias, uid)
                                 .then((res: any) => {
@@ -371,22 +391,23 @@ class PhoneScanService {
                     Logger.error(`[PhoneScanService] Alias update error: ${aliasErr.message}`);
                 }
 
-                // Auto-tagging (only user-selected batch tags)
+                // Auto-tagging across target account(s)
                 let tagIds: number[] = [];
                 try {
                     tagIds = JSON.parse(autoTagIdsStr || '[]');
                 } catch {}
 
-                for (const tagId of tagIds) {
-                    try {
-                        db.assignLocalLabelToThread(zaloId, tagId, uid);
-                    } catch (err: any) {
-                        Logger.error(`[PhoneScanService] Failed to assign tag ${tagId} to contact ${uid}: ${err.message}`);
+                for (const accId of targetAccountIds) {
+                    for (const tagId of tagIds) {
+                        try {
+                            db.assignLocalLabelToThread(accId, tagId, uid);
+                        } catch (err: any) {
+                            Logger.error(`[PhoneScanService] Failed to assign tag ${tagId} to contact ${uid} for account ${accId}: ${err.message}`);
+                        }
                     }
-                }
-
-                if (tagIds.length > 0) {
-                    EventBroadcaster.emit('local-labels-changed', { zaloId });
+                    if (tagIds.length > 0) {
+                        EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
+                    }
                 }
 
                 // Auto-trigger workflow if configured on batch
