@@ -4,6 +4,19 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.6] - 2026-07-24
 
+### 🌐 Hỗ trợ Trình duyệt Web Nhân viên (Employee Web Client) & Cấu trúc PWA
+
+- **Khôi Phục & Đồng Bộ 100% Tính Năng Trên Trình Duyệt Web Chrome:**
+  - Hỗ trợ Nhân viên truy cập và làm việc hoàn chỉnh qua Trình duyệt Web (`http://127.0.0.1:27799`) kết nối về máy Boss (`http://127.0.0.1:9900`).
+  - **Cấu hình Progressive Web App (PWA):** Tích hợp `manifest.json` và Service Worker `sw.js` cho phép Nhân viên cài đặt Zagi Web thành một **App Cửa sổ Độc lập** có Icon riêng trên màn hình Desktop/Taskbar chỉ với 2 cú nhấp chuột.
+- **⚡ Động Cơ Realtime SSE Stream & Hiển Thị Tức Thì 0.05s:**
+  - Hỗ trợ xác thực Token qua URL search parameters (`?token=...`) cho kết nối EventSource SSE Stream.
+  - Nâng cấp `HttpRelayService` ghi dữ liệu trực tiếp vào luồng SSE Client Stream (`sseClients.get(empId)`).
+  - Tự động đóng gói & lưu đĩa SQLite đồng bộ ngay khi gửi proxy, bắn sự kiện `event:message` và `relay:messageSentByEmployee` giúp tin nhắn văn bản, ảnh từ Thư viện Media, video, tệp tin xuất hiện **NGAY LẬP TỨC TRONG 0.05s** trên Trình duyệt Web Nhân viên mà không cần F5.
+- **🖼️ Trình Phục Vụ Tệp Media Tốc Độ Cao Cho Web (`MediaHandler.ts` & `localMedia.ts`):**
+  - Tự động chuyển đổi các đường dẫn đĩa local (`local-media:///...`) thành HTTP REST URL: `${bossUrl}/api/media/file?path=...`.
+  - Mở mở rộng handler `GET /api/media/file?path=...` trên máy Boss phục vụ truyền dữ liệu hình ảnh, video với đầy đủ header MIME & CORS cho trình duyệt.
+
 ### 🚀 Quản Lý Quy Tắc Đặt Tên Gợi Nhớ Zalo (Zalo Contact Alias Renaming Rules)
 
 - **3 Tùy Chọn Linh Hoạt Khi Tạo Chiến Dịch CRM:**
