@@ -2550,13 +2550,19 @@ class HttpRelayService {
                 continue;
             }
 
-            // ─── Socket.IO (transport duy nhất) ──────────────────────
-            // Tất cả employee dùng Socket.IO, không còn SSE fallback.
-            // Event được buffer → EventBuffer → catch-up khi reconnect.
-            // Nếu employee offline → room rỗng → no-op, event ở buffer.
+            // ─── Socket.IO & SSE (Relay to all connected employees) ──────
             try {
                 SocketIOService.getInstance().emitToEmployee(empId, channel, data);
             } catch {}
+
+            const sseRes = this.sseClients.get(empId);
+            if (sseRes) {
+                try {
+                    sseRes.write(`data: ${JSON.stringify({ channel, data })}\n\n`);
+                } catch (e: any) {
+                    Logger.warn(`[HttpRelayService] SSE write failed for employee ${empId}: ${e.message}`);
+                }
+            }
         }
     }
 
