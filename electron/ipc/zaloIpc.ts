@@ -90,8 +90,14 @@ async function prepareLocalFilesForProxy(params: any): Promise<any> {
     let result = { ...params };
 
     for (const field of singleFields) {
-        if (result[field] && typeof result[field] === 'string' && result[field].length > 0) {
-            const absPath = FileStorageService.resolveAbsolutePath(result[field]);
+        const val = result[field];
+        if (val && typeof val === 'string' && val.length > 0) {
+            // Skip http/https URLs — they will be downloaded by ZaloService.ensureLocalImagePath on Boss
+            if (val.startsWith('http://') || val.startsWith('https://')) continue;
+            // Skip local-media:// references (Boss-side media URLs)
+            if (val.startsWith('local-media://')) continue;
+            const absPath = FileStorageService.resolveAbsolutePath(val);
+            if (!absPath) continue; // Can't resolve — skip (don't corrupt the value)
             const bossPaths = await uploadEmployeeMedia([absPath]);
             if (bossPaths && bossPaths[0]) {
                 result[field] = bossPaths[0];
@@ -99,12 +105,18 @@ async function prepareLocalFilesForProxy(params: any): Promise<any> {
         }
     }
 
+    // For filePaths array: skip if it contains http URLs (library items from employee)
+    // Those are resolved to local paths by resolveLibFilePaths on Boss side via _libraryUuids
     if (result.filePaths && Array.isArray(result.filePaths) && result.filePaths.length > 0) {
-        const resolvedPaths = result.filePaths.map((fp: string) => FileStorageService.resolveAbsolutePath(fp));
-        const bossPaths = await uploadEmployeeMedia(resolvedPaths);
-        if (bossPaths && bossPaths.length > 0) {
-            result.filePaths = bossPaths;
+        const hasHttpUrls = result.filePaths.some((fp: string) => fp && (fp.startsWith('http://') || fp.startsWith('https://')));
+        if (!hasHttpUrls) {
+            const resolvedPaths = result.filePaths.map((fp: string) => FileStorageService.resolveAbsolutePath(fp) || fp);
+            const bossPaths = await uploadEmployeeMedia(resolvedPaths);
+            if (bossPaths && bossPaths.length > 0) {
+                result.filePaths = bossPaths;
+            }
         }
+        // If has http URLs: let resolveLibFilePaths on Boss resolve them via _libraryUuids
     }
 
     return result;
@@ -175,7 +187,9 @@ export function registerZaloIpc() {
     );
 
     function resolveLibFilePath(p: any): string {
-        if (p.filePath) return p.filePath;
+        // 1. Explicit local path (Boss mode or already-resolved)
+        if (p.filePath && !p.filePath.startsWith('http')) return p.filePath;
+        // 2. Resolve from library uuid (works on Boss side only)
         if (p._libraryUuid) {
             try {
                 const LibraryService = require('../../src/services/library/LibraryService').default;
@@ -183,17 +197,33 @@ export function registerZaloIpc() {
                 if (item?.file_path) return item.file_path;
             } catch {}
         }
+        // 3. Fallback: use fileUrl (http CDN url) — ZaloService.ensureLocalImagePath will download it
+        if (p.fileUrl) return p.fileUrl;
+        // 4. filePath that is an http URL (CDN forward case)
+        if (p.filePath) return p.filePath;
         return '';
     }
 
     function resolveLibFilePaths(p: any): string[] {
-        if (p.filePaths && Array.isArray(p.filePaths) && p.filePaths.length > 0) return p.filePaths;
+        // Priority 1: Always try to resolve _libraryUuids to local paths on Boss
         if (p._libraryUuids && Array.isArray(p._libraryUuids) && p._libraryUuids.length > 0) {
             try {
                 const LibraryService = require('../../src/services/library/LibraryService').default;
                 const paths = p._libraryUuids.map((uuid: string) => LibraryService.getInstance().getItem(uuid)?.file_path).filter(Boolean);
-                if (paths.length > 0) return paths;
+                if (paths.length > 0) {
+                    Logger.log(`[zaloIpc] resolveLibFilePaths: resolved ${paths.length} uuids to local paths`);
+                    return paths;
+                }
             } catch {}
+        }
+        // Priority 2: filePaths (skip http URLs — they can't be sent directly)
+        if (p.filePaths && Array.isArray(p.filePaths) && p.filePaths.length > 0) {
+            // Filter out http URLs that are just API proxy endpoints (not downloadable CDN)
+            const localPaths = p.filePaths.filter((fp: string) => fp && !fp.startsWith('http://localhost') && !fp.includes('/api/library/'));
+            if (localPaths.length > 0) return localPaths;
+            // If all are CDN URLs (real http like cdn.zalo.me), pass them through for download
+            const cdnPaths = p.filePaths.filter((fp: string) => fp && (fp.startsWith('https://') || fp.startsWith('http://')));
+            if (cdnPaths.length > 0) return cdnPaths;
         }
         return [];
     }

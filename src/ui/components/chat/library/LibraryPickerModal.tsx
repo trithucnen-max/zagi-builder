@@ -760,9 +760,10 @@ export default function LibraryPickerModal({
             // Boss mode: dùng local path trực tiếp
             opts.filePaths = imageItems.map(i => i._localPath);
           } else {
-            // Employee mode: proxy resolve _libraryUuids → file path trên Boss
-            opts.filePaths = imageItems.map(i => i.fileUrl);
-            opts._libraryUuids = imageItems.map(i => i.uuid);
+            // Employee mode: luôn gửi kèm _libraryUuids để Boss resolve ra local paths
+            // filePaths chỉ là fallback (HTTP URL sẽ bị lọc bởi resolveLibFilePaths trên Boss)
+            opts._libraryUuids = imageItems.map(i => i.uuid).filter(Boolean);
+            opts.filePaths = imageItems.map(i => i._localPath || i.fileUrl).filter(Boolean);
           }
           await ipc.zalo.sendImages(opts);
         }

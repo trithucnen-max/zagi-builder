@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
