@@ -963,6 +963,41 @@ const browserWorkspace = {
   notifyNetworkOffline: () => {},
 };
 
+const browserLogin = {
+  getAccounts: async () => {
+    const state = useAccountStore.getState();
+    if (state.accounts && state.accounts.length > 0) {
+      return { success: true, accounts: state.accounts };
+    }
+    try {
+      const saved = localStorage.getItem('zagi_browser_workspaces');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const activeWs = parsed.workspaces?.find((w: any) => w.id === parsed.activeId);
+        if (activeWs && activeWs.cachedAccountsData?.length) {
+          return { success: true, accounts: activeWs.cachedAccountsData };
+        }
+      }
+    } catch {}
+    return { success: true, accounts: [] };
+  },
+  connectAccount: async () => ({ success: true }),
+  disconnectAccount: async () => ({ success: true }),
+  disconnectAll: async () => ({ success: true }),
+  removeAccount: async () => ({ success: true }),
+  getMediaAutoDelete: async () => ({ success: true, enabled: false, days: 30 }),
+  setMediaAutoDelete: async () => ({ success: true }),
+  runAllMediaCleanup: async () => ({ success: true }),
+  checkHealth: async () => ({ success: true, results: [] }),
+  checkAndRefreshAvatar: async () => ({ success: true, refreshed: false }),
+  requestOldMessages: async () => ({ success: true }),
+  reconnect: async () => ({ success: true }),
+  loginQR: async () => ({ success: false, error: 'Dùng Zagi Desktop để quét QR' }),
+  loginQRAbort: async () => ({ success: true }),
+  loginCookies: async () => ({ success: false }),
+  loginAuth: async () => ({ success: false }),
+};
+
 function getActiveBrowserWorkspace(): any | null {
   try {
     const saved = localStorage.getItem('zagi_browser_workspaces');
