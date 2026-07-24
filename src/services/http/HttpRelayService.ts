@@ -1089,39 +1089,81 @@ class HttpRelayService {
                         EventBroadcaster.emit('relay:messageSentByEmployee', senderPayload);
                     }
 
-                    // Immediately relay the newly sent message to all employees so Employee Web UI updates INSTANTLY
+                    // Immediately save to SQLite DB and relay newly sent message (text, image, file) to employees
                     if (zaloId && threadId) {
                         try {
-                            this.runOnPinnedDb((db) => {
-                                const latestMsg = db.queryOne<any>(
-                                    `SELECT * FROM messages WHERE owner_zalo_id = ? AND thread_id = ? ORDER BY timestamp DESC LIMIT 1`,
-                                    [zaloId, threadId]
-                                );
-                                if (latestMsg) {
-                                    const messagePayload = {
-                                        zaloId,
-                                        message: {
-                                            threadId,
-                                            type: latestMsg.is_group ? 1 : 0,
-                                            isSelf: true,
-                                            data: {
-                                                msgId: latestMsg.msg_id,
-                                                cliMsgId: latestMsg.cli_msg_id || '',
-                                                uidFrom: latestMsg.sender_id || zaloId,
-                                                content: latestMsg.content,
-                                                msgType: latestMsg.msg_type,
-                                                ts: latestMsg.timestamp,
-                                                _employeeInfo: {
-                                                    employee_id: employee.employee_id,
-                                                    employee_name: employee.display_name,
-                                                    employee_avatar: employee.avatar_url || '',
-                                                }
-                                            }
-                                        }
-                                    };
-                                    this.relayEventToEmployees('event:message', messagePayload);
+                            const isGroup = params?.threadType === 1 || params?.type === 1 || params?.thread_type === 1;
+                            let msgType = 'text';
+                            let contentObj: any = params?.message || params?.body || params?.msg || '';
+
+                            if (channel.includes('sendImage') || channel.includes('sendImages')) {
+                                msgType = 'chat.photo';
+                                const paths: string[] = params?.filePaths || (params?.filePath ? [params.filePath] : []) || (params?.fileUrl ? [params.fileUrl] : []);
+                                const imgUrl = paths[0] || params?.mediaToken || '';
+                                contentObj = {
+                                    href: imgUrl,
+                                    width: 0,
+                                    height: 0,
+                                    totalCount: paths.length || 1,
+                                };
+                            } else if (channel.includes('sendFile')) {
+                                msgType = 'share.file';
+                                const filePath = params?.filePath || params?.fileUrl || params?.mediaToken || '';
+                                const fileName = filePath.split('/').pop() || 'file';
+                                contentObj = {
+                                    href: filePath,
+                                    title: fileName,
+                                };
+                            } else if (channel.includes('sendVideo')) {
+                                msgType = 'chat.video.msg';
+                                const filePath = params?.videoPath || params?.filePath || '';
+                                contentObj = {
+                                    href: filePath,
+                                };
+                            }
+
+                            const finalMsgId = msgId || `proxy_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                            const rawMessageToSave = {
+                                type: isGroup ? 1 : 0,
+                                isSelf: true,
+                                threadId: threadId,
+                                data: {
+                                    msgId: finalMsgId,
+                                    cliMsgId: finalMsgId,
+                                    uidFrom: zaloId,
+                                    msgType: msgType,
+                                    content: contentObj,
+                                    ts: Date.now(),
                                 }
-                            });
+                            };
+
+                            // Save message directly to DB
+                            DatabaseService.getInstance().saveMessage(zaloId, rawMessageToSave).catch(() => {});
+                            this.runOnPinnedDb((db) => db.setMessageHandledByEmployeeFlexible(zaloId, finalMsgId, employee.employee_id));
+
+                            // Broadcast event:message to all employees so Web UI updates INSTANTLY
+                            const messagePayload = {
+                                zaloId,
+                                message: {
+                                    threadId,
+                                    type: isGroup ? 1 : 0,
+                                    isSelf: true,
+                                    data: {
+                                        msgId: finalMsgId,
+                                        cliMsgId: finalMsgId,
+                                        uidFrom: zaloId,
+                                        content: contentObj,
+                                        msgType: msgType,
+                                        ts: Date.now(),
+                                        _employeeInfo: {
+                                            employee_id: employee.employee_id,
+                                            employee_name: employee.display_name,
+                                            employee_avatar: employee.avatar_url || '',
+                                        }
+                                    }
+                                }
+                            };
+                            this.relayEventToEmployees('event:message', messagePayload);
                         } catch (e: any) {
                             Logger.warn(`[HttpRelayService] Failed to broadcast proxy sent message: ${e.message}`);
                         }
