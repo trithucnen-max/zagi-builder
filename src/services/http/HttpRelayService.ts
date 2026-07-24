@@ -1088,6 +1088,44 @@ class HttpRelayService {
                         Logger.log(`[HttpRelayService] 📡 Emitting relay:messageSentByEmployee to boss renderer: msgId="${msgId}", empId="${employee.employee_id}", threadId="${threadId}"`);
                         EventBroadcaster.emit('relay:messageSentByEmployee', senderPayload);
                     }
+
+                    // Immediately relay the newly sent message to all employees so Employee Web UI updates INSTANTLY
+                    if (zaloId && threadId) {
+                        try {
+                            this.runOnPinnedDb((db) => {
+                                const latestMsg = db.queryOne<any>(
+                                    `SELECT * FROM messages WHERE owner_zalo_id = ? AND thread_id = ? ORDER BY timestamp DESC LIMIT 1`,
+                                    [zaloId, threadId]
+                                );
+                                if (latestMsg) {
+                                    const messagePayload = {
+                                        zaloId,
+                                        message: {
+                                            threadId,
+                                            type: latestMsg.is_group ? 1 : 0,
+                                            isSelf: true,
+                                            data: {
+                                                msgId: latestMsg.msg_id,
+                                                cliMsgId: latestMsg.cli_msg_id || '',
+                                                uidFrom: latestMsg.sender_id || zaloId,
+                                                content: latestMsg.content,
+                                                msgType: latestMsg.msg_type,
+                                                ts: latestMsg.timestamp,
+                                                _employeeInfo: {
+                                                    employee_id: employee.employee_id,
+                                                    employee_name: employee.display_name,
+                                                    employee_avatar: employee.avatar_url || '',
+                                                }
+                                            }
+                                        }
+                                    };
+                                    this.relayEventToEmployees('event:message', messagePayload);
+                                }
+                            });
+                        } catch (e: any) {
+                            Logger.warn(`[HttpRelayService] Failed to broadcast proxy sent message: ${e.message}`);
+                        }
+                    }
                 }
 
                 return result;
