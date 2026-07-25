@@ -1,6 +1,6 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 1.9  
-> **Ngày cập nhật:** 24/07/2026  
+> **Phiên bản tài liệu:** 2.0  
+> **Ngày cập nhật:** 25/07/2026  
 > **Trạng thái sản phẩm hiện tại:** v3.0.6 (Released)  
 > **Chủ quản:** Product Management Team  
 
@@ -129,6 +129,32 @@ graph TD
 ### 3.7. Hệ thống Hướng dẫn sử dụng Tích hợp (Built-in User Guide)
 *   **Trung tâm tài liệu nội bộ:** Di chuyển toàn bộ tài liệu hướng dẫn sử dụng từ popup sidebar vào tab dedicated trong trang **Cài đặt → Giới thiệu → Hướng dẫn sử dụng**.
 *   **Phân mục khoa học:** Tài liệu được phân chia thành 5 tab riêng biệt (Tổng quan, CRM, Workflow, Tích hợp, Kết hợp) giúp người dùng học nhanh cách thiết lập các tác vụ nâng cao như quét nhóm ẩn, cấu hình gửi nhiều ảnh/file, đồng bộ POS, hoặc thiết lập tự động hóa.
+
+### 3.8. Hệ Thống Thống Kê Máy Cài Đặt, Hệ Điều Hành & Telemetry (Supabase Telemetry)
+*   **Định danh duy nhất máy tính (Hardware Machine ID):** Tự động khởi tạo mã định danh duy nhất cố định (`machine_id`) dựa trên MAC Address + Hostname + CPU Seed và lưu trữ cố định tại `userData/machine_id.txt`.
+*   **Thu thập thông tin ẩn danh:** Tự động ghi nhận loại Hệ điều hành (`macOS Apple Silicon M1/M2/M3`, `macOS Intel`, `Windows 11/10 x64`, `Linux`), phiên bản kernel/Darwin, phiên bản ứng dụng Zagi (`v3.0.6`), Tên máy tính (Hostname) và Danh sách các Tài khoản Zalo đang hoạt động trên máy đó.
+*   **Tự động gửi Ping định kỳ:** Tự động gửi request Upsert báo danh về bảng `device_telemetry` trên CSDL Supabase qua REST API 10 giây sau khi mở app và định kỳ 6 giờ/lần.
+*   **Bảo mật phân quyền mã hóa RLS 100%:**
+    *   **Máy khách/Thành viên (`Publishable Key / anon`):** CHỈ CÓ QUYỀN `INSERT` và `UPDATE` (Gửi Ping ẩn danh). Bị cấm hoàn toàn quyền `SELECT` (Không thể đọc/xem danh sách máy của những người khác).
+    *   **Quản trị viên/Admin (`Secret Key / service_role`):** Được cấp quyền `SELECT` để xem và tải về toàn bộ danh sách báo cáo các máy active.
+*   **Bảng Báo Cáo Quản Trị Trực Quan (`DeviceTelemetryPanel.tsx`):** Thêm tab **"💻 Thống kê máy"** trong phần Cài đặt của Zagi. Hiển thị tổng số máy active, phân loại biểu đồ OS Mac/Windows/Linux, bảng danh sách chi tiết các máy và tài khoản Zalo tương ứng kèm nút **Copy SQL 1-Click** tạo bảng Supabase.
+
+### 3.9. Cơ Chế Kiểm Tra Phiên Bản Mới v3.x.x Cảnh Báo Không Tải Ngầm (Option A Release Checker)
+*   **Bộ lọc dải phiên bản `v3.x.x`:** Tự động fetch danh sách thẻ phát hành từ GitHub Releases API (`https://api.github.com/repos/trithucnen-max/zagi-builder/releases`). Lọc và chỉ so sánh dải phiên bản mới `v3.x.x`, bỏ qua 100% các tag `v27.x.x` cũ trên GitHub repository.
+*   **Chế độ Cảnh báo Thông minh (Notification Banner):** Khi có phiên bản `v3.x.x` mới hơn phiên bản hiện tại (`v3.0.6`), hiển thị một Card thông báo nổi ở góc dưới màn hình: *"🚀 Có phiên bản mới Zagi v3.0.7!"*.
+*   **Tuyệt đối không tự động tải ngầm hay cài đè:** Đảm bảo quyền chủ động 100% cho người dùng. Người dùng bấm *"Xem & Tải về"* để mở trực tiếp trang GitHub Release trên trình duyệt hoặc bấm *"Bỏ qua"* để ẩn thông báo.
+
+### 3.10. Quản Lý & Rà Soát Lọc Trùng Liên Hệ Đa Tài Khoản & Phân Lập Bạn Bè Zalo
+*   **Phân lập trạng thái Bạn bè theo từng tài khoản Zalo:** Nâng cấp truy vấn SQL `getDuplicateContactsAcrossAccounts` để so khớp danh sách bạn bè `friends` chính xác theo từng tài khoản sở hữu `owner_zalo_id` (so khớp cả Zalo UID và SĐT).
+*   **Phân biệt rành mạch `🤝 Bạn bè Zalo` vs `👤 SĐT Quét / Khách lạ`:** Liên hệ CHỈ được gắn nhãn Bạn bè Zalo đối với tài khoản thực sự có kết bạn Zalo. Nếu nằm ở tài khoản khác do Quét SĐT hoặc Khách nhắn tin, hệ thống trả về đúng nhãn SĐT Quét/Khách lạ.
+*   **Cơ chế Dọn dẹp cờ `is_friend` dính chéo:** Tự động quét lại CSDL và reset cờ `is_friend = 0` cho các bản ghi `contacts` bị gán nhầm cờ từ các đợt import cũ.
+
+### 3.11. Tái Thiết Kế Toàn Diện Giao Diện Mobile Web & Trải Nghiệm Di Động
+*   **Tự động ẩn TopBar:** Tự động ẩn thanh công cụ TopBar trên thiết bị di động (`isMobile === true`), giải phóng 100% chiều cao màn hình cho các chức năng chính.
+*   **Sidebar dạng Slide-Over Drawer:** Chuyển Sidebar màu xanh cố định thành Menu trượt nổi mượt mà, kích hoạt bằng nút Hamburger `☰` trên đầu trang Chat, CRM và Dashboard.
+*   **Full-Screen Overlay:** Khung xem thông tin cuộc trò chuyện và bảng tin nhóm tự động tràn 100% màn hình di động, giải quyết triệt để sự cố bị cắt viền thông tin.
+*   **Tối ưu danh sách CRM Mobile:** Mặc định chỉ hiển thị 2 cột chính (Biệt danh & SĐT). Chuyển menu CRM Sub-tabs thành Dropdown Selector gọn gàng.
+*   **Form Đăng Nhập Nhân Viên Tinh Gọn:** Tự động lấy URL máy Boss từ địa chỉ trình duyệt (`window.location.origin`). Nhân viên đăng nhập chỉ cần gõ Username + Password và tự động chuyển về màn hình Chat (`setView('chat')`).
 
 ---
 
