@@ -131,7 +131,7 @@ export default function App() {
   const [lockEnabled, setLockEnabled] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const isMobile = useIsMobile();
-  const { mobileShowChat, setMobileShowChat } = useAppStore();
+  const { mobileShowChat, setMobileShowChat, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
 
   const [showConfigForm, setShowConfigForm] = useState(false);
   const [bossUrlInput, setBossUrlInput] = useState('');
@@ -435,13 +435,14 @@ export default function App() {
   useEffect(() => {
     if (!isMobile) {
       setMobileShowChat(false);
+      setMobileSidebarOpen(false);
     } else {
-      const allowedMobileViews = ['chat', 'crm', 'analytics', 'erp'];
+      const allowedMobileViews = ['chat', 'crm', 'analytics', 'erp', 'dashboard'];
       if (!allowedMobileViews.includes(view)) {
         setView('chat');
       }
     }
-  }, [isMobile, view, setView]);
+  }, [isMobile, view, setView, setMobileShowChat, setMobileSidebarOpen]);
 
   const [reminderNotification, setReminderNotification] = useState<{
     emoji: string;
@@ -1569,8 +1570,25 @@ export default function App() {
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar: account list + nav */}
-        <Sidebar onAddAccount={() => setAddAccountModalOpen(true)} />
+        {/* Mobile Slide-over Drawer for Sidebar */}
+        {isMobile && mobileSidebarOpen && (
+          <div
+            className="fixed inset-0 z-50 flex bg-black/70 backdrop-blur-sm animate-fadeIn"
+            onClick={() => setMobileSidebarOpen(false)}
+          >
+            <div
+              className="relative w-72 max-w-[80vw] h-full bg-gray-900 border-r border-gray-800 flex flex-col shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Sidebar onAddAccount={() => { setMobileSidebarOpen(false); setAddAccountModalOpen(true); }} />
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Left sidebar: account list + nav */}
+        {!isMobile && (
+          <Sidebar onAddAccount={() => setAddAccountModalOpen(true)} />
+        )}
 
         {/* Account panel (sidebar expanded) - chỉ hiện ở chat view trên màn hình máy tính */}
         {view === 'chat' && sidebarExpanded && !isMobile && (
@@ -1604,7 +1622,7 @@ export default function App() {
                       const contact = contactList.find(c => c.contact_id === activeThreadId);
                       const isGroupThread = activeThreadType === 1 || contact?.contact_type === 'group';
                       return isGroupThread ? (
-                        <div className="absolute inset-y-0 right-0 z-50 w-80 max-w-[92vw] border-l border-gray-700 bg-gray-800 flex flex-col overflow-hidden shadow-2xl"
+                        <div className={isMobile ? "fixed inset-0 z-50 bg-gray-900 flex flex-col overflow-hidden animate-fadeIn" : "absolute inset-y-0 right-0 z-50 w-80 max-w-[92vw] border-l border-gray-700 bg-gray-800 flex flex-col overflow-hidden shadow-2xl"}
                               onClick={(e) => e.stopPropagation()}>
                           <GroupBoardPanel
                             zaloId={activeAccountId}
@@ -1671,7 +1689,7 @@ export default function App() {
                     })()}
                     {/* Right panel: conversation info */}
                     {showConversationInfo && activeThreadId && (
-                        <div className="absolute inset-y-0 right-0 z-40 max-w-[92vw] overflow-hidden"
+                        <div className={isMobile ? "fixed inset-0 z-50 bg-gray-900 flex flex-col overflow-hidden animate-fadeIn" : "absolute inset-y-0 right-0 z-40 max-w-[92vw] overflow-hidden"}
                             onClick={(e) => e.stopPropagation()}>
                           <ConversationInfo />
                         </div>

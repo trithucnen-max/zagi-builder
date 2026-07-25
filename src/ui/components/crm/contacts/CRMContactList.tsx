@@ -552,6 +552,16 @@ const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
   ai_auto_summary: false,
 };
 
+const MOBILE_COLUMN_VISIBILITY: ColumnVisibility = {
+  zalo_name: false,
+  gender: false,
+  salutation: false,
+  birthday: false,
+  phone: true, // Only SĐT & Alias shown by default on mobile
+  ai_assistant: false,
+  ai_auto_summary: false,
+};
+
 function ColumnSelectorDropdown({
   visibility,
   onToggle,
@@ -697,7 +707,9 @@ export default function CRMContactList({
   }, [localSearch]);
 
   // ─── Column Visibility State ─────────────────────────────────────────
+  const isMobile = useIsMobile();
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
+    if (isMobile) return MOBILE_COLUMN_VISIBILITY;
     try {
       const saved = localStorage.getItem('crm_column_visibility');
       if (saved) {

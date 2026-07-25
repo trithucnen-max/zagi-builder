@@ -75,7 +75,7 @@ export default function ConversationList() {
   const channelCap = getCapability((activeAccountObj?.channel || 'zalo') as Channel);
   const { labels: allLabels, setLabels, showNotification, setMuted, clearMuted, isMuted: isMutedFn, groupInfoCache, setGroupInfo,
     othersConversations: allOthers, loadFlags, addToOthers, removeFromOthers,
-    mergedInboxMode, mergedInboxAccounts, mergedInboxFilterAccount, setMobileShowChat } = useAppStore();
+    mergedInboxMode, mergedInboxAccounts, mergedInboxFilterAccount, setMobileShowChat, setMobileSidebarOpen } = useAppStore();
   const isMobile = useIsMobile();
 
   const [search, setSearch] = useState('');
@@ -1469,6 +1469,18 @@ export default function ConversationList() {
     <div className={`flex flex-col h-full border-r border-gray-700 bg-gray-850 relative ${isMobile ? 'w-full' : 'w-72'}`}>
       {/* Search row — Zalo style */}
       <div className="px-2 pt-2 pb-1 border-b border-gray-700 flex items-center gap-1.5">
+        {/* Mobile Hamburger menu button */}
+        {isMobile && (
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            title="Menu"
+            className="w-8.5 h-8.5 flex items-center justify-center rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 flex-shrink-0"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        )}
         {/* Search input wrapper */}
         <div className={`flex items-center gap-2 bg-gray-700/60 border rounded-full px-3 py-1.5 transition-all flex-1 min-w-0 ${searchPanelOpen ? 'border-blue-500 bg-gray-700' : 'border-gray-600 hover:border-gray-500'}`}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 flex-shrink-0">

@@ -20,7 +20,11 @@ const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSI
 /** Map scale factor to px value for display */
 const scaleToPx = (s: number) => Math.round(16 * s);
 
+import useIsMobile from '@/hooks/useIsMobile';
+
 export default function TopBar() {
+  const isMobile = useIsMobile();
+  if (isMobile) return null;
   const [isMaximized, setIsMaximized] = useState(false);
   const { theme, resolvedTheme, setTheme, showNotification, fontSizeScale, setFontSizeScale, setView, setBugReportOpen } = useAppStore();
   const isLightTheme = (resolvedTheme || theme) === 'light';

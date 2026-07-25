@@ -193,6 +193,8 @@ interface AppStore {
   /** When true on small screens, show chat detail instead of conversation list */
   mobileShowChat: boolean;
   setMobileShowChat: (show: boolean) => void;
+  mobileSidebarOpen: boolean;
+  setMobileSidebarOpen: (open: boolean) => void;
 
   // ── Pinned integration shortcuts ──────────────────────────────────────────
   pinnedIntegrationShortcuts: PinnedIntegrationShortcut[];
@@ -746,6 +748,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // ─── Mobile responsive ──────────────────────────────────────────────
   mobileShowChat: false,
   setMobileShowChat: (show) => set({ mobileShowChat: show }),
+  mobileSidebarOpen: false,
+  setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
 
   // ─── Pinned integration shortcuts ──────────────────────────────────────────
   pinIntegrationShortcut: (shortcut) => set((s) => {

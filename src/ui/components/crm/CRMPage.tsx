@@ -29,6 +29,7 @@ import CRMDuplicateManagerModal from './modals/CRMDuplicateManagerModal';
 import { forceSyncFriends } from '@/lib/zaloInitUtils';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from './modals/UnifiedLabelPickerModal';
 import AccountSelectorDropdown from '@/components/common/AccountSelectorDropdown';
+import useIsMobile from '@/hooks/useIsMobile';
 import { getCapability, type Channel } from '../../../configs/channelConfig';
 import ScanPanel from './scan/ScanPanel';
 import ScanHistoryTab from './scan/ScanHistoryTab';
@@ -173,6 +174,7 @@ function ReassignOwnerModal({
 }
 
 export default function CRMPage() {
+  const isMobile = useIsMobile();
   const { activeAccountId, accounts, setActiveAccount } = useAccountStore();
   const { showNotification, openQuickChat, labels, setLabels, navigateToAnalytics, crmRequestUnseenByAccount, clearCRMRequestUnseen } = useAppStore();
   const store = useCRMStore();
@@ -913,50 +915,87 @@ export default function CRMPage() {
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-700 flex-shrink-0 bg-gray-850">
-        <div className="flex bg-gray-800 rounded-lg p-0.5">
-          {(['search', 'contacts', 'groups', 'requests', 'pipeline', 'campaigns', 'history', 'scan', 'scan_history', 'scan_stats', 'phone_scan'] as const).filter(t => {
-            if (t === 'search') return channelCap.supportsCRMSearch;
-            if (t === 'requests') return channelCap.supportsFriendRequest;
-            if (t === 'campaigns') return channelCap.supportsCampaigns;
-            if (t === 'history') return channelCap.supportsCRMHistory;
-            if (t === 'groups') return channelCap.supportsCRMGroups;
-            if (t === 'scan' || t === 'scan_history' || t === 'scan_stats') return channelCap.supportsScanData;
-            if (t === 'phone_scan') return !isFacebookAccount;
-            return true; // contacts and pipeline always shown
-          }).map(t => (
-            <button key={t} onClick={() => store.setTab(t)}
-              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${store.tab === t ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
-              <span className="flex items-center gap-1.5">
-                <AppIcon
-                  name={TAB_ICONS[t] || 'zap'}
-                  className={store.tab === t ? 'text-white' : 'text-black dark:text-gray-400'}
-                  size={14}
-                />
-                <span>
-                  {t === 'search' ? 'Tìm kiếm'
-                    : t === 'contacts' ? `Liên hệ${store.totalContacts ? ` (${store.totalContacts})` : ''}`
-                    : t === 'groups' ? `Nhóm${store.groupCount ? ` (${store.groupCount})` : ''}`
-                    : t === 'requests' ? `Lời mời${store.requestCount ? ` (${store.requestCount})` : ''}`
-                    : t === 'pipeline' ? 'Bảng Pipeline'
-                    : t === 'campaigns' ? `Chiến dịch${store.campaigns.length ? ` (${store.campaigns.length})` : ''}`
-                    : t === 'history' ? 'Lịch sử'
-                    : t === 'scan' ? 'Quét dữ liệu'
-                    : t === 'scan_history' ? 'Lịch sử quét'
-                    : t === 'scan_stats' ? 'Thống kê'
-                    : t === 'phone_scan' ? 'Quét SĐT hàng loạt'
-                    : t}
+      <div className="flex items-center gap-2 px-3 md:px-5 py-2.5 md:py-3 border-b border-gray-700 flex-shrink-0 bg-gray-850">
+        {/* Mobile Hamburger menu button */}
+        {isMobile && (
+          <button
+            onClick={() => useAppStore.getState().setMobileSidebarOpen(true)}
+            title="Menu"
+            className="w-8.5 h-8.5 flex items-center justify-center rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 flex-shrink-0"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        )}
+
+        {isMobile ? (
+          /* Mobile Dropdown Hamburger Selector for CRM sub-tabs */
+          <div className="relative flex-1 min-w-0">
+            <select
+              value={store.tab}
+              onChange={(e) => store.setTab(e.target.value as any)}
+              className="w-full bg-gray-800 text-white font-bold text-xs rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:border-blue-500 appearance-none pr-8 cursor-pointer"
+            >
+              <option value="contacts">👥 Liên hệ ({store.totalContacts || 0})</option>
+              {channelCap.supportsCRMGroups && <option value="groups">👥 Nhóm ({store.groupCount || 0})</option>}
+              {channelCap.supportsFriendRequest && <option value="requests">📩 Lời mời kết bạn ({store.requestCount || 0})</option>}
+              <option value="pipeline">📊 Bảng Pipeline</option>
+              {channelCap.supportsCampaigns && <option value="campaigns">🚀 Chiến dịch ({store.campaigns.length || 0})</option>}
+              {channelCap.supportsCRMSearch && <option value="search">🔍 Tìm kiếm CRM</option>}
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-gray-400">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+          </div>
+        ) : (
+          /* Desktop sub-tabs bar */
+          <div className="flex bg-gray-800 rounded-lg p-0.5">
+            {(['search', 'contacts', 'groups', 'requests', 'pipeline', 'campaigns', 'history', 'scan', 'scan_history', 'scan_stats', 'phone_scan'] as const).filter(t => {
+              if (t === 'search') return channelCap.supportsCRMSearch;
+              if (t === 'requests') return channelCap.supportsFriendRequest;
+              if (t === 'campaigns') return channelCap.supportsCampaigns;
+              if (t === 'history') return channelCap.supportsCRMHistory;
+              if (t === 'groups') return channelCap.supportsCRMGroups;
+              if (t === 'scan' || t === 'scan_history' || t === 'scan_stats') return channelCap.supportsScanData;
+              if (t === 'phone_scan') return !isFacebookAccount;
+              return true; // contacts and pipeline always shown
+            }).map(t => (
+              <button key={t} onClick={() => store.setTab(t)}
+                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${store.tab === t ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
+                <span className="flex items-center gap-1.5">
+                  <AppIcon
+                    name={TAB_ICONS[t] || 'zap'}
+                    className={store.tab === t ? 'text-white' : 'text-black dark:text-gray-400'}
+                    size={14}
+                  />
+                  <span>
+                    {t === 'search' ? 'Tìm kiếm'
+                      : t === 'contacts' ? `Liên hệ${store.totalContacts ? ` (${store.totalContacts})` : ''}`
+                      : t === 'groups' ? `Nhóm${store.groupCount ? ` (${store.groupCount})` : ''}`
+                      : t === 'requests' ? `Lời mời${store.requestCount ? ` (${store.requestCount})` : ''}`
+                      : t === 'pipeline' ? 'Bảng Pipeline'
+                      : t === 'campaigns' ? `Chiến dịch${store.campaigns.length ? ` (${store.campaigns.length})` : ''}`
+                      : t === 'history' ? 'Lịch sử'
+                      : t === 'scan' ? 'Quét dữ liệu'
+                      : t === 'scan_history' ? 'Lịch sử quét'
+                      : t === 'scan_stats' ? 'Thống kê'
+                      : t === 'phone_scan' ? 'Quét SĐT hàng loạt'
+                      : t}
+                  </span>
+                  {t === 'requests' && hasUnreadRequestDot && (
+                    <span className="w-2 h-2 bg-red-500 rounded-full border border-gray-900 flex-shrink-0" />
+                  )}
                 </span>
-                {t === 'requests' && hasUnreadRequestDot && (
-                  <span className="w-2 h-2 bg-red-500 rounded-full border border-gray-900 flex-shrink-0" />
-                )}
-              </span>
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex-1" />
-        {/* Rà soát & Lọc trùng Liên hệ */}
-        {!isFacebookAccount && (
+        {/* Rà soát & Lọc trùng Liên hệ (chỉ hiện trên Desktop) */}
+        {!isMobile && !isFacebookAccount && (
           <>
             <button
               onClick={handleSyncZaloFriends}
@@ -977,14 +1016,6 @@ export default function CRMPage() {
             </button>
           </>
         )}
-        {/* Navigate to Analytics / Reports */}
-        <button
-          onClick={() => navigateToAnalytics('overview')}
-          className="flex items-center justify-center p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
-          title="Xem báo cáo & phân tích"
-        >
-          <AppIcon name="overview" className="text-black dark:text-gray-400" size={15} />
-        </button>
         {/* Account selector */}
         <AccountSelectorDropdown
           options={accounts.map(a => ({ id: a.zalo_id, name: a.full_name, phone: a.phone, avatarUrl: a.avatar_url }))}
