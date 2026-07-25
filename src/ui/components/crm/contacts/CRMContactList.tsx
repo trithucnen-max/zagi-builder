@@ -11,6 +11,7 @@ import PhoneDisplay from '@/components/common/PhoneDisplay';
 import GroupAvatar from '@/components/common/GroupAvatar';
 import ipc from '@/lib/ipc';
 import { useEmployeeStore } from '@/store/employeeStore';
+import useIsMobile from '@/hooks/useIsMobile';
 
 
 interface CRMContactListProps {
