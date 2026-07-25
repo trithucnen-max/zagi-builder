@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0068FF">
 <title>ZAGI — Trợ lý bán hàng của bạn, và của cả team</title>
-<meta name="description" content="Zagi giúp sales và chủ doanh nghiệp nhỏ chăm sóc lead trên Zalo/Facebook một cách tử tế: gom mọi nick về một hộp thư, chấm điểm lead, theo dõi phễu, và không để khách nào rơi. Dữ liệu lưu trên máy bạn. Giá Beta từ 990.000đ.">
+<meta name="description" content="Zagi giúp sales và chủ doanh nghiệp nhỏ chăm sóc lead trên Zalo/Facebook một cách tử tế: gom mọi nick về một hộp thư, chấm điểm lead, theo dõi phễu, và không để khách nào rơi. Dữ liệu lưu trên máy bạn. Dùng thử 14 ngày miễn phí.">
 <meta property="og:title" content="ZAGI — Trợ lý bán hàng của bạn, và của cả team">
-<meta property="og:description" content="Một người bán hàng không nên phải nhớ mọi thứ trong đầu. Zagi nhớ giúp bạn — và chăm khách khi bạn đang ngủ.">
+<meta property="og:description" content="Một người bán hàng không nên phải nhớ mọi thứ trong đầu. Zagi nhớ giúp bạn — và chăm khách khi bạn đang ngủ. Dùng thử 14 ngày miễn phí.">
 <meta property="og:locale" content="vi_VN">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -276,24 +276,27 @@ a{text-decoration:none}
 .value-note strong{color:var(--ink)}
 
 .pricing{background:var(--surface)}
-.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;max-width:1180px;margin:0 auto;align-items:stretch}
-.pcard{background:#fff;border-radius:var(--r-xl);padding:30px 22px;border:2px solid var(--border);position:relative;transition:.4s var(--ease-emph);box-shadow:var(--e1);display:flex;flex-direction:column}
+.pgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;max-width:1240px;margin:0 auto;align-items:stretch}
+.pcard{background:#fff;border-radius:var(--r-xl);padding:26px 18px;border:2px solid var(--border);position:relative;transition:.4s var(--ease-emph);box-shadow:var(--e1);display:flex;flex-direction:column}
 .pcard:hover{transform:translateY(-8px);box-shadow:var(--e4)}
+.pcard.trial{border-color:var(--teal);background:linear-gradient(180deg,#fff,#E6F4F1)}
+.pcard.trial::before{content:'MIỄN PHÍ 14 NGÀY';position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#00A389,#26C6DA);color:#fff;padding:5px 14px;border-radius:var(--r-full);font-size:10px;font-weight:800;letter-spacing:.04em;box-shadow:var(--e2);white-space:nowrap}
 .pcard.featured{border-color:var(--primary);box-shadow:var(--e3);background:linear-gradient(180deg,#fff,#F0F5FF)}
-.pcard.featured::before{content:'CHỌN NHIỀU NHẤT';position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#FF6B00,#FF8A00);color:#fff;padding:6px 16px;border-radius:var(--r-full);font-size:10.5px;font-weight:800;letter-spacing:.04em;box-shadow:var(--e2);white-space:nowrap}
+.pcard.featured::before{content:'CHỌN NHIỀU NHẤT';position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#FF6B00,#FF8A00);color:#fff;padding:5px 14px;border-radius:var(--r-full);font-size:10px;font-weight:800;letter-spacing:.04em;box-shadow:var(--e2);white-space:nowrap}
 .pcard.team{border-color:var(--teal);background:linear-gradient(180deg,#fff,#F0FFF9)}
-.pcard.team::before{content:'CHO TEAM 2–5 NGƯỜI';position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#00A389,#26C6DA);color:#fff;padding:6px 14px;border-radius:var(--r-full);font-size:10.5px;font-weight:800;letter-spacing:.04em;box-shadow:var(--e2);white-space:nowrap}
+.pcard.team::before{content:'CHO TEAM 2–5 NGƯỜI';position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#00A389,#26C6DA);color:#fff;padding:5px 14px;border-radius:var(--r-full);font-size:10px;font-weight:800;letter-spacing:.04em;box-shadow:var(--e2);white-space:nowrap}
 .pname{font-size:12px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
-.ptag{font-size:13px;color:var(--ink-2);margin-bottom:16px;min-height:40px;line-height:1.45}
-.pamt{display:flex;align-items:baseline;gap:5px;margin-bottom:4px}
-.pamt .num{font-size:34px;font-weight:900;letter-spacing:-.02em;line-height:1;color:var(--primary-dark)}
-.pamt .per{font-size:13px;color:var(--ink-3)}
-.pfeat{list-style:none;margin-bottom:22px;flex:1}
-.pfeat li{padding:7px 0;font-size:13.5px;color:var(--ink-2);display:flex;gap:8px;align-items:flex-start;line-height:1.45}
-.pfeat li .material-symbols-rounded{color:var(--teal);font-size:18px;flex-shrink:0;margin-top:1px}
+.ptag{font-size:12.5px;color:var(--ink-2);margin-bottom:14px;min-height:38px;line-height:1.4}
+.pamt{display:flex;align-items:baseline;gap:4px;margin-bottom:4px}
+.pamt .num{font-size:30px;font-weight:900;letter-spacing:-.02em;line-height:1;color:var(--primary-dark)}
+.pamt .per{font-size:12px;color:var(--ink-3)}
+.pfeat{list-style:none;margin-bottom:20px;flex:1}
+.pfeat li{padding:6px 0;font-size:13px;color:var(--ink-2);display:flex;gap:7px;align-items:flex-start;line-height:1.4}
+.pfeat li .material-symbols-rounded{color:var(--teal);font-size:17px;flex-shrink:0;margin-top:1px}
 
-@media(max-width:1024px){.pgrid{grid-template-columns:repeat(2,1fr);gap:20px;max-width:720px}}
-@media(max-width:600px){.pgrid{grid-template-columns:1fr;max-width:420px}}
+@media(max-width:1180px){.pgrid{grid-template-columns:repeat(3,1fr);gap:18px;max-width:860px}}
+@media(max-width:768px){.pgrid{grid-template-columns:repeat(2,1fr);gap:16px;max-width:600px}}
+@media(max-width:480px){.pgrid{grid-template-columns:1fr;max-width:380px}}
 
 .founding{background:linear-gradient(135deg,#141A2E,#0A0E27);color:#fff;border-radius:var(--r-xl);padding:46px;margin:46px auto 0;max-width:1060px;display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:center;position:relative;overflow:hidden;box-shadow:var(--e4)}
 .founding::before{content:'';position:absolute;top:-50%;right:-10%;width:480px;height:480px;background:radial-gradient(circle,rgba(255,107,0,.25),transparent 70%);animation:float 16s ease-in-out infinite}
@@ -438,7 +441,7 @@ a{text-decoration:none}
 
 <div class="topbar">
   <span class="dot"></span>
-  Đang <strong>Beta</strong> — 100 chỗ đầu tiên, gói cá nhân từ <strong>990.000đ</strong> · Đào tạo miễn phí hằng tuần —
+  Đang <strong>Beta</strong> — Dùng thử <strong>14 ngày miễn phí</strong> · Gói cá nhân từ <strong>990.000đ</strong> —
   <a href="#training">Xem lịch học</a>
 </div>
 
@@ -463,7 +466,7 @@ a{text-decoration:none}
       <a href="#training">Đào tạo</a>
       <a href="#faq">Hỏi đáp</a>
     </nav>
-    <button onclick="openCheckout('solo_12m')" class="btn btn-primary"><span class="material-symbols-rounded">download</span>Nhận bản dùng thử</button>
+    <button onclick="openCheckout('trial_14d')" class="btn btn-primary"><span class="material-symbols-rounded">download</span>Dùng thử 14 ngày Miễn Phí</button>
   </div>
 </header>
 
@@ -476,7 +479,7 @@ a{text-decoration:none}
         <h1>Một người bán hàng<br>không nên phải nhớ<br><span class="hl">mọi thứ trong đầu.</span></h1>
         <p class="hero-sub">Zagi nhớ giúp bạn. Gom mọi tài khoản Zalo &amp; Facebook về <strong>một hộp thư</strong>, chấm điểm từng lead, nhắc bạn đúng lúc phải nhắn ai — và <strong>chăm khách khi bạn đang ngủ</strong>. Dữ liệu ở lại trên máy bạn. Của bạn, của cả team.</p>
         <div class="hero-ctas">
-          <button onclick="openCheckout('solo_12m')" class="btn btn-white btn-lg"><span class="material-symbols-rounded">rocket_launch</span>Dùng thử 14 ngày</button>
+          <button onclick="openCheckout('trial_14d')" class="btn btn-white btn-lg"><span class="material-symbols-rounded">rocket_launch</span>Dùng thử 14 ngày miễn phí</button>
           <a href="#pricing" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">payments</span>Xem bảng giá</a>
         </div>
         <div class="hero-trust">
@@ -740,7 +743,7 @@ a{text-decoration:none}
       <div class="stack-total">
         <div class="lbl">TỔNG GIÁ TRỊ THỰC TẾ:</div>
         <div class="big">35.400.000đ</div>
-        <div class="you">Giá ưu đãi đặc biệt hôm nay: chỉ từ <b>990.000đ</b></div>
+        <div class="you">Ưu đãi hôm nay: Dùng thử <b>14 ngày Miễn Phí</b> hoặc chỉ từ <b>990.000đ</b></div>
       </div>
     </div>
   </div>
@@ -756,6 +759,20 @@ a{text-decoration:none}
     </div>
 
     <div class="pgrid">
+      <!-- Gói Dùng Thử 14 Ngày -->
+      <div class="pcard trial reveal" data-plan="trial_14d">
+        <div class="pname" style="color:var(--teal)">DÙNG THỬ MIỄN PHÍ</div>
+        <div class="ptag">Trải nghiệm 100% tính năng cao cấp không cần thẻ ngân hàng.</div>
+        <div class="pamt"><span class="num" style="color:var(--teal)">0</span><span class="per">đ / 14 ngày</span></div>
+        <ul class="pfeat">
+          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp)</li>
+          <li><span class="material-symbols-rounded">check</span>Full tính năng Zagi Pro</li>
+          <li><span class="material-symbols-rounded">check</span>Không cần thanh toán</li>
+          <li><span class="material-symbols-rounded">check</span>Nhận Key kích hoạt ngay</li>
+        </ul>
+        <button onclick="openCheckout('trial_14d')" class="btn btn-secondary" style="color:var(--teal);border-color:var(--teal)">Dùng thử 14 ngày</button>
+      </div>
+
       <!-- Gói Solo 6M -->
       <div class="pcard reveal" data-plan="solo_6m">
         <div class="pname">Gói Solo 6 Tháng</div>
@@ -948,6 +965,10 @@ a{text-decoration:none}
         <div class="faq-a">Không. Zagi tuân thủ nguyên tắc Local-first. Toàn bộ tin nhắn, danh bạ và file dữ liệu lưu trực tiếp trong CSDL SQLite trên máy tính của bạn.</div>
       </div>
       <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Dùng thử 14 ngày có cần thanh toán trước hay nhập thẻ không?<span class="material-symbols-rounded">expand_more</span></div>
+        <div class="faq-a">Hoàn toàn không. Bạn chỉ cần nhập Email và Số điện thoại Zalo để hệ thống tạo Mã Bản Quyền dùng thử 14 ngày tức thì.</div>
+      </div>
+      <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)">Thanh toán xong thì bao lâu tôi nhận được mã kích hoạt?<span class="material-symbols-rounded">expand_more</span></div>
         <div class="faq-a">Hệ thống chuyển khoản VietQR MB Bank kết nối với SePay tự động 24/7/365. Ngay khi chuyển tiền thành công (trong 2 giây), mã kích hoạt sẽ tự động hiện lên màn hình và gửi về Email của bạn.</div>
       </div>
@@ -965,7 +986,7 @@ a{text-decoration:none}
     <h2>Sẵn sàng biến Zalo &amp; Facebook thành kênh bán hàng tự động?</h2>
     <p>Tải bản dùng thử 14 ngày Miễn phí hoặc đăng ký kích hoạt tự động 24/7 ngay hôm nay.</p>
     <div class="btn-group">
-      <button onclick="openCheckout('solo_12m')" class="btn btn-white btn-lg"><span class="material-symbols-rounded">rocket_launch</span>Đăng ký ngay bây giờ</button>
+      <button onclick="openCheckout('trial_14d')" class="btn btn-white btn-lg"><span class="material-symbols-rounded">rocket_launch</span>Đăng ký Dùng thử 14 ngày (0đ)</button>
       <a href="https://zalo.me/g/knwjjfspkamtewxz5u1a" target="_blank" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">headset_mic</span>Tư vấn qua Zalo</a>
     </div>
 
@@ -980,7 +1001,7 @@ a{text-decoration:none}
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <div class="step-text">Kích hoạt License &amp; Thưởng thức trợ lý tự động</div>
+        <div class="step-text">Nhập Mã License Dùng thử &amp; Thưởng thức trợ lý tự động</div>
       </div>
     </div>
   </div>
@@ -1020,7 +1041,7 @@ a{text-decoration:none}
 <div class="modal-backdrop" id="checkout-modal">
   <div class="modal-card">
     <div class="modal-header">
-      <h3><span class="material-symbols-rounded">shopping_cart</span>Thanh toán Zagi License</h3>
+      <h3><span class="material-symbols-rounded">shopping_cart</span>Đăng ký Zagi License</h3>
       <button class="modal-close" onclick="closeCheckout()">&times;</button>
     </div>
     
@@ -1044,16 +1065,17 @@ a{text-decoration:none}
         <div class="form-group">
           <label>Chọn gói dịch vụ *</label>
           <select id="cust-plan" class="form-control">
+            <option value="trial_14d" selected>Gói Dùng thử 14 ngày — 0 đ (Miễn phí)</option>
             <option value="solo_6m">Gói Solo 6 tháng — 990.000 đ</option>
-            <option value="solo_12m" selected>Gói Solo 12 tháng — 1.690.000 đ (Tiết kiệm)</option>
+            <option value="solo_12m">Gói Solo 12 tháng — 1.690.000 đ (Tiết kiệm)</option>
             <option value="solo_lifetime">Gói Solo Vĩnh viễn — 4.900.000 đ</option>
             <option value="team_6m">Gói Team 6 tháng — 4.900.000 đ</option>
             <option value="team_12m">Gói Team 12 tháng — 8.900.000 đ</option>
             <option value="team_lifetime">Gói Team Vĩnh viễn — 14.900.000 đ</option>
           </select>
         </div>
-        <button onclick="submitOrder()" class="btn btn-primary btn-lg" style="width:100%">
-          <span class="material-symbols-rounded">qr_code_2</span>Tạo mã VietQR Thanh toán
+        <button onclick="submitOrder()" class="btn btn-primary btn-lg" style="width:100%" id="submit-btn">
+          <span class="material-symbols-rounded">rocket_launch</span>Nhận Key Kích Hoạt
         </button>
       </div>
 
@@ -1098,8 +1120,8 @@ a{text-decoration:none}
       <!-- Step 3: Success -->
       <div id="step-success" style="display:none" class="success-box">
         <div class="success-icon">✓</div>
-        <h2 style="font-size:22px;font-weight:800;color:var(--teal)">THỦ TỤC THANH TOÁN THÀNH CÔNG!</h2>
-        <p style="font-size:14px;color:var(--ink-2);margin-top:6px">Mã bản quyền Zagi của bạn đã được tự động kích hoạt 24/7.</p>
+        <h2 style="font-size:22px;font-weight:800;color:var(--teal)" id="success-title">ĐĂNG KÝ THÀNH CÔNG!</h2>
+        <p style="font-size:14px;color:var(--ink-2);margin-top:6px" id="success-sub">Mã bản quyền Zagi của bạn đã sẵn sàng sử dụng.</p>
         <div class="key-box" id="activated-key">ZAGI-PRO-XXXX</div>
         <button onclick="copyTxt(currentLicenseKey)" class="btn btn-secondary" style="margin-bottom:12px">
           <span class="material-symbols-rounded">content_copy</span>Sao chép Mã Key
@@ -1118,6 +1140,7 @@ const SUPABASE_URL = "https://paxejunvgfhjdyulzutb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo";
 
 const PLAN_PRICES = {
+  'trial_14d': 0,
   'solo_6m': 990000,
   'solo_12m': 1690000,
   'solo_lifetime': 4900000,
@@ -1138,7 +1161,7 @@ async function loadSupabasePlans() {
     if (res.ok) {
       const plans = await res.json();
       plans.forEach(p => {
-        if (p.plan_code && p.amount) {
+        if (p.plan_code && p.amount !== undefined) {
           PLAN_PRICES[p.plan_code] = p.amount;
           const numEl = document.querySelector(`.pcard[data-plan="${p.plan_code}"] .num`);
           if (numEl) numEl.innerText = p.amount.toLocaleString('vi-VN');
@@ -1146,7 +1169,7 @@ async function loadSupabasePlans() {
           const optEl = document.querySelector(`#cust-plan option[value="${p.plan_code}"]`);
           if (optEl) {
             const name = p.name || optEl.innerText.split('—')[0].trim();
-            optEl.innerText = `${name} — ${p.amount.toLocaleString('vi-VN')} đ`;
+            optEl.innerText = p.amount === 0 ? `${name} — 0 đ (Miễn phí)` : `${name} — ${p.amount.toLocaleString('vi-VN')} đ`;
           }
         }
       });
@@ -1169,21 +1192,42 @@ function showErr(msg) {
 
 function openCheckout(planCode) {
   hideErr();
-  document.getElementById('cust-plan').value = planCode;
+  const selectEl = document.getElementById('cust-plan');
+  if (selectEl) selectEl.value = planCode;
+  
+  updateSubmitBtnText(planCode);
+
   document.getElementById('step-form').style.display = 'block';
   document.getElementById('step-qr').style.display = 'none';
   document.getElementById('step-success').style.display = 'none';
   document.getElementById('checkout-modal').classList.add('active');
 }
 
+function updateSubmitBtnText(planCode) {
+  const btn = document.getElementById('submit-btn');
+  if (!btn) return;
+  if (planCode === 'trial_14d') {
+    btn.innerHTML = '<span class="material-symbols-rounded">rocket_launch</span>Nhận Key Dùng Thử 14 Ngày (Miễn Phí)';
+  } else {
+    btn.innerHTML = '<span class="material-symbols-rounded">qr_code_2</span>Tạo mã VietQR Thanh toán';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const selectEl = document.getElementById('cust-plan');
+  if (selectEl) {
+    selectEl.addEventListener('change', (e) => updateSubmitBtnText(e.target.value));
+  }
+});
+
 function closeCheckout() {
   document.getElementById('checkout-modal').classList.remove('active');
   if (checkInterval) clearInterval(checkInterval);
 }
 
-function genKey() {
+function genKey(prefix = 'ZAGI') {
   const r = () => Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `ZAGI-${r()}-${r()}-${r()}`;
+  return `${prefix}-${r()}-${r()}-${r()}`;
 }
 
 async function submitOrder() {
@@ -1198,8 +1242,46 @@ async function submitOrder() {
     return;
   }
 
-  const amount = PLAN_PRICES[plan] || 1690000;
-  currentLicenseKey = genKey();
+  const amount = PLAN_PRICES[plan] ?? 0;
+
+  // IF TRIAL 14D (FREE): INSTANT ACTIVATION!
+  if (plan === 'trial_14d' || amount === 0) {
+    currentLicenseKey = genKey('ZAGI-TRIAL');
+    
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/licenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          license_key: currentLicenseKey,
+          email: email,
+          full_name: name,
+          phone: phone,
+          plan: 'trial_14d',
+          status: 'active',
+          created_at: new Date().toISOString()
+        })
+      });
+    } catch (e) {
+      console.warn('Trial license insert note:', e);
+    }
+
+    document.getElementById('step-form').style.display = 'none';
+    document.getElementById('step-qr').style.display = 'none';
+    document.getElementById('step-success').style.display = 'block';
+    document.getElementById('activated-key').innerText = currentLicenseKey;
+    document.getElementById('success-title').innerText = 'KÍCH HOẠT DÙNG THỬ 14 NGÀY THÀNH CÔNG!';
+    document.getElementById('success-sub').innerText = 'Mã bản quyền Dùng thử 14 ngày của bạn đã sẵn sàng sử dụng.';
+    return;
+  }
+
+  // PAID PLANS -> VietQR MB Bank
+  currentLicenseKey = genKey('ZAGI');
   const shortCode = currentLicenseKey.split('-').pop();
   currentTransferContent = 'ZAGI ' + shortCode;
 
@@ -1209,7 +1291,6 @@ async function submitOrder() {
   document.getElementById('pay-amount').innerText = amount.toLocaleString('vi-VN') + ' đ';
   document.getElementById('pay-content').innerText = currentTransferContent;
 
-  // Attempt to insert record into Supabase gracefully
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/licenses`, {
       method: 'POST',
@@ -1233,11 +1314,8 @@ async function submitOrder() {
     console.warn('Supabase insert note (proceeding with QR):', e);
   }
 
-  // Switch to Step 2 (QR screen) regardless of network warning
   document.getElementById('step-form').style.display = 'none';
   document.getElementById('step-qr').style.display = 'block';
-
-  // Start polling status
   startPollingStatus();
 }
 
@@ -1263,6 +1341,8 @@ function showSuccess() {
   document.getElementById('step-qr').style.display = 'none';
   document.getElementById('step-success').style.display = 'block';
   document.getElementById('activated-key').innerText = currentLicenseKey;
+  document.getElementById('success-title').innerText = 'THỦ TỤC THANH TOÁN THÀNH CÔNG!';
+  document.getElementById('success-sub').innerText = 'Mã bản quyền Zagi của bạn đã được tự động kích hoạt 24/7.';
 }
 
 function copyTxt(txt) {
