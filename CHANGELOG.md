@@ -2,9 +2,35 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.0.6] - 2026-07-24
+## [v3.0.6] - 2026-07-25
 
-### 🌐 Hỗ trợ Trình duyệt Web Nhân viên (Employee Web Client) & Cấu trúc PWA
+### 📱 Tái Thiết Kế Toàn Diện Giao Diện Mobile Web & Trải Nghiệm Di Động
+
+- **Tối Ưu Không Gian Màn Hình Di Động:**
+  - Tự động ẩn thanh công cụ `TopBar` trên thiết bị di động (`isMobile === true`), giải phóng 100% chiều cao màn hình cho các hoạt động chính (Chat, CRM, Dashboard).
+- **Thanh Sidebar Dạng Menu Trượt Nổi (Slide-Over Drawer):**
+  - Chuyển thanh Sidebar màu xanh cố định thành Menu trượt nổi mượt mà, mở bằng nút Hamburger `☰` trên đầu trang Chat, CRM và Dashboard giúp thao tác chuyển tài khoản & tính năng cực kỳ thuận tiện.
+- **Mở Lại & Tối Ưu Trang Dashboard Tổng Trên Di Động:**
+  - Khôi phục view Dashboard trên Web di động với bố cục Card cuộn dọc linh hoạt, tích hợp nút Hamburger `☰` và tối ưu kích thước hiển thị.
+- **Khung Xem Thông Tin Cuộc Trò Chuyện & Bảng Tin Nhóm Tràn Màn Hình (Full-Screen Overlay):**
+  - Khắc phục triệt để sự cố thông tin bị cắt viền khi bấm nút `...` trong khung chat trên di động. Khung thông tin mở dạng Full-screen Overlay tràn toàn màn hình có nút Đóng rõ ràng.
+- **Tối Ưu Bảng CRM & Danh Sách Liên Hệ Trên Mobile:**
+  - **Danh sách liên hệ CRM:** Mặc định trên di động **CHỈ hiển thị 2 cột chính (Biệt danh & SĐT)**. Các cột khác được ẩn gọn gàng và có thể gọi ra từ menu "Cột hiển thị".
+  - **Menu CRM Sub-tabs:** Chuyển từ hàng tab dài thành **Dropdown Hamburger Selector** gọn gàng.
+  - **Tự động ẩn các tính năng nặng trên Mobile:** Ẩn các nút *Đồng bộ Zalo*, *Rà soát trùng lặp*, *Quét SĐT hàng loạt*, và *Lịch sử chiến dịch* khi truy cập trên điện thoại.
+- **Form Đăng Nhập Nhân Viên Tinh Gọn & Tự Động Chuyển Hướng:**
+  - Tự động lấy URL Boss từ địa chỉ trình duyệt hiện tại (`window.location.origin`). Nhân viên truy cập qua link Web/Tunnel chỉ cần gõ Username + Password mà không cần gõ link rườm rà.
+  - Tự động chuyển hướng về màn hình Chat (`setView('chat')`) ngay sau khi đăng nhập thành công.
+- **Khắc Phục Lỗi Runtime CRM:** Sửa triệt để lỗi crash JavaScript `ReferenceError: Can't find variable: useIsMobile` trong `CRMContactList.tsx`.
+
+### 🖼️ Xử Lý Dứt Điểm Lỗi Gửi Media Từ Thư Viện (Library Media Fixes)
+
+- **Chuẩn Hóa Đường Dẫn Local Path Gửi Ảnh:** Sửa lỗi gửi ảnh không thành công trong Thư viện bằng cách xử lý chuẩn xác cả `item._localPath` và `item.file_path` từ CSDL (cho máy Boss) và `_libraryUuid` (cho trình duyệt Nhân viên).
+- **Khóa Trạng Thái `sending` Phòng Chống Gửi Lặp (Double-Submit Guard):** Bổ sung cờ khóa `sending` và vô hiệu hóa nút "Gửi", tự động hiển thị chữ `"Đang gửi..."` khi đang xử lý truyền media, triệt tiêu hoàn toàn sự cố bấm 1 lần bị lặp gửi 2-3 video trùng lặp.
+
+### 🌐 Phục Vụ Trực Tiếp Web UI Qua HttpRelayService (Port 9900 / Tunnel Domain)
+
+- Cập nhật `HttpRelayService.ts` hỗ trợ Phục vụ ứng dụng Web tĩnh đóng gói từ `dist/` kèm SPA Routing Fallback, cho phép máy Boss phục vụ Zagi Web UI trực tiếp qua cổng `9900` và tên miền `relay.basancorp.com` / Cloudflare Tunnel.
 
 - **Khôi Phục & Đồng Bộ 100% Tính Năng Trên Trình Duyệt Web Chrome:**
   - Hỗ trợ Nhân viên truy cập và làm việc hoàn chỉnh qua Trình duyệt Web (`http://127.0.0.1:27799`) kết nối về máy Boss (`http://127.0.0.1:9900`).
