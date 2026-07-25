@@ -124,19 +124,19 @@ NSIS Installer ARM64 · ~196 MB · Tối ưu native cho Surface ARM
 Máy tính của bạn là loại gì?
 │
 ├─ 🖥️ PC desktop / Laptop thông thường (Dell, HP, Lenovo, Asus, Acer...)
-│   └─ → Tải: Zagi v3.0.5 Window.exe  ✅
+│   └─ → Tải: Zagi v3.0.6 Window.exe  ✅
 │
 ├─ 💻 Surface Pro 7, Surface Laptop 1-4, Surface Go 1-2, Surface Book
-│   └─ → Tải: Zagi v3.0.5 Window.exe  ✅  (chip Intel, chạy ok)
+│   └─ → Tải: Zagi v3.0.6 Window.exe  ✅  (chip Intel, chạy ok)
 │
 └─ 💻 Surface Pro X, Surface Pro 9 (5G), Surface Pro 10, Surface Pro 11,
        Surface Laptop 7 (chip Snapdragon / ARM64)
-    └─ → Tải: Zagi v3.0.5 Surface.exe  ✅ (bản native ARM64)
+    └─ → Tải: Zagi v3.0.6 Surface.exe  ✅ (bản native ARM64)
 ```
 
 > 💡 **Cách kiểm tra chip máy Surface:** Vào `Settings → System → About`, xem mục **Processor**:
-> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v3.0.5 Window.exe`
-> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v3.0.5 Surface.exe`
+> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v3.0.6 Window.exe`
+> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v3.0.6 Surface.exe`
 
 ---
 
@@ -146,15 +146,15 @@ Máy tính của bạn là loại gì?
 Mac của bạn là loại gì?
 │
 ├─ 🍎 MacBook Air/Pro M1, M2, M3, M4 / Mac Neo chip A18 (2020 trở về sau)
-│   └─ → Tải: Zagi v3.0.5 MacOS M1+ arm64.dmg  ✅
+│   └─ → Tải: Zagi v3.0.6 MacOS M1+ arm64.dmg  ✅
 │
 └─ 🍎 MacBook, iMac, Mac mini chip Intel (2019 trở về trước)
-    └─ → Tải: Zagi v3.0.5 MacOS Intel.dmg  ✅
+    └─ → Tải: Zagi v3.0.6 MacOS Intel.dmg  ✅
 ```
 
 > 💡 **Cách kiểm tra:** Click logo Apple → **About This Mac** → xem mục **Chip** hoặc **Processor**:
-> - Có chữ `Apple M1/M2/M3/M4/A18` → bản `Zagi v3.0.5 MacOS M1+ arm64.dmg`
-> - Có chữ `Intel` → bản `Zagi v3.0.5 MacOS Intel.dmg`
+> - Có chữ `Apple M1/M2/M3/M4/A18` → bản `Zagi v3.0.6 MacOS M1+ arm64.dmg`
+> - Có chữ `Intel` → bản `Zagi v3.0.6 MacOS Intel.dmg`
 
 ---
 
@@ -164,11 +164,11 @@ Mac của bạn là loại gì?
 Bạn dùng distro nào?
 │
 ├─ Ubuntu, Mint, PopOS, Zorin, ElementaryOS... → Tải .deb  ✅
-│   sudo dpkg -i "Zagi v3.0.5 Linux Debian.deb"
+│   sudo dpkg -i "Zagi v3.0.6 Linux Debian.deb"
 │
 └─ Fedora, Arch, openSUSE hoặc bất kỳ distro nào
     → Tải .AppImage  ✅
-    chmod +x "Zagi v3.0.5 Linux.AppImage" && ./"Zagi v3.0.5 Linux.AppImage"
+    chmod +x "Zagi v3.0.6 Linux.AppImage" && ./"Zagi v3.0.6 Linux.AppImage"
 ```
 
 ---
@@ -177,13 +177,13 @@ Bạn dùng distro nào?
 
 | Thiết bị | File cần tải | Ghi chú |
 |---|---|---|
-| PC/Laptop Windows (Intel/AMD) | `Zagi v3.0.5 Window.exe` | Phổ biến nhất |
-| Surface Pro 7 trở xuống | `Zagi v3.0.5 Window.exe` | Chip Intel |
-| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi v3.0.5 Surface.exe` | 🆕 Chip ARM64 |
-| MacBook M1/M2/M3/M4 / Mac Neo A18 | `Zagi v3.0.5 MacOS M1+ arm64.dmg` | Apple Silicon (Signed & Notarized) |
-| MacBook/iMac Intel | `Zagi v3.0.5 MacOS Intel.dmg` | Intel x64 (Signed & Notarized) |
-| Ubuntu/Debian Linux | `Zagi v3.0.5 Linux Debian.deb` | Cài như package |
-| Fedora/Arch/Linux khác | `Zagi v3.0.5 Linux.AppImage` | Chạy mọi distro |
+| PC/Laptop Windows (Intel/AMD) | `Zagi v3.0.6 Window.exe` | Phổ biến nhất |
+| Surface Pro 7 trở xuống | `Zagi v3.0.6 Window.exe` | Chip Intel |
+| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi v3.0.6 Surface.exe` | 🆕 Chip ARM64 |
+| MacBook M1/M2/M3/M4 / Mac Neo A18 | `Zagi v3.0.6 MacOS M1+ arm64.dmg` | Apple Silicon (Signed & Notarized) |
+| MacBook/iMac Intel | `Zagi v3.0.6 MacOS Intel.dmg` | Intel x64 (Signed & Notarized) |
+| Ubuntu/Debian Linux | `Zagi v3.0.6 Linux Debian.deb` | Cài như package |
+| Fedora/Arch/Linux khác | `Zagi v3.0.6 Linux.AppImage` | Chạy mọi distro |
 
 ---
 
