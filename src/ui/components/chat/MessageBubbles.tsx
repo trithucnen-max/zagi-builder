@@ -58,16 +58,19 @@ function parseTxt(content: string): string {
     if (p?.msg && typeof p.msg === 'string') return convertZaloEmojis(p.msg);
     if (p?.message && typeof p.message === 'string') return convertZaloEmojis(p.message);
     if (p?.title && typeof p.title === 'string' && !p.href && !p.thumb) return convertZaloEmojis(p.title);
+    const linkStr = p?.href || p?.url || p?.link || p?.title || p?.mediaTitle || '';
+    if (linkStr && typeof linkStr === 'string') return convertZaloEmojis(linkStr);
     return '';
   } catch { return convertZaloEmojis(content); }
 }
 
 // ── Type detection helpers ────────────────────────────────────────────────────
 function isCardType(msgType: string, content: string): boolean {
-  if (['chat.recommended', 'chat.recommend'].includes(msgType)) return true;
+  if (['chat.recommended', 'chat.recommend', 'share.link', 'chat.link'].includes(msgType)) return true;
   try {
     const parsed = JSON.parse(content);
     if (parsed?.action && String(parsed.action).includes('recommened')) return true;
+    if (parsed?.href || parsed?.url || parsed?.link) return true;
   } catch {}
   return false;
 }
@@ -1124,11 +1127,11 @@ function EcardBubble({ msg, onManage }: { msg: any; onManage?: () => void }) {
 }
 
 function LinkBubble({ parsed, isSelf }: { parsed: any; isSelf: boolean }) {
-  const href = String(parsed.href || parsed.title || '');
   const params = (() => { try { const p = parsed.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
-  const title = String(params.mediaTitle || parsed.title || href);
-  const domain = String(params.src || '');
-  const thumb = String(parsed.thumb || '');
+  const href = String(parsed.href || parsed.url || parsed.link || params.rawUrl || parsed.title || '');
+  const title = String(params.mediaTitle || parsed.title || href || 'Liên kết');
+  const domain = String(params.src || (href.startsWith('http') ? new URL(href).hostname : ''));
+  const thumb = String(parsed.thumb || params.thumb || '');
   const description = String(params.mediaDesc || parsed.description || '');
 
   if (thumb) {

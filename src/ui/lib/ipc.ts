@@ -1046,17 +1046,48 @@ async function prepareBrowserMediaParams(params: any): Promise<any> {
 
   const zaloId = params.zaloId || params.zalo_id || params.auth?.zaloId || activeWs.cachedAssignedAccounts?.[0] || '';
 
-  if (params.filePath && (typeof params.filePath !== 'string' || params.filePath.startsWith('blob:') || params.filePath.startsWith('data:') || params.fileObject)) {
-    try {
-      let base64 = '';
-      let filename = 'upload_' + Date.now() + '.jpg';
-      if (params.fileObject instanceof File) {
-        filename = params.fileObject.name;
-        base64 = await blobToBase64(params.fileObject);
-      } else if (typeof params.filePath === 'string' && (params.filePath.startsWith('blob:') || params.filePath.startsWith('data:'))) {
-        const blob = await fetch(params.filePath).then(r => r.blob());
-        base64 = await blobToBase64(blob);
+  const getMediaBase64 = async (fp: any): Promise<{ base64: string; filename: string }> => {
+    if (!fp) return { base64: '', filename: '' };
+    let base64 = '';
+    let filename = 'upload_' + Date.now() + '.jpg';
+    if (fp instanceof File) {
+      filename = fp.name;
+      base64 = await blobToBase64(fp);
+    } else if (typeof fp === 'string') {
+      const cleanFp = fp.trim();
+      const extractedName = cleanFp.split(/[/\\]/).pop() || filename;
+      if (extractedName && extractedName.includes('.')) filename = extractedName;
+
+      if (cleanFp.startsWith('blob:') || cleanFp.startsWith('data:')) {
+        try {
+          const blob = await fetch(cleanFp).then(r => r.blob());
+          base64 = await blobToBase64(blob);
+        } catch {}
+      } else if (cleanFp.startsWith('http://') || cleanFp.startsWith('https://')) {
+        try {
+          const b64Res = await (window as any).ipcRenderer?.invoke('file:readImageAsBase64', { remoteUrl: cleanFp });
+          if (b64Res?.success && b64Res.base64) {
+            base64 = b64Res.base64;
+          } else {
+            const blob = await fetch(cleanFp).then(r => r.blob());
+            base64 = await blobToBase64(blob);
+          }
+        } catch {}
+      } else {
+        try {
+          const b64Res = await (window as any).ipcRenderer?.invoke('file:readImageAsBase64', { localPath: cleanFp });
+          if (b64Res?.success && b64Res.base64) {
+            base64 = b64Res.base64;
+          }
+        } catch {}
       }
+    }
+    return { base64, filename };
+  };
+
+  if (params.filePath || params.fileObject) {
+    try {
+      const { base64, filename } = await getMediaBase64(params.filePath || params.fileObject);
       if (base64) {
         const uploadResp = await fetch(`${url}/api/media/upload`, {
           method: 'POST',
@@ -1082,11 +1113,9 @@ async function prepareBrowserMediaParams(params: any): Promise<any> {
     const newPaths: string[] = [];
     for (let i = 0; i < params.filePaths.length; i++) {
       const p = params.filePaths[i];
-      if (typeof p === 'string' && (p.startsWith('blob:') || p.startsWith('data:'))) {
-        try {
-          const blob = await fetch(p).then(r => r.blob());
-          const base64 = await blobToBase64(blob);
-          const filename = `image_${Date.now()}_${i}.jpg`;
+      try {
+        const { base64, filename } = await getMediaBase64(p);
+        if (base64) {
           const uploadResp = await fetch(`${url}/api/media/upload`, {
             method: 'POST',
             headers: {
@@ -1102,9 +1131,9 @@ async function prepareBrowserMediaParams(params: any): Promise<any> {
               continue;
             }
           }
-        } catch (e) {
-          console.warn('[ipc] prepareBrowserMediaParams multi upload failed:', e);
         }
+      } catch (e) {
+        console.warn('[ipc] prepareBrowserMediaParams multi upload failed:', e);
       }
       newPaths.push(p);
     }
