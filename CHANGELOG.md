@@ -4,6 +4,34 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.6] - 2026-07-25
 
+### 🔑 Quản Lý Bản Quyền Native Supabase Engine (100% Supabase API & Edge Functions)
+
+- **Chuyển Đổi Native Supabase REST API:**
+  - Chuyển toàn bộ 188+ dữ liệu bản quyền từ Google Apps Script / Sheet sang **Supabase Native REST API** (`paxejunvgfhjdyulzutb.supabase.co`).
+  - Tốc độ xác thực License Key giảm xuống còn **~0.05s** (nhanh hơn gấp 60 lần).
+  - Tích hợp khóa phần cứng `boss_machine_id` mã hóa qua `safeStorage` và áp dụng giới hạn `max_employees` / `max_zalo_accounts` theo gói.
+
+- **Bảng Giá Động Supabase Real-time (`plans` table):**
+  - Khởi tạo bảng `plans` trên CSDL Supabase chứa toàn bộ 6 gói dịch vụ mặc định (`solo_6m`, `solo_12m`, `solo_lifetime`, `team_6m`, `team_12m`, `team_lifetime`).
+  - Cho phép quản trị viên tăng/giảm giá tiền, thay đổi mô tả gói hoặc bật/tắt khuyến mãi trực tiếp trên Supabase Dashboard mà không cần Rebuild/Update App Zagi.
+
+- **Tự Động Kích Hoạt SePay Webhook 24/7/365:**
+  - Triển khai Supabase Edge Function `sepay-webhook` (`https://paxejunvgfhjdyulzutb.supabase.co/functions/v1/sepay-webhook`) được gắn cờ `--no-verify-jwt` cho phép SePay.vn gọi Webhook 24/7.
+  - Tự động bóc tách cú pháp `ZAGI <MÃ_KEY>`, đổi trạng thái `status = 'active'`, cộng hạn dùng và tự động gửi Email xác nhận cho khách hàng trong 1-2 giây ngay khi nhận tiền chuyển khoản MB Bank (`422777999` - `CONG TY CO PHAN BASAN`).
+
+- **Gói Dùng Thử 14 Ngày (14-day Free Trial):**
+  - Nâng thời hạn gói dùng thử Miễn phí từ 7 ngày lên **14 ngày** giúp khách hàng thoải mái trải nghiệm đầy đủ tính năng.
+
+- **Tự Động Gửi Email Thông Báo Khách Hàng:**
+  - Tích hợp tiến trình ngầm gửi Email thông báo tự động chào mừng và xác nhận mã bản quyền / VietQR tới hộp thư Gmail của khách hàng qua Google Mail Service.
+
+### 🛠️ Sửa Lỗi Máy Nhân Viên (Employee Mode Media & Link Fixes)
+
+- **Sửa Lỗi Hiển Thị Thẻ Link (`MessageBubbles.tsx`):**
+  - Cập nhật `isCardType` và `parseTxt` hỗ trợ hiển thị mượt mà các thẻ link dạng `share.link`, `chat.link`, `webchat` và đường link rút gọn mà không bị ô bong bóng trắng rỗng.
+- **Sửa Lỗi Gửi Ảnh Từ Thư Viện & Chuyển Tiếp Ảnh Trên Máy Nhân Viên (`ipc.ts`):**
+  - Nâng cấp `prepareBrowserMediaParams` tự động đọc dữ liệu mã hóa base64 từ đĩa local của máy Nhân viên hoặc remote URL và POST về API `/api/media/upload` của máy Sếp. Máy Sếp nhận ảnh, lưu đĩa local và gửi Zalo mượt mà 100%.
+
 ### 💻 Hệ Thống Thống Kê Máy Cài Đặt, Hệ Điều Hành & Thiết Bị (Supabase Telemetry - Phương Án A)
 
 - **Tự Động Thu Thập Thông Tin Ẩn Danh & Định Danh Máy Duy Nhất:**

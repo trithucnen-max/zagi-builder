@@ -454,6 +454,22 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
 *   **Tính năng mới (New):**
     *   Cho phép chọn nhãn local hoặc Zalo trực tiếp trong `AddToContactsModal` ngay khi vừa mở lên (giao đoạn nhập SĐT).
     *   Tích hợp tùy chọn Xóa liên hệ đã chọn vào danh sách tác vụ Khác trên thanh BulkActionBar hành động nổi dưới màn hình.
+#### 🚀 v3.0.6 — Supabase Native License Engine, MB Bank VietQR & SePay Auto-Activation 24/7
+*   **Chuyển đổi Native Supabase Licensing (100% Supabase Engine):**
+    *   Chuyển toàn bộ dữ liệu quản lý bản quyền (188+ khách hàng) từ Google Apps Script / Google Sheet sang **Supabase Native REST API** (`paxejunvgfhjdyulzutb.supabase.co`).
+    *   Tốc độ xác thực key siêu tốc **~0.05s** (giảm từ 3-4 giây trước đây).
+    *   Tích hợp khóa phần cứng `boss_machine_id` và kiểm soát `max_employees` / `max_zalo_accounts` chặt chẽ theo gói.
+*   **Bảng giá động Supabase (`plans` table):**
+    *   Khởi tạo bảng `plans` trên Supabase database cho phép quản trị viên thay đổi giá tiền, đổi tên gói hoặc bật/tắt khuyến mãi trực tiếp trên Supabase Dashboard mà không cần build lại Zagi App.
+*   **Tự động kích hoạt SePay Webhook 24/7/365:**
+    *   Triển khai Supabase Edge Function `sepay-webhook` (`https://paxejunvgfhjdyulzutb.supabase.co/functions/v1/sepay-webhook`) xử lý Webhook chuyển khoản MB Bank `422777999`.
+    *   Tự động bóc tách cú pháp `ZAGI <MÃ_KEY>`, đổi `status = 'active'` và gửi Email xác nhận cho khách hàng trong 1-2 giây sau khi nhận tiền.
+*   **Gói Dùng Thử 14 Ngày (14-day Free Trial):**
+    *   Nâng thời hạn gói dùng thử Miễn phí từ 7 ngày lên **14 ngày** giúp khách hàng trải nghiệm đầy đủ tính năng trước khi quyết định nâng cấp.
+*   **Sửa lỗi máy Nhân viên (Employee Mode Media Fixes):**
+    *   Sửa lỗi hiển thị thẻ Link (`share.link`, `webchat`, `chat.recommended`) không bị bong bóng trắng rỗng (`MessageBubbles.tsx`).
+    *   Sửa lỗi gửi ảnh từ Thư viện và Chuyển tiếp ảnh trên máy Nhân viên (`ipc.ts` tự động đọc base64 và POST sang `/api/media/upload` trên máy Boss).
+
 #### 🚀 v3.0.5 — Hoàn Thiện Gửi File Đa Định Dạng, Khử Trùng Lặp Thông Báo, Khóa Bảo Vệ Workflow & Tương Thích Windows 7
 *   **Khử trùng lặp Thông báo Kết bạn & Lịch hẹn (Fixed & Improved):**
     *   Tích hợp bộ nhớ lưu vết `localStorage` (`notified_friend_req_${zaloId}_${userId}` & `notified_reminder_${zaloId}_${threadId}_${reminderId}`) giúp mỗi lời mời kết bạn và thông báo lịch hẹn chỉ phát popup thông báo đúng **1 lần duy nhất**.
