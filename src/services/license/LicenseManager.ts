@@ -137,6 +137,17 @@ export class LicenseManager {
                        (plan.startsWith('solo') ? 2450000 : 4900000);
         const transferContent = 'ZAGI ' + licenseKey.split('-').pop();
 
+        // Gửi email thông báo tự động cho khách hàng ngầm (không làm chậm UI)
+        this.sendRegistrationEmailNotification({
+          email: email.trim().toLowerCase(),
+          fullName: fullName || '',
+          phone: phone || '',
+          licenseKey,
+          plan,
+          amount,
+          transferContent,
+        });
+
         return {
           success: true,
           pending: plan !== 'trial',
@@ -190,6 +201,38 @@ export class LicenseManager {
           qrUrl: `https://img.vietqr.io/image/Techcombank-63666999-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('CONG TY CO PHAN BASAN')}`
         }
       };
+    }
+  }
+
+  /** Gửi email thông báo cho khách hàng ngầm qua Google Apps Script */
+  private async sendRegistrationEmailNotification(params: {
+    email: string;
+    fullName?: string;
+    phone?: string;
+    licenseKey: string;
+    plan: string;
+    amount?: number;
+    transferContent?: string;
+  }): Promise<void> {
+    try {
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycbwfAp3H9lUTrFLDakhpCmLZB6h9V9bViGSmCTMtp49MbujLK-vT6aPbSQhsJZNs0T4qVg/exec';
+      const secret = 'YOUR_SECRET_KEY_HERE_hanoi@123a';
+      
+      axios.post(scriptUrl, {
+        secret,
+        action: 'register',
+        email: params.email,
+        fullName: params.fullName || '',
+        phone: params.phone || '',
+        licenseKey: params.licenseKey,
+        plan: params.plan,
+        amount: params.amount || 0,
+        transferContent: params.transferContent || ''
+      }, { timeout: 10000 }).catch((err: any) => {
+        Logger.warn(`[LicenseManager] Email notification background send info: ${err.message}`);
+      });
+    } catch (e: any) {
+      Logger.warn(`[LicenseManager] sendRegistrationEmailNotification error: ${e.message}`);
     }
   }
 
