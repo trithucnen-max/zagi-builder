@@ -265,10 +265,10 @@ a{text-decoration:none}
 
     <div class="pgrid">
       <!-- Gói Solo 6M -->
-      <div class="pcard">
+      <div class="pcard" data-plan="solo_6m">
         <div class="pname">Gói Solo 6 Tháng</div>
         <div class="ptag">Dành cho 1 người bán hàng độc lập trên 1 máy BOSS.</div>
-        <div class="pamt"><span class="num">1.000.000</span><span class="per">đ / 6 tháng</span></div>
+        <div class="pamt"><span class="num">990.000</span><span class="per">đ / 6 tháng</span></div>
         <ul class="pfeat">
           <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp)</li>
           <li><span class="material-symbols-rounded">check</span>Quản lý đa tài khoản Zalo &amp; FB</li>
@@ -279,7 +279,7 @@ a{text-decoration:none}
       </div>
 
       <!-- Gói Solo 12M (Popular) -->
-      <div class="pcard featured">
+      <div class="pcard featured" data-plan="solo_12m">
         <div class="pname">Gói Solo 12 Tháng</div>
         <div class="ptag">Lựa chọn tiết kiệm tối ưu 1 năm cho cá nhân kinh doanh.</div>
         <div class="pamt"><span class="num">1.690.000</span><span class="per">đ / 12 tháng</span></div>
@@ -293,7 +293,7 @@ a{text-decoration:none}
       </div>
 
       <!-- Gói Solo Lifetime -->
-      <div class="pcard">
+      <div class="pcard" data-plan="solo_lifetime">
         <div class="pname">Gói Solo Vĩnh Viễn</div>
         <div class="ptag">Thanh toán một lần, sở hữu phần mềm trọn đời.</div>
         <div class="pamt"><span class="num">4.900.000</span><span class="per">đ / Vĩnh viễn</span></div>
@@ -336,7 +336,7 @@ a{text-decoration:none}
         <div class="form-group">
           <label>Chọn gói dịch vụ *</label>
           <select id="cust-plan" class="form-control">
-            <option value="solo_6m">Gói Solo 6 tháng — 1.000.000 đ</option>
+            <option value="solo_6m">Gói Solo 6 tháng — 990.000 đ</option>
             <option value="solo_12m" selected>Gói Solo 12 tháng — 1.690.000 đ (Tiết kiệm)</option>
             <option value="solo_lifetime">Gói Solo Vĩnh viễn — 4.900.000 đ</option>
             <option value="team_6m">Gói Team 6 tháng — 4.900.000 đ</option>
@@ -416,7 +416,7 @@ const SUPABASE_URL = "https://paxejunvgfhjdyulzutb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo";
 
 const PLAN_PRICES = {
-  'solo_6m': 1000000,
+  'solo_6m': 990000,
   'solo_12m': 1690000,
   'solo_lifetime': 4900000,
   'team_6m': 4900000,
@@ -427,6 +427,33 @@ const PLAN_PRICES = {
 let currentLicenseKey = '';
 let currentTransferContent = '';
 let checkInterval = null;
+
+async function loadSupabasePlans() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/plans?is_active=eq.true&order=sort_order.asc`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (res.ok) {
+      const plans = await res.json();
+      plans.forEach(p => {
+        if (p.plan_code && p.amount) {
+          PLAN_PRICES[p.plan_code] = p.amount;
+          const numEl = document.querySelector(`.pcard[data-plan="${p.plan_code}"] .num`);
+          if (numEl) numEl.innerText = p.amount.toLocaleString('vi-VN');
+          
+          const optEl = document.querySelector(`#cust-plan option[value="${p.plan_code}"]`);
+          if (optEl) {
+            const name = p.name || optEl.innerText.split('—')[0].trim();
+            optEl.innerText = `${name} — ${p.amount.toLocaleString('vi-VN')} đ`;
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Live Supabase plan sync note:', e);
+  }
+}
+window.addEventListener('DOMContentLoaded', loadSupabasePlans);
 
 function hideErr() {
   const el = document.getElementById('err-banner');

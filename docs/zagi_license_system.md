@@ -66,7 +66,7 @@ Bảng giá được quản lý trực tiếp trên Supabase database (Bảng `p
 
 | Plan Code | Tên Gói | Giá Niêm Yết | Loại Gói | Giới Hạn Máy Nhân Viên |
 | :--- | :--- | :--- | :--- | :--- |
-| `solo_6m` | Gói Solo 6 tháng | 1.000.000đ | `solo` | 0 máy (Chỉ máy BOSS) |
+| `solo_6m` | Gói Solo 6 tháng | 990.000đ | `solo` | 0 máy (Chỉ máy BOSS) |
 | `solo_12m` | Gói Solo 12 tháng | 1.690.000đ | `solo` | 0 máy (Chỉ máy BOSS) |
 | `solo_lifetime` | Gói Solo Vĩnh viễn | 4.900.000đ | `solo` | 0 máy (Chỉ máy BOSS) |
 | `team_6m` | Gói Team 6 tháng | 4.900.000đ | `team` | Tối đa 5 máy Nhân viên |
