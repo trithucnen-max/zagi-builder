@@ -9,6 +9,7 @@ import { hasUnseenSettingsTabs } from '@/utils/settingsSeenTabs';
 import { useErpPermissions } from '@/hooks/erp/useErpContext';
 import LicenseModal from '@/components/settings/LicenseModal';
 import AppIcon from '@/components/common/AppIcon';
+import useIsMobile from '@/hooks/useIsMobile';
 
 interface SidebarProps {
   onAddAccount: () => void;
@@ -16,6 +17,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onAddAccount }: SidebarProps) {
   const { activeAccountId, setActiveAccount, reorderAccounts } = useAccountStore();
+  const isMobile = useIsMobile();
   const visibleAccounts = useVisibleAccounts();
   const previewEmployeeId = useEmployeeStore(s => s.previewEmployeeId);
   const empMode = useEmployeeStore(s => s.mode);
@@ -322,34 +324,33 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
 
       {/* Nav bottom */}
       <div className="border-t border-white/10 py-2 flex flex-col items-center gap-1">
-        <NavBtn icon="dashboard"  label="Dashboard"   active={view === 'dashboard'}  onClick={() => setView('dashboard')} />
+        {!isMobile && (
+          <NavBtn icon="dashboard"  label="Dashboard"   active={view === 'dashboard'}  onClick={() => setView('dashboard')} />
+        )}
         {hasPerm('chat') && (
-        <NavBtn icon="chat"       label="Chat"         active={view === 'chat'}       onClick={() => setView('chat')} />
+          <NavBtn icon="chat"       label="Chat"         active={view === 'chat'}       onClick={() => setView('chat')} />
         )}
         {hasPerm('crm') && (
-        <NavBtn icon="crm"        label="CRM"          active={view === 'crm'}        onClick={() => setView('crm')} dot={hasNewCRMRequests} />
+          <NavBtn icon="crm"        label="CRM"          active={view === 'crm'}        onClick={() => setView('crm')} dot={hasNewCRMRequests} />
         )}
-        {(hasPerm('workflow') || hasPerm('integration')) && (
-        <NavFlyout
-          icon="tools"
-          label="Công cụ"
-          active={view === 'workflow' || view === 'integration'}
-          items={[
-            ...(hasPerm('workflow') ? [{ icon: 'workflow', label: 'Workflow (n8n)', active: view === 'workflow', onClick: () => setView('workflow') }] : []),
-            ...(hasPerm('integration') ? [{ icon: 'integration', label: 'Tích hợp', active: view === 'integration', onClick: () => setView('integration') }] : []),
-          ]}
-        />
+        {!isMobile && (hasPerm('workflow') || hasPerm('integration')) && (
+          <NavFlyout
+            icon="tools"
+            label="Công cụ"
+            active={view === 'workflow' || view === 'integration'}
+            items={[
+              ...(hasPerm('workflow') ? [{ icon: 'workflow', label: 'Workflow (n8n)', active: view === 'workflow', onClick: () => setView('workflow') }] : []),
+              ...(hasPerm('integration') ? [{ icon: 'integration', label: 'Tích hợp', active: view === 'integration', onClick: () => setView('integration') }] : []),
+            ]}
+          />
         )}
         {hasPerm('analytics') && (
-        <NavBtn icon="analytics"  label="Báo cáo"      active={view === 'analytics'}  onClick={() => setView('analytics')} />
+          <NavBtn icon="analytics"  label="Báo cáo"      active={view === 'analytics'}  onClick={() => setView('analytics')} />
         )}
-        {/* ERP — gated by module permission AND ERP RBAC (`erp.access`).
-            Inside ERP, fine-grained writes enforced via `useErpPermissions().can(...)` +
-            IPC middleware `withErpAuth`. */}
         {hasPerm('erp') && canErpAccess && (
-        <NavBtn icon="erp"        label="Quản lý công việc"   active={view === 'erp'}        onClick={() => setView('erp')} />
+          <NavBtn icon="erp"        label="Quản lý công việc"   active={view === 'erp'}        onClick={() => setView('erp')} />
         )}
-        {empMode !== 'employee' && (
+        {!isMobile && empMode !== 'employee' && (
           <button
             onClick={() => setLicenseModalOpen(true)}
             title="Bản quyền"
@@ -362,7 +363,9 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
             </svg>
           </button>
         )}
-        <NavBtn icon="settings"   label="Cài đặt"      active={view === 'settings'}   onClick={() => setView('settings')} dot={hasNewSettings} />
+        {!isMobile && (
+          <NavBtn icon="settings"   label="Cài đặt"      active={view === 'settings'}   onClick={() => setView('settings')} dot={hasNewSettings} />
+        )}
       </div>
     </div>
 

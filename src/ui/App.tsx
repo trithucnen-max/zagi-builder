@@ -431,10 +431,17 @@ export default function App() {
     });
   }, []);
 
-  // ─── Reset mobileShowChat when window grows back to desktop size ─────────
+  // ─── Mobile view handling & fallback ─────────────────────────────────────
   useEffect(() => {
-    if (!isMobile) setMobileShowChat(false);
-  }, [isMobile]);
+    if (!isMobile) {
+      setMobileShowChat(false);
+    } else {
+      const allowedMobileViews = ['chat', 'crm', 'analytics', 'erp'];
+      if (!allowedMobileViews.includes(view)) {
+        setView('chat');
+      }
+    }
+  }, [isMobile, view, setView]);
 
   const [reminderNotification, setReminderNotification] = useState<{
     emoji: string;
@@ -1565,8 +1572,8 @@ export default function App() {
         {/* Left sidebar: account list + nav */}
         <Sidebar onAddAccount={() => setAddAccountModalOpen(true)} />
 
-        {/* Account panel (sidebar expanded) - chỉ hiện ở chat view */}
-        {view === 'chat' && sidebarExpanded && (
+        {/* Account panel (sidebar expanded) - chỉ hiện ở chat view trên màn hình máy tính */}
+        {view === 'chat' && sidebarExpanded && !isMobile && (
           <AccountPanel onAddAccount={() => setAddAccountModalOpen(true)} />
         )}
 
