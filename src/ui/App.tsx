@@ -168,6 +168,28 @@ export default function App() {
     }
   };
 
+  const handleSwitchBackToStandalone = async () => {
+    try {
+      const wsStore = useWorkspaceStore.getState();
+      const localWs = wsStore.workspaces.find((w: any) => w && (w.type === 'local' || w.id === 'default')) || wsStore.workspaces[0];
+      if (localWs) {
+        wsStore.setActiveWorkspaceId(localWs.id);
+      }
+
+      const empStore = useEmployeeStore.getState();
+      empStore.setMode('standalone');
+      empStore.setCurrentEmployee(null);
+      empStore.setBossConnected(true);
+
+      setShowConfigForm(false);
+      useAppStore.getState().showNotification('↩️ Đã quay trở về Chế độ Sếp (Độc lập)!', 'success');
+    } catch (err: any) {
+      useEmployeeStore.getState().setMode('standalone');
+      useEmployeeStore.getState().setBossConnected(true);
+      setShowConfigForm(false);
+    }
+  };
+
   const handleConfigLogin = async () => {
     setLoginError('');
     if (!bossUrlInput.trim()) { setLoginError('Vui lòng nhập địa chỉ BOSS'); return; }
@@ -1475,18 +1497,26 @@ export default function App() {
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
                   <span className="text-xs text-gray-500 font-semibold tracking-wider uppercase">Đang kết nối lại</span>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <div className="flex flex-col gap-2.5 w-full">
+                  <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
+                    <button
+                      onClick={handleManualReconnect}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold transition-all duration-200 active:scale-95 border border-gray-700/50 flex items-center justify-center gap-1.5"
+                    >
+                      🔄 Thử lại ngay
+                    </button>
+                    <button
+                      onClick={() => setShowConfigForm(true)}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all duration-200 active:scale-95 shadow-md shadow-blue-600/10 flex items-center justify-center gap-1.5"
+                    >
+                      🔑 Đổi IP / Đăng nhập lại
+                    </button>
+                  </div>
                   <button
-                    onClick={handleManualReconnect}
-                    className="px-5 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold transition-all duration-200 active:scale-95 border border-gray-700/50"
+                    onClick={handleSwitchBackToStandalone}
+                    className="w-full px-4 py-2.5 rounded-xl bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 hover:text-amber-200 text-sm font-semibold transition-all duration-200 active:scale-95 border border-amber-800/40 flex items-center justify-center gap-1.5"
                   >
-                    🔄 Thử lại ngay
-                  </button>
-                  <button
-                    onClick={() => setShowConfigForm(true)}
-                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all duration-200 active:scale-95 shadow-md shadow-blue-600/10"
-                  >
-                    🔑 Đổi IP / Đăng nhập lại
+                    🏠 Quay về Chế độ Sếp (Độc lập)
                   </button>
                 </div>
               </>
@@ -1540,27 +1570,36 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex gap-3 mt-6">
+                <div className="flex flex-col gap-2.5 mt-6">
+                  <div className="flex gap-2.5">
+                    <button
+                      onClick={() => setShowConfigForm(false)}
+                      disabled={isLoggingIn}
+                      className="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-sm font-semibold transition-all duration-200 border border-gray-700/50"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      onClick={handleConfigLogin}
+                      disabled={isLoggingIn}
+                      className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold transition-all duration-200 shadow-md shadow-blue-600/10 flex items-center justify-center gap-1.5"
+                    >
+                      {isLoggingIn ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Đang kết nối...
+                        </>
+                      ) : (
+                        'Lưu & Kết nối'
+                      )}
+                    </button>
+                  </div>
                   <button
-                    onClick={() => setShowConfigForm(false)}
+                    onClick={handleSwitchBackToStandalone}
                     disabled={isLoggingIn}
-                    className="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-sm font-semibold transition-all duration-200 border border-gray-700/50"
+                    className="w-full py-2.5 rounded-xl bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 hover:text-amber-200 text-sm font-semibold transition-all duration-200 border border-amber-800/40 flex items-center justify-center gap-1.5"
                   >
-                    Hủy
-                  </button>
-                  <button
-                    onClick={handleConfigLogin}
-                    disabled={isLoggingIn}
-                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold transition-all duration-200 shadow-md shadow-blue-600/10 flex items-center justify-center gap-1.5"
-                  >
-                    {isLoggingIn ? (
-                      <>
-                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Đang kết nối...
-                      </>
-                    ) : (
-                      'Lưu & Kết nối'
-                    )}
+                    🏠 Quay về Chế độ Sếp (Độc lập)
                   </button>
                 </div>
               </div>
