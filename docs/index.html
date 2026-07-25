@@ -86,7 +86,10 @@ a{text-decoration:none}
 .hero h1 .hl{background:linear-gradient(120deg,#FFD54F,#FFE9A8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#FFD54F}
 .hero-sub{font-size:18px;color:#E6EEFB;margin-bottom:26px;max-width:560px;animation:su .8s var(--ease-emph) .2s both}
 .hero-sub strong{color:#fff;font-weight:700}
-.hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;animation:su .8s var(--ease-emph) .3s both}
+.hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;animation:su .8s var(--ease-emph) .3s both}
+.smart-detect-note{font-size:12.5px;color:#7FE7D9;font-weight:600;margin-bottom:24px;display:flex;align-items:center;gap:6px}
+.smart-detect-note .material-symbols-rounded{font-size:16px}
+
 .hero-trust{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;color:#CFE0F7;animation:su .8s var(--ease-emph) .4s both}
 .hero-trust span{display:inline-flex;align-items:center;gap:6px}
 .hero-trust .material-symbols-rounded{font-size:18px;color:#7FE7D9}
@@ -403,15 +406,29 @@ a{text-decoration:none}
 .footer .material-symbols-rounded{font-size:18px;color:var(--primary)}
 .footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:22px;color:#6B7689;font-size:12.5px;text-align:center}
 
-/* MODAL THANH TOÁN TỰ ĐỘNG */
+/* MODAL THANH TOÁN TỰ ĐỘNG & DOWNLOAD */
 .modal-backdrop{position:fixed;inset:0;background:rgba(10,14,39,.75);backdrop-filter:blur(8px);z-index:999;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-backdrop.active{display:flex;animation:fadeIn .3s var(--ease)}
 .modal-card{background:#fff;border-radius:var(--r-xl);max-width:540px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3);overflow:hidden;position:relative;max-height:90vh;display:flex;flex-direction:column}
+.modal-card.wide{max-width:760px}
 .modal-header{background:linear-gradient(135deg,#0068FF,#0052CC);color:#fff;padding:20px 24px;display:flex;align-items:center;justify-content:space-between}
 .modal-header h3{font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px}
 .modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;display:grid;place-items:center;font-size:20px;transition:.2s}
 .modal-close:hover{background:rgba(255,255,255,.35)}
 .modal-body{padding:24px;overflow-y:auto}
+
+.dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+.dl-card{background:var(--surface-1);border:1.5px solid var(--border);border-radius:var(--r);padding:16px;transition:.3s var(--ease-emph);display:flex;flex-direction:column;justify-content:space-between}
+.dl-card:hover{border-color:var(--primary);box-shadow:var(--e2);transform:translateY(-2px)}
+.dl-card.highlight{border-color:var(--teal);background:linear-gradient(180deg,#fff,#F0FFF9)}
+.dl-card-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.dl-card-h .ic{width:36px;height:36px;border-radius:10px;background:var(--primary-container);color:var(--primary-dark);display:grid;place-items:center;font-weight:800}
+.dl-card-h .ic.mac{background:#E0F2FE;color:#0284C7}
+.dl-card-h .ic.win{background:#E0E7FF;color:#4338CA}
+.dl-card-h .ic.lin{background:#FFEDD5;color:#C2410C}
+.dl-card-title{font-weight:800;font-size:14.5px}
+.dl-card-sub{font-size:12px;color:var(--ink-3);margin-bottom:12px;line-height:1.4}
+.dl-card .btn{width:100%;font-size:13px;padding:10px 14px}
 
 .form-group{margin-bottom:16px}
 .form-group label{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
@@ -478,10 +495,18 @@ a{text-decoration:none}
         <div class="hero-badge"><span class="material-symbols-rounded">workspace_premium</span>Dành cho sales &amp; chủ doanh nghiệp bán trên Zalo, Facebook</div>
         <h1>Một người bán hàng<br>không nên phải nhớ<br><span class="hl">mọi thứ trong đầu.</span></h1>
         <p class="hero-sub">Zagi nhớ giúp bạn. Gom mọi tài khoản Zalo &amp; Facebook về <strong>một hộp thư</strong>, chấm điểm từng lead, nhắc bạn đúng lúc phải nhắn ai — và <strong>chăm khách khi bạn đang ngủ</strong>. Dữ liệu ở lại trên máy bạn. Của bạn, của cả team.</p>
+        
         <div class="hero-ctas">
-          <button onclick="openCheckout('trial_14d')" class="btn btn-white btn-lg"><span class="material-symbols-rounded">rocket_launch</span>Dùng thử 14 ngày miễn phí</button>
-          <a href="#pricing" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">payments</span>Xem bảng giá</a>
+          <!-- Smart Auto-Detected Download Button -->
+          <a id="smart-hero-btn" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20MacOS%20M1%2B%20arm64.dmg" class="btn btn-white btn-lg">
+            <span class="material-symbols-rounded">download</span>Tải Zagi v3.0.6 Miễn Phí
+          </a>
+          <button onclick="openDownloadModal()" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">laptop_mac</span>Chọn bản khác</button>
         </div>
+        <div class="smart-detect-note" id="smart-detect-label">
+          <span class="material-symbols-rounded">verified</span>Tự động chọn tệp cài đặt phù hợp với thiết bị của bạn
+        </div>
+
         <div class="hero-trust">
           <span><span class="material-symbols-rounded">groups</span>Sales <strong>tự giới thiệu</strong> cho đồng đội &amp; sếp</span>
           <span><span class="material-symbols-rounded">lock</span>Dữ liệu <strong>trên máy bạn</strong>, không cloud</span>
@@ -958,7 +983,7 @@ a{text-decoration:none}
     <div class="faq-list reveal">
       <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)">Zagi hoạt động trên hệ điều hành nào?<span class="material-symbols-rounded">expand_more</span></div>
-        <div class="faq-a">Zagi là ứng dụng Desktop chạy mượt mà trên Windows (Windows 7, 10, 11 - cả x64 và ARM64) và macOS (Intel &amp; Apple Silicon M1/M2/M3/M4).</div>
+        <div class="faq-a">Zagi là ứng dụng Desktop chạy mượt mà trên Windows (Windows 7, 10, 11 - cả x64 và ARM64) và macOS (Intel &amp; Apple Silicon M1/M2/M3/M4). Hệ thống tự động chọn bản phù hợp với thiết bị của bạn.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)">Dữ liệu của tôi có bị tải lên máy chủ ngoài không?<span class="material-symbols-rounded">expand_more</span></div>
@@ -987,7 +1012,7 @@ a{text-decoration:none}
     <p>Tải bản dùng thử 14 ngày Miễn phí hoặc đăng ký kích hoạt tự động 24/7 ngay hôm nay.</p>
     <div class="btn-group">
       <button onclick="openCheckout('trial_14d')" class="btn btn-white btn-lg"><span class="material-symbols-rounded">rocket_launch</span>Đăng ký Dùng thử 14 ngày (0đ)</button>
-      <a href="https://zalo.me/g/knwjjfspkamtewxz5u1a" target="_blank" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">headset_mic</span>Tư vấn qua Zalo</a>
+      <button onclick="openDownloadModal()" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">download</span>Tải cài đặt ứng dụng</button>
     </div>
 
     <div class="steps">
@@ -1023,6 +1048,7 @@ a{text-decoration:none}
         <a href="#security"><span class="material-symbols-rounded">chevron_right</span>Bảo mật dữ liệu</a>
         <a href="#pricing"><span class="material-symbols-rounded">chevron_right</span>Bảng giá dịch vụ</a>
         <a href="#training"><span class="material-symbols-rounded">chevron_right</span>Lịch học Zoom</a>
+        <a href="#" onclick="openDownloadModal();return false;"><span class="material-symbols-rounded">download</span>Tải bản cài đặt các OS</a>
       </div>
       <div>
         <h4>Hỗ trợ khách hàng</h4>
@@ -1127,9 +1153,116 @@ a{text-decoration:none}
           <span class="material-symbols-rounded">content_copy</span>Sao chép Mã Key
         </button>
         <br>
-        <a href="https://github.com/trithucnen-max/zagi-builder/releases" target="_blank" class="btn btn-primary">
+        <a id="success-dl-btn" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20MacOS%20M1%2B%20arm64.dmg" class="btn btn-primary btn-lg" style="margin-top:6px">
           <span class="material-symbols-rounded">download</span>Tải phần mềm Zagi Desktop
         </a>
+        <br>
+        <a href="#" onclick="openDownloadModal();return false;" style="font-size:13px;color:var(--ink-3);display:inline-block;margin-top:12px">Chọn phiên bản cho máy khác &rarr;</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CHỌN PHIÊN BẢN CÀI ĐẶT DÙNG THỬ (SMART DOWNLOAD MODAL) -->
+<div class="modal-backdrop" id="download-modal">
+  <div class="modal-card wide">
+    <div class="modal-header">
+      <h3><span class="material-symbols-rounded">download</span>Tải phần mềm Zagi Desktop v3.0.6</h3>
+      <button class="modal-close" onclick="closeDownloadModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px;color:var(--ink-2);margin-bottom:14px">Chọn đúng phiên bản dành cho hệ điều hành và thiết bị của bạn:</p>
+
+      <div class="dl-grid">
+        <!-- Mac M1+ -->
+        <div class="dl-card" id="card-mac-arm">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic mac"><span class="material-symbols-rounded">laptop_mac</span></div>
+              <div>
+                <div class="dl-card-title">macOS Apple Silicon (M1+)</div>
+                <div style="font-size:10px;font-weight:800;color:var(--teal)">M1, M2, M3, M4 / A18</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">DMG Installer · ~257 MB · Ký số Apple Developer ID chính thức BASAN CORP.</div>
+          </div>
+          <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20MacOS%20M1%2B%20arm64.dmg" class="btn btn-primary">
+            <span class="material-symbols-rounded">download</span>Tải .dmg (M1/M2/M3/M4)
+          </a>
+        </div>
+
+        <!-- Mac Intel -->
+        <div class="dl-card" id="card-mac-intel">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic mac"><span class="material-symbols-rounded">desktop_mac</span></div>
+              <div>
+                <div class="dl-card-title">macOS Intel</div>
+                <div style="font-size:10px;font-weight:700;color:var(--ink-3)">Chip Intel (2019 trở về trước)</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">DMG Installer · ~265 MB · Ký số Apple Developer ID chính thức BASAN CORP.</div>
+          </div>
+          <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20MacOS%20Intel.dmg" class="btn btn-secondary">
+            <span class="material-symbols-rounded">download</span>Tải .dmg (Intel)
+          </a>
+        </div>
+
+        <!-- Windows x64 -->
+        <div class="dl-card" id="card-win-x64">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic win"><span class="material-symbols-rounded">window</span></div>
+              <div>
+                <div class="dl-card-title">Windows 10 / 11 (PC/Laptop)</div>
+                <div style="font-size:10px;font-weight:700;color:var(--primary)">Dell, HP, Lenovo, Asus...</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">NSIS Installer x64 · ~195 MB · Hỗ trợ Windows 10 & 11 64-bit.</div>
+          </div>
+          <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20Window.exe" class="btn btn-primary">
+            <span class="material-symbols-rounded">download</span>Tải Window.exe
+          </a>
+        </div>
+
+        <!-- Surface ARM64 -->
+        <div class="dl-card" id="card-win-arm">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic win"><span class="material-symbols-rounded">devices</span></div>
+              <div>
+                <div class="dl-card-title">Surface & Windows ARM64</div>
+                <div style="font-size:10px;font-weight:800;color:var(--accent)">Surface Pro X, 9 5G, 10, 11...</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">NSIS Installer ARM64 · ~196 MB · Tối ưu native chip Snapdragon.</div>
+          </div>
+          <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20Surface.exe" class="btn btn-secondary">
+            <span class="material-symbols-rounded">download</span>Tải Surface.exe
+          </a>
+        </div>
+
+        <!-- Linux -->
+        <div class="dl-card" id="card-linux" style="grid-column: span 2">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic lin"><span class="material-symbols-rounded">terminal</span></div>
+              <div>
+                <div class="dl-card-title">Linux (Ubuntu / Debian / Arch / Fedora)</div>
+                <div style="font-size:10px;font-weight:700;color:var(--ink-3)">AppImage & Debian .deb</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">Chạy mượt mà trên mọi Linux distro. ~239 MB.</div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20Linux.AppImage" class="btn btn-secondary" style="flex:1">
+              <span class="material-symbols-rounded">download</span>Tải Linux.AppImage
+            </a>
+            <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20Linux%20Debian.deb" class="btn btn-secondary" style="flex:1">
+              <span class="material-symbols-rounded">download</span>Tải Debian.deb
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1138,6 +1271,15 @@ a{text-decoration:none}
 <script>
 const SUPABASE_URL = "https://paxejunvgfhjdyulzutb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo";
+
+const RELEASE_LINKS = {
+  mac_arm: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20MacOS%20M1%2B%20arm64.dmg",
+  mac_intel: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20MacOS%20Intel.dmg",
+  win_x64: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20Window.exe",
+  win_arm: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20Surface.exe",
+  linux_app: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20Linux.AppImage",
+  linux_deb: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi%20v3.0.6%20Linux%20Debian.deb"
+};
 
 const PLAN_PRICES = {
   'trial_14d': 0,
@@ -1152,6 +1294,103 @@ const PLAN_PRICES = {
 let currentLicenseKey = '';
 let currentTransferContent = '';
 let checkInterval = null;
+
+// SMART OS & ARCH DETECTION ENGINE
+function detectSmartOS() {
+  const ua = navigator.userAgent || '';
+  const platform = navigator.platform || '';
+
+  // macOS
+  if (platform.includes('Mac') || ua.includes('Macintosh')) {
+    let isArm = false;
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (debugInfo) {
+          const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+          if (renderer.includes('Apple M') || renderer.includes('Apple A') || renderer.includes('Apple GPU')) {
+            isArm = true;
+          }
+        }
+      }
+    } catch(e){}
+
+    if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      navigator.userAgentData.getHighEntropyValues(['architecture']).then(res => {
+        if (res && res.architecture === 'arm') {
+          applySmartOSLink('mac_arm', 'Tải cho Mac M1/M2/M3/M4 (.dmg)', 'Tự động chọn tệp cài đặt phù hợp với Mac Apple Silicon M1+ của bạn');
+        }
+      }).catch(()=>{});
+    }
+
+    if (isArm) {
+      return { key: 'mac_arm', text: 'Tải Zagi cho Mac M1/M2/M3/M4 (.dmg)', label: 'Tự động chọn tệp cài đặt phù hợp với Mac Apple Silicon M1+ của bạn', cardId: 'card-mac-arm' };
+    } else {
+      return { key: 'mac_intel', text: 'Tải Zagi cho Mac Intel (.dmg)', label: 'Tự động chọn tệp cài đặt phù hợp với Mac chip Intel của bạn', cardId: 'card-mac-intel' };
+    }
+  }
+
+  // Windows
+  if (platform.includes('Win') || ua.includes('Windows')) {
+    const isArm = ua.includes('ARM64') || ua.includes('ARM');
+    if (isArm) {
+      return { key: 'win_arm', text: 'Tải Zagi cho Surface ARM64 (.exe)', label: 'Tự động chọn tệp cài đặt phù hợp với Surface / Windows ARM64', cardId: 'card-win-arm' };
+    } else {
+      return { key: 'win_x64', text: 'Tải Zagi cho Windows 10/11 (.exe)', label: 'Tự động chọn tệp cài đặt phù hợp với PC / Laptop Windows của bạn', cardId: 'card-win-x64' };
+    }
+  }
+
+  // Linux
+  if (platform.includes('Linux') || ua.includes('Linux')) {
+    return { key: 'linux_app', text: 'Tải Zagi cho Linux (.AppImage)', label: 'Tự động chọn tệp cài đặt phù hợp với Linux', cardId: 'card-linux' };
+  }
+
+  // Default Fallback
+  return { key: 'win_x64', text: 'Tải Zagi v3.0.6 Miễn Phí', label: 'Tự động chọn tệp cài đặt phù hợp với thiết bị của bạn', cardId: 'card-win-x64' };
+}
+
+function applySmartOSLink(key, text, label, cardId) {
+  const url = RELEASE_LINKS[key] || RELEASE_LINKS.win_x64;
+  
+  const heroBtn = document.getElementById('smart-hero-btn');
+  if (heroBtn) {
+    heroBtn.href = url;
+    heroBtn.innerHTML = `<span class="material-symbols-rounded">download</span>${text}`;
+  }
+
+  const successBtn = document.getElementById('success-dl-btn');
+  if (successBtn) {
+    successBtn.href = url;
+    successBtn.innerHTML = `<span class="material-symbols-rounded">download</span>${text}`;
+  }
+
+  const labelEl = document.getElementById('smart-detect-label');
+  if (labelEl && label) {
+    labelEl.innerHTML = `<span class="material-symbols-rounded">verified</span>${label}`;
+  }
+
+  if (cardId) {
+    document.querySelectorAll('.dl-card').forEach(c => c.classList.remove('highlight'));
+    const card = document.getElementById(cardId);
+    if (card) card.classList.add('highlight');
+  }
+}
+
+function initSmartDownload() {
+  const detected = detectSmartOS();
+  applySmartOSLink(detected.key, detected.text, detected.label, detected.cardId);
+}
+window.addEventListener('DOMContentLoaded', initSmartDownload);
+
+function openDownloadModal() {
+  document.getElementById('download-modal').classList.add('active');
+}
+
+function closeDownloadModal() {
+  document.getElementById('download-modal').classList.remove('active');
+}
 
 async function loadSupabasePlans() {
   try {
