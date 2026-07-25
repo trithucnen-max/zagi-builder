@@ -91,7 +91,7 @@ export class LicenseManager {
         const exp = new Date();
         if (plan.includes('12m')) exp.setMonth(exp.getMonth() + 12);
         else if (plan.includes('6m')) exp.setMonth(exp.getMonth() + 6);
-        else exp.setDate(exp.getDate() + 7); // Trial 7 ngày
+        else exp.setDate(exp.getDate() + 14); // Trial 14 ngày
         expiryDate = exp.toISOString();
       }
 
