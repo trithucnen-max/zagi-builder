@@ -21,17 +21,23 @@ export interface DeviceTelemetryInfo {
 export interface TelemetryConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
+  supabaseServiceKey: string;
   autoPingEnabled: boolean;
 }
 
 const DEFAULT_CONFIG_FILE = 'telemetry_config.json';
 const MACHINE_ID_FILE = 'machine_id.txt';
 
+const DEFAULT_SUPABASE_URL = 'https://paxejunvgfhjdyulzutb.supabase.co';
+const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBheejunvgfhjdyulzutbIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5ODExNzYsImV4cCI6MjEwMDU1NzE3Nn0.aFv7LFz58dhSTx7gw351qj1-JFb2pih7NJSyhHYC6vM';
+const DEFAULT_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBheejunvgfhjdyulzutbIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk4MTE3NiwiZXhwIjoyMTAwNTU3MTc2fQ.7P3sa9ID7Sw7o-UPHCBtkD3m2vD3_QK-MsWlnL97JrI';
+
 export class TelemetryService {
   private static instance: TelemetryService | null = null;
   private config: TelemetryConfig = {
-    supabaseUrl: '',
-    supabaseAnonKey: '',
+    supabaseUrl: DEFAULT_SUPABASE_URL,
+    supabaseAnonKey: DEFAULT_ANON_KEY,
+    supabaseServiceKey: DEFAULT_SERVICE_KEY,
     autoPingEnabled: true,
   };
   private machineId: string = '';
@@ -54,7 +60,7 @@ export class TelemetryService {
     this.machineId = this.getOrCreateMachineId();
     this.loadConfig();
 
-    // Start auto ping every 6 hours (24,000,000 ms)
+    // Start auto ping every 6 hours
     if (this.pingTimer) clearInterval(this.pingTimer);
     this.pingTimer = setInterval(() => {
       this.sendPing();
@@ -114,7 +120,12 @@ export class TelemetryService {
       const cfgPath = path.join(this.userDataPath, DEFAULT_CONFIG_FILE);
       if (fs.existsSync(cfgPath)) {
         const data = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-        this.config = { ...this.config, ...data };
+        this.config = {
+          supabaseUrl: data.supabaseUrl || DEFAULT_SUPABASE_URL,
+          supabaseAnonKey: data.supabaseAnonKey || DEFAULT_ANON_KEY,
+          supabaseServiceKey: data.supabaseServiceKey || DEFAULT_SERVICE_KEY,
+          autoPingEnabled: data.autoPingEnabled !== undefined ? data.autoPingEnabled : true,
+        };
       }
     } catch (err: any) {
       Logger.error(`[TelemetryService] loadConfig error: ${err.message}`);
@@ -172,27 +183,30 @@ export class TelemetryService {
 
   /**
    * Gửi PING dữ liệu máy hiện tại về Supabase REST API
-   * Bảng: device_telemetry (Upsert dựa trên machine_id)
+   * Dùng anonKey công khai (Khách hàng chỉ gửi ping, RLS cấm xem danh sách máy)
    */
   public async sendPing(accounts: Array<{ zaloId: string; displayName?: string }> = []): Promise<{ success: boolean; message: string }> {
     if (!this.config.autoPingEnabled) {
       return { success: false, message: 'Auto ping is disabled' };
     }
 
-    if (!this.config.supabaseUrl || !this.config.supabaseAnonKey) {
+    const url = this.config.supabaseUrl || DEFAULT_SUPABASE_URL;
+    const anonKey = this.config.supabaseAnonKey || DEFAULT_ANON_KEY;
+
+    if (!url || !anonKey) {
       return { success: false, message: 'Supabase URL hoặc Anon Key chưa được cấu hình' };
     }
 
     try {
       const payload = this.getDeviceInfo(accounts);
-      const url = `${this.config.supabaseUrl.replace(/\/$/, '')}/rest/v1/device_telemetry`;
+      const targetUrl = `${url.replace(/\/$/, '')}/rest/v1/device_telemetry`;
 
-      const res = await fetch(url, {
+      const res = await fetch(targetUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': this.config.supabaseAnonKey,
-          'Authorization': `Bearer ${this.config.supabaseAnonKey}`,
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`,
           'Prefer': 'resolution=merge-duplicates,return=minimal',
         },
         body: JSON.stringify(payload),
@@ -203,7 +217,7 @@ export class TelemetryService {
         return { success: true, message: 'Gửi telemetry ping thành công' };
       } else {
         const text = await res.text();
-        Logger.warn(`[TelemetryService] Ping failed with status ${res.status}: ${text}`);
+        Logger.warn(`[TelemetryService] Ping status ${res.status}: ${text}`);
         return { success: false, message: `Lỗi Supabase ${res.status}: ${text}` };
       }
     } catch (err: any) {
@@ -213,16 +227,20 @@ export class TelemetryService {
   }
 
   /**
-   * Lấy danh sách toàn bộ các máy đang hoạt động từ Supabase REST API (dành cho Admin)
+   * Lấy danh sách toàn bộ các máy đang hoạt động từ Supabase REST API (dành riêng cho Admin)
+   * Sử dụng serviceKey (hoặc fallback) để đọc qua chính sách RLS
    */
   public async fetchAllDeviceTelemetry(): Promise<DeviceTelemetryInfo[]> {
-    if (!this.config.supabaseUrl || !this.config.supabaseAnonKey) return [];
+    const url = this.config.supabaseUrl || DEFAULT_SUPABASE_URL;
+    const key = this.config.supabaseServiceKey || this.config.supabaseAnonKey || DEFAULT_SERVICE_KEY;
+    if (!url || !key) return [];
+
     try {
-      const url = `${this.config.supabaseUrl.replace(/\/$/, '')}/rest/v1/device_telemetry?select=*&order=last_seen_at.desc`;
-      const res = await fetch(url, {
+      const targetUrl = `${url.replace(/\/$/, '')}/rest/v1/device_telemetry?select=*&order=last_seen_at.desc`;
+      const res = await fetch(targetUrl, {
         headers: {
-          'apikey': this.config.supabaseAnonKey,
-          'Authorization': `Bearer ${this.config.supabaseAnonKey}`,
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
         },
       });
 
