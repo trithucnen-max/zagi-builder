@@ -13,6 +13,7 @@ import { handlers as restHandlers } from './handlers/RestApiHandlers';
 import { handleMediaRequest as handleMediaFileServe } from './handlers/MediaHandler';
 import { libraryHandlers } from './handlers/LibraryHandler';
 import FileStorageService from '../file/FileStorageService';
+import LicenseManager from '../license/LicenseManager';
 
 interface RegisteredEmployee {
     employee_id: string;
@@ -517,6 +518,11 @@ class HttpRelayService {
             return this.handleMediaUploadChunk(req, res);
         }
 
+        // ── SePay Webhook Auto Activation ─────────────────────────────
+        if (req.method === 'POST' && (url === '/api/sepay/webhook' || url === '/api/webhook/sepay')) {
+            return this.handleSepayWebhook(req, res);
+        }
+
         // ── Healthcheck ───────────────────────────────────────────────
         if (req.method === 'GET' && url === '/api/health') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -565,6 +571,24 @@ class HttpRelayService {
 
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Not found' }));
+    }
+
+    // ── SePay Webhook Auto Activation ─────────────────────────────────
+
+    private handleSepayWebhook(req: http.IncomingMessage, res: http.ServerResponse): void {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+            try {
+                const payload = JSON.parse(body || '{}');
+                const result = await LicenseManager.processSepayWebhook(payload);
+                res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } catch (err: any) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+        });
     }
 
     // ── Static Web UI Asset Serving ───────────────────────────────────

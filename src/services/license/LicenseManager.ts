@@ -158,12 +158,12 @@ export class LicenseManager {
           duration: isLifetime ? 'Vĩnh viễn' : plan.includes('12m') ? '12 tháng' : '6 tháng',
           paymentInfo: {
             amount: amount,
-            bankName: 'Techcombank',
-            accountNumber: '63666999',
+            bankName: 'MB Bank',
+            accountNumber: '422777999',
             accountName: 'CONG TY CO PHAN BASAN',
             transferContent: transferContent,
             companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam',
-            qrUrl: `https://img.vietqr.io/image/Techcombank-63666999-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('CONG TY CO PHAN BASAN')}`
+            qrUrl: `https://img.vietqr.io/image/MB-422777999-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('CONG TY CO PHAN BASAN')}`
           }
         };
       }
@@ -193,12 +193,12 @@ export class LicenseManager {
         duration: plan.includes('lifetime') ? 'Vĩnh viễn' : plan.includes('12m') ? '12 tháng' : '6 tháng',
         paymentInfo: {
           amount: amount,
-          bankName: 'Techcombank',
-          accountNumber: '63666999',
+          bankName: 'MB Bank',
+          accountNumber: '422777999',
           accountName: 'CONG TY CO PHAN BASAN',
           transferContent: transferContent,
           companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam',
-          qrUrl: `https://img.vietqr.io/image/Techcombank-63666999-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('CONG TY CO PHAN BASAN')}`
+          qrUrl: `https://img.vietqr.io/image/MB-422777999-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('CONG TY CO PHAN BASAN')}`
         }
       };
     }
@@ -236,6 +236,82 @@ export class LicenseManager {
     }
   }
 
+  /**
+   * Xử lý Webhook biến động số dư SePay (MB Bank - 422777999)
+   * Tự động kích hoạt status = 'active' trên Supabase khi khách chuyển tiền
+   */
+  async processSepayWebhook(payload: any): Promise<{ success: boolean; message: string; licenseKey?: string }> {
+    try {
+      Logger.log(`[LicenseManager] SePay Webhook payload received: ${JSON.stringify(payload)}`);
+      const content = String(payload?.content || payload?.description || '');
+      const amount = Number(payload?.transferAmount || payload?.amount || 0);
+
+      // Trích xuất mã key từ nội dung chuyển khoản "ZAGI XXXX"
+      const match = content.match(/ZAGI\s*([A-Z0-9-]+)/i);
+      if (!match) {
+        return { success: false, message: 'Nội dung chuyển khoản không chứa cú pháp ZAGI <KEY>' };
+      }
+
+      const keyPart = match[1].trim().toUpperCase();
+      const url = this.getSupabaseUrl();
+      const apiKey = this.getSupabaseKey();
+
+      // Query Supabase tìm License Key khớp
+      const res = await fetch(`${url.replace(/\/$/, '')}/rest/v1/licenses?license_key=ilike.*${keyPart}*&select=*`, {
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` },
+      });
+
+      if (!res.ok) {
+        return { success: false, message: `Supabase query error ${res.status}` };
+      }
+
+      const rows = await res.json();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return { success: false, message: `Không tìm thấy License Key chứa mã '${keyPart}'` };
+      }
+
+      const licenseRow = rows[0];
+      const fullKey = licenseRow.license_key;
+      const plan = licenseRow.plan || 'solo_12m';
+      const isLifetime = plan.includes('lifetime');
+
+      let expiryDate = licenseRow.expiry_date;
+      if (!isLifetime) {
+        const exp = new Date();
+        if (plan.includes('12m')) exp.setMonth(exp.getMonth() + 12);
+        else if (plan.includes('6m')) exp.setMonth(exp.getMonth() + 6);
+        else exp.setMonth(exp.getMonth() + 12);
+        expiryDate = exp.toISOString();
+      }
+
+      // Update status = 'active' trên Supabase
+      const patchRes = await fetch(`${url.replace(/\/$/, '')}/rest/v1/licenses?license_key=eq.${fullKey}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          status: 'active',
+          expiry_date: expiryDate,
+          is_lifetime: isLifetime,
+          last_verified_at: new Date().toISOString(),
+        }),
+      });
+
+      if (patchRes.ok) {
+        Logger.log(`[LicenseManager] 🎉 SePay Auto Activation SUCCESS for key=${fullKey}, plan=${plan}`);
+        return { success: true, message: `Tự động kích hoạt thành công Key ${fullKey}`, licenseKey: fullKey };
+      }
+
+      return { success: false, message: 'Cập nhật Supabase thất bại' };
+    } catch (err: any) {
+      Logger.error(`[LicenseManager] processSepayWebhook error: ${err.message}`);
+      return { success: false, message: err.message };
+    }
+  }
+
   // === LẤY DANH SÁCH GÓI VÀ CONFIG NGÂN HÀNG ===
   async getPlans(): Promise<any> {
     return { 
@@ -249,8 +325,8 @@ export class LicenseManager {
         'team_lifetime': { name: 'Gói Team Vĩnh viễn',  amount: 14900000, desc: '1 Máy BOSS + Tối đa 20 Máy Nhân viên', type: 'team' }
       },
       bankConfig: {
-        bankName: 'Techcombank',
-        accountNumber: '63666999',
+        bankName: 'MB Bank',
+        accountNumber: '422777999',
         accountName: 'CONG TY CO PHAN BASAN',
         companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam'
       }
