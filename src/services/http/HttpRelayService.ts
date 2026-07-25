@@ -518,7 +518,7 @@ class HttpRelayService {
         }
 
         // ── Healthcheck ───────────────────────────────────────────────
-        if (req.method === 'GET' && (url === '/api/health' || url === '/')) {
+        if (req.method === 'GET' && url === '/api/health') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 status: 'ok',
@@ -556,6 +556,85 @@ class HttpRelayService {
         }
         if (url.startsWith('/api/library/')) {
             return this.handleRestApi(req, res);
+        }
+
+        // ── Static Web UI Asset Serving for non-API GET/HEAD requests ──
+        if ((req.method === 'GET' || req.method === 'HEAD') && !url.startsWith('/api/')) {
+            return this.serveStaticWebAsset(req, res);
+        }
+
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not found' }));
+    }
+
+    // ── Static Web UI Asset Serving ───────────────────────────────────
+
+    private resolveDistDir(): string | null {
+        const candidatePaths = [
+            path.join(__dirname, '../../dist'),
+            path.join(process.cwd(), 'dist'),
+            path.resolve('dist'),
+        ];
+        if (typeof process !== 'undefined' && (process as any).resourcesPath) {
+            candidatePaths.unshift(path.join((process as any).resourcesPath, 'app.asar', 'dist'));
+            candidatePaths.unshift(path.join((process as any).resourcesPath, 'app', 'dist'));
+        }
+        for (const p of candidatePaths) {
+            try {
+                if (fs.existsSync(p) && fs.statSync(p).isDirectory()) {
+                    return p;
+                }
+            } catch {}
+        }
+        return null;
+    }
+
+    private serveStaticWebAsset(req: http.IncomingMessage, res: http.ServerResponse): void {
+        const distDir = this.resolveDistDir();
+        const rawUrl = (req.url || '/').split('?')[0];
+
+        const MIME_TYPES: Record<string, string> = {
+            '.html': 'text/html; charset=utf-8',
+            '.js': 'application/javascript; charset=utf-8',
+            '.css': 'text/css; charset=utf-8',
+            '.json': 'application/json; charset=utf-8',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.woff': 'font/woff',
+            '.woff2': 'font/woff2',
+            '.ttf': 'font/ttf',
+            '.wasm': 'application/wasm',
+        };
+
+        if (distDir) {
+            let reqPath = rawUrl === '/' ? '/index.html' : rawUrl;
+            const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
+            let filePath = path.join(distDir, safePath);
+
+            try {
+                if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+                    filePath = path.join(distDir, 'index.html');
+                }
+
+                if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+                    const ext = path.extname(filePath).toLowerCase();
+                    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+                    const content = fs.readFileSync(filePath);
+                    res.writeHead(200, {
+                        'Content-Type': contentType,
+                        'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400',
+                    });
+                    res.end(content);
+                    return;
+                }
+            } catch (err: any) {
+                Logger.error(`[HttpRelayService] Error serving static asset ${filePath}: ${err.message}`);
+            }
         }
 
         res.writeHead(404, { 'Content-Type': 'application/json' });
