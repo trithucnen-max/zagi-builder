@@ -15,15 +15,38 @@
     .card {
       background: rgba(30, 41, 59, 0.7);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px; padding: 32px;
-      width: 100%; max-width: 460px;
+      border-radius: 16px; padding: 28px;
+      width: 100%; max-width: 470px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
     }
-    .logo { text-align: center; font-size: 42px; margin-bottom: 12px; }
-    h1 { text-align: center; color: #f8fafc; margin-bottom: 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.025em; }
-    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 24px; font-size: 13px; }
+    .logo { text-align: center; font-size: 40px; margin-bottom: 8px; }
+    h1 { text-align: center; color: #f8fafc; margin-bottom: 4px; font-size: 20px; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 20px; font-size: 13px; }
+    
+    /* Role Selector Cards */
+    .role-grid { display: grid; gap: 14px; margin-top: 10px; }
+    .role-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px; padding: 16px;
+      cursor: pointer; transition: all 0.25s ease;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .role-card:hover {
+      border-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.08);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    }
+    .role-icon {
+      width: 46px; height: 46px; border-radius: 12px;
+      display: grid; place-items: center; font-size: 22px; flex-shrink: 0;
+    }
+    .role-title { font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 2px; }
+    .role-desc { font-size: 11.5px; color: #94a3b8; line-height: 1.45; }
+
     label { display: block; color: #cbd5e1; margin-bottom: 6px; font-size: 12px; font-weight: 600; margin-top: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
     input {
       width: 100%; padding: 11px 14px;
@@ -33,9 +56,7 @@
       color: #f8fafc;
       transition: all 0.2s ease;
     }
-    input::placeholder {
-      color: #64748b;
-    }
+    input::placeholder { color: #64748b; }
     input:focus {
       outline: none;
       border-color: #3b82f6;
@@ -55,9 +76,7 @@
       transform: translateY(-1px);
       box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
     }
-    .btn:active:not(:disabled) {
-      transform: translateY(0);
-    }
+    .btn:active:not(:disabled) { transform: translateY(0); }
     .btn:disabled {
       background: rgba(255, 255, 255, 0.1);
       color: #64748b;
@@ -111,12 +130,8 @@
       text-transform: uppercase;
       letter-spacing: 0.025em;
     }
-    .tab:hover {
-      color: #f8fafc;
-    }
-    .tab.active {
-      color: #3b82f6; border-bottom-color: #3b82f6;
-    }
+    .tab:hover { color: #f8fafc; }
+    .tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
     .panel { display: none; }
     .panel.active { display: block; }
     
@@ -161,9 +176,7 @@
       transition: all 0.2s ease;
       text-align: center;
     }
-    .price-tab:hover {
-      color: #f8fafc;
-    }
+    .price-tab:hover { color: #f8fafc; }
     .price-tab.active {
       background: #3b82f6;
       color: #ffffff;
@@ -218,69 +231,177 @@
 </head>
 <body>
   <div class="card">
-    <div class="logo">🔐</div>
-    <h1>Quản lý Bản quyền</h1>
-    <p class="subtitle">Kích hoạt hoặc đăng ký license mới</p>
+    <div class="logo">⚡</div>
+    <h1>Chào mừng đến với Zagi</h1>
+    <p class="subtitle" id="mainSubtitle">Vui lòng chọn vai trò sử dụng thiết bị này</p>
     
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab active" data-tab="activate">Kích hoạt</button>
-      <button class="tab" data-tab="register">Nhận key</button>
-    </div>
-    
-    <!-- TAB 1: ACTIVATE -->
-    <div class="panel active" id="panel-activate">
-      <label>Email đăng ký</label>
-      <input type="email" id="actEmail" placeholder="example@gmail.com">
-      
-      <label>License Key (tùy chọn)</label>
-      <input type="text" id="actKey" placeholder="TRIAL-XXXX-XXXX-XXXX-XXXX">
-      
-      <button class="btn" id="activateBtn">Kích hoạt</button>
-      <div id="actMessage" class="message"></div>
-    </div>
-    
-    <!-- TAB 2: REGISTER -->
-    <div class="panel" id="panel-register">
-      <label>Email <span style="color:#f87171">*</span></label>
-      <input type="email" id="regEmail" placeholder="example@gmail.com">
-      
-      <label>Họ và tên</label>
-      <input type="text" id="regName" placeholder="Nguyễn Văn A">
-      
-      <label>Số điện thoại</label>
-      <input type="tel" id="regPhone" placeholder="0901234567">
-      
-      <label>Mã giới thiệu (nếu có)</label>
-      <input type="text" id="regReferrer" placeholder="Nhập mã giới thiệu hoặc email">
-      
-      <label>Chọn gói cước <span style="color:#f87171">*</span></label>
-      <div style="margin-top: 8px; margin-bottom: 12px;">
-        <div class="plan-card" data-plan="trial" style="border-style: dashed;">
-          <div class="plan-name">🎁 Dùng thử 14 ngày</div>
-          <div class="plan-price">Miễn phí</div>
-          <div class="plan-desc">Trải nghiệm đầy đủ tính năng Zagi</div>
-          <span class="plan-badge">FREE</span>
+    <!-- ─── ROLE SELECTOR VIEW (Màn hình chọn vai trò ban đầu) ─── -->
+    <div id="role-selector" style="display:block">
+      <div class="role-grid">
+        <!-- BOSS CARD -->
+        <div class="role-card" id="btnRoleBoss">
+          <div class="role-icon" style="background:linear-gradient(135deg,#0068FF,#0052CC);color:#fff">👑</div>
+          <div class="role-content">
+            <div class="role-title">Máy BOSS (Sếp / Chủ shop)</div>
+            <div class="role-desc">Kích hoạt License Key, lưu CSDL SQLite trên máy &amp; phân quyền cho Nhân viên</div>
+          </div>
+        </div>
+
+        <!-- EMPLOYEE CARD -->
+        <div class="role-card" id="btnRoleEmployee">
+          <div class="role-icon" style="background:linear-gradient(135deg,#00A389,#26C6DA);color:#fff">💻</div>
+          <div class="role-content">
+            <div class="role-title">Máy Nhân Viên</div>
+            <div class="role-desc">Kết nối với Máy Sếp để nhận tài khoản Zalo/FB &amp; làm việc (Không cần License Key)</div>
+          </div>
         </div>
       </div>
-      
-      <label style="margin-top: 14px;">Gói cước trả phí</label>
-      <div class="price-tabs">
-        <button type="button" class="price-tab active" data-type="solo">Gói Solo (1 Zalo)</button>
-        <button type="button" class="price-tab" data-type="team">Gói Team (Không giới hạn)</button>
+    </div>
+
+    <!-- ─── BOSS LICENSE PANEL (Giao diện kích hoạt cho Sếp) ─── -->
+    <div id="boss-panel" style="display:none">
+      <div style="margin-bottom:12px">
+        <button class="btn-back" id="btnBackToRolesFromBoss" style="background:none;border:none;color:#3b82f6;font-size:12.5px;font-weight:600;cursor:pointer">
+          ← Quay lại Chọn vai trò (Sếp / Nhân viên)
+        </button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="activate">Kích hoạt</button>
+        <button class="tab" data-tab="register">Nhận key</button>
       </div>
       
-      <div class="plan-grid">
-        <!-- Rendered dynamically -->
+      <!-- TAB 1: ACTIVATE -->
+      <div class="panel active" id="panel-activate">
+        <label>Email đăng ký</label>
+        <input type="email" id="actEmail" placeholder="example@gmail.com">
+        
+        <label>License Key (tùy chọn)</label>
+        <input type="text" id="actKey" placeholder="TRIAL-XXXX-XXXX-XXXX-XXXX">
+        
+        <button class="btn" id="activateBtn">Kích hoạt</button>
+        <div id="actMessage" class="message"></div>
       </div>
       
-      <button class="btn" id="registerBtn">Nhận key bản quyền</button>
-      <div id="regMessage" class="message"></div>
-      <div id="paymentInfo" style="display:none"></div>
+      <!-- TAB 2: REGISTER -->
+      <div class="panel" id="panel-register">
+        <label>Email <span style="color:#f87171">*</span></label>
+        <input type="email" id="regEmail" placeholder="example@gmail.com">
+        
+        <label>Họ và tên</label>
+        <input type="text" id="regName" placeholder="Nguyễn Văn A">
+        
+        <label>Số điện thoại</label>
+        <input type="tel" id="regPhone" placeholder="0901234567">
+        
+        <label>Mã giới thiệu (nếu có)</label>
+        <input type="text" id="regReferrer" placeholder="Nhập mã giới thiệu hoặc email">
+        
+        <label>Chọn gói cước <span style="color:#f87171">*</span></label>
+        <div style="margin-top: 8px; margin-bottom: 12px;">
+          <div class="plan-card" data-plan="trial" style="border-style: dashed;">
+            <div class="plan-name">🎁 Dùng thử 14 ngày</div>
+            <div class="plan-price">Miễn phí</div>
+            <div class="plan-desc">Trải nghiệm đầy đủ tính năng Zagi</div>
+            <span class="plan-badge">FREE</span>
+          </div>
+        </div>
+        
+        <label style="margin-top: 14px;">Gói cước trả phí</label>
+        <div class="price-tabs">
+          <button type="button" class="price-tab active" data-type="solo">Gói Solo (1 Zalo)</button>
+          <button type="button" class="price-tab" data-type="team">Gói Team (Không giới hạn)</button>
+        </div>
+        
+        <div class="plan-grid">
+          <!-- Rendered dynamically -->
+        </div>
+        
+        <button class="btn" id="registerBtn">Nhận key bản quyền</button>
+        <div id="regMessage" class="message"></div>
+        <div id="paymentInfo" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- ─── EMPLOYEE LOGIN PANEL (Giao diện Máy Nhân viên) ─── -->
+    <div id="employee-panel" style="display:none">
+      <div style="margin-bottom:14px">
+        <button class="btn-back" id="btnBackToRolesFromEmp" style="background:none;border:none;color:#3b82f6;font-size:12.5px;font-weight:600;cursor:pointer">
+          ← Quay lại Chọn vai trò (Tôi là Máy Sếp)
+        </button>
+      </div>
+
+      <div style="background:rgba(0,163,137,0.12);border:1px solid rgba(0,163,137,0.3);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:13.5px;font-weight:700;color:#26C6DA;margin-bottom:4px">💻 Chế độ Máy Nhân Viên</div>
+        <p style="font-size:12px;color:#cbd5e1;line-height:1.5">
+          Máy Nhân viên kết nối trực tiếp với Máy Sếp để nhận phân quyền &amp; tài khoản làm việc. <strong>Không cần nhập Mã License Key.</strong>
+        </p>
+      </div>
+
+      <button class="btn" id="startEmployeeBtn" style="background:linear-gradient(135deg,#00A389 0%,#0068FF 100%);box-shadow:0 4px 12px rgba(0,163,137,0.3)">
+        🚀 Mở màn hình Đăng nhập Nhân viên
+      </button>
+      <div id="empMessage" class="message"></div>
     </div>
   </div>
 
   <script>
+    // === ROLE SELECTION LOGIC ===
+    const roleSelector = document.getElementById('role-selector');
+    const bossPanel = document.getElementById('boss-panel');
+    const employeePanel = document.getElementById('employee-panel');
+    const mainSubtitle = document.getElementById('mainSubtitle');
+
+    function showRoleSelector() {
+      roleSelector.style.display = 'block';
+      bossPanel.style.display = 'none';
+      employeePanel.style.display = 'none';
+      mainSubtitle.textContent = 'Vui lòng chọn vai trò sử dụng thiết bị này';
+    }
+
+    function showBossPanel() {
+      roleSelector.style.display = 'none';
+      bossPanel.style.display = 'block';
+      employeePanel.style.display = 'none';
+      mainSubtitle.textContent = 'Kích hoạt hoặc đăng ký license máy Sếp';
+    }
+
+    function showEmployeePanel() {
+      roleSelector.style.display = 'none';
+      bossPanel.style.display = 'none';
+      employeePanel.style.display = 'block';
+      mainSubtitle.textContent = 'Kết nối với máy Sếp của bạn';
+    }
+
+    document.getElementById('btnRoleBoss').addEventListener('click', showBossPanel);
+    document.getElementById('btnRoleEmployee').addEventListener('click', showEmployeePanel);
+    document.getElementById('btnBackToRolesFromBoss').addEventListener('click', showRoleSelector);
+    document.getElementById('btnBackToRolesFromEmp').addEventListener('click', showRoleSelector);
+
+    // === START EMPLOYEE MODE ===
+    document.getElementById('startEmployeeBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('startEmployeeBtn');
+      btn.disabled = true;
+      btn.textContent = 'Đang mở giao diện Nhân viên...';
+      showMsg('empMessage', '🟢 Đang khởi động Chế độ Nhân viên...', 'info');
+
+      try {
+        if (window.licenseAPI && window.licenseAPI.startAsEmployee) {
+          const res = await window.licenseAPI.startAsEmployee();
+          if (!res || !res.success) {
+            showMsg('empMessage', res?.error || 'Khởi động thất bại', 'error');
+            btn.disabled = false;
+            btn.textContent = '🚀 Mở màn hình Đăng nhập Nhân viên';
+          }
+        }
+      } catch (err) {
+        showMsg('empMessage', 'Lỗi: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '🚀 Mở màn hình Đăng nhập Nhân viên';
+      }
+    });
+
     // === TABS ===
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -351,7 +472,6 @@
         tab.classList.add('active');
         renderPlans(tab.dataset.type);
         
-        // Cập nhật selectedPlan nếu có thay đổi tab
         const selected = document.querySelector('.plan-card.selected');
         if (selected && selected.dataset.plan !== 'trial') {
           selectedPlan = selected.dataset.plan;
@@ -418,14 +538,12 @@
       const btn = document.getElementById('registerBtn');
 
       if (isRegistered) {
-        // Chuyển sang tab activate, điền sẵn email + key
         document.querySelector('[data-tab="activate"]').click();
         document.getElementById('actEmail').value = email;
         const keyEl = document.querySelector('.license-key-box .key');
         if (keyEl) {
           document.getElementById('actKey').value = keyEl.textContent.trim();
         }
-        // Khôi phục nút về trạng thái đăng ký ban đầu
         isRegistered = false;
         btn.textContent = 'Nhận key bản quyền';
         document.getElementById('paymentInfo').style.display = 'none';
@@ -460,7 +578,6 @@
         
         if (result.success) {
           if (result.pending) {
-            // === Gói trả phí: hiện thông tin thanh toán + key ===
             showMsg('regMessage', '✓ Đã tạo license key thành công! Vui lòng thanh toán để kích hoạt.', 'success');
             
             const pInfo = result.paymentInfo;
@@ -495,7 +612,6 @@
             btn.textContent = 'Đóng và đợi xác nhận';
             isRegistered = true;
           } else {
-            // === Trial: tự động kích hoạt luôn ===
             showMsg('regMessage', `✓ Đăng ký dùng thử thành công! Key: ${result.license.licenseKey}`, 'success');
             setTimeout(async () => {
               await window.licenseAPI.activateAfterRegister(email, result.license.licenseKey);

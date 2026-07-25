@@ -817,6 +817,8 @@ contextBridge.exposeInMainWorld('licenseAPI', {
     ipcRenderer.invoke('license:get'),
   getPlans: () =>
     ipcRenderer.invoke('license:getPlans'),
+  startAsEmployee: () =>
+    ipcRenderer.invoke('license:startAsEmployee'),
   isInGracePeriod: () =>
     ipcRenderer.invoke('license:isInGracePeriod'),
   isExpiringSoon: () =>
