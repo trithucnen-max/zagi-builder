@@ -119,6 +119,7 @@ export default function LibraryPickerModal({
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [sending, setSending] = useState(false);
 
   // Upload tagging modal state
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
@@ -583,21 +584,22 @@ export default function LibraryPickerModal({
   };
 
   const sendItem = async (item: any) => {
-    console.log('[Library] sendItem:', { uuid: item.uuid, type: item.type, hasLocalPath: !!item._localPath, localPath: item._localPath, fileUrl: item.fileUrl, zaloId, threadId });
+    console.log('[Library] sendItem:', { uuid: item.uuid, type: item.type, hasLocalPath: !!item._localPath, localPath: item._localPath || item.file_path, fileUrl: item.fileUrl, zaloId, threadId });
     const auth = await getAuthForZaloId();
-    console.log('[Library] sendItem auth:', auth ? 'found' : 'null');
+    const localPath = item._localPath || item.file_path;
+
     try {
       if (item.type === "video") {
         // Video: cần 3-step upload (uploadVideoThumb → uploadVideoFile → sendVideo)
-        if (item._localPath) {
+        if (localPath) {
           // Boss mode: dùng channelIpc.sendVideo với local file path
-          const metaRes: any = await ipc.file?.getVideoMeta?.({ filePath: item._localPath }).catch(() => ({})) || {};
+          const metaRes: any = await ipc.file?.getVideoMeta?.({ filePath: localPath }).catch(() => ({})) || {};
           await channelIpc.sendVideo('zalo', {
             auth,
             accountId: zaloId,
             threadId,
             threadType,
-            filePath: item._localPath,
+            filePath: localPath,
             thumbPath: metaRes.thumbPath || '',
             duration: metaRes.duration || 0,
             width: metaRes.width || 0,
@@ -618,21 +620,15 @@ export default function LibraryPickerModal({
       } else {
         // Image hoặc File
         const opts: any = { auth: auth || {}, zaloId, threadId, threadType, type: threadType };
-        // Employee: fileUrl là full HTTP URL → dùng _libraryUuid để boss resolve path từ DB
-        // Boss: fileUrl là relative path → dùng _localPath trực tiếp
-        if (item.fileUrl && item.fileUrl.startsWith('http') && item.uuid) {
-          console.log('[Library] sendItem: EMPLOYEE path, fileUrl+uuid');
-          opts.fileUrl = item.fileUrl;
-          opts._libraryUuid = item.uuid;
-        } else if (item._localPath) {
-          console.log('[Library] sendItem: BOSS path, _localPath');
-          opts.filePath = item._localPath;
-        } else if (item.fileUrl && item.uuid) {
-          console.log('[Library] sendItem: FALLBACK path, fileUrl+uuid');
+        if (localPath) {
+          console.log('[Library] sendItem: local file path resolved', localPath);
+          opts.filePath = localPath;
+        } else if (item.uuid) {
+          console.log('[Library] sendItem: remote library uuid resolved', item.uuid);
           opts.fileUrl = item.fileUrl;
           opts._libraryUuid = item.uuid;
         }
-        console.log('[Library] sendItem opts:', { keys: Object.keys(opts), hasFilePath: !!opts.filePath, hasFileUrl: !!opts.fileUrl, hasLibraryUuid: !!opts._libraryUuid, threadId: opts.threadId });
+        console.log('[Library] sendItem opts:', opts);
         if (item.type === "image") {
           const res = await ipc.zalo.sendImage(opts);
           console.log('[Library] sendImage result:', res);
@@ -720,6 +716,7 @@ export default function LibraryPickerModal({
   };
 
   const handleSendSelected = async () => {
+    if (sending) return;
     const selectedItems = items.filter(i => selected.has(i.uuid));
     if (selectedItems.length === 0) { onClose(); return; }
 
@@ -729,59 +726,17 @@ export default function LibraryPickerModal({
       return;
     }
 
-    const imageItems = selectedItems.filter(i => i.type === 'image');
-    const nonImageItems = selectedItems.filter(i => i.type !== 'image');
-
+    setSending(true);
     try {
-      // ── Batch images (gửi gộp bằng sendImages) ──
-      if (imageItems.length > 0) {
-        const auth = await getAuthForZaloId();
-        const hasLocalPath = imageItems.every(i => i._localPath);
-
-        if (imageItems.length === 1) {
-          // 1 ảnh → sendImage dùng mediaToken
-          const item = imageItems[0];
-          const opts: any = {
-            auth: auth || {},
-            zaloId,
-            threadId,
-            threadType,
-            type: threadType,
-            mediaToken: item.uuid || item._localPath || item.fileUrl,
-            filePath: item._localPath,
-            fileUrl: item.fileUrl,
-            _libraryUuid: item.uuid,
-          };
-          if (item.type === 'image') {
-            await ipc.zalo.sendImage(opts);
-          } else {
-            await ipc.zalo.sendFile(opts);
-          }
-        } else {
-          // 2+ ảnh → gửi gộp bằng sendImages dùng mediaTokens
-          const opts: any = {
-            auth: auth || {},
-            zaloId,
-            threadId,
-            threadType,
-            type: threadType,
-            mediaTokens: imageItems.map(i => i.uuid || i._localPath || i.fileUrl).filter(Boolean),
-            _libraryUuids: imageItems.map(i => i.uuid).filter(Boolean),
-            filePaths: imageItems.map(i => i._localPath || i.fileUrl).filter(Boolean),
-          };
-          await ipc.zalo.sendImages(opts);
-        }
-      }
-
-      // ── Videos & Files (gửi lẻ, giữ nguyên logic cũ) ──
-      for (const item of nonImageItems) {
+      for (const item of selectedItems) {
         await sendItem(item);
       }
     } catch (err) {
       console.error('[Library] handleSendSelected error:', err);
+    } finally {
+      setSending(false);
+      onClose();
     }
-
-    onClose();
   };
 
   // ── Upload / Direct ─────────────────────────────────────────
@@ -1726,13 +1681,13 @@ export default function LibraryPickerModal({
 
           <div className="flex-1" />
           <span className="text-xs text-gray-400">{selectedItems.length} file</span>
-          <button onClick={handleSendSelected} disabled={selectedItems.length === 0}
+          <button onClick={handleSendSelected} disabled={sending || selectedItems.length === 0}
             className={`px-5 py-1.5 text-sm rounded-lg transition-colors ${
-              selectedItems.length > 0
+              selectedItems.length > 0 && !sending
                 ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
             }`}>
-            {onSelect ? 'Chọn' : 'Gửi'} {selectedItems.length ? `${selectedItems.length} file` : ''}
+            {sending ? 'Đang gửi...' : (onSelect ? 'Chọn' : 'Gửi')} {selectedItems.length ? `${selectedItems.length} file` : ''}
           </button>
         </div>
 
@@ -1741,10 +1696,10 @@ export default function LibraryPickerModal({
           <div className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-gray-900/95 backdrop-blur border border-gray-700/80 px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3.5 z-[90] animate-in fade-in slide-in-from-bottom-3 duration-250">
             <span className="text-xs text-gray-300 font-medium select-none">Đang chọn <span className="text-blue-400 font-semibold">{selected.size}</span> file</span>
             <div className="w-[1px] h-4 bg-gray-800" />
-            <button onClick={handleSendSelected}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-full transition-colors flex items-center gap-1">
+            <button onClick={handleSendSelected} disabled={sending}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-full transition-colors flex items-center gap-1 disabled:opacity-50">
               <SendIcon className="w-3 h-3" />
-              {onSelect ? 'Chọn' : 'Gửi'}
+              {sending ? 'Đang gửi...' : (onSelect ? 'Chọn' : 'Gửi')}
             </button>
             <button onClick={handleBatchDeleteSelected}
               className="px-3 py-1 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-xs font-semibold rounded-full transition-colors flex items-center gap-1">
