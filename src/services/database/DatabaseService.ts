@@ -9532,7 +9532,7 @@ class DatabaseService {
                            CASE WHEN f.user_id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
                            c.contact_type
                     FROM contacts c
-                    LEFT JOIN friends f ON f.owner_zalo_id = c.owner_zalo_id AND f.user_id = c.contact_id
+                    LEFT JOIN friends f ON f.owner_zalo_id = c.owner_zalo_id AND (f.user_id = c.contact_id OR (f.phone != '' AND c.phone != '' AND f.phone = c.phone))
                     WHERE (c.phone = ? AND c.phone != '') OR c.contact_id = ?
                 `, [keyPhone, keyUid]);
 
@@ -9672,7 +9672,20 @@ class DatabaseService {
                 WHERE is_friend = 1
                   AND NOT EXISTS (
                     SELECT 1 FROM friends f
-                    WHERE f.owner_zalo_id = contacts.owner_zalo_id AND f.user_id = contacts.contact_id
+                    WHERE f.owner_zalo_id = contacts.owner_zalo_id
+                      AND (f.user_id = contacts.contact_id OR (f.phone != '' AND contacts.phone != '' AND f.phone = contacts.phone))
+                  )
+            `);
+
+            // Sync is_friend = 1 for contacts that exist in friends table
+            this.run(`
+                UPDATE contacts
+                SET is_friend = 1
+                WHERE is_friend = 0
+                  AND EXISTS (
+                    SELECT 1 FROM friends f
+                    WHERE f.owner_zalo_id = contacts.owner_zalo_id
+                      AND (f.user_id = contacts.contact_id OR (f.phone != '' AND contacts.phone != '' AND f.phone = contacts.phone))
                   )
             `);
 
