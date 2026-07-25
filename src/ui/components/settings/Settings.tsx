@@ -7,6 +7,7 @@ import { playNotificationSound, requestNotificationPermission, showDesktopNotifi
 import { showConfirm } from '../common/ConfirmDialog';
 import { extractApiError } from '@/utils/apiError';
 import IntroductionSettings from './IntroductionSettings';
+import { DeviceTelemetryPanel } from './DeviceTelemetryPanel';
 
 import ConversationSettings from './ConversationSettings';
 import EmployeeSettings from './EmployeeSettings';
@@ -18,7 +19,7 @@ import { loadSeenTabs, markTabSeen, SETTINGS_WATCHLIST, hasUnseenChangelog, mark
 import AccountSettings from './AccountSettings';
 import AppIcon, { IconType } from '../common/AppIcon';
 
-type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'appearance' | 'proxy' | 'security' | 'webhook';
+type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'appearance' | 'proxy' | 'security' | 'webhook' | 'telemetry';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('conversation');
@@ -171,6 +172,7 @@ export default function Settings() {
     { id: 'employees',     icon: 'employees',     label: 'Nhân viên', requiredPerm: 'settings_employees' },
     { id: 'workspace',     icon: 'workspace',     label: 'Workspace' },
     { id: 'webhook',       icon: 'integration',   label: 'Webhooks' },
+    { id: 'telemetry',     icon: 'workspace',     label: 'Thống kê máy' },
     { id: 'storage',       icon: 'storage',       label: 'Lưu trữ' },
     { id: 'introduction',  icon: 'introduction',  label: 'Giới thiệu' },
   ];
@@ -534,7 +536,8 @@ export default function Settings() {
         {/* ── Introduction ── */}
         {activeTab === 'introduction' && <IntroductionSettings initialSubtab={introSubtab as any} />}
 
-
+        {/* ── Telemetry ── */}
+        {activeTab === 'telemetry' && <DeviceTelemetryPanel />}
 
         {/* ── Webhooks / Tunnel ── */}
         {activeTab === 'webhook' && <TunnelSettings />}

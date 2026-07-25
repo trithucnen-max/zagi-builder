@@ -4,6 +4,18 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.6] - 2026-07-25
 
+### 💻 Hệ Thống Thống Kê Máy Cài Đặt, Hệ Điều Hành & Thiết Bị (Supabase Telemetry - Phương Án A)
+
+- **Tự Động Thu Thập Thông Tin Ẩn Danh & Định Danh Máy Duy Nhất:**
+  - Tự động sinh mã `Machine ID` cố định duy nhất cho từng máy tính.
+  - Thu thập thông tin Hệ điều hành (`macOS Apple Silicon/Intel`, `Windows 11 x64`, `Linux`), phiên bản app Zagi, Tên máy tính và Danh sách Tài khoản Zalo đang chạy trên máy.
+- **Tự Động Gửi Telemetry Ping Về Supabase:** Định kỳ 6 giờ/lần (và khi mở ứng dụng), Zagi gửi dữ liệu Upsert về CSDL Supabase qua REST API.
+- **Bảng Báo Cáo & Quản Trị Trực Quan Trong Cài Đặt (`DeviceTelemetryPanel.tsx`):**
+  - Tích hợp Tab **"💻 Thống kê máy"** trong menu Cài đặt.
+  - Cung cấp ô nhập `Supabase Project URL` và `Supabase Anon Key` dễ dàng thiết lập.
+  - Tích hợp nút **Copy SQL 1-Click** tạo bảng `device_telemetry` trên Supabase Editor.
+  - Báo cáo trực quan: Tổng số máy active, số máy Mac/Windows/Linux và chi tiết danh sách tài khoản Zalo đang chạy trên từng máy.
+
 ### 🔔 Cơ Chế Kiểm Tra Phiên Bản Mới v3.x.x (Option A Version Update Checker)
 
 - **Cảnh Báo Thông Minh Không Tải Ngầm:**

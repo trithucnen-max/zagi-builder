@@ -27,6 +27,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fetchUrl: (args: { url: string }) => ipcRenderer.invoke('util:fetchUrl', args),
   },
 
+  // ─── Telemetry ─────────────────────────────────────────────────
+  telemetry: {
+    getConfig: () => ipcRenderer.invoke('telemetry:getConfig'),
+    saveConfig: (config: any) => ipcRenderer.invoke('telemetry:saveConfig', config),
+    getDeviceInfo: () => ipcRenderer.invoke('telemetry:getDeviceInfo'),
+    sendPing: () => ipcRenderer.invoke('telemetry:sendPing'),
+    fetchAllDevices: () => ipcRenderer.invoke('telemetry:fetchAllDevices'),
+  },
+
   // ─── Login / Account ─────────────────────────────────────────────
   login: {
     loginQR: (tempId: string, proxyId?: number | null) => ipcRenderer.invoke('login:qr', { tempId, proxyId }),

@@ -28,6 +28,8 @@ import { registerErpHrmIpc } from './ipc/erpHrmIpc';
 import { registerLockScreenIpc } from './ipc/lockScreenIpc';
 import { registerLibraryIpc } from './ipc/libraryIpc';
 import { registerLicenseIpc, loadLicenseConfig, createLicenseWindow } from './ipc/licenseIpc';
+import { registerTelemetryIpc } from './ipc/telemetryIpc';
+import TelemetryService from '../src/services/telemetry/TelemetryService';
 import licenseManager from '../src/services/license/LicenseManager';
 import WorkspaceManager from '../src/utils/WorkspaceManager';
 import HttpConnectionManager from '../src/services/http/HttpConnectionManager';
@@ -1041,6 +1043,8 @@ async function startupAfterLicenseCheck(): Promise<void> {
   registerLockScreenIpc();
   registerLibraryIpc();
   registerLicenseIpc(); // Tab Bản quyền trong Settings cũng cần (re-register safe — ipcMain dùng Map)
+  registerTelemetryIpc();
+  TelemetryService.init(app.getPath('userData'));
 
   // Lắng nghe sự kiện ngủ / thức dậy của hệ thống — reconnect ngay lập tức
   const restartZaloListeners = async () => {
