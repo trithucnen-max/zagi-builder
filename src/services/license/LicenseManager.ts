@@ -315,9 +315,9 @@ export class LicenseManager {
   // === LẤY DANH SÁCH GÓI VÀ CONFIG NGÂN HÀNG (ĐỌC TỪ SUPABASE `plans`) ===
   async getPlans(): Promise<any> {
     const defaultPlans: Record<string, any> = {
-      'solo_6m':       { name: 'Gói Solo 6 tháng',    amount: 2450000,  desc: 'Sử dụng đầy đủ trong 6 tháng (1 Máy BOSS)', type: 'solo' },
-      'solo_12m':      { name: 'Gói Solo 12 tháng',   amount: 4450000,  desc: 'Lựa chọn tối ưu cho 1 năm (1 Máy BOSS)',    type: 'solo', popular: true },
-      'solo_lifetime': { name: 'Gói Solo Vĩnh viễn',  amount: 7450000,  desc: 'Thanh toán một lần, dùng trọn đời', type: 'solo' },
+      'solo_6m':       { name: 'Gói Solo 6 tháng',    amount: 1000000,  desc: 'Sử dụng đầy đủ trong 6 tháng (1 Máy BOSS)', type: 'solo' },
+      'solo_12m':      { name: 'Gói Solo 12 tháng',   amount: 1690000,  desc: 'Lựa chọn tối ưu cho 1 năm (1 Máy BOSS)',    type: 'solo', popular: true },
+      'solo_lifetime': { name: 'Gói Solo Vĩnh viễn',  amount: 4900000,  desc: 'Thanh toán một lần, dùng trọn đời', type: 'solo' },
       'team_6m':       { name: 'Gói Team 6 tháng',    amount: 4900000,  desc: '1 Máy BOSS + Tối đa 5 Máy Nhân viên', type: 'team' },
       'team_12m':      { name: 'Gói Team 12 tháng',   amount: 8900000,  desc: '1 Máy BOSS + Tối đa 5 Máy Nhân viên', type: 'team', popular: true },
       'team_lifetime': { name: 'Gói Team Vĩnh viễn',  amount: 14900000, desc: '1 Máy BOSS + Tối đa 20 Máy Nhân viên', type: 'team' }
