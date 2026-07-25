@@ -29,15 +29,15 @@ const DEFAULT_CONFIG_FILE = 'telemetry_config.json';
 const MACHINE_ID_FILE = 'machine_id.txt';
 
 const DEFAULT_SUPABASE_URL = 'https://paxejunvgfhjdyulzutb.supabase.co';
-const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBheejunvgfhjdyulzutbIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5ODExNzYsImV4cCI6MjEwMDU1NzE3Nn0.aFv7LFz58dhSTx7gw351qj1-JFb2pih7NJSyhHYC6vM';
-const DEFAULT_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBheejunvgfhjdyulzutbIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk4MTE3NiwiZXhwIjoyMTAwNTU3MTc2fQ.7P3sa9ID7Sw7o-UPHCBtkD3m2vD3_QK-MsWlnL97JrI';
+const DEFAULT_ANON_KEY = 'sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo';
+const DEFAULT_SERVICE_KEY = '';
 
 export class TelemetryService {
   private static instance: TelemetryService | null = null;
   private config: TelemetryConfig = {
     supabaseUrl: DEFAULT_SUPABASE_URL,
     supabaseAnonKey: DEFAULT_ANON_KEY,
-    supabaseServiceKey: DEFAULT_SERVICE_KEY,
+    supabaseServiceKey: '',
     autoPingEnabled: true,
   };
   private machineId: string = '';
