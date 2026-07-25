@@ -66,10 +66,10 @@ function parseTxt(content: string): string {
 
 // ── Type detection helpers ────────────────────────────────────────────────────
 function isCardType(msgType: string, content: string): boolean {
-  if (['chat.recommended', 'chat.recommend', 'share.link', 'chat.link'].includes(msgType)) return true;
+  if (['chat.recommended', 'chat.recommend', 'share.link', 'chat.link', 'link'].includes(msgType)) return true;
   try {
     const parsed = JSON.parse(content);
-    if (parsed?.action && String(parsed.action).includes('recommened')) return true;
+    if (parsed?.action && (String(parsed.action).includes('recommened') || String(parsed.action).includes('link'))) return true;
     if (parsed?.href || parsed?.url || parsed?.link) return true;
   } catch {}
   return false;
@@ -1458,10 +1458,15 @@ function ContactCardBubble({ parsed, isSelf, onOpenProfile }: { parsed: any; isS
 // ── CardBubble ────────────────────────────────────────────────────────────────
 function CardBubble({ msg, isSelf, onOpenProfile }: { msg: any; isSelf: boolean; onOpenProfile?: (userId: string, e: React.MouseEvent) => void }) {
   let parsed: any = {};
-  try { parsed = JSON.parse(msg.content || '{}'); } catch {}
+  if (typeof msg.content === 'string') {
+    try { parsed = JSON.parse(msg.content); } catch { parsed = { href: msg.content }; }
+  } else if (typeof msg.content === 'object' && msg.content !== null) {
+    parsed = msg.content;
+  }
   const action = String(parsed.action || '');
-  if (action === 'recommened.link') return <LinkBubble parsed={parsed} isSelf={isSelf} />;
-  if (action === 'recommened.calltime' || action === 'recommened.misscall') return <CallBubble parsed={parsed} isSelf={isSelf} />;
+  const isLinkMsg = action.includes('link') || parsed.href || parsed.url || parsed.link || (parsed.title && (String(parsed.title).startsWith('http://') || String(parsed.title).startsWith('https://')));
+  if (isLinkMsg) return <LinkBubble parsed={parsed} isSelf={isSelf} />;
+  if (action.includes('calltime') || action.includes('misscall')) return <CallBubble parsed={parsed} isSelf={isSelf} />;
   return <ContactCardBubble parsed={parsed} isSelf={isSelf} onOpenProfile={onOpenProfile} />;
 }
 
