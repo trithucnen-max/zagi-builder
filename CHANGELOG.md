@@ -4,6 +4,20 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.6] - 2026-07-25
 
+### 🔔 Cơ Chế Kiểm Tra Phiên Bản Mới v3.x.x (Option A Version Update Checker)
+
+- **Cảnh Báo Thông Minh Không Tải Ngầm:**
+  - Tích hợp module kiểm tra phiên bản mới từ GitHub Releases API (`https://api.github.com/repos/trithucnen-max/zagi-builder/releases`).
+  - **Phân loại dải phiên bản v3.x.x:** Tự động lọc và chỉ so sánh dải phiên bản mới `v3.x.x`, bỏ qua hoàn toàn dải phiên bản cũ `v27.x.x`.
+  - **Tối ưu trải nghiệm khách hàng:** Khi có bản cập nhật mới, hệ thống chỉ hiển thị **Banner thông báo nhẹ nhàng** ở góc màn hình. **Tuyệt đối không tự động tải ngầm hay tự cài đặt đè**.
+  - **Quyền chủ động 100%:** Khách hàng bấm nút *"Xem & Tải về"* để mở trực tiếp trang GitHub Release trên trình duyệt hoặc bấm *"Bỏ qua"* để ẩn thông báo.
+
+### 👥 Khắc Phục Triệt Để Xác Định Trạng Thái Bạn Bè Zalo Theo Tài Khoản
+
+- **Phân lập SQL Kiểm Tra Bạn Bè Zalo:** Cập nhật truy vấn SQL `getDuplicateContactsAcrossAccounts` để so khớp danh sách bạn bè `friends` chính xác theo từng tài khoản sở hữu `owner_zalo_id` (so khớp cả Zalo UID và Số điện thoại).
+- **Phân biệt rành mạch `🤝 Bạn bè Zalo` vs `👤 SĐT Quét / Khách lạ`:** Liên hệ CHỈ được gắn nhãn bạn bè đối với tài khoản thực sự có kết bạn Zalo.
+- **Dọn dẹp cờ `is_friend` dính chéo:** Tự động quét và reset cờ `is_friend = 0` trong CSDL cho các bản ghi liên hệ bị gán nhầm từ các đợt import cũ.
+
 ### 📱 Tái Thiết Kế Toàn Diện Giao Diện Mobile Web & Trải Nghiệm Di Động
 
 - **Tối Ưu Không Gian Màn Hình Di Động:**
