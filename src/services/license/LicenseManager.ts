@@ -312,18 +312,55 @@ export class LicenseManager {
     }
   }
 
-  // === LẤY DANH SÁCH GÓI VÀ CONFIG NGÂN HÀNG ===
+  // === LẤY DANH SÁCH GÓI VÀ CONFIG NGÂN HÀNG (ĐỌC TỪ SUPABASE `plans`) ===
   async getPlans(): Promise<any> {
+    const defaultPlans: Record<string, any> = {
+      'solo_6m':       { name: 'Gói Solo 6 tháng',    amount: 2450000,  desc: 'Sử dụng đầy đủ trong 6 tháng (1 Máy BOSS)', type: 'solo' },
+      'solo_12m':      { name: 'Gói Solo 12 tháng',   amount: 4450000,  desc: 'Lựa chọn tối ưu cho 1 năm (1 Máy BOSS)',    type: 'solo', popular: true },
+      'solo_lifetime': { name: 'Gói Solo Vĩnh viễn',  amount: 7450000,  desc: 'Thanh toán một lần, dùng trọn đời', type: 'solo' },
+      'team_6m':       { name: 'Gói Team 6 tháng',    amount: 4900000,  desc: '1 Máy BOSS + Tối đa 5 Máy Nhân viên', type: 'team' },
+      'team_12m':      { name: 'Gói Team 12 tháng',   amount: 8900000,  desc: '1 Máy BOSS + Tối đa 5 Máy Nhân viên', type: 'team', popular: true },
+      'team_lifetime': { name: 'Gói Team Vĩnh viễn',  amount: 14900000, desc: '1 Máy BOSS + Tối đa 20 Máy Nhân viên', type: 'team' }
+    };
+
+    try {
+      const url = this.getSupabaseUrl();
+      const apiKey = this.getSupabaseKey();
+      const res = await fetch(`${url.replace(/\/$/, '')}/rest/v1/plans?is_active=eq.true&order=sort_order.asc`, {
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` },
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          const dynamicPlans: Record<string, any> = {};
+          for (const r of rows) {
+            dynamicPlans[r.plan_code] = {
+              name: r.name,
+              amount: Number(r.amount),
+              desc: r.description || '',
+              type: r.type || 'solo',
+              popular: Boolean(r.is_popular),
+            };
+          }
+          return {
+            success: true,
+            plans: dynamicPlans,
+            bankConfig: {
+              bankName: 'MB Bank',
+              accountNumber: '422777999',
+              accountName: 'CONG TY CO PHAN BASAN',
+              companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam'
+            }
+          };
+        }
+      }
+    } catch (err: any) {
+      Logger.warn(`[LicenseManager] getPlans dynamic fetch warn: ${err.message}`);
+    }
+
     return { 
       success: true, 
-      plans: {
-        'solo_6m':       { name: 'Gói Solo 6 tháng',    amount: 2450000,  desc: 'Sử dụng đầy đủ trong 6 tháng (1 Máy BOSS)', type: 'solo' },
-        'solo_12m':      { name: 'Gói Solo 12 tháng',   amount: 4450000,  desc: 'Lựa chọn tối ưu cho 1 năm (1 Máy BOSS)',    type: 'solo', popular: true },
-        'solo_lifetime': { name: 'Gói Solo Vĩnh viễn',  amount: 7450000,  desc: 'Thanh toán một lần, dùng trọn đời', type: 'solo' },
-        'team_6m':       { name: 'Gói Team 6 tháng',    amount: 4900000,  desc: '1 Máy BOSS + Tối đa 5 Máy Nhân viên', type: 'team' },
-        'team_12m':      { name: 'Gói Team 12 tháng',   amount: 8900000,  desc: '1 Máy BOSS + Tối đa 5 Máy Nhân viên', type: 'team', popular: true },
-        'team_lifetime': { name: 'Gói Team Vĩnh viễn',  amount: 14900000, desc: '1 Máy BOSS + Tối đa 20 Máy Nhân viên', type: 'team' }
-      },
+      plans: defaultPlans,
       bankConfig: {
         bankName: 'MB Bank',
         accountNumber: '422777999',
