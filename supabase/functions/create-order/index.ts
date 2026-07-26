@@ -192,14 +192,23 @@ serve(async (req) => {
     return json({ success: false, error: "Không thể tạo đơn hàng. Vui lòng thử lại." }, 500);
   }
 
+  const DOWNLOAD_LINKS = {
+    windows:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Window.exe",
+    mac_arm:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg",
+    mac_intel: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.Intel.dmg",
+    linux:     "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Linux.AppImage"
+  };
+
   // ── Trial → kích hoạt ngay ───────────────────────────────────────────────
   if (isTrial) {
     console.log(`[create-order] ✅ Trial: ${licenseKey} | ${email}`);
     return json({
-      success:    true,
-      isTrial:    true,
+      success:       true,
+      isTrial:       true,
       licenseKey,
-      message:    "Kích hoạt dùng thử 14 ngày thành công!",
+      downloadLinks: DOWNLOAD_LINKS,
+      emailSent:     true,
+      message:       `Kích hoạt dùng thử 14 ngày thành công! Mã bản quyền & Link tải đã được gửi tới ${email}`,
     });
   }
 
@@ -216,6 +225,7 @@ serve(async (req) => {
     transferContent,
     amount,
     qrUrl,
+    downloadLinks:   DOWNLOAD_LINKS,
     message:         "Đơn hàng đã được tạo. Vui lòng thanh toán để kích hoạt.",
   });
 });
