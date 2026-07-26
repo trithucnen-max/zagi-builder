@@ -107,8 +107,8 @@ module.exports = async function afterPack(context) {
         ProductVersion: versionStr,
         ProductName: productName,
         FileDescription: pkg.description || productName,
-        CompanyName: 'Deplao',
-        LegalCopyright: `Copyright © ${new Date().getFullYear()} Deplao`,
+        CompanyName: 'Zagi',
+        LegalCopyright: `Copyright © ${new Date().getFullYear()} Zagi`,
         OriginalFilename: `${productName}.exe`,
       }
     );

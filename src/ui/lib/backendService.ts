@@ -5,11 +5,11 @@
  * App chỉ gọi API, không chứa logic business.
  *
  * API endpoints:
- *   POST https://deplaoapp.com/api/scan/premium-status  → kiểm tra premium
- *   POST https://deplaoapp.com/api/scan/group            → quét thành viên nhóm
+ *   POST https://zagiapp.com/api/scan/premium-status  → kiểm tra premium
+ *   POST https://zagiapp.com/api/scan/group            → quét thành viên nhóm
  */
 
-const BACKEND_URL = 'https://deplaoapp.com';
+const BACKEND_URL = 'https://zagiapp.com';
 const SECRET_KEY = 'fb7457b7a39bdc9e742f08b657a8059a5e6a8fda6e32bfe0bfecf37eadf519eb';
 
 export interface PremiumStatus {

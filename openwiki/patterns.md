@@ -100,6 +100,16 @@ if (AI_WRITE_CHANNELS.has(channel) && activeWs?.type === 'remote') {
 - **Fix:** Dùng `useRef` guard + `type="button"` cho nút tránh form submit
 - **Pattern đúng:** Xem `ui.md` → "useRef guard"
 
+### BUG-03: Media Token Array Duplication khi Nhân viên gửi Ảnh/File qua Proxy (Đã sửa v3.0.6)
+- **Location:** `electron/ipc/zaloIpc.ts` (`resolveMediaTokens`)
+- **Root cause:** Khi Nhân viên tải ảnh lên máy Boss, `MessageInput.tsx` gán `bossPath` vào cả `mediaTokens` LẪN `filePaths`. `resolveMediaTokens` đọc cả 2 tham số tạo thành mảng trùng lặp `[bossPath, bossPath]`.
+- **Fix:** Khử trùng lặp phần tử mảng đường dẫn trước khi gọi `ZaloService.sendImages()`.
+
+### BUG-04: Lỗi hiển thị thẻ Link Website trên Zagi UI (Đã sửa v3.0.6)
+- **Location:** `src/ui/components/chat/MessageBubbles.tsx` (`isCardType`, `CardBubble`)
+- **Root cause:** Cấu hình cứng `if (action === 'recommened.link')`, bỏ qua các tin nhắn link có `action = 'link'`, `chat.link`, `share.link` hoặc object chứa `href`/`url`/`link`.
+- **Fix:** Cập nhật `isCardType` và `CardBubble` nhận diện linh hoạt toàn bộ cấu trúc tin nhắn liên kết.
+
 ---
 
 ## Security Patterns
