@@ -88,6 +88,14 @@ File lớn nhất trong ipc/ (62KB). Bao gồm toàn bộ CRUD:
 | `file:resolveAbsPath` | Resolve đường dẫn tuyệt đối |
 | `file:openDialog` | Mở file picker dialog |
 
+## License IPC (`electron/ipc/licenseIpc.ts`)
+
+| Channel | Purpose |
+|---|---|
+| `license:getStatus` | Lấy trạng thái bản quyền hiện tại |
+| `license:activate` | Kích hoạt bản quyền qua Key |
+| `license:startAsEmployee` | Chuyển sang giao diện đăng nhập Nhân viên từ popup vai trò ban đầu (v3.0.6) |
+
 ## threadType Values
 
 | Value | Meaning |
