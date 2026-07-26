@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://paxejunvgfhjdyulzutb.supabase.co";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo";
+// SERVICE_ROLE_KEY cần thiết để UPDATE sau khi bật RLS — set trong Supabase Dashboard → Edge Functions → Secrets
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const GAS_MAIL_URL = "https://script.google.com/macros/s/AKfycbwfAp3H9lUTrFLDakhpCmLZB6h9V9bViGSmCTMtp49MbujLK-vT6aPbSQhsJZNs0T4qVg/exec";
 
 serve(async (req) => {
@@ -55,7 +56,7 @@ serve(async (req) => {
     }
 
     const keyPart = match[1].trim().toUpperCase();
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Tìm kiếm License trong CSDL Supabase
     const { data: rows, error: searchErr } = await supabase

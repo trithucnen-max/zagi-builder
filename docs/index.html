@@ -1269,18 +1269,22 @@ a{text-decoration:none}
 </div>
 
 <script>
-const SUPABASE_URL = "https://paxejunvgfhjdyulzutb.supabase.co";
-const SUPABASE_KEY = "sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo";
+// ─── Supabase config ─────────────────────────────────────────────────────────
+// ANON KEY: an toàn để lộ public (publishable). Mọi logic nhạy cảm đã chuyển sang Edge Functions.
+const SUPABASE_URL  = "https://paxejunvgfhjdyulzutb.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo";
+const EDGE_BASE_URL = `${SUPABASE_URL}/functions/v1`;
 
 const RELEASE_LINKS = {
-  mac_arm: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.MacOS.M1%2B.arm64.dmg",
+  mac_arm:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.MacOS.M1%2B.arm64.dmg",
   mac_intel: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.MacOS.Intel.dmg",
-  win_x64: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Window.exe",
-  win_arm: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Surface.exe",
+  win_x64:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Window.exe",
+  win_arm:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Surface.exe",
   linux_app: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Window.exe",
   linux_deb: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Window.exe"
 };
 
+// Giá gói — chỉ dùng cho UI, server tự xác nhận lại giá đúng
 const PLAN_PRICES = {
   'trial_14d': 0,
   'solo_6m': 990000,
@@ -1291,9 +1295,11 @@ const PLAN_PRICES = {
   'team_lifetime': 14900000
 };
 
-let currentLicenseKey = '';
+let currentLicenseKey      = '';
 let currentTransferContent = '';
-let checkInterval = null;
+let checkInterval          = null;
+let pollRetryCount         = 0;
+const POLL_MAX_RETRIES     = 240; // tối đa 10 phút (240 × 2.5s)
 
 // SMART OS & ARCH DETECTION ENGINE
 function detectSmartOS() {
@@ -1392,29 +1398,30 @@ function closeDownloadModal() {
   document.getElementById('download-modal').classList.remove('active');
 }
 
+// loadSupabasePlans: đọc giá từ bảng plans (chỉ đọc public data qua RLS, không cần key nhạy cảm)
 async function loadSupabasePlans() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/plans?is_active=eq.true&order=sort_order.asc`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/plans?is_active=eq.true&order=sort_order.asc&select=plan_code,amount,name`, {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
     });
-    if (res.ok) {
-      const plans = await res.json();
-      plans.forEach(p => {
-        if (p.plan_code && p.amount !== undefined) {
-          PLAN_PRICES[p.plan_code] = p.amount;
-          const numEl = document.querySelector(`.pcard[data-plan="${p.plan_code}"] .num`);
-          if (numEl) numEl.innerText = p.amount.toLocaleString('vi-VN');
-          
-          const optEl = document.querySelector(`#cust-plan option[value="${p.plan_code}"]`);
-          if (optEl) {
-            const name = p.name || optEl.innerText.split('—')[0].trim();
-            optEl.innerText = p.amount === 0 ? `${name} — 0 đ (Miễn phí)` : `${name} — ${p.amount.toLocaleString('vi-VN')} đ`;
-          }
-        }
-      });
-    }
+    if (!res.ok) return;
+    const plans = await res.json();
+    if (!Array.isArray(plans)) return;
+    plans.forEach(p => {
+      if (!p.plan_code || p.amount === undefined) return;
+      PLAN_PRICES[p.plan_code] = p.amount;
+      const numEl = document.querySelector(`.pcard[data-plan="${p.plan_code}"] .num`);
+      if (numEl) numEl.innerText = p.amount.toLocaleString('vi-VN');
+      const optEl = document.querySelector(`#cust-plan option[value="${p.plan_code}"]`);
+      if (optEl) {
+        const label = p.name || optEl.innerText.split('—')[0].trim();
+        optEl.innerText = p.amount === 0
+          ? `${label} — 0 đ (Miễn phí)`
+          : `${label} — ${p.amount.toLocaleString('vi-VN')} đ`;
+      }
+    });
   } catch (e) {
-    console.warn('Live Supabase plan sync note:', e);
+    console.warn('[loadSupabasePlans] Bỏ qua lỗi sync giá:', e);
   }
 }
 window.addEventListener('DOMContentLoaded', loadSupabasePlans);
@@ -1464,115 +1471,97 @@ function closeCheckout() {
   if (checkInterval) clearInterval(checkInterval);
 }
 
-function genKey(prefix = 'ZAGI') {
-  const r = () => Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `${prefix}-${r()}-${r()}-${r()}`;
-}
+// genKey() đã bị xóa — key bây giờ được sinh bằng crypto.randomUUID() phía Edge Function
 
 async function submitOrder() {
   hideErr();
-  const name = document.getElementById('cust-name').value.trim();
+  const name  = document.getElementById('cust-name').value.trim();
   const email = document.getElementById('cust-email').value.trim().toLowerCase();
   const phone = document.getElementById('cust-phone').value.trim();
-  const plan = document.getElementById('cust-plan').value;
+  const plan  = document.getElementById('cust-plan').value;
 
   if (!email || !phone) {
     showErr('Vui lòng nhập đầy đủ Email và Số điện thoại!');
     return;
   }
 
-  const amount = PLAN_PRICES[plan] ?? 0;
-
-  // IF TRIAL 14D (FREE): INSTANT ACTIVATION!
-  if (plan === 'trial_14d' || amount === 0) {
-    currentLicenseKey = genKey('ZAGI-TRIAL');
-    
-    try {
-      await fetch(`${SUPABASE_URL}/rest/v1/licenses`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({
-          license_key: currentLicenseKey,
-          email: email,
-          full_name: name,
-          phone: phone,
-          plan: 'trial_14d',
-          status: 'active',
-          created_at: new Date().toISOString()
-        })
-      });
-    } catch (e) {
-      console.warn('Trial license insert note:', e);
-    }
-
-    document.getElementById('step-form').style.display = 'none';
-    document.getElementById('step-qr').style.display = 'none';
-    document.getElementById('step-success').style.display = 'block';
-    document.getElementById('activated-key').innerText = currentLicenseKey;
-    document.getElementById('success-title').innerText = 'KÍCH HOẠT DÙNG THỬ 14 NGÀY THÀNH CÔNG!';
-    document.getElementById('success-sub').innerText = 'Mã bản quyền Dùng thử 14 ngày của bạn đã sẵn sàng sử dụng.';
-    return;
-  }
-
-  // PAID PLANS -> VietQR MB Bank
-  currentLicenseKey = genKey('ZAGI');
-  const shortCode = currentLicenseKey.split('-').pop();
-  currentTransferContent = 'ZAGI ' + shortCode;
-
-  // Render QR MB Bank
-  const qrUrl = `https://img.vietqr.io/image/MB-422777999-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(currentTransferContent)}&accountName=${encodeURIComponent('CONG TY CO PHAN BASAN')}`;
-  document.getElementById('vietqr-img').src = qrUrl;
-  document.getElementById('pay-amount').innerText = amount.toLocaleString('vi-VN') + ' đ';
-  document.getElementById('pay-content').innerText = currentTransferContent;
+  // Disable nút tránh double-submit
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.6'; }
 
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/licenses`, {
+    // Gọi Edge Function create-order (logic chạy server-side, SUPABASE_KEY không lộ)
+    const res = await fetch(`${EDGE_BASE_URL}/create-order`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Prefer': 'return=minimal'
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({
-        license_key: currentLicenseKey,
-        email: email,
-        full_name: name,
-        phone: phone,
-        plan: plan,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      })
+      body: JSON.stringify({ name, email, phone, plan }),
     });
-  } catch (e) {
-    console.warn('Supabase insert note (proceeding with QR):', e);
-  }
 
-  document.getElementById('step-form').style.display = 'none';
-  document.getElementById('step-qr').style.display = 'block';
-  startPollingStatus();
+    const data = await res.json();
+
+    if (!data.success) {
+      showErr(data.error || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+      return;
+    }
+
+    currentLicenseKey = data.licenseKey;
+
+    // Trial → kích hoạt ngay
+    if (data.isTrial) {
+      document.getElementById('step-form').style.display   = 'none';
+      document.getElementById('step-qr').style.display     = 'none';
+      document.getElementById('step-success').style.display = 'block';
+      document.getElementById('activated-key').innerText    = currentLicenseKey;
+      document.getElementById('success-title').innerText    = 'KÍCH HOẠT DÙNG THỬ 14 NGÀY THÀNH CÔNG!';
+      document.getElementById('success-sub').innerText      = 'Mã bản quyền Dùng thử 14 ngày của bạn đã sẵn sàng sử dụng.';
+      return;
+    }
+
+    // Paid → hiển thị QR
+    currentTransferContent = data.transferContent;
+    document.getElementById('vietqr-img').src               = data.qrUrl;
+    document.getElementById('pay-amount').innerText         = (data.amount || 0).toLocaleString('vi-VN') + ' đ';
+    document.getElementById('pay-content').innerHTML        = `${data.transferContent} <span class="copy-badge" onclick="copyTxt(currentTransferContent)">Copy</span>`;
+    document.getElementById('step-form').style.display      = 'none';
+    document.getElementById('step-qr').style.display        = 'block';
+    pollRetryCount = 0;
+    startPollingStatus();
+
+  } catch (err) {
+    showErr('Lỗi kết nối. Vui lòng kiểm tra mạng và thử lại.');
+    console.error('[submitOrder] Error:', err);
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; }
+  }
 }
 
 function startPollingStatus() {
   if (checkInterval) clearInterval(checkInterval);
+  pollRetryCount = 0;
   checkInterval = setInterval(async () => {
+    // Timeout sau POLL_MAX_RETRIES lần (~10 phút) để tránh flood vô hạn
+    pollRetryCount++;
+    if (pollRetryCount > POLL_MAX_RETRIES) {
+      clearInterval(checkInterval);
+      console.warn('[poll] Hết thời gian chờ thanh toán (10 phút).');
+      return;
+    }
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/licenses?license_key=eq.${currentLicenseKey}&select=status`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-      });
-      if (res.ok) {
-        const rows = await res.json();
-        if (Array.isArray(rows) && rows.length > 0 && rows[0].status === 'active') {
-          clearInterval(checkInterval);
-          showSuccess();
-        }
+      // Gọi Edge Function check-payment thay vì Supabase REST trực tiếp
+      const res = await fetch(
+        `${EDGE_BASE_URL}/check-payment?licenseKey=${encodeURIComponent(currentLicenseKey)}`,
+        { headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.status === 'active') {
+        clearInterval(checkInterval);
+        showSuccess();
       }
-    } catch {}
+    } catch { /* bỏ qua lỗi mạng tạm thời */ }
   }, 2500);
 }
 
