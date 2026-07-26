@@ -92,7 +92,7 @@ async function main() {
     const changelogPath = path.join(ROOT_DIR, 'CHANGELOG.md');
     let changelogContent = fs.readFileSync(changelogPath, 'utf8');
     const todayStr = new Date().toISOString().split('T')[0];
-    const newSectionHeader = `## [${tag}] - ${todayStr}\n\n### 🐛 Sửa lỗi\n\n- Sửa lỗi cơ chế lọc của node Truy vấn khách hàng CRM (\`crm.getContacts\`):\n  - Sửa lỗi phân giải nhãn Local & Zalo về ID số nguyên cục bộ trong bảng SQLite.\n  - Khắc phục lỗi lọc giới tính bị ngược và hiển thị sai trên giao diện xem trước (Nam = 0, Nữ = 1).\n  - Khắc phục lỗi lệch ngày sinh nhật do múi giờ hệ thống bằng cơ chế kiểm tra sinh nhật timezone-safe.\n  - Thêm bộ lọc \`owner_zalo_id\` đồng bộ SQL query của execution node và preview node.\n\n`;
+    const newSectionHeader = `## [${tag}] - ${todayStr}\n\n### 🐛 Sửa lỗi & Cải tiến\n\n- Khắc phục dứt điểm lỗi gửi và forward hình ảnh trên máy BOSS.\n- Tự động tải tệp tin ảnh từ URL CDN Zalo về đĩa tạm nếu chưa có trên máy local.\n- Nâng cấp cơ chế tra cứu và remap đường dẫn thư viện (\`library/\`) linh hoạt khi di chuyển dữ liệu.\n- Cập nhật chuẩn hóa liên kết tải xuống mượt mà trên Landing Page và README.\n\n`;
     
     // Insert new section right below the header line and description
     const separatorIdx = changelogContent.indexOf('---');
@@ -143,8 +143,13 @@ async function main() {
   const distDir = path.join(ROOT_DIR, 'dist-electron-build');
   const macArmFile = `Zagi v${targetVersion} MacOS M1+ arm64.dmg`;
   const macIntelFile = `Zagi v${targetVersion} MacOS Intel.dmg`;
+  const macArmDotFile = `Zagi.v${targetVersion}.MacOS.M1+.arm64.dmg`;
+  const macIntelDotFile = `Zagi.v${targetVersion}.MacOS.Intel.dmg`;
+
   const macArmPath = path.join(distDir, macArmFile);
   const macIntelPath = path.join(distDir, macIntelFile);
+  const macArmDotPath = path.join(distDir, macArmDotFile);
+  const macIntelDotPath = path.join(distDir, macIntelDotFile);
 
   if (!fs.existsSync(macArmPath) || !fs.existsSync(macIntelPath)) {
     console.error('❌ Lỗi: Không tìm thấy file DMG sau khi build macOS!');
@@ -162,7 +167,7 @@ async function main() {
   if (!isOverwrite) {
     console.log('Đang tạo/kiểm tra GitHub Release để tải tệp lên...');
     try {
-      execSync(`GH_TOKEN=${GH_TOKEN} gh release create ${tag} --title "🎉 Zagi ${tag}" --notes "Bản phát hành v${targetVersion} sửa lỗi bộ lọc CRM." --draft`, { stdio: 'inherit', cwd: ROOT_DIR });
+      execSync(`GH_TOKEN=${GH_TOKEN} gh release create ${tag} --title "🎉 Zagi ${tag}" --notes "Bản phát hành v${targetVersion} khắc phục dứt điểm lỗi gửi/forward ảnh trên BOSS." --draft`, { stdio: 'inherit', cwd: ROOT_DIR });
     } catch (e) {
       console.log('⚠️ Release đã tồn tại hoặc đang được tạo bởi CI/CD, tiếp tục tải lên...');
     }
@@ -170,7 +175,7 @@ async function main() {
 
   console.log(`Đang tải lên các tệp tin cài đặt macOS vào Release ${tag}...`);
   try {
-    execSync(`GH_TOKEN=${GH_TOKEN} gh release upload ${tag} "${macArmPath}" "${macIntelPath}" --clobber`, { stdio: 'inherit', cwd: ROOT_DIR });
+    execSync(`GH_TOKEN=${GH_TOKEN} gh release upload ${tag} "${macArmPath}" "${macIntelPath}" "${macArmDotPath}" "${macIntelDotPath}" --clobber`, { stdio: 'inherit', cwd: ROOT_DIR });
     console.log('🎉 Tải lên các tệp macOS thành công!');
   } catch (err) {
     console.error('❌ Lỗi khi tải lên GitHub Release:', err.message);

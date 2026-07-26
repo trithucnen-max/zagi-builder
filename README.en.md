@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v3.0.6** — [View all versions](#changelog)
+> **Latest version: v3.0.7** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.0.6-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Window.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.0.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Window.exe)
 
-**[Zagi.v3.0.6.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Window.exe)**
+**[Zagi.v3.0.7.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Window.exe)**
 
 NSIS Installer · ~164 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~164 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.0.6-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.MacOS.M1%2B.arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.0.7-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg)
 
-**[Zagi.v3.0.6.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.0.7.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg)**
 
 Apple Silicon DMG · Signed & Notarized · ~231 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · Signed & Notarized · ~231 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.0.6-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.MacOS.Intel.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.0.7-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.Intel.dmg)
 
-**[Zagi.v3.0.6.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.MacOS.Intel.dmg)**
+**[Zagi.v3.0.7.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.Intel.dmg)**
 
 Intel x64 DMG · Signed & Notarized · ~239 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · Signed & Notarized · ~239 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.0.6-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Window.exe)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.0.7-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Window.exe)
 
-**[Zagi.v3.0.6.Window.exe (Wine)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Window.exe)**  
-**[Zagi.v3.0.6.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.0.7.Window.exe (Wine)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Window.exe)**  
+**[Zagi.v3.0.7.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg)**
 
 Installer + macOS
 
@@ -98,9 +98,9 @@ Installer + macOS
 > 
 > Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.0.6-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Surface.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.0.7-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Surface.exe)
 
-**[Zagi.v3.0.6.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Surface.exe)**
+**[Zagi.v3.0.7.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Surface.exe)**
 
 NSIS Installer ARM64 · ~166 MB · Native optimization for Surface ARM
 
