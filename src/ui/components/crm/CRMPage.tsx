@@ -940,8 +940,6 @@ export default function CRMPage() {
               <option value="contacts">👥 Liên hệ ({store.totalContacts || 0})</option>
               {channelCap.supportsCRMGroups && <option value="groups">👥 Nhóm ({store.groupCount || 0})</option>}
               {channelCap.supportsFriendRequest && <option value="requests">📩 Lời mời kết bạn ({store.requestCount || 0})</option>}
-              <option value="pipeline">📊 Bảng Pipeline</option>
-              {channelCap.supportsCampaigns && <option value="campaigns">🚀 Chiến dịch ({store.campaigns.length || 0})</option>}
               {channelCap.supportsCRMSearch && <option value="search">🔍 Tìm kiếm CRM</option>}
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-gray-400">
@@ -1207,7 +1205,23 @@ export default function CRMPage() {
           {/* ── Pipeline tab ── */}
           {store.tab === 'pipeline' && (
             <div className="flex-1 overflow-hidden">
-              <CRMPipelineTab />
+              {isMobile ? (
+                <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-gray-900 text-gray-400">
+                  <div className="w-12 h-12 rounded-2xl bg-gray-800 flex items-center justify-center mb-3 text-2xl">📊</div>
+                  <h4 className="text-sm font-bold text-gray-200 mb-1">Bảng Pipeline Kanban</h4>
+                  <p className="text-xs text-gray-400 max-w-xs leading-relaxed">
+                    Tính năng kéo thả Kanban tối ưu cho màn hình máy tính PC. Vui lòng chuyển sang tab Liên hệ để quản lý trên di động.
+                  </p>
+                  <button
+                    onClick={() => store.setTab('contacts')}
+                    className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow transition-colors"
+                  >
+                    Về danh sách Liên hệ
+                  </button>
+                </div>
+              ) : (
+                <CRMPipelineTab />
+              )}
             </div>
           )}
 
