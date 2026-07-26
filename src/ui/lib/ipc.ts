@@ -845,6 +845,11 @@ const browserWorkspace = {
     const { workspaces, activeId } = getSavedBrowserWorkspaces();
     return { success: true, workspaces, activeId };
   },
+  getActive: async () => {
+    const { workspaces, activeId } = getSavedBrowserWorkspaces();
+    const ws = workspaces.find(w => w.id === activeId) || workspaces[0] || null;
+    return { success: true, workspace: ws };
+  },
   create: async (data: any) => {
     const { workspaces } = getSavedBrowserWorkspaces();
     const snapshot = data._snapshot || {
