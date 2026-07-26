@@ -1812,7 +1812,7 @@ function applySmartOSLink(key, text, label, cardId) {
 
   if (osInfo.isMobile) {
     if (heroBtn) {
-      heroBtn.href = "javascript:openCheckoutModal('trial_14d')";
+      heroBtn.href = "javascript:openCheckout('trial_14d')";
       heroBtn.removeAttribute('download');
       heroBtn.innerHTML = `<span class="material-symbols-rounded">rocket_launch</span>${osInfo.text}`;
       heroBtn.className = "btn btn-primary btn-lg";
@@ -1920,6 +1920,10 @@ function openCheckout(planCode) {
   document.getElementById('step-qr').style.display = 'none';
   document.getElementById('step-success').style.display = 'none';
   document.getElementById('checkout-modal').classList.add('active');
+}
+
+function openCheckoutModal(planCode) {
+  return openCheckout(planCode);
 }
 
 function updateSubmitBtnText(planCode) {
@@ -2087,10 +2091,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
 <!-- Mobile Thumb Zone Sticky Bar -->
 <div class="mobile-sticky-bar">
-  <button onclick="openCheckoutModal('trial_14d')" class="btn btn-primary">
+  <button onclick="openCheckout('trial_14d')" class="btn btn-primary">
     <span class="material-symbols-rounded">rocket_launch</span>Dùng thử 14 ngày (0đ)
   </button>
-  <button onclick="openCheckoutModal('solo_12m')" class="btn btn-gold">
+  <button onclick="openCheckout('solo_12m')" class="btn btn-gold">
     <span class="material-symbols-rounded">payments</span>Mua bản quyền
   </button>
 </div>
