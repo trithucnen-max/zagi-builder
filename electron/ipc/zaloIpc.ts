@@ -865,7 +865,7 @@ export function registerZaloIpc() {
                     );
                 }
 
-                // 3. Boss gọi scanGroupViaBackend tới deplaoapp.com
+                // 3. Boss gọi scanGroupViaBackend tới zagiapp.com
                 const { scanGroupViaBackend } = await import('../../src/ui/lib/backendService');
                 const result = await scanGroupViaBackend({
                     pageId: zaloId,

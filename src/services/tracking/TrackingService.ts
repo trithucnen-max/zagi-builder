@@ -6,7 +6,7 @@
  * - Gửi pageId (zalo_id), machineId, lastTrackedAt lên Google Sheets.
  * - Không gửi các field nhạy cảm khác (name, phone,...).
  *
- * API: POST https://deplaoapp.com/api/tracking/page  (Zagi server)
+ * API: POST https://zagiapp.com/api/tracking/page  (Zagi server)
 
  * Rate limit: 10 req/giờ/IP — trả về 429 nếu vượt quá.
  */
@@ -44,7 +44,7 @@ interface TrackingApiResponse {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const API_URL = 'https://deplaoapp.com/api/tracking/page';
+const API_URL = 'https://zagiapp.com/api/tracking/page';
 const CACHE_FILENAME = 'tracking-cache.json';
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 60 phút
 
