@@ -103,9 +103,7 @@ async function main() {
   const version = pkg.version;
 
   const renameMappings = [
-    { from: `Zagi-${version}-arm64.dmg`, to: `Zagi v${version} MacOS M1+ arm64.dmg` },
     { from: `Zagi-${version}-arm64.dmg`, to: `Zagi.v${version}.MacOS.M1+.arm64.dmg` },
-    { from: `Zagi-${version}.dmg`, to: `Zagi v${version} MacOS Intel.dmg` },
     { from: `Zagi-${version}.dmg`, to: `Zagi.v${version}.MacOS.Intel.dmg` }
   ];
 
