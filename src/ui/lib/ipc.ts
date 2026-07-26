@@ -906,6 +906,22 @@ const browserWorkspace = {
     const { workspaces } = getSavedBrowserWorkspaces();
     const ws = workspaces.find(w => w.id === id);
     saveBrowserWorkspaces(workspaces, id);
+    if (ws) {
+      setTimeout(() => {
+        browserEventEmitter.emit('workspace:switched', { workspace: ws });
+        const snapshot = ws._snapshot || {};
+        const accountsData = snapshot.accountsData || ws.cachedAccountsData || [];
+        if (accountsData.length > 0) {
+          browserEventEmitter.emit('workspace:initialState', {
+            workspaceId: id,
+            accountsData,
+            assignedAccounts: snapshot.assignedAccounts || ws.cachedAssignedAccounts || [],
+            permissions: snapshot.permissions || ws.cachedPermissions || [],
+            employeesData: snapshot.employeesData || ws.cachedEmployeesData || [],
+          });
+        }
+      }, 50);
+    }
     return { success: true, workspace: ws };
   },
   isMulti: async () => ({ isMulti: false }),

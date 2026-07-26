@@ -24,7 +24,6 @@ import useIsMobile from '@/hooks/useIsMobile';
 
 export default function TopBar() {
   const isMobile = useIsMobile();
-  if (isMobile) return null;
   const [isMaximized, setIsMaximized] = useState(false);
   const { theme, resolvedTheme, setTheme, showNotification, fontSizeScale, setFontSizeScale, setView, setBugReportOpen } = useAppStore();
   const isLightTheme = (resolvedTheme || theme) === 'light';
@@ -291,6 +290,8 @@ export default function TopBar() {
       }
     }
   }, [isMac, platform, updateInfo, updateStatus, setDismissed]);
+
+  if (isMobile) return null;
 
   return (
     <div

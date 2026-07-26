@@ -83,6 +83,7 @@ export default function EmployeeLoginModal({ onClose }: Props) {
       // Step 4: Switch to the new workspace
       setStep('switching');
       if (res.workspace?.id) {
+        useWorkspaceStore.getState().setActiveWorkspaceId(res.workspace.id);
         await ipc.workspace?.switch(res.workspace.id);
       }
 
