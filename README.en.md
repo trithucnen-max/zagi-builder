@@ -383,288 +383,56 @@ npm run production
 
 ## 📋 Changelog
 
+<details open>
+<summary><strong>v3.0.6</strong> — 2026-07-24 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights & System Fixes
+
+- 🏷️ **Zalo Contact Alias Renaming Rules**: Added 3 options during CRM campaign creation (Do not rename, `[Campaign] - [Name] - [Phone]`, `[Name] - [Phone]`).
+- 🎨 **Redesigned Campaign Creation & Phone Scanner Modals**: Expanded campaign modal to 1360px x 832px and phone scanner modal to 1280px x 800px with CSV/Excel sample download and drag-and-drop file import.
+- 🧠 **Smart Data Normalization Engine**: Automatically pads missing leading `0` for 9-digit phones, normalizes gender (`Nam`/`Nữ`) and birthdate formats.
+- 🤝 **Friend Status (`is_friend`) Synchronization**: Verified friend status against actual `friends` table per account, eliminating false positive green checkmarks for unknown contacts.
+- 🎨 **Dark Mode Contrast Fix**: Replaced invalid Tailwind classes with standard ones (`gray-900`, `gray-800`, `gray-700`, `gray-600`) and fixed editor contrast issues across all campaign modes.
+
+</details>
+
 <details>
-<summary><strong>v3.0.0</strong> — 2026-07-14 · <em>🟢 Current version</em></summary>
+<summary><strong>v3.0.5</strong> — 2026-07-22</summary>
+
+### 🚀 Key Highlights & System Fixes
+
+- 🏷️ **Unified Label Picker Modal & Bulk Labeling**: Redesigned label picker with 2-column layout for Local and Zalo cloud labels, supporting quick creation and batch tag/untagging.
+- 📱 **Phone Normalization**: Auto-prefixes missing leading `0` and strips spaces/special characters system-wide.
+- ⚡ **Batch Phone Lookup**: Accelerated CRM contact lookup (~20x faster) using `getMultiUsersByPhones` API (100 numbers/batch).
+- ✏️ **Raw Code Edit Mode**: SmartInput editor toggle to edit raw `{{ ... }}` variable strings directly.
+- 🚫 **Blocked Contact Auto-Detection**: Auto-assigns `is_blocked = 1` and `🚫 Blocked` label to contacts blocking messages.
+- 🔀 **Transfer Contact to Another Zalo Account**: Bulk action to re-assign contacts to a different connected Zalo account.
+- 🍏 **Official macOS Code Signing & Notarization**: Signed with Apple Developer ID (BASAN CORPORATION) and notarized with Apple.
+
+</details>
+
+<details>
+<summary><strong>v3.0.1</strong> — 2026-07-18</summary>
+
+### 🐛 Bug Fixes & Stability Improvements
+
+- 🔧 **contextBridge Proxy & Static Imports**: Fixed runtime proxy crashes and `require is not defined` errors.
+- 🌐 **Download Links Fix**: Direct download links to GitHub Releases for macOS and Linux packages.
+- 🛡️ **LAN CORS Protection & Batch Performance**: Restricted LAN CORS origin allowlist and wrapped SQLite campaign additions in transactions (50x speedup).
+
+</details>
+
+<details>
+<summary><strong>v3.0.0</strong> — 2026-07-14</summary>
 
 ### 🚀 Key Highlights
 
 - 💾 **Workflow Persistent Checkpoints**: Automatically saves workflow ExecutionContext into SQLite when wait time of `logic.wait` node exceeds 5 minutes, freeing up system memory/CPU.
-- 📅 **Calendar Delay Mode**: Node wait configuration now supports scheduling based on calendar day shifts (e.g., tomorrow) combined with a target dispatch time (e.g., 09:00) to prevent sending messages late at night. Safety check auto-proceeds immediately if target time has already passed today.
+- 📅 **Calendar Delay Mode**: Node wait configuration now supports scheduling based on calendar day shifts (e.g., tomorrow) combined with a target dispatch time (e.g., 09:00).
 - 🔄 **Recovery After Restart**: Upon Boss/Server restart, the `CheckpointScheduler` automatically detects and resumes pending or missed checkpoints.
-- 📋 **"Pending" Checkpoint Management Tab**: Integrated a dedicated tab in the Workflow Automation screen showing pending badge counts, active countdown timers, and quick cancel actions.
-- 🛡️ **Safe Serialization (contextSerializer)**: Resolves circular references, converts Sets to Arrays, and truncates strings >10KB to maintain a lightweight database.
-- 🧪 **Comprehensive Automated Testing**: Added `workflowCheckpoint.test.ts` containing 46 unit and integration tests with 100% pass rate covering lifecycle, scheduler concurrency and calendar wait type logic.
-
-</details>
-
-
-<details>
-<summary><strong>v27.2.11</strong> — 2026-07-12</summary>
-
-### 🚀 Key Highlights
-
-- 👤 **CRM Name, Alias & Salutation Separation**: Separated "CRM Alias" (supports inline edit) and original "Zalo Name" columns on the CRM list page. Auto-fills salutation ("Anh"/"Chị"/"Bạn") by gender upon Zalo profile sync, while protecting manual edits.
-- 💬 **Campaign & Workflow Variable Synchronization**: Syncs `{zalo_name}` / `$item.zalo_name` (original registered Zalo name) and `{alias}` / `$item.alias` (CRM alias only, no fallback if empty). Maps `{salutation}` and `{gender_greeting}` directly to the CRM salutation field.
-- 💡 **Editor Autocomplete & Quick Chips**: Typing `{` opens variable autocomplete popup in message editors. Added a quick chips toolbar for instant variable insertion.
-- 🌐 **Seamless Network Switch (LAN / WAN)**: Automatically scans Boss LAN IP when connected via WAN/Tunnel, switching connection paths seamlessly for optimal speed.
-- ⚡ **Network Stability (No c-ares crashes)**: Switched main process HTTP requests to Electron `net.request`, completely resolving c-ares name resolution crashes (`ares_dns_rr_get_ttl` SIGTRAP) on WiFi changes.
-- ⏱️ **Connection Storm Protection (Throttling)**: Implemented 10s throttling for forced reconnections, preventing endless loops when network connection fluctuates.
-- 📢 **UI Status Notifications**: Real-time visual toast notifications on network recovery, LAN auto-switch, and WAN rollback.
-- 📝 **Advanced ERP Task Permissions**: Creators and assignees can double-click tasks/subtasks to edit title, description, assignee, and dates directly.
-- 💾 **Draft Auto-drawer**: Automatically opens the detail editor drawer on the right after saving a task draft for quick follow-up edits.
-- 📁 **Minimalist Project Sidebar**: Redesigned the project navigation sidebar with clean colored dots, presenting a simple and professional look.
-
-</details>
-
-
-<details>
-<summary><strong>v27.2.3</strong> — 2026-07-03</summary>
-
-### 🚀 Key Highlights
-
-- 👻 **Ghost Mode (Online/Read Privacy)**: Toggle online presence with a 5-minute ping loop; read messages silently without triggering "seen" receipt (clients only see "received").
-- ⚡ **Advanced Rich Media Send**: Quick action panel to send voice notes, bank card templates (30+ Vietnamese banks), and Zalo contact cards.
-- 📦 **Auto-album Grouping & Rich Video**: Auto-group simultaneously sent images into a single Album. Auto-convert sent videos into Rich Videos with metadata extracted via ffmpeg.
-- 🤖 **4 New Workflow Nodes**: Added `zalo.sendVideo`, `zalo.sendVoice`, `zalo.sendBankCard`, and `zalo.sendCard` supporting dynamic variables and Boss-Employee proxies.
-- ⚡ **High-speed Phone Import**: Query up to 100 phone numbers at once via `getMultiUsersByPhones` API, accelerating CSV check to under 5 seconds.
-- 🟢 **Online Status & PSS Deep Scanning**: Filter online customers and deep-scan hidden group members using 3 streams (Reactions, Mentions, System Messages).
-- 🔄 **Two-way ERP & Labels Sync**: Auto-routing proxy for Employee and SQLite local upsert for 19 `erp:event:*` events from SSE.
-
-</details>
-
-
-<details>
-<summary><strong>v27.2.1</strong> — 2026-07-01</summary>
-
-### 🚀 Key Highlights
-
-- 👑 **Bulk Disperse Owner Groups**: Added the disperse group option directly to SmartGroupModal.tsx for groups you own. Features a dynamic toggle selector and detailed red warning text to prevent accidental triggers, automatically purging the local SQLite database on success.
-- ⏳ **Custom delays for Wait Node**: Supports entering delays by Days, Hours, Minutes, and Seconds for the logic.wait node, computing cumulative delays natively while maintaining backward compatibility.
-- 🔍 **Advanced CRM Filters & Workflow Preview**: Added free text search, salutation filters, and synced Zalo labels for crm.getContacts. Integrates a preview modal showing actual contacts with composite GroupAvatar rendering and localized tags.
-- 🛡️ **Zero Trust Webhooks Protection & Boss Sync Proxy**: Added proxy mechanisms to sync CRM profile updates from employee clients to the Boss machine directly, and hidden the Zero Trust Webhooks configurations from remote employees.
-
-</details>
-
-
-<details>
-<summary><strong>v27.2.0</strong> — 2026-06-29</summary>
-
-### 🚀 Key Highlights
-
-- ☁️ **Cloudflare Named Tunnel (Custom Domains)**: Supports configuring a Cloudflare Zero Trust Tunnel Token to maintain static Internet connections via 3 independent subdomains for: payment integration (Port 9888), Workflow Webhook (Port 9889), and remote employee connection (Port 9900). Eliminates random URL changes after application restarts.
-- 🔌 **Wifi Switch Auto-reconnect**: Overhauled the connection watchdog (Health Check) in HttpConnectionManager. Automatically reconnects when an employee switches Wifi networks or experiences temporary network drops, utilizing active client instances in memory instead of relying on database workspace properties.
-- 🔑 **Remember Employee Password**: Added a "Remember Password" checkbox to the Employee Login screen. Securely saves the password in localStorage to autofill the login form on subsequent launches.
-- 🔗 **Webhooks Settings Integration**: Mounted the Cloudflare Tunnel configuration component as a native "Webhooks" tab inside the Settings panel for ease of use.
-- 🧹 **Zagi Brand Alignment & Disabled Tracking**: Replaced all remaining instances of "Deplao" with "Zagi" in UI texts, folder structures, and renamed workflow image directory to zagi-workflow-images. Disabled and removed the background usage TrackingService module entirely.
-
-</details>
-
-
-<details open>
-<summary><strong>v27.1.8</strong> — 2026-06-26</summary>
-
-### 🚀 Key Highlights
-
-- 📊 **Campaign 1000-Contact Limit**: Automatically enforces a maximum of 1000 contacts per campaign. If a newly added group/list exceeds this limit, excess contacts are discarded, and a warning notification showing the added and discarded count is displayed (e.g., if a campaign has 800 contacts, adding 300 more will only append 200, discarding the remaining 100).
-- 🔒 **Keyboard Shortcut Lock during Input Typing**: Automatically disables custom keyboard shortcuts (such as using Tab for layout navigation) while typing inside input fields, textareas, or contenteditable elements.
-- 🏷️ **Duplicate Label Auto-Selection**: Checks case-insensitively if a newly entered local label name already exists. If a duplicate is found, the system automatically selects the existing label, clears the input box, and displays an info message instead of creating a duplicate.
-- 📋 **Copy Workflow Error Details**: Added a "📋 Copy lỗi" (Copy Error) button next to workflow run-level error messages, individual node execution errors, and target picker alerts, allowing users to copy detailed error traces and response bodies to the clipboard.
-
-</details>
-
-<details>
-<summary><strong>v27.1.7</strong> — 2026-06-26</summary>
-
-### 🚀 Key Highlights
-
-- 🖼️ **Workflow Multi-Image Selector & Random Sending**: Overhauled the configuration UI for sending images in Workflows (`zalo.sendImage`). Added support for picking multiple local image files via dialog, entering manual URLs, displaying a thumbnail preview grid with quick deletion buttons, and selecting a toggle checkbox to send exactly one random image or send them all as a batch.
-- 🎨 **Standardized Brand Logos & Categories**: Converted brand integration panels (KiotViet, Haravan, Sapo, Nhanh.vn, Pancake, Casso, SePay, GHN, GHTK) and AI assistants to display white SVG icons on solid, brand-colored square backgrounds. DeepSeek is mapped to a sky-blue background (`bg-sky-600`) to strictly comply with the system-wide Purple Ban.
-- 📖 **Built-in User Guide Tab**: Relocated the user guide modal from the sidebar to the **Settings → About → User Guide** panel with 5 organized horizontal sub-tabs, enriched with details about locked group scanning, sending multiple images/files, and POS integrations.
-- 🧪 **Visual Debugger & Sandbox Simulator**: Added a "Run Sandbox" button to safely run and test workflows (no real Zalo messages sent, no real sheets written). Colorizes Canvas Edges according to execution status (green = success, red = error, gray = skipped). Enables viewing Input/Output of each Node via an info ℹ️ icon.
-- 🔍 **Global CSS Zoom Engine & Button Standardization**: Added a CSS variable-based zoom handler to scale both rem elements and hardcoded Tailwind pixels cleanly without breaking the viewport height. Standardized colored buttons to always display white text/SVG icons (using `.text-white-important` in Light Mode). Exposes font zoom slider and User Guide button on the Topbar.
-- 📝 **Smart Variable Auto-complete**: Support drop-down autocomplete list showing up automatically when users type the "{" character in node fields. Allows navigating and selecting variables ($trigger, $node.output) with arrow keys and Enter.
-- 👥 **Zalo Group Metadata Synchronization**: Dynamically updates actual group names and composite avatars in the SQLite `contacts` database when scanning a group via link (even if members are hidden by using fallback `getGroupInfo`) and syncing individual groups, fixing raw ID display issues.
-- ⏰ **Adjusted Message Timestamps & Flat SVG Icons**: Moved message sent time to be rendered right above chat bubbles (aligned left for recipients, right for senders). Replaced 3D emojis on group sidebar panels with flat, responsive SVG icons that dynamically update color according to the theme state.
-- 🏠 **Real Estate Template Category**: Introduced a new "Real Estate" category in the Template Store with 8 pre-designed specialized workflows (VIP birthday, lunar 1st day group blessings, lunar 15th day group blessings, payment reminders, handover feedback...).
-- 🪄 **AI Assistant Writing Integration**: Added a "🪄 AI Assistant" writing tray to configuration fields and chat input bars. Connects to `ipc.ai?.chat` to write text and insert it into active fields. Adheres to Purple Ban UI style guidelines (blue/indigo colors).
-- 🐛 **Kanban Pipeline Column Fix & Preserve Files**: Solved a SQL error `NOT NULL constraint failed: crm_pipeline_stages.created_at` when creating new pipeline stages on Windows. Disabled automated deletion of source files after sending them successfully via Zalo.
-
-</details>
-
-<details>
-<summary><strong>v27.1.6</strong> — 2026-06-24</summary>
-
-### 🚀 Key Highlights
-
-- 📊 **CRM Campaign Summary Reports**: Add a visual summary report at the top of the campaign detail view, displaying sent success, failure counts (grouped by detailed error reasons), total targets, and pending counts.
-- 🔁 **Campaign Restart & Retry Actions**: Add "Retry Failures" (send only to failed contacts) and "Restart Campaign" (reset all contacts to pending and start over) buttons directly on the report widget.
-- 🤝 **Refactored Contact Selection**: Remove "Manual" tab, set default tab to "By Label", and upgrade "Friends" and "Groups" tabs to support individual checkbox selection and a smart "Select All" toggle button.
-- 👥 **Group Avatar Display**: Integrate `GroupAvatar` component with `groupInfoCache` to dynamically render composite group avatars (grid of 2-4 member avatars) just like Zalo native client.
-- 🛡️ **Passive Shadow Scanning (PSS) Technology**: Fully bypass Zalo's member list visibility restrictions, automatically identifying and reconstructing hidden group member schemas from passive interaction data streams without admin privileges.
-- 🐛 **Fixed Campaign Completion Bug**: Fix a critical backend bug in `CRMQueueService.ts` where a campaign would get stuck in the active state if the last contact encountered a send failure (uncaught exception).
-
-</details>
-
-<details>
-<summary><strong>v27.1.5</strong> — 2026-06-24</summary>
-
-### 🚀 Key Highlights
-
-- 🔄 **Unified Multi-platform Auto-Update**: Auto-detect hardware architecture (Intel x64 vs Apple Silicon arm64) on macOS to pull the correct `.zip` file. On Windows/Surface, download updates silently in the background with `electron-updater` and install them seamlessly. Show a single notification on the Topbar, hiding duplicate alerts.
-- 📅 **CRM Integration to Workflow & Vietnamese Lunar Calendar**: Automate customer care workflows flexibly: send birthday wishes, Vietnamese 1st lunar day blessings, public holiday greetings (Oct 20, Mar 8), and trigger events based on sales pipeline stages (Pipeline Stage).
-- ✏️ **Direct CRM Profile Editing**: Edit contact details (Name, Phone, Birthday, Gender) directly in the conversation info panel (`ConversationInfo.tsx`), instantly syncing to the local SQLite database.
-- 🔗 **Affiliate/Referral System**: Support entering a "Referral Code" during license registration (for both trials and paid packages), saving it under Column L in Google Sheets and emailing details to the Admin (excluded from client confirmation emails).
-- 🔧 **Dev Port Conflict Resolution**: Fix macOS port conflict issues by binding Vite to `127.0.0.1` explicitly and adjusting `wait-on` polling delay.
-
-</details>
-
-<details>
-<summary><strong>v27.1.4</strong> — 2026-06-24</summary>
-
-### 🚀 Key Highlights
-
-- 👥 **Locked Group Member Scan (View Member Locked)**: Support automatic fallback to sync group UIDs via `getGroupInfo` / `memVerList` when member list is locked (`lockViewMember = true` or `currentMems` is empty).
-- 📦 **Batched Member Details API Request**: Chunked Zalo `getGroupMembersInfo` calls into batches of 50 members to prevent HTTP 431 (Request Header Fields Too Large / URL Too Long) errors on groups with large member pools.
-- 🔗 **Database Contact Fallback**: Improved SQLite query for group members with a `LEFT JOIN` on the `contacts` table to resolve and display name and avatar instantly when they exist in local contact profiles (friends or active chat threads).
-- 🔄 **Smart Merge-upsert Member Storage**: Transitioned all member caching storage to use `mergeGroupMembers` which preserves existing displayName and avatar when updating group member lists.
-- 🏷️ **Initial Tag Selection for Phone Import**: Enable Zalo/Local label assignment and quick creation directly from the initial phone number input screen instead of keeping it hidden.
-- 🎨 **Unified Blue Action Buttons**: Synchronize the confirm import and add contact submit buttons to use the brand blue color theme (`bg-blue-600 hover:bg-blue-750`).
-- 🗑️ **Bulk Delete Moved to Floating Action Bar**: Relocated the bulk contact deletion option from the top-right "Actions" menu to the "Other" dropdown of the floating BulkActionBar at the bottom.
-
-</details>
-
-<details>
-<summary><strong>v27.1.3</strong> — 2026-06-23</summary>
-
-### 🚀 Key Highlights
-
-- 👥 **Smart Group Management & Bulk Leave**: Support leaving multiple groups automatically from the CRM / Group Management interface.
-- 👑 **Auto-owner Transfer**: Automatically transfer the Owner role to a Deputy or member before leaving if your account is currently the group Owner (prevents group abandonment).
-- 👋 **AI Farewell Message**: Auto-generate a polite farewell message using the AI Assistant and send it to groups before leaving them.
-- 🛡️ **Zalo Safety Handbook**: Quick-access popover on the Topbar detailing sending principles for stranger/friend chat limits, spintax tips, and automatic Zalo Business detection.
-- ⚠️ **Campaign Safety Warnings**: Interactive warnings (Red/Yellow) during campaign creation if the parameters violate safe messaging limits.
-- 🎨 **CRM UI Refresh**: Re-themed the CRM contact detail panel, pipeline stages Kanban board, and associated tables to a clean, highly legible black-on-white layout.
-
-</details>
-
-<details>
-<summary><strong>v27.1.2</strong> — 2026-06-21</summary>
-
-### 🔧 Fixes & Improvements
-
-- 💻 **Windows ARM64 Support**: Added native Qualcomm Snapdragon/ARM64 installer (`Zagi-Setup-27.1.2-arm64.exe`) for Surface devices.
-- 📝 **Version Selection Guide**: Added visual diagrams in the README to help users select the correct build for their devices.
-- 🤖 **AI Quick Panel**: Proper markdown rendering — bold (`**text**`), bullet lists (`-`), numbered lists, `` `code` `` blocks, `#` headers now display beautifully instead of raw characters.
-- 🔄 Updated website link → [itngon.com/zagi](https://itngon.com/zagi/)
-- 📦 Updated package metadata: repository, author, homepage.
-- 🔑 Standardized CI/CD to `trithucnen-max/zagi-builder`.
-
-</details>
-
-<details>
-<summary><strong>v27.1.1</strong> — 2026-06-20</summary>
-
-### 🔧 CI/CD Infrastructure
-
-- 🔄 Migrated all CI/CD to `trithucnen-max/zagi-builder`
-- 🔑 Switched to built-in `GITHUB_TOKEN` for all workflows
-- 📝 Fixed duplicate build trigger — each platform builds only once per tag push
-
-</details>
-
-<details>
-<summary><strong>v27.1.0</strong> — 2026-06-20</summary>
-
-### 🚀 Highlights
-
-- 🎨 Full CRM UI overhaul — contact list, filters and label management redesigned
-- ⚡ Optimized rendering for large contact lists (>10,000 contacts)
-- 🤖 Improved AI Assistant — higher reply suggestion accuracy
-
-### ✨ New features
-
-- **Enhanced CRM**: Multi-criteria contact filter with new sidebar UI
-- **CRM Pipeline**: Kanban board for sales pipeline management
-- **CRM Timeline**: View interaction history in a timeline view
-- **Bulk actions**: Select multiple contacts and perform batch operations
-- **Advanced export**: Export CRM data to properly-formatted Excel files
-
-### ⚡ Improvements
-
-- 3x faster contact list loading
-- Better memory usage with multiple simultaneous accounts
-- License Manager integrated in app
-
-### 🐛 Bug fixes
-
-- Fixed contact search returning no results when phone number has spaces
-- Fixed labels not updating in real-time from the chat screen
-- Fixed bulk label actions in CRM
-
-</details>
-
-<details>
-<summary><strong>v26.6.4</strong> — 2026-06-20</summary>
-
-- 👤 Auto-refresh Zalo avatar on startup
-- ✏️ Facebook E2EE supports viewing message edit history
-- 📞 Suggest sending Zalo contact card from phone number in chat
-- 🖼️ Zalo contact card supports quick friend request
-- 🚫 Facebook correctly displays system notifications
-- ℹ️ Auto-fetch name and avatar when opening a new conversation
-- 👤 Boss–employee data loading and message sending optimized
-
-</details>
-
-<details>
-<summary><strong>v26.6.3</strong> — 2026-06-17</summary>
-
-- 🐧 **Ubuntu/Linux** support (.AppImage + .deb) with automated CI/CD builds
-- 📡 More stable Facebook with auto-reconnect on disconnection
-- 🤖 Zalo & Facebook workflows can send messages to multiple conversations at once
-- 📹 Watch Facebook videos directly in chat
-- 📤 Employee Zalo auto-uploads images, videos and voice to boss before proxying
-
-</details>
-
-<details>
-<summary><strong>v26.6.2</strong> — 2026-06-16</summary>
-
-- 🔐 Facebook login with email/phone + password + 2FA (no manual cookie extraction)
-- 🔔 Per-account notification settings (sound and corner alerts)
-- 🤖 AI Assistant now supports OpenRouter
-- Fixed some free AI models on 9Router failing to connect
-- Fixed Zalo forward node not forwarding messages and images
-- Fixed deleted accounts still maintaining background connections
-
-</details>
-
-<details>
-<summary><strong>v26.6.0</strong> — 2026-06-14</summary>
-
-- 🤖 Facebook Messenger E2EE integration (read/send end-to-end encrypted messages)
-- 📊 CRM Facebook data scanner (groups, fanpages, posts, members, comments)
-- ⚡ Facebook Workflow with multiple Triggers & Actions
-- 🤖 9Router AI Gateway integration
-
-</details>
-
-<details>
-<summary><strong>v26.4.0 → v26.4.8</strong> — 2026-05-20 to 2026-06-07</summary>
-
-### 🎉 Official Zagi launch
-
-First full-featured release:
-
-- Multi-account Zalo & unified inbox
-- CRM, Campaign, Workflow automation
-- AI Assistant (OpenAI, Claude, Gemini, 9Router)
-- POS, shipping, external integrations
-- Internal ERP & Boss ↔ Employee model
-- Comprehensive reports & analytics
-- Screen lock, bulk message forwarding, auto image repair
-- Boss–employee LAN/WAN relay with Cloudflare Tunnel
-- Per-account proxy management
+- 📋 **"Pending" Checkpoint Management Tab**: Dedicated tab in Workflow Automation showing pending counts, countdown timers, and quick cancel actions.
+- 🛡️ **Safe Serialization (contextSerializer)**: Resolves circular references and truncates large payloads.
+- 🧪 **Comprehensive Automated Testing**: Added `workflowCheckpoint.test.ts` with 46 tests.
 
 </details>
 
