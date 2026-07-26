@@ -28,9 +28,18 @@ interface TargetSelectorProps {
   headerContent?: React.ReactNode;
 }
 
-type SelectMode = 'manual' | 'by_label' | 'friends_only' | 'groups_only' | 'by_phone' | 'by_uid';
+type SelectMode = 'by_label' | 'by_phone' | 'by_uid' | 'manual' | 'friends_only' | 'groups_only';
 
-export default function TargetSelector({ zaloId, allLabels, localLabels, localLabelThreadMap, existingContactIds, onConfirm, onClose, headerContent }: TargetSelectorProps) {
+export default function TargetSelector({
+  zaloId,
+  allLabels,
+  localLabels,
+  localLabelThreadMap,
+  existingContactIds,
+  onConfirm,
+  onClose,
+  headerContent,
+}: TargetSelectorProps) {
   const [mode, setMode] = useState<SelectMode>('by_label');
   const groupInfoCache = useAppStore(s => s.groupInfoCache);
   const showNotification = useAppStore(s => s.showNotification);
@@ -40,6 +49,7 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
   const [search, setSearch] = useState('');
   const [allContacts, setAllContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTip, setShowTip] = useState(true);
 
   // ── Phone tab state ──
   const [phoneInput, setPhoneInput] = useState('');
@@ -55,7 +65,7 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
   const labelScrollRef = useRef<HTMLDivElement>(null);
   const [labelTab, setLabelTab] = useState<'local' | 'zalo'>('local');
 
-  // ── Load local labels directly (self-sufficient, not relying on parent props) ──
+  // ── Load local labels directly ──
   const [fetchedLocalLabels, setFetchedLocalLabels] = useState<LocalLabelItem[]>([]);
   const [fetchedThreadMap, setFetchedThreadMap] = useState<Record<string, number[]>>({});
 
@@ -65,7 +75,6 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
       ipc.db?.getLocalLabels({ zaloId }),
       ipc.db?.getLocalLabelThreads({ zaloId }),
     ]).then(([labelsRes, threadsRes]) => {
-      // Filter only active labels (is_active !== 0)
       const labels = (labelsRes?.labels || []).filter((l: any) => (l.is_active ?? 1) !== 0);
       setFetchedLocalLabels(labels);
       const map: Record<string, number[]> = {};
@@ -77,7 +86,6 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
     }).catch(() => {});
   }, [zaloId]);
 
-  // Use fetched labels if prop is empty, otherwise prefer props (merged)
   const effectiveLocalLabels = useMemo(() => {
     const fromProp = (localLabels || []).filter((l: any) => (l.is_active ?? 1) !== 0);
     if (fromProp.length > 0) return fromProp;
@@ -96,804 +104,558 @@ export default function TargetSelector({ zaloId, allLabels, localLabels, localLa
   const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
     const localOpts: LoadedLabelOption[] = (effectiveLocalLabels || []).map((l: any) => ({
       value: `local:${l.id}`,
+      name: l.name,
       label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
       source: 'local',
-      color: l.color || '#14b8a6',
-      textColor: l.text_color || l.textColor || '#ffffff',
-      emoji: l.emoji || '🏷️',
-      name: l.name,
-      pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
+      id: l.id,
+      color: l.color,
+      emoji: l.emoji,
+      accountZaloId: zaloId,
+      accountName: accounts.find(a => a.zalo_id === zaloId)?.full_name || zaloId,
     }));
-
     const zaloOpts: LoadedLabelOption[] = (allLabels || []).map((l: any) => ({
-      value: `zalo:${(l as any).zalo_id || (l as any).pageId || zaloId || ''}:${l.id}`,
-      label: `${l.emoji || '🏷️'} ${l.text || l.name} (Zalo)`,
-      source: 'zalo',
-      color: l.color || '#3b82f6',
-      textColor: '#ffffff',
-      emoji: l.emoji || '🏷️',
+      value: `zalo:${l.id}`,
       name: l.text || l.name,
-      pageId: (l as any).zalo_id || (l as any).pageId || zaloId || '',
+      label: `🏷️ ${l.text || l.name} (Zalo)`,
+      source: 'zalo',
+      id: l.id,
+      color: l.color,
+      accountZaloId: zaloId,
+      accountName: accounts.find(a => a.zalo_id === zaloId)?.full_name || zaloId,
     }));
-
     return [...localOpts, ...zaloOpts];
-  }, [effectiveLocalLabels, allLabels, zaloId]);
+  }, [effectiveLocalLabels, allLabels, zaloId, accounts]);
 
-  const selectedUnifiedValues = useMemo(() => {
-    const localValues = selectedLocalLabelIds.map(id => `local:${id}`);
-    const zaloValues = selectedZaloLabelIds.map(id => {
-      const opt = unifiedLabelOptions.find(o => o.source === 'zalo' && o.value.endsWith(`:${id}`));
-      return opt ? opt.value : `zalo:${zaloId}:${id}`;
-    });
-    return [...localValues, ...zaloValues];
-  }, [selectedLocalLabelIds, selectedZaloLabelIds, unifiedLabelOptions, zaloId]);
-
-  const handleUnifiedChange = (newValues: string[]) => {
-    const newLocalIds: number[] = [];
-    const newZaloIds: number[] = [];
-
-    for (const val of newValues) {
-      if (val.startsWith('local:')) {
-        const id = Number(val.split(':')[1]);
-        if (!isNaN(id)) newLocalIds.push(id);
-      } else if (val.startsWith('zalo:')) {
-        const parts = val.split(':');
-        const id = Number(parts[parts.length - 1]);
-        if (!isNaN(id)) newZaloIds.push(id);
-      }
-    }
-    setSelectedLocalLabelIds(newLocalIds);
-    setSelectedZaloLabelIds(newZaloIds);
-  };
-
-  // Load ALL contacts (no pagination limit, including friends, non-friends, and groups)
   useEffect(() => {
     if (!zaloId) return;
     setLoading(true);
-    ipc.crm?.getContacts({ zaloId, opts: { limit: 99999, offset: 0, contactTypes: ['friend', 'group', 'non_friend'] } })
-      .then(res => { if (res?.success) setAllContacts(res.contacts); })
-      .finally(() => setLoading(false));
+    ipc.crm?.getContacts({ zaloId, opts: { limit: 5000 } }).then(res => {
+      if (res?.contacts) setAllContacts(res.contacts);
+    }).finally(() => setLoading(false));
   }, [zaloId]);
 
-  // Available = not already in campaign
-  const available = useMemo(() =>
-    allContacts.filter(c => !existingContactIds.has(String(c.contact_id))),
-    [allContacts, existingContactIds]
-  );
-
-  // Filtered by mode + search
-  const filtered = useMemo(() => {
-    let list = available;
-    if (mode === 'friends_only') list = list.filter(c => c.is_friend === 1);
-    if (mode === 'groups_only') list = list.filter(c => c.contact_type === 'group');
-    if (mode === 'by_label') {
-      // Filter by selected Zalo labels
-      if (selectedZaloLabelIds.length > 0) {
-        list = list.filter(c =>
-          selectedZaloLabelIds.every(labelId =>
-            allLabels.find(l => l.id === labelId)?.conversations?.some(convId => String(convId) === String(c.contact_id))
-          )
-        );
-      }
-      // Filter by selected Local labels
-      if (selectedLocalLabelIds.length > 0 && effectiveThreadMap) {
-        list = list.filter(c => {
-          const threadLabels = effectiveThreadMap[c.contact_id] || [];
-          return selectedLocalLabelIds.every(lid => threadLabels.includes(lid));
-        });
-      }
-      // If no labels selected at all, show nothing (require at least one label filter)
-      if (selectedZaloLabelIds.length === 0 && selectedLocalLabelIds.length === 0) {
-        list = [];
-      }
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(c =>
-        (c.alias || c.display_name || '').toLowerCase().includes(q) ||
-        (c.phone || '').includes(q) ||
-        String(c.contact_id).includes(q)
-      );
-    }
-    return list;
-  }, [available, mode, selectedZaloLabelIds, selectedLocalLabelIds, search, allLabels, effectiveThreadMap]);
-
-  // ── Phone input handling ──
+  // Handle phone textarea input
   useEffect(() => {
-    if (!phoneInput.trim()) { setPhoneList([]); return; }
     const lines = phoneInput.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
-    const normalized = [...new Set(lines.map(normalizePhone).filter(s => /^\d{9,12}$/.test(s)))];
-    setPhoneList(normalized);
+    const valid: string[] = [];
+    const seen = new Set<string>();
+    for (const l of lines) {
+      const norm = normalizePhone(l);
+      if (norm && !seen.has(norm)) {
+        seen.add(norm);
+        valid.push(norm);
+      }
+    }
+    setPhoneList(valid);
   }, [phoneInput]);
 
-  // ── UID input handling ──
   useEffect(() => {
-    if (!uidInput.trim()) { setUidList([]); return; }
-    const lines = uidInput.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
-    // UID is typically a numeric string (Zalo UID)
-    const validUids = [...new Set(lines.filter(s => /^\d{5,}$/.test(s)))];
-    setUidList(validUids);
-  }, [uidInput]);
+    if (phoneList.length === 0 || !zaloId) return;
+    const unresolved = phoneList.filter(p => !phoneResolved.has(p));
+    if (unresolved.length === 0) return;
 
-  // ── Auto-resolve from local contacts whenever phoneList or allContacts changes ──
-  useEffect(() => {
-    if (phoneList.length === 0 || allContacts.length === 0) return;
-    setPhoneResolved(prev => {
-      const next = new Map(prev);
-      let changed = false;
-      for (const phone of phoneList) {
-        if (!next.has(phone)) {
-          const match = allContacts.find(c => normalizePhone(c.phone || '') === phone);
-          if (match) {
-            next.set(phone, {
-              uid: match.contact_id,
-              name: match.alias || match.display_name || phone,
-              avatar: match.avatar_url || match.avatar || '',
-            });
-            changed = true;
-          }
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [phoneList, allContacts]);
-
-  // NOTE: Phone numbers are no longer resolved via Zalo API at add time.
-  // Resolution happens at send time in CRMQueueService to avoid rate limiting.
-  // Local-contact cache matching (above) still works without API calls.
-
-  // ── Auto-resolve UIDs from local contacts whenever uidList or allContacts changes ──
-  useEffect(() => {
-    if (uidList.length === 0 || allContacts.length === 0) return;
-    setUidResolved(prev => {
-      const next = new Map(prev);
-      let changed = false;
-      for (const uid of uidList) {
-        if (!next.has(uid)) {
-          const match = allContacts.find(c => c.contact_id === uid);
-          if (match) {
-            next.set(uid, {
-              name: match.alias || match.display_name || '',
-              avatar: match.avatar_url || match.avatar || '',
+    let cancelled = false;
+    (async () => {
+      const batch = unresolved.slice(0, 20);
+      const newMap = new Map(phoneResolved);
+      for (const phone of batch) {
+        if (cancelled) break;
+        try {
+          const res = await ipc.crm?.getContacts({ zaloId, opts: { search: phone, limit: 1 } });
+          const matched = res?.contacts?.[0];
+          if (matched && (matched.phone === phone || normalizePhone(matched.phone || '') === phone)) {
+            newMap.set(phone, {
+              uid: matched.contact_id,
+              name: matched.alias || matched.display_name || phone,
+              avatar: matched.avatar,
             });
           } else {
-            // Not in local contacts — will be resolved at send time via getUserInfo
-            next.set(uid, null);
-            changed = true;
+            newMap.set(phone, null);
           }
-          changed = true;
+        } catch {
+          newMap.set(phone, null);
         }
       }
-      return changed ? next : prev;
-    });
-  }, [uidList, allContacts]);
+      if (!cancelled) setPhoneResolved(newMap);
+    })();
 
-  // Final selected contacts
-  const finalSelected: any[] = useMemo(() => {
-    if (mode === 'by_phone') {
-      // Return resolved phone contacts
-      return phoneList
-        .map(phone => {
-          const resolved = phoneResolved.get(phone);
-          if (resolved) {
-            return {
-              contact_id: resolved.uid,
-              display_name: resolved.name || phone,
-              avatar: resolved.avatar || '',
-              phone,
-              source: 'phone',
-            };
-          }
-          // Not resolved yet — will be resolved when adding
-          return { contact_id: `phone:${phone}`, display_name: phone, avatar: '', phone, source: 'phone_pending' };
-        })
-        .filter(c => {
-          // Check both contact_id and phone: prefix to prevent duplicates
-          if (existingContactIds.has(String(c.contact_id))) return false;
-          if (c.phone && existingContactIds.has(`phone:${c.phone}`)) return false;
-          return true;
-        });
+    return () => { cancelled = true; };
+  }, [phoneList, zaloId]);
+
+  // Handle UID textarea input
+  useEffect(() => {
+    const lines = uidInput.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+    const valid: string[] = [];
+    const seen = new Set<string>();
+    for (const l of lines) {
+      if (/^\d{5,}$/.test(l) && !seen.has(l)) {
+        seen.add(l);
+        valid.push(l);
+      }
     }
-    if (mode === 'by_uid') {
-      return uidList
-        .map(uid => {
-          const resolved = uidResolved.get(uid);
-          if (resolved) {
-            return {
-              contact_id: uid,
-              display_name: resolved.name || uid,
-              avatar: resolved.avatar || '',
-              source: 'uid',
-            };
-          }
-          // Not resolved locally — will be resolved at send time via getUserInfo
-          return { contact_id: uid, display_name: '', avatar: '', source: 'uid_pending' };
-        })
-        .filter(c => {
-          if (existingContactIds.has(String(c.contact_id))) return false;
-          return true;
-        });
-    }
-    if (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') return available.filter(c => manualSelected.has(String(c.contact_id)));
-    return filtered;
-  }, [mode, available, manualSelected, filtered, phoneList, phoneResolved, uidList, uidResolved, existingContactIds]);
+    setUidList(valid);
+  }, [uidInput]);
 
-  const toggleManual = (id: string | number) => {
-    const sId = String(id);
-    setManualSelected(prev => { const n = new Set(prev); n.has(sId) ? n.delete(sId) : n.add(sId); return n; });
-  };
-  const toggleZaloLabel = (id: number) => {
-    setSelectedZaloLabelIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-  const toggleLocalLabel = (id: number) => {
-    setSelectedLocalLabelIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-  const allFilteredSelected = useMemo(() =>
-    filtered.length > 0 && filtered.every(c => manualSelected.has(String(c.contact_id))),
-    [filtered, manualSelected]
-  );
-  const selectAllFiltered = () => {
-    setManualSelected(prev => {
-      const next = new Set(prev);
-      if (allFilteredSelected) {
-        filtered.forEach(c => next.delete(String(c.contact_id)));
-      } else {
-        filtered.forEach(c => next.add(String(c.contact_id)));
-      }
-      return next;
-    });
+  const toggleZaloLabel = (labelId: number) => {
+    setSelectedZaloLabelIds(prev =>
+      prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]
+    );
   };
 
-  const removePhone = (phone: string) => {
-    setPhoneList(prev => prev.filter(p => p !== phone));
-    // Also remove from input textarea
-    setPhoneInput(prev => {
-      const lines = prev.split('\n').filter(l => normalizePhone(l.trim()) !== phone);
-      return lines.join('\n');
-    });
-  };
-
-  const confirmSelection = async (selectedList: any[]) => {
-    setLoading(true);
-    try {
-      const expandedContacts: any[] = [];
-      const seenIds = new Set<string>();
-
-      const currentTargetCount = existingContactIds.size;
-      let availableSlots = 1000 - currentTargetCount;
-      let limitExceeded = false;
-      let discardedCount = 0;
-
-      for (const contact of selectedList) {
-        // If contact is a group, expand it
-        if (contact.contact_type === 'group' || (contact.contact_id && String(contact.contact_id).startsWith('g'))) {
-          const gId = contact.contact_id;
-          const res = await ipc.db?.getGroupMembers({ zaloId, groupId: gId }).catch(() => null);
-          if (res?.success && Array.isArray(res.members)) {
-            for (const member of res.members) {
-              const mId = member.member_id;
-              if (existingContactIds.has(mId) || seenIds.has(mId)) {
-                continue;
-              }
-              if (availableSlots <= 0) {
-                limitExceeded = true;
-                discardedCount += 1;
-                continue;
-              }
-              expandedContacts.push({
-                contact_id: mId,
-                display_name: member.display_name || mId,
-                avatar: member.avatar || '',
-                phone: '',
-              });
-              seenIds.add(mId);
-              availableSlots -= 1;
-            }
-          }
-        } else {
-          // Standard contact
-          const cId = contact.contact_id;
-          if (existingContactIds.has(cId) || seenIds.has(cId) || (contact.phone && existingContactIds.has(`phone:${contact.phone}`))) {
-            continue;
-          }
-          if (availableSlots <= 0) {
-            limitExceeded = true;
-            discardedCount += 1;
-            continue;
-          }
-          expandedContacts.push(contact);
-          seenIds.add(cId);
-          availableSlots -= 1;
-        }
-      }
-
-      if (limitExceeded) {
-        showNotification(
-          `Chiến dịch chỉ cho tối đa 1000 người. Đã loại bỏ ${discardedCount} người vượt quá.`,
-          'warning'
-        );
-      }
-
-      if (expandedContacts.length > 0) {
-        onConfirm(expandedContacts);
-      }
-      onClose();
-    } catch (err) {
-      console.error('Error confirming targets:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Confirm phone contacts — unresolved phones are added directly,
-  // Zalo API resolution will happen at send time in CRMQueueService.
-  const handleConfirmPhones = () => {
-    const contacts = phoneList
-      .map(phone => {
-        const r = phoneResolved.get(phone);
-        if (r) return { contact_id: r.uid, display_name: r.name || phone, avatar: r.avatar || '', phone, source: 'phone' };
-        // Not resolved — add as pending phone, will be resolved at send time
-        return { contact_id: `phone:${phone}`, display_name: phone, avatar: '', phone, source: 'phone_pending' };
-      });
-    confirmSelection(contacts);
-  };
-
-  // Confirm UID contacts — unresolved UIDs are added directly,
-  // getUserInfo will be called at send time in CRMQueueService.
-  const handleConfirmUids = () => {
-    const contacts = uidList
-      .map(uid => {
-        const r = uidResolved.get(uid);
-        if (r) return { contact_id: uid, display_name: r.name || uid, avatar: r.avatar || '', source: 'uid' };
-        // Not resolved locally — will be resolved at send time
-        return { contact_id: uid, display_name: '', avatar: '', source: 'uid_pending' };
-      });
-    confirmSelection(contacts);
-  };
-
-  const removeUid = (uid: string) => {
-    setUidList(prev => prev.filter(u => u !== uid));
-    setUidInput(prev => {
-      const lines = prev.split('\n').filter(l => l.trim() !== uid);
-      return lines.join('\n');
-    });
+  const toggleLocalLabel = (labelId: number) => {
+    setSelectedLocalLabelIds(prev =>
+      prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]
+    );
   };
 
   const totalLabelFilters = selectedZaloLabelIds.length + selectedLocalLabelIds.length;
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className={`bg-gray-800 border border-gray-600 rounded-2xl max-h-[85vh] flex flex-col shadow-2xl ${mode === 'by_phone' || mode === 'by_uid' ? 'w-[700px]' : 'w-[540px]'}`}
-        onClick={e => e.stopPropagation()}>
+  const filtered = useMemo(() => {
+    let list = allContacts;
+    if (mode === 'friends_only') {
+      list = list.filter(c => c.is_friend === 1 && c.contact_type !== 'group');
+    } else if (mode === 'groups_only') {
+      list = list.filter(c => c.contact_type === 'group');
+    } else if (mode === 'by_label') {
+      if (totalLabelFilters === 0) return [];
+      list = list.filter(c => {
+        const cId = c.contact_id;
+        const isGroup = c.contact_type === 'group';
+        const prefId = isGroup ? `g${cId}` : cId;
+        const matchesZalo = selectedZaloLabelIds.some(lId => {
+          const lObj = allLabels.find(l => l.id === lId);
+          return lObj?.conversations?.includes(cId) || (isGroup && lObj?.conversations?.includes(prefId));
+        });
+        const threadLabels = effectiveThreadMap[cId] || effectiveThreadMap[prefId] || [];
+        const matchesLocal = selectedLocalLabelIds.some(lId => threadLabels.includes(lId));
+        return matchesZalo || matchesLocal;
+      });
+    }
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 flex-shrink-0">
-          <div>
-            <h3 className="font-semibold text-white">Chọn liên hệ</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {loading ? 'Đang tải...' : `${finalSelected.length} đã chọn · ${available.length} khả dụng`}
-            </p>
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(c =>
+        (c.display_name && c.display_name.toLowerCase().includes(q)) ||
+        (c.alias && c.alias.toLowerCase().includes(q)) ||
+        (c.phone && c.phone.includes(q)) ||
+        (c.contact_id && c.contact_id.includes(q))
+      );
+    }
+    return list;
+  }, [allContacts, mode, selectedZaloLabelIds, selectedLocalLabelIds, totalLabelFilters, search, allLabels, effectiveThreadMap]);
+
+  const effectiveSelectedContacts = useMemo(() => {
+    if (mode === 'by_label' || mode === 'friends_only' || mode === 'groups_only') {
+      return filtered.filter(c => !existingContactIds.has(c.contact_id));
+    }
+    return allContacts.filter(c => manualSelected.has(c.contact_id) && !existingContactIds.has(c.contact_id));
+  }, [mode, filtered, allContacts, manualSelected, existingContactIds]);
+
+  const toggleManualSelect = (cId: string) => {
+    setManualSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(cId)) next.delete(cId); else next.add(cId);
+      return next;
+    });
+  };
+
+  const handleConfirmPhones = () => {
+    if (phoneList.length === 0) return;
+    const contacts = phoneList.map(phone => {
+      const resolved = phoneResolved.get(phone);
+      if (resolved?.uid) {
+        const inCrm = allContacts.find(c => c.contact_id === resolved.uid);
+        if (inCrm) return inCrm;
+        return {
+          contact_id: resolved.uid,
+          display_name: resolved.name || phone,
+          phone,
+          avatar: resolved.avatar || '',
+          contact_type: 'user',
+          is_friend: 0,
+        };
+      }
+      return {
+        contact_id: `phone:${phone}`,
+        display_name: phone,
+        phone,
+        avatar: '',
+        contact_type: 'user',
+        is_friend: 0,
+      };
+    });
+    onConfirm(contacts);
+  };
+
+  const handleConfirmUIDs = () => {
+    if (uidList.length === 0) return;
+    const contacts = uidList.map(uid => {
+      const inCrm = allContacts.find(c => c.contact_id === uid);
+      if (inCrm) return inCrm;
+      const res = uidResolved.get(uid);
+      return {
+        contact_id: uid,
+        display_name: res?.name || uid,
+        phone: '',
+        avatar: res?.avatar || '',
+        contact_type: 'user',
+        is_friend: 0,
+      };
+    });
+    onConfirm(contacts);
+  };
+
+  const handleConfirm = () => {
+    if (mode === 'by_phone') { handleConfirmPhones(); return; }
+    if (mode === 'by_uid') { handleConfirmUIDs(); return; }
+    if (effectiveSelectedContacts.length === 0) {
+      showNotification('Vui lòng chọn ít nhất 1 liên hệ', 'warning');
+      return;
+    }
+    onConfirm(effectiveSelectedContacts);
+  };
+
+  const totalAvailable = allContacts.length;
+  const selectedCount = mode === 'by_phone' ? phoneList.length : mode === 'by_uid' ? uidList.length : effectiveSelectedContacts.length;
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-[70] p-3 sm:p-4" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-[680px] shadow-2xl flex flex-col overflow-hidden text-gray-900 dark:text-white max-h-[92vh] sm:max-h-[85vh]"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Top Drag Indicator for Mobile */}
+        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mt-2.5 mb-1 sm:hidden" />
+
+        {/* ── Stepper Indicator ── */}
+        <div className="px-6 pt-3 pb-2 border-b border-gray-100 dark:border-gray-800/80 flex items-center justify-center gap-3 text-xs font-semibold">
+          <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+            <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">✓</div>
+            <span>Tạo chiến dịch</span>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+          <div className="w-12 h-0.5 bg-blue-500 rounded-full" />
+          <div className="flex items-center gap-1.5 text-gray-900 dark:text-white font-bold">
+            <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">2</div>
+            <span>Thêm liên hệ</span>
+          </div>
         </div>
 
-        {/* Header content slot (e.g. wizard step indicator) */}
-        {headerContent && (
-          <div className="border-b border-gray-700 flex-shrink-0 px-5">
-            {headerContent}
+        {/* ── Header ── */}
+        <div className="px-6 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">Chọn liên hệ</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="font-bold text-gray-800 dark:text-gray-200">{selectedCount} đã chọn</span> · {totalAvailable} khả dụng
+            </p>
           </div>
-        )}
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
 
-        {/* Mode selector */}
-        <div className="flex gap-1 px-4 py-2.5 border-b border-gray-700 flex-shrink-0 overflow-x-auto select-none" style={{ scrollbarWidth: 'none' }}>
-          {([
-            { key: 'by_label' as const, icon: 'layers' as const, label: 'Theo nhãn' },
-            { key: 'by_phone' as const, icon: 'phone' as const, label: 'Theo SĐT' },
-            { key: 'by_uid' as const, icon: 'integration' as const, label: 'Theo UID' },
-            { key: 'friends_only' as const, icon: 'user_plus' as const, label: 'Bạn bè' },
-            { key: 'groups_only' as const, icon: 'users' as const, label: 'Nhóm' },
-          ]).map(({ key, icon, label }) => {
-            const isActive = mode === key;
+        {/* ── Mode selector sub-tabs (Row 1 - Matching Mockup Image 3) ── */}
+        <div className="px-4 py-2.5 bg-gray-50/60 dark:bg-gray-900/60 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2 overflow-x-auto scrollbar-none flex-shrink-0">
+          {[
+            { id: 'by_label', label: 'Theo nhãn', icon: '🏷️' },
+            { id: 'by_phone', label: 'Theo SĐT', icon: '📞' },
+            { id: 'by_uid', label: 'Theo UID', icon: '🔗' },
+            { id: 'manual', label: 'Chọn thủ công', icon: '👥' },
+          ].map(tab => {
+            const isActive = mode === tab.id;
             return (
-              <button key={key} onClick={() => setMode(key)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-1.5 font-medium ${
-                  isActive ? 'border-blue-500 bg-blue-500/20 text-blue-300' : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600 hover:text-gray-300'
+              <button
+                key={tab.id}
+                onClick={() => setMode(tab.id as any)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap border ${
+                  isActive
+                    ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
-                <AppIcon name={icon} className={isActive ? 'text-blue-300' : 'text-gray-500'} size={12} />
-                <span>{label}</span>
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* ── Label filter chips (by_label mode) ── */}
+        {/* ── Sub-tabs for Label Mode (Row 2 - Matching Mockup Image 3) ── */}
         {mode === 'by_label' && (
-          <div className="border-b border-gray-700 flex-shrink-0 px-4 py-2.5 space-y-2">
-            {/* Tab switcher + Unified Label Picker trigger */}
-            <div className="flex items-center justify-between gap-1 mb-1">
-              <div className="flex gap-1">
-                <button onClick={() => setLabelTab('local')}
-                  className={`text-[11px] px-3 py-1 rounded-md font-medium transition-colors ${
-                    labelTab === 'local'
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                      : 'text-gray-500 hover:text-gray-300 border border-transparent'
-                  }`}>
-                  <span className="flex items-center gap-1">
-                    <AppIcon name="storage" className="text-current" size={10} />
-                    Nhãn Local{effectiveLocalLabels.length > 0 ? ` (${effectiveLocalLabels.length})` : ''}
-                  </span>
-                </button>
-                <button onClick={() => setLabelTab('zalo')}
-                  className={`text-[11px] px-3 py-1 rounded-md font-medium transition-colors ${
-                    labelTab === 'zalo'
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                      : 'text-gray-500 hover:text-gray-300 border border-transparent'
-                  }`}>
-                  <span className="flex items-center gap-1">
-                    <AppIcon name="sync" className="text-current" size={10} />
-                    Nhãn Zalo{allLabels.length > 0 ? ` (${allLabels.length})` : ''}
-                  </span>
-                </button>
-              </div>
-
+          <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2 flex-wrap flex-shrink-0 bg-white dark:bg-gray-900">
+            <div className="flex gap-2">
               <button
-                type="button"
-                onClick={() => setShowLabelPickerModal(true)}
-                className="text-[11px] px-2.5 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 rounded-md border border-blue-500/30 font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                onClick={() => setLabelTab('local')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                  labelTab === 'local'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+                }`}
               >
-                <span>🏷️</span>
-                <span>Bảng chọn nhãn</span>
+                📦 Nhãn Local ({effectiveLocalLabels.length})
+              </button>
+              <button
+                onClick={() => setLabelTab('zalo')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                  labelTab === 'zalo'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
+                }`}
+              >
+                🔄 Nhãn Zalo ({allLabels.length})
               </button>
             </div>
 
-            {/* Local labels tab */}
-            {labelTab === 'local' && (
-              effectiveLocalLabels.length > 0 ? (
-                <div ref={labelScrollRef} className="flex gap-1.5 overflow-x-auto pb-1 flex-wrap" style={{ scrollbarWidth: 'thin' }}>
-                  {effectiveLocalLabels.map(label => {
-                    const isActive = selectedLocalLabelIds.includes(label.id);
-                    const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
-                    return (
-                      <button key={`local-${label.id}`} onClick={() => toggleLocalLabel(label.id)}
-                        className={`text-xs px-2.5 py-1 rounded-full border transition-all whitespace-nowrap flex-shrink-0 font-medium ${
-                          isActive ? 'border-transparent text-white shadow-sm font-semibold' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
-                        }`}
-                        style={isActive
-                          ? { backgroundColor: baseColor, color: label.text_color || '#ffffff' }
-                          : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' }}>
-                        {label.emoji && <span className="mr-0.5">{label.emoji}</span>}{label.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-500 py-2">Chưa có Nhãn Local nào. Tạo nhãn từ trang Liên hệ.</p>
-              )
-            )}
-
-            {/* Zalo labels tab */}
-            {labelTab === 'zalo' && (
-              allLabels.length > 0 ? (
-                <div className="flex gap-1.5 overflow-x-auto pb-1 flex-wrap" style={{ scrollbarWidth: 'thin' }}>
-                  {allLabels.map(label => {
-                    const isActive = selectedZaloLabelIds.includes(label.id);
-                    const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
-                    return (
-                      <button key={`zalo-${label.id}`} onClick={() => toggleZaloLabel(label.id)}
-                        className={`text-xs px-2.5 py-1 rounded-full border transition-all whitespace-nowrap flex-shrink-0 font-medium ${
-                          isActive ? 'border-transparent text-white shadow-sm font-semibold' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
-                        }`}
-                        style={isActive
-                          ? { backgroundColor: baseColor, color: (label as any).textColor || (label as any).text_color || '#ffffff' }
-                          : { backgroundColor: baseColor + '08', borderColor: baseColor + '1a' }}>
-                        {label.emoji} {label.text}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-500 py-2">Chưa có nhãn Zalo nào. Đồng bộ nhãn từ header trước.</p>
-              )
-            )}
-
-            {totalLabelFilters > 0 && (
-              <p className="text-[11px] text-blue-400">{filtered.length} liên hệ phù hợp với {totalLabelFilters} nhãn đã chọn</p>
-            )}
+            <button
+              onClick={() => setShowLabelPickerModal(true)}
+              className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-200 dark:border-blue-800 text-xs font-bold flex items-center gap-1 hover:bg-blue-100 transition-colors"
+            >
+              🏷️ Bảng chọn nhãn
+            </button>
           </div>
         )}
 
-        {/* ── Phone input mode ── */}
-        {mode === 'by_phone' ? (
-          <>
-            <div className="flex flex-1 overflow-hidden border-b border-gray-700">
-              {/* Left: textarea */}
-              <div className="w-1/2 flex flex-col border-r border-gray-700">
-                <div className="px-3 py-2 border-b border-gray-700/50 flex-shrink-0">
-                  <p className="text-[11px] text-gray-400 font-medium">Nhập hoặc dán SĐT (mỗi số 1 dòng)</p>
-                </div>
-                <textarea
-                  value={phoneInput}
-                  onChange={e => setPhoneInput(e.target.value)}
-                  placeholder={"0901234567\n0912345678\n84987654321\n..."}
-                  className="flex-1 bg-transparent text-xs text-white placeholder-gray-600 p-3 resize-none outline-none font-mono leading-relaxed"
-                  spellCheck={false}
-                />
+        {/* ── Content Body ── */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {/* Tip Banner (Matching Mockup Image 3) */}
+          {showTip && mode === 'by_label' && (
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-2xl p-3 flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300 font-semibold">
+                <span className="text-base">🛡️</span>
+                <span>Mẹo: Chọn ít nhất 1 nhãn để lọc liên hệ</span>
               </div>
-              {/* Right: phone list */}
-              <div className="w-1/2 flex flex-col">
-                <div className="px-3 py-2 border-b border-gray-700/50 flex-shrink-0 flex items-center justify-between">
-                  <p className="text-[11px] text-gray-400 font-medium">
-                    {phoneList.length} số hợp lệ
-                    {phoneList.length > 0 && (() => {
-                      const resolved = phoneList.filter(p => phoneResolved.get(p) != null).length;
-                      return resolved > 0 ? <span className="text-green-400 ml-1">· {resolved} có tên</span> : null;
-                    })()}
-                  </p>
-                  {phoneList.length > 0 && (
-                    <button onClick={() => { setPhoneInput(''); setPhoneList([]); setPhoneResolved(new Map()); }}
-                      className="text-[11px] text-red-400 hover:text-red-300">Xóa tất cả</button>
-                  )}
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {phoneList.length === 0 ? (
-                    <p className="text-xs text-gray-600 text-center py-8">Nhập SĐT bên trái →</p>
-                  ) : (
-                    phoneList.map((phone, i) => {
-                      const resolved = phoneResolved.get(phone);
-                      // Check both resolved UID and phone: prefix for previously added unresolved phones
-                      const phoneContactId = `phone:${phone}`;
-                      const existing = existingContactIds.has(resolved?.uid || '') || existingContactIds.has(phoneContactId);
+              <button onClick={() => setShowTip(false)} className="text-blue-400 hover:text-blue-600 text-xs">✕</button>
+            </div>
+          )}
+
+          {/* Search Bar */}
+          {(mode === 'by_label' || mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') && (
+            <div className="relative">
+              <svg width="14" height="14" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Tìm tên, SĐT, UID..."
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full pl-9 pr-4 py-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 shadow-xs"
+              />
+            </div>
+          )}
+
+          {/* Render By Label Mode */}
+          {mode === 'by_label' && (
+            <div>
+              {/* Chips Selector */}
+              {labelTab === 'local' ? (
+                effectiveLocalLabels.length > 0 ? (
+                  <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
+                    {effectiveLocalLabels.map(label => {
+                      const isActive = selectedLocalLabelIds.includes(label.id);
+                      const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
                       return (
-                        <div key={phone} className={`flex items-center gap-2 px-3 py-2 border-b border-gray-700/30 ${existing ? 'opacity-40' : ''}`}>
-                          <span className="text-[11px] text-gray-600 w-5 text-right flex-shrink-0">{i + 1}</span>
-                          {/* Avatar */}
-                          <div className="w-7 h-7 rounded-full flex-shrink-0 overflow-hidden bg-gray-700">
-                            {resolved?.avatar
-                              ? <img src={resolved.avatar} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                              : <div className="w-full h-full flex items-center justify-center text-white text-[10px] font-bold"
-                                  style={{ background: resolved ? 'linear-gradient(135deg,#3b82f6,#8b5cf6)' : '#374151' }}>
-                                  {resolved ? (resolved.name || phone).charAt(0).toUpperCase() : '?'}
-                                </div>}
-                          </div>
-                          {/* Name + phone */}
-                          <div className="flex-1 min-w-0">
-                            {resolved
-                              ? <>
-                                  <p className="text-xs text-gray-100 truncate font-medium leading-tight">{resolved.name || phone}</p>
-                                  <p className="text-[10px] text-gray-500 font-mono leading-tight">{phone}</p>
-                                </>
-                              : <p className="text-xs text-gray-400 font-mono">{phone}</p>
-                            }
-                          </div>
-                          {existing && <span className="text-[10px] text-yellow-500 flex-shrink-0">đã có</span>}
-                          <button onClick={() => removePhone(phone)} className="text-gray-600 hover:text-red-400 text-xs flex-shrink-0 ml-1">✕</button>
-                        </div>
+                        <button
+                          key={`local-${label.id}`}
+                          onClick={() => toggleLocalLabel(label.id)}
+                          className={`text-xs px-3 py-1.5 rounded-full border transition-all font-semibold flex items-center gap-1 ${
+                            isActive ? 'text-white shadow-sm' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400'
+                          }`}
+                          style={isActive
+                            ? { backgroundColor: baseColor, borderColor: baseColor }
+                            : { backgroundColor: baseColor + '10', borderColor: baseColor + '30', color: baseColor }}
+                        >
+                          {label.emoji && <span>{label.emoji}</span>}
+                          <span>{label.name}</span>
+                        </button>
                       );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Phone footer */}
-            <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-700 flex-shrink-0">
-              <span className="text-xs text-gray-500 flex-1">
-                {phoneList.length} SĐT
-                {phoneList.length > 0 && (() => {
-                  const resolvedCount = phoneList.filter(p => phoneResolved.get(p) != null).length;
-                  return resolvedCount > 0 ? <span className="text-green-400"> · {resolvedCount} có tên</span> : null;
-                })()}
-              </span>
-              <button onClick={onClose} className="px-4 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600">Hủy</button>
-              <button
-                disabled={phoneList.length === 0}
-                onClick={handleConfirmPhones}
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-40">
-                Thêm {phoneList.length} SĐT
-              </button>
-            </div>
-          </>
-        ) : mode === 'by_uid' ? (
-          <>
-            <div className="flex flex-1 overflow-hidden border-b border-gray-700">
-              {/* Left: textarea */}
-              <div className="w-1/2 flex flex-col border-r border-gray-700">
-                <div className="px-3 py-2 border-b border-gray-700/50 flex-shrink-0">
-                  <p className="text-[11px] text-gray-400 font-medium">Nhập hoặc dán UID (mỗi UID 1 dòng)</p>
-                </div>
-                <textarea
-                  value={uidInput}
-                  onChange={e => setUidInput(e.target.value)}
-                  placeholder={"5872634901234\n1234567890123\n..."}
-                  className="flex-1 bg-transparent text-xs text-white placeholder-gray-600 p-3 resize-none outline-none font-mono leading-relaxed"
-                  spellCheck={false}
-                />
-              </div>
-              {/* Right: uid list */}
-              <div className="w-1/2 flex flex-col">
-                <div className="px-3 py-2 border-b border-gray-700/50 flex-shrink-0 flex items-center justify-between">
-                  <p className="text-[11px] text-gray-400 font-medium">
-                    {uidList.length} UID hợp lệ
-                    {uidList.length > 0 && (() => {
-                      const resolved = uidList.filter(u => uidResolved.get(u) != null).length;
-                      return resolved > 0 ? <span className="text-green-400 ml-1">· {resolved} có tên</span> : null;
-                    })()}
-                  </p>
-                  {uidList.length > 0 && (
-                    <button onClick={() => { setUidInput(''); setUidList([]); setUidResolved(new Map()); }}
-                      className="text-[11px] text-red-400 hover:text-red-300">Xóa tất cả</button>
-                  )}
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {uidList.length === 0 ? (
-                    <p className="text-xs text-gray-600 text-center py-8">Nhập UID bên trái →</p>
-                  ) : (
-                    uidList.map((uid, i) => {
-                      const resolved = uidResolved.get(uid);
-                      const existing = existingContactIds.has(uid);
-                      return (
-                        <div key={uid} className={`flex items-center gap-2 px-3 py-2 border-b border-gray-700/30 ${existing ? 'opacity-40' : ''}`}>
-                          <span className="text-[11px] text-gray-600 w-5 text-right flex-shrink-0">{i + 1}</span>
-                          {/* Avatar */}
-                          <div className="w-7 h-7 rounded-full flex-shrink-0 overflow-hidden bg-gray-700">
-                            {resolved?.avatar
-                              ? <img src={resolved.avatar} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                              : <div className="w-full h-full flex items-center justify-center text-white text-[10px] font-bold"
-                                  style={{ background: resolved ? 'linear-gradient(135deg,#3b82f6,#8b5cf6)' : '#374151' }}>
-                                  {resolved ? (resolved.name || uid).charAt(0).toUpperCase() : '?'}
-                                </div>}
-                          </div>
-                          {/* Name + uid */}
-                          <div className="flex-1 min-w-0">
-                            {resolved
-                              ? <>
-                                  <p className="text-xs text-gray-100 truncate font-medium leading-tight">{resolved.name || uid}</p>
-                                  <p className="text-[10px] text-gray-500 font-mono leading-tight">{uid}</p>
-                                </>
-                              : <p className="text-xs text-gray-400 font-mono">{uid}</p>
-                            }
-                          </div>
-                          {existing && <span className="text-[10px] text-yellow-500 flex-shrink-0">đã có</span>}
-                          <button onClick={() => removeUid(uid)} className="text-gray-600 hover:text-red-400 text-xs flex-shrink-0 ml-1">✕</button>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* UID footer */}
-            <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-700 flex-shrink-0">
-              <span className="text-xs text-gray-500 flex-1">
-                {uidList.length} UID
-                {uidList.length > 0 && (() => {
-                  const resolvedCount = uidList.filter(u => uidResolved.get(u) != null).length;
-                  return resolvedCount > 0 ? <span className="text-green-400"> · {resolvedCount} có tên</span> : null;
-                })()}
-                {uidList.length > 0 && <span className="text-gray-600"> · Còn lại sẽ lấy tên khi gửi</span>}
-              </span>
-              <button onClick={onClose} className="px-4 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600">Hủy</button>
-              <button
-                disabled={uidList.length === 0}
-                onClick={handleConfirmUids}
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-40">
-                Thêm {uidList.length} UID
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Search + select-all (for non-phone modes) */}
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-700 flex-shrink-0">
-              <div className="relative flex-1">
-                <svg width="12" height="12" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Tìm tên, SĐT, UID..."
-                  className="w-full bg-gray-700 border border-gray-600 rounded-full pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
-              </div>
-              {(mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') && (
-                <button onClick={selectAllFiltered} className="text-xs text-blue-400 hover:text-blue-300 flex-shrink-0">
-                  {allFilteredSelected ? 'Bỏ chọn tất cả' : `Chọn tất cả (${filtered.length})`}
-                </button>
-              )}
-            </div>
-
-            {/* Contact list */}
-            <div className="flex-1 overflow-y-auto">
-              {loading ? (
-                <div className="p-4 space-y-2">{[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-gray-700/50 rounded-lg animate-pulse" />)}</div>
-              ) : filtered.length === 0 ? (
-                <p className="text-xs text-gray-500 text-center py-8">
-                  {mode === 'by_label' && totalLabelFilters === 0
-                    ? 'Chọn ít nhất 1 nhãn để lọc liên hệ'
-                    : 'Không tìm thấy liên hệ phù hợp'}
-                </p>
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 dark:bg-gray-800/40 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/30 text-blue-500 flex items-center justify-center text-2xl mb-2">📁</div>
+                    <p className="text-xs font-bold text-gray-800 dark:text-gray-200">Chưa có Nhãn Local nào.</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">Tạo nhãn từ trang Liên hệ.</p>
+                  </div>
+                )
               ) : (
-                filtered.map(c => {
-                  const name = c.alias || c.display_name || String(c.contact_id);
-                  const isChecked = (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') ? manualSelected.has(String(c.contact_id)) : true;
-                  const contactLabels = allLabels.filter(l => l.conversations?.some(convId => String(convId) === String(c.contact_id)));
-                  const contactLocalLabelIds = effectiveThreadMap[c.contact_id] || [];
-                  const contactLocalLabels = effectiveLocalLabels.filter(l => contactLocalLabelIds.includes(l.id));
-                  return (
-                    <label key={c.contact_id}
-                      className={`flex items-center gap-2.5 px-4 py-2.5 border-b border-gray-700/50 transition-colors ${
-                        (mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') ? 'cursor-pointer hover:bg-gray-700/40' : 'cursor-default'
-                      } ${isChecked && (mode !== 'manual' && mode !== 'friends_only' && mode !== 'groups_only') ? 'bg-blue-500/5' : ''}`}>
-                      {(mode === 'manual' || mode === 'friends_only' || mode === 'groups_only')
-                        ? <input type="checkbox" checked={isChecked} onChange={() => toggleManual(c.contact_id)} className="accent-blue-500 flex-shrink-0" />
-                        : <span className="w-4 h-4 rounded-full bg-blue-600/30 border border-blue-500/50 flex items-center justify-center flex-shrink-0">
-                            <span className="text-blue-400 text-[9px]">✓</span>
-                          </span>}
-                      {/* Avatar */}
-                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                        {c.contact_type === 'group' ? (
-                          <GroupAvatar
-                            avatarUrl={c.avatar}
-                            groupInfo={(groupInfoCache[zaloId] || {})[c.contact_id]}
-                            name={name}
-                            size="xs"
-                          />
-                        ) : c.avatar ? (
-                          <img src={c.avatar} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                            {name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                allLabels.length > 0 ? (
+                  <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
+                    {allLabels.map(label => {
+                      const isActive = selectedZaloLabelIds.includes(label.id);
+                      const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
+                      return (
+                        <button
+                          key={`zalo-${label.id}`}
+                          onClick={() => toggleZaloLabel(label.id)}
+                          className={`text-xs px-3 py-1.5 rounded-full border transition-all font-semibold flex items-center gap-1 ${
+                            isActive ? 'text-white shadow-sm' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400'
+                          }`}
+                          style={isActive
+                            ? { backgroundColor: baseColor, borderColor: baseColor }
+                            : { backgroundColor: baseColor + '10', borderColor: baseColor + '30', color: baseColor }}
+                        >
+                          <span>{label.emoji || '🏷️'}</span>
+                          <span>{label.text}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 py-4 text-center">Chưa có nhãn Zalo nào. Đồng bộ nhãn từ trang Liên hệ trước.</p>
+                )
+              )}
+
+              {/* Filter List or Empty Filter Illustration */}
+              {totalLabelFilters === 0 ? (
+                /* Matching Mockup Image 3 Empty State Illustration */
+                <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                  <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-500 flex items-center justify-center text-3xl mb-3 shadow-inner">
+                    🔍
+                  </div>
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">Chọn ít nhất 1 nhãn để lọc liên hệ</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs leading-relaxed">
+                    Sau khi chọn nhãn, danh sách liên hệ phù hợp sẽ tự động hiển thị tại đây.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 mt-3">
+                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-2">
+                    ✓ Tìm thấy {filtered.length} liên hệ phù hợp ({selectedCount} sẵn sàng)
+                  </p>
+                  {filtered.slice(0, 100).map(c => (
+                    <div
+                      key={c.contact_id}
+                      className="p-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 flex items-center gap-3 shadow-xs"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
+                        {c.avatar ? <img src={c.avatar} alt="" className="w-full h-full object-cover" /> : (c.alias || c.display_name || '?').slice(0, 1).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-gray-200 truncate font-medium">{name}</span>
-                          {c.contact_type === 'group'
-                            ? <span className="text-[9px] text-purple-400 flex-shrink-0 bg-purple-400/10 px-1 rounded">nhóm</span>
-                            : c.is_friend === 1 && <span className="text-[9px] text-green-500 flex-shrink-0">●</span>}
-                        </div>
-                        {(contactLabels.length > 0 || contactLocalLabels.length > 0) && (
-                          <div className="flex gap-1 mt-0.5 flex-wrap">
-                            {contactLocalLabels.slice(0, 2).map(l => (
-                              <span key={`ll-${l.id}`} className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: (l.color || '#3b82f6') + '30', color: l.text_color || l.color || '#3b82f6' }}>
-                                {l.emoji && <span className="mr-0.5">{l.emoji}</span>}{l.name}
-                              </span>
-                            ))}
-                            {contactLabels.slice(0, 2).map(l => <ZaloLabelBadge key={l.id} label={l} size="xs" />)}
-                          </div>
-                        )}
+                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
                       </div>
-                      {c.phone && <span className="text-[11px] text-gray-500 flex-shrink-0">{formatPhone(c.phone)}</span>}
-                    </label>
-                  );
-                })
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
+          )}
 
-            {/* Footer */}
-            <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-700 flex-shrink-0">
-              <span className="text-xs text-gray-500 flex-1">{finalSelected.length} liên hệ được chọn</span>
-              <button onClick={onClose} className="px-4 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600">Hủy</button>
-              <button disabled={finalSelected.length === 0 || loading}
-                onClick={() => confirmSelection(finalSelected)}
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-40">
-                Thêm {finalSelected.length} liên hệ
-              </button>
+          {/* Mode By Phone */}
+          {mode === 'by_phone' && (
+            <div className="space-y-3">
+              <textarea
+                value={phoneInput}
+                onChange={e => setPhoneInput(e.target.value)}
+                placeholder={"Nhập hoặc dán SĐT (mỗi số 1 dòng):\n0901234567\n0912345678\n..."}
+                className="w-full h-36 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-3 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 font-mono"
+              />
+              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                Đã nhập: {phoneList.length} SĐT hợp lệ
+              </p>
             </div>
-          </>
+          )}
+
+          {/* Mode By UID */}
+          {mode === 'by_uid' && (
+            <div className="space-y-3">
+              <textarea
+                value={uidInput}
+                onChange={e => setUidInput(e.target.value)}
+                placeholder={"Nhập hoặc dán UID Zalo (mỗi UID 1 dòng):\n1234567890\n9876543210\n..."}
+                className="w-full h-36 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-3 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 font-mono"
+              />
+              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                Đã nhập: {uidList.length} UID hợp lệ
+              </p>
+            </div>
+          )}
+
+          {/* Manual Select Mode */}
+          {mode === 'manual' && (
+            <div className="space-y-2">
+              {filtered.slice(0, 100).map(c => {
+                const isSelected = manualSelected.has(c.contact_id);
+                return (
+                  <div
+                    key={c.contact_id}
+                    onClick={() => toggleManualSelect(c.contact_id)}
+                    className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center gap-3 ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 ring-2 ring-blue-500/20'
+                        : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                      isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                    }`}>
+                      {isSelected && <span className="text-xs font-bold">✓</span>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Fixed Footer Bar (Matching Mockup Image 3) ── */}
+        <div className="px-6 py-3.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900 flex items-center justify-between flex-shrink-0 gap-3">
+          <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+            {selectedCount} liên hệ được chọn
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-bold transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              disabled={selectedCount === 0}
+              onClick={handleConfirm}
+              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md hover:shadow-lg disabled:opacity-40 transition-all"
+            >
+              Thêm {selectedCount} liên hệ
+            </button>
+          </div>
+        </div>
+
+        {/* Unified Label Picker Modal */}
+        {showLabelPickerModal && (
+          <UnifiedLabelPickerModal
+            open={showLabelPickerModal}
+            options={unifiedLabelOptions}
+            selected={[
+              ...selectedLocalLabelIds.map(id => `local:${id}`),
+              ...selectedZaloLabelIds.map(id => `zalo:${id}`),
+            ]}
+            accounts={accounts as any}
+            onChange={selectedValues => {
+              const localIds: number[] = [];
+              const zaloIds: number[] = [];
+              selectedValues.forEach(val => {
+                if (val.startsWith('local:')) {
+                  const id = Number(val.replace('local:', ''));
+                  if (!isNaN(id)) localIds.push(id);
+                } else if (val.startsWith('zalo:')) {
+                  const id = Number(val.replace('zalo:', ''));
+                  if (!isNaN(id)) zaloIds.push(id);
+                }
+              });
+              setSelectedLocalLabelIds(localIds);
+              setSelectedZaloLabelIds(zaloIds);
+            }}
+            onConfirm={() => setShowLabelPickerModal(false)}
+            onClose={() => setShowLabelPickerModal(false)}
+          />
         )}
-      {showLabelPickerModal && (
-        <UnifiedLabelPickerModal
-          open={showLabelPickerModal}
-          onClose={() => setShowLabelPickerModal(false)}
-          options={unifiedLabelOptions}
-          selected={selectedUnifiedValues}
-          onChange={handleUnifiedChange}
-          accounts={accounts}
-        />
-      )}
       </div>
     </div>
   );

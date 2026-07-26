@@ -1098,10 +1098,12 @@ Yiêu cầu quan trọng:
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700/60 rounded-2xl w-full max-w-[1360px] shadow-2xl flex flex-col text-gray-900 dark:text-gray-100"
-        style={{ height: 'min(95vh, 52rem)' }}
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700/60 rounded-3xl w-full max-w-[1360px] shadow-2xl flex flex-col text-gray-900 dark:text-gray-100 max-h-[94vh] lg:h-[min(95vh,52rem)] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
+        {/* Top Swipe Indicator for Mobile */}
+        <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mt-2.5 sm:hidden" />
+
         {/* ── Header Topbar ── */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-700/60 flex-shrink-0 bg-white dark:bg-gray-900 rounded-t-2xl gap-4 flex-wrap">
           {/* Title & Subtitle */}
@@ -1115,7 +1117,7 @@ Yiêu cầu quan trọng:
           </div>
 
           {/* Campaign Name Input */}
-          <div className="flex items-center gap-2.5 flex-1 max-w-[560px]">
+          <div className="flex items-center gap-2.5 flex-1 min-w-[200px] max-w-[560px]">
             <span className="text-xs font-extrabold uppercase tracking-wider text-gray-800 dark:text-gray-200 flex-shrink-0">
               TÊN CHIẾN DỊCH
             </span>
@@ -1137,24 +1139,24 @@ Yiêu cầu quan trọng:
           </button>
         </div>
 
-        {/* ── 3-column body ── */}
-        <div className="flex-1 min-h-0 flex overflow-hidden">
+        {/* ── Responsive Body (Single-column Mobile / 3-column PC) ── */}
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
 
           {/* ── LEFT: Settings ── */}
-          <div className="w-[280px] flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto p-4 gap-5 bg-gray-50/50 dark:bg-gray-900">
+          <div className="w-full lg:w-[320px] flex-shrink-0 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto p-4 gap-5 bg-gray-50/50 dark:bg-gray-900">
 
             {/* Type */}
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">LOẠI CHIẾN DỊCH</label>
-              <div className="space-y-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-1 gap-2">
                 {TYPE_OPTIONS.map(opt => (
                   <button key={opt.value} type="button" onClick={() => setType(opt.value)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left transition-colors ${
+                    className={`flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1.5 lg:gap-2.5 p-2.5 lg:px-3 lg:py-2 rounded-xl border text-center lg:text-left transition-all ${
                       type === opt.value
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold shadow-2xs'
-                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold shadow-xs'
+                        : 'border-gray-200 dark:border-gray-700/80 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}>
-                    <AppIcon name={opt.icon as any} className={type === opt.value ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'} size={15} />
+                    <AppIcon name={opt.icon as any} className={type === opt.value ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'} size={16} />
                     <span className="text-xs">{opt.label}</span>
                   </button>
                 ))}
