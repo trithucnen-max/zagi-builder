@@ -1358,6 +1358,18 @@ function detectSmartOS() {
   const ua = navigator.userAgent || '';
   const platform = navigator.platform || '';
 
+  // ⚡ MOBILE DETECTION (iPhone, Android, iPad hoặc Màn hình di động <= 768px)
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || window.innerWidth <= 768;
+  if (isMobile) {
+    return {
+      isMobile: true,
+      key: 'mobile_cta',
+      text: 'Dùng Thử 14 Ngày Miễn Phí (0đ)',
+      label: 'Zagi là ứng dụng Desktop chuyên sâu cho Máy tính (PC / Mac). Đăng ký để nhận Mã Key & Link tải cài đặt qua Email.',
+      cardId: null
+    };
+  }
+
   // macOS
   if (platform.includes('Mac') || ua.includes('Macintosh')) {
     let isArm = false;
@@ -1410,9 +1422,33 @@ function detectSmartOS() {
 }
 
 function applySmartOSLink(key, text, label, cardId) {
+  const osInfo = detectSmartOS();
+  const heroBtn = document.getElementById('smart-hero-btn');
+  const secondaryBtn = document.getElementById('secondary-hero-btn');
+
+  if (osInfo.isMobile) {
+    if (heroBtn) {
+      heroBtn.href = "javascript:openCheckoutModal('trial_14d')";
+      heroBtn.removeAttribute('download');
+      heroBtn.innerHTML = `<span class="material-symbols-rounded">rocket_launch</span>${osInfo.text}`;
+      heroBtn.className = "btn btn-primary btn-lg";
+    }
+    if (secondaryBtn) {
+      secondaryBtn.innerHTML = `<span class="material-symbols-rounded">payments</span>Xem gói cước`;
+      secondaryBtn.onclick = function() {
+        const el = document.getElementById('pricing');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      };
+    }
+    const labelEl = document.getElementById('smart-detect-label');
+    if (labelEl) {
+      labelEl.innerHTML = `<span class="material-symbols-rounded">phonelink</span>${osInfo.label}`;
+    }
+    return;
+  }
+
   const url = RELEASE_LINKS[key] || RELEASE_LINKS.win_x64;
   
-  const heroBtn = document.getElementById('smart-hero-btn');
   if (heroBtn) {
     heroBtn.href = url;
     heroBtn.innerHTML = `<span class="material-symbols-rounded">download</span>${text}`;
@@ -1441,6 +1477,7 @@ function initSmartDownload() {
   applySmartOSLink(detected.key, detected.text, detected.label, detected.cardId);
 }
 window.addEventListener('DOMContentLoaded', initSmartDownload);
+window.addEventListener('resize', initSmartDownload);
 
 function openDownloadModal() {
   document.getElementById('download-modal').classList.add('active');
