@@ -147,7 +147,7 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ needs.resolve-tag.outputs.version }}"
-          mv "dist-electron-build/Zagi-Setup-${VERSION}-x64.exe" "dist-electron-build/Zagi v${VERSION} Window.exe"
+          mv "dist-electron-build/Zagi-Setup-${VERSION}-x64.exe" "dist-electron-build/Zagi.v${VERSION}.Window.exe"
 
       - name: 🚀 Upload Windows x64 → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
@@ -158,7 +158,7 @@ jobs:
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
-            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} Window.exe
+            dist-electron-build/Zagi.v${{ needs.resolve-tag.outputs.version }}.Window.exe
             dist-electron-build/latest.yml
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
@@ -215,7 +215,7 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ needs.resolve-tag.outputs.version }}"
-          mv "dist-electron-build/Zagi-Setup-${VERSION}-arm64.exe" "dist-electron-build/Zagi v${VERSION} Surface.exe"
+          mv "dist-electron-build/Zagi-Setup-${VERSION}-arm64.exe" "dist-electron-build/Zagi.v${VERSION}.Surface.exe"
 
       - name: 🚀 Upload Windows ARM64 → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
@@ -226,7 +226,7 @@ jobs:
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
-            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} Surface.exe
+            dist-electron-build/Zagi.v${{ needs.resolve-tag.outputs.version }}.Surface.exe
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
@@ -288,11 +288,11 @@ jobs:
         run: |
           VERSION="${{ needs.resolve-tag.outputs.version }}"
           if [ -f "dist-electron-build/Zagi-${VERSION}-x86_64.AppImage" ]; then
-            mv "dist-electron-build/Zagi-${VERSION}-x86_64.AppImage" "dist-electron-build/Zagi v${VERSION} Linux.AppImage"
+            mv "dist-electron-build/Zagi-${VERSION}-x86_64.AppImage" "dist-electron-build/Zagi.v${VERSION}.Linux.AppImage"
           else
-            mv "dist-electron-build/Zagi-${VERSION}.AppImage" "dist-electron-build/Zagi v${VERSION} Linux.AppImage"
+            mv "dist-electron-build/Zagi-${VERSION}.AppImage" "dist-electron-build/Zagi.v${VERSION}.Linux.AppImage"
           fi
-          mv "dist-electron-build/zagi_${VERSION}_amd64.deb" "dist-electron-build/Zagi v${VERSION} Linux Debian.deb"
+          mv "dist-electron-build/zagi_${VERSION}_amd64.deb" "dist-electron-build/Zagi.v${VERSION}.Linux.Debian.deb"
 
       - name: 🚀 Upload Linux → GitHub Release
         if: needs.resolve-tag.outputs.should_publish == 'true'
@@ -303,8 +303,8 @@ jobs:
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
-            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} Linux.AppImage
-            dist-electron-build/Zagi v${{ needs.resolve-tag.outputs.version }} Linux Debian.deb
+            dist-electron-build/Zagi.v${{ needs.resolve-tag.outputs.version }}.Linux.AppImage
+            dist-electron-build/Zagi.v${{ needs.resolve-tag.outputs.version }}.Linux.Debian.deb
             dist-electron-build/latest-linux.yml
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
