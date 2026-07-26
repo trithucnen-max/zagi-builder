@@ -154,9 +154,9 @@ a{text-decoration:none}
 .pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
 .pain-card{background:#fff;border-radius:var(--r);padding:28px;border-left:4px solid var(--error);box-shadow:var(--e1);transition:.4s var(--ease-emph);position:relative;overflow:hidden}
 .pain-card:hover{transform:translateY(-6px);box-shadow:var(--e3)}
-.pain-card .ic{width:54px;height:54px;border-radius:14px;background:var(--error-container);color:var(--error);display:grid;place-items:center;margin-bottom:14px;transition:transform .4s var(--ease-emph)}
+.pain-card .ic{width:54px;height:54px;border-radius:14px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.22);color:#EF4444;display:grid;place-items:center;margin-bottom:14px;transition:transform .4s var(--ease-emph)}
 .pain-card:hover .ic{transform:rotate(-9deg) scale(1.1)}
-.pain-card .ic .material-symbols-rounded{font-size:30px}
+.pain-card .ic .material-symbols-rounded{font-size:30px;color:#EF4444;font-weight:800}
 .pain-card h3{font-size:18px;font-weight:700;margin-bottom:9px}
 .pain-card p{color:var(--ink-2);font-size:14.5px}
 .pain-card .q{margin-top:14px;padding-top:13px;border-top:1px dashed var(--border);font-size:13px;color:var(--error);font-weight:600;font-style:italic}
@@ -233,8 +233,8 @@ a{text-decoration:none}
 .band{background:linear-gradient(135deg,#0068FF,#0052CC);color:#fff;padding:50px 20px;position:relative;overflow:hidden}
 .band::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 30%,rgba(255,255,255,.12),transparent 50%)}
 .band-grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:26px;max-width:1000px;margin:0 auto;text-align:center}
-.band .n{font-size:42px;font-weight:900;line-height:1;background:linear-gradient(120deg,#FFD54F,#FFE9A8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#FFD54F;display:block}
-.band .l{font-size:13px;color:#DCE9FB;margin-top:6px;font-weight:500}
+.band .n{font-size:clamp(38px,4.5vw,56px);font-weight:900;line-height:1;background:linear-gradient(135deg,#FFF176,#FFD54F);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#FFD54F;display:block;filter:drop-shadow(0 4px 12px rgba(255,213,79,0.5));letter-spacing:-0.02em}
+.band .l{font-size:13.5px;color:#FFFFFF;margin-top:8px;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,0.25)}
 @media(max-width:760px){.band-grid{grid-template-columns:1fr 1fr;gap:22px}.band .n{font-size:34px}}
 
 .sec-bg{background:var(--ink);color:#fff;position:relative;overflow:hidden}
@@ -265,7 +265,8 @@ a{text-decoration:none}
 .stack-body{padding:14px 30px 24px}
 .srow{display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px dashed var(--border)}
 .srow:last-of-type{border-bottom:none}
-.srow .si2{width:42px;height:42px;border-radius:11px;background:var(--primary-container);color:var(--primary-dark);display:grid;place-items:center;flex-shrink:0}
+.srow .si2{width:42px;height:42px;border-radius:11px;background:rgba(0,104,255,0.12);border:1px solid rgba(0,104,255,0.22);color:#0068FF;display:grid;place-items:center;flex-shrink:0}
+.srow .si2 .material-symbols-rounded{color:#0068FF;font-weight:800}
 .srow .st{flex:1}
 .srow .st strong{display:block;font-size:15px}
 .srow .st span{font-size:12.5px;color:var(--ink-3)}
@@ -846,20 +847,23 @@ a{text-decoration:none}
     word-break: normal !important;
   }
 
-  /* 14. Synchronized Icon Palette & High Contrast (Sửa Hình 5) */
-  .src .si, .fbox .fi, .pain-card .ic, .srow .si2, .fc-ic, .v-attract .si, .src-row .si {
-    color: #FFFFFF !important; /* ICON MÀU TRẮNG NỔI BẬT */
+  /* 14. Synchronized Icon Palette & High Contrast */
+  .src .si, .fbox .fi, .fc-ic, .v-attract .si, .src-row .si {
+    color: #FFFFFF !important;
     font-weight: 800 !important;
   }
   .src .si .material-symbols-rounded, 
   .fbox .fi .material-symbols-rounded, 
-  .pain-card .ic .material-symbols-rounded,
   .fc-ic .material-symbols-rounded {
     color: #FFFFFF !important;
   }
   .src.z .si { background: linear-gradient(135deg, #0068FF, #0047AB) !important; }
   .src.f .si { background: linear-gradient(135deg, #1877F2, #0D52B5) !important; }
   .src.g .si { background: linear-gradient(135deg, #7C3AED, #5B21B6) !important; }
+  .pain-card .ic { background: rgba(239, 68, 68, 0.12) !important; border: 1px solid rgba(239, 68, 68, 0.22) !important; }
+  .pain-card .ic .material-symbols-rounded { color: #EF4444 !important; font-weight: 800 !important; }
+  .srow .si2 { background: rgba(0, 104, 255, 0.12) !important; border: 1px solid rgba(0, 104, 255, 0.22) !important; }
+  .srow .si2 .material-symbols-rounded { color: #0068FF !important; font-weight: 800 !important; }
 
   /* 15. Mobile Sticky Bar & Touch Optimization */
   .mobile-sticky-bar {
