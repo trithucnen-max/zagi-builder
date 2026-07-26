@@ -470,8 +470,11 @@ export function registerDatabaseIpc() {
 
     ipcMain.handle('db:deleteConversation', async (_event, { zaloId, contactId }: { zaloId: string; contactId: string }) => {
         try {
-            if (isEmployeeMode()) return await proxyToBossAsync('db:deleteConversation', { zaloId, contactId });
             DatabaseService.getInstance().deleteConversation(zaloId, contactId);
+            if (isEmployeeMode()) {
+                const res = await proxyToBossAsync('db:deleteConversation', { zaloId, contactId });
+                return res || { success: true };
+            }
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };

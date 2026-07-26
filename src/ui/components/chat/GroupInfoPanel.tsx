@@ -111,7 +111,7 @@ export default function GroupInfoPanel() {
   const getAuth = () => {
     const acc = getActiveAccount();
     if (!acc) return null;
-    return { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+    return { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
   };
 
 
@@ -849,7 +849,7 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, myAccountId, chan
   const getAuth = () => {
     const acc = getActiveAccount();
     if (!acc) return null;
-    return { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+    return { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
   };
 
   const filtered = (groupInfo?.members || []).filter(m =>
@@ -1075,7 +1075,7 @@ function PendingPanel({ groupId, myAccountId, onBack, onCountChange }: {
   const getAuth = () => {
     const acc = getActiveAccount();
     if (!acc) return null;
-    return { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+    return { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
   };
 
   useEffect(() => { loadPending(); }, [groupId]);
@@ -1313,7 +1313,7 @@ function PendingMembersSection({ groupId, isAdmin, channel }: { groupId: string;
   const getAuth = () => {
     const acc = getActiveAccount();
     if (!acc) return null;
-    return { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+    return { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
   };
 
   const loadPending = async () => {
@@ -1579,7 +1579,7 @@ export function ManagePanel({ groupInfo, groupId, onBack, myAccountId, asModal, 
   const getAuth = () => {
     const acc = getActiveAccount();
     if (!acc) return null;
-    return { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+    return { zaloId: acc.zalo_id, cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
   };
 
   /** Extract link from various API response shapes */

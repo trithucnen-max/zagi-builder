@@ -236,8 +236,9 @@ export default function AccountSettings() {
                       </div>
                     </div>
                     <p className="text-[11px] text-gray-500 leading-relaxed">
-                      Hệ thống sẽ tự động kiểm tra và xoá media cũ mỗi ngày một lần (3:00 AM).
-                      Khi lưu, thao tác dọn dẹp sẽ được chạy ngay lập tức.
+                      • Hệ thống sẽ tự động kiểm tra và xoá media cũ (ảnh, video, tài liệu vật lý) mỗi ngày một lần vào lúc 3:00 AM. Khi lưu, thao tác dọn dẹp sẽ được chạy ngay lập tức.
+                      <br />
+                      <span className="text-amber-400 font-medium">• Lưu ý: Chỉ xóa tệp media vật lý để tiết kiệm ổ cứng. Nội dung văn bản lịch sử chat luôn được giữ lại.</span>
                     </p>
                   </div>
                 ) : (

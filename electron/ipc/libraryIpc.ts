@@ -56,17 +56,18 @@ export function registerLibraryIpc(): void {
   // ── Upload ─────────────────────────────────────────────────
   ipcMain.handle('library:upload', async (_event, params: {
     zaloId: string; fileName: string; mimeType: string; base64: string;
-    employeeId?: string; tags?: string;
+    employeeId?: string; tags?: string; folderId?: number | null;
   }) => {
     try {
       const buffer = Buffer.from(params.base64, 'base64');
       const item = await lib().upload({
-        zaloId: params.zaloId,
+        zaloId: params.zaloId || 'shared',
         buffer,
         fileName: params.fileName,
         mimeType: params.mimeType,
         employeeId: params.employeeId || '',
         tags: params.tags || '',
+        folderId: params.folderId ?? null,
       });
       return {
         success: true,

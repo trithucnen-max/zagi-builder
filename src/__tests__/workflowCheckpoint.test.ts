@@ -72,11 +72,11 @@ describe('contextSerializer', () => {
       expect(parsed.trigger.value).toBe(42);
     });
 
-    it('truncates strings longer than 10 000 characters', () => {
-      const longStr = 'x'.repeat(15_000);
+    it('truncates strings longer than 50 000 characters', () => {
+      const longStr = 'x'.repeat(60_000);
       const ctx = { trigger: { big: longStr }, nodes: {}, variables: {}, pageId: '', skippedNodes: new Set() };
       const parsed = JSON.parse(serializeContext(ctx));
-      expect(parsed.trigger.big.length).toBeLessThanOrEqual(10_020);
+      expect(parsed.trigger.big.length).toBeLessThanOrEqual(50_020);
       expect(parsed.trigger.big).toContain('[truncated]');
     });
 

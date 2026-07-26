@@ -208,7 +208,7 @@ export async function addReaction(
 
   try {
     const formBody = new URLSearchParams(form).toString();
-    const response = await axios.post(GRAPHQL_URL, formBody, {
+    await axios.post(GRAPHQL_URL, formBody, {
       headers: {
         'Host': 'www.facebook.com',
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -260,7 +260,7 @@ export async function editMessage(
 
   try {
     const formBody = new URLSearchParams(form).toString();
-    const response = await axios.post(GRAPHQL_URL, formBody, {
+    await axios.post(GRAPHQL_URL, formBody, {
       headers: {
         'Host': 'www.facebook.com',
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -314,7 +314,7 @@ export async function forwardMessage(
 
   try {
     const formBody = new URLSearchParams(form).toString();
-    const response = await axios.post(GRAPHQL_URL, formBody, {
+    await axios.post(GRAPHQL_URL, formBody, {
       headers: {
         'Host': 'www.facebook.com',
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -365,7 +365,7 @@ export async function pinMessage(
 
   try {
     const formBody = new URLSearchParams(form).toString();
-    const response = await axios.post(GRAPHQL_URL, formBody, {
+    await axios.post(GRAPHQL_URL, formBody, {
       headers: {
         'Host': 'www.facebook.com',
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -415,7 +415,7 @@ export async function unpinMessage(
 
   try {
     const formBody = new URLSearchParams(form).toString();
-    const response = await axios.post(GRAPHQL_URL, formBody, {
+    await axios.post(GRAPHQL_URL, formBody, {
       headers: {
         'Host': 'www.facebook.com',
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -519,7 +519,7 @@ export async function votePoll(
 
   try {
     const formBody = new URLSearchParams(form).toString();
-    const response = await axios.post(GRAPHQL_URL, formBody, {
+    await axios.post(GRAPHQL_URL, formBody, {
       headers: {
         'Host': 'www.facebook.com',
         'Content-Type': 'application/x-www-form-urlencoded',

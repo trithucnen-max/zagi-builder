@@ -35,31 +35,25 @@ export function markTabSeen(tab: string): void {
 /** Returns true if any watched tab has NOT been seen yet */
 export function hasUnseenSettingsTabs(): boolean {
   const seen = loadSeenTabs();
-  return SETTINGS_WATCHLIST.some(t => !seen.has(t)) || hasUnseenChangelog();
+  return SETTINGS_WATCHLIST.some(t => !seen.has(t));
 }
 
-// ── Changelog version tracking ───────────────────────────────────────────────
-// Khi app cập nhật lên phiên bản mới, changelog_last_seen_version sẽ khác với
-// phiên bản hiện tại → hiện chấm đỏ trên nút Settings và tab Log phiên bản.
-
-const CURRENT_APP_VERSION: string =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '?';
-
-/** Returns true if the user hasn't read the changelog for the current version */
+/**
+ * Returns true if the user has NOT seen the changelog for the current app version.
+ * Compares the stored version with the bundled __APP_VERSION__.
+ */
 export function hasUnseenChangelog(): boolean {
   try {
-    return localStorage.getItem(LS_CHANGELOG_KEY) !== CURRENT_APP_VERSION;
+    const lastSeen = localStorage.getItem(LS_CHANGELOG_KEY);
+    return lastSeen !== __APP_VERSION__;
   } catch {
     return false;
   }
 }
 
-/** Mark the current version's changelog as read and fire a window event */
+/** Mark the current version's changelog as seen */
 export function markChangelogSeen(): void {
   try {
-    if (localStorage.getItem(LS_CHANGELOG_KEY) === CURRENT_APP_VERSION) return;
-    localStorage.setItem(LS_CHANGELOG_KEY, CURRENT_APP_VERSION);
-    window.dispatchEvent(new CustomEvent('settings:tabSeen'));
+    localStorage.setItem(LS_CHANGELOG_KEY, __APP_VERSION__);
   } catch {}
 }
-

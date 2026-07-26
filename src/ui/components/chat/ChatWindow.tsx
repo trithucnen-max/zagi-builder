@@ -5634,14 +5634,28 @@ function extractMsgText(msg: any): string {
   try {
     const c = msg.content;
     if (!c || c === 'null') return '[Tin nhắn]';
-    const parsed = JSON.parse(c);
+    const parsed = typeof c === 'string' ? JSON.parse(c) : c;
     if (typeof parsed === 'string') return parsed;
     if (parsed?.msg && typeof parsed.msg === 'string') return parsed.msg;
     if (parsed?.message && typeof parsed.message === 'string') return parsed.message;
     if (parsed?.content && typeof parsed.content === 'string') return parsed.content;
+    if (parsed?.description && typeof parsed.description === 'string') return parsed.description;
     if (parsed?.title) return `📂 ${parsed.title}`;
     return '[Tin nhắn]';
-  } catch { return msg.content || '[Tin nhắn]'; }
+  } catch { return (typeof msg.content === 'string' ? msg.content : '') || '[Tin nhắn]'; }
+}
+
+/** Trích xuất URL hình ảnh/tệp từ msg.content khi localPath không tồn tại trên máy nhân viên */
+function extractImageUrl(msg: any): string {
+  try {
+    const c = msg.content;
+    if (!c || c === 'null') return '';
+    const parsed = typeof c === 'string' ? JSON.parse(c) : c;
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed.href || parsed.hdUrl || parsed.url || parsed.hd || parsed.thumb || parsed.normalUrl || '';
+    }
+  } catch {}
+  return '';
 }
 
 /** Gửi 1 tin nhắn đến 1 target — dùng trong forward loop */
@@ -5663,18 +5677,25 @@ async function sendOneForward(
     }
   } catch {}
 
+  const isAttachment = isFile || isVideo || isImage || isVoice;
+  const mediaUrl = isAttachment ? extractImageUrl(msg) : '';
+  const effectivePath = localPath || mediaUrl;
+
   if (channel === 'facebook' && accountId) {
-    if ((isFile || isVideo || isImage || isVoice) && localPath) {
+    if (isAttachment && effectivePath) {
       let fileType: 'image' | 'video' | 'audio' | 'file' = 'file';
       if (isImage) fileType = 'image';
       else if (isVideo) fileType = 'video';
       else if (isVoice) fileType = 'audio';
-      await channelIpc.sendAttachment('facebook', { accountId, threadId: target.threadId, filePath: localPath, threadType: target.threadType, fileType });
+      await channelIpc.sendAttachment('facebook', { accountId, threadId: target.threadId, filePath: effectivePath, threadType: target.threadType, fileType });
     } else {
-      const text = composeText || extractMsgText(msg);
-      await channelIpc.sendMessage('facebook', { accountId, threadId: target.threadId, body: text, threadType: target.threadType });
+      let text = composeText || extractMsgText(msg);
+      if (text === '[Tin nhắn]') text = '';
+      if (text.trim()) {
+        await channelIpc.sendMessage('facebook', { accountId, threadId: target.threadId, body: text, threadType: target.threadType });
+      }
     }
-    if (composeText && (isFile || isVideo || isImage || isVoice) && localPath) {
+    if (composeText && isAttachment && effectivePath) {
       await channelIpc.sendMessage('facebook', { accountId, threadId: target.threadId, body: composeText, threadType: target.threadType });
     }
     return;
@@ -5682,34 +5703,63 @@ async function sendOneForward(
 
   // Zalo path
   if (channel === 'zalo' || !channel) {
-    const isTempId = String(msg.msg_id).startsWith('temp_');
-    const isAttachment = isFile || isVideo || isImage || isVoice;
-    let fileExists = false;
-    if (isAttachment && localPath) {
-      try {
-        fileExists = await ipc.file?.exists?.(localPath) ?? false;
-      } catch {}
-    }
+    let captionText = extractMsgText(msg);
+    if (captionText === '[Tin nhắn]') captionText = '';
+    const hasCompose = Boolean(composeText && composeText.trim());
 
-    const isEmployee = useEmployeeStore.getState().mode === 'employee';
-    const canSendAsFile = isAttachment && localPath && (isEmployee || fileExists);
+    // ── Nhánh 1: Tệp đính kèm (Ảnh / Video / File / Voice) ──
+    // Dùng effectivePath (local path hoặc URL CDN Zalo):
+    // ZaloService.sendImage / sendFile tự động tải URL CDN về đĩa tạm nếu chưa có trên đĩa local.
+    // Giúp chuyển tiếp ảnh/video/file hoạt động 100% giữa các nick Zalo, nhóm, hoặc hội thoại khác nhau.
+    if (isAttachment && effectivePath) {
+      const tokenRes = await ipc.media?.acquireToken({ cdnUrl: mediaUrl, filePath: localPath });
+      const mediaToken = tokenRes?.token || effectivePath;
 
-    if (canSendAsFile) {
       if (isImage) {
-        await ipc.zalo?.sendImage({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType, message: '' });
+        const res = await ipc.zalo?.sendImage({
+          auth,
+          mediaToken,
+          filePath: effectivePath,
+          threadId: target.threadId,
+          type: target.threadType,
+          message: captionText,
+        });
+        if (res && !res.success) {
+          throw new Error(res.error || 'Gửi ảnh chuyển tiếp thất bại');
+        }
+      } else if (isVideo) {
+        const res = await channelIpc.sendVideo('zalo', {
+          auth,
+          accountId: accountId || '',
+          filePath: mediaToken,
+          threadId: target.threadId,
+          threadType: target.threadType,
+          body: captionText,
+        });
+        if (res && !res.success) {
+          const fileRes = await ipc.zalo?.sendFile({ auth, mediaToken, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
+          if (fileRes && !fileRes.success) throw new Error(fileRes.error || 'Gửi video chuyển tiếp thất bại');
+        }
       } else {
-        // Send file, video, and voice messages using sendFile (safe E2EE attachment proxy fallback)
-        await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
+        // File hoặc Voice
+        const res = await ipc.zalo?.sendFile({ auth, mediaToken, filePath: effectivePath, threadId: target.threadId, type: target.threadType });
+        if (res && !res.success) {
+          throw new Error(res.error || 'Gửi file chuyển tiếp thất bại');
+        }
       }
-      if (composeText && composeText.trim()) {
+
+      if (hasCompose) {
         await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
       }
       return;
     }
 
+    // ── Nhánh 2: Tin nhắn văn bản (Text message) ──
+    const isTempId = String(msg.msg_id).startsWith('temp_');
     if (!isTempId && msg.msg_id) {
+      let forwardText = captionText || ' ';
       const payload = {
-        message: extractMsgText(msg),
+        message: forwardText,
         reference: {
           id: String(msg.msg_id),
           ts: Number(msg.timestamp || Date.now()),
@@ -5723,27 +5773,36 @@ async function sendOneForward(
         threadIds: [target.threadId],
         type: target.threadType,
       });
-      if (res && !res.success) {
-        throw new Error(res.error || 'Server rejected forward request');
+
+      // Check xem forwardMessage API có thực sự thành công hay không
+      const apiSuccess = res?.success && res?.response && (!Array.isArray(res.response.fail) || res.response.fail.length === 0);
+
+      if (!apiSuccess) {
+        // Fallback: Gửi tin nhắn mới nếu forwardMessage API thất bại
+        const fallbackText = composeText ? `${forwardText}\n${composeText.trim()}` : forwardText;
+        if (fallbackText.trim()) {
+          const sendRes = await ipc.zalo?.sendMessage({ auth, message: fallbackText.trim(), threadId: target.threadId, type: target.threadType });
+          if (sendRes && !sendRes.success) {
+            throw new Error(sendRes.error || 'Chuyển tiếp tin nhắn thất bại');
+          }
+        }
+        return;
       }
-      if (composeText && composeText.trim()) {
+
+      if (hasCompose) {
         await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
       }
       return;
     }
-  }
 
-  // Fallback Zalo path (for temp messages or local only)
-  if ((isFile || isVideo || isVoice) && localPath) {
-    await ipc.zalo?.sendFile({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType });
-  } else if (isImage && localPath) {
-    await ipc.zalo?.sendImage({ auth, filePath: localPath, threadId: target.threadId, type: target.threadType, message: '' });
-  } else {
-    const text = composeText || extractMsgText(msg);
-    await ipc.zalo?.sendMessage({ auth, message: text, threadId: target.threadId, type: target.threadType });
-  }
-  if (composeText && (isFile || isVideo || isImage || isVoice) && localPath) {
-    await ipc.zalo?.sendMessage({ auth, message: composeText, threadId: target.threadId, type: target.threadType });
+    // ── Nhánh 3: Fallback cuối cho text hoặc temp message ──
+    let text = composeText ? `${captionText}\n${composeText.trim()}` : captionText;
+    if (text.trim()) {
+      const res = await ipc.zalo?.sendMessage({ auth, message: text.trim(), threadId: target.threadId, type: target.threadType });
+      if (res && !res.success) {
+        throw new Error(res.error || 'Gửi tin nhắn thất bại');
+      }
+    }
   }
 }
 

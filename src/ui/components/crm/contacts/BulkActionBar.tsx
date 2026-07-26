@@ -11,6 +11,7 @@ interface BulkActionBarProps {
   onBulkTagZalo: () => void;
   onManageGroups?: () => void;
   onBulkManageGroups?: (mode: 'add' | 'remove') => void;
+  onReassignOwner?: () => void;
   onDeleteSelected?: () => void;
 }
 
@@ -24,6 +25,7 @@ export default function BulkActionBar({
   onBulkTagZalo,
   onManageGroups,
   onBulkManageGroups,
+  onReassignOwner,
   onDeleteSelected,
 }: BulkActionBarProps) {
   const [showMore, setShowMore] = useState(false);
@@ -58,14 +60,14 @@ export default function BulkActionBar({
         </button>
       )}
 
-      {/* Nhãn Local */}
+      {/* Gán nhãn */}
       <button onClick={onBulkTagLocal}
         className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white px-2 py-1.5 rounded-lg hover:bg-gray-700 transition-colors whitespace-nowrap">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
           <line x1="7" y1="7" x2="7.01" y2="7"/>
         </svg>
-        Nhãn Local
+        Gán nhãn
       </button>
 
       {/* ⋯ More actions dropdown */}
@@ -135,6 +137,21 @@ export default function BulkActionBar({
                   onClick={() => { setShowMore(false); onManageGroups(); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 transition-colors text-left">
                   🏠 Quản lý nhóm
+                </button>
+              </>
+            )}
+
+            {onReassignOwner && (
+              <>
+                <div className="my-1 h-px bg-gray-700 mx-3" />
+                <button
+                  type="button"
+                  onClick={() => { setShowMore(false); onReassignOwner(); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors text-left font-semibold cursor-pointer">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+                    <path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                  </svg>
+                  Chuyển sang Zalo khác
                 </button>
               </>
             )}

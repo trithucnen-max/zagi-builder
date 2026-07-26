@@ -155,12 +155,12 @@ export default function NotificationCenter({ onClose }: Props) {
                   ) : isMac ? (
                     <>
                       <a
-                        href={`https://zagiapp.com/file/Zagi-${updateInfo.version}-arm64.dmg`}
+                        href={`https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/Zagi%20v${updateInfo.version}%20MacOS%20M1%2B%20arm64.dmg`}
                         target="_blank" rel="noopener noreferrer"
                         className="flex-1 py-1 rounded-lg bg-blue-650 hover:bg-blue-600 text-white text-[11px] text-center font-bold transition-colors no-underline"
                       >🍎 Apple Silicon</a>
                       <a
-                        href={`https://zagiapp.com/file/Zagi-${updateInfo.version}.dmg`}
+                        href={`https://github.com/trithucnen-max/zagi-builder/releases/download/v${updateInfo.version}/Zagi%20v${updateInfo.version}%20MacOS%20Intel.dmg`}
                         target="_blank" rel="noopener noreferrer"
                         className="flex-1 py-1 rounded-lg bg-gray-150 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-250 text-[11px] text-center font-bold transition-colors no-underline border border-gray-200 dark:border-transparent"
                       >💻 Intel Mac</a>

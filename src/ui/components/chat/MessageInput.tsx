@@ -797,8 +797,8 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
   }, [activeThreadId]);
 
   // ─── Phone number detection → contact card suggestion ──────────────────
-  // Pattern: 0 + 10 digits (SĐT Việt Nam)
-  const PHONE_REGEX = /0\d{10}/g;
+  // Pattern: 0 + 9 digits = 10 total digits (SĐT Việt Nam chuẩn)
+  const PHONE_REGEX = /0\d{9}/g;
 
   // Clear suggestion when thread changes
   useEffect(() => {
@@ -853,8 +853,9 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
         const account = getActiveAccount();
         if (!account) { setContactCardLoading(false); return; }
         const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
+        const { normalizePhone: _normPhone } = await import('@/utils/phoneUtils');
 
-        const findRes = await ipc.zalo?.findUser({ phone });
+        const findRes = await ipc.zalo?.findUser({ auth, phone: _normPhone(phone) });
         const foundUser = findRes?.response || findRes?.data;
         if (foundUser?.userId || foundUser?.uid || foundUser?.id) {
           const uid = foundUser.userId || foundUser.uid || foundUser.id;
@@ -1588,7 +1589,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           timestamp: now + 2 + vi,
           is_sent: 1,
           status: 'sending',
-          local_paths: JSON.stringify({ main: vp }),
+          local_paths: JSON.stringify({ video: vp }),
         });
       });
 
@@ -1817,14 +1818,21 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
     try {
       // ── Gửi ảnh clipboard trước ──────────────────────────────────
       if (imagesToSend.length > 0) {
-        // Lưu từng blob thành file tạm rồi gửi batch
+        // Lưu từng blob thành file tạm hoặc acquire token rồi gửi batch
         const tempPaths: string[] = [];
+        const mediaTokens: string[] = [];
         for (const img of imagesToSend) {
           const ext = img.blob.type.split('/')[1] || 'png';
-          const res = await ipc.file?.saveTempBlob({ base64: img.dataUrl, ext });
-          if (res?.success && res.filePath) tempPaths.push(res.filePath);
+          const tokenRes = await ipc.media?.acquireToken({ dataUrl: img.dataUrl, ext, zaloId: activeAccountId });
+          if (tokenRes?.success && tokenRes.token) {
+            mediaTokens.push(tokenRes.token);
+            tempPaths.push(tokenRes.token);
+          } else {
+            const res = await ipc.file?.saveTempBlob({ base64: img.dataUrl, ext });
+            if (res?.success && res.filePath) tempPaths.push(res.filePath);
+          }
         }
-        if (tempPaths.length > 0) {
+        if (tempPaths.length > 0 || mediaTokens.length > 0) {
           const ch = activeContact?.channel || 'zalo';
           if (ch === 'facebook') {
             // FB: batch temp + single request with all images
@@ -1854,6 +1862,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
               auth,
               threadId: activeThreadId,
               type: activeThreadType,
+              mediaTokens,
               filePaths: tempPaths,
               // Only attach quote to media when this send is image-only.
               ...(!hasText && quotePayload ? { quote: quotePayload } : {}),
@@ -2207,8 +2216,12 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           removeMessage(activeAccountId!, activeThreadId, tempId);
         }
       } else {
+        const tokenRes = await ipc.media?.acquireToken({ filePath, zaloId: activeAccountId });
+        const mediaToken = tokenRes?.token || filePath;
+
         await ipc.zalo?.sendFile({
           auth,
+          mediaToken,
           threadId: activeThreadId,
           type: activeThreadType,
           filePath,

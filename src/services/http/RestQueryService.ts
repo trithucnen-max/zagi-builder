@@ -29,7 +29,7 @@ interface RestResponse<T = any> {
   };
 }
 
-const MAX_CONSECUTIVE_FAILURES = 2;
+const MAX_CONSECUTIVE_FAILURES = 6;
 const HEALTH_CHECK_INTERVAL_MS = 15_000;
 
 class RestQueryService {
@@ -109,7 +109,7 @@ class RestQueryService {
         const start = Date.now();
         const res = await fetch(`${this.baseUrl}/api/health`, {
           headers: { 'Authorization': `Bearer ${this.token}` },
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(15_000),
         });
         const elapsed = Date.now() - start;
 
@@ -157,9 +157,29 @@ class RestQueryService {
     }
   }
 
+  private ensureInitialized(): void {
+    if (!this.baseUrl || !this.token) {
+      try {
+        const saved = localStorage.getItem('zagi_browser_workspaces');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const activeWs = parsed.workspaces?.find((w: any) => w.id === parsed.activeId) || parsed.workspaces?.[0];
+          if (activeWs && activeWs.bossUrl && activeWs.token) {
+            let url = activeWs.bossUrl.trim().replace(/\/+$/, '');
+            if (!url.startsWith('http://') && !url.startsWith('https://')) url = `http://${url}`;
+            this.baseUrl = url;
+            this.token = activeWs.token;
+            this.connected = true;
+          }
+        }
+      } catch {}
+    }
+  }
+
   // ── Generic request ──────────────────────────────────────────────
 
   private async request<T = any>(opts: RestOptions): Promise<RestResponse<T>> {
+    this.ensureInitialized();
     if (!this.connected) {
       Logger.warn(`[RestQueryService] ❌ NOT_CONNECTED: ${opts.method} ${opts.path}`);
       return { success: false, error: 'Chưa kết nối tới BOSS', code: 'NOT_CONNECTED' };

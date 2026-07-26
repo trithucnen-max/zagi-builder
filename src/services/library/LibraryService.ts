@@ -184,103 +184,8 @@ class LibraryService {
     return item;
   }
 
-  public async autoImportFromChat(
-    zaloId: string,
-    filePath: string,
-    fileName: string,
-    mimeType: string
-  ): Promise<LibraryItem | null> {
-    if (!filePath || !fs.existsSync(filePath)) return null;
-
-    const db = DatabaseService.getInstance();
-    const stats = fs.statSync(filePath);
-    const size = stats.size;
-
-    // Tránh import trùng lặp
-    const existing = db.queryOne<any>(
-      'SELECT uuid FROM media_library_items WHERE owner_zalo_id = ? AND name = ? AND size = ?',
-      [zaloId, fileName, size]
-    );
-    if (existing) return null;
-
-    const uuid = uuidv4();
-    const ext = path.extname(filePath) || path.extname(fileName) || '.bin';
-    const type = this.detectType(mimeType, ext);
-    const typeDir = this.getTypeDir(zaloId, type);
-    const thumbDir = this.getThumbDir(zaloId);
-
-    this.ensureDir(typeDir);
-    this.ensureDir(thumbDir);
-
-    const destPath = path.join(typeDir, `${uuid}${ext}`);
-    try {
-      fs.copyFileSync(filePath, destPath);
-    } catch (err: any) {
-      Logger.error(`[LibraryService] autoImportFromChat copy failed: ${err.message}`);
-      return null;
-    }
-
-    let width = 0;
-    let height = 0;
-    let thumbPath: string | null = null;
-
-    if (type === 'image') {
-      try {
-        const sharp = require('sharp');
-        const buffer = fs.readFileSync(destPath);
-        const meta = await sharp(buffer).metadata();
-        width = meta.width || 0;
-        height = meta.height || 0;
-
-        const thumbName = `${uuid}_thumb.jpg`;
-        thumbPath = path.join(thumbDir, thumbName);
-        await sharp(buffer)
-          .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
-          .flatten({ background: '#ffffff' })
-          .jpeg({ quality: 80 })
-          .toFile(thumbPath);
-      } catch (err: any) {
-        Logger.warn(`[LibraryService] autoImportFromChat thumb gen error: ${err.message}`);
-      }
-    }
-
-    if (type === 'video') {
-      try {
-        const sharp = require('sharp');
-        const thumbName = `${uuid}_thumb.jpg`;
-        thumbPath = path.join(thumbDir, thumbName);
-        await sharp({
-          create: { width: 320, height: 240, channels: 3, background: { r: 30, g: 30, b: 30 } }
-        })
-          .jpeg({ quality: 60 })
-          .toFile(thumbPath);
-      } catch {}
-    }
-
-    const now = Date.now();
-    db.run(
-      `INSERT INTO media_library_items
-       (uuid, owner_zalo_id, type, name, mime_type, size, width, height,
-        file_path, thumb_path, alt_text, tags, folder_id, is_favorite, created_by, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [uuid, zaloId, type, fileName, mimeType, size, width, height,
-       destPath, thumbPath, '', '', null, 0, 'system', now, now]
-    );
-
-    const item: LibraryItem = {
-      uuid, owner_zalo_id: zaloId, type: type as any, name: fileName,
-      mime_type: mimeType, size, width, height,
-      file_path: destPath, thumb_path: thumbPath,
-      alt_text: '', tags: '', folder_id: null,
-      is_favorite: 0, created_by: 'system', created_at: now, updated_at: now,
-    };
-
-    EventBroadcaster.emit('library:itemAdded', { zaloId, item, uuid });
-    Logger.log(`[LibraryService] Auto-imported chat file: ${fileName} (${(size / 1024).toFixed(1)}KB) type=${type}`);
-    return item;
-  }
-
   // ─── Query ───────────────────────────────────────────────────────
+
 
   public getItems(params: {
     zaloId: string;
@@ -293,8 +198,13 @@ class LibraryService {
   }): { items: LibraryItem[]; total: number } {
     const { zaloId, type, search, folderId, tagIds, page = 1, limit = 50 } = params;
     const db = DatabaseService.getInstance();
-    const conditions: string[] = ['owner_zalo_id = ?'];
-    const values: any[] = [zaloId];
+    const conditions: string[] = [];
+    const values: any[] = [];
+
+    if (zaloId && zaloId !== 'all' && zaloId !== 'shared') {
+      conditions.push('(owner_zalo_id = ? OR owner_zalo_id = \'shared\' OR owner_zalo_id = \'\')');
+      values.push(zaloId);
+    }
 
     if (type && type !== 'all') {
       conditions.push('type = ?');
@@ -326,12 +236,12 @@ class LibraryService {
       values.push(...tagIds, tagIds.length);
     }
 
-    const where = conditions.join(' AND ');
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     const offset = (page - 1) * limit;
 
-    const total = db.queryOne<any>(`SELECT COUNT(*) as n FROM media_library_items WHERE ${where}`, values)?.n || 0;
+    const total = db.queryOne<any>(`SELECT COUNT(*) as n FROM media_library_items ${where}`, values)?.n || 0;
     const items = db.query<any>(
-      `SELECT * FROM media_library_items WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM media_library_items ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...values, limit, offset]
     ) || [];
 
@@ -422,19 +332,24 @@ class LibraryService {
     return id;
   }
 
-  public getFolders(zaloId: string, type?: string): LibraryFolder[] {
+  public getFolders(zaloId?: string, type?: string): LibraryFolder[] {
     const db = DatabaseService.getInstance();
-    const conditions = ['f.owner_zalo_id = ?'];
-    const values: any[] = [zaloId];
+    const conditions: string[] = [];
+    const values: any[] = [];
+    if (zaloId && zaloId !== 'all' && zaloId !== 'shared') {
+      conditions.push('(f.owner_zalo_id = ? OR f.owner_zalo_id = \'shared\' OR f.owner_zalo_id = \'\')');
+      values.push(zaloId);
+    }
     if (type && type !== 'all') {
       // Chỉ load folder đúng type, bỏ qua folder cũ ko có type
       conditions.push('f.type = ?');
       values.push(type);
     }
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     const folders = db.query<any>(
       `SELECT f.*,
-        (SELECT COUNT(*) FROM media_library_items i WHERE i.folder_id = f.id ${type ? `AND i.type = '${type}'` : ''}) as item_count
-       FROM media_library_folders f WHERE ${conditions.join(' AND ')} ORDER BY f.sort_order ASC`,
+        (SELECT COUNT(*) FROM media_library_items i WHERE i.folder_id = f.id ${type && type !== 'all' ? `AND i.type = '${type}'` : ''}) as item_count
+       FROM media_library_folders f ${where} ORDER BY f.sort_order ASC`,
       values
     ) || [];
     return folders;
@@ -453,13 +368,22 @@ class LibraryService {
 
   // ─── Tags ────────────────────────────────────────────────────────
 
-  public getTags(zaloId: string): LibraryTag[] {
+  public getTags(zaloId?: string): LibraryTag[] {
     const db = DatabaseService.getInstance();
+    const conditions: string[] = [];
+    const values: any[] = [];
+
+    if (zaloId && zaloId !== 'all' && zaloId !== 'shared') {
+      conditions.push('(t.owner_zalo_id = ? OR t.owner_zalo_id = \'shared\' OR t.owner_zalo_id = \'\')');
+      values.push(zaloId);
+    }
+
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     return db.query<any>(
       `SELECT t.*,
         (SELECT COUNT(*) FROM media_library_item_tags it WHERE it.tag_id = t.id) as item_count
-       FROM media_library_tags t WHERE t.owner_zalo_id = ? ORDER BY t.sort_order ASC`,
-      [zaloId]
+       FROM media_library_tags t ${where} ORDER BY t.sort_order ASC`,
+      values
     ) || [];
   }
 
@@ -648,6 +572,52 @@ class LibraryService {
         }
       } catch (syncErr: any) {
         Logger.warn(`[LibraryService] Tag sync migration warning: ${syncErr.message}`);
+      }
+
+      // Tự động dọn dẹp các tệp trùng lặp lịch sử (phát hiện theo kích thước file và khoảng thời gian tạo trong vòng 10 giây)
+      try {
+        const allItems = db.query<any>(
+          "SELECT uuid, owner_zalo_id, name, size, file_path, thumb_path, created_at FROM media_library_items ORDER BY owner_zalo_id, size, created_at ASC"
+        ) || [];
+
+        const toDelete: any[] = [];
+        for (let i = 0; i < allItems.length - 1; i++) {
+          const current = allItems[i];
+          const next = allItems[i + 1];
+          
+          if (
+            current.owner_zalo_id === next.owner_zalo_id &&
+            current.size === next.size &&
+            current.size > 0 &&
+            Math.abs(current.created_at - next.created_at) <= 10000 // trong vòng 10 giây
+          ) {
+            toDelete.push(next);
+            allItems[i + 1] = current; // Giữ lại phần tử gốc để so sánh tiếp nếu có nhiều trùng lặp
+          }
+        }
+
+        if (toDelete.length > 0) {
+          Logger.log(`[LibraryService] Found ${toDelete.length} historical duplicate media items to clean up.`);
+          for (const item of toDelete) {
+            db.run("DELETE FROM media_library_items WHERE uuid = ?", [item.uuid]);
+            db.run("DELETE FROM media_library_item_tags WHERE item_uuid = ?", [item.uuid]);
+            
+            // Xóa file vật lý trên đĩa
+            try {
+              if (item.file_path && fs.existsSync(item.file_path)) {
+                fs.unlinkSync(item.file_path);
+              }
+              if (item.thumb_path && fs.existsSync(item.thumb_path)) {
+                fs.unlinkSync(item.thumb_path);
+              }
+            } catch (fileErr: any) {
+              Logger.warn(`[LibraryService] Failed to delete physical file during duplicate cleanup: ${fileErr.message}`);
+            }
+          }
+          Logger.log(`[LibraryService] Successfully cleaned up ${toDelete.length} duplicate media items.`);
+        }
+      } catch (cleanupErr: any) {
+        Logger.warn(`[LibraryService] Duplicate cleanup error: ${cleanupErr.message}`);
       }
 
       Logger.log('[LibraryService] ✅ Tables migrated');

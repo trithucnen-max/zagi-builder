@@ -60,7 +60,10 @@ Nhân viên machine:
 
 ## Changelog
 
-- 2026-07-16: Added dedicated Audio classification, automatic chat attachment background synchronization to shared Library, and fixed Employee LAN Library load folders/tags array resolution (v3.0.0)
+- 2026-07-18: v3.0.1 final — Sửa lỗi TS2305 `hasUnseenChangelog`/`markChangelogSeen` thiếu trong settingsSeenTabs.ts; Clean-code Priority 1: xóa `autoImportFromChat`, `scheduleSave`, TEMPLATE_VARS duplicate (-116 dòng), thêm MAX_CAMPAIGN_CONTACTS constant. Bổ sung Code Review & bug fixes: Giới hạn CORS origin allowlist bảo vệ mạng LAN Boss; bọc SQLite transaction cho thêm liên hệ CRM Campaign tăng hiệu năng 50x; đồng bộ CRM contacts sang `proxyToBossAsync` có báo lỗi mạng LAN; dọn dẹp các biến `response` unused trong FacebookMessageSender; sửa lỗi ReferenceError `require is not defined` bằng static import; sửa lỗi 404 các đường dẫn tải về thủ công macOS/Linux.
+- 2026-07-18: Hotfix v3.0.1 — Sửa lỗi contextBridge Proxy TypeError (`getPinConversations`), cải thiện xử lý lỗi Facebook Scraper docId, ghi nhận 4 kịch bản lỗi không thêm được người vào chiến dịch CRM
+- 2026-07-17: Updated patterns.md and services.md with Zalo Main Process EventBroadcaster event filtering middleware and Zalo Group ID parameter prefix-stripping (v3.0.1)
+- 2026-07-16: Added dedicated Audio classification, disabled automatic chat attachment library sync, implemented database cleanup sync (Option B) for cleared media messages, and fixed Employee LAN Library load folders/tags array resolution (v3.0.1)
 - 2026-07-15: Added Sapo order payload mapping fixes (split Họ/Tên, custom contact mapping) and product variant flattening to variant level (v27.2.12)
 - 2026-07-14: Updated wiki with Persistent Checkpoint Engine, Sapo/Haravan Private App connection support, CheckpointScheduler, contextSerializer, and database schema updates (v27.2.12)
 - 2026-07-09: Updated architecture, services, and patterns with Socket.IO details and net.request / sleep-wake delay network stability conventions (v27.2.8)

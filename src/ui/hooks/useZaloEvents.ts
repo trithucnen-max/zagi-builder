@@ -766,6 +766,15 @@ export function useZaloEvents() {
       const { zaloId, requester } = data;
       if (!zaloId || !requester) return;
       const userId: string = requester.userId || '';
+      if (!userId) return;
+
+      // ── Deduplication: Only notify once per friend request per account ──────
+      const notifKey = `notified_friend_req_${zaloId}_${userId}`;
+      if (localStorage.getItem(notifKey)) {
+        return;
+      }
+      localStorage.setItem(notifKey, '1');
+
       const displayName: string = requester.displayName || userId || 'Ai đó';
       const avatar: string = requester.avatar || '';
       const msg: string = requester.msg || '';
@@ -1239,14 +1248,30 @@ export function useZaloEvents() {
       if (!zaloId || !threadId) return;
 
       // [SECURITY] Chỉ dispatch nếu zaloId thuộc account của chính session này.
-      // Tránh trường hợp account 2 nhận được reminder của account 1 khi boss
-      // có nhiều Zalo accounts trong cùng 1 app instance.
       const ownedAccounts = useAccountStore.getState().accounts;
       const isOwned = ownedAccounts.some(a => a.zalo_id === zaloId);
       if (!isOwned) {
         Logger.warn(`[useZaloEvents] reminder from unowned account zaloId=${zaloId} — blocked`);
         return;
       }
+
+      // ── Deduplication: Only notify once per reminder event per account ──────
+      let reminderId = '';
+      try {
+        const params = typeof content?.params === 'string' ? JSON.parse(content.params) : content?.params;
+        const actions = params?.actions?.[0];
+        const actionData = typeof actions?.data === 'string' ? JSON.parse(actions.data) : actions?.data;
+        const reminderData = typeof actionData?.data === 'string' ? JSON.parse(actionData.data) : actionData?.data;
+        reminderId = reminderData?.id || reminderData?.reminder_id || reminderData?.params?.title || content?.title || '';
+      } catch {
+        reminderId = content?.title || '';
+      }
+      const reminderDesc = content?.description || '';
+      const notifKey = `notified_reminder_${zaloId}_${threadId}_${reminderId}_${reminderDesc}`;
+      if (localStorage.getItem(notifKey)) {
+        return;
+      }
+      localStorage.setItem(notifKey, '1');
 
       // Dispatch custom event để App component xử lý
       window.dispatchEvent(new CustomEvent('zalo:reminder', {

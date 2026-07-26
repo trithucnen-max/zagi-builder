@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
+import { useWorkspaceStore } from '@/store/workspaceStore';
 import LibraryPickerModal from '../chat/library/LibraryPickerModal';
 import { getNodeLabel } from './workflowConfig';
 import GroupAvatar from '@/components/common/GroupAvatar';
@@ -9,6 +10,8 @@ import TemplateVarPopup from './TemplateVarPopup';
 import { SmartInput, SmartTextarea } from './SmartInput';
 import { showConfirm } from '@/components/common/ConfirmDialog';
 import { getTemplateVarsForNode, getNodeOutputVars, TEMPLATE_VARS } from './templateVars';
+import UnifiedLabelPickerModal from '../crm/modals/UnifiedLabelPickerModal';
+import UnifiedMediaPicker from '../media/UnifiedMediaPicker';
 
 const getSafeFileUrl = (path: string): string => {
   if (!path) return '';
@@ -267,6 +270,18 @@ function cronToHuman(expr: string): string {
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const CONFIG_SCHEMA: Record<string, Field[]> = {
+  'crm.addToCampaign': [
+    {
+      key: 'campaignId', label: 'Chiến dịch CRM', type: 'select',
+      options: [],
+      desc: 'Chọn Chiến dịch CRM để tự động đưa khách hàng vào phễu gửi tin nhắn.'
+    },
+    {
+      key: 'contactId', label: 'ID / SĐT Khách hàng', type: 'text',
+      placeholder: '{{ $trigger.threadId }} (Để trống sẽ tự lấy từ Khách nhắn)',
+      desc: 'ID Zalo / SĐT khách hàng. Nếu để trống hệ thống sẽ tự động dùng ID của khách hàng kích hoạt Workflow.'
+    }
+  ],
   'crm.getContacts': [
     {
       key: 'searchQuery', label: 'Tìm kiếm liên hệ', type: 'text',
@@ -296,8 +311,8 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       key: 'gender', label: 'Giới tính', type: 'select',
       options: [
         { value: '', label: 'Tất cả giới tính' },
-        { value: '1', label: 'Nam' },
-        { value: '2', label: 'Nữ' },
+        { value: '0', label: 'Nam' },
+        { value: '1', label: 'Nữ' },
       ],
       desc: 'Lọc khách hàng theo giới tính.',
     },
@@ -320,12 +335,8 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       desc: 'Lọc khách hàng theo bước phễu bán hàng hiện tại.',
     },
     {
-      key: 'localLabelIds', label: 'Nhãn Local (Chọn nhiều)', type: 'label-picker', labelMode: 'multi',
-      desc: 'Lọc khách hàng được gán các nhãn local này.',
-    },
-    {
-      key: 'zaloLabelIds', label: 'Nhãn Zalo (Chọn nhiều)', type: 'label-picker', labelMode: 'multi',
-      desc: 'Lọc khách hàng được gán các nhãn Zalo đã đồng bộ này.',
+      key: 'labelIds', label: 'Chọn nhãn', type: 'label-picker', labelMode: 'multi',
+      desc: 'Lọc khách hàng được gán các nhãn local hoặc Zalo này.',
     },
   ],
   'trigger.message': [
@@ -2666,492 +2677,7 @@ function getContrastColor(hex: string | undefined): string {
 
 // ─── Label Picker Modal ───────────────────────────────────────────────────────
 
-function LabelPickerModal({
-  open,
-  onClose,
-  options,
-  selected,
-  onChange,
-  mode,
-  accounts,
-  onNewLabelCreated,
-}: {
-  open: boolean;
-  onClose: () => void;
-  options: LoadedLabelOption[];
-  selected: string[];
-  onChange: (v: string[]) => void;
-  mode: 'single' | 'multi';
-  accounts: { zalo_id: string; full_name: string; display_name?: string; phone?: string; avatar_url: string }[];
-  onNewLabelCreated?: (newLabel: LoadedLabelOption) => void;
-}) {
-  const [activeTab, setActiveTab] = React.useState<'local' | 'zalo'>('local');
-  const [selectedAccountId, setSelectedAccountId] = React.useState<string>('all');
-  const [newLocalLabelName, setNewLocalLabelName] = React.useState('');
-  const [newLocalLabelColor, setNewLocalLabelColor] = React.useState('#14b8a6');
-  const [newLocalLabelEmoji, setNewLocalLabelEmoji] = React.useState('🏷️');
-  const [creating, setCreating] = React.useState(false);
-
-  const handleCreateLocalLabel = async () => {
-    const name = newLocalLabelName.trim();
-    if (!name) return;
-    const existing = options.find(o => o.source === 'local' && o.name.toLowerCase() === name.toLowerCase());
-    if (existing) {
-      if (mode === 'single') {
-        onChange([existing.value]);
-      } else {
-        if (!selected.includes(existing.value)) {
-          onChange([...selected, existing.value]);
-        }
-      }
-      setNewLocalLabelName('');
-      return;
-    }
-    setCreating(true);
-    try {
-      let pageIds = '';
-      if (selectedAccountId === 'all') {
-        pageIds = accounts.map(a => a.zalo_id).join(',');
-      } else {
-        pageIds = selectedAccountId;
-      }
-
-      const createRes = await ipc.db?.upsertLocalLabel({
-        label: {
-          id: 0,
-          name,
-          color: newLocalLabelColor,
-          textColor: '#ffffff',
-          emoji: newLocalLabelEmoji,
-          pageIds,
-        }
-      });
-
-      if (createRes?.success && createRes.id) {
-        const newLabel: LoadedLabelOption = {
-          value: `local:${createRes.id}`,
-          label: `${newLocalLabelEmoji} ${name} (Local)`,
-          source: 'local',
-          color: newLocalLabelColor,
-          textColor: '#ffffff',
-          emoji: newLocalLabelEmoji,
-          name,
-          pageIds: pageIds.split(','),
-        };
-        onNewLabelCreated?.(newLabel);
-        setNewLocalLabelName('');
-      }
-    } catch (err) {
-      console.error('Failed to create local label:', err);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const localOpts = options.filter(o => o.source === 'local').filter(o => {
-    if (!o.pageIds || o.pageIds.length === 0) return true;
-    return o.pageIds.some(id => accounts.some(acc => acc.zalo_id === id));
-  });
-  const zaloOpts = options.filter(o => o.source === 'zalo').filter(o => {
-    if (!o.pageId) return true;
-    return accounts.some(acc => acc.zalo_id === o.pageId);
-  });
-
-  // Build account lookup map
-  const accountMap = React.useMemo(() => {
-    const map = new Map<string, typeof accounts[0]>();
-    accounts.forEach(a => map.set(a.zalo_id, a));
-    return map;
-  }, [accounts]);
-
-  // Get accounts that have labels (show all accounts for Zalo if any labels exist)
-  const accountsWithLabels = React.useMemo(() => {
-    const currentOpts = activeTab === 'local' ? localOpts : zaloOpts;
-
-    // For Zalo: show all accounts that have labels
-    if (activeTab === 'zalo') {
-      const pageIds = new Set<string>();
-      currentOpts.forEach(o => {
-        if (o.pageId) pageIds.add(o.pageId);
-      });
-
-      // If no pageId set on labels, show all accounts
-      if (pageIds.size === 0 && currentOpts.length > 0) {
-        return accounts.map(acc => ({
-          ...acc,
-          labelCount: currentOpts.length, // All labels available for all accounts
-        }));
-      }
-
-      return accounts.filter(a => pageIds.has(a.zalo_id)).map(acc => ({
-        ...acc,
-        labelCount: currentOpts.filter(o => o.pageId === acc.zalo_id).length,
-      }));
-    }
-
-    // For Local: filter by pageIds
-    const pageIds = new Set<string>();
-    currentOpts.forEach(o => {
-      if (o.pageIds) o.pageIds.forEach(p => pageIds.add(p));
-    });
-
-    return accounts.filter(a => pageIds.has(a.zalo_id)).map(acc => ({
-      ...acc,
-      labelCount: currentOpts.filter(o => o.pageIds?.includes(acc.zalo_id)).length,
-    }));
-  }, [activeTab, localOpts, zaloOpts, accounts]);
-
-  // Filter labels by selected account
-  const filteredLabels = React.useMemo(() => {
-    const currentOpts = activeTab === 'local' ? localOpts : zaloOpts;
-
-    // Show all if 'all' selected
-    if (selectedAccountId === 'all') return currentOpts;
-
-    // For Zalo: filter by pageId, but include labels without pageId
-    if (activeTab === 'zalo') {
-      return currentOpts.filter(o => !o.pageId || o.pageId === selectedAccountId);
-    }
-
-    // For Local: filter by pageIds
-    return currentOpts.filter(o => o.pageIds?.includes(selectedAccountId));
-  }, [activeTab, localOpts, zaloOpts, selectedAccountId]);
-
-  // Reset account filter when switching tabs
-  React.useEffect(() => {
-    setSelectedAccountId('all');
-  }, [activeTab]);
-
-  // Auto-select tab based on which has options
-  React.useEffect(() => {
-    if (localOpts.length === 0 && zaloOpts.length > 0) setActiveTab('zalo');
-    else if (localOpts.length > 0) setActiveTab('local');
-  }, [localOpts.length, zaloOpts.length]);
-
-  const toggle = (v: string) => {
-    if (mode === 'single') {
-      onChange(selected.includes(v) ? [] : [v]);
-    } else {
-      if (selected.includes(v)) onChange(selected.filter(x => x !== v));
-      else onChange([...selected, v]);
-    }
-  };
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Modal */}
-      <div className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-[680px] max-w-[95vw] max-h-[80vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 bg-gray-800/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center">
-              <span className="text-xl">🏷️</span>
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-white">Chọn nhãn</h2>
-              <p className="text-xs text-gray-400">
-                {mode === 'single' ? 'Chọn 1 nhãn' : 'Có thể chọn nhiều nhãn'}
-                {selected.length > 0 && ` • Đã chọn: ${selected.length}`}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-gray-700/50 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex flex-1 min-h-0">
-          {/* ─── Left: Account Sidebar ─── */}
-          <div className="w-60 border-r border-gray-700 bg-gray-800/30 flex flex-col">
-            <div className="px-3 py-2.5 border-b border-gray-700/50">
-              <span className="text-[10px] text-gray-500 uppercase tracking-wide font-medium">
-                Tài khoản
-              </span>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {/* All accounts option */}
-              <button
-                type="button"
-                onClick={() => setSelectedAccountId('all')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all ${
-                  selectedAccountId === 'all'
-                    ? 'bg-blue-500/20 border border-blue-500/40 text-blue-300'
-                    : 'hover:bg-gray-700/50 text-gray-400 hover:text-gray-300 border border-transparent'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-sm">
-                  📋
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium truncate">Tất cả</div>
-                  <div className="text-[10px] text-gray-500">
-                    {(activeTab === 'local' ? localOpts : zaloOpts).length} nhãn
-                  </div>
-                </div>
-              </button>
-
-              {/* Individual accounts */}
-              {accountsWithLabels.map(acc => {
-                const isActive = selectedAccountId === acc.zalo_id;
-                return (
-                  <button
-                    key={acc.zalo_id}
-                    type="button"
-                    onClick={() => setSelectedAccountId(acc.zalo_id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all ${
-                      isActive
-                        ? 'bg-teal-500/20 border border-teal-500/40 text-teal-300'
-                        : 'hover:bg-gray-700/50 text-gray-400 hover:text-gray-300 border border-transparent'
-                    }`}
-                  >
-                    <AccountAvatar account={acc} size="md" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium truncate">
-                        {acc.full_name || acc.display_name || acc.zalo_id}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        {acc.phone && <span>{formatPhoneDisplay(acc.phone)}</span>}
-                        <span>•</span>
-                        <span>{acc.labelCount} nhãn</span>
-                      </div>
-                    </div>
-                    {isActive && (
-                      <div className="w-2 h-2 rounded-full bg-teal-400" />
-                    )}
-                  </button>
-                );
-              })}
-
-              {accountsWithLabels.length === 0 && (
-                <div className="px-3 py-4 text-center text-xs text-gray-500">
-                  Không có tài khoản nào có nhãn {activeTab === 'local' ? 'Local' : 'Zalo'}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ─── Right: Labels Panel ─── */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Tabs */}
-            <div className="flex bg-gray-800/60 border-b border-gray-700/50">
-              <button
-                type="button"
-                onClick={() => setActiveTab('local')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 ${
-                  activeTab === 'local'
-                    ? 'border-teal-500 text-teal-400 bg-teal-500/5'
-                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-700/30'
-                }`}
-              >
-                <span>💾</span>
-                <span>Nhãn Local</span>
-                {localOpts.length > 0 && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    activeTab === 'local' ? 'bg-teal-500/20 text-teal-400' : 'bg-gray-700 text-gray-500'
-                  }`}>
-                    {localOpts.length}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('zalo')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 ${
-                  activeTab === 'zalo'
-                    ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-700/30'
-                }`}
-              >
-                <span>☁️</span>
-                <span>Nhãn Zalo</span>
-                {zaloOpts.length > 0 && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    activeTab === 'zalo' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-500'
-                  }`}>
-                    {zaloOpts.length}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Quick create local label (only visible when activeTab === 'local') */}
-            {activeTab === 'local' && (
-              <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/30 flex gap-2 items-center flex-shrink-0">
-                <input
-                  type="text"
-                  placeholder="Tên nhãn local mới..."
-                  value={newLocalLabelName}
-                  onChange={e => setNewLocalLabelName(e.target.value)}
-                  className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-teal-500"
-                />
-                <select
-                  value={newLocalLabelEmoji}
-                  onChange={e => setNewLocalLabelEmoji(e.target.value)}
-                  className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-teal-500 cursor-pointer"
-                >
-                  {['🏷️', '🎯', '🔥', '⭐', '📢', '💡', '✅', '❌', '⚠️'].map(em => (
-                    <option key={em} value={em}>{em}</option>
-                  ))}
-                </select>
-                <input
-                  type="color"
-                  value={newLocalLabelColor}
-                  onChange={e => setNewLocalLabelColor(e.target.value)}
-                  className="w-8 h-8 rounded border border-gray-700 bg-transparent p-0.5 cursor-pointer flex-shrink-0"
-                  title="Chọn màu nhãn"
-                />
-                <button
-                  type="button"
-                  onClick={handleCreateLocalLabel}
-                  disabled={creating || !newLocalLabelName.trim()}
-                  className="px-3 py-1 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-700 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-all flex-shrink-0"
-                >
-                  {creating ? 'Đang tạo...' : 'Tạo mới'}
-                </button>
-              </div>
-            )}
-
-            {/* Labels List - Single column */}
-            <div className="flex-1 overflow-y-auto p-3">
-              {filteredLabels.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                  <span className="text-4xl mb-3">🏷️</span>
-                  <p className="text-sm">Không có nhãn nào</p>
-                  <p className="text-xs mt-1">
-                    {selectedAccountId !== 'all'
-                      ? 'Tài khoản này chưa có nhãn'
-                      : activeTab === 'local' ? 'Chưa có nhãn Local' : 'Chưa có nhãn Zalo'}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  {filteredLabels.map(opt => {
-                    const isSelected = selected.includes(opt.value);
-                    const bgColor = opt.color || '#6b7280';
-                    const textColor = opt.textColor || getContrastColor(bgColor);
-                    // For Zalo: use pageId, for Local: use first pageIds
-                    const accId = opt.pageId || (opt.pageIds && opt.pageIds[0]);
-                    const acc = accId ? accountMap.get(accId) : undefined;
-
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => toggle(opt.value)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                          isSelected
-                            ? 'ring-2 ring-offset-1 ring-offset-gray-900'
-                            : 'bg-gray-800/40 border-gray-700/40 hover:border-gray-600 hover:bg-gray-800/60'
-                        }`}
-                        style={isSelected ? {
-                          backgroundColor: `${bgColor}15`,
-                          borderColor: `${bgColor}60`,
-                          '--tw-ring-color': bgColor,
-                        } as React.CSSProperties : undefined}
-                      >
-                        {/* Checkbox */}
-                        <span
-                          className={`w-5 h-5 ${mode === 'single' ? 'rounded-full' : 'rounded-md'} border-2 flex items-center justify-center flex-shrink-0 transition-all`}
-                          style={isSelected ? {
-                            backgroundColor: bgColor,
-                            borderColor: bgColor,
-                            color: textColor,
-                          } : { borderColor: '#4b5563' }}
-                        >
-                          {isSelected && (
-                            mode === 'single' ? (
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: textColor }} />
-                            ) : (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                <polyline points="20 6 9 17 4 12"/>
-                              </svg>
-                            )
-                          )}
-                        </span>
-
-                        {/* Label badge */}
-                        <span
-                          className="text-xs px-2.5 py-1 rounded-md font-medium shadow-sm"
-                          style={{ backgroundColor: bgColor, color: textColor }}
-                        >
-                          {opt.emoji || '🏷️'} {opt.name}
-                        </span>
-
-                        {/* Account info - show when viewing all (for both Local and Zalo) */}
-                        {selectedAccountId === 'all' && acc && (
-                          <div className="flex items-center gap-2 ml-auto">
-                            <AccountAvatar account={acc} size="sm" />
-                            <span className="text-[11px] text-gray-400">
-                              {acc.full_name || acc.display_name || acc.zalo_id}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Selected indicator */}
-                        {isSelected && !acc && (
-                          <svg className="w-5 h-5 flex-shrink-0 ml-auto" style={{ color: bgColor }} fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-gray-700 bg-gray-800/50">
-          <div className="text-xs text-gray-500">
-            {selected.length > 0 ? (
-              <span>Đã chọn <span className="text-white font-medium">{selected.length}</span> nhãn</span>
-            ) : (
-              <span>{mode === 'single' ? 'Chọn 1 nhãn' : 'Chọn nhãn để áp dụng'}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {selected.length > 0 && (
-              <button
-                type="button"
-                onClick={() => onChange([])}
-                className="px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-              >
-                Xóa tất cả
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-            >
-              Đóng
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors shadow-lg"
-            >
-              Xác nhận
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+const LabelPickerModal = UnifiedLabelPickerModal;
 
 // ─── Label Picker Field (Main) ────────────────────────────────────────────────
 
@@ -4086,7 +3612,15 @@ function FilePickerField({
       const result = await ipc.file?.openDialog({ filters });
 
       if (result?.success && !result.canceled && result.filePaths?.[0]) {
-        onChange(result.filePaths[0]);
+        let filePath = result.filePaths[0];
+        const activeWs = useWorkspaceStore.getState().activeWorkspace();
+        if (activeWs && activeWs.type === 'remote' && ipc.workflow?.uploadMedia) {
+          const uploaded = await ipc.workflow.uploadMedia({ filePaths: [filePath] });
+          if (uploaded?.[0]) {
+            filePath = uploaded[0];
+          }
+        }
+        onChange(filePath);
         setPreviewError(false);
       }
     } catch (err) {
@@ -4291,7 +3825,15 @@ function MultiImageSelector({
       const filters = [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] }];
       const result = await ipc.file?.openDialog({ filters, multiSelect: true });
       if (result?.success && !result.canceled && result.filePaths?.length) {
-        const added = result.filePaths.filter((p: string) => !currentPaths.includes(p));
+        let filePaths = result.filePaths;
+        const activeWs = useWorkspaceStore.getState().activeWorkspace();
+        if (activeWs && activeWs.type === 'remote' && ipc.workflow?.uploadMedia) {
+          const uploaded = await ipc.workflow.uploadMedia({ filePaths });
+          if (uploaded && uploaded.length > 0) {
+            filePaths = uploaded.filter(Boolean);
+          }
+        }
+        const added = filePaths.filter((p: string) => !currentPaths.includes(p));
         updatePathsList([...currentPaths, ...added]);
       }
     } catch (err) {
@@ -4617,7 +4159,15 @@ function MultiFileSelector({
       }
       const result = await ipc.file?.openDialog({ filters, multiSelect: true });
       if (result?.success && !result.canceled && result.filePaths?.length) {
-        const added = result.filePaths.filter((p: string) => !currentPaths.includes(p));
+        let filePaths = result.filePaths;
+        const activeWs = useWorkspaceStore.getState().activeWorkspace();
+        if (activeWs && activeWs.type === 'remote' && ipc.workflow?.uploadMedia) {
+          const uploaded = await ipc.workflow.uploadMedia({ filePaths });
+          if (uploaded && uploaded.length > 0) {
+            filePaths = uploaded.filter(Boolean);
+          }
+        }
+        const added = filePaths.filter((p: string) => !currentPaths.includes(p));
         updatePathsList([...currentPaths, ...added]);
       }
     } catch (err) {
@@ -4940,7 +4490,7 @@ function NodePickerModal({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConfigChange, onLabelChange, onClose }: Props) {
-  const { accounts } = useAccountStore();
+  const { accounts, activeAccountId } = useAccountStore();
   const [config, setConfig]             = useState<Record<string, any>>(node.config || {});
   const [label, setLabel]               = useState(node.label || '');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -4953,6 +4503,7 @@ export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConf
   const [showNodePicker, setShowNodePicker] = useState(false);
   const [showTemplatePopup, setShowTemplatePopup] = useState(false);
   const [templatePopupField, setTemplatePopupField] = useState<string>('');
+  const [lastFocusedField, setLastFocusedField] = useState<string>('');
   const [copiedNodeId, setCopiedNodeId] = useState<string | null>(null);
   const [showExpandModal, setShowExpandModal] = useState(false);
   const [expandFieldKey, setExpandFieldKey] = useState<string>('');
@@ -4973,7 +4524,7 @@ export default function NodeConfigPanel({ node, nodes, edges, workflowId, onConf
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   const handlePreviewCRMContacts = async () => {
-    const activeZaloId = accounts[0]?.zalo_id;
+    const activeZaloId = activeAccountId || accounts.find(a => (a.channel || 'zalo') === 'zalo')?.zalo_id || accounts[0]?.zalo_id;
     if (!activeZaloId) {
       alert('Vui lòng kết nối ít nhất một tài khoản Zalo để thực hiện xem trước.');
       return;
@@ -5072,6 +4623,21 @@ HƯỚNG DẪN SOẠN THẢO:
   const allFields   = CONFIG_SCHEMA[node.type] || [];
   const basicFields = allFields.filter(f => !f.advanced);
   const advFields   = allFields.filter(f =>  f.advanced);
+
+  const [campaignOptions, setCampaignOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (node.type !== 'crm.addToCampaign') return;
+    const activeZaloId = activeAccountId || accounts[0]?.zalo_id || '';
+    ipc.crm?.getCampaigns(activeZaloId).then((res: any) => {
+      if (res?.success && res.campaigns) {
+        setCampaignOptions(res.campaigns.map((c: any) => ({
+          value: String(c.id),
+          label: `🎯 ${c.name} (#${c.id})`,
+        })));
+      }
+    }).catch(() => {});
+  }, [node.type, activeAccountId, accounts]);
 
   useEffect(() => {
     setConfig(node.config || {});
@@ -5360,11 +4926,25 @@ HƯỚNG DẪN SOẠN THẢO:
   };
 
   const appendVar = (key: string, v: string) => {
+    const targetKey = key || templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+    if (!targetKey) {
+      navigator.clipboard.writeText(v).catch(() => {});
+      return;
+    }
+
     const match = v.match(/\{\{\s*([\s\S]*?)\s*\}\}/);
     const varKey = match ? match[1].trim() : v;
+
+    // 1. Dispatch custom event for DOM elements (SmartInput/SmartTextarea)
     window.dispatchEvent(new CustomEvent('zagi-insert-var', {
-      detail: { fieldKey: key, value: varKey }
+      detail: { fieldKey: targetKey, value: varKey }
     }));
+
+    // 2. Direct fallback update: append to config[targetKey]
+    const currentVal = String(config[targetKey] ?? '');
+    const tagToAppend = v.startsWith('{{') ? v : `{{ ${v} }}`;
+    const newVal = currentVal ? `${currentVal} ${tagToAppend}` : tagToAppend;
+    update(targetKey, newVal);
   };
 
   const renderVarToolbar = (field: Field) => {
@@ -5483,19 +5063,57 @@ HƯỚNG DẪN SOẠN THẢO:
   };
 
   const renderField = (field: Field) => {
-    // Custom Interceptor for zalo.sendImage
-    if (node.type === 'zalo.sendImage') {
+    // Custom Interceptor for zalo.sendMessage (unified text + media attachments)
+    if (node.type === 'zalo.sendMessage') {
+      if (field.key === 'filePath' || field.key === 'filePaths' || field.key === 'sendMode') {
+        return null;
+      }
+      if (field.key === 'message') {
+        return (
+          <React.Fragment key="custom-send-message-unified">
+            <div className="space-y-1.5 mb-3">
+              <label className="text-xs font-semibold text-gray-300">{field.label}</label>
+              {renderVarToolbar(field)}
+              <SmartTextarea
+                fieldKey={field.key}
+                value={config.message || ''}
+                onChange={(val) => update('message', val)}
+                onFocus={() => setLastFocusedField('message')}
+                placeholder={field.placeholder}
+                rows={3}
+              />
+              {field.desc && <p className="text-[11px] text-gray-400">{field.desc}</p>}
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t border-gray-800">
+              <UnifiedMediaPicker
+                config={config}
+                mediaType="all"
+                label="📸 Đính kèm phương tiện (Ảnh / Video / File)"
+                onChange={(updates) => {
+                  const next = { ...config, ...updates };
+                  setConfig(next);
+                  onConfigChange(next);
+                }}
+              />
+            </div>
+          </React.Fragment>
+        );
+      }
+    }
+
+    // Custom Interceptor for zalo.sendImage & fb.action.sendImage
+    if (node.type === 'zalo.sendImage' || node.type === 'fb.action.sendImage') {
       if (field.key === 'sendMode' || field.key === 'filePaths') {
         return null;
       }
       if (field.key === 'filePath') {
         return (
-          <div key="custom-multi-image" className="space-y-1.5">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-gray-300">Danh sách ảnh gửi</label>
-            </div>
-            <MultiImageSelector
+          <div key="custom-unified-image" className="space-y-1.5">
+            <UnifiedMediaPicker
               config={config}
+              mediaType="image"
+              label="📸 Danh sách ảnh gửi"
               onChange={(updates) => {
                 const next = { ...config, ...updates };
                 setConfig(next);
@@ -5514,13 +5132,11 @@ HƯỚNG DẪN SOẠN THẢO:
       }
       if (field.key === 'filePath') {
         return (
-          <div key="custom-multi-file" className="space-y-1.5">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-gray-300">Danh sách file gửi</label>
-            </div>
-            <MultiFileSelector
+          <div key="custom-unified-file" className="space-y-1.5">
+            <UnifiedMediaPicker
               config={config}
-              fileType="file"
+              mediaType="file"
+              label="📁 Danh sách file gửi"
               onChange={(updates) => {
                 const next = { ...config, ...updates };
                 setConfig(next);
@@ -5536,13 +5152,11 @@ HƯỚNG DẪN SOẠN THẢO:
     if (node.type === 'zalo.sendVideo') {
       if (field.key === 'videoUrl') {
         return (
-          <div key="custom-multi-video" className="space-y-1.5">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-gray-300">Danh sách video gửi</label>
-            </div>
-            <MultiFileSelector
+          <div key="custom-unified-video" className="space-y-1.5">
+            <UnifiedMediaPicker
               config={config}
-              fileType="video"
+              mediaType="video"
+              label="🎥 Danh sách video gửi"
               onChange={(updates) => {
                 const next = { ...config, ...updates };
                 setConfig(next);
@@ -5591,12 +5205,12 @@ HƯỚNG DẪN SOẠN THẢO:
               placeholder={field.placeholder} className={inputCls}
               nodeType={node?.type} allNodes={nodes} currentId={node?.id}
               isInsideLoop={isNodeInsideLoop}
-              onFocus={() => setTemplatePopupField(field.key)}
+              onFocus={() => { setTemplatePopupField(field.key); setLastFocusedField(field.key); }}
               fieldKey={field.key} />
           ) : (
             <input value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
               placeholder={field.placeholder} className={inputCls}
-              onFocus={() => setTemplatePopupField(field.key)} />
+              onFocus={() => { setTemplatePopupField(field.key); setLastFocusedField(field.key); }} />
           )
         )}
         {(field.type === 'textarea' || field.type === 'multiline') && (
@@ -5617,14 +5231,14 @@ HƯỚNG DẪN SOẠN THẢO:
                     className={`${inputCls} resize-none rounded-t-none border-t-0`}
                     nodeType={node?.type} allNodes={nodes} currentId={node?.id}
                     isInsideLoop={isNodeInsideLoop}
-                    onFocus={() => setTemplatePopupField(field.key)}
+                    onFocus={() => { setTemplatePopupField(field.key); setLastFocusedField(field.key); }}
                     fieldKey={field.key} />
                 </>
               ) : (
                 <textarea value={config[field.key] ?? ''} onChange={e => update(field.key, e.target.value)}
                   placeholder={field.placeholder} rows={field.type === 'multiline' ? 5 : 3}
                   className={`${inputCls} resize-none`}
-                  onFocus={() => setTemplatePopupField(field.key)} />
+                  onFocus={() => { setTemplatePopupField(field.key); setLastFocusedField(field.key); }} />
               )
             )}
             {showAiInput[field.key] && (
@@ -5665,6 +5279,9 @@ HƯỚNG DẪN SOẠN THẢO:
         )}
         {field.type === 'select' && (() => {
           let opts = field.options ?? [];
+          if (node.type === 'crm.addToCampaign' && field.key === 'campaignId') {
+            opts = campaignOptions.length > 0 ? campaignOptions : [{ value: '', label: '-- Chọn Chiến dịch CRM --' }];
+          }
           if (field.optionsFilter) {
             const filterVal = config[field.optionsFilter.key] as string | undefined;
             const allowed = filterVal ? field.optionsFilter.map[filterVal] : null;
@@ -5969,14 +5586,22 @@ HƯỚNG DẪN SOẠN THẢO:
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowNodePicker(true)}
+              onClick={() => {
+                const target = templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+                setTemplatePopupField(target);
+                setShowNodePicker(true);
+              }}
               className="text-[10px] text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 px-2 py-0.5 rounded-lg transition-colors font-medium"
             >
               + Output node
             </button>
             <button
               type="button"
-              onClick={() => { setTemplatePopupField(''); setShowTemplatePopup(true); }}
+              onClick={() => {
+                const target = templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+                setTemplatePopupField(target);
+                setShowTemplatePopup(true);
+              }}
               className="text-[10px] text-white bg-blue-500 hover:bg-blue-500/60 px-2 py-0.5 rounded-lg transition-colors font-medium"
             >
               + Chèn Biến
@@ -5997,11 +5622,8 @@ HƯỚNG DẪN SOẠN THẢO:
           currentId={node?.id}
           onInsert={(nodeLabel) => {
             const tag = `{{ $node.${nodeLabel}.output }}`;
-            if (templatePopupField) {
-              appendVar(templatePopupField, tag);
-            } else {
-              navigator.clipboard.writeText(tag).catch(() => {});
-            }
+            const target = templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+            appendVar(target, tag);
           }}
           onCopy={(nodeLabel) => {
             const tag = `{{ $node.${nodeLabel}.output }}`;
@@ -6017,17 +5639,12 @@ HƯỚNG DẪN SOẠN THẢO:
         nodeType={node?.type}
         allNodes={allNodeList}
         currentId={node?.id}
-        currentField={templatePopupField}
+        currentField={templatePopupField || lastFocusedField || (allFields[0]?.key) || ''}
         isInsideLoop={isNodeInsideLoop}
         onSelect={(varKey) => {
           const tag = `{{ ${varKey} }}`;
-          if (templatePopupField) {
-            // Insert into specific field
-            appendVar(templatePopupField, tag);
-          } else {
-            // No specific field — just copy to clipboard
-            navigator.clipboard.writeText(tag).catch(() => {});
-          }
+          const target = templatePopupField || lastFocusedField || (allFields[0]?.key) || '';
+          appendVar(target, tag);
         }}
       />
       {showExpandModal && (
@@ -6431,8 +6048,8 @@ function CRMPreviewContactsModal({
               {contacts.map((c, idx) => {
                 const getGenderLabel = () => {
                   if (c.contact_type === 'group') return '👥 Nhóm';
-                  if (c.gender === 1) return '♂️ Nam';
-                  if (c.gender === 2) return '♀️ Nữ';
+                  if (c.gender === 0) return '♂️ Nam';
+                  if (c.gender === 1) return '♀️ Nữ';
                   return '⚧️ Chưa rõ';
                 };
 

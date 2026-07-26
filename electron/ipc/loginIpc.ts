@@ -315,17 +315,30 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
     });
 
     // ─── Lấy cấu hình auto-delete media cho tài khoản ──────────────────────
-    ipcMain.handle('login:getMediaAutoDelete', async (_event, { zaloId }) => {
+    const getMediaAutoDeleteHandler = async (_event: any, { zaloId }: { zaloId: string }) => {
         try {
             const config = DatabaseService.getInstance().getMediaAutoDeleteConfig(zaloId);
             return { success: true, config };
         } catch (error: any) {
             return { success: false, error: error.message };
         }
+    };
+
+    ipcMain.handle('login:getMediaAutoDelete', async (event, params) => {
+        if (isEmployeeMode()) {
+            try {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('login:getMediaAutoDelete', params);
+            } catch (err: any) {
+                Logger.error(`[loginIpc] Failed to proxy getMediaAutoDelete: ${err.message}`);
+                return { success: false, error: err.message };
+            }
+        }
+        return await getMediaAutoDeleteHandler(event, params);
     });
 
     // ─── Lưu cấu hình auto-delete media + chạy cleanup ngay ───────────────
-    ipcMain.handle('login:setMediaAutoDelete', async (_event, { zaloId, enabled, days }) => {
+    const setMediaAutoDeleteHandler = async (_event: any, { zaloId, enabled, days }: { zaloId: string; enabled: boolean; days: number }) => {
         try {
             const config = { enabled, days: Math.max(1, days) };
             DatabaseService.getInstance().setMediaAutoDeleteConfig(zaloId, config);
@@ -341,6 +354,19 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
         } catch (error: any) {
             return { success: false, error: error.message };
         }
+    };
+
+    ipcMain.handle('login:setMediaAutoDelete', async (event, params) => {
+        if (isEmployeeMode()) {
+            try {
+                const { proxyToBossAsync } = require('./proxyHelper');
+                return await proxyToBossAsync('login:setMediaAutoDelete', params);
+            } catch (err: any) {
+                Logger.error(`[loginIpc] Failed to proxy setMediaAutoDelete: ${err.message}`);
+                return { success: false, error: err.message };
+            }
+        }
+        return await setMediaAutoDeleteHandler(event, params);
     });
 
     // ─── Chạy cleanup media cho tất cả tài khoản (gọi từ scheduler) ────────
@@ -518,6 +544,8 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
     try {
         const { ipcHandlerRegistry } = require('./zaloIpc');
         ipcHandlerRegistry.set('login:requestOldMessages', (event: any, params: any) => requestOldMessagesHandler(event, params));
+        ipcHandlerRegistry.set('login:getMediaAutoDelete', (event: any, params: any) => getMediaAutoDeleteHandler(event, params));
+        ipcHandlerRegistry.set('login:setMediaAutoDelete', (event: any, params: any) => setMediaAutoDeleteHandler(event, params));
     } catch (err: any) {
         Logger.warn(`[loginIpc] Failed to register requestOldMessages in registry: ${err.message}`);
     }

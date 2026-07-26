@@ -707,8 +707,35 @@ class ZaloLoginHelper {
                     'full_message': message,
                 })}`);
 
+                const msgType = String(message.data?.msgType || '');
+                const rawContent = message.data?.content;
+                let parsedContent: any = null;
+                if (rawContent) {
+                    if (typeof rawContent === 'object') parsedContent = rawContent;
+                    else if (typeof rawContent === 'string' && rawContent.startsWith('{')) {
+                        try { parsedContent = JSON.parse(rawContent); } catch {}
+                    }
+                }
+
+                // ─── Xử lý thu hồi tin nhắn (chat.undo / undo / deleteMsg payload) ───
+                const isUndoMsg = msgType === 'chat.undo' || msgType === 'undo' || msgType === 'user_undo' || msgType === 'group_undo' ||
+                    (parsedContent && (parsedContent.globalMsgId || parsedContent.cliMsgId) && parsedContent.deleteMsg !== undefined);
+
+                if (isUndoMsg) {
+                    const recalledMsgId = String(
+                        parsedContent?.globalMsgId ||
+                        parsedContent?.cliMsgId ||
+                        message.data?.msgId || ''
+                    );
+                    const threadId = message.threadId || String(parsedContent?.srcId || '');
+                    Logger.log(`[ZaloLoginHelper] ↩️ Intercepted undo message event: recalledMsgId=${recalledMsgId} threadId=${threadId}`);
+                    if (recalledMsgId) {
+                        EventBroadcaster.broadcastUndo(zaloId, recalledMsgId, threadId);
+                    }
+                    return; // DO NOT broadcast as regular message bubble
+                }
+
                 // ─── Xử lý chat.delete (xoá tin nhắn phía tôi) ─────────────────
-                const msgType = message.data?.msgType as string;
                 if (msgType === 'chat.delete') {
                     const threadId = message.threadId || '';
                     const contentArr: any[] = Array.isArray(message.data?.content) ? message.data.content : [];

@@ -1,10 +1,12 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore, LabelData } from '@/store/appStore';
 import ZaloLabelBadge from '../tags/ZaloLabelBadge';
 import type { LocalLabelItem } from '@/components/common/LocalLabelSelector';
 import { extractUserProfile } from '../../../../utils/profileUtils';
+import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
+import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,13 +58,15 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
   // ── Labels data ──────────────────────────────────────────────────────────
   const [localLabels, setLocalLabels] = useState<LocalLabelItem[]>([]);
   const zaloLabels: LabelData[] = allLabelsMap[accountId] || [];
+  const accounts = useAccountStore(s => s.accounts);
+  const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
 
   // ── Processing state ─────────────────────────────────────────────────
   const [processing, setProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState<{ current: number; total: number } | null>(null);
 
   // ── Load local labels ───────────────────────────────────────────────
-  useEffect(() => {
+  const fetchLocalLabels = useCallback(() => {
     if (!accountId) return;
     ipc.db?.getLocalLabels({ zaloId: accountId }).then(res => {
       if (res?.labels) {
@@ -71,18 +75,83 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
     }).catch(() => {});
   }, [accountId]);
 
+  useEffect(() => {
+    fetchLocalLabels();
+  }, [fetchLocalLabels]);
+
+  const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
+    const localOpts: LoadedLabelOption[] = localLabels.map((l: any) => ({
+      value: `local:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
+      source: 'local',
+      color: l.color || '#14b8a6',
+      textColor: l.text_color || l.textColor || '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.name,
+      pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
+    }));
+
+    const zaloOpts: LoadedLabelOption[] = zaloLabels.map(l => ({
+      value: `zalo:${(l as any).zalo_id || (l as any).pageId || accountId || ''}:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.text} (Zalo)`,
+      source: 'zalo',
+      color: l.color || '#3b82f6',
+      textColor: '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.text,
+      pageId: (l as any).zalo_id || (l as any).pageId || accountId || '',
+    }));
+
+    return [...localOpts, ...zaloOpts];
+  }, [localLabels, zaloLabels, accountId]);
+
+  const selectedUnifiedValues = useMemo(() => {
+    const localValues = selectedLocalLabelIds.map(id => `local:${id}`);
+    const zaloValues = selectedZaloLabelIds.map(id => {
+      const opt = unifiedLabelOptions.find(o => o.source === 'zalo' && o.value.endsWith(`:${id}`));
+      return opt ? opt.value : `zalo:${accountId}:${id}`;
+    });
+    return [...localValues, ...zaloValues];
+  }, [selectedLocalLabelIds, selectedZaloLabelIds, unifiedLabelOptions, accountId]);
+
+  const handleUnifiedChange = (newValues: string[]) => {
+    const newLocalIds: number[] = [];
+    const newZaloIds: number[] = [];
+
+    for (const val of newValues) {
+      if (val.startsWith('local:')) {
+        const id = Number(val.split(':')[1]);
+        if (!isNaN(id)) newLocalIds.push(id);
+      } else if (val.startsWith('zalo:')) {
+        const parts = val.split(':');
+        const id = Number(parts[parts.length - 1]);
+        if (!isNaN(id)) newZaloIds.push(id);
+      }
+    }
+    setSelectedLocalLabelIds(newLocalIds);
+    setSelectedZaloLabelIds(newZaloIds);
+  };
+
   // ── Contact list to process ──────────────────────────────────────────────
   const finalContacts = inputMode === 'list' ? (contacts || []) : resolvedContacts;
 
   // ── Parse phone numbers ──────────────────────────────────────────────────
   const parsePhones = useCallback((): string[] => {
-    return phoneInput
+    const unique = new Set<string>();
+    phoneInput
       .split(/[\n,;]+/)
-      .map(s => s.trim().replace(/\s+/g, ''))
-      .filter(s => /^(\+84|0)\d{8,10}$/.test(s));
+      .forEach(s => {
+        const norm = normalizePhone(s);
+        if (norm && isValidVietnamPhone(norm)) {
+          unique.add(norm);
+        }
+      });
+    return Array.from(unique);
   }, [phoneInput]);
 
-  // ── Resolve phone numbers → user info via Zalo API ───────────────────────
+  // ── Resolve phone numbers → user info via Zalo API (Batch mode) ──────────
+  // Dùng getMultiUsersByPhones (batch API như PhoneScan) thay vì vòng lặp findUser.
+  // Batch API tìm thấy nhiều user hơn vì xử lý như "tra cứu từ danh bạ".
   const handleResolvePhones = useCallback(async () => {
     const phones = parsePhones();
     if (phones.length === 0) {
@@ -96,63 +165,90 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
     setResolving(true);
     setResolveProgress({ current: 0, total: phones.length });
     stopRef.current = false;
-    const results: ContactToAdd[] = [];
 
-    for (let i = 0; i < phones.length; i++) {
+    // ── Bước 1: Batch lookup (getMultiUsersByPhones) ────────────────────────
+    // API trả về key = 84xxxxxxxxx, cần normalize về 0xxxxxxxxx
+    const BATCH_SIZE = 100;
+    const zaloMap: Record<string, any> = {}; // phone (0xxx) → user object
+
+    for (let b = 0; b < phones.length; b += BATCH_SIZE) {
       if (stopRef.current) break;
-      setResolveProgress({ current: i + 1, total: phones.length });
+      const batch = phones.slice(b, b + BATCH_SIZE);
       try {
-        const res = await ipc.zalo?.findUser({ auth, phone: phones[i] });
-        const user = res?.response;
-        if (user?.uid) {
-          // Try to get more info
-          try {
-            const infoRes = await ipc.zalo?.getUserInfo({ auth, userId: user.uid });
-            const profile = infoRes?.response?.changed_profiles?.[user.uid];
-            const extracted = profile ? extractUserProfile(profile) : null;
-            results.push({
-              contactId: user.uid,
-              displayName: extracted?.displayName || profile?.displayName || user.display_name || user.zalo_name || user.uid,
-              avatar: extracted?.avatar || profile?.avatar || user.avatar || '',
-              phone: phones[i],
-            });
-            // Pre-save gender/birthday so they appear in CRM right away
-            if (extracted && (extracted.gender !== null || extracted.birthday)) {
-              ipc.db?.updateContactProfile({
-                zaloId: accountId,
-                contactId: user.uid,
-                displayName: extracted.displayName,
-                avatarUrl: extracted.avatar,
-                phone: phones[i],
-                gender: extracted.gender,
-                birthday: extracted.birthday,
-              }).catch(() => {});
-            }
-          } catch {
-            results.push({
-              contactId: user.uid,
-              displayName: user.display_name || user.zalo_name || user.uid,
-              avatar: user.avatar || '',
-              phone: phones[i],
-            });
+        const res = await ipc.zalo?.getMultiUsersByPhones({ auth, phones: batch });
+        if (res?.success && res?.response) {
+          for (const [phoneKey, user] of Object.entries(res.response as Record<string, any>)) {
+            // Zalo trả key dạng "84933640999" → normalize về "0933640999"
+            const normalized = phoneKey.startsWith('84') ? '0' + phoneKey.slice(2) : phoneKey;
+            const matched = batch.find(p => p === normalized || p === phoneKey);
+            if (matched) zaloMap[matched] = user;
           }
         }
-        // Delay to avoid rate limiting
-        if (i < phones.length - 1) {
-          await new Promise(r => setTimeout(r, 500));
+      } catch {
+        // Batch thất bại → fallback findUser từng số trong batch
+        for (const phone of batch) {
+          if (stopRef.current) break;
+          try {
+            const res = await ipc.zalo?.findUser({ auth, phone });
+            if (res?.response?.uid) zaloMap[phone] = res.response;
+          } catch {}
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+      setResolveProgress({ current: Math.min(b + BATCH_SIZE, phones.length), total: phones.length });
+    }
+
+    // ── Bước 2: Enrich từng user đã tìm được với getUserInfo ─────────────────
+    const foundPhones = phones.filter(p => zaloMap[p]?.uid);
+    const results: ContactToAdd[] = [];
+
+    setResolveProgress({ current: 0, total: foundPhones.length });
+    for (let i = 0; i < foundPhones.length; i++) {
+      if (stopRef.current) break;
+      setResolveProgress({ current: i + 1, total: foundPhones.length });
+      const phone = foundPhones[i];
+      const user = zaloMap[phone];
+      try {
+        const infoRes = await ipc.zalo?.getUserInfo({ auth, userId: user.uid });
+        const profile = infoRes?.response?.changed_profiles?.[user.uid];
+        const extracted = profile ? extractUserProfile(profile) : null;
+        results.push({
+          contactId: user.uid,
+          displayName: extracted?.displayName || profile?.displayName || user.display_name || user.zalo_name || user.uid,
+          avatar: extracted?.avatar || profile?.avatar || user.avatar || '',
+          phone,
+        });
+        // Pre-save gender/birthday
+        if (extracted && (extracted.gender !== null || extracted.birthday)) {
+          ipc.db?.updateContactProfile({
+            zaloId: accountId,
+            contactId: user.uid,
+            displayName: extracted.displayName,
+            avatarUrl: extracted.avatar,
+            phone,
+            gender: extracted.gender,
+            birthday: extracted.birthday,
+          }).catch(() => {});
         }
       } catch {
-        // Skip failed numbers
+        // getUserInfo thất bại → dùng thông tin cơ bản từ batch
+        results.push({
+          contactId: user.uid,
+          displayName: user.display_name || user.zalo_name || user.uid,
+          avatar: user.avatar || '',
+          phone,
+        });
       }
+      if (i < foundPhones.length - 1) await new Promise(r => setTimeout(r, 200));
     }
 
     setResolvedContacts(results);
     setResolving(false);
     setResolveProgress(null);
     if (results.length === 0) {
-      showNotification('Không tìm thấy người dùng nào từ danh sách SĐT', 'info');
+      showNotification('Không tìm thấy người dùng Zalo nào từ danh sách SĐT', 'info');
     }
-  }, [parsePhones, getActiveAccount, showNotification]);
+  }, [parsePhones, getActiveAccount, showNotification, accountId]);
 
   // ── Remove a resolved contact ────────────────────────────────────────────
   const removeResolved = (contactId: string) => {
@@ -370,121 +466,86 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
             </div>
           )}
 
-          {/* ── Tag assignment section (Unified Checklist) ───────────────── */}
+          {/* ── Tag assignment section (Unified Label Picker) ───────────────── */}
           <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-              <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <p className="text-xs text-gray-700 font-semibold">Gắn nhãn chiến dịch / phân loại <span className="text-red-500">* Bắt buộc</span></p>
-                {!isLabelSelected && <span className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded border border-red-100">Cần chọn nhãn</span>}
-              </div>
-
-              <div className="p-4 space-y-4 bg-white">
-                {/* Quick create local label */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Tạo nhanh nhãn local mới (VD: Chiến dịch tháng 6)..."
-                    value={newLocalLabelName}
-                    onChange={e => setNewLocalLabelName(e.target.value)}
-                    className="flex-1 bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs text-gray-900 focus:outline-none focus:border-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const name = newLocalLabelName.trim();
-                      if (!name) return;
-                      const existing = localLabels.find(l => l.name.toLowerCase() === name.toLowerCase());
-                      if (existing) {
-                        if (!selectedLocalLabelIds.includes(existing.id)) {
-                          setSelectedLocalLabelIds(prev => [...prev, existing.id]);
-                        }
-                        setNewLocalLabelName('');
-                        showNotification(`Đã tự động chọn nhãn "${existing.name}" sẵn có`, 'info');
-                        return;
-                      }
-                      try {
-                        const createRes = await ipc.db?.upsertLocalLabel({
-                          label: { id: 0, name, color: '#f97316', emoji: '🎯', pageIds: accountId }
-                        });
-                        if (createRes?.success && createRes.id) {
-                          const newLabel = { id: createRes.id, name, color: '#f97316', emoji: '🎯', page_ids: accountId };
-                          setLocalLabels(prev => [newLabel, ...prev]);
-                          setSelectedLocalLabelIds(prev => [...prev, createRes.id]);
-                          setNewLocalLabelName('');
-                          showNotification('Đã tạo và chọn nhãn local mới', 'success');
-                        }
-                      } catch (err) {
-                        showNotification('Không thể tạo nhãn', 'error');
-                      }
-                    }}
-                    disabled={!newLocalLabelName.trim()}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold disabled:opacity-40 transition-colors cursor-pointer"
-                  >
-                    Tạo
-                  </button>
-                </div>
-
-                {/* Scrollable checklist of both Local and Zalo labels */}
-                <div className="max-h-52 overflow-y-auto border border-gray-200 rounded-lg p-2.5 bg-gray-50/50 space-y-4">
-                  {/* Local labels */}
-                  <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Nhãn Local (Chọn nhiều)</p>
-                    {localLabels.length === 0 ? (
-                      <p className="text-xs text-gray-400 italic pl-1">Chưa có nhãn local nào</p>
-                    ) : (
-                      <div className="space-y-1">
-                        {localLabels.map(label => {
-                          const isSelected = selectedLocalLabelIds.includes(label.id);
-                          return (
-                            <button key={label.id} type="button"
-                              onClick={() => setSelectedLocalLabelIds(prev =>
-                                isSelected ? prev.filter(x => x !== label.id) : [...prev, label.id]
-                              )}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors text-left cursor-pointer bg-white border border-gray-100 shadow-sm">
-                              <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center text-[9px] ${
-                                isSelected ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'border-gray-300 bg-white'
-                              }`}>
-                                {isSelected && '✓'}
-                              </span>
-                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: label.color || '#f97316' }} />
-                              {label.emoji && <span className="text-xs">{label.emoji}</span>}
-                              <span className="text-xs text-gray-700 font-medium truncate">{label.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Zalo labels */}
-                  <div className="pt-2 border-t border-gray-200">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nhãn Zalo (Chọn tối đa 1)</p>
-                    {zaloLabels.length === 0 ? (
-                      <p className="text-xs text-gray-400 italic pl-1">Chưa có nhãn Zalo nào</p>
-                    ) : (
-                      <div className="space-y-1">
-                        {zaloLabels.map(label => {
-                          const isSelected = selectedZaloLabelIds.includes(label.id);
-                          return (
-                            <button key={label.id} type="button"
-                              onClick={() => setSelectedZaloLabelIds(
-                                isSelected ? [] : [label.id]
-                              )}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors text-left cursor-pointer bg-white border border-gray-100 shadow-sm">
-                              <span className={`w-3.5 h-3.5 rounded-full border flex-shrink-0 flex items-center justify-center text-[9px] ${
-                                isSelected ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'border-gray-300 bg-white'
-                              }`}>
-                                {isSelected && '●'}
-                              </span>
-                              <ZaloLabelBadge label={label} size="xs" />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+              <p className="text-xs text-gray-700 font-semibold">Gắn nhãn chiến dịch / phân loại <span className="text-red-500">* Bắt buộc</span></p>
+              {!isLabelSelected ? (
+                <span className="text-[10px] text-red-500 font-medium bg-red-50 px-2 py-0.5 rounded border border-red-100">Cần chọn nhãn</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedLocalLabelIds([]); setSelectedZaloLabelIds([]); }}
+                  className="text-[10px] text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  Bỏ chọn tất cả
+                </button>
+              )}
             </div>
+
+            <div className="p-4 space-y-3 bg-white">
+              {/* Selected badges display */}
+              {isLabelSelected ? (
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1">
+                  {selectedLocalLabelIds.map(id => {
+                    const label = localLabels.find(l => l.id === id);
+                    if (!label) return null;
+                    return (
+                      <span
+                        key={`local-${id}`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-xs text-white"
+                        style={{ backgroundColor: label.color || '#14b8a6' }}
+                      >
+                        <span>{label.emoji || '🏷️'}</span>
+                        <span>{label.name} (Local)</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLocalLabelIds(prev => prev.filter(x => x !== id))}
+                          className="ml-0.5 hover:bg-black/20 rounded-full w-4 h-4 flex items-center justify-center"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    );
+                  })}
+                  {selectedZaloLabelIds.map(id => {
+                    const label = zaloLabels.find(l => l.id === id);
+                    if (!label) return null;
+                    return (
+                      <span
+                        key={`zalo-${id}`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-xs bg-blue-600 text-white"
+                      >
+                        <span>{label.emoji || '🏷️'}</span>
+                        <span>{label.text} (Zalo)</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedZaloLabelIds(prev => prev.filter(x => x !== id))}
+                          className="ml-0.5 hover:bg-black/20 rounded-full w-4 h-4 flex items-center justify-center"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 italic">
+                  Chưa chọn nhãn nào. Nhấn nút bên dưới để mở cửa sổ chọn Nhãn Local hoặc Nhãn Zalo tự động gán.
+                </p>
+              )}
+
+              {/* Trigger Button opening UnifiedLabelPickerModal */}
+              <button
+                type="button"
+                onClick={() => setShowLabelPickerModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-xs font-bold transition-all border border-blue-200 cursor-pointer shadow-2xs"
+              >
+                <span>🏷️</span>
+                <span>{isLabelSelected ? 'Thay đổi / Thêm nhãn mới' : 'Chọn nhãn tự động gán'}</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────────────── */}
@@ -529,6 +590,18 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
           )}
         </div>
       </div>
+
+      {showLabelPickerModal && (
+        <UnifiedLabelPickerModal
+          open={showLabelPickerModal}
+          onClose={() => setShowLabelPickerModal(false)}
+          options={unifiedLabelOptions}
+          selected={selectedUnifiedValues}
+          onChange={handleUnifiedChange}
+          accounts={accounts}
+          onNewLabelCreated={fetchLocalLabels}
+        />
+      )}
     </div>
   );
 }

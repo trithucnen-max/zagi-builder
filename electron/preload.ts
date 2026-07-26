@@ -27,6 +27,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fetchUrl: (args: { url: string }) => ipcRenderer.invoke('util:fetchUrl', args),
   },
 
+  // ─── Telemetry ─────────────────────────────────────────────────
+  telemetry: {
+    getConfig: () => ipcRenderer.invoke('telemetry:getConfig'),
+    saveConfig: (config: any) => ipcRenderer.invoke('telemetry:saveConfig', config),
+    getDeviceInfo: () => ipcRenderer.invoke('telemetry:getDeviceInfo'),
+    sendPing: () => ipcRenderer.invoke('telemetry:sendPing'),
+    fetchAllDevices: () => ipcRenderer.invoke('telemetry:fetchAllDevices'),
+  },
+
   // ─── Login / Account ─────────────────────────────────────────────
   login: {
     loginQR: (tempId: string, proxyId?: number | null) => ipcRenderer.invoke('login:qr', { tempId, proxyId }),
@@ -99,6 +108,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     inviteUserToGroups: (params: any) => ipcRenderer.invoke('zalo:inviteUserToGroups', params),
     updateGroupSettings: (params: any) => ipcRenderer.invoke('zalo:updateGroupSettings', params),
     getGroupLinkDetail: (params: any) => ipcRenderer.invoke('zalo:getGroupLinkDetail', params),
+    scanAdvancedGroup: (params: { zaloId: string; linkOrGroupId: string }) => ipcRenderer.invoke('zalo:scanAdvancedGroup', params),
     getGroupLinkInfo: (params: any) => ipcRenderer.invoke('zalo:getGroupLinkInfo', params),
     joinGroupLink: (params: any) => ipcRenderer.invoke('zalo:joinGroupLink', params),
     enableGroupLink: (params: any) => ipcRenderer.invoke('zalo:enableGroupLink', params),
@@ -287,6 +297,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     scheduleMessage: (params: any) => ipcRenderer.invoke('crm:scheduleMessage', params),
     getScheduledMessages: (params: any) => ipcRenderer.invoke('crm:getScheduledMessages', params),
     cancelScheduledMessage: (params: any) => ipcRenderer.invoke('crm:cancelScheduledMessage', params),
+    getPhoneScanBatches: (params: any) => ipcRenderer.invoke('crm:getPhoneScanBatches', params),
+    getPhoneScanItems: (params: any) => ipcRenderer.invoke('crm:getPhoneScanItems', params),
+    createPhoneScanBatch: (params: any) => ipcRenderer.invoke('crm:createPhoneScanBatch', params),
+    deletePhoneScanBatch: (params: any) => ipcRenderer.invoke('crm:deletePhoneScanBatch', params),
+    updatePhoneScanBatchStatus: (params: any) => ipcRenderer.invoke('crm:updatePhoneScanBatchStatus', params),
+    startPhoneScanImmediate: (params: any) => ipcRenderer.invoke('crm:startPhoneScanImmediate', params),
+    getPhoneScanLimitStatus: () => ipcRenderer.invoke('crm:getPhoneScanLimitStatus'),
+    updatePhoneScanBatchPriority: (params: any) => ipcRenderer.invoke('crm:updatePhoneScanBatchPriority', params),
+    reorderPhoneScanBatches: (params: any) => ipcRenderer.invoke('crm:reorderPhoneScanBatches', params),
+    reassignBatchContacts: (params: any) => ipcRenderer.invoke('crm:reassignBatchContacts', params),
+    reassignContactsOwner: (params: any) => ipcRenderer.invoke('crm:reassignContactsOwner', params),
+    getDuplicateContacts: () => ipcRenderer.invoke('crm:getDuplicateContacts'),
+    transferContact: (params: any) => ipcRenderer.invoke('crm:transferContact', params),
+    mergeContacts: (params: any) => ipcRenderer.invoke('crm:mergeContacts', params),
+    cleanupCorruptedAliases: () => ipcRenderer.invoke('crm:cleanupCorruptedAliases'),
+    markContactBlocked: (params: any) => ipcRenderer.invoke('crm:markContactBlocked', params),
   },
 
   // ─── Analytics / Reporting ──────────────────────────────────────────
@@ -371,6 +397,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendBadgeImage: (params: { dataUrl: string; count: number }) =>
       ipcRenderer.send('app:badgeImage', params),
     flashFrame: (active: boolean) => ipcRenderer.send('app:flashFrame', { active }),
+  },
+
+  // ─── Media Management ──────────────────────────────────────────────
+  media: {
+    acquireToken: (params: any) => ipcRenderer.invoke('media:acquireToken', params),
   },
 
   // ─── Auto-update ─────────────────────────────────────────────────
@@ -475,6 +506,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     disconnectRemote:     (id: string) => ipcRenderer.invoke('workspace:disconnectRemote', { id }),
     getConnectionStatus:  (id: string) => ipcRenderer.invoke('workspace:getConnectionStatus', { id }),
     getAllStatuses:        () => ipcRenderer.invoke('workspace:getAllStatuses'),
+    probeAndSwitchToLan:  (id: string) => ipcRenderer.invoke('workspace:probeAndSwitchToLan', { id }),
+    revertToWan:          (id: string) => ipcRenderer.invoke('workspace:revertToWan', { id }),
     loginRemote:          (bossUrl: string, username: string, password: string) =>
                             ipcRenderer.invoke('workspace:loginRemote', { bossUrl, username, password }),
      notifyNetworkOnline:  () => ipcRenderer.send('workspace:network-online'),
@@ -745,6 +778,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'erp:event:departmentUpdated',
       'erp:event:employeeProfileUpdated',
       'event:aiProfileUpdated',
+      'crm:phoneScanUpdate',
     ];
     if (validChannels.includes(channel)) {
       const subscription = (_event: any, ...args: any[]) => callback(...args);
@@ -783,6 +817,8 @@ contextBridge.exposeInMainWorld('licenseAPI', {
     ipcRenderer.invoke('license:get'),
   getPlans: () =>
     ipcRenderer.invoke('license:getPlans'),
+  startAsEmployee: () =>
+    ipcRenderer.invoke('license:startAsEmployee'),
   isInGracePeriod: () =>
     ipcRenderer.invoke('license:isInGracePeriod'),
   isExpiringSoon: () =>

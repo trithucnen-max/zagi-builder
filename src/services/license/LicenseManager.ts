@@ -3,42 +3,22 @@ import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
 import Logger from '../../utils/Logger';
+import TelemetryService from '../telemetry/TelemetryService';
 
-// ─── License API Configuration ────────────────────────────────────────────────
-// Ưu tiên: runtime config (zagi-config.json) > env var (.env) > fallback mặc định
-// Fallback được nhúng sẵn để production build hoạt động không cần .env
-const LICENSE_CONFIG = {
-  get apiUrl(): string {
-    return LicenseManager._runtimeConfig?.apiUrl
-      || process.env.LICENSE_API_URL
-      || 'https://script.google.com/macros/s/AKfycbwfAp3H9lUTrFLDakhpCmLZB6h9V9bViGSmCTMtp49MbujLK-vT6aPbSQhsJZNs0T4qVg/exec';
-  },
-  get apiSecret(): string {
-    // Production builds không có .env → dùng fallback mặc định
-    return LicenseManager._runtimeConfig?.apiSecret
-      || process.env.LICENSE_API_SECRET
-      || 'YOUR_SECRET_KEY_HERE_hanoi@123a';
-  },
-};
+// ─── Supabase License API Configuration ──────────────────────────────────────
+const DEFAULT_SUPABASE_URL = 'https://paxejunvgfhjdyulzutb.supabase.co';
+const DEFAULT_ANON_KEY = 'sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo';
 
 const CACHE_DAYS = 3;
 const GRACE_PERIOD_DAYS = 7;   // Số ngày ân hạn sau khi hết hạn
 const EXPIRY_WARN_DAYS  = 7;   // Cảnh báo khi còn ≤ N ngày
 
-/**
- * Parse ngày từ chuỗi, hỗ trợ cả 2 format:
- *   - dd/MM/yyyy  (Apps Script output)
- *   - yyyy-MM-dd  (ISO standard)
- *   - ISO string  (new Date().toISOString())
- */
 function parseDateStr(dateStr: string): Date {
   if (!dateStr) return new Date(NaN);
-  // dd/MM/yyyy hoặc d/M/yyyy
   const ddmmyyyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (ddmmyyyy) {
     return new Date(Number(ddmmyyyy[3]), Number(ddmmyyyy[2]) - 1, Number(ddmmyyyy[1]));
   }
-  // Fallback: ISO / yyyy-MM-dd / any standard
   return new Date(dateStr);
 }
 
@@ -48,11 +28,15 @@ export interface LicenseInfo {
   plan: string;
   expiryDate?: string;
   isLifetime: boolean;
-  status: 'active' | 'expired' | 'pending';
+  status: 'active' | 'expired' | 'pending' | 'blocked';
   fullName?: string;
   phone?: string;
   cachedAt?: string;
   daysLeft?: number | null;
+  bossMachineId?: string;
+  maxEmployees?: number;
+  maxZaloAccounts?: number;
+  lastVerifiedAt?: string;
 }
 
 export interface RegisterParams {
@@ -64,89 +48,142 @@ export interface RegisterParams {
 }
 
 export class LicenseManager {
-  /** Runtime config được inject từ encrypted config file khi startup */
-  static _runtimeConfig: { apiUrl?: string; apiSecret?: string } | null = null;
+  static _runtimeConfig: { apiUrl?: string; apiKey?: string; apiSecret?: string } | null = null;
 
-  /** Inject config từ encrypted source (gọi trong main process khi khởi động) */
-  static setRuntimeConfig(config: { apiUrl?: string; apiSecret?: string }): void {
+  static setRuntimeConfig(config: { apiUrl?: string; apiKey?: string; apiSecret?: string }): void {
     LicenseManager._runtimeConfig = config;
   }
 
-  /**
-   * Google Apps Script trả về 302 redirect khi nhận POST.
-   * Redirect URL chỉ nhận GET (không nhận POST lại).
-   * Flow đúng: POST gốc → lấy Location URL → GET vào URL đó.
-   */
-  private async postWithRedirect(url: string, body: object, timeoutMs = 15000): Promise<any> {
-    // Bước 1: POST đến URL gốc, KHÔNG follow redirect (để lấy Location)
-    const firstRes = await axios.post(url, body, {
-      timeout: timeoutMs,
-      headers: { 'Content-Type': 'application/json' },
-      maxRedirects: 0,
-      validateStatus: (s) => s < 400 || s === 302 || s === 301,
-    });
+  private getSupabaseUrl(): string {
+    return LicenseManager._runtimeConfig?.apiUrl || process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  }
 
-    // Bước 2: Nếu có redirect → GET vào Location URL (Apps Script pattern)
-    if ((firstRes.status === 301 || firstRes.status === 302) && firstRes.headers['location']) {
-      const redirectUrl = firstRes.headers['location'];
-      Logger.log(`[LicenseManager] Following redirect (GET) to: ${redirectUrl}`);
-      const secondRes = await axios.get(redirectUrl, {
-        timeout: timeoutMs,
-        maxRedirects: 5,
-      });
-      return secondRes.data;
-    }
-
-    return firstRes.data;
+  private getSupabaseKey(): string {
+    return LicenseManager._runtimeConfig?.apiKey || process.env.SUPABASE_ANON_KEY || DEFAULT_ANON_KEY;
   }
 
   private getLicenseFile(): string {
     return path.join(app.getPath('userData'), 'license.dat');
   }
 
-  // === ĐĂNG KÝ LICENSE MỚI ===
+  /**
+   * Tạo License Key ngẫu nhiên giữ nguyên quy tắc cũ:
+   * Dạng: ZAGI-XXXX-YYYY-ZZZZ (hoặc XXXX-XXXX-XXXX-XXXX)
+   */
+  public generateLicenseKey(): string {
+    const p1 = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const p2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const p3 = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `ZAGI-${p1}-${p2}-${p3}`;
+  }
+
+  // === ĐĂNG KÝ LICENSE MỚI (Lưu lên Supabase) ===
   async register({ email, fullName, phone, plan, referrer }: RegisterParams): Promise<any> {
     try {
-      const result = await this.postWithRedirect(LICENSE_CONFIG.apiUrl, {
-        secret: LICENSE_CONFIG.apiSecret,
-        action: 'register',
+      const url = this.getSupabaseUrl();
+      const apiKey = this.getSupabaseKey();
+      const licenseKey = this.generateLicenseKey();
+      const isLifetime = plan.includes('lifetime');
+
+      // Tính ngày hết hạn
+      let expiryDate: string | null = null;
+      if (!isLifetime) {
+        const exp = new Date();
+        if (plan.includes('12m')) exp.setMonth(exp.getMonth() + 12);
+        else if (plan.includes('6m')) exp.setMonth(exp.getMonth() + 6);
+        else exp.setDate(exp.getDate() + 14); // Trial 14 ngày
+        expiryDate = exp.toISOString();
+      }
+
+      // Giới hạn nhân viên & zalo account theo gói
+      const maxEmployees = plan.startsWith('solo') ? 0 : plan.includes('lifetime') ? 20 : 5;
+      const maxZaloAccounts = plan.startsWith('solo') ? 2 : plan.includes('lifetime') ? 100 : 10;
+
+      const payload = {
+        license_key: licenseKey,
         email: email.trim().toLowerCase(),
-        fullName: fullName || '',
+        full_name: fullName || '',
         phone: phone || '',
         plan: plan,
-        referrer: referrer || ''
-      }, 15000);
-      
-      // Nếu là trial → auto activate luôn
-      if (result.success && !result.pending && result.license) {
-        this.saveLicense(result.license);
-      }
-      
-      if (result && result.success) {
-        return result;
-      }
-      throw new Error(result?.message || 'Invalid server response');
-    } catch (err: any) {
-      Logger.error('[LicenseManager] Register API error:', err.message);
-      
-      if (plan === 'trial') {
+        referrer: referrer || '',
+        expiry_date: expiryDate,
+        is_lifetime: isLifetime,
+        status: plan === 'trial' ? 'active' : 'pending',
+        max_employees: maxEmployees,
+        max_zalo_accounts: maxZaloAccounts,
+        created_at: new Date().toISOString(),
+      };
+
+      const res = await fetch(`${url.replace(/\/$/, '')}/rest/v1/licenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const createdData = await res.json();
+        const license = this.mapSupabaseRowToLicense(Array.isArray(createdData) ? createdData[0] : payload);
+        if (plan === 'trial') {
+          this.saveLicense(license);
+        }
+
+        const amount = plan.includes('lifetime') ? (plan.startsWith('solo') ? 7450000 : 14900000) :
+                       plan.includes('12m') ? (plan.startsWith('solo') ? 4450000 : 8900000) :
+                       (plan.startsWith('solo') ? 2450000 : 4900000);
+        const transferContent = 'ZAGI ' + licenseKey.split('-').pop();
+
+        // Gửi email thông báo tự động cho khách hàng ngầm (không làm chậm UI)
+        this.sendRegistrationEmailNotification({
+          email: email.trim().toLowerCase(),
+          fullName: fullName || '',
+          phone: phone || '',
+          licenseKey,
+          plan,
+          amount,
+          transferContent,
+        });
+
         return {
-          success: false,
-          message: 'Không thể kết nối server: ' + err.message
+          success: true,
+          pending: plan !== 'trial',
+          message: plan === 'trial' ? 'Kích hoạt gói dùng thử thành công!' : 'Đăng ký thành công! Vui lòng thanh toán để kích hoạt.',
+          licenseKey: licenseKey,
+          license: license,
+          plan: plan,
+          duration: isLifetime ? 'Vĩnh viễn' : plan.includes('12m') ? '12 tháng' : '6 tháng',
+          paymentInfo: {
+            amount: amount,
+            bankName: 'MB Bank',
+            accountNumber: '422777999',
+            accountName: 'CONG TY CO PHAN BASAN',
+            transferContent: transferContent,
+            companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam',
+            qrUrl: `https://img.vietqr.io/image/MB-422777999-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('CONG TY CO PHAN BASAN')}`
+          }
         };
       }
-      
-      // Cú pháp dự phòng khi đăng ký gói trả phí ngoại tuyến
-      const shortKey = Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + 
-                       Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + 
-                       Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + 
-                       Math.random().toString(36).substring(2, 6).toUpperCase();
-      
+
+      const errText = await res.text();
+      throw new Error(`Supabase Error ${res.status}: ${errText}`);
+    } catch (err: any) {
+      Logger.error('[LicenseManager] Register error:', err.message);
+
+      if (plan === 'trial') {
+        return { success: false, message: 'Không thể kết nối máy chủ bản quyền: ' + err.message };
+      }
+
+      // Offline fallback khi đăng ký trả phí
+      const shortKey = this.generateLicenseKey();
       const amount = plan.includes('lifetime') ? (plan.startsWith('solo') ? 7450000 : 14900000) :
                      plan.includes('12m') ? (plan.startsWith('solo') ? 4450000 : 8900000) :
                      (plan.startsWith('solo') ? 2450000 : 4900000);
       const transferContent = 'ZAGI ' + shortKey.split('-').pop();
-      
+
       return {
         success: true,
         pending: true,
@@ -156,151 +193,321 @@ export class LicenseManager {
         duration: plan.includes('lifetime') ? 'Vĩnh viễn' : plan.includes('12m') ? '12 tháng' : '6 tháng',
         paymentInfo: {
           amount: amount,
-          bankName: 'Techcombank',
-          accountNumber: '63666999',
+          bankName: 'MB Bank',
+          accountNumber: '422777999',
           accountName: 'CONG TY CO PHAN BASAN',
           transferContent: transferContent,
           companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam',
-          qrUrl: `https://img.vietqr.io/image/Techcombank-63666999-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('CONG TY CO PHAN BASAN')}`
+          qrUrl: `https://img.vietqr.io/image/MB-422777999-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('CONG TY CO PHAN BASAN')}`
         }
       };
     }
   }
 
-  // === LẤY DANH SÁCH GÓI VÀ CONFIG NGÂN HÀNG ===
-  async getPlans(): Promise<any> {
-    Logger.log(`[LicenseManager] Fetching plans from: ${LICENSE_CONFIG.apiUrl}`);
-    Logger.log(`[LicenseManager] Using API secret: ${LICENSE_CONFIG.apiSecret ? '***' + LICENSE_CONFIG.apiSecret.slice(-4) : 'none'}`);
+  /** Gửi email thông báo cho khách hàng ngầm qua Google Apps Script */
+  private async sendRegistrationEmailNotification(params: {
+    email: string;
+    fullName?: string;
+    phone?: string;
+    licenseKey: string;
+    plan: string;
+    amount?: number;
+    transferContent?: string;
+  }): Promise<void> {
     try {
-      const result = await this.postWithRedirect(LICENSE_CONFIG.apiUrl, {
-        secret: LICENSE_CONFIG.apiSecret,
-        action: 'get_plans'
-      }, 10000);
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycbwfAp3H9lUTrFLDakhpCmLZB6h9V9bViGSmCTMtp49MbujLK-vT6aPbSQhsJZNs0T4qVg/exec';
+      const secret = 'YOUR_SECRET_KEY_HERE_hanoi@123a';
       
-      if (result && result.success && result.plans) {
-        Logger.log('[LicenseManager] Fetch plans response:', JSON.stringify(result));
-        return result;
+      axios.post(scriptUrl, {
+        secret,
+        action: 'register',
+        email: params.email,
+        fullName: params.fullName || '',
+        phone: params.phone || '',
+        licenseKey: params.licenseKey,
+        plan: params.plan,
+        amount: params.amount || 0,
+        transferContent: params.transferContent || ''
+      }, { timeout: 10000 }).catch((err: any) => {
+        Logger.warn(`[LicenseManager] Email notification background send info: ${err.message}`);
+      });
+    } catch (e: any) {
+      Logger.warn(`[LicenseManager] sendRegistrationEmailNotification error: ${e.message}`);
+    }
+  }
+
+  /**
+   * Xử lý Webhook biến động số dư SePay (MB Bank - 422777999)
+   * Tự động kích hoạt status = 'active' trên Supabase khi khách chuyển tiền
+   */
+  async processSepayWebhook(payload: any): Promise<{ success: boolean; message: string; licenseKey?: string }> {
+    try {
+      Logger.log(`[LicenseManager] SePay Webhook payload received: ${JSON.stringify(payload)}`);
+      const content = String(payload?.content || payload?.description || '');
+      const amount = Number(payload?.transferAmount || payload?.amount || 0);
+
+      // Trích xuất mã key từ nội dung chuyển khoản "ZAGI XXXX"
+      const match = content.match(/ZAGI\s*([A-Z0-9-]+)/i);
+      if (!match) {
+        return { success: false, message: 'Nội dung chuyển khoản không chứa cú pháp ZAGI <KEY>' };
       }
-      throw new Error('Invalid server response structure');
-    } catch (err: any) {
-      Logger.error('[LicenseManager] Fetch plans error:', err.message);
-      
-      // Fallback bảng giá cục bộ khi không kết nối được máy chủ hoặc cấu hình sai
-      Logger.log('[LicenseManager] Using local fallback configuration for plans');
-      return { 
-        success: true, 
-        plans: {
-          'solo_6m':       { name: 'Gói Solo 6 tháng',    amount: 2450000,  desc: 'Sử dụng đầy đủ trong 6 tháng', type: 'solo' },
-          'solo_12m':      { name: 'Gói Solo 12 tháng',   amount: 4450000,  desc: 'Lựa chọn tối ưu cho 1 năm',    type: 'solo', popular: true },
-          'solo_lifetime': { name: 'Gói Solo Vĩnh viễn',  amount: 7450000,  desc: 'Thanh toán một lần, dùng trọn đời', type: 'solo' },
-          'team_6m':       { name: 'Gói Team 6 tháng',    amount: 4900000,  desc: 'Sử dụng đầy đủ trong 6 tháng', type: 'team' },
-          'team_12m':      { name: 'Gói Team 12 tháng',   amount: 8900000,  desc: 'Lựa chọn tối ưu cho 1 năm',    type: 'team', popular: true },
-          'team_lifetime': { name: 'Gói Team Vĩnh viễn',  amount: 14900000, desc: 'Thanh toán một lần, dùng trọn đời', type: 'team' }
+
+      const keyPart = match[1].trim().toUpperCase();
+      const url = this.getSupabaseUrl();
+      const apiKey = this.getSupabaseKey();
+
+      // Query Supabase tìm License Key khớp
+      const res = await fetch(`${url.replace(/\/$/, '')}/rest/v1/licenses?license_key=ilike.*${keyPart}*&select=*`, {
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` },
+      });
+
+      if (!res.ok) {
+        return { success: false, message: `Supabase query error ${res.status}` };
+      }
+
+      const rows = await res.json();
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return { success: false, message: `Không tìm thấy License Key chứa mã '${keyPart}'` };
+      }
+
+      const licenseRow = rows[0];
+      const fullKey = licenseRow.license_key;
+      const plan = licenseRow.plan || 'solo_12m';
+      const isLifetime = plan.includes('lifetime');
+
+      let expiryDate = licenseRow.expiry_date;
+      if (!isLifetime) {
+        const exp = new Date();
+        if (plan.includes('12m')) exp.setMonth(exp.getMonth() + 12);
+        else if (plan.includes('6m')) exp.setMonth(exp.getMonth() + 6);
+        else exp.setMonth(exp.getMonth() + 12);
+        expiryDate = exp.toISOString();
+      }
+
+      // Update status = 'active' trên Supabase
+      const patchRes = await fetch(`${url.replace(/\/$/, '')}/rest/v1/licenses?license_key=eq.${fullKey}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
         },
-        bankConfig: {
-          bankName: 'Techcombank',
-          accountNumber: '63666999',
-          accountName: 'CONG TY CO PHAN BASAN',
-          companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam'
-        }
-      };
+        body: JSON.stringify({
+          status: 'active',
+          expiry_date: expiryDate,
+          is_lifetime: isLifetime,
+          last_verified_at: new Date().toISOString(),
+        }),
+      });
+
+      if (patchRes.ok) {
+        Logger.log(`[LicenseManager] 🎉 SePay Auto Activation SUCCESS for key=${fullKey}, plan=${plan}`);
+        return { success: true, message: `Tự động kích hoạt thành công Key ${fullKey}`, licenseKey: fullKey };
+      }
+
+      return { success: false, message: 'Cập nhật Supabase thất bại' };
+    } catch (err: any) {
+      Logger.error(`[LicenseManager] processSepayWebhook error: ${err.message}`);
+      return { success: false, message: err.message };
     }
   }
-  
-  // === VERIFY (giữ nguyên + thêm licenseKey) ===
-  async verifyEmail(email: string, licenseKey: string | null = null): Promise<any> {
+
+  // === LẤY DANH SÁCH GÓI VÀ CONFIG NGÂN HÀNG (ĐỌC TỪ SUPABASE `plans`) ===
+  async getPlans(): Promise<any> {
+    const defaultPlans: Record<string, any> = {
+      'solo_6m':       { name: 'Gói Solo 6 tháng',    amount: 990000,   desc: 'Sử dụng đầy đủ trong 6 tháng (1 Máy BOSS)', type: 'solo' },
+      'solo_12m':      { name: 'Gói Solo 12 tháng',   amount: 1690000,  desc: 'Lựa chọn tối ưu cho 1 năm (1 Máy BOSS)',    type: 'solo', popular: true },
+      'solo_lifetime': { name: 'Gói Solo Vĩnh viễn',  amount: 4900000,  desc: 'Thanh toán một lần, dùng trọn đời', type: 'solo' },
+      'team_6m':       { name: 'Gói Team 6 tháng',    amount: 4900000,  desc: '1 Máy BOSS + Tối đa 5 Máy Nhân viên', type: 'team' },
+      'team_12m':      { name: 'Gói Team 12 tháng',   amount: 8900000,  desc: '1 Máy BOSS + Tối đa 5 Máy Nhân viên', type: 'team', popular: true },
+      'team_lifetime': { name: 'Gói Team Vĩnh viễn',  amount: 14900000, desc: '1 Máy BOSS + Tối đa 20 Máy Nhân viên', type: 'team' }
+    };
+
     try {
-      const result = await this.postWithRedirect(LICENSE_CONFIG.apiUrl, {
-        secret: LICENSE_CONFIG.apiSecret,
-        action: 'verify',
-        email: email.trim().toLowerCase(),
-        licenseKey: licenseKey
-      }, 10000);
-      
-      if (result.success) {
-        // Server confirm status = 'expired' → không cho vào
-        if (result.license.status === 'expired') {
-          Logger.log('[LicenseManager][verifyEmail] Server confirm expired');
-          return { 
-            success: false, 
-            message: 'License đã hết hạn. Vui lòng gia hạn để tiếp tục sử dụng.' 
-          };
-        }
-
-        const existingLicense = this.loadLicense();
-        const mergedLicense = { ...result.license };
-
-        // Bảo vệ: chỉ fallback expiryDate cũ khi:
-        //   1. Server không trả expiryDate, VÀ
-        //   2. expiryDate cũ vẫn còn hạn (tránh merge ngày hết hạn → block gửi tin)
-        // Nếu server xác nhận status='active' rõ ràng → KHÔNG dùng expiryDate cũ đã hết hạn
-        if (!mergedLicense.expiryDate && existingLicense?.expiryDate) {
-          const serverConfirmsActive = result.license.status === 'active';
-          if (!serverConfirmsActive) {
-            // Server chưa xác nhận active rõ ràng → dùng expiryDate cũ
-            mergedLicense.expiryDate = existingLicense.expiryDate;
-          } else {
-            // Server đã xác nhận active → chỉ dùng expiryDate cũ nếu vẫn còn hạn
-            const today = new Date();
-            const oldExpiry = parseDateStr(existingLicense.expiryDate);
-            const oldDaysLeft = Math.ceil((oldExpiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            if (oldDaysLeft >= 0 || existingLicense.isLifetime) {
-              // expiryDate cũ vẫn hợp lệ → merge bình thường
-              mergedLicense.expiryDate = existingLicense.expiryDate;
-            } else {
-              // expiryDate cũ đã hết hạn nhưng server vừa confirm active
-              // → Không merge → để expiryDate = undefined → getCurrentLicense sẽ không block
-              Logger.log(`[LicenseManager][verifyEmail] Server=active but old expiryDate expired (${oldDaysLeft}d). Clearing expiryDate to avoid false grace period.`);
-            }
-          }
-        }
-
-        // Kiểm tra lại chỉ khi server KHÔNG xác nhận status='active' rõ ràng
-        // Nếu server trả status='active', ưu tiên tin tưởng server (đã gia hạn)
-        if (result.license.status !== 'active' && !mergedLicense.isLifetime && mergedLicense.expiryDate) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const expiry = parseDateStr(mergedLicense.expiryDate);
-          expiry.setHours(0, 0, 0, 0);
-          const daysLeft = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          Logger.log(`[LicenseManager][verifyEmail] Local expiryDate check: daysLeft=${daysLeft}`);
-          // Chỉ từ chối nếu hết hạn QUÁ GRACE_PERIOD (server đã xác nhận không active)
-          if (daysLeft < -GRACE_PERIOD_DAYS) {
-            return {
-              success: false,
-              message: 'License đã hết hạn. Vui lòng gia hạn để tiếp tục sử dụng.'
+      const url = this.getSupabaseUrl();
+      const apiKey = this.getSupabaseKey();
+      const res = await fetch(`${url.replace(/\/$/, '')}/rest/v1/plans?is_active=eq.true&order=sort_order.asc`, {
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` },
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          const dynamicPlans: Record<string, any> = {};
+          for (const r of rows) {
+            dynamicPlans[r.plan_code] = {
+              name: r.name,
+              amount: Number(r.amount),
+              desc: r.description || '',
+              type: r.type || 'solo',
+              popular: Boolean(r.is_popular),
             };
           }
+          return {
+            success: true,
+            plans: dynamicPlans,
+            bankConfig: {
+              bankName: 'MB Bank',
+              accountNumber: '422777999',
+              accountName: 'CONG TY CO PHAN BASAN',
+              companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam'
+            }
+          };
+        }
+      }
+    } catch (err: any) {
+      Logger.warn(`[LicenseManager] getPlans dynamic fetch warn: ${err.message}`);
+    }
+
+    return { 
+      success: true, 
+      plans: defaultPlans,
+      bankConfig: {
+        bankName: 'MB Bank',
+        accountNumber: '422777999',
+        accountName: 'CONG TY CO PHAN BASAN',
+        companyAddress: 'Số SA 34, Khu đô thị FLC Garden City, Phường Tây Mỗ, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam'
+      }
+    };
+  }
+  
+  // === VERIFY (Xác thực License từ Supabase API) ===
+  async verifyEmail(email: string, licenseKey: string | null = null): Promise<any> {
+    try {
+      const url = this.getSupabaseUrl();
+      const apiKey = this.getSupabaseKey();
+      const cleanEmail = email ? email.trim().toLowerCase() : '';
+      const cleanKey = licenseKey ? licenseKey.trim().toUpperCase() : '';
+
+      if (!cleanEmail && !cleanKey) {
+        return { success: false, message: 'Vui lòng nhập Email hoặc License Key' };
+      }
+
+      // Query Supabase: So khớp email hoặc licenseKey
+      let queryStr = '';
+      if (cleanKey && cleanEmail) {
+        queryStr = `or=(license_key.eq.${cleanKey},email.eq.${cleanEmail})`;
+      } else if (cleanKey) {
+        queryStr = `license_key=eq.${cleanKey}`;
+      } else {
+        queryStr = `email=eq.${cleanEmail}`;
+      }
+
+      const res = await fetch(`${url.replace(/\/$/, '')}/rest/v1/licenses?${queryStr}&select=*`, {
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
+        },
+      });
+
+      if (res.ok) {
+        const rows = await res.json();
+        if (!Array.isArray(rows) || rows.length === 0) {
+          return { success: false, message: 'Không tìm thấy thông tin License hợp lệ.' };
         }
 
-        // Đảm bảo status được set đúng khi lưu
-        mergedLicense.status = 'active';
-        Logger.log(`[LicenseManager][verifyEmail] Saving active license: plan=${mergedLicense.plan} expiryDate=${mergedLicense.expiryDate}`);
-        this.saveLicense(mergedLicense);
-        return { success: true, license: mergedLicense };
+        const rawRow = rows[0];
+        const license = this.mapSupabaseRowToLicense(rawRow);
+
+        // Chặn nếu bị admin khóa thủ công
+        if (license.status === 'blocked') {
+          return { success: false, message: 'License của bạn đã bị khóa bởi Quản trị viên.' };
+        }
+
+        // Chặn nếu đã hết hạn
+        if (license.status === 'expired') {
+          return { success: false, message: 'License đã hết hạn. Vui lòng gia hạn để tiếp tục sử dụng.' };
+        }
+
+        // Kiểm tra & Khóa cứng theo máy BOSS
+        const currentMachineId = TelemetryService.getDeviceInfo().machine_id;
+        if (!rawRow.boss_machine_id) {
+          // Gán cố định máy BOSS phần cứng hiện tại lên Supabase
+          this.bindBossMachineId(rawRow.license_key, currentMachineId);
+          license.bossMachineId = currentMachineId;
+        } else if (rawRow.boss_machine_id !== currentMachineId) {
+          Logger.warn(`[LicenseManager] Machine mismatch! Registered: ${rawRow.boss_machine_id}, Current: ${currentMachineId}`);
+          // Vẫn cho phép nếu cùng tài khoản email hoặc thông báo
+        }
+
+        license.status = 'active';
+        this.saveLicense(license);
+        return { success: true, license: license };
       }
-      
-      return result;
+
+      throw new Error(`Supabase query status ${res.status}`);
     } catch (err: any) {
+      Logger.error(`[LicenseManager] verify error: ${err.message}`);
       const cached = this.getCurrentLicense();
       if (cached) {
         if (this.isCacheValid(cached)) {
           return { success: true, license: cached, offline: true };
         }
-        // Offline nhưng vẫn trong grace period → cho phép vào app ở chế độ read-only
         if (cached.status === 'expired') {
           const daysLeft = cached.daysLeft ?? -999;
           if (daysLeft >= -GRACE_PERIOD_DAYS && daysLeft < 0) {
-            Logger.log(`[LicenseManager][verifyEmail] Offline fallback: cached expired but within grace period (${daysLeft}d). Letting in read-only.`);
             return { success: true, license: cached, offline: true };
           }
         }
       }
-      return { 
-        success: false, 
-        message: 'Không thể kết nối server. Vui lòng kiểm tra Internet.' 
-      };
+      return { success: false, message: 'Không thể kết nối máy chủ bản quyền. Kiểm tra Internet.' };
     }
+  }
+
+  /** Gán cố định Mã máy BOSS phần cứng lên Supabase */
+  private async bindBossMachineId(licenseKey: string, machineId: string): Promise<void> {
+    try {
+      const url = this.getSupabaseUrl();
+      const apiKey = this.getSupabaseKey();
+      await fetch(`${url.replace(/\/$/, '')}/rest/v1/licenses?license_key=eq.${licenseKey}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          boss_machine_id: machineId,
+          last_verified_at: new Date().toISOString(),
+        }),
+      });
+    } catch (err: any) {
+      Logger.error(`[LicenseManager] bindBossMachineId error: ${err.message}`);
+    }
+  }
+
+  /** Chuyển đổi dữ liệu Supabase row thành LicenseInfo */
+  private mapSupabaseRowToLicense(row: any): LicenseInfo {
+    const isLifetime = !!row.is_lifetime || row.plan?.includes('lifetime');
+    let status: 'active' | 'expired' | 'pending' | 'blocked' = row.status || 'active';
+    let daysLeft: number | null = null;
+
+    if (!isLifetime && row.expiry_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const exp = new Date(row.expiry_date);
+      exp.setHours(0, 0, 0, 0);
+      const diffMs = exp.getTime() - today.getTime();
+      daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (daysLeft < 0 && status !== 'blocked') {
+        status = 'expired';
+      }
+    }
+
+    return {
+      email: row.email || '',
+      licenseKey: row.license_key || '',
+      plan: row.plan || 'solo_12m',
+      expiryDate: row.expiry_date || undefined,
+      isLifetime: isLifetime,
+      status: status,
+      fullName: row.full_name || '',
+      phone: row.phone || '',
+      daysLeft: daysLeft,
+      bossMachineId: row.boss_machine_id || '',
+      maxEmployees: row.max_employees !== undefined ? Number(row.max_employees) : (row.plan?.startsWith('solo') ? 0 : 5),
+      maxZaloAccounts: row.max_zalo_accounts !== undefined ? Number(row.max_zalo_accounts) : 10,
+      lastVerifiedAt: row.last_verified_at || new Date().toISOString(),
+    };
   }
   
   // === Lưu / đọc license (bảo mật bằng safeStorage) ===
@@ -310,7 +517,6 @@ export class LicenseManager {
       const jsonStr = JSON.stringify(data);
       const filePath = this.getLicenseFile();
       
-      // Tạo thư mục cha nếu chưa tồn tại
       const parentDir = path.dirname(filePath);
       if (!fs.existsSync(parentDir)) {
         fs.mkdirSync(parentDir, { recursive: true });
@@ -345,116 +551,70 @@ export class LicenseManager {
   }
   
   isCacheValid(license: LicenseInfo): boolean {
-    if (!license.cachedAt) {
-      Logger.log('[LicenseManager][isCacheValid] FAIL: no cachedAt');
-      return false;
-    }
+    if (!license.cachedAt) return false;
     const cachedDate = new Date(license.cachedAt);
     const now = new Date();
     const diffDays = (now.getTime() - cachedDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (diffDays > CACHE_DAYS || diffDays < 0) {
-      Logger.log(`[LicenseManager][isCacheValid] FAIL: cache too old (${diffDays.toFixed(1)} days)`);
-      return false;
-    }
+    if (diffDays > CACHE_DAYS || diffDays < 0) return false;
     if (!license.isLifetime && license.expiryDate) {
       const expiry = parseDateStr(license.expiryDate);
-      Logger.log(`[LicenseManager][isCacheValid] expiryDate=${license.expiryDate} → parsed=${expiry.toISOString()} valid=${!isNaN(expiry.getTime())}`);
-      if (now > expiry) {
-        Logger.log('[LicenseManager][isCacheValid] FAIL: license expired');
-        return false;
-      }
+      if (now > expiry) return false;
     }
     return true;
   }
   
   getCurrentLicense(): LicenseInfo | null {
     const license = this.loadLicense();
-    if (!license) {
-      Logger.log('[LicenseManager][getCurrentLicense] No license file found');
-      return null;
-    }
-    Logger.log(`[LicenseManager][getCurrentLicense] Raw: plan=${license.plan} status=${license.status} isLifetime=${license.isLifetime} expiryDate=${license.expiryDate} cachedAt=${license.cachedAt}`);
+    if (!license) return null;
+
     if (license.isLifetime) {
       license.daysLeft = null;
       license.status = 'active';
-      Logger.log('[LicenseManager][getCurrentLicense] → LIFETIME active');
     } else if (license.expiryDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const expiry = parseDateStr(license.expiryDate);
       expiry.setHours(0, 0, 0, 0);
-      Logger.log(`[LicenseManager][getCurrentLicense] expiryDate=${license.expiryDate} → parsed=${expiry.toISOString()} isValidDate=${!isNaN(expiry.getTime())}`);
       const diffMs = expiry.getTime() - today.getTime();
       license.daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
       license.status = license.daysLeft < 0 ? 'expired' : 'active';
-      Logger.log(`[LicenseManager][getCurrentLicense] → daysLeft=${license.daysLeft} status=${license.status}`);
-    } else {
-      Logger.log(`[LicenseManager][getCurrentLicense] No expiryDate! plan=${license.plan} status_in_file=${license.status}`);
-      if (license.plan === 'trial' || license.status === 'expired') {
-        license.daysLeft = -999;
-        license.status = 'expired';
-        Logger.log('[LicenseManager][getCurrentLicense] → forced expired (trial/no-expiry)');
-      }
     }
     return license;
   }
   
   needsActivation(): boolean {
-    // Bỏ qua kiểm tra license khi chạy dev build để lập trình thuận tiện
-    // if (!app.isPackaged) {
-    //   return false;
-    // }
-
     const license = this.getCurrentLicense();
     if (!license) return true;
 
-    // Hết hạn: cho phép dùng thêm GRACE_PERIOD_DAYS ngày (grace period)
     if (license.status === 'expired') {
       const daysLeft = license.daysLeft ?? -999;
       if (daysLeft >= -GRACE_PERIOD_DAYS) {
-        // Vẫn trong grace period → cho vào app nhưng ở chế độ read-only
-        // Verify ngầm (có throttle) để tự động cập nhật nếu đã gia hạn
         const now = new Date();
         const cachedDate = license.cachedAt ? new Date(license.cachedAt) : new Date(0);
         const hoursSinceLastCheck = (now.getTime() - cachedDate.getTime()) / (1000 * 60 * 60);
 
         if (hoursSinceLastCheck > 24) {
-          Logger.log(`[LicenseManager][needsActivation] Expired but in grace period (${daysLeft}d). Last check was ${hoursSinceLastCheck.toFixed(1)}h ago. Triggering online re-verify...`);
           this.reVerifyInBackground(license.email, license.licenseKey);
-        } else {
-          Logger.log(`[LicenseManager][needsActivation] Expired but in grace period (${daysLeft}d). Last check was ${hoursSinceLastCheck.toFixed(1)}h ago (throttled < 24h). Skipping online re-verify.`);
         }
         return false;
       }
-      return true; // Hết grace period → chặn hoàn toàn
+      return true;
     }
 
     if (!this.isCacheValid(license)) this.reVerifyInBackground(license.email, license.licenseKey);
     return false;
   }
 
-  /** Đang trong thời gian ân hạn (-GRACE_PERIOD_DAYS đến -1 ngày) */
   isInGracePeriod(): boolean {
     const license = this.getCurrentLicense();
-    if (!license) {
-      Logger.log('[LicenseManager][isInGracePeriod] No license → false');
-      return false;
-    }
-    if (license.status !== 'expired') {
-      Logger.log(`[LicenseManager][isInGracePeriod] status=${license.status} → false (not expired)`);
-      return false;
-    }
+    if (!license || license.status !== 'expired') return false;
     const daysLeft = license.daysLeft ?? -999;
-    const result = daysLeft >= -GRACE_PERIOD_DAYS && daysLeft < 0;
-    Logger.log(`[LicenseManager][isInGracePeriod] status=expired daysLeft=${daysLeft} graceLimit=${-GRACE_PERIOD_DAYS} → ${result}`);
-    return result;
+    return daysLeft >= -GRACE_PERIOD_DAYS && daysLeft < 0;
   }
 
-  /** Sắp hết hạn (còn ≤ EXPIRY_WARN_DAYS ngày, chưa hết) */
   isExpiringSoon(): boolean {
     const license = this.getCurrentLicense();
-    if (!license || license.isLifetime) return false;
-    if (license.status === 'expired') return false;
+    if (!license || license.isLifetime || license.status === 'expired') return false;
     const daysLeft = license.daysLeft ?? 999;
     return daysLeft >= 0 && daysLeft <= EXPIRY_WARN_DAYS;
   }
@@ -468,9 +628,7 @@ export class LicenseManager {
   clearLicense(): void {
     try {
       const filePath = this.getLicenseFile();
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     } catch (err) {}
   }
   

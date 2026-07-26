@@ -97,7 +97,7 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
   }, [campaign.id, loadContacts]);
 
   const handleConfirmTargets = async (selected: any[]) => {
-    const toAdd = selected.map(c => ({ contactId: c.contact_id, displayName: c.alias || c.display_name, avatar: c.avatar, phone: c.phone || '' }));
+    const toAdd = selected.map(c => ({ contactId: c.contact_id, displayName: c.alias || c.display_name, avatar: c.avatar || c.avatar_url || '', phone: c.phone || '' }));
     await onAddContacts(campaign.id, toAdd);
     await loadContacts();
   };

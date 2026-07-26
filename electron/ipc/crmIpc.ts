@@ -68,130 +68,161 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
+    function sanitizeCRMContactsOpts(rawOpts: any): any {
+        if (!rawOpts || typeof rawOpts !== 'object') return {};
+        const sanitized = { ...rawOpts };
+
+        // 1. Sanitize tagIds (Local labels) - ensure valid number array
+        if (sanitized.tagIds && Array.isArray(sanitized.tagIds)) {
+            sanitized.tagIds = sanitized.tagIds
+                .map((id: any) => {
+                    const s = String(id).trim();
+                    if (s.startsWith('local:')) return Number(s.split(':')[1]);
+                    return Number(s);
+                })
+                .filter((id: number) => !isNaN(id));
+        }
+
+        // 2. Sanitize gender (handle both English and Vietnamese inputs)
+        if (sanitized.gender) {
+            const g = String(sanitized.gender).trim().toLowerCase();
+            if (g === 'male' || g === 'nam' || g === '0') sanitized.gender = 'male';
+            else if (g === 'female' || g === 'nữ' || g === 'nu' || g === '1') sanitized.gender = 'female';
+            else if (g === 'unknown' || g === 'không xác định' || g === 'khong xac dinh') sanitized.gender = 'unknown';
+            else if (g === 'all' || g === 'tất cả') sanitized.gender = 'all';
+        }
+
+        // 3. Sanitize birthdayFilter
+        if (sanitized.birthdayFilter) {
+            const b = String(sanitized.birthdayFilter).trim().toLowerCase();
+            if (b === 'today' || b === 'hôm nay') sanitized.birthdayFilter = 'today';
+            else if (b === 'this_week' || b === 'tuần này') sanitized.birthdayFilter = 'this_week';
+            else if (b === 'this_month' || b === 'tháng này') sanitized.birthdayFilter = 'this_month';
+            else if (b === 'has_birthday' || b === 'có sinh nhật') sanitized.birthdayFilter = 'has_birthday';
+            else if (b === 'no_birthday' || b === 'chưa có sinh nhật') sanitized.birthdayFilter = 'no_birthday';
+            else if (b === 'all' || b === 'tất cả') sanitized.birthdayFilter = 'all';
+        }
+
+        // 4. Sanitize salutation
+        if (sanitized.salutation) {
+            const s = String(sanitized.salutation).trim();
+            if (s.toLowerCase() === 'all' || s === 'Tất cả') sanitized.salutation = undefined;
+        }
+
+        // 5. Sanitize boolean flags
+        if (sanitized.hasPhone !== undefined) sanitized.hasPhone = Boolean(sanitized.hasPhone);
+        if (sanitized.hasNotes !== undefined) sanitized.hasNotes = Boolean(sanitized.hasNotes);
+
+        return sanitized;
+    }
+
     // ─── Contacts ──────────────────────────────────────────────────────────
     ipcHandle('crm:getContacts', async (_e, { zaloId, opts }: { zaloId: string; opts?: any }) => {
-        try { return { success: true, ...DatabaseService.getInstance().getCRMContacts(zaloId, opts || {}) }; }
+        try {
+            const cleanOpts = sanitizeCRMContactsOpts(opts || {});
+            return { success: true, ...DatabaseService.getInstance().getCRMContacts(zaloId, cleanOpts) };
+        }
         catch (e: any) { return { success: false, error: e.message, contacts: [], total: 0 }; }
     });
 
+    async function resolveDbLabelIds(zaloId: string, localLabelIds?: string[], zaloLabelIds?: string[]): Promise<number[]> {
+        const resolvedIds: number[] = [];
+
+        if (localLabelIds && Array.isArray(localLabelIds)) {
+            for (const val of localLabelIds) {
+                const s = String(val).trim();
+                if (!s) continue;
+                if (s.startsWith('local:')) {
+                    const id = Number(s.split(':')[1]);
+                    if (!isNaN(id)) resolvedIds.push(id);
+                } else {
+                    const id = Number(s);
+                    if (!isNaN(id)) resolvedIds.push(id);
+                }
+            }
+        }
+
+        if (zaloLabelIds && Array.isArray(zaloLabelIds)) {
+            for (const val of zaloLabelIds) {
+                const s = String(val).trim();
+                if (!s) continue;
+                if (s.startsWith('zalo:')) {
+                    const parts = s.split(':');
+                    if (parts.length >= 3) {
+                        const id = Number(parts[2]);
+                        if (!isNaN(id)) resolvedIds.push(id);
+                    }
+                } else {
+                    const id = Number(s);
+                    if (!isNaN(id)) resolvedIds.push(id);
+                }
+            }
+        }
+
+        return resolvedIds;
+    }
+
+    function getVietnamTime(): Date {
+        const options = { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: 'numeric', day: 'numeric' } as const;
+        const formatter = new Intl.DateTimeFormat('en-US', options);
+        const parts = formatter.formatToParts(new Date());
+        const partMap = Object.fromEntries(parts.map(p => [p.type, p.value]));
+        const y = parseInt(partMap.year, 10);
+        const m = parseInt(partMap.month, 10);
+        const d = parseInt(partMap.day, 10);
+        return new Date(y, m - 1, d, 12, 0, 0);
+    }
+
     ipcHandle('crm:previewWorkflowContacts', async (_e, { zaloId, cfg }: { zaloId: string; cfg: any }) => {
         try {
-            let sql = `
-              SELECT contact_id, display_name, avatar_url as avatar, phone, is_friend, contact_type, gender, birthday, pipeline_stage_id, channel, salutation, alias, ai_profile, extra_data
-              FROM contacts
-              WHERE owner_zalo_id = ?
-            `;
-            const params: any[] = [zaloId];
+            // Extract local and Zalo labels from unified labelIds or legacy fields
+            const unifiedLocalIds = [
+              ...(cfg.localLabelIds || []),
+              ...(cfg.labelIds || []).filter((id: string) => String(id).startsWith('local:'))
+            ];
+            const unifiedZaloIds = [
+              ...(cfg.zaloLabelIds || []),
+              ...(cfg.labelIds || []).filter((id: string) => String(id).startsWith('zalo:'))
+            ];
 
-            if (cfg.channel && cfg.channel !== 'all') {
-              sql += ` AND channel = ?`;
-              params.push(cfg.channel);
+            const resolvedLocalLabelIds = await resolveDbLabelIds(zaloId, unifiedLocalIds, []);
+            const resolvedZaloLabelIds = await resolveDbLabelIds(zaloId, [], unifiedZaloIds);
+
+            // Fetch Zalo label contact IDs if any
+            let selectedZaloLabelContactIds: string[] | undefined = undefined;
+            if (resolvedZaloLabelIds.length > 0) {
+              const placeholders = resolvedZaloLabelIds.map(() => '?').join(',');
+              const threadIdsRows = DatabaseService.getInstance().query<any>(
+                `SELECT thread_id FROM local_label_threads WHERE owner_zalo_id = ? AND label_id IN (${placeholders})`,
+                [zaloId, ...resolvedZaloLabelIds]
+              ) || [];
+              selectedZaloLabelContactIds = threadIdsRows.map(r => String(r.thread_id).startsWith('g') ? String(r.thread_id).slice(1) : String(r.thread_id));
             }
-
-            if (cfg.gender !== undefined && cfg.gender !== null && cfg.gender !== '') {
-              sql += ` AND gender = ?`;
-              params.push(Number(cfg.gender));
-            }
-
-            if (cfg.salutation !== undefined && cfg.salutation !== null && cfg.salutation !== '') {
-              sql += ` AND salutation LIKE ?`;
-              params.push(`%${cfg.salutation}%`);
-            }
-
-            if (cfg.searchQuery !== undefined && cfg.searchQuery !== null && cfg.searchQuery !== '') {
-              sql += ` AND (display_name LIKE ? OR alias LIKE ? OR contact_id LIKE ? OR phone LIKE ?)`;
-              const queryParam = `%${cfg.searchQuery}%`;
-              params.push(queryParam, queryParam, queryParam, queryParam);
-            }
-
-            if (cfg.pipelineStageId !== undefined && cfg.pipelineStageId !== null && cfg.pipelineStageId !== '') {
-              sql += ` AND pipeline_stage_id = ?`;
-              params.push(Number(cfg.pipelineStageId));
-            }
-
-            if (cfg.isFriend === 'friend') {
-              sql += ` AND is_friend = 1`;
-            } else if (cfg.isFriend === 'non_friend') {
-              sql += ` AND is_friend = 0`;
-            }
-
-            if (cfg.localLabelIds && Array.isArray(cfg.localLabelIds) && cfg.localLabelIds.length > 0) {
-              const placeholders = cfg.localLabelIds.map(() => '?').join(',');
-              sql += ` AND contact_id IN (
-                SELECT thread_id FROM local_label_threads 
-                WHERE label_id IN (${placeholders})
-              )`;
-              params.push(...cfg.localLabelIds);
-            }
-
-            if (cfg.zaloLabelIds && Array.isArray(cfg.zaloLabelIds) && cfg.zaloLabelIds.length > 0) {
-              const placeholders = cfg.zaloLabelIds.map(() => '?').join(',');
-              sql += ` AND contact_id IN (
-                SELECT thread_id FROM local_label_threads 
-                WHERE label_id IN (${placeholders})
-              )`;
-              params.push(...cfg.zaloLabelIds);
-            }
-
-            if (cfg.tagIds && Array.isArray(cfg.tagIds) && cfg.tagIds.length > 0) {
-              const placeholders = cfg.tagIds.map(() => '?').join(',');
-              sql += ` AND contact_id IN (
-                SELECT contact_id FROM crm_contact_tags 
-                WHERE tag_id IN (${placeholders})
-              )`;
-              params.push(...cfg.tagIds);
-            }
-
-            let rows = DatabaseService.getInstance().query<any>(sql, params) || [];
 
             let birthdayFilter = cfg.birthdayFilter || '';
             if (cfg.birthdayToday === true && !birthdayFilter) {
               birthdayFilter = 'today';
             }
 
-            if (birthdayFilter) {
-              const today = new Date();
-              const utc = today.getTime() + today.getTimezoneOffset() * 60000;
-              const vnTime = new Date(utc + 3600000 * 7);
+            const ctype = cfg.isFriend === 'friend' ? 'friend' : cfg.isFriend === 'non_friend' ? 'non_friend' : 'all';
 
-              rows = rows.filter((c: any) => {
-                if (!c.birthday) return false;
-                const parts = c.birthday.split('/');
-                if (parts.length < 2) return false;
-                const d = parseInt(parts[0], 10);
-                const m = parseInt(parts[1], 10);
-                if (isNaN(d) || isNaN(m)) return false;
+            const opts = {
+              search: cfg.searchQuery || undefined,
+              tagIds: resolvedLocalLabelIds.length > 0 ? resolvedLocalLabelIds : undefined,
+              contactIds: selectedZaloLabelContactIds,
+              contactType: ctype as any,
+              pipelineStageId: cfg.pipelineStageId || undefined,
+              gender: cfg.gender || undefined,
+              birthdayFilter: birthdayFilter || undefined,
+              salutation: cfg.salutation || undefined,
+              limit: 500, // Safe default preview limit
+              offset: 0
+            };
 
-                if (birthdayFilter === 'today') {
-                  const currentDay = vnTime.getDate();
-                  const currentMonth = vnTime.getMonth() + 1;
-                  return d === currentDay && m === currentMonth;
-                }
+            const result = DatabaseService.getInstance().getCRMContacts(zaloId, opts);
+            let rows = result.contacts || [];
 
-                if (birthdayFilter === 'this_week') {
-                  const dayOfWeek = vnTime.getDay();
-                  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-                  const monday = new Date(vnTime.getTime());
-                  monday.setDate(vnTime.getDate() + diffToMonday);
-
-                  const weekDays = new Set<string>();
-                  for (let i = 0; i < 7; i++) {
-                    const day = new Date(monday.getTime());
-                    day.setDate(monday.getDate() + i);
-                    weekDays.add(`${day.getDate()}/${day.getMonth() + 1}`);
-                  }
-                  return weekDays.has(`${d}/${m}`);
-                }
-
-                if (birthdayFilter === 'this_month') {
-                  const currentMonth = vnTime.getMonth() + 1;
-                  return m === currentMonth;
-                }
-
-                return false;
-              });
-            }
-
+            // Add labels to response
             if (rows.length > 0) {
               const labelRows = DatabaseService.getInstance().query<any>(
                 `SELECT llt.thread_id as contact_id, ll.id, ll.name, ll.color, ll.text_color as textColor, ll.shortcut
@@ -363,8 +394,17 @@ export function registerCRMIpc(): void {
             const res = DatabaseService.getInstance().addCampaignContacts(campaignId, zaloId, contacts);
             DatabaseService.getInstance().save();
             EventBroadcaster.emit('crm:campaignChanged', { action: 'contactsAdded', ownerZaloId: zaloId, campaignId });
-            proxyToBoss('crm:addCampaignContacts', { zaloId, campaignId, contacts });
-            return { success: true, ...res };
+
+            // Dùng proxyToBossAsync để phát hiện lỗi mạng LAN — root cause lỗi CRM trên máy nhân viên
+            let bossSync = true;
+            try {
+                await proxyToBossAsync('crm:addCampaignContacts', { zaloId, campaignId, contacts });
+            } catch (proxyErr: any) {
+                bossSync = false;
+                Logger.warn(`[CRM] addCampaignContacts: Boss sync failed — ${proxyErr.message}`);
+            }
+
+            return { success: true, ...res, bossSync };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
@@ -570,6 +610,223 @@ export function registerCRMIpc(): void {
                 [id]
             );
             db.save();
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    // ─── Zalo Bulk Phone Scanner IPC Handlers ─────────────────────────────────────
+    ipcHandle('crm:getPhoneScanBatches', async () => {
+        try {
+            const db = DatabaseService.getInstance();
+            return { success: true, batches: db.getPhoneScanBatches() };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:getPhoneScanItems', async (_e, { batchId, limit, offset, status }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const res = db.getPhoneScanItems(batchId, limit, offset, status);
+            return { success: true, ...res };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:createPhoneScanBatch', async (_e, { name, assignedAccountId, contactAssignmentMode, autoTagIds, dailyLimit, hourlyLimit, priority, status, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, phones }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const batchId = db.createPhoneScanBatch({
+                name,
+                assignedAccountId,
+                contactAssignmentMode,
+                autoTagIds,
+                dailyLimit,
+                hourlyLimit,
+                priority,
+                status,
+                scheduledTime,
+                skipCrmExisting,
+                autoWorkflowId,
+                updateZaloAlias,
+                phones
+            });
+            if (batchId !== -1) {
+                // Trigger background scheduler immediately to start scanning
+                try {
+                    const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                    PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
+                } catch {}
+                return { success: true, batchId };
+            }
+            return { success: false, error: 'Could not create batch' };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:reassignBatchContacts', async (_e, { batchId, targetMode, targetAccountId }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const res = db.reassignBatchContacts(batchId, targetMode, targetAccountId);
+            return res;
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:getDuplicateContacts', async () => {
+        try {
+            const db = DatabaseService.getInstance();
+            const duplicates = db.getDuplicateContactsAcrossAccounts();
+            return { success: true, duplicates };
+        } catch (err: any) {
+            return { success: false, error: err.message, duplicates: [] };
+        }
+    });
+
+    ipcHandle('crm:transferContact', async (_e, params: { contactId: string; phone?: string; fromZaloId: string; toZaloId: string }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const success = db.transferContactBetweenAccounts(params);
+            return { success };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:mergeContacts', async (_e, params: { targetZaloId: string; phone?: string; contactId: string }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const success = db.mergeContactsToAccount(params);
+            return { success };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:cleanupCorruptedAliases', async () => {
+        try {
+            const db = DatabaseService.getInstance();
+            const cleanedCount = db.cleanupCrossAccountCorruptedAliases();
+            return { success: true, cleanedCount };
+        } catch (err: any) {
+            return { success: false, error: err.message, cleanedCount: 0 };
+        }
+    });
+
+    ipcHandle('crm:deletePhoneScanBatch', async (_e, { batchId }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.deletePhoneScanBatch(batchId);
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:getPhoneScanLimitStatus', async () => {
+        try {
+            const db = DatabaseService.getInstance();
+            const activeAccounts = db.getAccounts() || [];
+            const zaloAccounts = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+            
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+            const startOfTodayTimestamp = startOfToday.getTime();
+            const oneHourAgoTimestamp = Date.now() - 60 * 60 * 1000;
+            
+            const statusList = zaloAccounts.map((a: any) => {
+                const todayCount = db.getDailyScanCountForAccount(a.zalo_id, startOfTodayTimestamp);
+                const hourlyCount = db.getHourlyScanCountForAccount(a.zalo_id, oneHourAgoTimestamp);
+                return {
+                    zaloId: a.zalo_id,
+                    fullName: a.full_name || a.zalo_id,
+                    todayCount,
+                    hourlyCount
+                };
+            });
+            return { success: true, accountsStatus: statusList };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:updatePhoneScanBatchStatus', async (_e, { batchId, status }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.updatePhoneScanBatchStatus(batchId, status);
+            // Trigger scanner immediately if resumed
+            if (status === 'active') {
+                try {
+                    const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                    PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
+                } catch {}
+            }
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:updatePhoneScanBatchPriority', async (_e, { batchId, priority }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.updatePhoneScanBatchPriority(batchId, priority);
+            // Trigger scanner immediately if prioritized
+            if (priority > 0) {
+                try {
+                    const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                    PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
+                } catch {}
+            }
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:reorderPhoneScanBatches', async (_e, { batchIds }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.reorderPhoneScanBatches(batchIds);
+            try {
+                const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
+            } catch {}
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:startPhoneScanImmediate', async () => {
+        try {
+            const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+            await PhoneScanService.getInstance().triggerImmediateScan();
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:reassignContactsOwner', async (_e, { fromZaloId, targetZaloId, contactIds }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const res = db.reassignContactsOwner(fromZaloId, targetZaloId, contactIds);
+            return { success: true, ...res };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcHandle('crm:markContactBlocked', async (_e, { ownerZaloId, contactId, isBlocked }: any) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.markContactBlocked(ownerZaloId, contactId, isBlocked);
             return { success: true };
         } catch (err: any) {
             return { success: false, error: err.message };

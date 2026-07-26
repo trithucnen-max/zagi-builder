@@ -85,7 +85,38 @@ class EventBroadcaster {
         }
     }
 
+    private static shouldFilterEvent(channel: string, data: any): boolean {
+        // We only filter Zalo events that have a target Zalo ID
+        const zaloId = data?.zaloId || data?.zalo_id || data?.ownerZaloId || data?.owner_zalo_id ||
+            (channel === 'event:message' ? data?.message?.zaloId || data?.message?.owner_zalo_id : undefined);
+        
+        if (zaloId) {
+            const db = DatabaseService.getInstance();
+            if (db.getIsInitialized()) {
+                const accounts = db.getAccounts();
+                const isOwned = accounts.some((a: any) => a.zalo_id === zaloId);
+                if (!isOwned) {
+                    Logger.log(`[EventBroadcaster] Filtered out event on channel ${channel} for unowned account: ${zaloId}`);
+                    return true;
+                }
+
+                // Filter out duplicate friend request notifications if they are already a friend
+                if (channel === 'event:friendRequest') {
+                    const friendId = data?.requester?.userId;
+                    if (friendId && db.checkIsFriend(zaloId, friendId)) {
+                        Logger.log(`[EventBroadcaster] Filtered out friend request from ${friendId} to ${zaloId} because they are already friends`);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     private static sendAware(channel: string, data: any): void {
+        if (this.shouldFilterEvent(channel, data)) {
+            return;
+        }
         const { activeIsDefault } = this.resolveBossContext();
         if (activeIsDefault) {
             this.send(channel, data);
@@ -126,6 +157,9 @@ class EventBroadcaster {
     }
 
     private static send(channel: string, data: any): void {
+        if (this.shouldFilterEvent(channel, data)) {
+            return;
+        }
         // Fire before-send hooks (sync, không chặn send)
         const hooks = this.beforeSendHooks.get(channel);
         if (hooks && hooks.length > 0) {
@@ -144,6 +178,9 @@ class EventBroadcaster {
      *   Boss relay → Employee handlePushedEvent → send → hook → relay → loop!
      */
     public static sendDirect(channel: string, data: any): void {
+        if (this.shouldFilterEvent(channel, data)) {
+            return;
+        }
         if (this.window && !this.window.isDestroyed()) {
             this.window.webContents.send(channel, data);
         }
@@ -161,6 +198,9 @@ class EventBroadcaster {
      * the employee workspace (employee's handlePushedEvent sends to renderer).
      */
     public static fireHooksOnly(channel: string, data: any): void {
+        if (this.shouldFilterEvent(channel, data)) {
+            return;
+        }
         const hooks = this.beforeSendHooks.get(channel);
         if (hooks && hooks.length > 0) {
             for (const hook of hooks) {
@@ -254,14 +294,39 @@ class EventBroadcaster {
                 message._silent = true;
             }
 
+            // ─── Intercept undo/recall messages ─────────────────────────────────────
+            const earlyMsgType = String(message.data?.msgType || '');
+            const earlyContent = message.data?.content;
+            let parsedEarlyContent: any = null;
+            if (earlyContent) {
+                if (typeof earlyContent === 'object') parsedEarlyContent = earlyContent;
+                else if (typeof earlyContent === 'string' && earlyContent.startsWith('{')) {
+                    try { parsedEarlyContent = JSON.parse(earlyContent); } catch {}
+                }
+            }
+
+            const isUndoEvent = earlyMsgType === 'chat.undo' || earlyMsgType === 'undo' || earlyMsgType === 'user_undo' || earlyMsgType === 'group_undo' ||
+                (parsedEarlyContent && (parsedEarlyContent.globalMsgId || parsedEarlyContent.cliMsgId) && parsedEarlyContent.deleteMsg !== undefined);
+
+            if (isUndoEvent) {
+                const recalledMsgId = String(
+                    parsedEarlyContent?.globalMsgId ||
+                    parsedEarlyContent?.cliMsgId ||
+                    message.data?.msgId || ''
+                );
+                const threadId = message.threadId || String(parsedEarlyContent?.srcId || '');
+                if (recalledMsgId) {
+                    EventBroadcaster.broadcastUndo(zaloId, recalledMsgId, threadId);
+                }
+                return; // DO NOT save or render as a new message bubble
+            }
+
             // ─── Early-detect webchat/msginfo.actionlist notifications ───────────────
             // Zalo sends general conversation notifications (group setting changes,
             // reminders, member actions, etc.) as regular "message" events with
             //   msgType = "webchat"  and  content.action = "msginfo.actionlist"
             // These must be displayed as centred notification pills for ALL thread types,
             // NOT as regular message bubbles.
-            const earlyMsgType = String(message.data?.msgType || '');
-            const earlyContent = message.data?.content;
             if (
                 earlyMsgType === 'webchat' &&
                 earlyContent && typeof earlyContent === 'object' &&

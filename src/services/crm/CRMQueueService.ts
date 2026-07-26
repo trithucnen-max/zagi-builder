@@ -505,24 +505,9 @@ class CRMQueueService {
                         }
                     }
 
-                    const attachments: any[] = [];
-                    for (const filePath of resolvedPaths) {
-                        try {
-                            const buffer = fs.readFileSync(filePath);
-                            const baseName = path.basename(filePath);
-                            const ext = path.extname(baseName) || '.jpg';
-                            const safeFilename = (path.extname(baseName) ? baseName : `${baseName}${ext}`) as `${string}.${string}`;
-                            let width = 0, height = 0;
-                            try { const dim = imageSize(buffer); width = dim.width ?? 0; height = dim.height ?? 0; } catch {}
-                            attachments.push({ data: buffer, filename: safeFilename, metadata: { totalSize: buffer.length, width, height } });
-                        } catch (readErr: any) {
-                            Logger.error(`[CRMQueue] Image read failed: ${filePath} → ${readErr.message}`);
-                            throw new Error(`Không đọc được ảnh: ${filePath} — ${readErr.message}`);
-                        }
-                    }
-                    if (attachments.length > 0) {
-                        // Gửi cả text và ảnh trong 1 tin nhắn duy nhất để vượt qua giới hạn chặn người lạ của Zalo (chỉ được gửi tối đa 1 tin nhắn)
-                        const resp = await (conn.api as any).sendMessage({ msg: text, attachments }, threadId, threadType);
+                    if (resolvedPaths.length > 0) {
+                        // Gửi cả text và file/ảnh đính kèm (dưới dạng đường dẫn chuỗi trực tiếp) trong 1 tin nhắn
+                        const resp = await (conn.api as any).sendMessage({ msg: text, attachments: resolvedPaths }, threadId, threadType);
                         responses.push(resp);
                     }
                 } else {
@@ -766,6 +751,22 @@ class CRMQueueService {
                     mixedConfig = JSON.parse((campaignData as any).mixed_config || '{}');
                 } catch {}
 
+                if (!isGroup && effectiveContactId) {
+                    try {
+                        await this.trySyncZaloAliasOnSendSuccess(
+                            zaloId,
+                            effectiveContactId,
+                            campaignName,
+                            contactPhone,
+                            effectiveDisplayName,
+                            conn.auth,
+                            mixedConfig
+                        );
+                    } catch (aliasErr: any) {
+                        Logger.warn(`[CRMQueue] Alias sync error for ${effectiveContactId}: ${aliasErr.message}`);
+                    }
+                }
+
                 if (mixedConfig.auto_label && mixedConfig.auto_label.enabled) {
                     const autoLabel = mixedConfig.auto_label;
                     if (autoLabel.type === 'local') {
@@ -840,6 +841,22 @@ class CRMQueueService {
         } catch (err: any) {
             const errMsg = err?.message || String(err);
             Logger.error(`[CRMQueue] ❌ Failed to send to ${effectiveContactId}: ${errMsg}`);
+
+            // Auto-detect if user blocked messaging
+            const isBlockedErr = (() => {
+                const lower = errMsg.toLowerCase();
+                const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
+                if (code === -201 || code === -202 || code === 108 || code === 300) return true;
+                return lower.includes('chặn') || lower.includes('blocked') || lower.includes('không thể gửi tin') || lower.includes('người lạ');
+            })();
+
+            if (isBlockedErr) {
+                Logger.warn(`[CRMQueue] 🚫 Auto-detected BLOCKED contact ${effectiveContactId} for Zalo ${zaloId}`);
+                try {
+                    db.markContactBlocked(zaloId, String(effectiveContactId), true);
+                } catch {}
+            }
+
             // Always save log on failure — use describeBlock for human-readable message
             const fallbackLogMsg = blocksToSend.length > 0
                 ? blocksToSend.map(describeBlock).join(' | ')
@@ -879,6 +896,7 @@ class CRMQueueService {
                 db.save();
                 Logger.log(`[CRMQueue] Campaign ${campaignId} completed`);
                 EventBroadcaster.emit('crm:campaignDone', { zaloId, campaignId });
+
                 this.checkAndStopIfIdle(zaloId);
             }
         } catch (err: any) {
@@ -937,6 +955,94 @@ class CRMQueueService {
             return { uid: String(u.uid), name };
         } catch {
             return null;
+        }
+    }
+
+    private extractCoreZaloName(rawName: string, phone: string): string {
+        let name = (rawName || '').trim();
+        if (!name) return 'Khách';
+        // Strip trailing phone number if present at the end
+        if (phone && name.endsWith(phone)) {
+            name = name.slice(0, -phone.length).replace(/[\s\-\_]+$/, '');
+        }
+        // If name contains hyphen '-', e.g. "VIP - Khánh Ly - 0898904529" or "VIP - Khánh Ly"
+        const parts = name.split(/\s*[\-\–\—]\s*/);
+        if (parts.length >= 2) {
+            // Find core name part that is not equal to phone number
+            const middle = parts.find(p => p !== phone && p.trim().length > 0);
+            if (middle) {
+                name = middle;
+            } else {
+                name = parts[1];
+            }
+        }
+        return name.trim() || 'Khách';
+    }
+
+    private async trySyncZaloAliasOnSendSuccess(
+        zaloId: string,
+        contactId: string,
+        campaignName: string,
+        contactPhone: string,
+        contactName: string,
+        auth: any,
+        mixedConfig?: any
+    ): Promise<void> {
+        if (!contactId || contactId.includes('@g.us') || contactId.includes('@group')) return;
+
+        const rule = mixedConfig?.zalo_alias_rule || 'none';
+        if (rule === 'none') {
+            Logger.log(`[CRMQueue] Zalo alias rule is 'none' for ${contactId}. Preserving existing name.`);
+            return;
+        }
+
+        try {
+            const db = DatabaseService.getInstance();
+            const cleanCampaignName = (campaignName || 'Campaign').trim();
+            const cleanPhone = (contactPhone || '').trim();
+
+            const dbContact = db.queryOne<{ zalo_name?: string; name?: string; display_name?: string }>(
+                'SELECT zalo_name, name, display_name FROM crm_contacts WHERE owner_zalo_id = ? AND contact_id = ?',
+                [zaloId, contactId]
+            );
+
+            const rawName = dbContact?.zalo_name || dbContact?.name || contactName || '';
+            const coreName = this.extractCoreZaloName(rawName, cleanPhone);
+
+            let formattedAlias = '';
+            if (rule === 'campaign_name_phone') {
+                formattedAlias = cleanPhone
+                    ? `${cleanCampaignName} - ${coreName} - ${cleanPhone}`
+                    : `${cleanCampaignName} - ${coreName}`;
+            } else if (rule === 'name_phone') {
+                formattedAlias = cleanPhone
+                    ? `${coreName} - ${cleanPhone}`
+                    : coreName;
+            } else {
+                return;
+            }
+
+            // 1. Update local CRM SQLite DB
+            db.setContactAlias(zaloId, contactId, formattedAlias);
+            EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: zaloId, contactId, alias: formattedAlias });
+
+            // 2. Sync to Zalo Server API (App Zalo Mobile/PC)
+            const zaloService = await ZaloService.getInstance(auth);
+            if (zaloService && typeof (zaloService as any).changeFriendAlias === 'function') {
+                zaloService.changeFriendAlias(formattedAlias, contactId)
+                    .then((res: any) => {
+                        if (res && (res.error_code === 0 || res.error_code === '0' || res.status === 0)) {
+                            Logger.log(`[CRMQueue] ✅ Updated Zalo server alias for ${contactId} to "${formattedAlias}"`);
+                        } else {
+                            Logger.warn(`[CRMQueue] ⚠️ Zalo server alias note for ${contactId} (Code ${res?.error_code || res?.error}): ${res?.message || res?.error_message || 'Zalo API response'}`);
+                        }
+                    })
+                    .catch((err: any) => {
+                        Logger.warn(`[CRMQueue] ⚠️ Failed to sync Zalo server alias for ${contactId}: ${err.message}`);
+                    });
+            }
+        } catch (err: any) {
+            Logger.warn(`[CRMQueue] ⚠️ trySyncZaloAliasOnSendSuccess error for ${contactId}: ${err.message}`);
         }
     }
 }

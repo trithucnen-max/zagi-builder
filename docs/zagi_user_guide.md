@@ -29,7 +29,7 @@ PHẦN 3: TÍNH NĂNG CỐT LÕI
 Chín nhóm tính năng nổi bật: đa tài khoản Zalo & Facebook; quản lý hội thoại tập trung; CRM khách hàng; Workflow tự động hóa; Trợ lý AI; kết nối POS/thanh toán/vận chuyển; ERP quản trị nội bộ; cài đặt nhân viên & workspace; báo cáo thống kê.
 ###
 3.1. Yêu cầu hệ thống (bot cần thuộc để trả lời nhanh)
-Windows 10/11 (64-bit) hoặc macOS, đề xuất chạy trên PC/máy chủ ổn định. RAM tối thiểu 4 GB, đề xuất 8 GB trở lên. Cần Internet ổn định để đồng bộ tin nhắn theo thời gian thực. Nên chạy 24/7 để nhận tin nhắn và để workflow/tự động hóa hoạt động liên tục.
+Windows 10/11 (64-bit) hoặc macOS, đề xuất chạy trên PC/máy chủ ổn định. (Lưu ý đối với người dùng Windows 7: Do Microsoft và Chromium chính thức dừng hỗ trợ Win 7 từ 2023, các máy Windows 7 truy cập Zagi qua Trình duyệt Web `http://<IP_MÁY_BOSS>:27799` để sử dụng mượt mà 100% các tính năng mà không cần cài ứng dụng Desktop `.exe`). RAM tối thiểu 4 GB, đề xuất 8 GB trở lên. Cần Internet ổn định để đồng bộ tin nhắn theo thời gian thực. Nên chạy 24/7 để nhận tin nhắn và để workflow/tự động hóa hoạt động liên tục.
 ###
 3.2. Đa tài khoản
 Zagi cho phép đăng nhập và quản lý không giới hạn tài khoản Zalo và Facebook trong một giao diện, mỗi tài khoản hoạt động độc lập.
@@ -46,12 +46,24 @@ Hạn chế quan trọng phải nói rõ với khách: Zagi không hỗ trợ ng
 ###
 3.4. CRM & Khách hàng
 Toàn bộ bạn bè và thành viên các nhóm Zalo được đồng bộ tự động vào CRM, kèm hồ sơ đầy đủ: tên, SĐT, giới tính, ngày sinh (đồng bộ từ profile Zalo thật). Hỗ trợ tìm kiếm, sắp xếp, bộ lọc kết hợp, chọn hàng loạt.
+- **Thanh Thao Tác Hàng Loạt & Cửa Sổ Gán Nhãn Nâng Cao (`🏷️ Gán nhãn`):** Khi chọn 1 hoặc nhiều liên hệ trong CRM, bấm **`🏷️ Gán nhãn`** trên thanh thao tác phía dưới để mở cửa sổ quản lý nhãn toàn diện.
+  - Hỗ trợ xem và gán đồng thời **💾 Nhãn Local** (lưu trên máy) và **☁️ Nhãn Zalo** (đồng bộ Zalo API), phân loại theo từng Tài khoản Zalo/Facebook ở cột bên trái.
+  - Cho phép gõ tên + chọn emoji + màu sắc để **Tạo mới Nhãn Local** trực tiếp ngay trong cửa sổ.
+  - Tích chọn nhiều nhãn để áp dụng cùng lúc. Nếu **bỏ chọn tất cả (để trống)** và bấm Xác nhận ➔ Hệ thống tự động xóa toàn bộ nhãn (Local & Zalo) của các liên hệ đã chọn.
+- **Rà Soát Lọc Trùng Liên Hệ Đa Tài Khoản & Chuẩn Hóa Trạng Thái Bạn Bè (`is_friend`):** 
+  - Nút **`Rà soát trùng lặp`** trên thanh TopBar CRM giúp phát hiện các liên hệ có cùng SĐT/ID xuất hiện trên nhiều tài khoản Zalo.
+  - Nút **`⚡ Dọn dẹp biệt danh dính chéo & chuẩn hóa trạng thái Bạn bè Zalo`**: Tự động dọn dẹp biệt danh bị dính chéo cross-account, đồng thời quét và reset các cờ bạn bè giả (`is_friend = 1` của SĐT Quét/Khách lạ) về `0`.
+  - Hệ thống tự động kiểm tra cờ bạn bè (`is_friend = 1` - hiển thị dấu tích xanh `✓`) dựa trên sự tồn tại thực tế trong bảng bạn bè `friends` của từng tài khoản, loại bỏ hoàn toàn tình trạng hiển thị nhầm tích xanh cho liên hệ chưa kết bạn.
 Tách biệt cột **Biệt danh CRM** (do doanh nghiệp tự đặt, click đúp sửa nhanh) và **Tên Zalo gốc** (tên khách hàng đăng ký Zalo) để tránh lẫn lộn thông tin.
 **Xưng hô (Salutation)**: Tự sinh "Anh"/"Chị"/"Bạn" dựa vào giới tính khi đồng bộ profile từ Zalo và bảo toàn các xưng hô chỉnh sửa thủ công của người dùng (có thể sửa trong danh sách CRM hoặc ngay bên cạnh khung chat khi đang tương tác).
 **Đồng bộ biến Chiến dịch & Workflow**: hỗ trợ chèn biến linh hoạt: `{zalo_name}` / `$item.zalo_name` (tên Zalo gốc), `{alias}` / `$item.alias` (biệt danh CRM, không tự động fallback ra tên Zalo khi rỗng), `{name}` / `$item.display_name` (tên liên hệ thông minh: alias > display_name), `{salutation}` và `{gender_greeting}` (đồng bộ trực tiếp với trường xưng hô CRM).
 **Autocomplete & Toolbar**: Soạn tin nhắn chiến dịch & workflow hỗ trợ nhập dấu `{` tự động hiển thị gợi ý biến thông minh và thanh công cụ chip chèn nhanh tiện dụng.
-Nhãn Zalo (Label): đồng bộ hai chiều với Zalo điện thoại — gán trong app thì hiện trên điện thoại. Dùng nhãn làm điều kiện trong Workflow.
-Quản lý nhóm & rời nhóm hàng loạt: xem/tìm kiếm thành viên, rời nhiều nhóm cùng lúc, tự động chuyển quyền trưởng nhóm trước khi rời để tránh nhóm bị giải tán, AI soạn lời tạm biệt lịch sự. Có tính năng quét thành viên nhóm ẩn và quét nhóm chưa tham gia qua link mời.
+Quản lý nhóm & rời nhóm hàng loạt: xem/tìm kiếm thành viên, rời nhiều nhóm cùng lúc, tự động chuyển quyền trưởng nhóm trước khi rời để tránh nhóm bị giải tán, AI soạn lời tạm biệt lịch sự.
+**Tính năng Quét nâng cao (Premium Group Scan)**: Chuyển sang sub-tab "Quét nâng cao" trong giao diện Nhóm Zalo:
+1. Dán đường dẫn nhóm Zalo (`https://zalo.me/g/...`) hoặc Group ID vào ô tìm kiếm.
+2. Bấm nút **Tham gia** nếu tài khoản Zalo hiện tại chưa phải là thành viên trong nhóm.
+3. Bấm **Quét** — hệ thống sẽ tự động bóc tách danh sách thành viên (kể cả nhóm ẩn danh sách thành viên) và tự động lưu đồng bộ về CSDL máy Boss.
+4. Chuyển sang tab **Thành viên nhóm** để xem kết quả chi tiết, chọn thành viên và thêm trực tiếp vào Chiến dịch gửi tin hàng loạt, kết bạn hoặc xuất thông tin liên hệ.
 Chăm sóc theo sinh nhật/giới tính (điểm bán hàng mạnh): lọc khách sinh nhật hôm nay/tuần/tháng để gửi lời chúc + ưu đãi; chiến dịch theo giới tính (8/3, 20/10 cho khách nữ; 14/2 cho khách nam); kéo lại khách cũ chưa nhắn > 30 ngày. Cách dùng: CRM → Danh sách liên hệ → Bộ lọc → chọn tiêu chí → Chọn hết → Thêm vào chiến dịch → soạn nội dung → Gửi.
 Chiến dịch gửi tin (Campaign): gửi tin/kết bạn/mời nhóm hàng loạt có kiểm soát, cài delay tránh spam, theo dõi realtime (đã gửi/thất bại/chờ/đã phản hồi).
 ###
@@ -66,6 +78,7 @@ Triggers gồm: tin nhắn mới, lời mời kết bạn, sự kiện nhóm, re
 - **Tab "Đang Chờ" trên UI:** Người dùng có thể theo dõi danh sách các bước đang chờ ngay tại tab "Đang Chờ" của trang danh sách Workflow. Giao diện hiển thị: tên workflow, bước node đang chờ, thời gian khôi phục (countdown thời gian thực) và nút Hủy (X) để dừng sớm bước chờ.
 - **Quy tắc an toàn:** Hệ thống tự động bỏ qua và dọn dẹp các checkpoint của workflow đã bị vô hiệu hóa (disabled) hoặc bị xóa trong thời gian chờ. Thời gian chờ tối đa được hỗ trợ lên tới 3 tháng (90 ngày).
 - **Chế độ chờ Ngày thực tế (Calendar Wait):** Trong cấu hình node Chờ (`logic.wait`), người dùng có thể chuyển đổi giữa chế độ *Chờ theo khoảng thời gian* (ví dụ: 1 ngày) hoặc *Chờ đến giờ cụ thể của ngày thực* (ví dụ: chờ đến ngày mai lúc 09:00). Giúp tối ưu hóa giờ gửi tin nhắn bám đuổi (chăm sóc khách hàng vào giờ hành chính, tránh nhắn tin làm phiền vào đêm muộn). Nếu mốc giờ đích của ngày hôm nay đã trôi qua khi luồng kích hoạt, node sẽ thực hiện chạy tiếp ngay lập tức.
+- **Trình Biên Tập Workflow & Chế độ Sửa Mã Thô (`✏️ Sửa mã thô`):** Khi nhập các ô biến động trong node (ví dụ: `Danh sách cần lặp qua`), người dùng có thể bấm nút **`✏️ Sửa mã thô`** ở góc trên bên phải ô nhập để chuyển từ dạng thẻ Chip sang văn bản thô `{{ ... }}`. Giúp dễ dàng tự gõ hoặc chỉnh sửa các thuộc tính mở rộng như `.contacts`, `.salutation`, `.output` một cách linh hoạt 100%. Nút **"+ Chèn Biến"** tự động chèn chính xác vào ô nhập đang thao tác mà không lo bị lệch hay trôi vị trí.
 Lưu ý: workflow chạy cục bộ nên app phải đang chạy (hoặc mở lại sau khi tắt) để các kịch bản tự động hóa và các bước chờ hoạt động.
 ###
 3.6. Trợ lý AI
@@ -87,6 +100,7 @@ Quản lý công việc nội bộ ngay trong Zagi: Task/giao việc (Kanban, da
 3.9. Nhân viên & Workspace (Boss – Nhân viên)
 Mô hình 1 Boss – nhiều nhân viên. Boss chạy app trên máy chủ, bật Relay Server (cổng mặc định 9900). Nhân viên kết nối từ máy riêng qua LAN (nhập IP nội bộ) hoặc WAN qua Cloudflare Tunnel (làm việc từ xa). Vì Zalo chỉ cho 1 kết nối cùng lúc nên request được chuyển tiếp về máy Boss.
 Boss tạo tài khoản nhân viên, gán từng tài khoản Zalo, phân quyền chi tiết theo module (Chat, CRM, Workflow, Tích hợp, Báo cáo, Bạn bè). Có báo cáo hiệu suất nhân viên (tin nhắn gửi, giờ online, thời gian phản hồi, bảng xếp hạng).
+- **Cơ chế Truyền tải Media Đa máy (Boss-Native MediaToken Architecture):** Mọi tệp ảnh, video, tài liệu gửi từ máy Nhân viên hoặc dán từ clipboard đều được tự động đồng bộ trực tiếp lên ổ đĩa máy Boss qua luồng binary stream trong Main Process. Giúp Nhân viên chuyển tiếp ảnh/video từ Zalo sang bất kỳ liên hệ/nhóm nào mượt mà 100% mà không bị lỗi thiếu file local hay tràn bộ nhớ RAM.
 Lưu ý: đóng app boss thì server tắt và nhân viên bị ngắt; URL WAN đổi mỗi lần restart tunnel; nên đặt IP tĩnh cho máy boss hoặc gán tên miền cho BOSS
 ###
 3.10. Báo cáo & Phân tích

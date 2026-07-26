@@ -13,6 +13,7 @@ import { handlers as restHandlers } from './handlers/RestApiHandlers';
 import { handleMediaRequest as handleMediaFileServe } from './handlers/MediaHandler';
 import { libraryHandlers } from './handlers/LibraryHandler';
 import FileStorageService from '../file/FileStorageService';
+import LicenseManager from '../license/LicenseManager';
 
 interface RegisteredEmployee {
     employee_id: string;
@@ -311,6 +312,8 @@ class HttpRelayService {
                     is_business: a.is_business || 0,
                     is_active: a.is_active,
                     listener_active: a.listener_active,
+                    channel: a.channel || 'zalo',
+                    facebook_id: a.facebook_id || undefined,
                 }));
 
             return {
@@ -343,6 +346,12 @@ class HttpRelayService {
             // Attach Socket.IO vào cùng HTTP server (path /socket.io)
             // Employee dùng WebSocket thay SSE cho real-time event
             SocketIOService.getInstance().attach(this.httpServer);
+
+            // Đăng ký hook: mỗi khi Boss cập nhật quyền / tài khoản / thông tin nhân viên,
+            // push relay:initialState mới xuống máy nhân viên ngay lập tức (không cần restart).
+            EmployeeService.getInstance().setOnEmployeeChangedCallback((employeeId, reason) => {
+                this.refreshEmployeeState(employeeId, reason);
+            });
 
             this.hookEventBroadcaster();
             this.startOfflineCheck();
@@ -455,7 +464,15 @@ class HttpRelayService {
     // ─── HTTP Router ──────────────────────────────────────────────────
 
     private handleHttpRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        // CORS — chỉ cho phép Electron renderer và Employee HTTP clients (không có Origin header)
+        // Không dùng '*' để tránh cross-site requests từ browser trên cùng mạng LAN
+        const origin = req.headers.origin || '';
+        const ALLOWED_ORIGINS = [
+            'app://.',                   // Electron production renderer
+            'http://localhost:27799',    // Dev renderer
+            'http://127.0.0.1:27799',   // Dev renderer (alt)
+        ];
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
         res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, PATCH, PUT, DELETE');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.setHeader('Access-Control-Allow-Private-Network', 'true');
@@ -501,8 +518,13 @@ class HttpRelayService {
             return this.handleMediaUploadChunk(req, res);
         }
 
+        // ── SePay Webhook Auto Activation ─────────────────────────────
+        if (req.method === 'POST' && (url === '/api/sepay/webhook' || url === '/api/webhook/sepay')) {
+            return this.handleSepayWebhook(req, res);
+        }
+
         // ── Healthcheck ───────────────────────────────────────────────
-        if (req.method === 'GET' && (url === '/api/health' || url === '/')) {
+        if (req.method === 'GET' && url === '/api/health') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 status: 'ok',
@@ -540,6 +562,103 @@ class HttpRelayService {
         }
         if (url.startsWith('/api/library/')) {
             return this.handleRestApi(req, res);
+        }
+
+        // ── Static Web UI Asset Serving for non-API GET/HEAD requests ──
+        if ((req.method === 'GET' || req.method === 'HEAD') && !url.startsWith('/api/')) {
+            return this.serveStaticWebAsset(req, res);
+        }
+
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not found' }));
+    }
+
+    // ── SePay Webhook Auto Activation ─────────────────────────────────
+
+    private handleSepayWebhook(req: http.IncomingMessage, res: http.ServerResponse): void {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', async () => {
+            try {
+                const payload = JSON.parse(body || '{}');
+                const result = await LicenseManager.processSepayWebhook(payload);
+                res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } catch (err: any) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+        });
+    }
+
+    // ── Static Web UI Asset Serving ───────────────────────────────────
+
+    private resolveDistDir(): string | null {
+        const candidatePaths = [
+            path.join(__dirname, '../../dist'),
+            path.join(process.cwd(), 'dist'),
+            path.resolve('dist'),
+        ];
+        if (typeof process !== 'undefined' && (process as any).resourcesPath) {
+            candidatePaths.unshift(path.join((process as any).resourcesPath, 'app.asar', 'dist'));
+            candidatePaths.unshift(path.join((process as any).resourcesPath, 'app', 'dist'));
+        }
+        for (const p of candidatePaths) {
+            try {
+                if (fs.existsSync(p) && fs.statSync(p).isDirectory()) {
+                    return p;
+                }
+            } catch {}
+        }
+        return null;
+    }
+
+    private serveStaticWebAsset(req: http.IncomingMessage, res: http.ServerResponse): void {
+        const distDir = this.resolveDistDir();
+        const rawUrl = (req.url || '/').split('?')[0];
+
+        const MIME_TYPES: Record<string, string> = {
+            '.html': 'text/html; charset=utf-8',
+            '.js': 'application/javascript; charset=utf-8',
+            '.css': 'text/css; charset=utf-8',
+            '.json': 'application/json; charset=utf-8',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.woff': 'font/woff',
+            '.woff2': 'font/woff2',
+            '.ttf': 'font/ttf',
+            '.wasm': 'application/wasm',
+        };
+
+        if (distDir) {
+            let reqPath = rawUrl === '/' ? '/index.html' : rawUrl;
+            const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
+            let filePath = path.join(distDir, safePath);
+
+            try {
+                if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+                    filePath = path.join(distDir, 'index.html');
+                }
+
+                if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+                    const ext = path.extname(filePath).toLowerCase();
+                    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+                    const content = fs.readFileSync(filePath);
+                    res.writeHead(200, {
+                        'Content-Type': contentType,
+                        'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400',
+                    });
+                    res.end(content);
+                    return;
+                }
+            } catch (err: any) {
+                Logger.error(`[HttpRelayService] Error serving static asset ${filePath}: ${err.message}`);
+            }
         }
 
         res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -1072,6 +1191,86 @@ class HttpRelayService {
                         Logger.log(`[HttpRelayService] 📡 Emitting relay:messageSentByEmployee to boss renderer: msgId="${msgId}", empId="${employee.employee_id}", threadId="${threadId}"`);
                         EventBroadcaster.emit('relay:messageSentByEmployee', senderPayload);
                     }
+
+                    // Immediately save to SQLite DB and relay newly sent message (text, image, file) to employees
+                    if (zaloId && threadId) {
+                        try {
+                            const isGroup = params?.threadType === 1 || params?.type === 1 || params?.thread_type === 1;
+                            let msgType = 'text';
+                            let contentObj: any = params?.message || params?.body || params?.msg || '';
+
+                            if (channel.includes('sendImage') || channel.includes('sendImages')) {
+                                msgType = 'chat.photo';
+                                const paths: string[] = params?.filePaths || (params?.filePath ? [params.filePath] : []) || (params?.fileUrl ? [params.fileUrl] : []);
+                                const imgUrl = paths[0] || params?.mediaToken || '';
+                                contentObj = {
+                                    href: imgUrl,
+                                    width: 0,
+                                    height: 0,
+                                    totalCount: paths.length || 1,
+                                };
+                            } else if (channel.includes('sendFile')) {
+                                msgType = 'share.file';
+                                const filePath = params?.filePath || params?.fileUrl || params?.mediaToken || '';
+                                const fileName = filePath.split('/').pop() || 'file';
+                                contentObj = {
+                                    href: filePath,
+                                    title: fileName,
+                                };
+                            } else if (channel.includes('sendVideo')) {
+                                msgType = 'chat.video.msg';
+                                const filePath = params?.videoPath || params?.filePath || '';
+                                contentObj = {
+                                    href: filePath,
+                                };
+                            }
+
+                            const finalMsgId = msgId || `proxy_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                            const rawMessageToSave = {
+                                type: isGroup ? 1 : 0,
+                                isSelf: true,
+                                threadId: threadId,
+                                data: {
+                                    msgId: finalMsgId,
+                                    cliMsgId: finalMsgId,
+                                    uidFrom: zaloId,
+                                    msgType: msgType,
+                                    content: contentObj,
+                                    ts: Date.now(),
+                                }
+                            };
+
+                            // Save message directly to DB
+                            DatabaseService.getInstance().saveMessage(zaloId, rawMessageToSave).catch(() => {});
+                            this.runOnPinnedDb((db) => db.setMessageHandledByEmployeeFlexible(zaloId, finalMsgId, employee.employee_id));
+
+                            // Broadcast event:message to all employees so Web UI updates INSTANTLY
+                            const messagePayload = {
+                                zaloId,
+                                message: {
+                                    threadId,
+                                    type: isGroup ? 1 : 0,
+                                    isSelf: true,
+                                    data: {
+                                        msgId: finalMsgId,
+                                        cliMsgId: finalMsgId,
+                                        uidFrom: zaloId,
+                                        content: contentObj,
+                                        msgType: msgType,
+                                        ts: Date.now(),
+                                        _employeeInfo: {
+                                            employee_id: employee.employee_id,
+                                            employee_name: employee.display_name,
+                                            employee_avatar: employee.avatar_url || '',
+                                        }
+                                    }
+                                }
+                            };
+                            this.relayEventToEmployees('event:message', messagePayload);
+                        } catch (e: any) {
+                            Logger.warn(`[HttpRelayService] Failed to broadcast proxy sent message: ${e.message}`);
+                        }
+                    }
                 }
 
                 return result;
@@ -1360,7 +1559,15 @@ class HttpRelayService {
                 }
 
                 // Safe path resolution - prevent directory traversal!
-                const resolvedPath = path.resolve(mediaBasePath, filePath);
+                // Strip leading /media/ or media/ prefix to prevent double-media resolution since mediaBasePath already ends with /media
+                let cleanPath = filePath || '';
+                if (cleanPath.startsWith('media/') || cleanPath.startsWith('media\\')) {
+                    cleanPath = cleanPath.slice(6);
+                } else if (cleanPath.startsWith('/media/') || cleanPath.startsWith('\\media\\')) {
+                    cleanPath = cleanPath.slice(7);
+                }
+
+                const resolvedPath = path.resolve(mediaBasePath, cleanPath);
                 if (!resolvedPath.startsWith(path.resolve(mediaBasePath))) {
                     return this.json(res, 403, { success: false, error: 'Access denied: invalid file path' });
                 }
@@ -1370,14 +1577,14 @@ class HttpRelayService {
                     return this.json(res, 404, { success: false, error: 'File not found' });
                 }
 
-                // Read file and send binary
-                const data = fs.readFileSync(resolvedPath);
+                // Read file and send binary via stream
+                const stat = fs.statSync(resolvedPath);
                 res.writeHead(200, {
                     'Content-Type': 'application/octet-stream', // Force octet-stream for HttpClientService.requestMedia
-                    'Content-Length': data.length,
+                    'Content-Length': stat.size,
                     'Content-Disposition': `attachment; filename="${path.basename(resolvedPath)}"`,
                 });
-                res.end(data);
+                fs.createReadStream(resolvedPath).pipe(res);
             } catch (err: any) {
                 this.json(res, 500, { success: false, error: err.message });
             }
@@ -2320,18 +2527,33 @@ class HttpRelayService {
 
             // ── Workflow CRUD ──
             if (pathname === '/api/command/workflows') {
-                db.saveWorkflow(params.workflow || params);
-                EventBroadcaster.emit('workflow:executed', { action: 'save', workflowId: params.workflow?.id || params.id });
+                const wfData = params.workflow || params;
+                db.saveWorkflow(wfData);
+                db.save();
+                if (wfData?.id) {
+                    const WorkflowEngineService = require('../workflow/WorkflowEngineService').default;
+                    WorkflowEngineService.getInstance().reloadWorkflow(wfData.id);
+                }
+                EventBroadcaster.emit('workflow:executed', { action: 'save', workflowId: wfData?.id || params.id });
                 return { success: true };
             }
             if (pathname.match(/^\/api\/command\/workflows\/[^/]+\/toggle$/)) {
                 const id = pathname.split('/')[3];
-                db.toggleWorkflow(id, params.enabled !== false);
+                const isEnabled = params.enabled === true || params.enabled === 1 || params.enabled === 'true' || params.enabled === '1';
+                db.toggleWorkflow(id, isEnabled);
+                db.save();
+                const WorkflowEngineService = require('../workflow/WorkflowEngineService').default;
+                WorkflowEngineService.getInstance().reloadWorkflow(id);
+                EventBroadcaster.emit('db:workflowChanged', { action: 'toggle', id, enabled: isEnabled });
                 return { success: true };
             }
             if (pathname.match(/^\/api\/command\/workflows\/[^/]+$/)) {
                 const id = pathname.split('/').pop() || '';
                 db.deleteWorkflow(id);
+                db.save();
+                const WorkflowEngineService = require('../workflow/WorkflowEngineService').default;
+                WorkflowEngineService.getInstance().removeWorkflow(id);
+                EventBroadcaster.emit('db:workflowChanged', { action: 'delete', id });
                 return { success: true };
             }
 
@@ -2511,13 +2733,19 @@ class HttpRelayService {
                 continue;
             }
 
-            // ─── Socket.IO (transport duy nhất) ──────────────────────
-            // Tất cả employee dùng Socket.IO, không còn SSE fallback.
-            // Event được buffer → EventBuffer → catch-up khi reconnect.
-            // Nếu employee offline → room rỗng → no-op, event ở buffer.
+            // ─── Socket.IO & SSE (Relay to all connected employees) ──────
             try {
                 SocketIOService.getInstance().emitToEmployee(empId, channel, data);
             } catch {}
+
+            const sseRes = this.sseClients.get(empId);
+            if (sseRes) {
+                try {
+                    sseRes.write(`data: ${JSON.stringify({ channel, data })}\n\n`);
+                } catch (e: any) {
+                    Logger.warn(`[HttpRelayService] SSE write failed for employee ${empId}: ${e.message}`);
+                }
+            }
         }
     }
 
@@ -2650,7 +2878,13 @@ class HttpRelayService {
      */
     private authenticateRequest(req: http.IncomingMessage): RegisteredEmployee | null {
         const authHeader = req.headers['authorization'] || '';
-        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        let token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        if (!token) {
+            try {
+                const parsedUrl = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+                token = parsedUrl.searchParams.get('token') || parsedUrl.searchParams.get('access_token') || '';
+            } catch {}
+        }
         if (!token) return null;
 
         const validation = EmployeeService.getInstance().validateToken(token);
@@ -2766,17 +3000,13 @@ class HttpRelayService {
         }
     }
 
-    /** Push a fresh employee snapshot to the employee */
+    /** Push a fresh employee snapshot to the employee — dùng Socket.IO (primary transport).
+     *  Nếu employee offline, event vào EventBuffer → catch-up tự động khi reconnect.
+     */
     public refreshEmployeeState(employeeId: string, reason = 'manual-refresh'): void {
-        const emp = this.employees.get(employeeId);
-        if (!emp) return;
-
         const snapshot = this.buildEmployeeSnapshot(employeeId);
-        if (snapshot) {
-            if (!this.pushViaSSE(employeeId, 'relay:initialState', snapshot)) {
-                this.pushToEmployee(emp, 'relay:initialState', snapshot).catch(() => {});
-            }
-        }
+        if (!snapshot) return;
+        SocketIOService.getInstance().emitToEmployee(employeeId, 'relay:initialState', snapshot);
         Logger.log(`[HttpRelayService] refreshEmployeeState(${reason}) → employee=${employeeId}`);
     }
 

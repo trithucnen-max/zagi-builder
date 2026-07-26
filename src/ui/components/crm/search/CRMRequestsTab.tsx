@@ -288,7 +288,7 @@ export default function CRMRequestsTab() {
           </div>
           {requestSubTab === 'sent' && sentRequests.length > 0 && (
             <button onClick={handleCancelAllSentRequests} disabled={requestsRefreshing}
-              className="bg-red-950/80 hover:bg-red-900 border border-red-800/80 hover:border-red-700 text-red-200 text-xs px-2.5 py-1.5 rounded-lg transition-colors font-medium flex-shrink-0">
+              className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-full transition-colors font-medium flex-shrink-0 shadow-sm">
               Thu hồi tất cả
             </button>
           )}

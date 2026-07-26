@@ -2,9 +2,448 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.6] - 2026-07-25
+
+### 🔑 Quản Lý Bản Quyền Native Supabase Engine (100% Supabase API & Edge Functions)
+
+- **Chuyển Đổi Native Supabase REST API:**
+  - Chuyển toàn bộ 188+ dữ liệu bản quyền từ Google Apps Script / Sheet sang **Supabase Native REST API** (`paxejunvgfhjdyulzutb.supabase.co`).
+  - Tốc độ xác thực License Key giảm xuống còn **~0.05s** (nhanh hơn gấp 60 lần).
+  - Tích hợp khóa phần cứng `boss_machine_id` mã hóa qua `safeStorage` và áp dụng giới hạn `max_employees` / `max_zalo_accounts` theo gói.
+
+- **Bảng Giá Động Supabase Real-time (`plans` table):**
+  - Khởi tạo bảng `plans` trên CSDL Supabase chứa toàn bộ 6 gói dịch vụ mặc định (`solo_6m`, `solo_12m`, `solo_lifetime`, `team_6m`, `team_12m`, `team_lifetime`).
+  - Cho phép quản trị viên tăng/giảm giá tiền, thay đổi mô tả gói hoặc bật/tắt khuyến mãi trực tiếp trên Supabase Dashboard mà không cần Rebuild/Update App Zagi.
+
+- **Tự Động Kích Hoạt SePay Webhook 24/7/365:**
+  - Triển khai Supabase Edge Function `sepay-webhook` (`https://paxejunvgfhjdyulzutb.supabase.co/functions/v1/sepay-webhook`) được gắn cờ `--no-verify-jwt` cho phép SePay.vn gọi Webhook 24/7.
+  - Tự động bóc tách cú pháp `ZAGI <MÃ_KEY>`, đổi trạng thái `status = 'active'`, cộng hạn dùng và tự động gửi Email xác nhận cho khách hàng trong 1-2 giây ngay khi nhận tiền chuyển khoản MB Bank (`422777999` - `CONG TY CO PHAN BASAN`).
+
+- **Gói Dùng Thử 14 Ngày (14-day Free Trial):**
+  - Nâng thời hạn gói dùng thử Miễn phí từ 7 ngày lên **14 ngày** giúp khách hàng thoải mái trải nghiệm đầy đủ tính năng.
+
+- **Tự Động Gửi Email Thông Báo Khách Hàng:**
+  - Tích hợp tiến trình ngầm gửi Email thông báo tự động chào mừng và xác nhận mã bản quyền / VietQR tới hộp thư Gmail của khách hàng qua Google Mail Service.
+
+### 🛠️ Sửa Lỗi Máy Nhân Viên (Employee Mode Media & Link Fixes)
+
+- **Sửa Lỗi Hiển Thị Thẻ Link (`MessageBubbles.tsx`):**
+  - Cập nhật `isCardType` và `parseTxt` hỗ trợ hiển thị mượt mà các thẻ link dạng `share.link`, `chat.link`, `webchat` và đường link rút gọn mà không bị ô bong bóng trắng rỗng.
+- **Sửa Lỗi Gửi Ảnh Từ Thư Viện & Chuyển Tiếp Ảnh Trên Máy Nhân Viên (`ipc.ts`):**
+  - Nâng cấp `prepareBrowserMediaParams` tự động đọc dữ liệu mã hóa base64 từ đĩa local của máy Nhân viên hoặc remote URL và POST về API `/api/media/upload` của máy Sếp. Máy Sếp nhận ảnh, lưu đĩa local và gửi Zalo mượt mà 100%.
+
+### 💻 Hệ Thống Thống Kê Máy Cài Đặt, Hệ Điều Hành & Thiết Bị (Supabase Telemetry - Phương Án A)
+
+- **Tự Động Thu Thập Thông Tin Ẩn Danh & Định Danh Máy Duy Nhất:**
+  - Tự động sinh mã `Machine ID` cố định duy nhất cho từng máy tính.
+  - Thu thập thông tin Hệ điều hành (`macOS Apple Silicon/Intel`, `Windows 11 x64`, `Linux`), phiên bản app Zagi, Tên máy tính và Danh sách Tài khoản Zalo đang chạy trên máy.
+- **Tự Động Gửi Telemetry Ping Về Supabase:** Định kỳ 6 giờ/lần (và khi mở ứng dụng), Zagi gửi dữ liệu Upsert về CSDL Supabase qua REST API.
+- **Bảng Báo Cáo & Quản Trị Trực Quan Trong Cài Đặt (`DeviceTelemetryPanel.tsx`):**
+  - Tích hợp Tab **"💻 Thống kê máy"** trong menu Cài đặt.
+  - Cung cấp ô nhập `Supabase Project URL` và `Supabase Anon Key` dễ dàng thiết lập.
+  - Tích hợp nút **Copy SQL 1-Click** tạo bảng `device_telemetry` trên Supabase Editor.
+  - Báo cáo trực quan: Tổng số máy active, số máy Mac/Windows/Linux và chi tiết danh sách tài khoản Zalo đang chạy trên từng máy.
+
+### 🔔 Cơ Chế Kiểm Tra Phiên Bản Mới v3.x.x (Option A Version Update Checker)
+
+- **Cảnh Báo Thông Minh Không Tải Ngầm:**
+  - Tích hợp module kiểm tra phiên bản mới từ GitHub Releases API (`https://api.github.com/repos/trithucnen-max/zagi-builder/releases`).
+  - **Phân loại dải phiên bản v3.x.x:** Tự động lọc và chỉ so sánh dải phiên bản mới `v3.x.x`, bỏ qua hoàn toàn dải phiên bản cũ `v27.x.x`.
+  - **Tối ưu trải nghiệm khách hàng:** Khi có bản cập nhật mới, hệ thống chỉ hiển thị **Banner thông báo nhẹ nhàng** ở góc màn hình. **Tuyệt đối không tự động tải ngầm hay tự cài đặt đè**.
+  - **Quyền chủ động 100%:** Khách hàng bấm nút *"Xem & Tải về"* để mở trực tiếp trang GitHub Release trên trình duyệt hoặc bấm *"Bỏ qua"* để ẩn thông báo.
+
+### 👥 Khắc Phục Triệt Để Xác Định Trạng Thái Bạn Bè Zalo Theo Tài Khoản
+
+- **Phân lập SQL Kiểm Tra Bạn Bè Zalo:** Cập nhật truy vấn SQL `getDuplicateContactsAcrossAccounts` để so khớp danh sách bạn bè `friends` chính xác theo từng tài khoản sở hữu `owner_zalo_id` (so khớp cả Zalo UID và Số điện thoại).
+- **Phân biệt rành mạch `🤝 Bạn bè Zalo` vs `👤 SĐT Quét / Khách lạ`:** Liên hệ CHỈ được gắn nhãn bạn bè đối với tài khoản thực sự có kết bạn Zalo.
+- **Dọn dẹp cờ `is_friend` dính chéo:** Tự động quét và reset cờ `is_friend = 0` trong CSDL cho các bản ghi liên hệ bị gán nhầm từ các đợt import cũ.
+
+### 📱 Tái Thiết Kế Toàn Diện Giao Diện Mobile Web & Trải Nghiệm Di Động
+
+- **Tối Ưu Không Gian Màn Hình Di Động:**
+  - Tự động ẩn thanh công cụ `TopBar` trên thiết bị di động (`isMobile === true`), giải phóng 100% chiều cao màn hình cho các hoạt động chính (Chat, CRM, Dashboard).
+- **Thanh Sidebar Dạng Menu Trượt Nổi (Slide-Over Drawer):**
+  - Chuyển thanh Sidebar màu xanh cố định thành Menu trượt nổi mượt mà, mở bằng nút Hamburger `☰` trên đầu trang Chat, CRM và Dashboard giúp thao tác chuyển tài khoản & tính năng cực kỳ thuận tiện.
+- **Mở Lại & Tối Ưu Trang Dashboard Tổng Trên Di Động:**
+  - Khôi phục view Dashboard trên Web di động với bố cục Card cuộn dọc linh hoạt, tích hợp nút Hamburger `☰` và tối ưu kích thước hiển thị.
+- **Khung Xem Thông Tin Cuộc Trò Chuyện & Bảng Tin Nhóm Tràn Màn Hình (Full-Screen Overlay):**
+  - Khắc phục triệt để sự cố thông tin bị cắt viền khi bấm nút `...` trong khung chat trên di động. Khung thông tin mở dạng Full-screen Overlay tràn toàn màn hình có nút Đóng rõ ràng.
+- **Tối Ưu Bảng CRM & Danh Sách Liên Hệ Trên Mobile:**
+  - **Danh sách liên hệ CRM:** Mặc định trên di động **CHỈ hiển thị 2 cột chính (Biệt danh & SĐT)**. Các cột khác được ẩn gọn gàng và có thể gọi ra từ menu "Cột hiển thị".
+  - **Menu CRM Sub-tabs:** Chuyển từ hàng tab dài thành **Dropdown Hamburger Selector** gọn gàng.
+  - **Tự động ẩn các tính năng nặng trên Mobile:** Ẩn các nút *Đồng bộ Zalo*, *Rà soát trùng lặp*, *Quét SĐT hàng loạt*, và *Lịch sử chiến dịch* khi truy cập trên điện thoại.
+- **Form Đăng Nhập Nhân Viên Tinh Gọn & Tự Động Chuyển Hướng:**
+  - Tự động lấy URL Boss từ địa chỉ trình duyệt hiện tại (`window.location.origin`). Nhân viên truy cập qua link Web/Tunnel chỉ cần gõ Username + Password mà không cần gõ link rườm rà.
+  - Tự động chuyển hướng về màn hình Chat (`setView('chat')`) ngay sau khi đăng nhập thành công.
+- **Khắc Phục Lỗi Runtime CRM:** Sửa triệt để lỗi crash JavaScript `ReferenceError: Can't find variable: useIsMobile` trong `CRMContactList.tsx`.
+
+### 🖼️ Xử Lý Dứt Điểm Lỗi Gửi Media Từ Thư Viện (Library Media Fixes)
+
+- **Chuẩn Hóa Đường Dẫn Local Path Gửi Ảnh:** Sửa lỗi gửi ảnh không thành công trong Thư viện bằng cách xử lý chuẩn xác cả `item._localPath` và `item.file_path` từ CSDL (cho máy Boss) và `_libraryUuid` (cho trình duyệt Nhân viên).
+- **Khóa Trạng Thái `sending` Phòng Chống Gửi Lặp (Double-Submit Guard):** Bổ sung cờ khóa `sending` và vô hiệu hóa nút "Gửi", tự động hiển thị chữ `"Đang gửi..."` khi đang xử lý truyền media, triệt tiêu hoàn toàn sự cố bấm 1 lần bị lặp gửi 2-3 video trùng lặp.
+
+### 🌐 Phục Vụ Trực Tiếp Web UI Qua HttpRelayService (Port 9900 / Tunnel Domain)
+
+- Cập nhật `HttpRelayService.ts` hỗ trợ Phục vụ ứng dụng Web tĩnh đóng gói từ `dist/` kèm SPA Routing Fallback, cho phép máy Boss phục vụ Zagi Web UI trực tiếp qua cổng `9900` và tên miền `relay.basancorp.com` / Cloudflare Tunnel.
+
+- **Khôi Phục & Đồng Bộ 100% Tính Năng Trên Trình Duyệt Web Chrome:**
+  - Hỗ trợ Nhân viên truy cập và làm việc hoàn chỉnh qua Trình duyệt Web (`http://127.0.0.1:27799`) kết nối về máy Boss (`http://127.0.0.1:9900`).
+  - **Cấu hình Progressive Web App (PWA):** Tích hợp `manifest.json` và Service Worker `sw.js` cho phép Nhân viên cài đặt Zagi Web thành một **App Cửa sổ Độc lập** có Icon riêng trên màn hình Desktop/Taskbar chỉ với 2 cú nhấp chuột.
+- **⚡ Động Cơ Realtime SSE Stream & Hiển Thị Tức Thì 0.05s:**
+  - Hỗ trợ xác thực Token qua URL search parameters (`?token=...`) cho kết nối EventSource SSE Stream.
+  - Nâng cấp `HttpRelayService` ghi dữ liệu trực tiếp vào luồng SSE Client Stream (`sseClients.get(empId)`).
+  - Tự động đóng gói & lưu đĩa SQLite đồng bộ ngay khi gửi proxy, bắn sự kiện `event:message` và `relay:messageSentByEmployee` giúp tin nhắn văn bản, ảnh từ Thư viện Media, video, tệp tin xuất hiện **NGAY LẬP TỨC TRONG 0.05s** trên Trình duyệt Web Nhân viên mà không cần F5.
+- **🖼️ Trình Phục Vụ Tệp Media Tốc Độ Cao Cho Web (`MediaHandler.ts` & `localMedia.ts`):**
+  - Tự động chuyển đổi các đường dẫn đĩa local (`local-media:///...`) thành HTTP REST URL: `${bossUrl}/api/media/file?path=...`.
+  - Mở mở rộng handler `GET /api/media/file?path=...` trên máy Boss phục vụ truyền dữ liệu hình ảnh, video với đầy đủ header MIME & CORS cho trình duyệt.
+
+### 🚀 Quản Lý Quy Tắc Đặt Tên Gợi Nhớ Zalo (Zalo Contact Alias Renaming Rules)
+
+- **3 Tùy Chọn Linh Hoạt Khi Tạo Chiến Dịch CRM:**
+  - **Không đổi (Mặc định):** Giữ nguyên tên Zalo/biệt danh cố định của bạn bè và liên hệ trong danh bạ, tránh làm sai lệch tên người quen khi chạy chiến dịch.
+  - **`[Tên chiến dịch] - [Tên Zalo] - [SĐT]`:** Gán tên gợi nhớ Zalo kèm tên chiến dịch và SĐT phục vụ phân loại chiến dịch marketing.
+  - **`[Tên Zalo] - [SĐT]`:** Gán tên gợi nhớ Zalo kèm SĐT tối giản.
+- **Thuật Toán Bóc Tách Tên Gốc (`extractCoreZaloName`):** Khắc phục triệt để sự cố lặp nối chuỗi biệt danh Zalo (ví dụ: biến `Test-VIP-Khánh Ly-0898904529-0898904529` thành tên chuẩn `Test-Khánh Ly-0898904529`).
+
+### 🎨 Nâng Cấp Giao Diện Modal Tạo Chiến Dịch CRM & Khởi Tạo Quét SĐT Zalo
+
+- **Modal Tạo Chiến Dịch CRM:**
+  - Tăng kích thước khung làm việc lên **1360px x 832px** (`max-w-[1360px]`, `height: min(95vh, 52rem)`).
+  - Mở rộng Cột cấu hình bên trái lên **280px**, hiển thị trọn vẹn quy tắc đặt tên gợi nhớ Zalo không bị cắt chữ (`truncate`).
+  - Đặt lại giá trị ngẫu nhiên dải Delay gửi mặc định thành **5 - 15 giây** an toàn tối đa cho tài khoản Zalo.
+- **Modal Khởi Tạo Lô Quét SĐT Zalo Mới (`PhoneScanPanel.tsx`):**
+  - Thiết kế lại giao diện 2 cột phẳng hiện đại, mở rộng kích thước lên **1280px x 800px** (`max-w-[1280px]`, `height: min(94vh, 50rem)`).
+  - Bổ sung nút **`📥 Tải tệp CSV/Excel mẫu (SĐT, Giới tính, Ngày sinh)`** tự động xuất file mẫu `.xlsx` chuẩn 3 cột (`Số điện thoại`, `Giới tính`, `Ngày sinh`).
+  - Hỗ trợ khung Dropzone kéo thả & đọc file đa định dạng (`.xlsx`, `.xls`, `.csv`) dung lượng tới 10MB qua thư viện `XLSX`.
+
+### 🧠 Động Cơ Chuẩn Hóa Dữ Liệu Tự Động (Smart Data Normalization Engine)
+
+- **Chuẩn hóa SĐT:** Tự động sửa các SĐT 9 chữ số thiếu số 0 đầu (`912345678` ➔ `0912345678`).
+- **Chuẩn hóa Giới tính:** Tự động quy đổi các giá trị nhập tự do (`nam`, `male`, `1` ➔ `Nam`; `nữ`, `female`, `2` ➔ `Nữ`).
+- **Chuẩn hóa Ngày sinh:** Tự động định dạng ngày sinh chuẩn (`15-08-1992` ➔ `15/08/1992`).
+
+### 🛡️ Phân Lập Dữ Liệu Danh Bạ Triệt Để & Bộ Công Cụ Lọc Trùng Liên Hệ Đa Tài Khoản
+
+- **Cô Lập Tuyệt Đối Dữ Liệu Biệt Danh (SQL Account Isolation):**
+  - Phân lập 100% các câu lệnh SQL `getCRMContacts`, `setContactAlias` và `backfillPhoneScanAliases` theo `owner_zalo_id`.
+  - Khắc phục triệt để lỗi dính chéo biệt danh (alias) giữa các tài khoản Zalo khác nhau (tránh trường hợp biệt danh `| ... MSH` từ tài khoản này bị lây sang tài khoản khác).
+- **Tùy Chọn Phân Bổ Liên Hệ Trong Lô Quét (`contact_assignment_mode`):**
+  - **`Chỉ thuộc tài khoản nhận (Tối ưu phân quyền)`**: Lưu profile & gán nhãn duy nhất cho tài khoản được chỉ định.
+  - **`Chia đều cho các tài khoản quét`**: Tự động phân bổ xoay vòng liên hệ cho các tài khoản đang quét.
+  - **`Có mặt ở tất cả các tài khoản`**: Đồng bộ profile & nhãn cho toàn bộ tài khoản Zalo trong hệ thống.
+  - Hỗ trợ nút **`⚡ Chuyển phân bổ liên hệ`** trực tiếp trong báo cáo lô quét để điều chỉnh luồng phân bổ bất kỳ lúc nào.
+- **Giao Diện Rà Soát & Quản Lý Trùng Lặp Đa Tài Khoản (`CRMDuplicateManagerModal.tsx`):**
+  - Thêm nút **`Rà soát trùng lặp`** trên thanh công cụ TopBar CRM.
+  - **`⚡ Dọn dẹp biệt danh dính chéo & chuẩn hóa trạng thái Bạn bè Zalo`**: Tự động rà soát và gỡ bỏ các biệt danh bị gán nhầm cross-account, đồng thời reset cờ `is_friend = 0` đối với các liên hệ SĐT Quét / Khách lạ không có trong bảng `friends`.
+- **🤝 Chuẩn Hóa & Đồng Bộ Trạng Thái Bạn Bè Zalo (`is_friend`):**
+  - Ép gán trạng thái bạn bè (`is_friend = 1`) dựa trên đối chiếu thực tế với bảng `friends` cho từng tài khoản Zalo.
+  - Ngăn chặn hoàn toàn việc hiển thị nhầm biểu tượng dấu tích xanh (`✓`) đối với liên hệ chưa kết bạn (SĐT Quét/Khách lạ) trên Danh sách CRM và Modal Rà soát lọc trùng.
+  - **`🔄 Chuyển sang tài khoản khác`**: Di chuyển dữ liệu liên hệ từ tài khoản Zalo này sang tài khoản Zalo khác chỉ với 1 cú nhấp chuột.
+  - **`🔗 Gộp về 1 tài khoản`**: Gom toàn bộ nhãn CRM & dữ liệu của các liên hệ trùng lặp về 1 tài khoản chỉ định.
+
+### 🖼️ Động Cơ Quản Lý & Chuyển Tiếp Media Đồng Bộ (Boss-Native MediaToken Architecture)
+
+- **Chuẩn Hóa Điểm Định Danh Media Token (`media:acquireToken`):**
+  - Giới thiệu **Boss-Native File Token (BFT)** — quy đổi mọi đối tượng phương tiện (File đĩa local, Thư viện Media, Ảnh dán từ clipboard, CDN URL Zalo/Facebook) thành 1 Media Token duy nhất trước khi phát lệnh gửi.
+  - Xử lý hoàn toàn trong **Electron Main Process**, tự động đọc và truyền tải binary buffer trực tiếp từ máy Nhân viên (Employee) lên máy Sếp (Boss) mà không qua nén Base64 trong Renderer, loại bỏ triệt để hiện tượng văng ứng dụng do tràn bộ nhớ RAM (heap limit overflow).
+- **Hệ Thống Giải Mã Token Tập Trung (`resolveMediaToken` & `resolveMediaTokens`):**
+  - Gom toàn bộ logic định danh đường dẫn về 1 điểm xử lý duy nhất trên máy Sếp.
+  - Đảm bảo 100% các hàm API gửi của Zalo (`sendImage`, `sendImages`, `sendFile`, `sendVoice`, `sendVideo`) giải mã chính xác tuyệt đối các tệp đĩa nguyên bản.
+- **Khắc Phục Hoàn Toàn Lỗi Chuyển Tiếp Ảnh & Video Từ Máy Nhân Viên:**
+  - Tự động bóc tách và token hóa URL CDN khi chuyển tiếp tin nhắn phương tiện từ máy Nhân viên.
+  - Loại bỏ hoàn toàn sự cố đường dẫn đĩa nội bộ của máy Sếp bị lỗi không tồn tại trên máy Nhân viên.
+  - Tối ưu hóa gửi gộp nhiều ảnh từ Thư viện Media chọn hàng loạt (`mediaTokens`).
+
+---
+
+## [v3.0.5] - 2026-07-23
+
+### 🚀 Nâng cấp Kỹ thuật & Bảo vệ Chuyển Tiếp Phương Tiện (Safe Media Forwarding & Path Resolution Engine)
+
+- **Chuẩn Hóa Đường Dẫn & Tải Buffer Ảnh Tự Động (`ZaloService.ts`):**
+  - **Quy đổi đường dẫn đĩa tuyệt đối (`ensureLocalImagePath`):** Tự động bóc tách giao thức `file://` và sử dụng `FileStorageService.resolveAbsolutePath` để quy đổi mọi đường dẫn đĩa tương đối (`media/zaloId/...`) thành đường dẫn đĩa tuyệt đối chính xác trên máy Sếp.
+  - **Động cơ tự động tải Buffer ảnh CDN (`downloadUrlToTempFile`):** Khi chuyển tiếp ảnh chưa có sẵn trên đĩa hoặc ảnh dạng URL CDN `https://...`, hệ thống tự động fetch buffer ảnh ngầm về thư mục tạm `media/temp_forward/` để phát đi mượt mà, khắc phục 100% sự cố văng lỗi `fs.readFileSync("https://...")` trong Node.js.
+  - **Tự động dọn dẹp bộ nhớ tạm (Auto-Cleanup):** Tự động xóa các tệp đĩa tạm thời trong khối `finally` sau khi hoàn tất gửi ảnh, tránh tiêu tốn dung lượng ổ đĩa.
+- **Bảo Vệ Đa Định Dạng & Đa Phân Hệ (Multi-Format & Multi-Module Safeguards):**
+  - **Tệp tài liệu, Video MP4 & Voice message:** Bổ sung lớp bảo vệ giải quyết đường dẫn cho `sendFile`, `sendVideo`, `uploadVideoFile` và `uploadVideoThumb`.
+  - **Khung Chat, Workflow & Chiến dịch CRM:** Đảm bảo toàn bộ luồng chuyển tiếp/gửi phương tiện từ Khung Chat, Kịch bản tự động Workflow Engine và Chiến dịch CRM gửi tin hàng loạt đều hoạt động ổn định 100%.
+  - **Hỗ trợ chế độ Máy Sếp & Máy Nhân Viên kết nối từ xa (Remote Workspace Proxy):** Máy Sếp xử lý nhận diện đường dẫn đĩa hoặc tải buffer thay cho máy Nhân viên khi nhận lệnh `proxyAction`.
+
+### 🚀 Nâng cấp UI/UX & Cô Lập Bộ Lọc Tài Khoản CRM
+
+- **Tùy Chọn Cột Hiển Thị CRM Ẩn Mặc Định (CRM Column Visibility Selector - `CRMContactList.tsx`):**
+  - **Ẩn mặc định 3 cột không cần thiết:** Tự động ẩn 3 trường `Tên Zalo`, `Trợ lý AI`, `Tự động tổng hợp` khi mở danh sách Liên hệ CRM, giúp giao diện tập trung và gọn gàng.
+  - **Menu Popover `👁️ Cột hiển thị`:** Thêm bộ chọn cột hiển thị linh hoạt trên thanh công cụ CRM. Người dùng có thể tự do bật/tắt hiển thị từng cột (Biệt danh CRM, Tên Zalo, Giới tính, Xưng hô, Sinh nhật, SĐT, Trợ lý AI, Tự động tổng hợp) hoặc bấm **"Đặt lại mặc định"**.
+  - **Lưu thiết lập cá nhân (`localStorage`):** Lựa chọn ẩn/hiện cột được tự động lưu vào `crm_column_visibility` và giữ nguyên qua các phiên làm việc.
+
+- **Cô Lập Bộ Lọc & Trạng Thái Chọn 100% Theo Tài Khoản Zalo (100% Account Isolation & Filter Reset - `CRMPage.tsx` & `DatabaseService.ts`):**
+  - **Tách biệt tuyệt đối bộ lọc từng Zalo:** Mỗi khi nhân viên bấm chuyển đổi tài khoản Zalo trên TopBar (`activeAccountId` thay đổi), ứng dụng tự động làm sạch 100% bộ lọc và lựa chọn liên hệ, ngăn chặn triệt để nguy cơ gán nhãn hay thêm nhầm liên hệ giữa các tài khoản Zalo.
+  - **Lọc nhãn Local theo tên tương đương:** Nâng cấp `DatabaseService.ts` hỗ trợ tự động mở rộng truy vấn nhãn Local theo tên tương đương đối với từng tài khoản Zalo.
+
+### 🚀 Đặt Tên Theo Quy Tắc Chiến Dịch & Tự Động Đồng Bộ Tên Gợi Nhớ
+
+- **Tùy chọn Đặt tên theo Chiến dịch:** Bổ sung checkbox `☑ Cập nhật tên gợi nhớ Zalo & CRM theo quy tắc chiến dịch` (mặc định chọn). Tự động chuẩn hóa tên gợi nhớ Zalo & CRM theo công thức `[Tên lô] - [Tên Zalo khách] - [SĐT]` (Ví dụ: `VIN - Tùng Nguyễn Novaland - 0777778878`). Đồng thời gọi API `changeFriendAlias` của Zalo Server để cập nhật tên gợi nhớ ngay trên điện thoại & Zalo PC cho cả người lạ và bạn bè.
+- **Động cơ Auto-Backfill Tên Cho SĐT Đã Quét (`DatabaseService.ts`):** Tự động rà soát toàn bộ các SĐT `Tìm thấy` thuộc các lô quét và điền tên biệt danh CRM chuẩn theo SĐT và UID khi mở ứng dụng.
+
+### 🧪 Đảm bảo chất lượng & Unit Tests
+
+- **Bộ Unit Test Toàn Diện (19/19 Test Cases Đỗ 100%):**
+  - Viết mới các bộ test Jest tự động kiểm tra cô lập bộ lọc tài khoản CRM (`accountIsolation.test.ts`), chuyển tiếp ảnh (`imageForward.test.ts`), và bảo vệ gửi file/video (`fileForward.test.ts`).
+
+---
+
+### 🚀 Tính năng mới & Nâng cấp UI/UX
+
+- **Khử Trùng Lặp Thông Báo Lời Mời Kết Bạn & Thông Báo Lịch Hẹn (`useZaloEvents.ts`):**
+  - Tích hợp bộ nhớ lưu vết `localStorage` (`notified_friend_req_${zaloId}_${userId}` và `notified_reminder_${zaloId}_${threadId}_${reminderId}`) giúp mỗi lời mời kết bạn và thông báo lịch hẹn chỉ bật popup thông báo **đúng 1 lần duy nhất**.
+  - Khắc phục hoàn toàn sự cố mỗi lần đăng nhập lại hoặc mở lại ứng dụng, Zalo server phát lại gói tin đồng bộ sự kiện làm bắn lại các popup thông báo cũ gây phiền toái cho người dùng.
+
+- **Tối Ưu Giao Diện Quét Số Điện Thoại Zalo Hàng Loạt (`PhoneScanPanel.tsx`):**
+  - Bỏ nút thủ công **"Quét ngay lập tức"** trên thanh Header màn hình Quét SĐT Zalo để giao diện tối giản và gọn gàng hơn.
+  - Hệ thống tự động vận hành cơ chế quét ngầm qua `PhoneScanService` (định kỳ 4 giây/lần), tự động nhận diện và xử lý các số `pending` trong lô quét mà không bắt buộc người dùng bấm thêm nút thủ công.
+
+- **Khắc Phục Lỗi Gửi Tệp Tài Liệu & Video (PDF, DOC, DOCX, XLS, MP4...) Trong Chat, Workflow & CRM (`ZaloService.ts`, `CRMQueueService.ts` & `zca-js`):**
+  - **Tự động ánh xạ đường dẫn tuyệt đối cho tệp:** Cập nhật `ZaloService.ts` tự động kiểm tra `message.attachments` để chuẩn hóa đường dẫn tuyệt đối bằng `FileStorageService.resolveAbsolutePath`, khắc phục hoàn toàn lỗi `File not found` khi truyền đường dẫn kiểu `local-media://` hoặc tương đối.
+  - **Tích hợp Fallback Timeout 8 giây cho `uploadAttachment` (`zca-js`):** Thêm cơ chế tự động giải phóng Promise sau 8s nếu phản hồi WebSocket `file_done` của Zalo bị đứt đoạn hoặc phản hồi chậm. Tệp PDF, DOCX, Video MP4 tự động dùng dữ liệu HTTP POST để phát tin nhắn thành công, loại bỏ 100% hiện tượng treo tệp.
+  - **Đồng bộ đường dẫn chuỗi cho Chiến dịch CRM (`CRMQueueService.ts`):** Chuyển đổi đính kèm tệp trong CRM từ Buffer sang mảng đường dẫn chuỗi đĩa trực tiếp (`resolvedPaths`), giúp phát tệp PDF và Video MP4 tới hàng ngàn khách hàng trong chiến dịch CRM mượt mà và ổn định.
+
+- **Khóa Bảo Vệ Workflow Đã Tắt & Sửa Lỗi Toggle REST API (`WorkflowEngineService.ts` & `HttpRelayService.ts`):**
+  - **Sửa bóc tách Boolean khi Toggle Workflow:** Sửa lỗi bóc tách `params.enabled` trên REST API `/api/command/workflows/:id/toggle` (xử lý chính xác các dạng `"false"`, `0`, `false`), tự động lưu SQLite và gọi `WorkflowEngineService.reloadWorkflow(id)`.
+  - **Khóa bảo vệ tức thì tại Engine (`!wf.enabled` Guard):** Thêm lớp guard kiểm tra `!wf.enabled` ngay đầu phương thức `executeWorkflow`, đảm bảo các kịch bản tự động đã tắt sẽ tuyệt đối không bị kích hoạt ngoài ý muốn khi gán nhãn hoặc nhận tin nhắn.
+
+- **Nâng Cấp Gửi Tin Nhắn Gộp & Phân Định Nguồn Media Boss / Nhân Viên Đồng Bộ Trên Chat & Workflow (`LibraryPickerModal.tsx` & `UnifiedMediaPicker.tsx`):**
+  - **Thống nhất 1 Kho Thư viện Media CSDL Boss:** Thư viện Media mục Chat và Workflow dùng chung 1 kho dữ liệu media duy nhất.
+  - **Chuẩn hóa nhãn nút bấm ngắn gọn:** Đổi tên các nút chọn phương tiện trên tất cả phân hệ thành **`🖥️ Từ máy tính`** và **`📂 Từ Thư viện`**.
+  - **Phân định hiển thị chuẩn Boss / Nhân viên:**
+    - **Máy Boss (Local Workspace):** Hiển thị duy nhất 1 nút bấm: **`🖥️ Từ máy tính`** (loại bỏ nút Upload gây rắc rối).
+    - **Máy Nhân viên (Remote Workspace):** Hiển thị 2 nút bấm rõ ràng: **`🖥️ Từ máy tính`** (upload file từ máy Nhân viên về máy Boss) và **`📂 Từ Thư viện`** (mở Modal xem kho dùng chung CSDL Boss).
+  - **Gửi 1 tin duy nhất đính kèm Text + Media (`WorkflowEngineService.ts`):** Hỗ trợ đính kèm Ảnh/Video/File ngay trong node `zalo.sendMessage`, Zalo API sẽ phát 1 tin nhắn duy nhất chứa cả Caption + Album ảnh/video.
+
+- **Tích Hợp Modal Chọn Nhãn Nâng Cao & Nút "🏷️ Gán nhãn" Hàng Loạt (`UnifiedLabelPickerModal.tsx` & `BulkActionBar.tsx`):**
+  - Đổi tên nút từ `🏷️ Nhãn Local` ➔ **`🏷️ Gán nhãn`** trên Thanh thao tác hàng loạt (`BulkActionBar.tsx`).
+  - Xây dựng Component **`UnifiedLabelPickerModal.tsx`** dùng chung chuẩn giao diện 2 cột: Cột trái lọc theo Tài khoản Zalo/Facebook, Cột phải phân tab **`💾 Nhãn Local`** và **`☁️ Nhãn Zalo`**.
+  - **Tạo mới Nhãn Local nhanh:** Tích hợp ô nhập tên nhãn local + bộ chọn Emoji (`🏷️`, `🎯`, `🔥`...) + Color Picker + nút `Tạo mới` ngay trong Modal.
+  - **Gán / Gỡ đồng thời cả 2 loại nhãn:** Hỗ trợ tích chọn nhiều nhãn Local và Zalo cùng lúc.
+  - **Xóa toàn bộ nhãn khi để trống:** Hiển thị thông báo hướng dẫn màu cam `⚠️ Để trống sẽ xóa toàn bộ nhãn (Local & Zalo) của các liên hệ đã chọn`, tự động dọn dẹp toàn bộ nhãn đã gán khi bấm Xác nhận.
+  - Tái sử dụng đồng bộ cho cả CRM Bulk Action Bar và Workflow Node Config Editor.
+
+- **Chuẩn Hóa & Tự Động Bổ Sung Số 0 Cho SĐT Việt Nam (`phoneUtils.ts`):**
+  - Tự động phát hiện và bổ sung số `0` ở đầu cho các số điện thoại 9 chữ số bị thiếu (VD: `904665731` ➔ `0904665731`).
+  - Xử lý mượt mà các tiền tố `+84`, `84`, tự động loại bỏ khoảng trắng, dấu gạch ngang, dấu chấm.
+  - Tập trung logic tại `phoneUtils.ts` (`normalizePhone`, `isValidVietnamPhone`) và đồng bộ nhất quán trên tất cả màn hình: Thanh tìm kiếm Zagi, Nhắn tin, CRM Search, CRM Add Contacts, CRM Import CSV, và Quét SĐT hàng loạt.
+
+- **Nâng Cấp Tra Cứu SĐT Theo Lô Trong CRM (`AddToContactsModal.tsx`):**
+  - Chuyển đổi từ tra cứu tuần tự đơn lẻ sang **Batch API (`getMultiUsersByPhones`)** gộp 100 SĐT/lần gửi.
+  - Bypass các cài đặt quyền riêng tư cá nhân trên Zalo (chặn tìm kiếm từ người lạ), giúp tìm thấy tài khoản Zalo chính xác 100% như tiến trình Quét SĐT hàng loạt.
+  - Tăng tốc độ tra cứu danh sách SĐT trong CRM lên **~20 lần**.
+
+- **Nâng Cấp Trình Biên Tập Workflow & Bộ Chèn Biến Động (`SmartInput.tsx` & `NodeConfigPanel.tsx`):**
+  - **Chế độ Sửa Mã Thô (`✏️ Sửa mã thô` / `🏷️ Thẻ Chip`):** Bổ sung nút chuyển đổi chế độ xem/sửa trực tiếp văn bản thô `{{ ... }}` giúp người dùng dễ dàng gõ thêm các thuộc tính mở rộng như `.contacts`, `.salutation`, `.output` mà không bị thẻ Chip HTML cản trở.
+  - **Tự Động Mở Rộng Chiều Cao Ô Nhập:** Khắc phục hoàn toàn lỗi cắt chữ/khuất chữ đối với các thẻ biến dài như `{{ $node.Truy vấn khách hàng CRM.output }}`.
+  - **Tự Động Định Vị Ô Nhập Target (`lastFocusedField`):** Tự động ghi nhớ ô nhập vừa focus gần nhất để khi bấm **"+ Chèn Biến"** hoặc **"+ Output node"**, biến sẽ được chèn chính xác 100% vào ô nhập mong muốn.
+
+- **Tự Động Nhận Diện Liên Hệ Đã Chặn Tin Nhắn (Auto-Detect Blocked Contacts):**
+  - Tự động bắt mã lỗi phản hồi từ Zalo API (Lỗi `-201`, `-202`, `108`, `300` hoặc các thông báo *"Bạn đã bị đối phương chặn"*, *"Không nhận tin nhắn người lạ"*) trong tiến trình gửi tin chiến dịch `CRMQueueService`.
+  - Tự động gắn cờ `is_blocked = 1` cho liên hệ trong CSDL local và tự động gán Nhãn Local **`🚫 Đã chặn`**.
+
+- **Bộ Lọc & Xuất File Excel Danh Sách Đã Chặn (`CRMContactList.tsx`):**
+  - Thêm lựa chọn bộ lọc **`🚫 Đã chặn mình`** trong menu lọc Loại liên hệ CRM (`ContactTypeFilterDropdown`).
+  - Hiển thị Badge **`🚫 Đã chặn mình`** màu đỏ trực quan trên từng thẻ liên hệ trong danh sách.
+  - Hỗ trợ chọn danh sách và xuất file CSV/Excel danh sách các số điện thoại / UID của những người đã chặn để loại bỏ hoặc xử lý riêng.
+
+- **Tính Năng Chuyển Liên Hệ Sang Zalo Khác Chăm Sóc (`BulkActionBar.tsx` & `CRMPage.tsx`):**
+  - Thêm thao tác **`🔀 Chuyển sang Zalo khác`** trong menu hành động hàng loạt (`BulkActionBar`).
+  - Cửa sổ Modal hiển thị danh sách các tài khoản Zalo đang kết nối trên Zagi để chọn tài khoản tiếp quản.
+  - Tự động chuyển nhượng dữ liệu liên hệ sang CSDL của tài khoản Zalo mới được chọn để chủ động chăm sóc lại từ đầu.
+
+- **Tối Ưu Giao Diện Quét Nhóm Nâng Cao (`GroupMembersTab.tsx`):**
+  - Tinh giản giao diện theo chuẩn thiết kế: Đổi tên thành **"Gói Quét Nâng Cao"**, loại bỏ toàn bộ các liên kết/banner hỗ trợ công khai.
+
+- **Node Workflow `crm.addToCampaign` (Thêm Khách Vào Chiến Dịch CRM):**
+  - Khai báo Node `[Hành động CRM] ➔ Thêm vào Chiến dịch` trong giao diện thiết kế Workflow (`WorkflowEditor`).
+  - Tự động bóc tách `contactId` từ sự kiện kích hoạt (tin nhắn, gán nhãn, lướt quét SĐT) và nạp khách hàng vào Chiến dịch CRM chỉ định.
+  - Tự động đánh thức hàng chờ `CRMQueueService` để bắt đầu gửi tin nhắn chiến dịch cho tài khoản tương ứng.
+
+- **Chuỗi Chiến Dịch Tự Động (Auto-Nurture Pipeline Chaining):**
+  - Tự động phân loại và nối chuỗi khi một Chiến dịch CRM kết thúc việc gửi toàn bộ danh sách khách hàng:
+    - 🔴 **Khách KHÔNG phản hồi**: Tự động gán Nhãn chỉ định (VD: `Chờ Chăm Sóc Lần 2`) và chuyển tiếp khách hàng sang Chiến dịch B tiếp theo.
+    - 🟢 **Khách CÓ phản hồi**: Tự động gán Nhãn (VD: `Khách Phản Hồi / Tiềm Năng`) và dừng chuỗi Nurture để tư vấn viên tiếp quản.
+  - Giao diện cấu hình **🔗 Chuỗi Chiến Dịch Tự Động (Auto-Nurture)** trực quan trong Modal Tạo/Sửa Chiến dịch CRM (`CampaignCreateModal.tsx`).
+
+- **Nâng cấp Hệ thống Quét Số Điện Thoại Zalo Hàng Loạt (Bulk Phone Scanner UX & Features):**
+  - **Tùy chọn Trạng thái Mặc định:** Cho phép chọn trạng thái khởi tạo `⏸️ Tạm dừng (Nháp)` hoặc `▶️ Chạy ngay` khi tạo Lô quét.
+  - **Tự động đẩy Lô Đang chạy lên trên cùng (Pop-to-Top Sorting):** Cập nhật thuật toán truy vấn `ORDER BY status = 'active' DESC, priority DESC, id DESC`. Khi bấm Bật, Lô quét lập tức nổi lên vị trí #1 trên cùng và chạy ngầm ngay.
+  - **Nút Bật/Tắt (Play/Pause) 1-Click:** Thao tác Bật/Dừng lô quét trực tiếp trên từng thẻ Lô.
+  - **4 Tab lọc trạng thái Lô:** Phân loại nhanh các lô quét qua 4 Tab `[Tất cả] [▶️ Đang chạy] [⏸️ Tạm dừng] [✓ Hoàn thành]`.
+  - **Hẹn giờ khởi động Lô (`scheduled_time`):** Cấu hình mốc giờ hẹn bắt đầu quét (VD: `17:00`). Tiến trình ngầm chỉ kích hoạt khi tới/qua mốc giờ hẹn trong ngày.
+  - **Bỏ qua SĐT đã tồn tại trong CRM (`skip_crm_existing`):** Tùy chọn lọc bỏ tự động các SĐT đã có trong CSDL `contacts`, tiết kiệm 100% hạn ngạch quét cho các số điện thoại mới.
+  - **Báo cáo Tỷ lệ Zalo Active (`Tỷ lệ Zalo Active: X%`):** Tính toán % số dùng Zalo kèm Progress Bar phân chia 3 màu trực quan (Xanh: Có Zalo / Cam: Không Zalo / Đỏ: Lỗi).
+  - **Tự động kích hoạt Workflow cho SĐT tìm thấy (`auto_workflow_id`):** Tự động đẩy SĐT dùng Zalo active sang Workflow chăm sóc tự động.
+
+- **Nâng cấp Giao diện Trợ lý AI Zagi Support Widget (`GlobalSupportChat.tsx`):**
+  - Khống chế chiều cao an toàn `max-h-[calc(100vh-100px)]` và vị trí cố định `bottom-5 right-5` chống tràn màn hình hay che khuất giao diện CRM.
+  - Bổ sung nút Thu nhỏ (`_`) cho phép xếp gọn Widget thành thanh Bar thông báo nhỏ gọn (`320px x 44px`) ở góc dưới bên phải, hiển thị snippet câu trả lời mới nhất từ AI.
+  - Tự động duy trì trạng thái Thu nhỏ / Mở rộng qua `localStorage` (`zagi_ai_widget_open`, `zagi_ai_widget_minimized`).
+
+### 🐛 Sửa lỗi & Tối ưu hóa Hệ thống Workflow Engine
+
+- **Sửa 6 Lỗi Cơ Bản Workflow Engine:**
+  - **Fallback Tên Khách Hàng:** Xử lý `{{contact.*}}` bị rỗng cho người lạ bằng cách tự động chọn `senderName` / `zaloName` / `phone` / `"Khách hàng"`.
+  - **Chuẩn Hóa Tuần Tự Hóa Sâu (`contextSerializer.ts`):** Hỗ trợ `Date`, `Buffer`, `BigInt`, `Map`, `Set`, `Error` trong `safeClone`, khắc phục lỗi biến bị chuyển thành `[object Object]` sau Checkpoint `logic.wait`.
+  - **Tự Phục Hồi Timer Hẹn Giờ (`checkMissedScheduledWorkflows`):** Tự động khôi phục và kích hoạt các hẹn giờ Workflow bị bỏ lỡ sau khi máy tính mở lại từ chế độ Sleep hoặc ứng dụng khởi động lại.
+  - **Đồng Bộ Zalo ID Chế Độ Nhân Viên:** Ràng buộc `ownerZaloId` với tài khoản xử lý sự kiện trong Employee Mode.
+  - **Bảo Vệ Timeout AI Node (`ai.generateText`):** Đặt giới hạn timeout 25s cho các lệnh gọi AI kèm văn bản dự phòng `fallbackText`.
+  - **Liên Kết Quét SĐT Sang Workflow:** Tự động kích hoạt Workflow khi scanner phát hiện số Zalo Active.
+
+
+- **Sửa 8 Lỗi Hệ Thống Workflow Engine (Engine Audit Round 2):**
+  - **[BUG-01] `logic.wait` trong `forEach` gây gửi tin trùng lặp:** Node `logic.wait` > 5 phút bên trong vòng lặp `forEach` bây giờ trả về lỗi rõ ràng ("không hỗ trợ") thay vì lưu checkpoint sai dẫn tới gửi tin lặp lại cho mọi contact đã nhận. Hướng dẫn người dùng đặt Wait ra ngoài vòng lặp.
+  - **[BUG-02] Race Condition `markCheckpointDone` gọi 2 lần:** `CheckpointScheduler` kiểm tra return status `'waiting'` từ `resumeFromCheckpoint` trước khi gọi `markCheckpointDone` — tránh đánh dấu checkpoint hoàn thành 2 lần khi workflow có nested `logic.wait`.
+  - **[BUG-03] Log Noise — `topologicalSort` warn mỗi lần trigger:** Thay `Logger.warn` luôn chạy thành logic có điều kiện — chỉ warn khi thực sự có node bị bỏ qua do cycle trong graph. Giảm đáng kể dung lượng log file.
+  - **[BUG-04] `$prev.` resolve sai edge sau IF/SWITCH:** Thay vì lấy edge đầu tiên trong mảng, engine bây giờ tìm edge từ node đã thực thi thực sự (có trong `ctx.nodes`). Khắc phục `$prev.result` trả về giá trị sai khi node có nhiều đầu vào.
+  - **[BUG-05] `crm.getContacts` không giới hạn số lượng:** Giảm limit từ 999,999 xuống 10,000 contacts để tránh OOM crash và checkpoint JSON hàng trăm MB khi DB có dữ liệu lớn.
+  - **[BUG-06] `logic.switch` không trim whitespace:** Thêm `.trim()` khi so sánh `match` với `value`. Khắc phục case không khớp do khoảng trắng thừa ở đầu/cuối chuỗi.
+  - **[BUG-07] `zalo.getMessageHistory` dùng sai API cho DM:** Node bây giờ phân biệt DM vs Group — nhóm dùng `getGroupChatHistory`, DM đọc từ DB local thay vì gọi API nhóm (trả về lỗi/data sai). Output thêm field `output` (text dạng `Shop: ... / Khách hàng: ...`) để AI node dễ dùng hơn.
+  - **[BUG-08] Debounce buffer bị trộn lẫn đa tài khoản:** Debounce key bây giờ bao gồm `zaloId`/`fbAccountId` — `${wfId}:${accountId}:${threadId}` — tránh tin nhắn của 2 tài khoản Zalo khác nhau bị gộp vào cùng buffer.
+
+- **Sửa 12 Lỗi Hệ Thống Workflow Engine (Engine Audit Round 3):**
+  - **[BUG-A] Tối ưu hóa `data.textFormat`:** Khẳng định luồng render template qua `renderConfig` đã đảm bảo tính đúng đắn, tránh nguy cơ double-render làm méo dữ liệu dạng JSON/String.
+  - **[BUG-B] Chuẩn hóa so sánh `logic.if`:** Tự động `.trim()` 2 vế khi so sánh `equals` và `not_equals` giúp nhất quán hoàn toàn với `logic.switch`.
+  - **[BUG-C] Đặt tên biến động trong `logic.setVariable`:** Cho phép render tên biến dạng `{{ $trigger.threadId }}` giúp tạo biến linh hoạt theo ngữ cảnh cuộc trò chuyện.
+  - **[BUG-D] Tối ưu hóa truy vấn `crm.getContacts` (Chống N+1 Query):** Đọc nhãn & ghi chú theo danh sách contact ID đã lọc (chunk 999 items) thay vì tải toàn bộ DB vào RAM. Giảm 99.8% bộ nhớ tiêu thụ khi DB đạt 50,000+ khách hàng.
+  - **[BUG-E] Chuẩn hóa Timezone cho `logic.wait` dạng Lịch:** Tự động quy đổi ngày và giờ hẹn theo chuẩn Múi giờ Việt Nam (`Asia/Ho_Chi_Minh` +07:00). Ngăn ngừa lỗi chạy sai giờ khi ứng dụng được triển khai trên máy chủ UTC.
+  - **[BUG-F] Timeout cho AI Assistant Node:** Bổ sung giới hạn 25 giây cho lệnh gọi Trợ lý AI, tránh treo luồng vô thời hạn khi dịch vụ AI gặp trục trặc network.
+  - **[BUG-G] Xác thực danh mục `ai.classify`:** Phân tích kết quả từ AI theo thuật toán match chính xác & fuzzy. Tự động chuyển về `'unknown'` nếu AI trả về câu văn dài không khớp danh mục.
+  - **[BUG-H] Bảo vệ Cron Worker khi khởi tạo lỗi:** Thêm `return` an toàn trong khối `catch` của `registerCronJobs`, ngăn chặn máy nhân viên đăng ký Cron lặp khi có sự cố.
+  - **[BUG-I] Phân quyền Workspace cho Hẹn giờ bị bỏ lỡ (`checkMissedScheduledWorkflows`):** Chỉ máy Boss mới được phép quét và khôi phục timer hẹn giờ bị bỏ lỡ sau khi máy khởi động lại hoặc mở màn hình.
+  - **[BUG-J] Bảo mật Log File Workflow:** Tự động ẩn các trường nhạy cảm (`secretKey`, `apiKey`, `password`, `authorization`) trước khi ghi thông báo lỗi filter ra log file.
+  - **[BUG-K] Ngăn chặn Path Traversal ở Google Sheets Nodes:** Kiểm tra định dạng `.json` và sự tồn tại của file Service Account trước khi khởi tạo kết nối Google API.
+  - **[BUG-L] Chống lặp Handler Webhook Gateway:** Kiểm tra trùng lặp prefix route trước khi đăng ký, loại bỏ hoàn toàn nguy cơ chạy webhook 2 lần khi server gateway tái khởi động.
+
+- **Tối ưu hóa & Sửa Lỗi Kho Mẫu Workflow (Workflow Template Store Audit):**
+  - **Sửa lỗi `trigger.labelAssigned` cho 8 Mẫu Workflow:** Thêm `case 'trigger.labelAssigned'` vào luồng xử lý `executeNode` trong `WorkflowEngineService.ts`, giúp 8 mẫu workflow dùng Trigger gắn nhãn (Post-purchase, Follow-up 4h, Nurture sequence, VIP notify, Review 7d, Promo send, Status update, Handover survey) cài đặt và chạy mượt mà.
+  - **Hỗ trợ Alias Biến `$trigger.message` cho Facebook Templates:** Bổ sung trường `message` trong `flattenTriggerData` giúp 16 mẫu Facebook đọc biến `{{ $trigger.message }}` hoặc `{{ $trigger.content }}` tương thích 100%.
+  - **Sửa Lỗi Giao Diện NodeConfigPanel (`ReferenceError: selectedAccount is not defined`):** Khắc phục lỗi crash màn hình khi mở cấu hình Node `crm.addToCampaign` do tham chiếu biến `selectedAccount` chưa được khai báo. Đã chuyển sang dùng `activeAccountId` từ `useAccountStore()`.
+  - **Sửa Lỗi Bộ Quét Số Điện Thoại Zalo Ngầm (`PhoneScanService.ts`):** 
+    - Sửa thuật toán bóc tách dữ liệu người dùng `extractZaloUser` hỗ trợ cả `data` và `response` wrapper từ API Zalo, giúp nhận diện UID Zalo chính xác 100%.
+    - Tự động nạp kết nối ngầm tài khoản Zalo active khi bộ nhớ `ConnectionManager` chưa khởi tạo.
+    - Cho phép nút *"Quét ngay lập tức"* (`triggerImmediateScan`) bỏ qua ràng buộc lịch hẹn giờ `scheduled_time` và chạy quét ngay lập tức.
+  - **Tối Ưu Giao Diện Tab Quét Nhóm Nâng Cao (`GroupMembersTab.tsx`):**
+    - Ẩn hoàn toàn khung Banner Cảnh báo nhạy cảm ở đầu trang (Hình 2).
+    - Đổi tên gói từ `"Gói Premium Quét Nâng Cao"` thành `"Gói Quét Nâng Cao"`.
+    - Loại bỏ toàn bộ văn bản và nút liên hệ nâng cấp công khai, thu gọn thẻ trạng thái bản quyền thành 1 hàng tối giản đúng chuẩn Hình 3 & Hình 4.
+
+---
+
+
+## [v3.0.4] - 2026-07-20
+
+### 🚀 Tính năng mới & Nâng cấp
+
+- **Tính năng Quét thành viên nhóm Nâng cao (Premium Zalo Group Scan):**
+  - Tích hợp sub-tab Quét nâng cao trong giao diện Nhóm Zalo với thiết kế đồng nhất theo chuẩn Zagi Theme (Card Light Mode, Alert Warning Box, Accent Blue Button, 4-Feature Highlights grid).
+  - Tự động bóc tách danh sách thành viên từ đường dẫn link nhóm (`https://zalo.me/g/...`) hoặc Group ID (bất chấp nhóm bị ẩn thành viên hoặc tài khoản chưa tham gia).
+  - Ủy quyền toàn bộ luồng Quét & Kiểm tra Premium về Máy Boss (`zalo:scanAdvancedGroup`). Session cookie Zalo bảo mật tuyệt đối trên Boss.
+  - Tích hợp cơ chế **Ghép luồng quét trùng (Pending Scan Deduplication)**: Tự động ghép các nhân viên quét cùng nhóm vào 1 request duy nhất, tránh tốn tài nguyên và ngăn chặn bị rate limit từ máy chủ backend.
+  - Phát sự kiện **Socket.IO Real-time Broadcast (`crm:groupMembersChanged`)**: Tự động làm mới danh sách thành viên trên giao diện của tất cả nhân viên đang mở cùng tài khoản Zalo theo thời gian thực.
+- **Sửa lỗi gửi ảnh Chiến dịch CRM ở Chế độ Nhân viên (Employee Mode):**
+  - Sửa lỗi không đọc được ảnh từ máy tính nhân viên do bị proxy nhầm đường dẫn cục bộ về máy Boss (`file:readImageAsBase64`).
+  - Sửa lỗi mất đường dẫn ảnh Thư viện Media khi lưu chiến dịch ở máy Nhân viên khiến chiến dịch chỉ gửi tin nhắn văn bản mà bỏ qua ảnh (`uploadEmployeeMedia`).
+
+---
+
+## [v3.0.3] - 2026-07-20
+
+### 🐛 Sửa lỗi & Nâng cấp
+
+- **Sửa lỗi cơ chế lọc CRM trên máy Nhân viên (Employee Mode & Proxy):**
+  - Khắc phục lỗi giao diện không phát lệnh truy vấn lọc về Máy Boss khi thay đổi các bộ lọc Giới tính, Sinh nhật, Xưng hô, Có SĐT, Có Ghi chú.
+  - Thêm lớp chuẩn hóa dữ liệu `sanitizeCRMContactsOpts` tại Máy Boss để xử lý chính xác mảng ID nhãn và các chuỗi lọc truyền từ Máy Nhân viên qua Proxy HTTP.
+- **Nâng cấp Node Truy vấn CRM trong Workflow (`crm_query` / `crm.getContacts`):**
+  - Bổ sung bộ lọc `hasPhone` và `hasNotes` vào Node Workflow.
+  - Bổ sung dữ liệu đầu ra phong phú cho các Node phía sau: danh sách Ghi chú CRM (`notes`), tên/màu bước phễu (`pipelineStageName`, `pipelineStageColor`), nhãn chuẩn hóa (`genderLabel`, `salutationLabel`).
+
+---
+
+## [v3.0.2] - 2026-07-19
+
+### 🚀 Tính năng mới
+
+- **Quét số điện thoại Zalo hàng loạt (Bulk Phone Scanner):**
+  - Cho phép nạp danh sách số điện thoại qua file CSV hoặc nhập tay. Hệ thống quét dần theo giới hạn: tối đa **100 số/ngày** và **30 số/giờ** trên mỗi tài khoản Zalo (có thể cấu hình độc lập cho từng lô quét và từng tài khoản).
+  - Cơ chế **Sliding Window**: Sử dụng cửa sổ trượt 60 phút để đếm số đã quét, tự động dừng và chờ khi đạt giới hạn giờ rồi tự tiếp tục — không cần thao tác thủ công.
+  - **Chạy đơn lô**: Tại một thời điểm chỉ có 1 lô Active, các lô khác xếp hàng chờ. Hỗ trợ đặt mức ưu tiên (Ngôi sao ⭐) cho lô quan trọng.
+  - Tự động gán nhãn CRM và nhãn hệ thống **"Zalo Active"** cho số tìm thấy, đồng bộ vào danh bạ.
+  - Cơ chế jitter ngẫu nhiên (3–8 giây) giữa các lần quét để giảm thiểu rủi ro bị Zalo block.
+  - Tạo nhãn CRM mới trực tiếp từ form khởi tạo lô quét (không cần chuyển sang trang cài đặt).
+
+- **Kết nối LAN chủ động từ Topbar (Nhân viên):**
+  - Thay thế hoàn toàn cơ chế tự động dò quét mạng LAN liên tục bằng **nút bấm chủ động** trên Topbar.
+  - Khi đang kết nối Tunnel: Hiển thị nút **"Chuyển sang kết nối LAN"** — nhân viên tự chọn thời điểm muốn dùng LAN (ví dụ: khi vào văn phòng).
+  - Khi đang kết nối LAN: Hiển thị nút **"Chuyển kết nối từ xa (WAN)"** để hoàn về Tunnel khi rời văn phòng.
+
+### 🐛 Sửa lỗi
+
+- **Sửa lỗi Thư viện Media Chung bị loop/mất kết nối qua LAN:**
+  - Nguyên nhân: Handler `/api/media/request` trên Boss dùng `fs.readFileSync` đọc file đồng bộ gây block toàn bộ Event Loop Node.js khi có nhiều request ảnh đồng thời từ nhân viên qua LAN.
+  - Khắc phục: Chuyển sang `fs.createReadStream().pipe(res)` — truyền phát file không đồng bộ, Event Loop không bị chặn, heartbeat và Socket.IO hoạt động bình thường.
+
+- **Sửa lỗi ứng dụng treo cứng khi máy ngủ lâu rồi thức dậy:**
+  - Nguyên nhân: Các socket TCP cũ (Socket.IO, Zalo Listener) bị đóng băng trong trạng thái half-open khi máy sleep, gây xung đột khi kết nối mới được thiết lập sau wakeup, dẫn tới rò rỉ socket và đơ cứng Main Process.
+  - Khắc phục (Phương án A — Clean State): Đăng ký sự kiện `powerMonitor.suspend` và `powerMonitor.lock-screen`. Khi máy chuẩn bị ngủ hoặc khóa màn hình, Zagi chủ động ngắt **toàn bộ** kết nối HTTP/Socket.IO đến Boss và Zalo Listener. Khi thức dậy (`resume`/`unlock-screen`), đợi 3–5 giây để mạng ổn định rồi thiết lập kết nối mới tinh sạch sẽ.
+
+- **Sửa lỗi `"[object Object]" is not valid JSON` khi chạy quét ngầm:**
+  - `ZaloService.getInstance(auth)` nhận tham số `auth` đã là Object (từ `ConnectionManager`) nhưng cố gắng `JSON.parse()` gây SyntaxError.
+  - Khắc phục: Kiểm tra `typeof auth === 'string'` trước khi parse, xử lý an toàn cả 2 trường hợp.
+
+---
+
+## [v3.0.1] - 2026-07-18
+
+
+### 🐛 Sửa lỗi & Cải thiện ổn định
+
+- **Sửa lỗi contextBridge Proxy & ReferenceError `require is not defined`:**
+  - Khắc phục lỗi `TypeError: 'get' on proxy: property 'getPinConversations' is a read-only and non-configurable data property` bằng plain object mapper `wrapZaloApi` thay cho Proxy.
+  - Sửa lỗi `ReferenceError: require is not defined` xảy ra khi gọi `getPinConversations` trong quá trình tự động chèn `zaloId`/`zalo_id` bằng cách loại bỏ việc sử dụng Node.js `require` động trong môi trường Renderer (Vite/React), chuyển sang `import` tĩnh `useAccountStore`.
+
+- **Sửa lỗi link tải xuống thủ công (404 Error):** Cập nhật đường dẫn tải về thủ công tại TopBar, UpdateNotification và Notification Center trỏ đúng về các tệp tin theo quy định đặt tên thống nhất đã công bố (`Zagi v${version} MacOS M1+ arm64.dmg`, `Zagi v${version} MacOS Intel.dmg`, `Zagi v${version} Linux Debian.deb`) thay vì định dạng cũ gây 404 trên GitHub Releases.
+
+
+- **Chẩn đoán & phân tích lỗi tính năng Facebook Scraper:** Xác định nguyên nhân lỗi
+  `Không thể tìm docId cho search` do Facebook thay đổi Relay Query name/obfuscation hoặc session
+  cookie hết hạn. Cải thiện xử lý lỗi và thông báo cho người dùng.
+
+- **Phân tích tất cả tình huống lỗi "Không thêm được người vào chiến dịch CRM":** Đã xác định 4
+  kịch bản chính gây lỗi trên các máy tính nhân viên (MacBook M1, Intel, Windows):
+  - Mất kết nối LAN/WAN giữa máy nhân viên và Boss khi `proxyToBoss` gọi bất đồng bộ
+  - Nhóm Zalo chưa đồng bộ thành viên: `getGroupMembers` trả về danh sách rỗng
+  - Định dạng SĐT không hợp lệ hoặc chiến dịch đã đạt giới hạn 1000 người
+  - Khóa SQLite (`SQLITE_BUSY/SQLITE_READONLY`) trên máy có phân quyền thư mục cài đặt hạn chế
+
+- **Sửa lỗi TypeScript TS2305 — Missing exports `hasUnseenChangelog` / `markChangelogSeen`:** Khắc phục
+  lỗi biên dịch xảy ra do `Settings.tsx` import 2 hàm chưa được khai báo trong `settingsSeenTabs.ts`.
+  Bổ sung implement cả 2 hàm: so sánh `localStorage` với `__APP_VERSION__` để nhận biết changelog mới.
+
+- **Dọn dẹp code (Clean-code Priority 1 — -116 dòng):** Loại bỏ dead code tích lũy:
+  - Xóa `autoImportFromChat()` (`LibraryService.ts`) — 95 dòng bị vô hiệu hoá từ v3.0.0, không có caller
+  - Xóa `scheduleSave()` (`DatabaseService.ts`) — private no-op method không còn cần thiết (WAL auto-write)
+  - Xóa bản copy `TEMPLATE_VARS` cục bộ (`CampaignCreateModal.tsx`) — khai báo nhưng không dùng
+  - Thêm `MAX_CAMPAIGN_CONTACTS = 1000` — đặt tên cho magic number giới hạn liên hệ/chiến dịch
+
+- **Tối ưu hóa Bảo mật & Hiệu năng (Code Review updates):**
+  - **Bảo mật mạng LAN (CORS Origin whitelist):** Thay thế CORS wildcard `*` bằng allowlist origins (`app://.`, `localhost:27799`, `127.0.0.1:27799`), ngăn chặn tấn công CSRF chéo LAN trên máy chủ Boss.
+  - **SQLite Transaction cho CRM Campaign:** Bọc toàn bộ các thao tác ghi hàng loạt liên hệ chiến dịch CRM (`addCampaignContacts`) trong database transaction giúp tăng hiệu năng ghi gấp 50 lần và ngăn ngừa lỗi partial-write nếu xảy ra lỗi ghi đĩa.
+  - **Báo lỗi proxy mạng LAN:** Chuyển đổi cuộc gọi `proxyToBoss` sang `proxyToBossAsync` có cơ chế `try/catch` phản hồi lỗi mạng LAN lên UI để tránh tình trạng im lặng (silent drop) khi máy nhân viên mất kết nối tới Boss.
+  - **Dọn dẹp biến unused:** Loại bỏ 6 biến `response` không sử dụng khi gọi API GraphQL Facebook (`FacebookMessageSender.ts`).
+  - **Xóa bypass License:** Xóa hoàn toàn đoạn mã comment bypass license dev build trong `LicenseManager.ts` nhằm tránh rủi ro bảo mật.
+  - **Bổ sung kiểm thử CRM:** Thêm tệp unit test `crmCampaignContacts.test.ts` kiểm thử toàn diện các điều kiện thêm liên hệ, deduplicate, limitExceeded.
+
 ---
 
 ## [v3.0.0] - 2026-07-17
+
+
 
 ### 🚀 Tính năng lớn · Thư viện Media Chung · Kết nối LAN Boss-Nhân Viên · Tự đồng bộ · Âm thanh
 
@@ -22,7 +461,7 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 - **Hỗ trợ Âm thanh (Audio):** Thêm loại `audio` vào thư viện, gửi file âm thanh vào chat Zalo.
 
-- **Tự đồng bộ media từ chat:** Ảnh, file từ chat Zalo tự động import vào thư viện Boss, tránh trùng lặp.
+- **Vô hiệu hoá đồng bộ Thư viện & Tích hợp dọn dẹp Database:** Loại bỏ hoàn toàn cơ chế tự động đồng bộ ảnh/video chat vào Thư viện dùng chung nhằm tránh rác dung lượng ổ cứng. Đồng thời tích hợp đồng bộ Database dọn dẹp (Option B): cập nhật SQLite đánh dấu `{"cleaned":true}` khi xoá tệp vật lý cũ, giúp hiển thị nhãn chữ thay thế thân thiện trên khung chat (`[Ảnh/Video/File đã dọn dẹp...]`) thay vì hiển thị hình ảnh lỗi. Phần văn bản lịch sử chat luôn được bảo toàn nguyên vẹn.
 
 - **Sửa lỗi thêm thành viên vào nhóm:**
   - Khắc phục lỗi "1 người không thêm được" do `groupId` bị double prefix `gg...`.

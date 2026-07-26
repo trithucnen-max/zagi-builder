@@ -58,16 +58,19 @@ function parseTxt(content: string): string {
     if (p?.msg && typeof p.msg === 'string') return convertZaloEmojis(p.msg);
     if (p?.message && typeof p.message === 'string') return convertZaloEmojis(p.message);
     if (p?.title && typeof p.title === 'string' && !p.href && !p.thumb) return convertZaloEmojis(p.title);
+    const linkStr = p?.href || p?.url || p?.link || p?.title || p?.mediaTitle || '';
+    if (linkStr && typeof linkStr === 'string') return convertZaloEmojis(linkStr);
     return '';
   } catch { return convertZaloEmojis(content); }
 }
 
 // ── Type detection helpers ────────────────────────────────────────────────────
 function isCardType(msgType: string, content: string): boolean {
-  if (['chat.recommended', 'chat.recommend'].includes(msgType)) return true;
+  if (['chat.recommended', 'chat.recommend', 'share.link', 'chat.link', 'link'].includes(msgType)) return true;
   try {
     const parsed = JSON.parse(content);
-    if (parsed?.action && String(parsed.action).includes('recommened')) return true;
+    if (parsed?.action && (String(parsed.action).includes('recommened') || String(parsed.action).includes('link'))) return true;
+    if (parsed?.href || parsed?.url || parsed?.link) return true;
   } catch {}
   return false;
 }
@@ -369,9 +372,11 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
   React.useEffect(() => { setLoadFailed(false); setUseRemote(false); repairAttemptedRef.current = false; }, [localPathsStr]);
 
   let localUrl = '';
+  let isCleaned = false;
   try {
-    const lp: Record<string, string> = typeof msg.local_paths === 'string'
+    const lp: any = typeof msg.local_paths === 'string'
       ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
+    if (lp.cleaned) isCleaned = true;
     const localFilePath = lp.main || lp.hd || (Object.values(lp)[0] as string) || '';
     if (localFilePath) localUrl = toLocalMediaUrl(localFilePath);
   } catch {}
@@ -385,6 +390,8 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
       if (!localUrl && fbLocalUrls.length > 0) localUrl = fbLocalUrls[0];
     } catch {}
   }
+
+  if (isCleaned) return <span className="text-xs opacity-60 italic">[Ảnh đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
 
   let remoteUrl = '';
   let caption = '';
@@ -474,27 +481,37 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
 }
 
 // ── ZaloVideoBubble ──────────────────────────────────────────────────────────
-// Zalo videos have thumbnail preview from msg.content.thumb, play in external player
+// Zalo videos have thumbnail preview or HTML5 video frame preview, play inside Zagi app with external player option
 function ZaloVideoBubble({ msg }: { msg: any }) {
+  const [showPlayer, setShowPlayer] = React.useState(false);
   let remoteThumb = '';
+  let remoteVideo = '';
   let videoLocalPath = '';
   let thumbLocalPath = '';
   let duration = 0;
   let width = 0;
   let height = 0;
 
+  let isCleaned = false;
   try {
-    const lp: Record<string, string> = typeof msg.local_paths === 'string'
+    const lp: any = typeof msg.local_paths === 'string'
       ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
-    // Zalo stores: { thumb: "thumbnail_path", file: "video_path" }
-    thumbLocalPath = lp.thumb || lp.main || '';
-    videoLocalPath = lp.file || lp.video || '';
+    if (lp.cleaned) isCleaned = true;
+
+    // Parse local paths: video vs thumb
+    if (lp.file) videoLocalPath = lp.file;
+    else if (lp.video) videoLocalPath = lp.video;
+    else if (lp.main && !/\.(jpg|jpeg|png|webp)$/i.test(lp.main)) videoLocalPath = lp.main;
+
+    if (lp.thumb && /\.(jpg|jpeg|png|webp)$/i.test(lp.thumb)) {
+      thumbLocalPath = lp.thumb;
+    }
   } catch {}
 
   try {
     const parsed = JSON.parse(msg.content || '{}');
-    // Zalo video content: { href, thumb, params: { duration, video_width, video_height } }
-    remoteThumb = parsed.thumb || '';
+    remoteThumb = parsed.thumb || parsed.thumbnailUrl || parsed.thumbUrl || '';
+    remoteVideo = parsed.href || parsed.url || parsed.videoUrl || '';
     const params = typeof parsed.params === 'string' ? JSON.parse(parsed.params) : (parsed.params || {});
     duration = params.duration ? Math.round(params.duration / 1000) : 0;
     width = params.video_width || 0;
@@ -502,31 +519,81 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
   } catch {}
 
   const thumbUrl = thumbLocalPath ? toLocalMediaUrl(thumbLocalPath) : remoteThumb;
+  const videoUrl = videoLocalPath ? toLocalMediaUrl(videoLocalPath) : remoteVideo;
+
   const isHD = width >= 720 || height >= 720;
   const aspectRatio = width && height ? width / height : 16 / 9;
-  const displayHeight = Math.min(200, Math.round(280 / aspectRatio));
+  const displayHeight = Math.min(240, Math.round(280 / aspectRatio));
   const formatDur = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-  const videoUrl = videoLocalPath ? toLocalMediaUrl(videoLocalPath) : '';
-
-  const handlePlay = (e: React.MouseEvent) => {
+  const handleOpenExternal = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Zalo: open in external player (VLC, etc.)
     if (videoLocalPath) ipc.file?.openPath(videoLocalPath);
   };
 
-  return (
-    <div className="relative group/video cursor-pointer rounded-xl overflow-hidden bg-black ring-1 ring-black/[0.12]"
-      style={{ width: '17.5rem', height: displayHeight || 160 }} onClick={handlePlay}>
-      {thumbUrl
-        ? <img src={thumbUrl} alt="video" className="w-full h-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        : <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-600">
-              <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+  if (isCleaned) {
+    return <span className="text-xs opacity-60 italic">[Video đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
+  }
+
+  // Inline video player mode (chạy trực tiếp trong Zagi)
+  if (showPlayer && videoUrl) {
+    return (
+      <div className="relative rounded-xl overflow-hidden bg-black ring-1 ring-black/[0.12]"
+        style={{ width: '17.5rem', height: displayHeight || 180 }}>
+        <video
+          src={videoUrl}
+          controls
+          autoPlay
+          className="w-full h-full object-contain"
+          onError={() => setShowPlayer(false)}
+        />
+        {videoLocalPath && (
+          <button
+            onClick={handleOpenExternal}
+            title="Mở bằng phần mềm ngoài"
+            className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 rounded-full text-white/80 hover:text-white transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
             </svg>
-          </div>
-      }
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="relative group/video cursor-pointer rounded-xl overflow-hidden bg-black ring-1 ring-black/[0.12]"
+      style={{ width: '17.5rem', height: displayHeight || 160 }}
+      onClick={() => { if (videoUrl) setShowPlayer(true); }}
+    >
+      {thumbUrl ? (
+        <img
+          src={thumbUrl}
+          alt="video thumbnail"
+          className="w-full h-full object-cover"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      ) : videoUrl ? (
+        /* Render khung xem trước video tự động khi không có ảnh thumbnail */
+        <video
+          src={videoUrl}
+          preload="metadata"
+          className="w-full h-full object-cover pointer-events-none"
+          muted
+          playsInline
+        />
+      ) : (
+        <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-600">
+            <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+        </div>
+      )}
+
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50"/>
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-14 h-14 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center group-hover/video:bg-black/80 transition-colors shadow-lg">
@@ -540,6 +607,20 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
         {isHD && <span className="text-[11px] text-white font-bold bg-blue-600/70 px-1.5 py-0.5 rounded">HD</span>}
         {!videoLocalPath && !videoUrl && <span className="text-[11px] text-yellow-300 bg-black/50 px-1.5 py-0.5 rounded">Đang tải...</span>}
       </div>
+
+      {videoLocalPath && (
+        <button
+          onClick={handleOpenExternal}
+          title="Mở bằng phần mềm ngoài"
+          className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/80 rounded-full text-white/80 hover:text-white transition-colors opacity-0 group-hover/video:opacity-100"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <polyline points="15 3 21 3 21 9" />
+            <line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -549,10 +630,12 @@ function ZaloVideoBubble({ msg }: { msg: any }) {
 function FacebookVideoBubble({ msg }: { msg: any }) {
   const [showPlayer, setShowPlayer] = React.useState(false);
   let videoLocalPath = '';
+  let isCleaned = false;
 
   try {
-    const lp: Record<string, string> = typeof msg.local_paths === 'string'
+    const lp: any = typeof msg.local_paths === 'string'
       ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
+    if (lp.cleaned) isCleaned = true;
     // FB stores video in: lp.main (E2EE), lp.file (download), or att_N keys
     videoLocalPath = lp.file || lp.video || lp.main || '';
     // Fallback: scan att_* keys (from downloadNonE2EEAttachments)
@@ -570,6 +653,10 @@ function FacebookVideoBubble({ msg }: { msg: any }) {
   } catch {}
 
   const videoUrl = videoLocalPath ? toLocalMediaUrl(videoLocalPath) : '';
+
+  if (isCleaned) {
+    return <span className="text-xs opacity-60 italic">[Video đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
+  }
 
   // Inline player mode
   if (showPlayer && videoUrl) {
@@ -620,6 +707,15 @@ function VoiceBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
   const [duration, setDuration] = React.useState(0);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const animRef = React.useRef<number>(0);
+
+  const isCleaned = React.useMemo(() => {
+    try {
+      const lp = typeof msg.local_paths === 'string' ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
+      return !!lp.cleaned;
+    } catch {
+      return false;
+    }
+  }, [msg.local_paths]);
 
   // Parse voice URL + duration from Zalo message content (memo to avoid re-parse)
   const { voiceUrl, paramsDurationSec, localPath } = React.useMemo(() => {
@@ -708,6 +804,10 @@ function VoiceBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
     setProgress(pct);
     setCurrentTime(audio.currentTime);
   };
+
+  if (isCleaned) {
+    return <span className="text-xs opacity-60 italic">[Tin nhắn thoại đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
+  }
 
   return (
     <div className={`flex items-center gap-2.5 px-3 py-2 rounded-2xl min-w-[200px] max-w-[280px] ${
@@ -812,8 +912,10 @@ function FileBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
   }
 
   let localFilePath = '';
+  let isCleaned = false;
   try {
     const lp = typeof msg.local_paths === 'string' ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
+    if (lp.cleaned) isCleaned = true;
     localFilePath = lp.file || lp.main || '';
   } catch {}
 
@@ -875,6 +977,10 @@ function FileBubble({ msg, isSelf }: { msg: any; isSelf: boolean }) {
 
   const sizeText = fmtSize(fileSize);
   const { icon, bg } = getIcon(fileExt);
+
+  if (isCleaned) {
+    return <span className="text-xs opacity-60 italic">[File đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
+  }
 
   return (
     <div className={`flex items-center gap-3 px-3 py-2.5 min-w-[200px] max-w-xs ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
@@ -1021,11 +1127,11 @@ function EcardBubble({ msg, onManage }: { msg: any; onManage?: () => void }) {
 }
 
 function LinkBubble({ parsed, isSelf }: { parsed: any; isSelf: boolean }) {
-  const href = String(parsed.href || parsed.title || '');
   const params = (() => { try { const p = parsed.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
-  const title = String(params.mediaTitle || parsed.title || href);
-  const domain = String(params.src || '');
-  const thumb = String(parsed.thumb || '');
+  const href = String(parsed.href || parsed.url || parsed.link || params.rawUrl || parsed.title || '');
+  const title = String(params.mediaTitle || parsed.title || href || 'Liên kết');
+  const domain = String(params.src || (href.startsWith('http') ? new URL(href).hostname : ''));
+  const thumb = String(parsed.thumb || params.thumb || '');
   const description = String(params.mediaDesc || parsed.description || '');
 
   if (thumb) {
@@ -1352,10 +1458,15 @@ function ContactCardBubble({ parsed, isSelf, onOpenProfile }: { parsed: any; isS
 // ── CardBubble ────────────────────────────────────────────────────────────────
 function CardBubble({ msg, isSelf, onOpenProfile }: { msg: any; isSelf: boolean; onOpenProfile?: (userId: string, e: React.MouseEvent) => void }) {
   let parsed: any = {};
-  try { parsed = JSON.parse(msg.content || '{}'); } catch {}
+  if (typeof msg.content === 'string') {
+    try { parsed = JSON.parse(msg.content); } catch { parsed = { href: msg.content }; }
+  } else if (typeof msg.content === 'object' && msg.content !== null) {
+    parsed = msg.content;
+  }
   const action = String(parsed.action || '');
-  if (action === 'recommened.link') return <LinkBubble parsed={parsed} isSelf={isSelf} />;
-  if (action === 'recommened.calltime' || action === 'recommened.misscall') return <CallBubble parsed={parsed} isSelf={isSelf} />;
+  const isLinkMsg = action.includes('link') || parsed.href || parsed.url || parsed.link || (parsed.title && (String(parsed.title).startsWith('http://') || String(parsed.title).startsWith('https://')));
+  if (isLinkMsg) return <LinkBubble parsed={parsed} isSelf={isSelf} />;
+  if (action.includes('calltime') || action.includes('misscall')) return <CallBubble parsed={parsed} isSelf={isSelf} />;
   return <ContactCardBubble parsed={parsed} isSelf={isSelf} onOpenProfile={onOpenProfile} />;
 }
 
@@ -1824,9 +1935,12 @@ export function MessageBubble({ msg, isSelf, senderName, onManage, onView, onOpe
   const cls = isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver';
 
   // ── Recalled ──
-  const isRecalled = msg.is_recalled === 1 || msg.status === 'recalled' || mt === 'recalled';
+  const isUndoJson = typeof mc === 'string' && (mc.includes('"globalMsgId"') || mc.includes('"cliMsgId"')) && mc.includes('"deleteMsg"');
+  const isRecalled = msg.is_recalled === 1 || msg.status === 'recalled' || mt === 'recalled' || isUndoJson;
   if (isRecalled) {
-    const originalContent = msg.recalled_content || mc;
+    const rawOriginal = msg.recalled_content || mc;
+    const isOrigUndoJson = typeof rawOriginal === 'string' && (rawOriginal.includes('"globalMsgId"') || rawOriginal.includes('"cliMsgId"')) && rawOriginal.includes('"deleteMsg"');
+    const originalContent = isOrigUndoJson ? '' : rawOriginal;
     const hasOriginal = !!(originalContent && originalContent.trim() !== '' && originalContent !== 'null' && originalContent !== '{}');
     return (
       <div className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1 mb-0.5`}>

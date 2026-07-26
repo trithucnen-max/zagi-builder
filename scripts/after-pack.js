@@ -18,6 +18,11 @@ module.exports = async function afterPack(context) {
   const { electronPlatformName, appOutDir, packager } = context;
 
   if (electronPlatformName === 'darwin') {
+    if (process.env.APPLE_ID || process.env.CSC_LINK || process.env.CSC_NAME) {
+      console.log(`[after-pack] Official macOS signing detected, skipping ad-hoc signature.`);
+      return;
+    }
+
     const { execSync } = require('child_process');
     const productName = packager.appInfo.productName;
     const appPath = path.join(appOutDir, `${productName}.app`);

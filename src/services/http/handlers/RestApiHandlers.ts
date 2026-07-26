@@ -65,11 +65,12 @@ export const handlers = {
     });
 
     const mainZaloId = zaloIds[0];
+    const placeholders = zaloIds.map(() => '?').join(',');
 
-    // Conversations — 50 đầu (SQL LIMIT, không load all)
+    // Conversations — 50 đầu từ TẤT CẢ các tài khoản được phân công (Zalo & Facebook & Fanpage)
     const conversations = (db().query<any>(
-      `SELECT * FROM contacts WHERE owner_zalo_id = ? ORDER BY last_message_time DESC LIMIT 50`,
-      [mainZaloId]
+      `SELECT * FROM contacts WHERE owner_zalo_id IN (${placeholders}) ORDER BY last_message_time DESC LIMIT 50`,
+      zaloIds
     ) || []).map((c: any) => ({
       contact_id: c.contact_id,
       owner_zalo_id: c.owner_zalo_id || '',
@@ -86,10 +87,11 @@ export const handlers = {
       birthday: c.birthday ?? null,
       alias: c.alias || '',
       is_friend: c.is_friend ? 1 : 0,
+      channel: c.channel || 'zalo',
     }));
     const totalConversations = (db().query<any>(
-      `SELECT COUNT(*) as cnt FROM contacts WHERE owner_zalo_id = ?`,
-      [mainZaloId]
+      `SELECT COUNT(*) as cnt FROM contacts WHERE owner_zalo_id IN (${placeholders})`,
+      zaloIds
     ))[0]?.cnt || 0;
 
     // Labels
@@ -114,12 +116,12 @@ export const handlers = {
       }));
     } catch {}
 
-    // Accounts info (safe columns only)
+    // Accounts info (safe columns only + channel column)
     const accountsData = zaloIds.map(zaloId => {
       try {
-        const rows = db().query<any>('SELECT zalo_id, full_name, avatar_url, phone, is_active, listener_active FROM accounts WHERE zalo_id=?', [zaloId]);
-        return rows[0] || { zalo_id: zaloId, full_name: '', avatar_url: '', phone: '', is_active: 1, listener_active: 0 };
-      } catch { return { zalo_id: zaloId, full_name: '', avatar_url: '', phone: '', is_active: 1, listener_active: 0 }; }
+        const rows = db().query<any>('SELECT zalo_id, full_name, avatar_url, phone, is_active, listener_active, channel FROM accounts WHERE zalo_id=?', [zaloId]);
+        return rows[0] || { zalo_id: zaloId, full_name: '', avatar_url: '', phone: '', is_active: 1, listener_active: 0, channel: 'zalo' };
+      } catch { return { zalo_id: zaloId, full_name: '', avatar_url: '', phone: '', is_active: 1, listener_active: 0, channel: 'zalo' }; }
     });
 
     return success({
@@ -139,17 +141,21 @@ export const handlers = {
   // ═══════════════════════════════════════════════════════════════
 
   getConversations(employee: RegisteredEmployee, params: any): JsonResponse {
-    const zaloId = params.zaloId || employee.assigned_accounts[0];
-    if (!zaloId) return error('Missing zaloId');
+    const assignedAccounts = employee.assigned_accounts || [];
+    if (assignedAccounts.length === 0) return success({ items: [], total: 0 });
+
+    const requestedZaloId = params.zaloId;
+    const isAll = !requestedZaloId || requestedZaloId === 'all';
+    const targetZaloIds = isAll ? assignedAccounts : [requestedZaloId];
 
     const limit = Math.min(parseInt(params.limit) || 50, 200);
     const offset = parseInt(params.offset) || 0;
     const search = params.search || '';
 
-    // Build query với SQL LIMIT/OFFSET — không load all
-    let whereClause = 'owner_zalo_id = ?';
-    const queryParams: any[] = [zaloId];
-    const countParams: any[] = [zaloId];
+    const placeholders = targetZaloIds.map(() => '?').join(',');
+    let whereClause = `owner_zalo_id IN (${placeholders})`;
+    const queryParams: any[] = [...targetZaloIds];
+    const countParams: any[] = [...targetZaloIds];
 
     if (search) {
       const q = `%${search}%`;
@@ -185,6 +191,7 @@ export const handlers = {
       phone: c.phone || '',
       gender: c.gender ?? null,
       birthday: c.birthday ?? null,
+      channel: c.channel || 'zalo',
     }));
 
     return success({ items, total }, {

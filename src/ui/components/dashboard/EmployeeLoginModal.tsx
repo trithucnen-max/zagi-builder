@@ -19,7 +19,7 @@ interface Props {
 export default function EmployeeLoginModal({ onClose }: Props) {
   const { showNotification } = useAppStore();
   const [name, setName] = useState('');
-  const [ip, setIp] = useState('');
+  const [ip, setIp] = useState(() => (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : ''));
   const [port, setPort] = useState('9900');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -28,13 +28,14 @@ export default function EmployeeLoginModal({ onClose }: Props) {
   const [error, setError] = useState('');
 
   const handleLogin = async () => {
-    if (!ip.trim() || !username.trim() || !password.trim()) {
-      setError('Vui lòng nhập đầy đủ thông tin');
+    const effectiveIp = ip.trim() || (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '');
+    if (!effectiveIp || !username.trim() || !password.trim()) {
+      setError('Vui lòng nhập tên đăng nhập và mật khẩu');
       return;
     }
     setLoading(true);
     setError('');
-    const bossUrl = buildBossUrl(ip.trim(), port.trim() || '9900');
+    const bossUrl = buildBossUrl(effectiveIp, port.trim() || '9900');
 
     try {
       // Step 1: Login to boss
@@ -47,9 +48,8 @@ export default function EmployeeLoginModal({ onClose }: Props) {
         return;
       }
 
-      // Step 2: Create workspace
-      setStep('connecting');
       const wsName = name.trim() || `NV - ${loginRes.employee?.display_name || username.trim()}`;
+      const snapshot = loginRes.snapshot || {};
       const res = await ipc.workspace?.create({
         name: wsName,
         type: 'remote',
@@ -60,6 +60,12 @@ export default function EmployeeLoginModal({ onClose }: Props) {
         employeeName: loginRes.employee?.display_name || username.trim(),
         employeeUsername: username.trim(),
         autoConnect: true,
+        cachedAccountsData: snapshot.accountsData || loginRes.accountsData || [],
+        cachedAssignedAccounts: snapshot.assignedAccounts || loginRes.employee?.assigned_accounts || [],
+        cachedPermissions: snapshot.permissions || [],
+        cachedEmployeesData: snapshot.employeesData || [],
+        _snapshot: snapshot,
+        _connected: true,
       });
 
       if (!res?.success) {
@@ -87,6 +93,7 @@ export default function EmployeeLoginModal({ onClose }: Props) {
       }
 
       showNotification(`Đã đăng nhập workspace "${wsName}"`, 'success');
+      useAppStore.getState().setView('chat');
       onClose();
     } catch (err: any) {
       setError(err?.message || 'Lỗi không xác định');

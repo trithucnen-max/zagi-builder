@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { useCRMStore, CRMContact } from '@/store/crmStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore, LabelData } from '@/store/appStore';
@@ -25,11 +25,16 @@ import AppIcon from '@/components/common/AppIcon';
 
 import BulkGroupManageModal from './modals/BulkGroupManageModal';
 import SmartGroupModal from './modals/SmartGroupModal';
+import CRMDuplicateManagerModal from './modals/CRMDuplicateManagerModal';
+import { forceSyncFriends } from '@/lib/zaloInitUtils';
+import UnifiedLabelPickerModal, { LoadedLabelOption } from './modals/UnifiedLabelPickerModal';
 import AccountSelectorDropdown from '@/components/common/AccountSelectorDropdown';
+import useIsMobile from '@/hooks/useIsMobile';
 import { getCapability, type Channel } from '../../../configs/channelConfig';
 import ScanPanel from './scan/ScanPanel';
 import ScanHistoryTab from './scan/ScanHistoryTab';
 import ScanStatsTab from './scan/ScanStatsTab';
+import PhoneScanPanel from './scan/PhoneScanPanel';
 const TAB_ICONS: Record<string, any> = {
   search: 'search',
   contacts: 'users',
@@ -41,6 +46,7 @@ const TAB_ICONS: Record<string, any> = {
   scan: 'zap',
   scan_history: 'file_text',
   scan_stats: 'chart',
+  phone_scan: 'phone',
 };
 
 
@@ -79,7 +85,96 @@ function WizardStepIndicator({ currentStep }: { currentStep: number }) {
   );
 }
 
+function ReassignOwnerModal({
+  selectedCount,
+  fromZaloId,
+  accounts,
+  onConfirm,
+  onClose,
+}: {
+  selectedCount: number;
+  fromZaloId: string;
+  accounts: any[];
+  onConfirm: (targetZaloId: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const otherAccounts = accounts.filter(a => a.zalo_id !== fromZaloId);
+  const [targetId, setTargetId] = useState<string>(otherAccounts[0]?.zalo_id || '');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!targetId) return;
+    setSubmitting(true);
+    try {
+      await onConfirm(targetId);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-700">
+          <h3 className="text-base font-semibold text-white flex items-center gap-2">
+            <span>🔀</span> Chuyển liên hệ sang Zalo khác
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">✕</button>
+        </div>
+
+        <p className="text-xs text-gray-300">
+          Bạn đang chọn <strong className="text-blue-400 font-bold">{selectedCount}</strong> liên hệ. Chọn tài khoản Zalo đích để chuyển các liên hệ này sang chăm sóc:
+        </p>
+
+        {otherAccounts.length === 0 ? (
+          <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-xs text-yellow-300">
+            ⚠️ Bạn chỉ đang đăng nhập 1 tài khoản Zalo. Vui lòng đăng nhập thêm tài khoản Zalo khác trên Zagi để thực hiện chuyển liên hệ.
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-400">Chọn tài khoản Zalo đích:</label>
+            <select
+              value={targetId}
+              onChange={e => setTargetId(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-blue-500 transition-colors"
+            >
+              {otherAccounts.map(acc => (
+                <option key={acc.zalo_id} value={acc.zalo_id}>
+                  {acc.name || acc.display_name || acc.zalo_id} ({acc.phone || acc.zalo_id})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-700">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            disabled={submitting || otherAccounts.length === 0 || !targetId}
+            onClick={handleConfirm}
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40 transition-colors flex items-center gap-1.5"
+          >
+            {submitting && (
+              <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            )}
+            Xác nhận chuyển
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CRMPage() {
+  const isMobile = useIsMobile();
   const { activeAccountId, accounts, setActiveAccount } = useAccountStore();
   const { showNotification, openQuickChat, labels, setLabels, navigateToAnalytics, crmRequestUnseenByAccount, clearCRMRequestUnseen } = useAppStore();
   const store = useCRMStore();
@@ -106,7 +201,30 @@ export default function CRMPage() {
   const [showCreateInAddModal, setShowCreateInAddModal] = useState(false);
   const [showPhoneImport, setShowPhoneImport] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [isSyncingZaloFriends, setIsSyncingZaloFriends] = useState(false);
   const creatingCampaignRef = useRef(false);
+
+  const handleSyncZaloFriends = async () => {
+    if (!activeAccountId) return;
+    setIsSyncingZaloFriends(true);
+    try {
+      const acc = useAccountStore.getState().accounts.find(a => a.zalo_id === activeAccountId);
+      if (!acc) {
+        showNotification('Không tìm thấy tài khoản trong danh sách', 'error');
+        return;
+      }
+      const auth = { cookies: acc.cookies || '', imei: acc.imei || '', userAgent: acc.user_agent || '', zaloId: acc.zalo_id };
+      showNotification('Đang đồng bộ kéo danh sách bạn bè mới nhất từ Zalo về Zagi...', 'info');
+      await forceSyncFriends(activeAccountId, auth);
+      await loadContacts();
+      showNotification('Đồng bộ danh bạ từ Zalo về Zagi thành công!', 'success');
+    } catch (err: any) {
+      showNotification('Lỗi đồng bộ Zalo: ' + (err?.message || 'Lỗi không xác định'), 'error');
+    } finally {
+      setIsSyncingZaloFriends(false);
+    }
+  };
 
 
   // ── Campaign creation wizard state ──────────────────────────────────
@@ -156,6 +274,30 @@ export default function CRMPage() {
     return () => window.removeEventListener('local-labels-changed', handler);
   }, [loadLocalLabels]);
 
+  // Option A: 100% Account Isolation — Auto-reset all filters & selections when switching activeAccountId
+  const prevAccountIdRef = useRef(activeAccountId);
+  useEffect(() => {
+    if (prevAccountIdRef.current !== activeAccountId) {
+      prevAccountIdRef.current = activeAccountId;
+
+      // Reset selection & active contact detail view
+      store.clearSelection();
+      store.setActiveContact(null);
+
+      // Reset all search & filter controls to default
+      store.setFilter({
+        searchText: '',
+        filterLabelIds: [],
+        filterLocalLabelIds: [],
+        filterContactTypes: [],
+        filterGender: 'all',
+        filterBirthday: 'all',
+        filterSalutation: 'all',
+        page: 0,
+      });
+    }
+  }, [activeAccountId, store]);
+
   // ── Load data ────────────────────────────────────────────────────────────
   const loadContacts = useCallback(async () => {
     if (!activeAccountId) return;
@@ -183,6 +325,11 @@ export default function CRMPage() {
         sortDir: store.sortDir,
         limit: store.pageSize,
         offset: store.page * store.pageSize,
+        gender: store.filterGender,
+        birthdayFilter: store.filterBirthday,
+        salutation: store.filterSalutation,
+        hasPhone: store.filterContactTypes.includes('has_phone'),
+        hasNotes: store.filterContactTypes.includes('has_notes'),
       },
     });
     store.setContactsLoading(false);
@@ -196,7 +343,10 @@ export default function CRMPage() {
     zaloLabels,
     store.sortBy,
     store.sortDir,
-    store.page
+    store.page,
+    store.filterGender,
+    store.filterBirthday,
+    store.filterSalutation
   ]);
 
   const loadCampaigns = useCallback(async () => {
@@ -237,11 +387,12 @@ export default function CRMPage() {
       scan: !channelCap.supportsScanData,
       scan_history: !channelCap.supportsScanData,
       scan_stats: !channelCap.supportsScanData,
+      phone_scan: isFacebookAccount,
     };
     if (disabledTabs[store.tab]) store.setTab('contacts');
     loadContacts(); loadCampaigns(); loadGroupCount(); loadRequestCount();
   }, [activeAccountId]);
-  useEffect(() => { loadContacts(); }, [store.searchText, store.filterContactTypes, store.filterLabelIds, store.filterLocalLabelIds, store.sortBy, store.sortDir, store.page]);
+  useEffect(() => { loadContacts(); }, [store.searchText, store.filterContactTypes, store.filterLabelIds, store.filterLocalLabelIds, store.sortBy, store.sortDir, store.page, store.filterGender, store.filterBirthday, store.filterSalutation]);
   useEffect(() => {
     if (activeAccountId && store.tab === 'requests') {
       clearCRMRequestUnseen(activeAccountId);
@@ -413,8 +564,26 @@ export default function CRMPage() {
       const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
       if (res?.success) {
         await loadCampaigns();
-        if (res.id) setSelectedCampaignForAdd(res.id);
-        showNotification('Đã tạo chiến dịch', 'success');
+        showNotification('Đã tạo chiến dịch mới', 'success');
+        if (res.id) {
+          setSelectedCampaignForAdd(res.id);
+          const contactMap = new Map(store.contacts.map(c => [c.contact_id, c]));
+          const contacts = Array.from(store.selectedContactIds).map(id => {
+            const c = contactMap.get(id);
+            return {
+              contactId: id,
+              displayName: c?.alias || c?.display_name || c?.name || id,
+              avatar: c?.avatar_url || c?.avatar || '',
+              phone: c?.phone || '',
+            };
+          });
+          if (contacts.length > 0) {
+            await handleAddContactsToCampaign(res.id, contacts);
+            store.clearSelection();
+          }
+          setShowCreateInAddModal(false);
+          setAddToCampaignModal(false);
+        }
       }
     } finally {
       creatingCampaignRef.current = false;
@@ -465,15 +634,52 @@ export default function CRMPage() {
     }
   };
 
+  const [selectedUnifiedLabelValues, setSelectedUnifiedLabelValues] = useState<string[]>([]);
+
+  const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
+    const localOpts: LoadedLabelOption[] = localLabels.map((l: any) => ({
+      value: `local:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
+      source: 'local',
+      color: l.color || '#14b8a6',
+      textColor: l.text_color || l.textColor || '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.name,
+      pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
+    }));
+
+    const zaloOpts: LoadedLabelOption[] = zaloLabels.map(l => ({
+      value: `zalo:${(l as any).zalo_id || (l as any).pageId || activeAccountId || ''}:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.text} (Zalo)`,
+      source: 'zalo',
+      color: l.color || '#3b82f6',
+      textColor: '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.text,
+      pageId: (l as any).zalo_id || (l as any).pageId || activeAccountId || '',
+    }));
+
+    return [...localOpts, ...zaloOpts];
+  }, [localLabels, zaloLabels, activeAccountId]);
+
   const handleBulkTagLocal = () => {
-    // Pre-load the union of label IDs that the selected contacts already have
     const selectedIds = Array.from(store.selectedContactIds);
-    const existingLabelIdSet = new Set<number>();
+    const existingSet = new Set<string>();
+
     for (const contactId of selectedIds) {
       const labelIds = localLabelThreadMap[contactId] || [];
-      labelIds.forEach(id => existingLabelIdSet.add(id));
+      labelIds.forEach(id => existingSet.add(`local:${id}`));
     }
-    setBulkLocalLabelIds(Array.from(existingLabelIdSet));
+
+    for (const contactId of selectedIds) {
+      zaloLabels.forEach(zl => {
+        if (zl.conversations && zl.conversations.includes(contactId)) {
+          existingSet.add(`zalo:${(zl as any).zalo_id || (zl as any).pageId || activeAccountId || ''}:${zl.id}`);
+        }
+      });
+    }
+
+    setSelectedUnifiedLabelValues(Array.from(existingSet));
     setShowBulkLocalModal(true);
   };
 
@@ -524,7 +730,6 @@ export default function CRMPage() {
       if (res?.success) {
         const finalLabels: LabelData[] = res.response?.labelData || updated;
         setLabels(activeAccountId, finalLabels);
-        // Note: Workflow events are emitted by backend (zaloIpc.ts) to avoid duplicates
         showNotification(`Đã gán nhãn Zalo cho ${store.selectedContactIds.size} liên hệ`, 'success');
         setShowBulkZaloModal(false);
         setBulkLabelIds([]);
@@ -538,41 +743,80 @@ export default function CRMPage() {
     setApplyingBulkLabel(false);
   };
 
-  /** Bulk-sync local labels for all selected contacts (add new, remove old, empty = clear all) */
-  const handleApplyBulkLocalLabel = async () => {
+  /** Bulk-sync both local and Zalo labels for all selected contacts (empty = clear all) */
+  const handleApplyUnifiedLabels = async (selectedValues: string[]) => {
     if (!activeAccountId) return;
     setApplyingBulkLabel(true);
     try {
       const selectedContactIds = [...store.selectedContactIds];
-      const targetLabelIds = new Set(bulkLocalLabelIds);
+      const targetLocalLabelIds = new Set<number>();
+      const targetZaloLabelIds = new Set<number>();
 
+      selectedValues.forEach(val => {
+        if (val.startsWith('local:')) {
+          const id = parseInt(val.replace('local:', ''), 10);
+          if (!isNaN(id)) targetLocalLabelIds.add(id);
+        } else if (val.startsWith('zalo:')) {
+          const parts = val.split(':');
+          const id = parseInt(parts[parts.length - 1], 10);
+          if (!isNaN(id)) targetZaloLabelIds.add(id);
+        }
+      });
+
+      // 1. Process Local Labels
       for (const contactId of selectedContactIds) {
         const currentLabelIds = new Set(localLabelThreadMap[contactId] || []);
 
-        // Remove labels that are no longer selected
         for (const oldId of currentLabelIds) {
-          if (!targetLabelIds.has(oldId)) {
+          if (!targetLocalLabelIds.has(oldId)) {
             await ipc.db?.removeLocalLabelFromThread({ zaloId: activeAccountId, labelId: oldId, threadId: contactId });
           }
         }
 
-        // Add newly selected labels
-        for (const newId of targetLabelIds) {
+        for (const newId of targetLocalLabelIds) {
           if (!currentLabelIds.has(newId)) {
             await ipc.db?.assignLocalLabelToThread({ zaloId: activeAccountId, labelId: newId, threadId: contactId });
           }
         }
       }
 
-      const isClearing = bulkLocalLabelIds.length === 0;
+      // 2. Process Zalo Labels (if present)
+      if (zaloLabels.length > 0) {
+        const acc = useAccountStore.getState().getActiveAccount();
+        if (acc) {
+          const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+          const freshRes = await ipc.zalo?.getLabels({ auth });
+          const freshLabels: LabelData[] = freshRes?.response?.labelData || zaloLabels;
+          const version: number = freshRes?.response?.version || 0;
+
+          const updated = freshLabels.map(label => {
+            let conversations = label.conversations || [];
+            if (targetZaloLabelIds.has(label.id)) {
+              selectedContactIds.forEach(cid => {
+                if (!conversations.includes(cid)) conversations = [...conversations, cid];
+              });
+            } else {
+              conversations = conversations.filter(cid => !selectedContactIds.includes(cid));
+            }
+            return { ...label, conversations };
+          });
+
+          const res = await ipc.zalo?.updateLabels({ auth, labelData: updated, version });
+          if (res?.success) {
+            setLabels(activeAccountId, res.response?.labelData || updated);
+          }
+        }
+      }
+
+      const isClearing = selectedValues.length === 0;
       showNotification(
         isClearing
-          ? `Đã xóa toàn bộ Nhãn Local cho ${selectedContactIds.length} liên hệ`
-          : `Đã cập nhật Nhãn Local cho ${selectedContactIds.length} liên hệ`,
+          ? `Đã xóa toàn bộ nhãn cho ${selectedContactIds.length} liên hệ`
+          : `Đã cập nhật nhãn cho ${selectedContactIds.length} liên hệ`,
         'success'
       );
       setShowBulkLocalModal(false);
-      setBulkLocalLabelIds([]);
+      setSelectedUnifiedLabelValues([]);
       store.clearSelection();
       window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId: activeAccountId } }));
       loadLocalLabels();
@@ -636,133 +880,142 @@ export default function CRMPage() {
   const activeCampaign = store.campaigns.find(c => c.id === store.activeCampaignId) || null;
   const activeContact = store.contacts.find(c => c.contact_id === store.activeContactId) || null;
 
-  // Client-side filtering: has_phone, has_notes
-  const filteredContacts = (() => {
-    let result = store.contacts;
+  // Client-side filtering: now handled entirely at DB/Backend level
+  const filteredContacts = store.contacts;
 
-    // Client-side filter: has_phone
-    if (store.filterContactTypes.includes('has_phone')) {
-      result = result.filter(c => !!c.phone);
-    }
+  const [showReassignModal, setShowReassignModal] = useState(false);
 
-    // Client-side filter: has_notes
-    if (store.filterContactTypes.includes('has_notes')) {
-      result = result.filter(c => c.note_count > 0);
-    }
+  const handleConfirmReassign = async (targetZaloId: string) => {
+    if (!activeAccountId || !targetZaloId) return;
+    const contactIds = Array.from(store.selectedContactIds);
+    if (!contactIds.length) return;
 
-
-    // Client-side filter: gender
-    if (store.filterGender === 'male') {
-      result = result.filter(c => c.gender === 0);
-    } else if (store.filterGender === 'female') {
-      result = result.filter(c => c.gender === 1);
-    } else if (store.filterGender === 'unknown') {
-      result = result.filter(c => c.gender === null || c.gender === undefined);
-    }
-
-    // Client-side filter: birthday
-    if (store.filterBirthday === 'has_birthday') {
-      result = result.filter(c => !!c.birthday);
-    } else if (store.filterBirthday === 'no_birthday') {
-      result = result.filter(c => !c.birthday);
-    } else if (store.filterBirthday === 'today') {
-      const now = new Date();
-      const todayDD = String(now.getDate()).padStart(2, '0');
-      const todayMM = String(now.getMonth() + 1).padStart(2, '0');
-      result = result.filter(c => {
-        if (!c.birthday) return false;
-        const parts = c.birthday.split('/');
-        return parts.length >= 2 && parts[0] === todayDD && parts[1] === todayMM;
+    try {
+      const res = await ipc.crm?.reassignContactsOwner({
+        fromZaloId: activeAccountId,
+        targetZaloId,
+        contactIds,
       });
-    } else if (store.filterBirthday === 'this_week') {
-      const now = new Date();
-      // Build set of DD/MM for the next 7 days (including today)
-      const weekDates = new Set<string>();
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(now);
-        d.setDate(d.getDate() + i);
-        weekDates.add(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`);
+
+      if (res?.success) {
+        const targetAcc = accounts.find(a => a.zalo_id === targetZaloId);
+        const targetName = targetAcc?.name || targetAcc?.display_name || targetZaloId;
+        showNotification(`Đã chuyển ${res.reassignedCount || contactIds.length} liên hệ sang tài khoản ${targetName}`, 'success');
+        store.clearSelection();
+        setShowReassignModal(false);
+        loadContacts();
+      } else {
+        showNotification(res?.error || 'Lỗi: Không thể chuyển liên hệ', 'error');
       }
-      result = result.filter(c => {
-        if (!c.birthday) return false;
-        const parts = c.birthday.split('/');
-        if (parts.length < 2) return false;
-        return weekDates.has(`${parts[0]}/${parts[1]}`);
-      });
-    } else if (store.filterBirthday === 'this_month') {
-      const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
-      result = result.filter(c => {
-        if (!c.birthday) return false;
-        // birthday format: DD/MM/YYYY
-        const parts = c.birthday.split('/');
-        return parts.length >= 2 && parts[1] === currentMonth;
-      });
+    } catch (err: any) {
+      showNotification(err?.message || 'Có lỗi xảy ra', 'error');
     }
-
-    // Client-side filter: salutation
-    if (store.filterSalutation && store.filterSalutation !== 'all') {
-      const targetSal = store.filterSalutation;
-      result = result.filter(c => {
-        const effectiveSalutation = c.salutation ||
-          (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Bạn');
-        return effectiveSalutation === targetSal;
-      });
-    }
-
-    return result;
-  })();
+  };
 
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-700 flex-shrink-0 bg-gray-850">
-        <div className="flex bg-gray-800 rounded-lg p-0.5">
-          {(['search', 'contacts', 'groups', 'requests', 'pipeline', 'campaigns', 'history', 'scan', 'scan_history', 'scan_stats'] as const).filter(t => {
-            if (t === 'search') return channelCap.supportsCRMSearch;
-            if (t === 'requests') return channelCap.supportsFriendRequest;
-            if (t === 'campaigns') return channelCap.supportsCampaigns;
-            if (t === 'history') return channelCap.supportsCRMHistory;
-            if (t === 'groups') return channelCap.supportsCRMGroups;
-            if (t === 'scan' || t === 'scan_history' || t === 'scan_stats') return channelCap.supportsScanData;
-            return true; // contacts and pipeline always shown
-          }).map(t => (
-            <button key={t} onClick={() => store.setTab(t)}
-              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${store.tab === t ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
-              <span className="flex items-center gap-1.5">
-                <AppIcon
-                  name={TAB_ICONS[t] || 'zap'}
-                  className={store.tab === t ? 'text-white' : 'text-black dark:text-gray-400'}
-                  size={14}
-                />
-                <span>
-                  {t === 'search' ? 'Tìm kiếm'
-                    : t === 'contacts' ? `Liên hệ${store.totalContacts ? ` (${store.totalContacts})` : ''}`
-                    : t === 'groups' ? `Nhóm${store.groupCount ? ` (${store.groupCount})` : ''}`
-                    : t === 'requests' ? `Lời mời${store.requestCount ? ` (${store.requestCount})` : ''}`
-                    : t === 'pipeline' ? 'Bảng Pipeline'
-                    : t === 'campaigns' ? `Chiến dịch${store.campaigns.length ? ` (${store.campaigns.length})` : ''}`
-                    : t === 'history' ? 'Lịch sử'
-                    : t === 'scan' ? 'Quét dữ liệu'
-                    : t === 'scan_history' ? 'Lịch sử quét'
-                    : t === 'scan_stats' ? 'Thống kê'
-                    : t}
+      <div className="flex items-center gap-2 px-3 md:px-5 py-2.5 md:py-3 border-b border-gray-700 flex-shrink-0 bg-gray-850">
+        {/* Mobile Hamburger menu button */}
+        {isMobile && (
+          <button
+            onClick={() => useAppStore.getState().setMobileSidebarOpen(true)}
+            title="Menu"
+            className="w-8.5 h-8.5 flex items-center justify-center rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 flex-shrink-0"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        )}
+
+        {isMobile ? (
+          /* Mobile Dropdown Hamburger Selector for CRM sub-tabs */
+          <div className="relative flex-1 min-w-0">
+            <select
+              value={store.tab}
+              onChange={(e) => store.setTab(e.target.value as any)}
+              className="w-full bg-gray-800 text-white font-bold text-xs rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:border-blue-500 appearance-none pr-8 cursor-pointer"
+            >
+              <option value="contacts">👥 Liên hệ ({store.totalContacts || 0})</option>
+              {channelCap.supportsCRMGroups && <option value="groups">👥 Nhóm ({store.groupCount || 0})</option>}
+              {channelCap.supportsFriendRequest && <option value="requests">📩 Lời mời kết bạn ({store.requestCount || 0})</option>}
+              <option value="pipeline">📊 Bảng Pipeline</option>
+              {channelCap.supportsCampaigns && <option value="campaigns">🚀 Chiến dịch ({store.campaigns.length || 0})</option>}
+              {channelCap.supportsCRMSearch && <option value="search">🔍 Tìm kiếm CRM</option>}
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-gray-400">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+          </div>
+        ) : (
+          /* Desktop sub-tabs bar */
+          <div className="flex bg-gray-800 rounded-lg p-0.5">
+            {(['search', 'contacts', 'groups', 'requests', 'pipeline', 'campaigns', 'history', 'scan', 'scan_history', 'scan_stats', 'phone_scan'] as const).filter(t => {
+              if (t === 'search') return channelCap.supportsCRMSearch;
+              if (t === 'requests') return channelCap.supportsFriendRequest;
+              if (t === 'campaigns') return channelCap.supportsCampaigns;
+              if (t === 'history') return channelCap.supportsCRMHistory;
+              if (t === 'groups') return channelCap.supportsCRMGroups;
+              if (t === 'scan' || t === 'scan_history' || t === 'scan_stats') return channelCap.supportsScanData;
+              if (t === 'phone_scan') return !isFacebookAccount;
+              return true; // contacts and pipeline always shown
+            }).map(t => (
+              <button key={t} onClick={() => store.setTab(t)}
+                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${store.tab === t ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}>
+                <span className="flex items-center gap-1.5">
+                  <AppIcon
+                    name={TAB_ICONS[t] || 'zap'}
+                    className={store.tab === t ? 'text-white' : 'text-black dark:text-gray-400'}
+                    size={14}
+                  />
+                  <span>
+                    {t === 'search' ? 'Tìm kiếm'
+                      : t === 'contacts' ? `Liên hệ${store.totalContacts ? ` (${store.totalContacts})` : ''}`
+                      : t === 'groups' ? `Nhóm${store.groupCount ? ` (${store.groupCount})` : ''}`
+                      : t === 'requests' ? `Lời mời${store.requestCount ? ` (${store.requestCount})` : ''}`
+                      : t === 'pipeline' ? 'Bảng Pipeline'
+                      : t === 'campaigns' ? `Chiến dịch${store.campaigns.length ? ` (${store.campaigns.length})` : ''}`
+                      : t === 'history' ? 'Lịch sử'
+                      : t === 'scan' ? 'Quét dữ liệu'
+                      : t === 'scan_history' ? 'Lịch sử quét'
+                      : t === 'scan_stats' ? 'Thống kê'
+                      : t === 'phone_scan' ? 'Quét SĐT hàng loạt'
+                      : t}
+                  </span>
+                  {t === 'requests' && hasUnreadRequestDot && (
+                    <span className="w-2 h-2 bg-red-500 rounded-full border border-gray-900 flex-shrink-0" />
+                  )}
                 </span>
-                {t === 'requests' && hasUnreadRequestDot && (
-                  <span className="w-2 h-2 bg-red-500 rounded-full border border-gray-900 flex-shrink-0" />
-                )}
-              </span>
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex-1" />
-        {/* Navigate to Analytics / Reports */}
-        <button
-          onClick={() => navigateToAnalytics('overview')}
-          className="flex items-center justify-center p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
-          title="Xem báo cáo & phân tích"
-        >
-          <AppIcon name="overview" className="text-black dark:text-gray-400" size={15} />
-        </button>
+        {/* Rà soát & Lọc trùng Liên hệ (chỉ hiện trên Desktop) */}
+        {!isMobile && !isFacebookAccount && (
+          <>
+            <button
+              onClick={handleSyncZaloFriends}
+              disabled={isSyncingZaloFriends}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              title="Đồng bộ kéo bạn bè mới nhất từ Zalo về Zagi"
+            >
+              <AppIcon name="zap" size={14} className={isSyncingZaloFriends ? 'animate-spin text-blue-400' : 'text-blue-400'} />
+              <span>{isSyncingZaloFriends ? 'Đang đồng bộ...' : 'Đồng bộ Zalo'}</span>
+            </button>
+            <button
+              onClick={() => setShowDuplicateModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Rà soát & Lọc trùng liên hệ giữa các tài khoản Zalo"
+            >
+              <AppIcon name="users" size={14} className="text-amber-400" />
+              <span>Rà soát trùng lặp</span>
+            </button>
+          </>
+        )}
         {/* Account selector */}
         <AccountSelectorDropdown
           options={accounts.map(a => ({ id: a.zalo_id, name: a.full_name, phone: a.phone, avatarUrl: a.avatar_url }))}
@@ -782,14 +1035,7 @@ export default function CRMPage() {
               <div className="flex-1 flex flex-col overflow-hidden">
                 <CRMContactList
                   contacts={filteredContacts}
-                  total={
-                    (store.filterLabelIds.length === 0 && store.filterLocalLabelIds.length === 0
-                      && !store.filterContactTypes.includes('has_phone') && !store.filterContactTypes.includes('has_notes')
-                      && store.filterGender === 'all' && store.filterBirthday === 'all'
-                      && (!store.filterSalutation || store.filterSalutation === 'all'))
-                      ? store.totalContacts
-                      : filteredContacts.length
-                  }
+                  total={store.totalContacts}
                   page={store.page}
                   pageSize={store.pageSize}
                   loading={store.contactsLoading}
@@ -986,6 +1232,13 @@ export default function CRMPage() {
             </div>
           )}
 
+          {/* ── Phone Scan tab ── */}
+          {store.tab === 'phone_scan' && (
+            <div className="flex-1 overflow-hidden">
+              <PhoneScanPanel />
+            </div>
+          )}
+
         </div>
 
         <QueueStatusBar status={queueStatus} />
@@ -1001,10 +1254,20 @@ export default function CRMPage() {
         onBulkTagZalo={handleBulkTagZalo}
         onManageGroups={handleManageGroups}
         onBulkManageGroups={(mode) => setShowBulkGroupModal(mode)}
+        onReassignOwner={() => setShowReassignModal(true)}
         onDeleteSelected={handleDeleteSelected}
       />
 
       {/* ── Modals ── */}
+      {showReassignModal && (
+        <ReassignOwnerModal
+          selectedCount={store.selectedContactIds.size}
+          fromZaloId={activeAccountId || ''}
+          accounts={accounts}
+          onConfirm={handleConfirmReassign}
+          onClose={() => setShowReassignModal(false)}
+        />
+      )}
       {showCreateCampaign && (
         <CampaignCreateModal
           zaloId={activeAccountId || ''}
@@ -1039,55 +1302,22 @@ export default function CRMPage() {
         ) : null;
       })()}
 
-      {/* Bulk local label modal (multi-select, supports empty = clear all) */}
+      {/* Unified Label Picker modal (multi-select, supports empty = clear all, local & zalo) */}
       {showBulkLocalModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-          onClick={() => setShowBulkLocalModal(false)}>
-          <div className="bg-gray-800 border border-gray-600 rounded-2xl w-80 p-5 shadow-2xl"
-            onClick={e => e.stopPropagation()}>
-            <h3 className="font-semibold text-white mb-1">🏷️ Gán / Xóa Nhãn Local</h3>
-            <p className="text-xs text-gray-400 mb-3">
-              Áp dụng cho <span className="text-blue-400 font-medium">{store.selectedContactIds.size}</span> liên hệ đã chọn
-              <span className="text-gray-500 ml-1">(chọn nhiều)</span>
-            </p>
-            {localLabels.length === 0 ? (
-              <p className="text-xs text-gray-500 py-4 text-center">Chưa có Nhãn Local nào.</p>
-            ) : (
-              <LocalLabelSelector
-                labels={localLabels}
-                selectedIds={bulkLocalLabelIds}
-                onChange={setBulkLocalLabelIds}
-                placeholder="Chọn Nhãn Local..."
-                emptyText="Chưa có Nhãn Local nào"
-              />
-            )}
-            {bulkLocalLabelIds.length === 0 && localLabels.length > 0 && (
-              <p className="text-xs text-orange-400 mt-2 text-center">
-                ⚠️ Để trắng sẽ <strong>xóa toàn bộ nhãn</strong> của các liên hệ đã chọn
-              </p>
-            )}
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setShowBulkLocalModal(false)}
-                className="flex-1 py-2 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600">
-                Hủy
-              </button>
-              <button onClick={handleApplyBulkLocalLabel}
-                disabled={applyingBulkLabel}
-                className={`flex-1 py-2 rounded-xl text-white text-sm disabled:opacity-40 ${
-                  bulkLocalLabelIds.length === 0
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}>
-                {applyingBulkLabel
-                  ? 'Đang xử lý...'
-                  : bulkLocalLabelIds.length === 0
-                    ? 'Xóa tất cả nhãn'
-                    : 'Áp dụng'
-                }
-              </button>
-            </div>
-          </div>
-        </div>
+        <UnifiedLabelPickerModal
+          open={showBulkLocalModal}
+          onClose={() => setShowBulkLocalModal(false)}
+          options={unifiedLabelOptions}
+          selected={selectedUnifiedLabelValues}
+          onChange={setSelectedUnifiedLabelValues}
+          onConfirm={handleApplyUnifiedLabels}
+          accounts={accounts}
+          selectedCount={store.selectedContactIds.size}
+          applying={applyingBulkLabel}
+          onNewLabelCreated={() => {
+            loadLocalLabels();
+          }}
+        />
       )}
 
       {/* Bulk Zalo label modal (single-select) */}
@@ -1213,9 +1443,16 @@ export default function CRMPage() {
                     <button disabled={!selectedCampaignForAdd}
                       onClick={async () => {
                         if (!selectedCampaignForAdd || !activeAccountId) return;
-                        const contacts = store.contacts
-                          .filter(c => store.selectedContactIds.has(c.contact_id))
-                          .map(c => ({ contactId: c.contact_id, displayName: c.alias || c.display_name, avatar: c.avatar }));
+                        const contactMap = new Map(store.contacts.map(c => [c.contact_id, c]));
+                        const contacts = Array.from(store.selectedContactIds).map(id => {
+                          const c = contactMap.get(id);
+                          return {
+                            contactId: id,
+                            displayName: c?.alias || c?.display_name || c?.name || id,
+                            avatar: c?.avatar_url || c?.avatar || '',
+                            phone: c?.phone || '',
+                          };
+                        });
                         await handleAddContactsToCampaign(selectedCampaignForAdd, contacts);
                         store.clearSelection();
                         setAddToCampaignModal(false);
@@ -1274,6 +1511,15 @@ export default function CRMPage() {
             loadContacts();
             store.clearSelection();
           }}
+        />
+      )}
+
+      {showDuplicateModal && (
+        <CRMDuplicateManagerModal
+          open={showDuplicateModal}
+          onClose={() => setShowDuplicateModal(false)}
+          accounts={accounts}
+          onRefreshCRM={loadContacts}
         />
       )}
     </div>

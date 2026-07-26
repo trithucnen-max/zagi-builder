@@ -9,10 +9,12 @@ import MergedInboxModal from './MergedInboxModal';
 import EmployeeLoginModal from './EmployeeLoginModal';
 import AppIcon from '@/components/common/AppIcon';
 import ipc from '@/lib/ipc';
+import useIsMobile from '@/hooks/useIsMobile';
 
 const BUG_REPORT_URL = 'https://tlavietnam.sg.larksuite.com/share/base/form/shrlgxzOCTqFepNvhl8wms2vpWg';
 
 export default function Dashboard() {
+  const isMobile = useIsMobile();
   const { updateAccountStatus, reorderAccounts } = useAccountStore();
   const { showNotification, mergedInboxMode, exitMergedInbox, setBugReportOpen } = useAppStore();
   const previewEmployeeId = useEmployeeStore(s => s.previewEmployeeId);
@@ -169,6 +171,17 @@ export default function Dashboard() {
     <div className="flex-1 overflow-y-auto p-6">
       {/* Header + search */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
+        {isMobile && (
+          <button
+            onClick={() => useAppStore.getState().setMobileSidebarOpen(true)}
+            title="Menu"
+            className="w-8.5 h-8.5 flex items-center justify-center rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 flex-shrink-0"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        )}
         <h2 className="text-lg font-semibold text-white">Dashboard</h2>
         <span className="text-xs text-gray-500 bg-gray-700/50 px-2 py-0.5 rounded-full">
           {accounts.length} tài khoản

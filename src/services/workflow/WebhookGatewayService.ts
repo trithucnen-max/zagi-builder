@@ -168,6 +168,12 @@ class WebhookGatewayService {
 
   /** Register a prefix-based route handler (e.g. /api/workflow/webhook/) */
   public registerPrefixRoute(prefix: string, handler: RouteHandler): void {
+    // [BUG-L Fix] Tránh đăng ký trùng prefix sau stop/start cycle
+    const exists = this.prefixRoutes.some(r => r.prefix === prefix);
+    if (exists) {
+      Logger.log(`[WebhookGateway] Prefix route already registered, skipping: ${prefix}`);
+      return;
+    }
     this.prefixRoutes.push({ prefix, handler });
     Logger.log(`[WebhookGateway] Registered prefix route: ${prefix}`);
   }

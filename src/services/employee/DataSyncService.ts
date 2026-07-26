@@ -98,7 +98,7 @@ const PRIVACY_FILTERED_ERP_TABLES = new Set([
 ]);
 
 /** Account info to sync (no imei/user_agent/cookies — employee doesn't need login credentials) */
-const ACCOUNT_SAFE_COLUMNS = 'zalo_id, full_name, avatar_url, phone, is_business, is_active, last_seen, listener_active';
+const ACCOUNT_SAFE_COLUMNS = 'zalo_id, full_name, avatar_url, phone, is_business, is_active, last_seen, listener_active, channel, facebook_id';
 
 export interface SyncPayload {
     /** Timestamp of this sync snapshot */
@@ -354,8 +354,8 @@ class DataSyncService {
         // Import safe account info (create minimal account records)
         for (const acc of payload.accounts || []) {
             try {
-                db.exec(`INSERT OR REPLACE INTO accounts (zalo_id, full_name, avatar_url, phone, is_business, is_active, last_seen, listener_active, imei, user_agent, cookies, created_at)
-                    VALUES ('${this.esc(acc.zalo_id)}', '${this.esc(acc.full_name)}', '${this.esc(acc.avatar_url)}', '${this.esc(acc.phone || '')}', ${acc.is_business || 0}, ${acc.is_active || 1}, '${this.esc(acc.last_seen || '')}', ${acc.listener_active ?? 1}, '', '', '', '${new Date().toISOString()}')`);
+                db.exec(`INSERT OR REPLACE INTO accounts (zalo_id, full_name, avatar_url, phone, is_business, is_active, last_seen, listener_active, channel, imei, user_agent, cookies, created_at)
+                    VALUES ('${this.esc(acc.zalo_id)}', '${this.esc(acc.full_name)}', '${this.esc(acc.avatar_url)}', '${this.esc(acc.phone || '')}', ${acc.is_business || 0}, ${acc.is_active || 1}, '${this.esc(acc.last_seen || '')}', ${acc.listener_active ?? 1}, '${this.esc(acc.channel || 'zalo')}', '', '', '', '${new Date().toISOString()}')`);
             } catch (err: any) {
                 Logger.warn(`[DataSyncService] Import account error: ${err.message}`);
             }
@@ -399,7 +399,7 @@ class DataSyncService {
         // Update account safe info
         for (const acc of payload.accounts || []) {
             try {
-                db.exec(`UPDATE accounts SET full_name='${this.esc(acc.full_name)}', avatar_url='${this.esc(acc.avatar_url)}', phone='${this.esc(acc.phone || '')}', is_active=${acc.is_active || 1}, listener_active=${acc.listener_active ?? 1} WHERE zalo_id='${this.esc(acc.zalo_id)}'`);
+                db.exec(`UPDATE accounts SET full_name='${this.esc(acc.full_name)}', avatar_url='${this.esc(acc.avatar_url)}', phone='${this.esc(acc.phone || '')}', is_active=${acc.is_active || 1}, listener_active=${acc.listener_active ?? 1}, channel='${this.esc(acc.channel || 'zalo')}' WHERE zalo_id='${this.esc(acc.zalo_id)}'`);
             } catch {}
         }
 

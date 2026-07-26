@@ -2,6 +2,7 @@
 // Dùng trong React components thay vì gọi trực tiếp
 
 import { useAppStore } from '../store/appStore';
+import { useAccountStore } from '../store/accountStore';
 
 
 declare global {
@@ -247,6 +248,7 @@ declare global {
         updateContactExtraData: (params: { zaloId: string; contactId: string; extraData: Record<string, any> }) => Promise<{ success: boolean; error?: string }>;
         getCallReport: (params: { zaloId: string; fromTs: number; toTs: number; localLabelIds?: number[]; zaloLabelThreadIds?: string[] }) => Promise<any>;
         getContactNamesBatch: (params: { zaloId: string; contactIds: string[] }) => Promise<any>;
+        scanAdvancedGroup: (params: { zaloId: string; linkOrGroupId: string }) => Promise<{ success: boolean; groupId?: string; totalMembers?: number; savedCount?: number; groupInfo?: any; members?: any[]; error?: string }>;
       };
 
       crm: {
@@ -278,6 +280,22 @@ declare global {
         scheduleMessage: (params: { ownerZaloId: string; threadId: string; threadType: string; channel: string; message: string; attachments?: any[]; sendAt: number }) => Promise<{ success: boolean; id?: string; error?: string }>;
         getScheduledMessages: (params: { ownerZaloId: string; threadId: string }) => Promise<{ success: boolean; scheduledMessages: any[]; error?: string }>;
         cancelScheduledMessage: (params: { id: string }) => Promise<{ success: boolean; error?: string }>;
+        getPhoneScanBatches: () => Promise<{ success: boolean; batches?: any[]; error?: string }>;
+        getPhoneScanItems: (params: { batchId: number; limit?: number; offset?: number; status?: string }) => Promise<{ success: boolean; items?: any[]; total?: number; error?: string }>;
+        createPhoneScanBatch: (params: { name: string; assignedAccountId: string | null; contactAssignmentMode?: string; autoTagIds: number[]; dailyLimit: number; hourlyLimit: number; priority: number; status?: string; scheduledTime?: string; skipCrmExisting?: boolean; autoWorkflowId?: number | null; updateZaloAlias?: boolean; phones: string[] }) => Promise<{ success: boolean; batchId?: number; error?: string }>;
+        reassignBatchContacts: (params: { batchId: number; targetMode: 'single' | 'distributed' | 'all_accounts'; targetAccountId?: string | null }) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
+        deletePhoneScanBatch: (params: { batchId: number }) => Promise<{ success: boolean; error?: string }>;
+        updatePhoneScanBatchStatus: (params: { batchId: number; status: string }) => Promise<{ success: boolean; error?: string }>;
+        startPhoneScanImmediate: () => Promise<{ success: boolean; error?: string }>;
+        getPhoneScanLimitStatus: () => Promise<{ success: boolean; accountsStatus?: Array<{ zaloId: string; fullName: string; todayCount: number; hourlyCount: number }>; error?: string }>;
+        updatePhoneScanBatchPriority: (params: { batchId: number; priority: number }) => Promise<{ success: boolean; error?: string }>;
+        reorderPhoneScanBatches: (params: { batchIds: number[] }) => Promise<{ success: boolean; error?: string }>;
+        reassignContactsOwner: (params: { fromZaloId: string; targetZaloId: string; contactIds: string[] }) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
+        getDuplicateContacts: () => Promise<{ success: boolean; duplicates?: any[]; error?: string }>;
+        transferContact: (params: { contactId: string; phone?: string; fromZaloId: string; toZaloId: string }) => Promise<{ success: boolean; error?: string }>;
+        mergeContacts: (params: { targetZaloId: string; phone?: string; contactId: string }) => Promise<{ success: boolean; error?: string }>;
+        cleanupCorruptedAliases: () => Promise<{ success: boolean; cleanedCount?: number; error?: string }>;
+        markContactBlocked: (params: { ownerZaloId: string; contactId: string; isBlocked?: boolean }) => Promise<{ success: boolean; error?: string }>;
       };
       analytics: {
         dashboardOverview: (params: { zaloId: string }) => Promise<{
@@ -355,6 +373,9 @@ declare global {
         openThread: (params: { zaloId: string; threadId: string; threadType: number }) => void;
         sendBadgeImage: (params: { dataUrl: string; count: number }) => void;
         flashFrame: (active: boolean) => void;
+      };
+      media: {
+        acquireToken: (params: { filePath?: string; dataUrl?: string; ext?: string; cdnUrl?: string; libraryUuid?: string; zaloId?: string }) => Promise<{ success: boolean; token?: string; error?: string }>;
       };
       lockScreen: {
         status: () => Promise<{ success: boolean; enabled?: boolean; biometricEnabled?: boolean; biometricAvailable?: boolean; failedAttempts?: number; isCoolingDown?: boolean; remainingCooldown?: number; error?: string }>;
@@ -494,6 +515,8 @@ declare global {
         getConnectionStatus: (id: string) => Promise<{ success: boolean; connected: boolean; bossUrl: string; latency: number; error?: string }>;
         getAllStatuses: () => Promise<{ success: boolean; statuses: Record<string, { connected: boolean; bossUrl: string; latency: number }>; error?: string }>;
         loginRemote: (bossUrl: string, username: string, password: string) => Promise<{ success: boolean; token?: string; employee?: any; error?: string }>;
+        probeAndSwitchToLan: (id: string) => Promise<{ success: boolean; isUsingLan?: boolean; error?: string }>;
+        revertToWan: (id: string) => Promise<{ success: boolean; error?: string }>;
         notifyNetworkOnline: () => void;
         notifyNetworkOffline: () => void;
       };
@@ -763,33 +786,556 @@ const shell = window.electronAPI?.shell ? {
 
 const erp = wrapErpApi(window.electronAPI?.erp);
 
+function wrapZaloApi(api: any): any {
+  if (!api) return api;
+  const wrapped: Record<string, any> = {};
+  for (const [key, value] of Object.entries(api)) {
+    if (typeof value !== 'function') {
+      wrapped[key] = value;
+      continue;
+    }
+    wrapped[key] = function(...args: any[]) {
+      let params = args[0];
+      if (params && typeof params === 'object') {
+        params = { ...params };
+        args[0] = params;
+
+        if (params.auth && typeof params.auth === 'object') {
+          params.auth = { ...params.auth };
+          if (!params.auth.zaloId && !params.auth.zalo_id) {
+            const activeAccountId = useAccountStore.getState().activeAccountId;
+            if (activeAccountId) {
+              params.auth.zaloId = activeAccountId;
+            }
+          }
+        }
+        if (!params.zaloId && !params.zalo_id) {
+          const activeAccountId = useAccountStore.getState().activeAccountId;
+          if (activeAccountId) {
+            params.zaloId = activeAccountId;
+          }
+        }
+      }
+      return value.apply(api, args);
+    };
+  }
+  return wrapped;
+}
+
+const zalo = wrapZaloApi(window.electronAPI?.zalo);
+
+function getSavedBrowserWorkspaces(): { workspaces: any[]; activeId: string | null } {
+  try {
+    const saved = localStorage.getItem('zagi_browser_workspaces');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch {}
+  return { workspaces: [], activeId: null };
+}
+
+function saveBrowserWorkspaces(workspaces: any[], activeId: string | null) {
+  try {
+    localStorage.setItem('zagi_browser_workspaces', JSON.stringify({ workspaces, activeId }));
+  } catch {}
+}
+
+const browserWorkspace = {
+  list: async () => {
+    const { workspaces, activeId } = getSavedBrowserWorkspaces();
+    return { success: true, workspaces, activeId };
+  },
+  create: async (data: any) => {
+    const { workspaces } = getSavedBrowserWorkspaces();
+    const snapshot = data._snapshot || {
+      accountsData: data.cachedAccountsData || [],
+      assignedAccounts: data.cachedAssignedAccounts || [],
+      permissions: data.cachedPermissions || [],
+      employeesData: data.cachedEmployeesData || [],
+    };
+    const newWs = {
+      id: data.id || ('ws_' + Date.now()),
+      name: data.name,
+      type: data.type || 'remote',
+      icon: data.icon || '👤',
+      bossUrl: data.bossUrl,
+      token: data.token,
+      employeeId: data.employeeId,
+      employeeName: data.employeeName,
+      employeeUsername: data.employeeUsername,
+      cachedAccountsData: data.cachedAccountsData || snapshot.accountsData || [],
+      cachedAssignedAccounts: data.cachedAssignedAccounts || snapshot.assignedAccounts || [],
+      cachedPermissions: data.cachedPermissions || snapshot.permissions || [],
+      cachedEmployeesData: data.cachedEmployeesData || snapshot.employeesData || [],
+      _snapshot: snapshot,
+      _connected: true,
+    };
+
+    const idx = workspaces.findIndex(w => w.bossUrl === data.bossUrl && w.employeeId === data.employeeId);
+    if (idx >= 0) {
+      workspaces[idx] = newWs;
+    } else {
+      workspaces.push(newWs);
+    }
+
+    saveBrowserWorkspaces(workspaces, newWs.id);
+    return { success: true, workspace: newWs };
+  },
+  update: async (id: string, updates: any) => {
+    const { workspaces, activeId } = getSavedBrowserWorkspaces();
+    const ws = workspaces.find(w => w.id === id);
+    if (ws) {
+      Object.assign(ws, updates);
+      saveBrowserWorkspaces(workspaces, activeId);
+    }
+    return { success: true };
+  },
+  delete: async (id: string) => {
+    const { workspaces, activeId } = getSavedBrowserWorkspaces();
+    const nextWorkspaces = workspaces.filter(w => w.id !== id);
+    const nextActiveId = activeId === id ? (nextWorkspaces[0]?.id || null) : activeId;
+    saveBrowserWorkspaces(nextWorkspaces, nextActiveId);
+    return { success: true };
+  },
+  switch: async (id: string) => {
+    const { workspaces } = getSavedBrowserWorkspaces();
+    const ws = workspaces.find(w => w.id === id);
+    saveBrowserWorkspaces(workspaces, id);
+    return { success: true, workspace: ws };
+  },
+  isMulti: async () => ({ isMulti: false }),
+  getDbPath: async () => ({ success: true, dbPath: '' }),
+  connectRemote: async (id: string, bossUrl: string, token: string) => {
+    try {
+      let url = bossUrl.trim().replace(/\/+$/, '');
+      if (!url.startsWith('http://') && !url.startsWith('https://')) url = `http://${url}`;
+      const resp = await fetch(`${url}/api/sync/snapshot`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success && data.snapshot) {
+          const { workspaces } = getSavedBrowserWorkspaces();
+          const ws = workspaces.find(w => w.id === id);
+          if (ws) {
+            ws._snapshot = data.snapshot;
+            ws.cachedAccountsData = data.snapshot.accountsData || ws.cachedAccountsData;
+            saveBrowserWorkspaces(workspaces, id);
+          }
+        }
+      }
+    } catch {}
+    return { success: true };
+  },
+  disconnectRemote: async () => ({ success: true }),
+  getConnectionStatus: async (id: string) => {
+    const { workspaces } = getSavedBrowserWorkspaces();
+    const ws = workspaces.find(w => w.id === id);
+    return { success: true, connected: true, bossUrl: ws?.bossUrl || '', latency: 10 };
+  },
+  getAllStatuses: async () => {
+    const { workspaces } = getSavedBrowserWorkspaces();
+    const statuses: Record<string, any> = {};
+    for (const w of workspaces) {
+      statuses[w.id] = { connected: true, bossUrl: w.bossUrl, latency: 10 };
+    }
+    return { success: true, statuses };
+  },
+  loginRemote: async (bossUrl: string, username: string, password: string) => {
+    try {
+      let url = bossUrl.trim().replace(/\/+$/, '');
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = `http://${url}`;
+      }
+      const resp = await fetch(`${url}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      return await resp.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Không thể kết nối tới Boss server' };
+    }
+  },
+  probeAndSwitchToLan: async () => ({ success: true }),
+  revertToWan: async () => ({ success: true }),
+  notifyNetworkOnline: () => {},
+  notifyNetworkOffline: () => {},
+};
+
+const browserLogin = {
+  getAccounts: async () => {
+    const state = useAccountStore.getState();
+    if (state.accounts && state.accounts.length > 0) {
+      return { success: true, accounts: state.accounts };
+    }
+    try {
+      const saved = localStorage.getItem('zagi_browser_workspaces');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const activeWs = parsed.workspaces?.find((w: any) => w.id === parsed.activeId);
+        if (activeWs && activeWs.cachedAccountsData?.length) {
+          return { success: true, accounts: activeWs.cachedAccountsData };
+        }
+      }
+    } catch {}
+    return { success: true, accounts: [] };
+  },
+  connectAccount: async () => ({ success: true }),
+  disconnectAccount: async () => ({ success: true }),
+  disconnectAll: async () => ({ success: true }),
+  removeAccount: async () => ({ success: true }),
+  getMediaAutoDelete: async () => ({ success: true, enabled: false, days: 30 }),
+  setMediaAutoDelete: async () => ({ success: true }),
+  runAllMediaCleanup: async () => ({ success: true }),
+  checkHealth: async () => ({ success: true, results: [] }),
+  checkAndRefreshAvatar: async () => ({ success: true, refreshed: false }),
+  requestOldMessages: async () => ({ success: true }),
+  reconnect: async () => ({ success: true }),
+  loginQR: async () => ({ success: false, error: 'Dùng Zagi Desktop để quét QR' }),
+  loginQRAbort: async () => ({ success: true }),
+  loginCookies: async () => ({ success: false }),
+  loginAuth: async () => ({ success: false }),
+};
+
+function getActiveBrowserWorkspace(): any | null {
+  try {
+    const saved = localStorage.getItem('zagi_browser_workspaces');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const activeId = parsed.activeId;
+      return parsed.workspaces?.find((w: any) => w.id === activeId) || parsed.workspaces?.[0] || null;
+    }
+  } catch {}
+  return null;
+}
+
+function buildProxyParams(args: any[]): any {
+  if (args.length === 0) return {};
+  const first = args[0];
+  if (first === null || first === undefined) return {};
+  if (typeof first === 'object') return first;
+  const result: Record<string, any> = { zaloId: String(first), id: String(first) };
+  if (args.length > 1 && args[1] !== undefined) {
+    result.contactId = String(args[1]);
+    result.threadId = String(args[1]);
+  }
+  return result;
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const res = reader.result as string;
+      const base64 = res.split(',')[1] || '';
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function prepareBrowserMediaParams(params: any): Promise<any> {
+  if (!params || typeof params !== 'object') return params;
+  const activeWs = getActiveBrowserWorkspace();
+  if (!activeWs || !activeWs.bossUrl || !activeWs.token) return params;
+
+  let url = activeWs.bossUrl.trim().replace(/\/+$/, '');
+  if (!url.startsWith('http://') && !url.startsWith('https://')) url = `http://${url}`;
+
+  const zaloId = params.zaloId || params.zalo_id || params.auth?.zaloId || activeWs.cachedAssignedAccounts?.[0] || '';
+
+  const getMediaBase64 = async (fp: any): Promise<{ base64: string; filename: string }> => {
+    if (!fp) return { base64: '', filename: '' };
+    let base64 = '';
+    let filename = 'upload_' + Date.now() + '.jpg';
+    if (fp instanceof File) {
+      filename = fp.name;
+      base64 = await blobToBase64(fp);
+    } else if (typeof fp === 'string') {
+      const cleanFp = fp.trim();
+      const extractedName = cleanFp.split(/[/\\]/).pop() || filename;
+      if (extractedName && extractedName.includes('.')) filename = extractedName;
+
+      if (cleanFp.startsWith('blob:') || cleanFp.startsWith('data:')) {
+        try {
+          const blob = await fetch(cleanFp).then(r => r.blob());
+          base64 = await blobToBase64(blob);
+        } catch {}
+      } else if (cleanFp.startsWith('http://') || cleanFp.startsWith('https://')) {
+        try {
+          const b64Res = await (window as any).ipcRenderer?.invoke('file:readImageAsBase64', { remoteUrl: cleanFp });
+          if (b64Res?.success && b64Res.base64) {
+            base64 = b64Res.base64;
+          } else {
+            const blob = await fetch(cleanFp).then(r => r.blob());
+            base64 = await blobToBase64(blob);
+          }
+        } catch {}
+      } else {
+        try {
+          const b64Res = await (window as any).ipcRenderer?.invoke('file:readImageAsBase64', { localPath: cleanFp });
+          if (b64Res?.success && b64Res.base64) {
+            base64 = b64Res.base64;
+          }
+        } catch {}
+      }
+    }
+    return { base64, filename };
+  };
+
+  if (params.filePath || params.fileObject) {
+    try {
+      const { base64, filename } = await getMediaBase64(params.filePath || params.fileObject);
+      if (base64) {
+        const uploadResp = await fetch(`${url}/api/media/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeWs.token}`,
+          },
+          body: JSON.stringify({ base64, filename, zaloId }),
+        });
+        if (uploadResp.ok) {
+          const uploadResult = await uploadResp.json();
+          if (uploadResult.success && uploadResult.bossPath) {
+            params.filePath = uploadResult.bossPath;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[ipc] prepareBrowserMediaParams single upload failed:', e);
+    }
+  }
+
+  if (Array.isArray(params.filePaths) && params.filePaths.length > 0) {
+    const newPaths: string[] = [];
+    for (let i = 0; i < params.filePaths.length; i++) {
+      const p = params.filePaths[i];
+      try {
+        const { base64, filename } = await getMediaBase64(p);
+        if (base64) {
+          const uploadResp = await fetch(`${url}/api/media/upload`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${activeWs.token}`,
+            },
+            body: JSON.stringify({ base64, filename, zaloId }),
+          });
+          if (uploadResp.ok) {
+            const uploadResult = await uploadResp.json();
+            if (uploadResult.success && uploadResult.bossPath) {
+              newPaths.push(uploadResult.bossPath);
+              continue;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[ipc] prepareBrowserMediaParams multi upload failed:', e);
+      }
+      newPaths.push(p);
+    }
+    params.filePaths = newPaths;
+  }
+
+  return params;
+}
+
+function createBrowserIpcProxy(namespace: string): any {
+  return new Proxy({}, {
+    get(_target, prop: string) {
+      return async (...args: any[]) => {
+        const channel = `${namespace}:${prop}`;
+        const activeWs = getActiveBrowserWorkspace();
+        if (!activeWs || !activeWs.bossUrl || !activeWs.token) {
+          return { success: false, error: 'Chưa kết nối tới Boss server' };
+        }
+        let params = buildProxyParams(args);
+        const activeAccountId = useAccountStore.getState().activeAccountId;
+        if (activeAccountId) {
+          if (!params.zaloId && !params.zalo_id) {
+            params.zaloId = activeAccountId;
+          }
+          if (params.auth && typeof params.auth === 'object') {
+            params.auth = { ...params.auth };
+            if (!params.auth.zaloId && !params.auth.zalo_id) {
+              params.auth.zaloId = activeAccountId;
+            }
+          } else {
+            params.auth = { zaloId: activeAccountId };
+          }
+        }
+
+        if (namespace === 'zalo' && (prop === 'sendImage' || prop === 'sendImages' || prop === 'sendFile')) {
+          params = await prepareBrowserMediaParams(params);
+        }
+
+        try {
+          let url = activeWs.bossUrl.trim().replace(/\/+$/, '');
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = `http://${url}`;
+          }
+          const resp = await fetch(`${url}/api/proxy/action`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${activeWs.token}`,
+            },
+            body: JSON.stringify({
+              channel,
+              params,
+            }),
+          });
+          if (resp.ok) {
+            return await resp.json();
+          }
+          return { success: false, error: `HTTP ${resp.status}: Server error` };
+        } catch (err: any) {
+          return { success: false, error: err?.message || 'Không thể kết nối Boss server' };
+        }
+      };
+    }
+  });
+}
+
+class BrowserEventEmitter {
+  private listeners: Map<string, Set<Function>> = new Map();
+  private eventSource: EventSource | null = null;
+  private currentToken: string | null = null;
+  private currentBossUrl: string | null = null;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      setInterval(() => this.ensureConnected(), 3000);
+    }
+  }
+
+  public on(channel: string, callback: Function): () => void {
+    if (!this.listeners.has(channel)) {
+      this.listeners.set(channel, new Set());
+    }
+    this.listeners.get(channel)!.add(callback);
+    this.ensureConnected();
+
+    return () => {
+      const set = this.listeners.get(channel);
+      if (set) {
+        set.delete(callback);
+      }
+    };
+  }
+
+  public removeAllListeners(): void {
+    this.listeners.clear();
+  }
+
+  public emit(channel: string, data: any): void {
+    const set = this.listeners.get(channel);
+    if (set) {
+      for (const cb of set) {
+        try { cb(data); } catch (e) { console.error(`[BrowserEvent] Listener error for ${channel}:`, e); }
+      }
+    }
+  }
+
+  private ensureConnected(): void {
+    const activeWs = getActiveBrowserWorkspace();
+    if (!activeWs || !activeWs.bossUrl || !activeWs.token) return;
+
+    let url = activeWs.bossUrl.trim().replace(/\/+$/, '');
+    if (!url.startsWith('http://') && !url.startsWith('https://')) url = `http://${url}`;
+
+    if (this.eventSource && this.currentToken === activeWs.token && this.currentBossUrl === url) {
+      if (this.eventSource.readyState === EventSource.CLOSED) {
+        this.connectSSE(url, activeWs.token);
+      }
+      return;
+    }
+
+    this.connectSSE(url, activeWs.token);
+  }
+
+  private connectSSE(bossUrl: string, token: string): void {
+    if (this.eventSource) {
+      try { this.eventSource.close(); } catch {}
+      this.eventSource = null;
+    }
+
+    this.currentBossUrl = bossUrl;
+    this.currentToken = token;
+
+    try {
+      const sseUrl = `${bossUrl}/api/events/stream?token=${encodeURIComponent(token)}`;
+      console.log('[BrowserEvent] 🔄 Connecting SSE to Boss:', sseUrl);
+      const es = new EventSource(sseUrl);
+      this.eventSource = es;
+
+      es.onmessage = (event) => {
+        try {
+          if (!event.data || event.data.startsWith(':')) return;
+          const payload = JSON.parse(event.data);
+          if (payload.channel) {
+            console.log(`[BrowserEvent] ⚡ Event received from Boss: ${payload.channel}`, payload.data);
+            this.emit(payload.channel, payload.data);
+          }
+        } catch (e) {
+          console.warn('[BrowserEvent] SSE parse error:', e);
+        }
+      };
+
+      es.onerror = () => {
+        try { es.close(); } catch {}
+        this.eventSource = null;
+      };
+    } catch (err) {
+      console.error('[BrowserEvent] Failed to create EventSource:', err);
+    }
+  }
+}
+
+const browserEventEmitter = new BrowserEventEmitter();
+
 export const ipc = {
-  login: window.electronAPI?.login,
-  zalo: window.electronAPI?.zalo,
-  db: window.electronAPI?.db,
-  file: window.electronAPI?.file,
-  app: window.electronAPI?.app,
-  window: window.electronAPI?.window,
+  login: window.electronAPI?.login || browserLogin,
+  zalo: window.electronAPI?.zalo ? wrapZaloApi(window.electronAPI.zalo) : createBrowserIpcProxy('zalo'),
+  db: window.electronAPI?.db || createBrowserIpcProxy('db'),
+  file: window.electronAPI?.file || createBrowserIpcProxy('file'),
+  media: window.electronAPI?.media || createBrowserIpcProxy('media'),
+  app: window.electronAPI?.app || createBrowserIpcProxy('app'),
+  window: window.electronAPI?.window || createBrowserIpcProxy('window'),
   shell,
-  util: window.electronAPI?.util,
-  crm: window.electronAPI?.crm,
-  analytics: window.electronAPI?.analytics,
-  workflow: window.electronAPI?.workflow,
-  integration: window.electronAPI?.integration,
-  ai: window.electronAPI?.ai,
-  tunnel: window.electronAPI?.tunnel,
-  employee: window.electronAPI?.employee,
-  workspace: window.electronAPI?.workspace,
-  sync: window.electronAPI?.sync,
-  relay: window.electronAPI?.relay,
-  fb: window.electronAPI?.fb,
-  proxy: window.electronAPI?.proxy,
+  util: window.electronAPI?.util || createBrowserIpcProxy('util'),
+  crm: window.electronAPI?.crm || createBrowserIpcProxy('crm'),
+  analytics: window.electronAPI?.analytics || createBrowserIpcProxy('analytics'),
+  workflow: window.electronAPI?.workflow || createBrowserIpcProxy('workflow'),
+  integration: window.electronAPI?.integration || createBrowserIpcProxy('integration'),
+  ai: window.electronAPI?.ai || createBrowserIpcProxy('ai'),
+  tunnel: window.electronAPI?.tunnel || createBrowserIpcProxy('tunnel'),
+  employee: window.electronAPI?.employee || createBrowserIpcProxy('employee'),
+  workspace: window.electronAPI?.workspace || browserWorkspace,
+  sync: window.electronAPI?.sync || createBrowserIpcProxy('sync'),
+  relay: window.electronAPI?.relay || createBrowserIpcProxy('relay'),
+  fb: window.electronAPI?.fb || createBrowserIpcProxy('fb'),
+  proxy: window.electronAPI?.proxy || createBrowserIpcProxy('proxy'),
 
   erp,
   lockScreen: window.electronAPI?.lockScreen,
-  library: window.electronAPI?.library,
-  on: window.electronAPI?.on,
-  removeAllListeners: window.electronAPI?.removeAllListeners,
+  library: window.electronAPI?.library || createBrowserIpcProxy('library'),
+  on: (channel: string, callback: (...args: any[]) => void) => {
+    if (window.electronAPI?.on) {
+      return window.electronAPI.on(channel, callback);
+    }
+    return browserEventEmitter.on(channel, callback);
+  },
+  removeAllListeners: () => {
+    if (window.electronAPI?.removeAllListeners) {
+      window.electronAPI.removeAllListeners();
+    } else {
+      browserEventEmitter.removeAllListeners();
+    }
+  },
 };
 
 export default ipc;

@@ -529,6 +529,12 @@ export function getNodeOutputVars(
           group: 'node' as TemplateVarGroup,
         },
         {
+          key: `$node.${label}.output.contacts`,
+          label: `Danh sách khách hàng từ "${label}" (.output.contacts)`,
+          description: `Mảng chứa danh sách tất cả khách hàng (định dạng .output.contacts).`,
+          group: 'node' as TemplateVarGroup,
+        },
+        {
           key: `$node.${label}.count`,
           label: `Số lượng khách hàng từ "${label}"`,
           description: `Tổng số khách hàng tìm được từ node CRM "${label}".`,

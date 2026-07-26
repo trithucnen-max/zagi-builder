@@ -6,6 +6,7 @@ import { autoUpdater } from 'electron-updater';
 import DatabaseService from '../src/services/database/DatabaseService';
 import { registerLoginIpc } from './ipc/loginIpc';
 import { registerZaloIpc } from './ipc/zaloIpc';
+import { registerMediaIpc } from './ipc/mediaIpc';
 import { registerDatabaseIpc } from './ipc/databaseIpc';
 import { registerFileIpc } from './ipc/fileIpc';
 import { registerCRMIpc } from './ipc/crmIpc';
@@ -27,6 +28,8 @@ import { registerErpHrmIpc } from './ipc/erpHrmIpc';
 import { registerLockScreenIpc } from './ipc/lockScreenIpc';
 import { registerLibraryIpc } from './ipc/libraryIpc';
 import { registerLicenseIpc, loadLicenseConfig, createLicenseWindow } from './ipc/licenseIpc';
+import { registerTelemetryIpc } from './ipc/telemetryIpc';
+import TelemetryService from '../src/services/telemetry/TelemetryService';
 import licenseManager from '../src/services/license/LicenseManager';
 import WorkspaceManager from '../src/utils/WorkspaceManager';
 import HttpConnectionManager from '../src/services/http/HttpConnectionManager';
@@ -106,6 +109,15 @@ ipcMain.handle = (channel: string, listener: any) => {
       const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
       if (activeWs?.type === 'remote' && !(args[0]?._fromRelay)) {
         try {
+          if (channel === 'file:readImageAsBase64' || channel === 'file:exists' || channel === 'file:getVideoMeta') {
+            const pathToCheck = args[0]?.localPath || args[0]?.filePath;
+            if (pathToCheck && typeof pathToCheck === 'string') {
+              const resolved = FileStorageService.resolveAbsolutePath(pathToCheck);
+              if (resolved && fs.existsSync(resolved)) {
+                return await listener(event, ...args);
+              }
+            }
+          }
           return await HttpConnectionManager.getInstance().proxyAction(activeWs.id, channel, args[0] || {});
         } catch (err: any) {
           console.error(`[ipcProxy] Error forwarding ${channel} to Boss:`, err.message);
@@ -1008,6 +1020,7 @@ async function startupAfterLicenseCheck(): Promise<void> {
   // Register all IPC handlers
   registerLoginIpc(mainWindow);
   registerZaloIpc();
+  registerMediaIpc();
   registerDatabaseIpc();
   registerFileIpc();
   registerCRMIpc();
@@ -1030,6 +1043,8 @@ async function startupAfterLicenseCheck(): Promise<void> {
   registerLockScreenIpc();
   registerLibraryIpc();
   registerLicenseIpc(); // Tab Bản quyền trong Settings cũng cần (re-register safe — ipcMain dùng Map)
+  registerTelemetryIpc();
+  TelemetryService.init(app.getPath('userData'));
 
   // Lắng nghe sự kiện ngủ / thức dậy của hệ thống — reconnect ngay lập tức
   const restartZaloListeners = async () => {
@@ -1058,16 +1073,38 @@ async function startupAfterLicenseCheck(): Promise<void> {
     }
   };
 
-  powerMonitor.on('resume', () => {
-    console.log('[main.ts] 🔋 System woke up from sleep — marking connections degraded immediately...');
-    // Đánh dấu người dùng mất kết nối ngay (hiện UI overlay “Mất kết nối”), không đợi heartbeat
+  powerMonitor.on('suspend', () => {
+    console.log('[main.ts] 💤 System is going to sleep — destroying connections to prevent socket leaks...');
     try {
-      const mgr = HttpConnectionManager.getInstance();
-      for (const [wsId] of (mgr as any).clients ?? new Map()) {
-        const svc = mgr.getServiceForWorkspace(wsId);
-        svc?.markDisconnectedImmediately?.();
-      }
-    } catch {}
+      HttpConnectionManager.getInstance().disconnectAll();
+    } catch (err: any) {
+      console.warn('[main.ts] disconnectAll on suspend warning:', err.message);
+    }
+    try {
+      const ConnMgr = require('../src/utils/ConnectionManager').default;
+      ConnMgr.disconnectAll().catch(() => {});
+    } catch (err: any) {
+      console.warn('[main.ts] Zalo listener disconnectAll on suspend warning:', err.message);
+    }
+  });
+
+  powerMonitor.on('lock-screen', () => {
+    console.log('[main.ts] 🔒 System screen locked — destroying connections to protect data...');
+    try {
+      HttpConnectionManager.getInstance().disconnectAll();
+    } catch (err: any) {
+      console.warn('[main.ts] disconnectAll on lock-screen warning:', err.message);
+    }
+    try {
+      const ConnMgr = require('../src/utils/ConnectionManager').default;
+      ConnMgr.disconnectAll().catch(() => {});
+    } catch (err: any) {
+      console.warn('[main.ts] Zalo listener disconnectAll on lock-screen warning:', err.message);
+    }
+  });
+
+  powerMonitor.on('resume', () => {
+    console.log('[main.ts] 🔋 System woke up from sleep — executing delayed reconnect...');
     // Sau 5s mới thử kết nối lại (để card mạng kịp nhận IP mới)
     setTimeout(() => {
       console.log('[main.ts] 🔋 System woke up from sleep (delayed) — executing reconnect...');
@@ -1078,14 +1115,7 @@ async function startupAfterLicenseCheck(): Promise<void> {
   });
 
   powerMonitor.on('unlock-screen', () => {
-    console.log('[main.ts] 🔑 System unlocked — marking connections degraded immediately...');
-    try {
-      const mgr = HttpConnectionManager.getInstance();
-      for (const [wsId] of (mgr as any).clients ?? new Map()) {
-        const svc = mgr.getServiceForWorkspace(wsId);
-        svc?.markDisconnectedImmediately?.();
-      }
-    } catch {}
+    console.log('[main.ts] 🔑 System unlocked — executing delayed reconnect...');
     setTimeout(() => {
       console.log('[main.ts] 🔑 System unlocked (delayed) — executing reconnect...');
       HttpConnectionManager.getInstance().connectAutoWorkspaces().catch(() => {});
@@ -1149,6 +1179,13 @@ async function startupAfterLicenseCheck(): Promise<void> {
   }), 3000);
   // Resume any active CRM campaigns after restart
   setTimeout(() => CRMQueueService.getInstance().resumeActiveCampaigns(), 3000);
+  // Initialize Zalo Bulk Phone Scanner background service
+  setTimeout(() => {
+    try {
+      const PhoneScanService = require('../src/services/crm/PhoneScanService').default;
+      PhoneScanService.getInstance().start();
+    } catch (err: any) { console.error('[main] PhoneScan scheduler init error:', err.message); }
+  }, 3200);
   // Initialize ERP Calendar reminders scheduler
   setTimeout(() => {
     try {
@@ -1352,6 +1389,12 @@ app.on('before-quit', () => {
   try {
     // Dừng webhook gateway
     WebhookGatewayService.getInstance().stop();
+  } catch {}
+
+  try {
+    // Dừng PhoneScanService
+    const PhoneScanService = require('../src/services/crm/PhoneScanService').default;
+    PhoneScanService.getInstance().stop();
   } catch {}
 
   try {

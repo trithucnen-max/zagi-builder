@@ -3,6 +3,7 @@ import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore, LabelData } from '@/store/appStore';
 import { extractUserProfile } from '../../../../utils/profileUtils';
+import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
 import ZaloLabelBadge from '../tags/ZaloLabelBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -41,12 +42,7 @@ interface CRMImportModalProps {
 const BLACKLIST_KEY_PREFIX = 'crm_import_blacklist_';
 const MAX_PHONES = 50;
 
-export function normalizePhone(raw: string): string {
-  const s = raw.trim().replace(/[\s.\-()]/g, '');
-  if (s.startsWith('+84')) return '0' + s.slice(3).replace(/^0+/, '');
-  if (s.startsWith('84') && s.length >= 10) return '0' + s.slice(2).replace(/^0+/, '');
-  return s;
-}
+export { normalizePhone };
 
 export function isValidPhone(p: string): boolean {
   return /^0\d{8,9}$/.test(p);

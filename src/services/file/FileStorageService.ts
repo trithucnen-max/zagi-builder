@@ -84,10 +84,21 @@ class FileStorageService {
      */
     public static resolveAbsolutePath(relOrAbsPath: string): string {
         if (!relOrAbsPath) return '';
-        if (!path.isAbsolute(relOrAbsPath)) {
+        const trimmed = relOrAbsPath.trim();
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+            return trimmed;
+        }
+        if (!path.isAbsolute(trimmed)) {
             // Relative: "media/zaloId/date/img.jpg" → configFolder/media/zaloId/...
+            // OR "library/zaloId/images/uuid.png" → baseDir/library/zaloId/...
             const configFolder = path.dirname(this.getBaseDir());
-            return path.join(configFolder, relOrAbsPath);
+            const resolvedConfig = path.join(configFolder, trimmed);
+            if (fs.existsSync(resolvedConfig)) return resolvedConfig;
+
+            const resolvedBase = path.join(this.getBaseDir(), trimmed);
+            if (fs.existsSync(resolvedBase)) return resolvedBase;
+
+            return resolvedConfig;
         }
         // Absolute path — serve as-is if it exists
         if (fs.existsSync(relOrAbsPath)) return relOrAbsPath;
@@ -571,6 +582,25 @@ class FileStorageService {
                     if (dirDate.getTime() < cutoff) {
                         fs.rmSync(fullPath, { recursive: true, force: true });
                         deletedCount++;
+
+                        // Cập nhật Database để đánh dấu đã dọn dẹp
+                        try {
+                            const DatabaseService = require('../database/DatabaseService').default;
+                            const db = DatabaseService.getInstance();
+                            if (db.getIsInitialized()) {
+                                const likePattern1 = `%${zaloId}/${entry}%`;
+                                const likePattern2 = `%${zaloId}\\${entry}%`;
+                                db.run(
+                                    `UPDATE messages 
+                                     SET local_paths = '{"cleaned":true}' 
+                                     WHERE owner_zalo_id = ? 
+                                       AND (local_paths LIKE ? OR local_paths LIKE ?)`,
+                                    [zaloId, likePattern1, likePattern2]
+                                );
+                            }
+                        } catch (dbErr: any) {
+                            Logger.error(`[FileStorageService] Failed to update local_paths in DB: ${dbErr.message}`);
+                        }
                     }
                 } catch {
                     // Skip entries we can't stat

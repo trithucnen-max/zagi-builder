@@ -3,8 +3,10 @@ import { useCRMStore, PipelineStage, CRMContact } from '@/store/crmStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import ipc from '@/lib/ipc';
+import useIsMobile from '@/hooks/useIsMobile';
 
 export default function CRMPipelineTab() {
+  const isMobile = useIsMobile();
   const { activeAccountId } = useAccountStore();
   const { showNotification } = useAppStore();
   const {

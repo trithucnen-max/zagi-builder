@@ -5,6 +5,7 @@ import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
 import ContactAISummarizer from '../ai/ContactAISummarizer';
+import EventBroadcaster from '../event/EventBroadcaster';
 
 // declare global db variables to prevent multiple instances load issues
 declare global {
@@ -81,7 +82,14 @@ class DatabaseService {
             // eslint-disable-next-line @typescript-eslint/no-require-imports
             const AppModeManager = require('../../utils/AppModeManager').default;
             if (AppModeManager.getInstance().isEmployeeMode()) {
-                Logger.log('[DatabaseService] Running in Employee Mode - Bypassing local database file initialization');
+                Logger.log('[DatabaseService] Running in Employee Mode - Initializing local database for settings only');
+                this.dbPath = path.join(app.getPath('userData'), 'zagi-tool.db');
+                const dir = path.dirname(this.dbPath);
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                }
+                db = this.openDb(this.dbPath);
+                this.createTables();
                 this.initialized = true;
                 return;
             }
@@ -187,10 +195,7 @@ class DatabaseService {
         return this.initialized && db !== null;
     }
 
-    /** No-op: better-sqlite3 auto-persists. Kept for API compat. */
-    private scheduleSave(): void {
-        // No-op — WAL mode auto-writes
-    }
+
 
     /**
      * WAL checkpoint — ensures all writes are flushed to main DB file.
@@ -268,16 +273,7 @@ class DatabaseService {
         const AppModeManager = require('../../utils/AppModeManager').default;
         if (AppModeManager.getInstance().isEmployeeMode()) {
             Logger.log(`[DatabaseService] Running in Employee Mode - Bypassing switch to workspace DB: ${newDbPath}`);
-            if (global.db) {
-                try {
-                    global.db.close();
-                } catch (err: any) {
-                    Logger.error(`[DatabaseService] Failed to close database: ${err.message}`);
-                }
-                global.db = null;
-                global.db_initialized = false;
-            }
-            this.dbPath = '';
+            // Keep local settings DB open in Employee Mode
             return;
         }
 
@@ -509,18 +505,21 @@ class DatabaseService {
         }
     }
 
-    /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0 */
+    /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0, tự thêm 0 nếu thiếu */
     private normalizeVietnamPhone(phone?: string): string {
         if (!phone) return '';
-        const cleaned = String(phone).trim().replace(/[\s().-]/g, '');
+        let cleaned = String(phone).trim().replace(/[\s().-]/g, '');
         if (!cleaned) return '';
         if (cleaned.startsWith('+84')) {
             const local = cleaned.slice(3).replace(/^0+/, '');
-            return `0${local}`;
+            return local ? `0${local}` : '';
         }
-        if (cleaned.startsWith('84')) {
+        if (cleaned.startsWith('84') && cleaned.length >= 10) {
             const local = cleaned.slice(2).replace(/^0+/, '');
-            return `0${local}`;
+            return local ? `0${local}` : '';
+        }
+        if (/^[35789]\d{8}$/.test(cleaned)) {
+            return `0${cleaned}`;
         }
         return cleaned;
     }
@@ -1128,6 +1127,99 @@ class DatabaseService {
                 updated_at INTEGER NOT NULL
             );
         `);
+
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS phone_scan_batches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                assigned_account_id TEXT,
+                auto_tag_ids TEXT NOT NULL DEFAULT '[]',
+                daily_limit INTEGER NOT NULL DEFAULT 100,
+                hourly_limit INTEGER NOT NULL DEFAULT 30,
+                priority INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'active',
+                total_count INTEGER NOT NULL DEFAULT 0,
+                scanned_count INTEGER NOT NULL DEFAULT 0,
+                found_count INTEGER NOT NULL DEFAULT 0,
+                not_found_count INTEGER NOT NULL DEFAULT 0,
+                error_count INTEGER NOT NULL DEFAULT 0,
+                duplicate_count INTEGER NOT NULL DEFAULT 0,
+                completed_at INTEGER,
+                created_at INTEGER NOT NULL
+            );
+        `);
+
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS phone_scan_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_id INTEGER NOT NULL,
+                phone TEXT NOT NULL,
+                phone_normalized TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                zalo_uid TEXT,
+                zalo_name TEXT,
+                zalo_avatar TEXT,
+                error_msg TEXT,
+                scanned_by_account_id TEXT,
+                scanned_at INTEGER,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY(batch_id) REFERENCES phone_scan_batches(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_psi_batch ON phone_scan_items(batch_id);
+            CREATE INDEX IF NOT EXISTS idx_psi_status ON phone_scan_items(status);
+        `);
+
+        // Migration: add hourly_limit, scheduled_time, skip_crm_existing columns to phone_scan_batches if not exists
+        try {
+            const cols = this.query<any>('PRAGMA table_info(phone_scan_batches)');
+            const hasHourlyLimit = cols.some((c: any) => c.name === 'hourly_limit');
+            if (!hasHourlyLimit) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN hourly_limit INTEGER NOT NULL DEFAULT 30`);
+                Logger.log('[DatabaseService] ✅ Migration: added hourly_limit column to phone_scan_batches');
+            }
+            const hasScheduledTime = cols.some((c: any) => c.name === 'scheduled_time');
+            if (!hasScheduledTime) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN scheduled_time TEXT NOT NULL DEFAULT ''`);
+                Logger.log('[DatabaseService] ✅ Migration: added scheduled_time column to phone_scan_batches');
+            }
+            const hasSkipCrmExisting = cols.some((c: any) => c.name === 'skip_crm_existing');
+            if (!hasSkipCrmExisting) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN skip_crm_existing INTEGER NOT NULL DEFAULT 0`);
+                Logger.log('[DatabaseService] ✅ Migration: added skip_crm_existing column to phone_scan_batches');
+            }
+            const hasAutoWorkflowId = cols.some((c: any) => c.name === 'auto_workflow_id');
+            if (!hasAutoWorkflowId) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN auto_workflow_id INTEGER`);
+                Logger.log('[DatabaseService] ✅ Migration: added auto_workflow_id column to phone_scan_batches');
+            }
+            const hasUpdateZaloAlias = cols.some((c: any) => c.name === 'update_zalo_alias');
+            if (!hasUpdateZaloAlias) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN update_zalo_alias INTEGER NOT NULL DEFAULT 0`);
+                Logger.log('[DatabaseService] ✅ Migration: added update_zalo_alias column to phone_scan_batches');
+            }
+            const hasSortOrder = cols.some((c: any) => c.name === 'sort_order');
+            if (!hasSortOrder) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`);
+                this.exec(`UPDATE phone_scan_batches SET sort_order = id`);
+                Logger.log('[DatabaseService] ✅ Migration: added sort_order column to phone_scan_batches');
+            } else {
+                this.exec(`UPDATE phone_scan_batches SET sort_order = id WHERE sort_order = 0 OR sort_order IS NULL`);
+            }
+            const hasAssignmentMode = cols.some((c: any) => c.name === 'contact_assignment_mode');
+            if (!hasAssignmentMode) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN contact_assignment_mode TEXT NOT NULL DEFAULT 'distributed'`);
+                Logger.log('[DatabaseService] ✅ Migration: added contact_assignment_mode column to phone_scan_batches');
+            }
+
+            const contactCols = this.query<any>('PRAGMA table_info(contacts)');
+            const hasIsBlocked = contactCols.some((c: any) => c.name === 'is_blocked');
+            if (!hasIsBlocked) {
+                this.exec(`ALTER TABLE contacts ADD COLUMN is_blocked INTEGER DEFAULT 0`);
+                Logger.log('[DatabaseService] ✅ Migration: added is_blocked column to contacts');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration phone_scan_batches columns: ${err.message}`);
+        }
     }
 
     // ─── ERP Schema ────────────────────────────────────────────────────────────
@@ -2478,6 +2570,21 @@ class DatabaseService {
             Logger.warn(`[DatabaseService] delay_min/max migration: ${err.message}`);
         }
 
+        // Migration: add Campaign Pipeline columns (on_complete_no_reply_campaign_id, etc.) to crm_campaigns
+        try {
+            const campColsPipeline = this.query<any>(`PRAGMA table_info(crm_campaigns)`);
+            if (campColsPipeline.length > 0 && !campColsPipeline.some((c: any) => c.name === 'on_complete_no_reply_campaign_id')) {
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN on_complete_no_reply_campaign_id INTEGER DEFAULT NULL`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN on_complete_reply_campaign_id INTEGER DEFAULT NULL`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN on_complete_reply_tag_id INTEGER DEFAULT NULL`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN on_complete_no_reply_tag_id INTEGER DEFAULT NULL`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added Campaign Pipeline columns to crm_campaigns');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Campaign Pipeline migration: ${err.message}`);
+        }
+
         // ── fb_threads.is_e2ee ──────────────────────────────────────────────
         try {
             const threadCols = this.query<any>(`PRAGMA table_info(fb_threads)`);
@@ -3191,10 +3298,18 @@ class DatabaseService {
      */
     public setContactAlias(ownerZaloId: string, contactId: string, alias: string): void {
         if (!this.initialized || !contactId) return;
-        this.run(
-            `UPDATE contacts SET alias=? WHERE owner_zalo_id=? AND contact_id=?`,
-            [alias || '', ownerZaloId, contactId]
-        );
+        const newAlias = alias || '';
+        if (ownerZaloId) {
+            this.run(
+                `UPDATE contacts SET alias=? WHERE owner_zalo_id=? AND contact_id=?`,
+                [newAlias, ownerZaloId, contactId]
+            );
+        } else {
+            this.run(
+                `UPDATE contacts SET alias=? WHERE contact_id=? AND (alias IS NULL OR alias = '')`,
+                [newAlias, contactId]
+            );
+        }
     }
 
     /**
@@ -3233,7 +3348,7 @@ class DatabaseService {
                 const autoSalutation = gender === 0 ? 'Anh' : (gender === 1 ? 'Chị' : 'Bạn');
                 this.run(
                     `UPDATE contacts SET 
-                       gender=?,
+                       gender = CASE WHEN gender IS NULL THEN ? ELSE gender END,
                        salutation = CASE WHEN salutation IS NULL OR salutation = '' THEN ? ELSE salutation END
                      WHERE owner_zalo_id=? AND contact_id=?`,
                     [gender, autoSalutation, ownerZaloId, contactId]
@@ -3241,7 +3356,7 @@ class DatabaseService {
             }
             if (birthday !== undefined && birthday !== null && birthday !== '') {
                 this.run(
-                    `UPDATE contacts SET birthday=? WHERE owner_zalo_id=? AND contact_id=?`,
+                    `UPDATE contacts SET birthday = CASE WHEN birthday IS NULL OR birthday = '' THEN ? ELSE birthday END WHERE owner_zalo_id=? AND contact_id=?`,
                     [birthday, ownerZaloId, contactId]
                 );
             }
@@ -3315,7 +3430,14 @@ class DatabaseService {
         if (fields.salutation !== undefined) { sets.push('salutation=?'); vals.push(fields.salutation || null); }
         if (fields.phone !== undefined)      { sets.push('phone=?');      vals.push(this.normalizeVietnamPhone(fields.phone ?? '')); }
         if (fields.gender !== undefined)     { sets.push('gender=?');     vals.push(fields.gender); }
-        if (fields.birthday !== undefined)   { sets.push('birthday=?');   vals.push(fields.birthday || null); }
+        if (fields.birthday !== undefined)   {
+            let b = fields.birthday ? fields.birthday.trim() : null;
+            if (b) {
+                b = b.replace(/[\.-]/g, '/');
+            }
+            sets.push('birthday=?');
+            vals.push(b || null);
+        }
         if (sets.length === 0) return;
         vals.push(ownerZaloId, contactId);
         try {
@@ -3636,65 +3758,6 @@ class DatabaseService {
                 'UPDATE messages SET local_paths = ? WHERE owner_zalo_id = ? AND msg_id = ?',
                 [JSON.stringify(merged), ownerZaloId, String(msgId)]
             );
-
-            // Hook tự động đồng bộ file chat vào Thư viện chung
-            setImmediate(async () => {
-                try {
-                    const msg = this.queryOne<{ msg_type: string; content: string }>(
-                        'SELECT msg_type, content FROM messages WHERE owner_zalo_id = ? AND msg_id = ?',
-                        [ownerZaloId, String(msgId)]
-                    );
-                    if (!msg) return;
-
-                    const filePath = localPaths.file || localPaths.main || localPaths.hd || localPaths.video;
-                    if (!filePath || typeof filePath !== 'string') return;
-
-                    const fs = require('fs');
-                    const path = require('path');
-                    const absPath = path.isAbsolute(filePath) ? filePath : path.join(path.dirname(this.dbPath || ''), filePath);
-
-                    if (!fs.existsSync(absPath)) return;
-
-                    let fileName = path.basename(absPath);
-                    let mimeType = '';
-
-                    try {
-                        const c = JSON.parse(msg.content || '{}');
-                        if (c.title) fileName = c.title;
-                    } catch {}
-
-                    if (msg.msg_type === 'image') {
-                        mimeType = 'image/jpeg';
-                    } else if (msg.msg_type === 'chat.video.msg' || msg.msg_type === 'video') {
-                        mimeType = 'video/mp4';
-                    } else if (msg.msg_type === 'audio') {
-                        mimeType = 'audio/mp3';
-                    } else {
-                        const ext = path.extname(fileName).toLowerCase();
-                        const mimes = {
-                            '.pdf': 'application/pdf',
-                            '.doc': 'application/msword',
-                            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            '.xls': 'application/vnd.ms-excel',
-                            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                            '.png': 'image/png',
-                            '.jpg': 'image/jpeg',
-                            '.jpeg': 'image/jpeg',
-                            '.gif': 'image/gif',
-                            '.mp4': 'video/mp4',
-                            '.mp3': 'audio/mpeg',
-                            '.wav': 'audio/wav',
-                            '.amr': 'audio/amr',
-                        } as any;
-                        mimeType = mimes[ext] || 'application/octet-stream';
-                    }
-
-                    const LibraryService = require('../library/LibraryService').default;
-                    await LibraryService.getInstance().autoImportFromChat(ownerZaloId, absPath, fileName, mimeType);
-                } catch (err: any) {
-                    Logger.error(`[DatabaseService] autoImportFromChat hook error: ${err.message}`);
-                }
-            });
         } catch (err: any) {
             Logger.error(`[DatabaseService] updateLocalPaths error: ${err.message}`);
         }
@@ -4251,13 +4314,22 @@ class DatabaseService {
         );
     }
 
-    /** Xóa hội thoại khỏi DB (xóa contact + toàn bộ tin nhắn) */
+    /** Xóa hội thoại khỏi DB (xóa contact, friend + toàn bộ tin nhắn + nhãn + ghi chú + tags) */
     public deleteConversation(ownerZaloId: string, contactId: string): void {
         if (!this.initialized) return;
         try {
             this.runNoSave('DELETE FROM messages WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
             this.runNoSave('DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?', [ownerZaloId, contactId]);
-            this.runNoSave('DELETE FROM page_group_member WHERE owner_zalo_id = ? AND group_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM friends WHERE owner_zalo_id = ? AND user_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM page_group_member WHERE owner_zalo_id = ? AND (group_id = ? OR member_id = ?)', [ownerZaloId, contactId, contactId]);
+            this.runNoSave('DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM crm_notes WHERE owner_zalo_id = ? AND contact_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM crm_contact_tags WHERE owner_zalo_id = ? AND contact_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM crm_campaign_contacts WHERE contact_id = ?', [contactId]);
+            this.runNoSave('DELETE FROM local_pinned_conversations WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM message_drafts WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM links WHERE owner_zalo_id = ? AND thread_id = ?', [ownerZaloId, contactId]);
+            this.runNoSave('DELETE FROM friend_requests WHERE owner_zalo_id = ? AND user_id = ?', [ownerZaloId, contactId]);
             this.save();
             Logger.log(`[DatabaseService] Deleted conversation ${contactId} for ${ownerZaloId}`);
         } catch (err: any) {
@@ -5545,6 +5617,7 @@ class DatabaseService {
             const perContactMax = (campaign as any).per_contact_delay_max_seconds ?? perContactMin;
             // Still write delay_seconds as the midpoint for backward compat
             const compatDelaySeconds = campaign.delay_seconds || Math.round((delayMin + delayMax) / 2);
+
             if (campaign.id) {
                 const rows = this.query<any>(`SELECT id FROM crm_campaigns WHERE id=? AND owner_zalo_id=?`, [campaign.id, campaign.owner_zalo_id]);
                 if (rows.length > 0) {
@@ -5667,17 +5740,21 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] retryFailedCampaignContacts: ${err.message}`); }
     }
 
+    private static readonly MAX_CAMPAIGN_CONTACTS = 1000;
+
     public addCampaignContacts(
-        campaignId: number,
+        campaignId: number | string,
         ownerZaloId: string,
-        contacts: Array<{ contactId: string; displayName?: string; avatar?: string; phone?: string }>
+        contacts: Array<any>
     ): { addedCount: number; discardedCount: number; limitExceeded: boolean } {
         if (!this.initialized) {
-            return { addedCount: 0, discardedCount: contacts.length, limitExceeded: false };
+            return { addedCount: 0, discardedCount: contacts ? contacts.length : 0, limitExceeded: false };
         }
-        if (!contacts.length) {
+        if (!contacts || !contacts.length) {
             return { addedCount: 0, discardedCount: 0, limitExceeded: false };
         }
+
+        const numCampaignId = typeof campaignId === 'number' ? campaignId : (parseInt(String(campaignId), 10) || 0);
 
         let addedCount = 0;
         let discardedCount = 0;
@@ -5686,32 +5763,42 @@ class DatabaseService {
         try {
             const rows = this.query<{ contact_id: string }>(
                 `SELECT contact_id FROM crm_campaign_contacts WHERE campaign_id=?`,
-                [campaignId]
+                [numCampaignId]
             );
             const existingIds = new Set<string>(rows.map(r => r.contact_id));
 
-            let availableSlots = 1000 - existingIds.size;
+            let availableSlots = DatabaseService.MAX_CAMPAIGN_CONTACTS - existingIds.size;
 
             const stmt = db!.prepare(
                 `INSERT OR IGNORE INTO crm_campaign_contacts (campaign_id, owner_zalo_id, contact_id, display_name, avatar, phone, status, sent_at, retry_count, error) VALUES (?,?,?,?,?,?,'pending',0,0,'')`
             );
 
-            for (const c of contacts) {
-                if (existingIds.has(c.contactId)) {
-                    continue;
-                }
+            this.transaction(() => {
+                for (const c of contacts) {
+                    if (!c) continue;
+                    const cid = String(c.contactId || c.contact_id || c.id || c.uid || c.phone || '').trim();
+                    if (!cid) continue;
 
-                if (availableSlots <= 0) {
-                    limitExceeded = true;
-                    discardedCount++;
-                    continue;
-                }
+                    if (existingIds.has(cid)) {
+                        continue;
+                    }
 
-                stmt.run(campaignId, ownerZaloId, c.contactId, c.displayName || '', c.avatar || '', c.phone || '');
-                existingIds.add(c.contactId);
-                availableSlots--;
-                addedCount++;
-            }
+                    if (availableSlots <= 0) {
+                        limitExceeded = true;
+                        discardedCount++;
+                        continue;
+                    }
+
+                    const dName = String(c.displayName || c.display_name || c.name || c.full_name || cid).trim();
+                    const avt = String(c.avatar || c.avatar_url || c.avatarUrl || '').trim();
+                    const ph = String(c.phone || c.phone_number || '').trim();
+
+                    stmt.run(numCampaignId, ownerZaloId, cid, dName, avt, ph);
+                    existingIds.add(cid);
+                    availableSlots--;
+                    addedCount++;
+                }
+            });
 
             this.save();
         } catch (err: any) {
@@ -5719,6 +5806,18 @@ class DatabaseService {
         }
 
         return { addedCount, discardedCount, limitExceeded };
+    }
+
+    public addContactToCampaign(
+        campaignId: number,
+        ownerZaloId: string,
+        contactId: string,
+        displayName?: string,
+        avatar?: string,
+        phone?: string
+    ): number {
+        const res = this.addCampaignContacts(campaignId, ownerZaloId, [{ contactId, displayName, avatar, phone }]);
+        return res.addedCount;
     }
 
     public getCampaignContacts(campaignId: number): CRMCampaignContact[] {
@@ -6067,17 +6166,24 @@ class DatabaseService {
         limit?: number; offset?: number;
         contactIds?: string[];
         pipelineStageId?: number | null | 'unclassified' | 'any';
+        gender?: 'male' | 'female' | 'unknown' | 'all' | string;
+        birthdayFilter?: 'today' | 'this_week' | 'this_month' | 'has_birthday' | 'no_birthday' | 'all' | string;
+        salutation?: string;
+        hasPhone?: boolean;
+        hasNotes?: boolean;
+        isBlocked?: boolean;
     } = {}): { contacts: any[]; total: number } {
         if (!this.initialized) return { contacts: [], total: 0 };
         try {
-            const { search, tagIds, contactIds, isFriendOnly, contactType = 'all', contactTypes, sortBy = 'name', sortDir = 'asc', limit = 50, offset = 0 } = opts;
+            this.backfillPhoneScanAliases();
+            const { search, tagIds, contactIds, isFriendOnly, contactType = 'all', contactTypes, isBlocked, sortBy = 'name', sortDir = 'asc', limit = 50, offset = 0 } = opts;
 
             let all: any[] = [];
 
             // Determine effective type filter
             // contactTypes (array) takes priority; fallback to legacy contactType
             const effectiveTypes: ('friend' | 'group' | 'non_friend')[] | null =
-                (contactTypes && contactTypes.length > 0) ? contactTypes : null;
+                (contactTypes && contactTypes.length > 0) ? contactTypes.filter(t => t as string !== 'is_blocked') as any : null;
             const legacyType = isFriendOnly ? 'friend' : (contactType || 'all');
 
             if (!effectiveTypes && legacyType === 'group') {
@@ -6087,7 +6193,8 @@ class DatabaseService {
                         COALESCE(avatar_url,'') as avatar, '' as phone,
                         0 as is_friend, COALESCE(last_message_time,0) as last_message_time, 'group' as contact_type,
                         gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
-                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter
+                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter,
+                        COALESCE(is_blocked, 0) as is_blocked
                      FROM contacts WHERE owner_zalo_id=? AND contact_type='group'
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -6101,7 +6208,8 @@ class DatabaseService {
                         COALESCE(NULLIF(c.phone,''), NULLIF(f.phone,''), '') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
-                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation
+                        c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation,
+                        COALESCE(c.is_blocked, 0) as is_blocked
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -6110,14 +6218,16 @@ class DatabaseService {
             } else {
                 // Build full list: friends + non-friend contacts (including groups)
                 const friends = this.query<any>(
-                    `SELECT f.user_id as contact_id, COALESCE(c.alias,'') as alias,
+                    `SELECT f.user_id as contact_id,
+                        COALESCE(c.alias, '') as alias,
                         COALESCE(c.display_name, f.display_name,'') as display_name,
                         COALESCE(c.avatar_url, f.avatar,'') as avatar,
                         COALESCE(c.phone, f.phone,'') as phone,
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
                         c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation,
-                        c.ai_assistant_id, c.ai_auto_summary, c.ai_auto_summary_threshold, c.ai_auto_summary_counter
+                        c.ai_assistant_id, c.ai_auto_summary, c.ai_auto_summary_threshold, c.ai_auto_summary_counter,
+                        COALESCE(c.is_blocked, 0) as is_blocked
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -6127,10 +6237,11 @@ class DatabaseService {
                 const otherContacts = this.query<any>(
                     `SELECT contact_id, COALESCE(alias,'') as alias, COALESCE(display_name,'') as display_name,
                         COALESCE(avatar_url,'') as avatar, COALESCE(phone,'') as phone,
-                        is_friend, COALESCE(last_message_time,0) as last_message_time,
+                        0 as is_friend, COALESCE(last_message_time,0) as last_message_time,
                         COALESCE(contact_type,'user') as contact_type,
                         gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
-                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter
+                        ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter,
+                        COALESCE(is_blocked, 0) as is_blocked
                      FROM contacts WHERE owner_zalo_id=?
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -6158,32 +6269,62 @@ class DatabaseService {
                 }
             }
 
-            // Apply local label (tagIds) filter
-            if (tagIds && tagIds.length > 0) {
-                const threadLabelsMap: Record<string, Set<number>> = {};
-                const labelRows = this.query<any>(
-                    `SELECT thread_id, label_id FROM local_label_threads WHERE owner_zalo_id=?`,
-                    [ownerZaloId]
-                );
-                for (const row of labelRows) {
-                    const cleanTid = row.thread_id.startsWith('g') ? row.thread_id.slice(1) : row.thread_id;
-                    if (!threadLabelsMap[cleanTid]) {
-                        threadLabelsMap[cleanTid] = new Set();
-                    }
-                    threadLabelsMap[cleanTid].add(Number(row.label_id));
-                }
+            // Filter by isBlocked if requested or if 'is_blocked' in contactTypes
+            if (isBlocked || (contactTypes && contactTypes.includes('is_blocked' as any))) {
+                all = all.filter((c: any) => Number(c.is_blocked || 0) === 1);
+            }
 
-                all = all.filter(c => {
-                    const lIds = threadLabelsMap[c.contact_id];
-                    if (!lIds) return false;
-                    return tagIds.every(id => lIds.has(id));
-                });
+            // Apply local label (tagIds) filter (Option B: Name-based + ID matching)
+            if (tagIds && tagIds.length > 0) {
+                const numericTagIds = tagIds.map(id => Number(id)).filter(id => !isNaN(id));
+                if (numericTagIds.length > 0) {
+                    // Resolve label names for requested tagIds
+                    const placeholders = numericTagIds.map(() => '?').join(',');
+                    const targetLabelRows = this.query<any>(
+                        `SELECT DISTINCT name FROM local_labels WHERE id IN (${placeholders})`,
+                        numericTagIds
+                    );
+                    const targetNames = targetLabelRows.map((l: any) => l.name).filter(Boolean);
+
+                    // Expand validLabelIds to include any label ID under ownerZaloId matching targetNames
+                    let validLabelIds = new Set<number>(numericTagIds);
+                    if (targetNames.length > 0 && ownerZaloId) {
+                        const accountLabels = this.getLocalLabels(ownerZaloId);
+                        const equivalentIds = accountLabels
+                            .filter((l: any) => targetNames.includes(l.name))
+                            .map((l: any) => Number(l.id));
+                        validLabelIds = new Set<number>([...numericTagIds, ...equivalentIds]);
+                    }
+
+                    const threadLabelsMap: Record<string, Set<number>> = {};
+                    const labelRows = this.query<any>(
+                        `SELECT thread_id, label_id FROM local_label_threads WHERE owner_zalo_id=?`,
+                        [ownerZaloId]
+                    );
+                    for (const row of labelRows) {
+                        const cleanTid = row.thread_id.startsWith('g') ? row.thread_id.slice(1) : row.thread_id;
+                        if (!threadLabelsMap[cleanTid]) {
+                            threadLabelsMap[cleanTid] = new Set();
+                        }
+                        threadLabelsMap[cleanTid].add(Number(row.label_id));
+                    }
+
+                    all = all.filter(c => {
+                        const cleanCid = c.contact_id.startsWith('g') ? c.contact_id.slice(1) : c.contact_id;
+                        const lIds = threadLabelsMap[cleanCid];
+                        if (!lIds) return false;
+                        return Array.from(validLabelIds).some(id => lIds.has(id));
+                    });
+                }
             }
 
             // Apply contactIds filter (Zalo labels)
             if (contactIds && contactIds.length > 0) {
-                const allowedIds = new Set(contactIds);
-                all = all.filter(c => allowedIds.has(c.contact_id));
+                const allowedIds = new Set(contactIds.map(id => id.startsWith('g') ? id.slice(1) : id));
+                all = all.filter(c => {
+                    const cleanCid = c.contact_id.startsWith('g') ? c.contact_id.slice(1) : c.contact_id;
+                    return allowedIds.has(cleanCid);
+                });
             }
 
             // Apply search filter
@@ -6198,29 +6339,140 @@ class DatabaseService {
             }
 
             // Apply pipelineStageId filter
-            if (opts.pipelineStageId !== undefined) {
+            if (opts.pipelineStageId !== undefined && opts.pipelineStageId !== null && (opts.pipelineStageId as any) !== '') {
                 const psId = opts.pipelineStageId;
                 if (psId === 'unclassified' || psId === null) {
-                    all = all.filter(c => !c.pipeline_stage_id);
+                    all = all.filter(c => c.pipeline_stage_id === null || c.pipeline_stage_id === undefined || c.pipeline_stage_id === '');
                 } else if (psId === 'any') {
                     all = all.filter(c => c.pipeline_stage_id != null);
                 } else {
-                    all = all.filter(c => c.pipeline_stage_id === psId);
+                    const targetId = Number(psId);
+                    all = all.filter(c => Number(c.pipeline_stage_id) === targetId);
                 }
+            }
+
+            const getVietnamTime = (): Date => {
+                const options = { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: 'numeric', day: 'numeric' } as const;
+                const formatter = new Intl.DateTimeFormat('en-US', options);
+                const parts = formatter.formatToParts(new Date());
+                const partMap = Object.fromEntries(parts.map(p => [p.type, p.value]));
+                const y = parseInt(partMap.year, 10);
+                const m = parseInt(partMap.month, 10);
+                const d = parseInt(partMap.day, 10);
+                return new Date(y, m - 1, d, 12, 0, 0);
+            };
+
+            // Apply gender filter
+            if (opts.gender !== undefined && opts.gender !== null && opts.gender !== 'all' && opts.gender !== '') {
+                const g = String(opts.gender).toLowerCase();
+                if (g === 'male' || g === '0') {
+                    all = all.filter(c => c.gender === 0 || c.gender === '0');
+                } else if (g === 'female' || g === '1') {
+                    all = all.filter(c => c.gender === 1 || c.gender === '1');
+                } else if (g === 'unknown') {
+                    all = all.filter(c => c.gender === null || c.gender === undefined || c.gender === '' || c.gender === 'null');
+                }
+            }
+
+            // Apply birthday filter
+            if (opts.birthdayFilter && opts.birthdayFilter !== 'all' && opts.birthdayFilter !== '') {
+                const filter = opts.birthdayFilter;
+                if (filter === 'has_birthday') {
+                    all = all.filter(c => !!c.birthday);
+                } else if (filter === 'no_birthday') {
+                    all = all.filter(c => !c.birthday);
+                } else {
+                    const vnTime = getVietnamTime();
+                    const currentMonthNum = vnTime.getMonth() + 1;
+                    const currentDay = vnTime.getDate();
+
+                    if (filter === 'today') {
+                        all = all.filter(c => {
+                            if (!c.birthday) return false;
+                            const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                            const parts = cleanBday.split('/');
+                            if (parts.length < 2) return false;
+                            const d = parseInt(parts[0], 10);
+                            const m = parseInt(parts[1], 10);
+                            return d === currentDay && m === currentMonthNum;
+                        });
+                    } else if (filter === 'this_week') {
+                        const weekDates = new Set<string>();
+                        const monday = new Date(vnTime);
+                        const day = vnTime.getDay();
+                        const diff = day === 0 ? -6 : 1 - day;
+                        monday.setDate(vnTime.getDate() + diff);
+                        for (let i = 0; i < 7; i++) {
+                            const d = new Date(monday);
+                            d.setDate(monday.getDate() + i);
+                            weekDates.add(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`);
+                        }
+                        all = all.filter(c => {
+                            if (!c.birthday) return false;
+                            const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                            const parts = cleanBday.split('/');
+                            if (parts.length < 2) return false;
+                            const cleanDate = `${String(parseInt(parts[0], 10)).padStart(2, '0')}/${String(parseInt(parts[1], 10)).padStart(2, '0')}`;
+                            return weekDates.has(cleanDate);
+                        });
+                    } else if (filter === 'this_month') {
+                        all = all.filter(c => {
+                            if (!c.birthday) return false;
+                            const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                            const parts = cleanBday.split('/');
+                            if (parts.length < 2) return false;
+                            return parseInt(parts[1], 10) === currentMonthNum;
+                        });
+                    }
+                }
+            }
+
+            // Apply salutation filter
+            if (opts.salutation && opts.salutation !== 'all') {
+                const targetSal = opts.salutation;
+                all = all.filter(c => {
+                    const effectiveSalutation = c.salutation ||
+                        (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Bạn');
+                    return effectiveSalutation === targetSal;
+                });
+            }
+
+            // Apply hasPhone filter
+            if (opts.hasPhone) {
+                all = all.filter(c => !!c.phone);
+            }
+
+            // Apply hasNotes filter
+            if (opts.hasNotes) {
+                const notesRows = this.query<any>(
+                    `SELECT DISTINCT contact_id FROM crm_notes WHERE owner_zalo_id=?`,
+                    [ownerZaloId]
+                ) || [];
+                const notesContactIds = new Set(notesRows.map((r: any) => {
+                    const cid = String(r.contact_id);
+                    return cid.startsWith('g') ? cid.slice(1) : cid;
+                }));
+                all = all.filter(c => {
+                    const cleanCid = c.contact_id.startsWith('g') ? c.contact_id.slice(1) : c.contact_id;
+                    return notesContactIds.has(cleanCid);
+                });
             }
 
             // Sort
             all.sort((a, b) => {
-                let va: any, vb: any;
                 if (sortBy === 'last_message') {
-                    va = a.last_message_time; vb = b.last_message_time;
+                    const va = a.last_message_time;
+                    const vb = b.last_message_time;
+                    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+                    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+                    return 0;
                 } else {
-                    va = (a.alias || a.display_name || '').toLowerCase();
-                    vb = (b.alias || b.display_name || '').toLowerCase();
+                    const va = a.alias || a.display_name || '';
+                    const vb = b.alias || b.display_name || '';
+                    return sortDir === 'asc'
+                        ? va.localeCompare(vb, 'vi', { sensitivity: 'base' })
+                        : vb.localeCompare(va, 'vi', { sensitivity: 'base' });
                 }
-                if (va < vb) return sortDir === 'asc' ? -1 : 1;
-                if (va > vb) return sortDir === 'asc' ? 1 : -1;
-                return 0;
             });
 
             const total = all.length;
@@ -6244,6 +6496,87 @@ class DatabaseService {
 
             return { contacts, total };
         } catch (err: any) { Logger.error(`[DB] getCRMContacts: ${err.message}`); return { contacts: [], total: 0 }; }
+    }
+
+    public markContactBlocked(ownerZaloId: string, contactId: string, isBlocked: boolean = true): void {
+        if (!this.initialized) return;
+        try {
+            const val = isBlocked ? 1 : 0;
+            const existing = this.queryOne<any>(`SELECT id FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [ownerZaloId, contactId]);
+            if (existing) {
+                this.run(`UPDATE contacts SET is_blocked = ? WHERE owner_zalo_id = ? AND contact_id = ?`, [val, ownerZaloId, contactId]);
+            } else {
+                this.run(`INSERT INTO contacts (owner_zalo_id, contact_id, is_blocked) VALUES (?, ?, ?)`, [ownerZaloId, contactId, val]);
+            }
+
+            if (isBlocked) {
+                let labelId = -1;
+                try {
+                    const existingLabels = this.getLocalLabels(ownerZaloId) || [];
+                    const blockedLabel = existingLabels.find((l: any) => l.name === '🚫 Đã chặn' || l.name === 'Đã chặn');
+                    if (blockedLabel) {
+                        labelId = blockedLabel.id;
+                    } else {
+                        labelId = this.upsertLocalLabel({
+                            name: '🚫 Đã chặn',
+                            color: '#EF4444',
+                            emoji: '🚫',
+                            pageIds: ownerZaloId
+                        });
+                    }
+                } catch (err: any) {
+                    Logger.error(`[DB] Error ensuring Blocked label: ${err.message}`);
+                }
+
+                if (labelId !== -1) {
+                    try {
+                        this.assignLocalLabelToThread(ownerZaloId, labelId, contactId);
+                    } catch {}
+                }
+            }
+
+            this.save();
+            EventBroadcaster.emit('crm:contactUpdated', { ownerZaloId, contactId, isBlocked });
+            EventBroadcaster.emit('local-labels-changed', { zaloId: ownerZaloId });
+            Logger.log(`[DB] Marked contact ${contactId} as ${isBlocked ? 'BLOCKED' : 'UNBLOCKED'} for ${ownerZaloId}`);
+        } catch (err: any) {
+            Logger.error(`[DB] markContactBlocked error: ${err.message}`);
+        }
+    }
+
+    public reassignContactsOwner(fromZaloId: string, targetZaloId: string, contactIds: string[]): { success: boolean; reassignedCount: number } {
+        if (!this.initialized || !contactIds.length) return { success: false, reassignedCount: 0 };
+        try {
+            this.run('BEGIN TRANSACTION');
+            let count = 0;
+            for (const cid of contactIds) {
+                const old = this.queryOne<any>(`SELECT * FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [fromZaloId, cid]);
+                if (old) {
+                    const targetExisting = this.queryOne<any>(`SELECT id FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [targetZaloId, cid]);
+                    if (targetExisting) {
+                        this.run(
+                            `UPDATE contacts SET display_name = ?, avatar_url = ?, phone = ?, alias = ?, is_blocked = 0 WHERE owner_zalo_id = ? AND contact_id = ?`,
+                            [old.display_name || '', old.avatar_url || '', old.phone || '', old.alias || '', targetZaloId, cid]
+                        );
+                    } else {
+                        this.run(
+                            `INSERT INTO contacts (owner_zalo_id, contact_id, display_name, avatar_url, phone, is_friend, contact_type, last_message, last_message_time, alias, gender, birthday, salutation, is_blocked)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+                            [targetZaloId, cid, old.display_name || '', old.avatar_url || '', old.phone || '', old.is_friend || 0, old.contact_type || 'user', old.last_message || '', old.last_message_time || 0, old.alias || '', old.gender ?? null, old.birthday ?? null, old.salutation ?? null]
+                        );
+                    }
+                    count++;
+                }
+            }
+            this.run('COMMIT');
+            this.save();
+            Logger.log(`[DB] Reassigned ${count} contact(s) from ${fromZaloId} to ${targetZaloId}`);
+            return { success: true, reassignedCount: count };
+        } catch (err: any) {
+            try { this.run('ROLLBACK'); } catch {}
+            Logger.error(`[DB] reassignContactsOwner error: ${err.message}`);
+            return { success: false, reassignedCount: 0 };
+        }
     }
 
     /** Activity stats for a given time window — used by CRM Dashboard */
@@ -8745,6 +9078,623 @@ class DatabaseService {
     public getCalendarEventsByContact(params: { contactId: string }): { success: boolean; events: any[] } {
         const events = this.query<any>(`SELECT * FROM erp_calendar_events WHERE linked_contact_id = ?`, [params.contactId]);
         return { success: true, events };
+    }
+
+    // ─── Zalo Bulk Phone Scan Methods ──────────────────────────────────────────
+
+    public backfillPhoneScanAliases(): void {
+        if (!this.initialized) return;
+        try {
+            const items = this.query<any>(`
+                SELECT psi.zalo_uid, psi.zalo_name, psi.phone, psi.phone_normalized, psi.scanned_by_account_id, psb.name as batch_name, psb.update_zalo_alias
+                FROM phone_scan_items psi
+                INNER JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                WHERE psi.status = 'found'
+            `);
+
+            let updatedCount = 0;
+            for (const item of items) {
+                const batchName = (item.batch_name || '').trim();
+                if (!batchName) continue;
+
+                const phoneDisplay = item.phone || item.phone_normalized || '';
+                const rawZaloName = (item.zalo_name && item.zalo_name !== phoneDisplay && item.zalo_name !== item.phone_normalized) ? item.zalo_name : 'Khách';
+                const formattedAlias = `${batchName} - ${rawZaloName} - ${phoneDisplay}`;
+                const zaloId = item.scanned_by_account_id || '';
+                const uid = item.zalo_uid || '';
+                const normPhone = this.normalizeVietnamPhone(phoneDisplay);
+
+                if (uid) {
+                    this.setContactAlias(zaloId, uid, formattedAlias);
+                }
+                if (normPhone && zaloId) {
+                    this.run(
+                        `UPDATE contacts SET alias=? WHERE owner_zalo_id=? AND (phone=? OR phone=?) AND (alias IS NULL OR alias = '' OR alias != ?)`,
+                        [formattedAlias, zaloId, normPhone, phoneDisplay, formattedAlias]
+                    );
+                }
+                if (zaloId || uid) {
+                    EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: zaloId, contactId: uid, alias: formattedAlias });
+                }
+                updatedCount++;
+            }
+            if (updatedCount > 0) {
+                this.save();
+            }
+        } catch (err: any) {
+            Logger.error(`[DB] backfillPhoneScanAliases: ${err.message}`);
+        }
+    }
+
+    public getPhoneScanBatches(): any[] {
+        if (!this.initialized) return [];
+        try {
+            this.backfillPhoneScanAliases();
+            return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY sort_order ASC, priority DESC, id ASC`);
+        } catch (err: any) {
+            Logger.error(`[DB] getPhoneScanBatches: ${err.message}`);
+            return [];
+        }
+    }
+
+    public getPhoneScanItems(batchId: number, limit: number = 100, offset: number = 0, status?: string): { items: any[]; total: number } {
+        if (!this.initialized) return { items: [], total: 0 };
+        try {
+            let queryStr = `SELECT * FROM phone_scan_items WHERE batch_id = ?`;
+            let countQueryStr = `SELECT COUNT(*) as total FROM phone_scan_items WHERE batch_id = ?`;
+            const params: any[] = [batchId];
+            const countParams: any[] = [batchId];
+
+            if (status && status !== 'all') {
+                queryStr += ` AND status = ?`;
+                countQueryStr += ` AND status = ?`;
+                params.push(status);
+                countParams.push(status);
+            }
+
+            queryStr += ` ORDER BY id ASC LIMIT ? OFFSET ?`;
+            params.push(limit, offset);
+
+            const items = this.query<any>(queryStr, params);
+            const total = this.queryOne<any>(countQueryStr, countParams)?.total ?? 0;
+
+            return { items, total };
+        } catch (err: any) {
+            Logger.error(`[DB] getPhoneScanItems: ${err.message}`);
+            return { items: [], total: 0 };
+        }
+    }
+
+    public createPhoneScanBatch(params: {
+        name: string;
+        assignedAccountId: string | null;
+        contactAssignmentMode?: string;
+        autoTagIds: number[];
+        dailyLimit: number;
+        hourlyLimit: number;
+        priority: number;
+        status?: string;
+        scheduledTime?: string;
+        skipCrmExisting?: boolean;
+        autoWorkflowId?: number | null;
+        updateZaloAlias?: boolean;
+        phones: string[];
+    }): number {
+        if (!this.initialized) return -1;
+        try {
+            const now = Date.now();
+            const autoTagIdsStr = JSON.stringify(params.autoTagIds);
+            const initialStatus = params.status || 'paused';
+            const scheduledTime = params.scheduledTime || '';
+            const skipCrmExisting = params.skipCrmExisting ? 1 : 0;
+            const autoWorkflowId = params.autoWorkflowId ? Number(params.autoWorkflowId) : null;
+            const updateZaloAlias = params.updateZaloAlias !== false ? 1 : 0;
+            const contactAssignmentMode = params.contactAssignmentMode || (params.assignedAccountId ? 'single' : 'distributed');
+
+            // Get max sort_order
+            const maxSort = this.queryOne<any>('SELECT MAX(sort_order) as m FROM phone_scan_batches')?.m ?? 0;
+            const nextSortOrder = Number(maxSort) + 1;
+
+            // Start a manual transaction for safety
+            this.run('BEGIN TRANSACTION');
+
+            // 1. Insert batch
+            this.run(`
+                INSERT INTO phone_scan_batches 
+                (name, assigned_account_id, contact_assignment_mode, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, sort_order, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [params.name, params.assignedAccountId, contactAssignmentMode, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, nextSortOrder, now]);
+
+            const batchId = this.queryOne<any>(`SELECT last_insert_rowid() as id`)?.id;
+            if (!batchId) {
+                this.run('ROLLBACK');
+                return -1;
+            }
+
+            // Get set of existing phones in CRM if skipCrmExisting is enabled
+            let existingCrmPhones = new Set<string>();
+            if (skipCrmExisting) {
+                try {
+                    const rows = this.query<{ phone: string }>('SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != ""');
+                    for (const r of rows) {
+                        const norm = this.normalizeVietnamPhone(r.phone);
+                        if (norm) existingCrmPhones.add(norm);
+                    }
+                } catch {}
+            }
+
+            // 2. Insert items (deduplicating in this batch and optionally checking CRM)
+            const seenPhones = new Set<string>();
+            let dupCount = 0;
+            let totalCount = 0;
+
+            for (const rawPhone of params.phones) {
+                const normalized = this.normalizeVietnamPhone(rawPhone);
+                if (!normalized) continue;
+
+                if (seenPhones.has(normalized) || (skipCrmExisting && existingCrmPhones.has(normalized))) {
+                    dupCount++;
+                    continue;
+                }
+                seenPhones.add(normalized);
+                totalCount++;
+
+                this.run(`
+                    INSERT INTO phone_scan_items 
+                    (batch_id, phone, phone_normalized, status, created_at)
+                    VALUES (?, ?, ?, 'pending', ?)
+                `, [batchId, rawPhone, normalized, now]);
+            }
+
+            // 3. Update batch totals
+            this.run(`
+                UPDATE phone_scan_batches 
+                SET total_count = ?, duplicate_count = ?
+                WHERE id = ?
+            `, [totalCount, dupCount, batchId]);
+
+            this.run('COMMIT');
+            this.save();
+            return batchId;
+        } catch (err: any) {
+            Logger.error(`[DB] createPhoneScanBatch error: ${err.message}`);
+            try { this.run('ROLLBACK'); } catch {}
+            return -1;
+        }
+    }
+
+    public reassignBatchContacts(batchId: number, targetMode: 'single' | 'distributed' | 'all_accounts', targetAccountId?: string | null): { success: boolean; reassignedCount: number; error?: string } {
+        if (!this.initialized) return { success: false, reassignedCount: 0, error: 'Database not initialized' };
+        try {
+            const batch = this.queryOne<any>('SELECT * FROM phone_scan_batches WHERE id = ?', [batchId]);
+            if (!batch) return { success: false, reassignedCount: 0, error: 'Batch not found' };
+
+            const finalTargetAccountId = targetAccountId !== undefined ? targetAccountId : batch.assigned_account_id;
+            
+            // Update batch contact_assignment_mode and assigned_account_id
+            this.run(
+                'UPDATE phone_scan_batches SET contact_assignment_mode = ?, assigned_account_id = ? WHERE id = ?',
+                [targetMode, finalTargetAccountId, batchId]
+            );
+
+            // Fetch all found items for this batch
+            const items = this.query<any>(
+                'SELECT * FROM phone_scan_items WHERE batch_id = ? AND status = "found" AND zalo_uid IS NOT NULL',
+                [batchId]
+            );
+
+            let tagIds: number[] = [];
+            try {
+                tagIds = JSON.parse(batch.auto_tag_ids || '[]');
+            } catch {}
+
+            const activeAccounts = this.getAccounts() || [];
+            const activeZaloAccounts = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+            const allZaloIds = activeZaloAccounts.map((a: any) => String(a.zalo_id));
+
+            let count = 0;
+            for (const item of items) {
+                const uid = item.zalo_uid;
+                const name = item.zalo_name || item.phone;
+                const avatar = item.zalo_avatar || '';
+                const phoneNorm = item.phone_normalized || item.phone;
+                const scannerId = item.scanned_by_account_id || finalTargetAccountId || (allZaloIds[0] ?? '');
+
+                let targetAccountIds: string[] = [];
+                if (targetMode === 'single') {
+                    const singleId = finalTargetAccountId || scannerId;
+                    if (singleId) targetAccountIds = [singleId];
+                } else if (targetMode === 'all_accounts') {
+                    targetAccountIds = allZaloIds.length > 0 ? allZaloIds : [scannerId];
+                } else {
+                    // distributed
+                    if (scannerId) targetAccountIds = [scannerId];
+                }
+
+                for (const accId of targetAccountIds) {
+                    if (!accId) continue;
+                    this.updateContactProfile(accId, uid, name, avatar, phoneNorm, 'user');
+                    for (const tagId of tagIds) {
+                        this.assignLocalLabelToThread(accId, tagId, uid);
+                    }
+                    EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
+                }
+                count++;
+            }
+
+            this.save();
+            return { success: true, reassignedCount: count };
+        } catch (err: any) {
+            Logger.error(`[DB] reassignBatchContacts error: ${err.message}`);
+            return { success: false, reassignedCount: 0, error: err.message };
+        }
+    }
+
+    public deletePhoneScanBatch(batchId: number): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`DELETE FROM phone_scan_batches WHERE id = ?`, [batchId]);
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] deletePhoneScanBatch error: ${err.message}`);
+        }
+    }
+
+    public updatePhoneScanBatchStatus(batchId: number, status: string): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`UPDATE phone_scan_batches SET status = ? WHERE id = ?`, [status, batchId]);
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] updatePhoneScanBatchStatus error: ${err.message}`);
+        }
+    }
+
+    public updatePhoneScanBatchPriority(batchId: number, priority: number): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`UPDATE phone_scan_batches SET priority = ? WHERE id = ?`, [priority, batchId]);
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] updatePhoneScanBatchPriority error: ${err.message}`);
+        }
+    }
+
+    public reorderPhoneScanBatches(batchIds: number[]): void {
+        if (!this.initialized || !batchIds || batchIds.length === 0) return;
+        try {
+            batchIds.forEach((id, idx) => {
+                this.run(`UPDATE phone_scan_batches SET sort_order = ? WHERE id = ?`, [idx, id]);
+            });
+            this.save();
+            Logger.log(`[DB] ✅ reorderPhoneScanBatches: updated ${batchIds.length} batches`);
+        } catch (err: any) {
+            Logger.error(`[DB] reorderPhoneScanBatches error: ${err.message}`);
+        }
+    }
+
+    public getPendingPhoneScanItems(limit: number = 10): any[] {
+        if (!this.initialized) return [];
+        try {
+            // Join with active batches, order by priority DESC, batch id ASC, item id ASC
+            return this.query<any>(`
+                SELECT psi.*, psb.assigned_account_id, psb.auto_tag_ids, psb.daily_limit, psb.hourly_limit
+                FROM phone_scan_items psi
+                INNER JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                WHERE psi.status = 'pending' AND psb.status = 'active'
+                ORDER BY psb.priority DESC, psb.id ASC, psi.id ASC
+                LIMIT ?
+            `, [limit]);
+        } catch (err: any) {
+            Logger.error(`[DB] getPendingPhoneScanItems: ${err.message}`);
+            return [];
+        }
+    }
+
+    public updatePhoneScanItemStatus(params: {
+        itemId: number;
+        status: string;
+        scannedByAccountId?: string;
+        zaloUid?: string;
+        zaloName?: string;
+        zaloAvatar?: string;
+        errorMsg?: string;
+    }): void {
+        if (!this.initialized) return;
+        try {
+            const now = Date.now();
+            
+            // Get current item state to adjust stats correctly
+            const item = this.queryOne<any>(`SELECT batch_id, status FROM phone_scan_items WHERE id = ?`, [params.itemId]);
+            if (!item) return;
+
+            // Start transaction
+            this.run('BEGIN TRANSACTION');
+
+            // Update item
+            this.run(`
+                UPDATE phone_scan_items
+                SET status = ?, 
+                    scanned_by_account_id = ?, 
+                    zalo_uid = ?, 
+                    zalo_name = ?, 
+                    zalo_avatar = ?, 
+                    error_msg = ?, 
+                    scanned_at = ?
+                WHERE id = ?
+            `, [
+                params.status,
+                params.scannedByAccountId || null,
+                params.zaloUid || null,
+                params.zaloName || null,
+                params.zaloAvatar || null,
+                params.errorMsg || null,
+                now,
+                params.itemId
+            ]);
+
+            // Adjust batch counters
+            const batchId = item.batch_id;
+            const oldStatus = item.status;
+            const newStatus = params.status;
+
+            if (oldStatus !== newStatus) {
+                // If moving away from pending, increment scanned count
+                let isScannedInc = (oldStatus === 'pending') ? 1 : 0;
+                
+                // Track detail counts
+                let foundInc = (newStatus === 'found') ? 1 : (oldStatus === 'found') ? -1 : 0;
+                let notFoundInc = (newStatus === 'not_found') ? 1 : (oldStatus === 'not_found') ? -1 : 0;
+                let errorInc = (newStatus === 'error') ? 1 : (oldStatus === 'error') ? -1 : 0;
+                let duplicateInc = (newStatus === 'duplicate') ? 1 : (oldStatus === 'duplicate') ? -1 : 0;
+
+                this.run(`
+                    UPDATE phone_scan_batches
+                    SET scanned_count = scanned_count + ?,
+                        found_count = found_count + ?,
+                        not_found_count = not_found_count + ?,
+                        error_count = error_count + ?,
+                        duplicate_count = duplicate_count + ?
+                    WHERE id = ?
+                `, [isScannedInc, foundInc, notFoundInc, errorInc, duplicateInc, batchId]);
+
+                // Check if the batch is completely finished (no more pending items)
+                const pendingCount = this.queryOne<any>(`
+                    SELECT COUNT(*) as pending FROM phone_scan_items 
+                    WHERE batch_id = ? AND status = 'pending'
+                `, [batchId])?.pending ?? 0;
+
+                if (pendingCount === 0) {
+                    this.run(`
+                        UPDATE phone_scan_batches
+                        SET status = 'completed', completed_at = ?
+                        WHERE id = ?
+                    `, [now, batchId]);
+                }
+            }
+
+            this.run('COMMIT');
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] updatePhoneScanItemStatus error: ${err.message}`);
+            try { this.run('ROLLBACK'); } catch {}
+        }
+    }
+
+    public getDailyScanCountForAccount(zaloId: string, sinceTimestamp: number): number {
+        if (!this.initialized) return 0;
+        try {
+            const row = this.queryOne<any>(`
+                SELECT COUNT(*) as count 
+                FROM phone_scan_items 
+                WHERE scanned_by_account_id = ? AND scanned_at >= ?
+            `, [zaloId, sinceTimestamp]);
+            return row?.count ?? 0;
+        } catch (err: any) {
+            Logger.error(`[DB] getDailyScanCountForAccount: ${err.message}`);
+            return 0;
+        }
+    }
+
+    public getHourlyScanCountForAccount(zaloId: string, sinceTimestamp: number): number {
+        if (!this.initialized) return 0;
+        try {
+            const row = this.queryOne<any>(`
+                SELECT COUNT(*) as count 
+                FROM phone_scan_items 
+                WHERE scanned_by_account_id = ? AND scanned_at >= ?
+            `, [zaloId, sinceTimestamp]);
+            return row?.count ?? 0;
+        } catch (err: any) {
+            Logger.error(`[DB] getHourlyScanCountForAccount: ${err.message}`);
+            return 0;
+        }
+    }
+
+    public getDuplicateContactsAcrossAccounts(): any[] {
+        if (!this.initialized) return [];
+        try {
+            const dups = this.query<any>(`
+                SELECT c.contact_id, c.phone, c.display_name, COUNT(DISTINCT c.owner_zalo_id) as account_count
+                FROM contacts c
+                WHERE (c.phone IS NOT NULL AND c.phone != '') OR (c.contact_id IS NOT NULL AND c.contact_id != '')
+                GROUP BY COALESCE(NULLIF(c.phone,''), c.contact_id)
+                HAVING COUNT(DISTINCT c.owner_zalo_id) > 1
+            `);
+
+            const results: any[] = [];
+            for (const dup of dups) {
+                const keyPhone = dup.phone || '';
+                const keyUid = dup.contact_id || '';
+
+                const details = this.query<any>(`
+                    SELECT c.owner_zalo_id, c.contact_id, c.display_name, c.avatar_url, c.phone, c.alias,
+                           CASE WHEN f.user_id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
+                           c.contact_type
+                    FROM contacts c
+                    LEFT JOIN friends f ON f.owner_zalo_id = c.owner_zalo_id AND (f.user_id = c.contact_id OR (f.phone != '' AND c.phone != '' AND f.phone = c.phone))
+                    WHERE (c.phone = ? AND c.phone != '') OR c.contact_id = ?
+                `, [keyPhone, keyUid]);
+
+                const enrichedDetails = details.map((d: any) => {
+                    const tags = this.query<any>(`
+                        SELECT lt.id, lt.name, lt.color, lt.emoji
+                        FROM local_label_threads llt
+                        JOIN local_labels lt ON llt.label_id = lt.id
+                        WHERE llt.owner_zalo_id = ? AND llt.thread_id = ?
+                    `, [d.owner_zalo_id, d.contact_id]);
+                    return { ...d, tags };
+                });
+
+                results.push({
+                    phone: keyPhone,
+                    contact_id: keyUid,
+                    name: dup.display_name,
+                    account_count: dup.account_count,
+                    accounts: enrichedDetails
+                });
+            }
+            return results;
+        } catch (err: any) {
+            Logger.error(`[DB] getDuplicateContactsAcrossAccounts error: ${err.message}`);
+            return [];
+        }
+    }
+
+    public transferContactBetweenAccounts(params: { contactId: string; phone?: string; fromZaloId: string; toZaloId: string }): boolean {
+        if (!this.initialized || !params.fromZaloId || !params.toZaloId) return false;
+        try {
+            const { contactId, phone = '', fromZaloId, toZaloId } = params;
+            const contact = this.queryOne<any>(
+                `SELECT * FROM contacts WHERE owner_zalo_id = ? AND (contact_id = ? OR (phone = ? AND phone != ''))`,
+                [fromZaloId, contactId, phone]
+            );
+
+            if (contact) {
+                this.updateContactProfile(
+                    toZaloId,
+                    contact.contact_id,
+                    contact.display_name,
+                    contact.avatar_url,
+                    contact.phone,
+                    contact.contact_type,
+                    contact.gender,
+                    contact.birthday
+                );
+                if (contact.alias) {
+                    this.setContactAlias(toZaloId, contact.contact_id, contact.alias);
+                }
+
+                const tags = this.query<any>(
+                    `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`,
+                    [fromZaloId, contact.contact_id]
+                );
+                for (const tag of tags) {
+                    this.assignLocalLabelToThread(toZaloId, contact.contact_id, tag.label_id);
+                }
+
+                this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [fromZaloId, contact.contact_id]);
+                this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [fromZaloId, contact.contact_id]);
+
+                EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: fromZaloId, contactId: contact.contact_id, alias: '' });
+                EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: toZaloId, contactId: contact.contact_id, alias: contact.alias });
+                this.save();
+                return true;
+            }
+            return false;
+        } catch (err: any) {
+            Logger.error(`[DB] transferContactBetweenAccounts error: ${err.message}`);
+            return false;
+        }
+    }
+
+    public mergeContactsToAccount(params: { targetZaloId: string; phone?: string; contactId: string }): boolean {
+        if (!this.initialized || !params.targetZaloId) return false;
+        try {
+            const { targetZaloId, phone = '', contactId } = params;
+            const allMatching = this.query<any>(
+                `SELECT * FROM contacts WHERE (phone = ? AND phone != '') OR contact_id = ?`,
+                [phone, contactId]
+            );
+
+            for (const item of allMatching) {
+                const tags = this.query<any>(
+                    `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`,
+                    [item.owner_zalo_id, item.contact_id]
+                );
+                for (const tag of tags) {
+                    this.assignLocalLabelToThread(targetZaloId, item.contact_id, tag.label_id);
+                }
+                if (item.owner_zalo_id !== targetZaloId && item.is_friend !== 1) {
+                    this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [item.owner_zalo_id, item.contact_id]);
+                    this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [item.owner_zalo_id, item.contact_id]);
+                }
+            }
+            this.save();
+            return true;
+        } catch (err: any) {
+            Logger.error(`[DB] mergeContactsToAccount error: ${err.message}`);
+            return false;
+        }
+    }
+
+    public cleanupCrossAccountCorruptedAliases(): number {
+        if (!this.initialized) return 0;
+        try {
+            let cleaned = 0;
+            const contactsWithAlias = this.query<any>(`
+                SELECT c.owner_zalo_id, c.contact_id, c.alias, c.display_name, f.display_name as friend_name
+                FROM contacts c
+                LEFT JOIN friends f ON f.owner_zalo_id = c.owner_zalo_id AND f.user_id = c.contact_id
+                WHERE c.alias IS NOT NULL AND c.alias != ''
+            `);
+
+            for (const c of contactsWithAlias) {
+                if (c.alias.startsWith('| ') || c.alias.includes('Lô ') || c.alias.includes(' - Khách - ')) {
+                    const isOwnBatch = this.queryOne<any>(`
+                        SELECT psi.id FROM phone_scan_items psi
+                        INNER JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                        WHERE (psi.scanned_by_account_id = ? OR psb.assigned_account_id = ? OR psb.contact_assignment_mode = 'all_accounts')
+                          AND (psi.zalo_uid = ? OR (psi.phone != '' AND psi.phone = (SELECT phone FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?)))
+                        LIMIT 1
+                    `, [c.owner_zalo_id, c.owner_zalo_id, c.contact_id, c.owner_zalo_id, c.contact_id]);
+
+                    if (!isOwnBatch) {
+                        this.run(`UPDATE contacts SET alias = NULL WHERE owner_zalo_id = ? AND contact_id = ?`, [c.owner_zalo_id, c.contact_id]);
+                        cleaned++;
+                    }
+                }
+            }
+            // Reset corrupted is_friend flags for contacts that do not exist in friends table
+            this.run(`
+                UPDATE contacts
+                SET is_friend = 0
+                WHERE is_friend = 1
+                  AND NOT EXISTS (
+                    SELECT 1 FROM friends f
+                    WHERE f.owner_zalo_id = contacts.owner_zalo_id
+                      AND (f.user_id = contacts.contact_id OR (f.phone != '' AND contacts.phone != '' AND f.phone = contacts.phone))
+                  )
+            `);
+
+            // Sync is_friend = 1 for contacts that exist in friends table
+            this.run(`
+                UPDATE contacts
+                SET is_friend = 1
+                WHERE is_friend = 0
+                  AND EXISTS (
+                    SELECT 1 FROM friends f
+                    WHERE f.owner_zalo_id = contacts.owner_zalo_id
+                      AND (f.user_id = contacts.contact_id OR (f.phone != '' AND contacts.phone != '' AND f.phone = contacts.phone))
+                  )
+            `);
+
+            if (cleaned > 0) this.save();
+            return cleaned;
+        } catch (err: any) {
+            Logger.error(`[DB] cleanupCrossAccountCorruptedAliases error: ${err.message}`);
+            return 0;
+        }
     }
 }
 

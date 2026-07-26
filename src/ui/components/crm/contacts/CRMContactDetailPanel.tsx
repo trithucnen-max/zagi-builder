@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useCRMStore, type CRMContact, type CRMNote } from '@/store/crmStore';
 import type { LabelData } from '@/store/appStore';
 import ipc from '@/lib/ipc';
@@ -11,6 +11,8 @@ import type { LocalLabelItem } from '@/components/common/LocalLabelSelector';
 import PhoneDisplay from '@/components/common/PhoneDisplay';
 import type { PinnedNote } from '@/components/chat/PinnedMessages';
 import CRMCallLogTab from './CRMCallLogTab';
+import { normalizePhone } from '@/utils/phoneUtils';
+import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 
 function defaultSalutation(gender?: number | null): string {
   if (gender === 0) return 'Anh';
@@ -461,6 +463,67 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
     setSelectedLabelIds(getContactLabelIds());
     setLabelsDirty(false);
   }, [contact.contact_id, allLabels]);
+
+  const accounts = useAccountStore(s => s.accounts);
+  const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
+
+  const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
+    const localOpts: LoadedLabelOption[] = (localLabels || []).map((l: any) => ({
+      value: `local:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
+      source: 'local',
+      color: l.color || '#14b8a6',
+      textColor: l.text_color || l.textColor || '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.name,
+      pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
+    }));
+
+    const zaloOpts: LoadedLabelOption[] = (allLabels || []).map((l: any) => ({
+      value: `zalo:${(l as any).zalo_id || (l as any).pageId || activeAccountId || ''}:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.text || l.name} (Zalo)`,
+      source: 'zalo',
+      color: l.color || '#3b82f6',
+      textColor: '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.text || l.name,
+      pageId: (l as any).zalo_id || (l as any).pageId || activeAccountId || '',
+    }));
+
+    return [...localOpts, ...zaloOpts];
+  }, [localLabels, allLabels, activeAccountId]);
+
+  const selectedUnifiedValues = useMemo(() => {
+    const localValues = threadLocalLabelIds.map(id => `local:${id}`);
+    const zaloValues = selectedLabelIds.map(id => {
+      const opt = unifiedLabelOptions.find(o => o.source === 'zalo' && o.value.endsWith(`:${id}`));
+      return opt ? opt.value : `zalo:${activeAccountId}:${id}`;
+    });
+    return [...localValues, ...zaloValues];
+  }, [threadLocalLabelIds, selectedLabelIds, unifiedLabelOptions, activeAccountId]);
+
+  const handleUnifiedChange = (newValues: string[]) => {
+    const newLocalIds: number[] = [];
+    const newZaloIds: number[] = [];
+
+    for (const val of newValues) {
+      if (val.startsWith('local:')) {
+        const id = Number(val.split(':')[1]);
+        if (!isNaN(id)) newLocalIds.push(id);
+      } else if (val.startsWith('zalo:')) {
+        const parts = val.split(':');
+        const id = Number(parts[parts.length - 1]);
+        if (!isNaN(id)) newZaloIds.push(id);
+      }
+    }
+
+    const addedLocal = newLocalIds.filter(id => !threadLocalLabelIds.includes(id));
+    const removedLocal = threadLocalLabelIds.filter(id => !newLocalIds.includes(id));
+    [...addedLocal, ...removedLocal].forEach(id => handleToggleLocalLabel(id));
+
+    setSelectedLabelIds(newZaloIds);
+    setLabelsDirty(true);
+  };
 
   // Load notes
   useEffect(() => {
@@ -1036,7 +1099,7 @@ ${notesText}`;
                   defaultValue={contact.phone || ''}
                   onBlur={e => {
                     setEditingField(null);
-                    handleSaveField('phone', e.target.value.trim());
+                    handleSaveField('phone', normalizePhone(e.target.value.trim()) || e.target.value.trim());
                   }}
                   onKeyDown={e => {
                     if (e.key === 'Enter') e.currentTarget.blur();
@@ -1153,38 +1216,68 @@ ${notesText}`;
           </select>
         </div>
 
-        {/* Local Labels */}
-        {localLabels && localLabels.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs text-gray-700 font-semibold">Nhãn Local</p>
-            <LocalLabelSelector
-              labels={localLabels}
-              selectedIds={threadLocalLabelIds}
-              onChange={handleLocalLabelChange}
-              togglingId={localLabelToggling}
-              placeholder="Chọn Nhãn Local..."
-              emptyText="Chưa có Nhãn Local nào"
-            />
+        {/* Unified Label Management (Local & Zalo) */}
+        <div className="space-y-2 pt-1 border-t border-gray-150">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-700 font-semibold">Nhãn hội thoại (Local & Zalo)</p>
+            <button
+              type="button"
+              onClick={() => setShowLabelPickerModal(true)}
+              className="text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+            >
+              🏷️ Quản lý nhãn
+            </button>
           </div>
-        )}
 
-        {/* Zalo Labels */}
-        <div className="space-y-1.5">
-          <p className="text-xs text-gray-700 font-semibold">Nhãn Zalo</p>
-          {allLabels.length === 0 ? (
-            <p className="text-xs text-gray-500">Chưa tải nhãn. Hãy đồng bộ nhãn từ header.</p>
-          ) : (
-            <ZaloLabelSelector
-              allLabels={allLabels}
-              selectedIds={selectedLabelIds}
-              singleSelect
-              onChange={(ids) => { setSelectedLabelIds(ids); setLabelsDirty(true); }}
-            />
-          )}
+          <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+            {selectedUnifiedValues.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                {threadLocalLabelIds.map(id => {
+                  const label = localLabels?.find(l => l.id === id);
+                  if (!label) return null;
+                  return (
+                    <span
+                      key={`local-${id}`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-white shadow-2xs"
+                      style={{ backgroundColor: label.color || '#14b8a6' }}
+                    >
+                      <span>{label.emoji || '🏷️'}</span>
+                      <span>{label.name}</span>
+                    </span>
+                  );
+                })}
+                {selectedLabelIds.map(id => {
+                  const label = allLabels?.find(l => l.id === id);
+                  if (!label) return null;
+                  return (
+                    <span
+                      key={`zalo-${id}`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-600 text-white shadow-2xs"
+                    >
+                      <span>{label.emoji || '🏷️'}</span>
+                      <span>{label.text || label.name}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">Chưa gắn nhãn nào cho liên hệ này.</p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowLabelPickerModal(true)}
+              className="w-full py-1.5 px-3 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+              <span>{selectedUnifiedValues.length > 0 ? 'Thêm / Đổi nhãn' : 'Gán nhãn cho khách hàng'}</span>
+            </button>
+          </div>
+
           {labelsDirty && (
             <button onClick={handleSaveLabels} disabled={savingLabels}
               className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs disabled:opacity-50 transition-colors">
-              {savingLabels ? 'Đang lưu...' : 'Lưu nhãn'}
+              {savingLabels ? 'Đang lưu Zalo...' : 'Lưu nhãn Zalo'}
             </button>
           )}
         </div>
@@ -1496,6 +1589,19 @@ ${notesText}`;
           activeAccountId={activeAccountId || ''}
         />
 
+        {showLabelPickerModal && (
+          <UnifiedLabelPickerModal
+            open={showLabelPickerModal}
+            onClose={() => setShowLabelPickerModal(false)}
+            options={unifiedLabelOptions}
+            selected={selectedUnifiedValues}
+            onChange={handleUnifiedChange}
+            accounts={accounts}
+            onNewLabelCreated={() => {
+              window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId: activeAccountId } }));
+            }}
+          />
+        )}
       </div>
     </div>
   );

@@ -90,8 +90,14 @@ async function prepareLocalFilesForProxy(params: any): Promise<any> {
     let result = { ...params };
 
     for (const field of singleFields) {
-        if (result[field] && typeof result[field] === 'string' && result[field].length > 0) {
-            const absPath = FileStorageService.resolveAbsolutePath(result[field]);
+        const val = result[field];
+        if (val && typeof val === 'string' && val.length > 0) {
+            // Skip http/https URLs — they will be downloaded by ZaloService.ensureLocalImagePath on Boss
+            if (val.startsWith('http://') || val.startsWith('https://')) continue;
+            // Skip local-media:// references (Boss-side media URLs)
+            if (val.startsWith('local-media://')) continue;
+            const absPath = FileStorageService.resolveAbsolutePath(val);
+            if (!absPath) continue; // Can't resolve — skip (don't corrupt the value)
             const bossPaths = await uploadEmployeeMedia([absPath]);
             if (bossPaths && bossPaths[0]) {
                 result[field] = bossPaths[0];
@@ -99,12 +105,18 @@ async function prepareLocalFilesForProxy(params: any): Promise<any> {
         }
     }
 
+    // For filePaths array: skip if it contains http URLs (library items from employee)
+    // Those are resolved to local paths by resolveLibFilePaths on Boss side via _libraryUuids
     if (result.filePaths && Array.isArray(result.filePaths) && result.filePaths.length > 0) {
-        const resolvedPaths = result.filePaths.map((fp: string) => FileStorageService.resolveAbsolutePath(fp));
-        const bossPaths = await uploadEmployeeMedia(resolvedPaths);
-        if (bossPaths && bossPaths.length > 0) {
-            result.filePaths = bossPaths;
+        const hasHttpUrls = result.filePaths.some((fp: string) => fp && (fp.startsWith('http://') || fp.startsWith('https://')));
+        if (!hasHttpUrls) {
+            const resolvedPaths = result.filePaths.map((fp: string) => FileStorageService.resolveAbsolutePath(fp) || fp);
+            const bossPaths = await uploadEmployeeMedia(resolvedPaths);
+            if (bossPaths && bossPaths.length > 0) {
+                result.filePaths = bossPaths;
+            }
         }
+        // If has http URLs: let resolveLibFilePaths on Boss resolve them via _libraryUuids
     }
 
     return result;
@@ -174,16 +186,51 @@ export function registerZaloIpc() {
         s.sendSticker(p.stickerId, p.threadId, p.type)
     );
 
+    function resolveMediaToken(p: any): string {
+        const token = p.mediaToken || p.filePath || p._libraryUuid;
+        if (!token) {
+            if (p.fileUrl) return p.fileUrl;
+            return '';
+        }
+
+        // 1. Check if token is a Library UUID
+        try {
+            const LibraryService = require('../../src/services/library/LibraryService').default;
+            const item = LibraryService.getInstance().getItem(token);
+            if (item?.file_path) return item.file_path;
+        } catch {}
+
+        // 2. Check if token is HTTP/HTTPS CDN URL
+        if (token.startsWith('http://') || token.startsWith('https://')) {
+            return token;
+        }
+
+        // 3. Absolute or relative file path
+        return token;
+    }
+
+    function resolveMediaTokens(p: any): string[] {
+        const rawTokens = p.mediaTokens || p._libraryUuids || p.filePaths || [];
+        if (!Array.isArray(rawTokens) || rawTokens.length === 0) return [];
+
+        const resolved: string[] = [];
+        for (const t of rawTokens) {
+            const res = resolveMediaToken({ mediaToken: t });
+            if (res) resolved.push(res);
+        }
+        return resolved;
+    }
+
     wrap('zalo:sendImage', (s, p) =>
-        s.sendImage(FileStorageService.resolveAbsolutePath(p.filePath), p.threadId, p.type, p.message, p.quote)
+        s.sendImage(FileStorageService.resolveAbsolutePath(resolveMediaToken(p)), p.threadId, p.type, p.message, p.quote)
     );
 
     wrap('zalo:sendImages', (s, p) =>
-        s.sendImages((p.filePaths || []).map((fp: string) => FileStorageService.resolveAbsolutePath(fp)), p.threadId, p.type, p.quote)
+        s.sendImages(resolveMediaTokens(p).map((fp: string) => FileStorageService.resolveAbsolutePath(fp)), p.threadId, p.type, p.quote)
     );
 
     wrap('zalo:sendFile', (s, p) =>
-        s.sendFile(FileStorageService.resolveAbsolutePath(p.filePath), p.threadId, p.type, p.quote)
+        s.sendFile(FileStorageService.resolveAbsolutePath(resolveMediaToken(p)), p.threadId, p.type, p.quote)
     );
 
     wrap('zalo:sendVoice', (s, p) =>
@@ -419,17 +466,22 @@ export function registerZaloIpc() {
     );
 
     wrap('zalo:addUserToGroup', (s, p) => {
-        if (!p.userId) throw new Error('Thiếu userId');
+        const userId = p.userId || p.memberId || p.members;
+        if (!userId) throw new Error('Thiếu userId');
         if (!p.groupId) throw new Error('Thiếu groupId');
-        // Normalize groupId: strip leading 'g' prefix — ZaloService will add it back
-        const groupId = p.groupId.startsWith('g') ? p.groupId.slice(1) : p.groupId;
-        Logger.log(`[zaloIpc] addUserToGroup userId=${p.userId} groupId=${groupId} (raw=${p.groupId})`);
-        return s.addUserToGroup(p.userId, groupId);
+        const groupId = String(p.groupId).startsWith('g') ? String(p.groupId).slice(1) : String(p.groupId);
+        Logger.log(`[zaloIpc] addUserToGroup userId=${userId} groupId=${groupId} (raw=${p.groupId})`);
+        return s.addUserToGroup(userId, groupId);
     });
 
-    wrap('zalo:removeUserFromGroup', (s, p) =>
-        s.removeUserFromGroup(p.userId, p.groupId)
-    );
+    wrap('zalo:removeUserFromGroup', (s, p) => {
+        const userId = p.userId || p.memberId || p.members;
+        if (!userId) throw new Error('Thiếu userId');
+        if (!p.groupId) throw new Error('Thiếu groupId');
+        const groupId = String(p.groupId).startsWith('g') ? String(p.groupId).slice(1) : String(p.groupId);
+        Logger.log(`[zaloIpc] removeUserFromGroup userId=${userId} groupId=${groupId} (raw=${p.groupId})`);
+        return s.removeUserFromGroup(userId, groupId);
+    });
 
     wrap('zalo:leaveGroup', (s, p) => s.leaveGroup(p.groupId, p.silent ?? false));
 
@@ -742,5 +794,138 @@ export function registerZaloIpc() {
     wrap('zalo:updateActiveStatus', (s, p) =>
         s.updateActiveStatus(p.active)
     );
+
+    // ─── Quét nhóm Nâng cao (Premium Group Scan) ─────────────────────────
+    const activeScanMap = new Map<string, Promise<any>>();
+
+    const scanAdvancedHandler = async (event: any, params: { zaloId: string; linkOrGroupId: string }) => {
+        const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+        if (activeWs?.type === 'remote' && !(params as any)?._fromRelay) {
+            try {
+                return await HttpConnectionManager.getInstance().proxyAction(activeWs.id, 'zalo:scanAdvancedGroup', params);
+            } catch (err: any) {
+                Logger.error(`[zaloIpc] Error forwarding zalo:scanAdvancedGroup to Boss: ${err.message}`);
+                return { success: false, error: err.message };
+            }
+        }
+
+        const { zaloId, linkOrGroupId } = params || {};
+        if (!zaloId || !linkOrGroupId) {
+            return { success: false, error: 'Thiếu zaloId hoặc link/ID nhóm' };
+        }
+
+        const cleanInput = linkOrGroupId.trim();
+        const scanKey = `${zaloId}_${cleanInput}`;
+
+        // Kiểm tra ghép luồng trùng (Pending Scan Deduplication)
+        if (activeScanMap.has(scanKey)) {
+            Logger.log(`[zaloIpc] Ghép luồng quét trùng đang chạy cho key: ${scanKey}`);
+            return await activeScanMap.get(scanKey);
+        }
+
+        const scanPromise = (async () => {
+            try {
+                // 1. Boss tự lấy auth từ DatabaseService
+                const accounts = DatabaseService.getInstance().getAccounts() || [];
+                const account = accounts.find(a => String(a.zalo_id) === String(zaloId));
+                if (!account || !account.cookies) {
+                    return { success: false, error: `Không tìm thấy thông tin đăng nhập tài khoản Zalo ${zaloId} trên máy Boss` };
+                }
+
+                // 2. Resolve link Zalo me nếu có
+                let groupId = cleanInput;
+                let groupInfoFromLink: any = null;
+
+                if (groupId.includes('zalo.me') || groupId.includes('chat.zalo.me') || !/^\d+$/.test(groupId)) {
+                    const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
+                    const zaloService = await getService(auth);
+                    const linkRes: any = await zaloService.getGroupLinkInfo(groupId, 1);
+                    const rawInfo = linkRes?.response || linkRes;
+                    const resolvedGroupId = rawInfo?.groupId || rawInfo?.group_id || rawInfo?.id;
+                    
+                    if (!resolvedGroupId) {
+                        return { success: false, error: linkRes?.error || linkRes?.message || 'Không lấy được thông tin nhóm từ link. Kiểm tra lại đường dẫn.' };
+                    }
+                    
+                    groupId = String(resolvedGroupId);
+                    const name = rawInfo.name || groupId;
+                    const avatar = rawInfo.fullAvt || rawInfo.avt || rawInfo.avatar || '';
+                    const creatorId = String(rawInfo.creatorId || rawInfo.ownerId || '').replace(/_0$/, '');
+                    const adminIds: string[] = (rawInfo.adminIds || []).map((a: any) => String(a).replace(/_0$/, ''));
+                    groupInfoFromLink = { groupId, name, avatar, creatorId, adminIds };
+
+                    // Lưu profile nhóm vào SQLite Boss
+                    DatabaseService.getInstance().updateContactProfile(
+                        zaloId,
+                        groupId,
+                        name,
+                        avatar,
+                        '',
+                        'group'
+                    );
+                }
+
+                // 3. Boss gọi scanGroupViaBackend tới deplaoapp.com
+                const { scanGroupViaBackend } = await import('../../src/ui/lib/backendService');
+                const result = await scanGroupViaBackend({
+                    pageId: zaloId,
+                    cookie: account.cookies,
+                    imei: account.imei || '',
+                    groupId,
+                });
+
+                if (!result?.success) {
+                    return { success: false, error: result?.error || 'Quét thất bại từ máy chủ Backend' };
+                }
+
+                const members = result.members || [];
+                if (members.length === 0) {
+                    return { success: false, error: 'Không tìm thấy thành viên nào trong nhóm.' };
+                }
+
+                // 4. Lưu kết quả thành viên vào SQLite Boss
+                const creatorId = groupInfoFromLink?.creatorId || '';
+                const adminIdList = groupInfoFromLink?.adminIds || [];
+                const adminSet = new Set([creatorId, ...adminIdList].filter(Boolean));
+
+                const memberList = members.map((m: any) => {
+                    const mid = String(m.userId || m.id);
+                    let role = 0;
+                    if (mid === creatorId) role = 2;
+                    else if (adminSet.has(mid)) role = 1;
+                    return {
+                        memberId: mid,
+                        displayName: m.displayName || m.zaloName || m.userId || m.id,
+                        avatar: m.avatar || '',
+                        role,
+                    };
+                });
+
+                DatabaseService.getInstance().saveGroupMembers(zaloId, groupId, memberList);
+
+                DatabaseService.getInstance().save();
+
+                // 5. Phát sự kiện Real-time Broadcast cho các máy Nhân viên đang kết nối
+                EventBroadcaster.emit('crm:groupMembersChanged', { ownerZaloId: zaloId, groupId, totalMembers: members.length });
+
+                return {
+                    success: true,
+                    groupId,
+                    totalMembers: members.length,
+                    savedCount: memberList.length,
+                    groupInfo: groupInfoFromLink,
+                    members: members.slice(0, 50),
+                };
+            } finally {
+                activeScanMap.delete(scanKey);
+            }
+        })();
+
+        activeScanMap.set(scanKey, scanPromise);
+        return await scanPromise;
+    };
+
+    ipcMain.handle('zalo:scanAdvancedGroup', scanAdvancedHandler);
+    ipcHandlerRegistry.set('zalo:scanAdvancedGroup', scanAdvancedHandler);
 }
 

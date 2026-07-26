@@ -21,13 +21,40 @@ function getBossBaseUrl(): string {
 export function toLocalMediaUrl(filePath: string, zaloId?: string): string {
   if (!filePath) return '';
 
-  // Already a proper URL → return as-is
+  const isWeb = typeof window !== 'undefined' && !(window as any).electronAPI;
+
+  if (isWeb) {
+    let bossUrl = getBossBaseUrl();
+    if (!bossUrl) {
+      try {
+        const saved = localStorage.getItem('zagi_browser_workspaces');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const activeWs = parsed.workspaces?.find((w: any) => w.id === parsed.activeId) || parsed.workspaces?.[0];
+          if (activeWs && activeWs.bossUrl) bossUrl = activeWs.bossUrl;
+        }
+      } catch {}
+    }
+    if (!bossUrl) bossUrl = 'http://127.0.0.1:9900';
+    bossUrl = bossUrl.trim().replace(/\/+$/, '');
+    if (!bossUrl.startsWith('http://') && !bossUrl.startsWith('https://')) bossUrl = `http://${bossUrl}`;
+
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+
+    const cleanPath = filePath.replace(/^local-media:\/*/, '').replace(/^file:\/\/*/, '');
+    if (cleanPath.startsWith('api/library/') || cleanPath.startsWith('api/media/')) {
+      return `${bossUrl}/${cleanPath}`;
+    }
+    return `${bossUrl}/api/media/file?path=${encodeURIComponent(cleanPath)}`;
+  }
+
+  // Standalone/Boss & Employee Electron App: use local-media:// custom protocol
   if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('local-media://')) {
     return filePath;
   }
 
-  // Standalone/Boss & Employee: use local-media:// custom protocol to enable local disk caching
-  // and bypass mixed content/CORS restrictions over LAN/Tunnels.
   const stripped = filePath.replace(/^file:\/\/\//, '').replace(/^file:\/\//, '');
   const normalized = stripped.replace(/\\/g, '/');
   const withSlash = normalized.startsWith('/') ? normalized : '/' + normalized;

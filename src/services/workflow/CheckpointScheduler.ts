@@ -86,14 +86,26 @@ class CheckpointScheduler {
       const engine = WorkflowEngineService.getInstance();
 
       for (const cp of pending) {
+        // Check if workflow still exists and is enabled before resuming
+        const wfRow = db.getWorkflowById(cp.workflow_id);
+        if (!wfRow || wfRow.enabled === 0 || wfRow.enabled === false) {
+          Logger.warn(`[CheckpointScheduler] Checkpoint ${cp.id} skipped — workflow "${cp.workflow_name}" (#${cp.workflow_id}) is disabled or deleted`);
+          db.markCheckpointFailed(cp.id, 'Workflow bị tắt hoặc đã bị xóa');
+          continue;
+        }
+
         // Atomic: mark processing trước để tránh duplicate resume
         db.markCheckpointProcessing(cp.id);
 
         try {
           Logger.log(`[CheckpointScheduler] Resuming checkpoint ${cp.id} — workflow "${cp.workflow_name}"`);
-          await engine.resumeFromCheckpoint(cp);
-          db.markCheckpointDone(cp.id);
-          Logger.log(`[CheckpointScheduler] Checkpoint ${cp.id} completed`);
+          const resumeResult = await engine.resumeFromCheckpoint(cp);
+          // [BUG-02 Fix] resumeFromCheckpoint đã gọi markCheckpointDone nếu có nested wait bên trong.
+          // Kiểm tra status 'waiting': nếu vẫy, checkpoint đã được đánh dấu xử lý bên trong rồi, không cần gọi lại.
+          if (!resumeResult || resumeResult.status !== 'waiting') {
+            db.markCheckpointDone(cp.id);
+          }
+          Logger.log(`[CheckpointScheduler] Checkpoint ${cp.id} completed (status=${resumeResult?.status ?? 'unknown'})`);
         } catch (err: any) {
           Logger.error(`[CheckpointScheduler] Failed to resume checkpoint ${cp.id}: ${err.message}`);
           db.markCheckpointFailed(cp.id, err.message);

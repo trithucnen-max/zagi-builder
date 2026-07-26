@@ -159,6 +159,25 @@ export function registerLicenseIpc(startAppCallback?: () => Promise<void>): void
     return await licenseManager.getPlans();
   });
 
+  // Khởi chạy ứng dụng trực tiếp dưới dạng Máy Nhân Viên (bỏ qua kích hoạt License Key trên máy Sếp)
+  ipcMain.handle('license:startAsEmployee', async () => {
+    if (startAppCallback) {
+      setTimeout(async () => {
+        try {
+          await startAppCallback();
+          if (licenseWindow && !licenseWindow.isDestroyed()) {
+            licenseWindow.close();
+            licenseWindow = null;
+          }
+        } catch (err: any) {
+          console.error('[LicenseIpc] startApp error for employee mode:', err.message);
+        }
+      }, 500);
+      return { success: true };
+    }
+    return { success: false, error: 'Không thể khởi động ứng dụng' };
+  });
+
   // Đăng xuất bản quyền → xóa license.dat + database + cache + restart app
   // Đăng xuất bản quyền → xóa license.dat + database + cache + restart app (nếu clearData = true)
   ipcMain.handle('license:logout', async (_event, options?: { clearData?: boolean }) => {

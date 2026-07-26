@@ -158,7 +158,8 @@ export async function sendVideo(channel: Channel, params: {
     threadId: params.threadId,
     type: params.threadType,
   });
-  const videoUrl: string = uploadVideoRes?.response?.fileUrl || '';
+  const videoResp = uploadVideoRes?.response;
+  const videoUrl: string = videoResp?.fileUrl || videoResp?.normalUrl || videoResp?.hdUrl || videoResp?.url || videoResp?.href || '';
   if (!videoUrl) return { success: false, error: 'Upload video thất bại' };
 
   // Send video message

@@ -62,7 +62,7 @@ HttpClientService (kết nối tới Boss)
 * **Delayed Reconnect on Sleep/Wake**: Trì hoãn cuộc gọi kết nối lại (3s khi unlock screen, 5s khi resume từ sleep) để card mạng của hệ điều hành nhận IP và ổn định trước khi thực hiện DNS lookup.
 * **LAN/WAN Auto-Switch & Rollback**:
   * Khi có mạng LAN chung với Boss, tự động dò tìm IP LAN và chuyển sang kết nối trực tiếp LAN qua HTTP và Socket.IO để tối ưu hóa tốc độ.
-  * Khi rời xa LAN hoặc Wifi đổi mạng, sau 2 lần Heartbeat lỗi (~30s), tự động Rollback lùi về mạng WAN/Tunnel (`https://relay.basancorp.com`).
+  * Khi rời xa LAN hoặc Wifi đổi mạng, sau 2 lần Heartbeat lỗi (~30s), tự động Rollback lùi về mạng WAN/Tunnel (`https://relay.your-boss-server.com`).
   * Hiển thị thông báo trạng thái kết nối trực tiếp lên màn hình UI của nhân viên.
 
 ### AI Read-Only Policy (v27.2.6)
