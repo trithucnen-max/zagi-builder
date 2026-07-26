@@ -5652,7 +5652,13 @@ function extractImageUrl(msg: any): string {
     if (!c || c === 'null') return '';
     const parsed = typeof c === 'string' ? JSON.parse(c) : c;
     if (typeof parsed === 'object' && parsed !== null) {
-      return parsed.href || parsed.hdUrl || parsed.url || parsed.hd || parsed.thumb || parsed.normalUrl || '';
+      let paramsObj: any = parsed.params;
+      if (typeof paramsObj === 'string') {
+        try { paramsObj = JSON.parse(paramsObj); } catch { paramsObj = null; }
+      }
+      return parsed.href || parsed.hdUrl || parsed.normalUrl || parsed.url || parsed.hd 
+        || paramsObj?.hd || paramsObj?.rawUrl
+        || parsed.thumb || '';
     }
   } catch {}
   return '';
@@ -5667,8 +5673,9 @@ async function sendOneForward(
   const content = msg.content || '';
   const isVideo = msgType === 'chat.video.msg';
   const isVoice = msgType === 'chat.voice' || msgType === 'audio';
-  const isFile = !isVideo && !isVoice && isFileType(msgType, content);
-  const isImage = !isVideo && !isVoice && !isFile && isMediaType(msgType, content);
+  const isLink  = msgType === 'share.link' || msgType === 'chat.link' || msgType === 'chat.recommended';
+  const isFile  = !isVideo && !isVoice && !isLink && isFileType(msgType, content);
+  const isImage = !isVideo && !isVoice && !isFile && !isLink && isMediaType(msgType, content);
   let localPath = '';
   try {
     const raw = typeof msg.local_paths === 'string' ? JSON.parse(msg.local_paths || '{}') : (msg.local_paths || {});
@@ -5706,6 +5713,41 @@ async function sendOneForward(
     let captionText = extractMsgText(msg);
     if (captionText === '[Tin nhắn]') captionText = '';
     const hasCompose = Boolean(composeText && composeText.trim());
+
+    // ── Nhánh 0: Chuyển tiếp tin nhắn Link / Link Card ──
+    if (isLink) {
+      let linkUrl = '';
+      try {
+        const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+        linkUrl = parsed.href || parsed.url || parsed.link || '';
+      } catch {}
+
+      if (linkUrl) {
+        const res = await ipc.zalo?.sendLink({
+          auth,
+          url: linkUrl,
+          threadId: target.threadId,
+          type: target.threadType,
+          message: captionText || composeText,
+        });
+        if (res && !res.success) {
+          throw new Error(res.error || 'Gửi link chuyển tiếp thất bại');
+        }
+      } else {
+        // Fallback gửi text nếu không trích xuất được link URL
+        await ipc.zalo?.sendMessage({
+          auth,
+          message: composeText || content,
+          threadId: target.threadId,
+          type: target.threadType,
+        });
+      }
+
+      if (hasCompose && linkUrl) {
+        await ipc.zalo?.sendMessage({ auth, message: composeText.trim(), threadId: target.threadId, type: target.threadType });
+      }
+      return;
+    }
 
     // ── Nhánh 1: Tệp đính kèm (Ảnh / Video / File / Voice) ──
     // Dùng effectivePath (local path hoặc URL CDN Zalo):
