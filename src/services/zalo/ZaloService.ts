@@ -1723,16 +1723,8 @@ export default class ZaloService {
             resolvedPath = target.resolvedPath;
             tempCreated = target.isTemp;
 
-            const buffer = fs.readFileSync(resolvedPath);
-            const baseName = path.basename(resolvedPath);
-            let width = 0, height = 0;
-            try { const dim = imageSize(buffer); width = dim.width ?? 0; height = dim.height ?? 0; } catch {}
-            const attachment: any = {
-                data: buffer,
-                filename: baseName,
-                metadata: { totalSize: buffer.length, width, height },
-            };
-            const content: MessageContent = { msg: caption || '', attachments: [attachment] };
+            // Truyền đường dẫn tệp trực tiếp (string) để zca-js uploadAttachment & imageMetadataGetter xử lý native chuẩn xác nhất
+            const content: MessageContent = { msg: caption || '', attachments: [resolvedPath] };
             const result = await this.sendMessage(content as any, threadId, type, null, quote);
             return result;
         } catch (error: any) {
@@ -1793,22 +1785,12 @@ export default class ZaloService {
                 filePaths.map(p => this.ensureLocalImagePath(p))
             );
 
-            const attachments = resolvedTargets.map(({ resolvedPath, isTemp }) => {
+            const resolvedPaths = resolvedTargets.map(({ resolvedPath, isTemp }) => {
                 if (isTemp) tempPathsToClean.push(resolvedPath);
-                const buffer = fs.readFileSync(resolvedPath);
-                const baseName = path.basename(resolvedPath);
-                // zca-js requires filename to contain an extension (`${string}.${string}`)
-                const ext = path.extname(baseName) || '.jpg';
-                const safeFilename = (path.extname(baseName) ? baseName : `${baseName}${ext}`) as `${string}.${string}`;
-                let width = 0, height = 0;
-                try { const dim = imageSize(buffer); width = dim.width ?? 0; height = dim.height ?? 0; } catch {}
-                return {
-                    data: buffer,
-                    filename: safeFilename,
-                    metadata: { totalSize: buffer.length, width, height },
-                };
+                return resolvedPath;
             });
-            const content: MessageContent = { msg: '', attachments };
+
+            const content: MessageContent = { msg: '', attachments: resolvedPaths };
             const result = await this.sendMessage(content as any, threadId, type, null, quote);
             return result;
         } catch (error: any) {

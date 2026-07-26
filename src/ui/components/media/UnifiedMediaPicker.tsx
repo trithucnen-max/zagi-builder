@@ -31,6 +31,7 @@ export default function UnifiedMediaPicker({
   
   // Detect active workspace mode: Boss (local) vs Employee (remote)
   const activeWs = useWorkspaceStore(s => s.activeWorkspace());
+  const activeAccountId = useAccountStore(s => s.activeAccountId);
   const isRemote = activeWs?.type === 'remote';
 
   const [showLibPicker, setShowLibPicker] = useState(false);

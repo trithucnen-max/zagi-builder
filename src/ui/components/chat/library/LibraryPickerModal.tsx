@@ -619,15 +619,16 @@ export default function LibraryPickerModal({
         }
       } else {
         // Image hoặc File
-        const opts: any = { auth: auth || {}, zaloId, threadId, threadType, type: threadType };
-        if (localPath) {
-          console.log('[Library] sendItem: local file path resolved', localPath);
-          opts.filePath = localPath;
-        } else if (item.uuid) {
-          console.log('[Library] sendItem: remote library uuid resolved', item.uuid);
-          opts.fileUrl = item.fileUrl;
-          opts._libraryUuid = item.uuid;
-        }
+        const opts: any = {
+          auth: auth || {},
+          zaloId,
+          threadId,
+          threadType,
+          type: threadType,
+          filePath: localPath || undefined,
+          _libraryUuid: item.uuid || undefined,
+          fileUrl: item.fileUrl || undefined,
+        };
         console.log('[Library] sendItem opts:', opts);
         if (item.type === "image") {
           const res = await ipc.zalo.sendImage(opts);

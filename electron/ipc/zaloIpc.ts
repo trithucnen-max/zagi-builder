@@ -188,25 +188,52 @@ export function registerZaloIpc() {
 
     function resolveMediaToken(p: any): string {
         const token = p.mediaToken || p.filePath || p._libraryUuid;
-        if (!token) {
-            if (p.fileUrl) return p.fileUrl;
-            return '';
+        if (!token && !p.fileUrl) return '';
+
+        // Helper check library UUID
+        const tryLibraryUuid = (uuid: string) => {
+            if (!uuid) return null;
+            try {
+                const LibraryService = require('../../src/services/library/LibraryService').default;
+                const item = LibraryService.getInstance().getItem(uuid);
+                if (item) {
+                    const resolved = FileStorageService.resolveAbsolutePath(item.file_path);
+                    if (resolved && fs.existsSync(resolved)) return resolved;
+                    if (item.fileUrl) return item.fileUrl;
+                }
+            } catch {}
+            return null;
+        };
+
+        // 1. If explicitly passed _libraryUuid, try resolving it first
+        if (p._libraryUuid) {
+            const libRes = tryLibraryUuid(p._libraryUuid);
+            if (libRes) return libRes;
         }
 
-        // 1. Check if token is a Library UUID
-        try {
-            const LibraryService = require('../../src/services/library/LibraryService').default;
-            const item = LibraryService.getInstance().getItem(token);
-            if (item?.file_path) return item.file_path;
-        } catch {}
+        // 2. Check if token itself is a Library UUID
+        if (token) {
+            const libRes = tryLibraryUuid(token);
+            if (libRes) return libRes;
 
-        // 2. Check if token is HTTP/HTTPS CDN URL
-        if (token.startsWith('http://') || token.startsWith('https://')) {
-            return token;
+            // 3. Check if token is HTTP/HTTPS CDN URL
+            if (token.startsWith('http://') || token.startsWith('https://')) {
+                return token;
+            }
+
+            // 4. Check if token as a file path exists on disk
+            const resolvedPath = FileStorageService.resolveAbsolutePath(token);
+            if (resolvedPath && fs.existsSync(resolvedPath)) {
+                return resolvedPath;
+            }
         }
 
-        // 3. Absolute or relative file path
-        return token;
+        // 5. Fallback to p.fileUrl if provided
+        if (p.fileUrl && (p.fileUrl.startsWith('http://') || p.fileUrl.startsWith('https://'))) {
+            return p.fileUrl;
+        }
+
+        return token || '';
     }
 
     function resolveMediaTokens(p: any): string[] {
@@ -215,7 +242,7 @@ export function registerZaloIpc() {
 
         const resolved: string[] = [];
         for (const t of rawTokens) {
-            const res = resolveMediaToken({ mediaToken: t });
+            const res = resolveMediaToken(typeof t === 'object' ? t : { mediaToken: t });
             if (res) resolved.push(res);
         }
         return resolved;

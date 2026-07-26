@@ -89,28 +89,47 @@ class FileStorageService {
             return trimmed;
         }
         if (!path.isAbsolute(trimmed)) {
-            // Relative: "media/zaloId/date/img.jpg" → configFolder/media/zaloId/...
-            // OR "library/zaloId/images/uuid.png" → baseDir/library/zaloId/...
-            const configFolder = path.dirname(this.getBaseDir());
+            // Relative path: "media/zaloId/..." OR "library/zaloId/..."
+            const baseDir = this.getBaseDir();
+            const configFolder = path.dirname(baseDir);
+
+            // 1. Try baseDir/trimmed (ví dụ: baseDir + "library/zaloId/images/uuid.png")
+            const resolvedBase = path.join(baseDir, trimmed);
+            if (fs.existsSync(resolvedBase)) return resolvedBase;
+
+            // 2. Try configFolder/trimmed (ví dụ: configFolder + "media/zaloId/date/img.jpg")
             const resolvedConfig = path.join(configFolder, trimmed);
             if (fs.existsSync(resolvedConfig)) return resolvedConfig;
 
-            const resolvedBase = path.join(this.getBaseDir(), trimmed);
-            if (fs.existsSync(resolvedBase)) return resolvedBase;
-
+            // Fallback: Ưu tiên resolvedBase nếu bắt đầu bằng library/, ngược lại resolvedConfig
+            if (trimmed.startsWith('library/') || trimmed.startsWith('library\\')) {
+                return resolvedBase;
+            }
             return resolvedConfig;
         }
         // Absolute path — serve as-is if it exists
         if (fs.existsSync(relOrAbsPath)) return relOrAbsPath;
-        // File not found (old drive/folder after move) — remap via /media/ marker
+
+        // File not found (old drive/folder after move) — remap via /media/ or /library/ marker
         const normalized = relOrAbsPath.replace(/\\/g, '/');
-        const mediaIdx = normalized.toLowerCase().lastIndexOf('/media/');
+        const normLower = normalized.toLowerCase();
+        
+        const mediaIdx = normLower.lastIndexOf('/media/');
         if (mediaIdx >= 0) {
             const configFolder = path.dirname(this.getBaseDir());
             const relativePart = normalized.slice(mediaIdx + 1); // "media/zaloId/..."
             const remapped = path.join(configFolder, relativePart);
             if (fs.existsSync(remapped)) return remapped;
         }
+
+        const libraryIdx = normLower.lastIndexOf('/library/');
+        if (libraryIdx >= 0) {
+            const baseDir = this.getBaseDir();
+            const relativePart = normalized.slice(libraryIdx + 1); // "library/zaloId/..."
+            const remapped = path.join(baseDir, relativePart);
+            if (fs.existsSync(remapped)) return remapped;
+        }
+
         return relOrAbsPath; // fallback: return original
     }
 
