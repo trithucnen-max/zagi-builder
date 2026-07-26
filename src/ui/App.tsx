@@ -160,7 +160,7 @@ export default function App() {
         if (res?.success) {
           useAppStore.getState().showNotification('🟢 Kết nối lại thành công!', 'success');
         } else {
-          useAppStore.getState().showNotification(res?.error || 'Kết nối lại thất bại', 'error');
+          useAppStore.getState().showNotification((res as any)?.error || 'Kết nối lại thất bại', 'error');
         }
       } catch (err: any) {
         useAppStore.getState().showNotification(err.message || 'Lỗi kết nối lại', 'error');
@@ -224,13 +224,13 @@ export default function App() {
       });
 
       if (!updateRes?.success) {
-        throw new Error(updateRes?.error || 'Cập nhật cấu hình workspace thất bại');
+        throw new Error((updateRes as any)?.error || 'Cập nhật cấu hình workspace thất bại');
       }
 
       // Step 3: Reconnect with new config
       const connRes = await ipc.workspace?.connectRemote(activeWs.id, bossUrlInput.trim(), token);
       if (!connRes?.success) {
-        throw new Error(connRes?.error || 'Kết nối tới Boss thất bại');
+        throw new Error((connRes as any)?.error || 'Kết nối tới Boss thất bại');
       }
 
       // Sync active state local copy

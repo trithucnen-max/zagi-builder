@@ -90,7 +90,7 @@ describe('ZaloService File & Media Forwarding Safeguards', () => {
     fs.writeFileSync(localVideo, Buffer.from('fake-mp4-content'));
 
     try {
-      const res = await zaloService.sendVideo({ videoUrl: 'media/zalo123/demo.mp4', msg: 'Video demo' }, '123456', 0 as any);
+      const res = await zaloService.sendVideo({ videoUrl: 'media/zalo123/demo.mp4', thumbnailUrl: '', msg: 'Video demo' }, '123456', 0 as any);
       expect(res).toEqual({ success: true, msgId: 'vid_123' });
     } finally {
       if (fs.existsSync(localVideo)) fs.unlinkSync(localVideo);
