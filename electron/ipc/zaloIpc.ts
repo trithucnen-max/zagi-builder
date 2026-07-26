@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import * as fs from 'fs';
 import ZaloService from '../../src/services/zalo/ZaloService';
 import WorkflowEngineService from '../../src/services/workflow/WorkflowEngineService';
 import ConnectionManager from '../../src/utils/ConnectionManager';
