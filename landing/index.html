@@ -548,10 +548,17 @@ a{text-decoration:none}
     margin-bottom: 18px !important;
   }
   .hero-trust {
-    flex-direction: column !important;
+    flex-direction: row !important;
+    justify-content: center !important;
     align-items: center !important;
-    gap: 8px !important;
-    font-size: 12.5px !important;
+    gap: 12px !important;
+    font-size: 12px !important;
+  }
+  .hide-mobile {
+    display: none !important;
+  }
+  .float-c {
+    display: none !important;
   }
 
   /* Mockup Kanban Board vừa khít di động */
@@ -921,8 +928,8 @@ a{text-decoration:none}
     <div class="hero-grid">
       <div>
         <div class="hero-badge"><span class="material-symbols-rounded">workspace_premium</span>Dành cho sales &amp; chủ doanh nghiệp bán trên Zalo, Facebook</div>
-        <h1>Một người bán hàng<br>không nên phải nhớ<br><span class="hl">mọi thứ trong đầu.</span></h1>
-        <p class="hero-sub">Zagi nhớ giúp bạn. Gom mọi tài khoản Zalo &amp; Facebook về <strong>một hộp thư</strong>, chấm điểm từng lead, nhắc bạn đúng lúc phải nhắn ai — và <strong>chăm khách khi bạn đang ngủ</strong>. Dữ liệu ở lại trên máy bạn. Của bạn, của cả team.</p>
+        <h1>Quản lý Zalo &amp; Facebook<br><span class="hl">Đa Tài Khoản Tập Trung.</span></h1>
+        <p class="hero-sub">Gom mọi nick Zalo &amp; Fanpage về <strong>một hộp thư duy nhất</strong>. Tự động chấm điểm lead &amp; chăm sóc khách hàng 24/7 ngay trên máy tính của bạn.<span class="hide-mobile"> Dữ liệu ở lại trên máy bạn. Của bạn, của cả team.</span></p>
         
         <div class="hero-ctas">
           <!-- Smart Auto-Detected Download/Register Button -->
@@ -936,9 +943,9 @@ a{text-decoration:none}
         </div>
 
         <div class="hero-trust">
-          <span><span class="material-symbols-rounded">groups</span>Sales <strong>tự giới thiệu</strong> cho đồng đội &amp; sếp</span>
-          <span><span class="material-symbols-rounded">lock</span>Dữ liệu <strong>trên máy bạn</strong>, không cloud</span>
-          <span><span class="material-symbols-rounded">verified</span>Hoàn tiền trong 30 ngày</span>
+          <span><span class="material-symbols-rounded">lock</span>Dữ liệu <strong>Local 100%</strong></span>
+          <span class="hide-mobile"><span class="material-symbols-rounded">groups</span>Sales tự giới thiệu cho đồng đội</span>
+          <span><span class="material-symbols-rounded">verified</span>Hoàn tiền 30 ngày</span>
         </div>
       </div>
 
