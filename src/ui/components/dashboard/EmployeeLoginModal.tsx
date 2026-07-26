@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import { useWorkspaceStore } from '@/store/workspaceStore';
+import { useAccountStore } from '@/store/accountStore';
 
 /** Build normalized Boss URL — handles both IP:Port and full tunnel URL */
 function buildBossUrl(address: string, port: string): string {
@@ -84,7 +85,27 @@ export default function EmployeeLoginModal({ onClose }: Props) {
       setStep('switching');
       if (res.workspace?.id) {
         useWorkspaceStore.getState().setActiveWorkspaceId(res.workspace.id);
-        await ipc.workspace?.switch(res.workspace.id);
+        const switchRes = await ipc.workspace?.switch(res.workspace.id);
+        const activeWs = (switchRes as any)?.workspace || res.workspace;
+
+        // Reactive State Sync (Option A): Tự động nạp tài khoản nhân viên ngay tức thì không cần F5
+        const accountsData = snapshot.accountsData || loginRes.accountsData || activeWs?.cachedAccountsData || [];
+        if (accountsData.length > 0) {
+          const normalized = accountsData.map((a: any) => ({
+            zalo_id: a.zalo_id || a.zaloId || a.id,
+            name: a.name || a.display_name || a.full_name || a.zalo_id,
+            avatar: a.avatar || a.avatar_url || '',
+            cookie: a.cookie || '',
+            proxy: a.proxy || '',
+            imei: a.imei || '',
+            user_agent: a.user_agent || '',
+          }));
+          const accountStore = useAccountStore.getState();
+          accountStore.setAccounts(normalized as any);
+          if (normalized[0]?.zalo_id) {
+            accountStore.setActiveAccount(normalized[0].zalo_id);
+          }
+        }
       }
 
       // Reload workspace list
