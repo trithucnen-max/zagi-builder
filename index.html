@@ -452,6 +452,46 @@ a{text-decoration:none}
 .success-box{text-align:center;padding:20px 0}
 .success-icon{width:70px;height:70px;background:var(--teal-container);color:var(--teal);border-radius:50%;display:grid;place-items:center;margin:0 auto 16px;font-size:40px}
 .key-box{background:linear-gradient(135deg,#0A2A6B,#0068FF);color:#fff;border-radius:var(--r);padding:18px;margin:18px 0;font-size:22px;font-weight:900;letter-spacing:1px;word-break:break-all;box-shadow:var(--e3)}
+/* Mobile Thumb Zone Sticky Bottom Bar & Mobile Touch Targets */
+.mobile-sticky-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10, 14, 39, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 12px 16px;
+  display: none;
+  gap: 10px;
+  z-index: 998;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.35);
+}
+.mobile-sticky-bar .btn {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 12px 8px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .mobile-sticky-bar {
+    display: flex;
+  }
+  body {
+    padding-bottom: 76px;
+  }
+  .form-control {
+    font-size: 16px !important; /* Ngăn iOS Safari tự zoom */
+    min-height: 48px;
+  }
+  .btn {
+    min-height: 48px;
+  }
+}
 </style>
 </head>
 <body>
@@ -497,11 +537,11 @@ a{text-decoration:none}
         <p class="hero-sub">Zagi nhớ giúp bạn. Gom mọi tài khoản Zalo &amp; Facebook về <strong>một hộp thư</strong>, chấm điểm từng lead, nhắc bạn đúng lúc phải nhắn ai — và <strong>chăm khách khi bạn đang ngủ</strong>. Dữ liệu ở lại trên máy bạn. Của bạn, của cả team.</p>
         
         <div class="hero-ctas">
-          <!-- Smart Auto-Detected Download Button -->
+          <!-- Smart Auto-Detected Download/Register Button -->
           <a id="smart-hero-btn" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg" class="btn btn-white btn-lg">
             <span class="material-symbols-rounded">download</span>Tải Zagi v3.0.7 Miễn Phí
           </a>
-          <button onclick="openDownloadModal()" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">laptop_mac</span>Chọn bản khác</button>
+          <button id="secondary-hero-btn" onclick="openDownloadModal()" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">laptop_mac</span>Chọn bản khác</button>
         </div>
         <div class="smart-detect-note" id="smart-detect-label">
           <span class="material-symbols-rounded">verified</span>Tự động chọn tệp cài đặt phù hợp với thiết bị của bạn
@@ -1149,15 +1189,27 @@ a{text-decoration:none}
         <h2 style="font-size:22px;font-weight:800;color:var(--teal)" id="success-title">ĐĂNG KÝ THÀNH CÔNG!</h2>
         <p style="font-size:14px;color:var(--ink-2);margin-top:6px" id="success-sub">Mã bản quyền Zagi của bạn đã sẵn sàng sử dụng.</p>
         <div class="key-box" id="activated-key">ZAGI-PRO-XXXX</div>
-        <button onclick="copyTxt(currentLicenseKey)" class="btn btn-secondary" style="margin-bottom:12px">
-          <span class="material-symbols-rounded">content_copy</span>Sao chép Mã Key
-        </button>
-        <br>
-        <a id="success-dl-btn" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg" class="btn btn-primary btn-lg" style="margin-top:6px">
-          <span class="material-symbols-rounded">download</span>Tải phần mềm Zagi Desktop
-        </a>
-        <br>
-        <a href="#" onclick="openDownloadModal();return false;" style="font-size:13px;color:var(--ink-3);display:inline-block;margin-top:12px">Chọn phiên bản cho máy khác &rarr;</a>
+        
+        <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin:14px 0;text-align:left;font-size:13px;line-height:1.5">
+          <div style="font-weight:800;color:var(--primary-dark);display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span class="material-symbols-rounded" style="font-size:18px">mark_email_read</span>
+            <span>Đã gửi Email xác nhận &amp; Link tải phần mềm</span>
+          </div>
+          <div style="color:var(--ink-2)" id="email-notice-text">
+            Mã bản quyền &amp; Link tải phần mềm Zagi Desktop đã được gửi tới Email của bạn. Vui lòng mở Email trên Máy tính (PC / Laptop) để tải bản cài đặt tương ứng.
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button onclick="copyTxt(currentLicenseKey)" class="btn btn-secondary">
+            <span class="material-symbols-rounded">content_copy</span>Sao chép Mã Key
+          </button>
+          <a id="success-dl-btn" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg" class="btn btn-primary">
+            <span class="material-symbols-rounded">download</span>Tải phần mềm Zagi Desktop
+          </a>
+        </div>
+        
+        <a href="#" onclick="openDownloadModal();return false;" style="font-size:13px;color:var(--ink-3);display:inline-block;margin-top:14px">Mở danh sách tệp cài đặt (Windows, Mac, Linux) &rarr;</a>
       </div>
     </div>
   </div>
@@ -1516,7 +1568,12 @@ async function submitOrder() {
       document.getElementById('step-success').style.display = 'block';
       document.getElementById('activated-key').innerText    = currentLicenseKey;
       document.getElementById('success-title').innerText    = 'KÍCH HOẠT DÙNG THỬ 14 NGÀY THÀNH CÔNG!';
-      document.getElementById('success-sub').innerText      = 'Mã bản quyền Dùng thử 14 ngày của bạn đã sẵn sàng sử dụng.';
+      document.getElementById('success-sub').innerText      = 'Mã bản quyền Dùng thử 14 ngày của bạn đã được khởi tạo.';
+      
+      const emailNotice = document.getElementById('email-notice-text');
+      if (emailNotice) {
+        emailNotice.innerHTML = `Mã bản quyền <strong>${currentLicenseKey}</strong> &amp; Link tải phần mềm Zagi Desktop đã được gửi tới Email: <strong>${email}</strong>. Vui lòng mở Email trên Máy tính (PC / Laptop) để cài đặt và kích hoạt.`;
+      }
       return;
     }
 
@@ -1606,5 +1663,16 @@ window.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 });
 </script>
+
+<!-- Mobile Thumb Zone Sticky Bar -->
+<div class="mobile-sticky-bar">
+  <button onclick="openCheckoutModal('trial_14d')" class="btn btn-primary">
+    <span class="material-symbols-rounded">rocket_launch</span>Dùng thử 14 ngày (0đ)
+  </button>
+  <button onclick="openCheckoutModal('solo_12m')" class="btn btn-gold">
+    <span class="material-symbols-rounded">payments</span>Mua bản quyền
+  </button>
+</div>
+
 </body>
 </html>
