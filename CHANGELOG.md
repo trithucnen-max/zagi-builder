@@ -2,7 +2,24 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.0.6] - 2026-07-25
+## [v3.0.6] - 2026-07-26
+
+### 🛡️ Bảo Mật Landing Page Bằng Supabase Edge Functions Architecture
+- **Chuyển Đổi Sang Serverless Edge Functions:**
+  - Tách toàn bộ logic tạo đơn hàng, sinh mã bản quyền và kiểm tra thanh toán ra khỏi Browser client-side.
+  - Triển khai 2 Supabase Edge Functions mới: `create-order` (tạo đơn, rate-limit IP, validate dữ liệu, sinh key bằng `crypto.randomUUID()`) và `check-payment` (kiểm tra trạng thái bản quyền an toàn, bảo mật thông tin PII).
+  - Loại bỏ hoàn toàn các key nhạy cảm hardcoded và hàm sinh key yếu `Math.random()` trên Landing Page.
+- **Tối Ưu Giao Diện & Sanitize Dữ Liệu (`landing/index.html`):**
+  - Sanitize dữ liệu chuỗi nội dung chuyển khoản chống nguy cơ XSS.
+  - Chuẩn hóa giao diện tải về dành cho mọi hệ điều hành (macOS Apple Silicon/Intel, Windows x64/Surface ARM64, Linux).
+
+### 💬 Khắc Phục Triệt Để Lỗi Chuyển Tiếp Tin Nhắn Ảnh & Link Zalo (`ChatWindow.tsx`)
+- **Fix Lỗi Forward Ảnh Zalo Từ CDN Zalo / Máy Nhân Viên:**
+  - Cập nhật hàm `extractImageUrl()` bóc tách toàn bộ trường CDN URL Zalo (`params.hd`, `params.rawUrl`, `normalUrl`, `hdUrl`).
+  - Hỗ trợ tải ngầm media token từ Zalo CDN cho các máy nhân viên chưa lưu ảnh local đĩa cứng.
+- **Fix Lỗi Forward Tin Nhắn Link Card (`share.link`):**
+  - Tách biệt tin nhắn Link (`share.link`, `chat.link`, `chat.recommended`) khỏi phân loại File.
+  - Chuyển sang gọi chính xác API `ipc.zalo.sendLink()` thay vì gọi sai `sendFile()`, tích hợp fallback gửi Text nếu link không có URL hợp lệ.
 
 ### 🔑 Quản Lý Bản Quyền Native Supabase Engine (100% Supabase API & Edge Functions)
 

@@ -26,7 +26,8 @@
 | WorkspaceManager | `src/utils/WorkspaceManager.ts` | 18KB | Quản lý workspace local/remote, DB path |
 | ZaloLoginHelper | `src/utils/ZaloLoginHelper.ts` | 55KB | Login Zalo, giữ session, emit events |
 | FileStorageService | `src/services/file/FileStorageService.ts` | — | Resolve file paths, xử lý temp files |
-| LicenseManager | `src/services/license/LicenseManager.ts` | — | Kiểm tra license, seat limit |
+| LicenseManager | `src/services/license/LicenseManager.ts` | — | Kiểm tra license, seat limit, mã hóa Hardware ID |
+| Supabase Edge Functions | `supabase/functions/` | — | Serverless functions cho Checkout, Payment Status & SePay Webhook (v3.0.6) |
 | LibraryService | `src/services/library/LibraryService.ts` | 21KB | Quản lý thư viện media dùng chung (ảnh, file, video, audio) |
 
 

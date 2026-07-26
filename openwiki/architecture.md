@@ -123,6 +123,7 @@ zca-js listener (ZaloLoginHelper)
 | Decision | Rationale |
 |---|---|
 | SQLite (better-sqlite3) | Offline-first, single file DB, sync API |
+| Supabase Edge Functions (v3.0.6) | Serverless architecture cho License Checkout, Rate-limit IP & sinh key bảo mật bằng `crypto.randomUUID()` |
 | Zustand over Redux | Đơn giản hơn, ít boilerplate |
 | ReactFlow | Workflow drag-drop graph editor |
 | Cloudflared tunnel | Nhân viên ở ngoài mạng nội bộ vẫn kết nối Boss |
