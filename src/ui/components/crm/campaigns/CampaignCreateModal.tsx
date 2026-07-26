@@ -441,6 +441,57 @@ Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời 
   };
 
   const pickFromComputer = async () => {
+    if (!window.electronAPI) {
+      // Mobile / Web Browser native HTML input file picker
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.multiple = true;
+      input.onchange = async (e: any) => {
+        const files = Array.from(e.target.files || []) as File[];
+        if (!files.length) return;
+        setUploading(true);
+        try {
+          const cleanExisting = block.images.filter((p): p is string => typeof p === 'string' && p.length > 0);
+          const uploadedPaths: string[] = [];
+          for (const file of files) {
+            const base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const res = reader.result as string;
+                resolve((res.split(',')[1] || '').trim());
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            if (!base64) continue;
+            const uploadRes = await DataAccessor.uploadToLibrary({
+              zaloId: zaloId || '',
+              fileName: file.name,
+              mimeType: file.type || 'image/jpeg',
+              base64,
+            });
+            if (uploadRes.success && uploadRes.data) {
+              const item = uploadRes.data;
+              const pathValue = item._localPath || item.fileUrl || item.uuid;
+              uploadedPaths.push(pathValue);
+            }
+          }
+          if (uploadedPaths.length > 0) {
+            onUpdate({ images: [...cleanExisting, ...uploadedPaths] });
+            useAppStore.getState().showNotification(`Đã tải ${uploadedPaths.length} ảnh lên thư viện thành công`, 'success');
+          }
+        } catch (err) {
+          console.error('[CampaignCreateModal] Web file pick failed:', err);
+          useAppStore.getState().showNotification('Lỗi khi tải ảnh từ thiết bị', 'error');
+        } finally {
+          setUploading(false);
+        }
+      };
+      input.click();
+      return;
+    }
+
     const r = await ipc.file?.openDialog({
       filters: [{ name: 'Hình ảnh', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }],
       multiSelect: true,
@@ -966,7 +1017,12 @@ Yiêu cầu quan trọng:
   };
 
   const handleSave = async () => {
-    if (!isValid() || saving || isSavingRef.current) return;
+    const valError = getValidationReason();
+    if (valError) {
+      useAppStore.getState().showNotification(valError, 'warning');
+      return;
+    }
+    if (saving || isSavingRef.current) return;
     isSavingRef.current = true;
     setSaving(true);
 
@@ -996,9 +1052,9 @@ Yiêu cầu quan trọng:
         daily_start_time: dailyStartTime,
         scheduled_start_at: scheduledStartAt,
       });
-      onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      useAppStore.getState().showNotification(err?.message || 'Lỗi khi lưu chiến dịch', 'error');
     } finally {
       isSavingRef.current = false;
       setSaving(false);

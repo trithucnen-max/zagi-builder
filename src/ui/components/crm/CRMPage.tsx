@@ -475,15 +475,20 @@ export default function CRMPage() {
       const res = await ipc.crm?.saveCampaign({ zaloId: activeAccountId, campaign: data });
       if (res?.success) {
         await loadCampaigns();
-        store.setActiveCampaign(res.id);
-        showNotification('Đã tạo chiến dịch', 'success');
-        // Wizard flow: advance to step 2 (add contacts) after saving
-        if (wizardActive) {
+        if (res.id) {
+          store.setActiveCampaign(res.id);
+        }
+        showNotification('Đã tạo chiến dịch thành công', 'success');
+        setShowCreateCampaign(false);
+        if (wizardActive && res.id) {
           setWizardCampaignId(res.id);
-          setShowCreateCampaign(false);
           setWizardStep(2);
         }
+      } else {
+        showNotification(res?.error || 'Không thể tạo chiến dịch. Vui lòng thử lại.', 'error');
       }
+    } catch (err: any) {
+      showNotification('Lỗi khi tạo chiến dịch: ' + err.message, 'error');
     } finally {
       creatingCampaignRef.current = false;
     }
@@ -1139,42 +1144,89 @@ export default function CRMPage() {
           {/* ── Campaigns tab ── */}
           {store.tab === 'campaigns' && (
             <>
-              <div className="w-72 flex-shrink-0 border-r border-gray-700 overflow-hidden flex flex-col">
-                <CampaignList
-                  campaigns={store.campaigns}
-                  loading={store.campaignsLoading}
-                  activeId={store.activeCampaignId}
-                  onSelect={store.setActiveCampaign}
-                  onCreate={startWizard}
-                  onDelete={handleDeleteCampaign}
-                  onClone={id => { setCloneCampaignId(id); setShowCloneCampaign(true); }}
-                  onUpdateStatus={handleUpdateCampaignStatus}
-                  zaloId={activeAccountId || ''}
-                />
-              </div>
-              <div className="flex-1 overflow-hidden flex flex-col">
-                {activeCampaign ? (
-                  <CampaignDetail
-                    campaign={activeCampaign}
-                    zaloId={activeAccountId || ''}
-                    allLabels={zaloLabels}
-                    localLabels={localLabels}
-                    localLabelThreadMap={localLabelThreadMap}
-                    onStatusChange={handleUpdateCampaignStatus}
-                    onAddContacts={handleAddContactsToCampaign}
-                    onUpdate={handleUpdateCampaign}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3 opacity-30">
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-                    </svg>
-                    <p className="text-sm">Chọn chiến dịch để xem chi tiết</p>
-                    <button onClick={startWizard}
-                      className="mt-3 text-xs text-blue-400 hover:text-blue-300">Tạo chiến dịch mới →</button>
+              {isMobile ? (
+                <div className="flex-1 overflow-hidden flex flex-col relative bg-gray-900">
+                  {activeCampaign ? (
+                    <div className="absolute inset-0 z-30 bg-gray-900 flex flex-col">
+                      <div className="px-4 py-2.5 bg-gray-800 border-b border-gray-700 flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => store.setActiveCampaign(null)}
+                          className="flex items-center gap-1 text-xs font-bold text-blue-400 hover:text-blue-300 py-1.5 px-3 rounded-xl bg-blue-500/10 border border-blue-500/30"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+                          </svg>
+                          <span>Danh sách chiến dịch</span>
+                        </button>
+                        <span className="text-xs text-gray-300 font-bold truncate flex-1">{activeCampaign.name}</span>
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <CampaignDetail
+                          campaign={activeCampaign}
+                          zaloId={activeAccountId || ''}
+                          allLabels={zaloLabels}
+                          localLabels={localLabels}
+                          localLabelThreadMap={localLabelThreadMap}
+                          onStatusChange={handleUpdateCampaignStatus}
+                          onAddContacts={handleAddContactsToCampaign}
+                          onUpdate={handleUpdateCampaign}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <CampaignList
+                      campaigns={store.campaigns}
+                      loading={store.campaignsLoading}
+                      activeId={store.activeCampaignId}
+                      onSelect={store.setActiveCampaign}
+                      onCreate={startWizard}
+                      onDelete={handleDeleteCampaign}
+                      onClone={id => { setCloneCampaignId(id); setShowCloneCampaign(true); }}
+                      onUpdateStatus={handleUpdateCampaignStatus}
+                      zaloId={activeAccountId || ''}
+                    />
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="w-72 flex-shrink-0 border-r border-gray-700 overflow-hidden flex flex-col">
+                    <CampaignList
+                      campaigns={store.campaigns}
+                      loading={store.campaignsLoading}
+                      activeId={store.activeCampaignId}
+                      onSelect={store.setActiveCampaign}
+                      onCreate={startWizard}
+                      onDelete={handleDeleteCampaign}
+                      onClone={id => { setCloneCampaignId(id); setShowCloneCampaign(true); }}
+                      onUpdateStatus={handleUpdateCampaignStatus}
+                      zaloId={activeAccountId || ''}
+                    />
                   </div>
-                )}
-              </div>
+                  <div className="flex-1 overflow-hidden flex flex-col">
+                    {activeCampaign ? (
+                      <CampaignDetail
+                        campaign={activeCampaign}
+                        zaloId={activeAccountId || ''}
+                        allLabels={zaloLabels}
+                        localLabels={localLabels}
+                        localLabelThreadMap={localLabelThreadMap}
+                        onStatusChange={handleUpdateCampaignStatus}
+                        onAddContacts={handleAddContactsToCampaign}
+                        onUpdate={handleUpdateCampaign}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3 opacity-30">
+                          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                        </svg>
+                        <p className="text-sm font-medium">Chọn chiến dịch để xem chi tiết</p>
+                        <button onClick={startWizard}
+                          className="mt-3 text-xs text-blue-400 hover:text-blue-300 font-semibold">Tạo chiến dịch mới →</button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </>
           )}
 
