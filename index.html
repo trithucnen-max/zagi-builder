@@ -744,7 +744,7 @@ a{text-decoration:none}
     font-size: 22px !important;
   }
 
-  /* 9. Pricing Grid Mobile */
+  /* 9. Pricing & Founding Beta Member Mobile (Sửa Hình 1) */
   .pgrid {
     grid-template-columns: 1fr !important;
     max-width: 100% !important;
@@ -753,8 +753,43 @@ a{text-decoration:none}
   .price-card {
     padding: 24px 18px !important;
   }
+  .founding {
+    grid-template-columns: 1fr !important;
+    padding: 24px 18px !important;
+    gap: 24px !important;
+    text-align: left !important;
+  }
+  .founding h2 {
+    font-size: 22px !important;
+    line-height: 1.28 !important;
+  }
+  .founding ul li {
+    font-size: 13.5px !important;
+  }
+  .fprice {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 20px 16px !important;
+  }
+  .fprice .amt {
+    font-size: 32px !important;
+  }
 
-  /* 10. Community Card Mobile */
+  /* 10. Training Section Mobile (Sửa Hình 2) */
+  .train-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+  .train-card, .train-modules {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .zoom-badge-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* 11. Community Card Mobile */
   .comm-card {
     grid-template-columns: 1fr !important;
   }
@@ -762,7 +797,71 @@ a{text-decoration:none}
     padding: 24px 18px !important;
   }
 
-  /* 11. Mobile Sticky Bar & Touch Optimization */
+  /* 12. Final CTA & Steps Grid Mobile (Sửa Hình 3) */
+  .final {
+    padding: 48px 16px !important;
+    text-align: center !important;
+  }
+  .final h2 {
+    font-size: 22px !important;
+    line-height: 1.28 !important;
+  }
+  .btn-group {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+  .btn-group .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .steps {
+    grid-template-columns: 1fr !important; /* XẾP DỌC 1 CỘT CHUẨN MOBILE */
+    gap: 12px !important;
+    margin-top: 28px !important;
+  }
+  .step {
+    padding: 16px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+  .step-text {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    word-break: normal !important;
+  }
+
+  /* 13. Footer Grid Mobile (Sửa Hình 4) */
+  .footer-grid {
+    grid-template-columns: 1fr !important; /* XẾP DỌC 1 CỘT FOOTER */
+    gap: 24px !important;
+    text-align: left !important;
+  }
+  .footer h4 {
+    font-size: 16px !important;
+    margin-bottom: 10px !important;
+  }
+  .footer p, .footer ul li a {
+    font-size: 13.5px !important;
+    word-break: normal !important;
+  }
+
+  /* 14. Synchronized Icon Palette & High Contrast (Sửa Hình 5) */
+  .src .si, .fbox .fi, .pain-card .ic, .srow .si2, .fc-ic, .v-attract .si, .src-row .si {
+    color: #FFFFFF !important; /* ICON MÀU TRẮNG NỔI BẬT */
+    font-weight: 800 !important;
+  }
+  .src .si .material-symbols-rounded, 
+  .fbox .fi .material-symbols-rounded, 
+  .pain-card .ic .material-symbols-rounded,
+  .fc-ic .material-symbols-rounded {
+    color: #FFFFFF !important;
+  }
+  .src.z .si { background: linear-gradient(135deg, #0068FF, #0047AB) !important; }
+  .src.f .si { background: linear-gradient(135deg, #1877F2, #0D52B5) !important; }
+  .src.g .si { background: linear-gradient(135deg, #7C3AED, #5B21B6) !important; }
+
+  /* 15. Mobile Sticky Bar & Touch Optimization */
   .mobile-sticky-bar {
     display: flex !important;
   }
