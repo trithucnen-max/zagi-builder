@@ -1249,17 +1249,17 @@ a{text-decoration:none}
               <div class="ic lin"><span class="material-symbols-rounded">terminal</span></div>
               <div>
                 <div class="dl-card-title">Linux (Ubuntu / Debian / Arch / Fedora)</div>
-                <div style="font-size:10px;font-weight:700;color:var(--ink-3)">AppImage & Debian .deb</div>
+                <div style="font-size:10px;font-weight:700;color:var(--ink-3)">Hỗ trợ qua Wine / Proton hoặc Web Client</div>
               </div>
             </div>
-            <div class="dl-card-sub">Chạy mượt mà trên mọi Linux distro.</div>
+            <div class="dl-card-sub">Chạy mượt mà bản Windows qua Wine/Proton hoặc sử dụng trên macOS/Windows.</div>
           </div>
           <div style="display:flex;gap:10px">
             <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.Window.exe" class="btn btn-secondary" style="flex:1">
-              <span class="material-symbols-rounded">download</span>Tải Window.exe (Wine)
+              <span class="material-symbols-rounded">download</span>Tải bản Windows (.exe cho Wine)
             </a>
             <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.6/Zagi.v3.0.6.MacOS.M1%2B.arm64.dmg" class="btn btn-secondary" style="flex:1">
-              <span class="material-symbols-rounded">download</span>Tải macOS M1+
+              <span class="material-symbols-rounded">download</span>Tải bản macOS M1+ (.dmg)
             </a>
           </div>
         </div>
@@ -1521,10 +1521,20 @@ async function submitOrder() {
     }
 
     // Paid → hiển thị QR
-    currentTransferContent = data.transferContent;
+    currentTransferContent = data.transferContent || '';
     document.getElementById('vietqr-img').src               = data.qrUrl;
     document.getElementById('pay-amount').innerText         = (data.amount || 0).toLocaleString('vi-VN') + ' đ';
-    document.getElementById('pay-content').innerHTML        = `${data.transferContent} <span class="copy-badge" onclick="copyTxt(currentTransferContent)">Copy</span>`;
+    
+    const payContentEl = document.getElementById('pay-content');
+    if (payContentEl) {
+      payContentEl.textContent = currentTransferContent + ' ';
+      const copyBadge = document.createElement('span');
+      copyBadge.className = 'copy-badge';
+      copyBadge.textContent = 'Copy';
+      copyBadge.onclick = () => copyTxt(currentTransferContent);
+      payContentEl.appendChild(copyBadge);
+    }
+
     document.getElementById('step-form').style.display      = 'none';
     document.getElementById('step-qr').style.display        = 'block';
     pollRetryCount = 0;
