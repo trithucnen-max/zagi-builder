@@ -948,7 +948,6 @@ export default function CRMPage() {
               {channelCap.supportsFriendRequest && <option value="requests">📩 Lời mời kết bạn ({store.requestCount || 0})</option>}
               {channelCap.supportsCRMSearch && <option value="search">🔍 Tìm kiếm CRM</option>}
               {channelCap.supportsScanData && <option value="scan">🔍 Quét dữ liệu & Nhóm</option>}
-              {channelCap.supportsCRMHistory && <option value="history">📋 Lịch sử gửi</option>}
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-gray-400">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
