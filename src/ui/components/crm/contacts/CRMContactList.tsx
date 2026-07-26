@@ -558,7 +558,7 @@ const MOBILE_COLUMN_VISIBILITY: ColumnVisibility = {
   gender: false,
   salutation: false,
   birthday: false,
-  phone: true, // Only SĐT & Alias shown by default on mobile
+  phone: false,
   ai_assistant: false,
   ai_auto_summary: false,
 };

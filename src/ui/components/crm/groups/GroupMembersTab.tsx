@@ -11,6 +11,7 @@ import BulkGroupManageModal from '../modals/BulkGroupManageModal';
 import SmartGroupModal from '../modals/SmartGroupModal';
 import { syncZaloGroups, MemberPlaceholder, SyncGroupsProgress } from '@/lib/zaloGroupUtils';
 import Logger from '../../../../utils/Logger';
+import useIsMobile from '@/hooks/useIsMobile';
 
 interface ZaloGroup {
   contact_id: string;
@@ -82,6 +83,7 @@ const SpinIcon = (
 );
 
 export default function GroupMembersTab() {
+  const isMobile = useIsMobile();
   const { activeAccountId } = useAccountStore();
   const { setGroupCount } = useCRMStore();
   const groupInfoCache = useAppStore(s => s.groupInfoCache);
@@ -1109,8 +1111,8 @@ export default function GroupMembersTab() {
         <div className="flex-1 overflow-y-auto bg-gray-50/60 p-6">
           <div className="max-w-3xl mx-auto space-y-4">
             {/* Scan input container */}
-            <div className="bg-white border border-gray-200/80 rounded-2xl p-5 shadow-sm space-y-3">
-              <div className="flex gap-2.5">
+            <div className="bg-white border border-gray-200/80 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2.5">
                 <input
                   type="text"
                   value={scanLinkInput}
@@ -1118,29 +1120,31 @@ export default function GroupMembersTab() {
                   onKeyDown={e => { if (e.key === 'Enter' && !scanTabLoading) handleScanTab(); }}
                   placeholder="Dán link nhóm Zalo (vd: https://zalo.me/g/xxxxxx)"
                   disabled={scanTabLoading}
-                  className="flex-1 bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-50 transition-all"
+                  className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-50 transition-all"
                 />
-                <button
-                  onClick={handleJoinFromScanTab}
-                  disabled={scanJoinLoading || !scanLinkInput.trim()}
-                  className="px-4 py-2.5 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors flex items-center gap-1.5 flex-shrink-0 shadow-sm">
-                  {scanJoinLoading ? <>{SpinIcon} Đang join...</> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Tham gia</>}
-                </button>
-                <button
-                  onClick={handleScanTab}
-                  disabled={scanTabLoading || !scanLinkInput.trim()}
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-2 flex-shrink-0 shadow-sm">
-                  {scanTabLoading ? (
-                    <>{SpinIcon} Đang quét...</>
-                  ) : (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                      </svg>
-                      Quét
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={handleJoinFromScanTab}
+                    disabled={scanJoinLoading || !scanLinkInput.trim()}
+                    className="flex-1 sm:flex-initial px-4 py-2.5 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                    {scanJoinLoading ? <>{SpinIcon} Đang join...</> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Tham gia</>}
+                  </button>
+                  <button
+                    onClick={handleScanTab}
+                    disabled={scanTabLoading || !scanLinkInput.trim()}
+                    className="flex-1 sm:flex-initial px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    {scanTabLoading ? (
+                      <>{SpinIcon} Đang quét...</>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        Quét
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
               <p className="text-[11px] text-gray-500 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -1269,7 +1273,7 @@ export default function GroupMembersTab() {
 
 
       {/* ── Left: Groups ──────────────────────────────────────────────────── */}
-      <div className="w-72 flex-shrink-0 border-r border-gray-700 flex flex-col overflow-hidden">
+      <div className={`${isMobile ? (selectedGroupId ? 'hidden' : 'w-full') : 'w-72 flex-shrink-0'} border-r border-gray-700 flex flex-col overflow-hidden`}>
         <div className="px-4 py-3 border-b border-gray-700 flex items-center gap-2 flex-shrink-0">
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-white">
@@ -1466,7 +1470,7 @@ export default function GroupMembersTab() {
       </div>
 
       {/* ── Right: Members ────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className={`${isMobile ? (selectedGroupId ? 'w-full' : 'hidden') : 'flex-1'} flex flex-col overflow-hidden`}>
         {!selectedGroup ? (
           <EmptyState icon={GroupIcon} title="Chọn một nhóm để xem thành viên"
             desc={groups.length === 0
@@ -1476,6 +1480,17 @@ export default function GroupMembersTab() {
           <>
             {/* Members header */}
             <div className="px-5 py-3 border-b border-gray-700 flex items-center gap-3 flex-shrink-0 flex-wrap">
+              {isMobile && (
+                <button
+                  onClick={() => setSelectedGroupId(null)}
+                  className="flex items-center gap-1 text-xs font-semibold text-blue-400 hover:text-blue-300 py-1.5 px-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 mr-1"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+                  </svg>
+                  Danh sách nhóm
+                </button>
+              )}
               <GroupAvatar
                 avatarUrl={selectedGroup.avatar_url}
                 groupInfo={activeAccountId ? (groupInfoCache[activeAccountId] || {})[selectedGroup.contact_id] : undefined}

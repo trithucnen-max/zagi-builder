@@ -13,6 +13,7 @@ import type { PinnedNote } from '@/components/chat/PinnedMessages';
 import CRMCallLogTab from './CRMCallLogTab';
 import { normalizePhone } from '@/utils/phoneUtils';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
+import useIsMobile from '@/hooks/useIsMobile';
 
 function defaultSalutation(gender?: number | null): string {
   if (gender === 0) return 'Anh';
@@ -972,27 +973,50 @@ ${notesText}`;
     }
   }
 
+  const isMobile = useIsMobile();
   const sortedNotes = [...notes].sort((a, b) => a.created_at - b.created_at);
 
   return (
-    <div style={{ width: `${width}px` }} className="flex-shrink-0 flex flex-col bg-white border-l border-gray-200 h-full relative">
-      {/* Resize Handle */}
-      <div
-        onMouseDown={startResizing}
-        className={`absolute top-0 left-0 bottom-0 w-1 z-50 cursor-col-resize transition-colors ${
-          isResizing ? 'bg-blue-500' : 'hover:bg-blue-400'
-        }`}
-      />
+    <div
+      style={{ width: isMobile ? '100%' : `${width}px` }}
+      className={`${
+        isMobile
+          ? 'fixed inset-0 z-50 flex flex-col bg-white h-full w-full overflow-hidden shadow-2xl'
+          : 'flex-shrink-0 flex flex-col bg-white border-l border-gray-200 h-full relative'
+      }`}
+    >
+      {/* Resize Handle (Desktop only) */}
+      {!isMobile && (
+        <div
+          onMouseDown={startResizing}
+          className={`absolute top-0 left-0 bottom-0 w-1 z-50 cursor-col-resize transition-colors ${
+            isResizing ? 'bg-blue-500' : 'hover:bg-blue-400'
+          }`}
+        />
+      )}
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 bg-white">
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        <button
+          onClick={onClose}
+          className={`text-gray-500 hover:text-gray-800 transition-colors flex items-center gap-1.5 ${
+            isMobile ? 'bg-gray-100 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700' : ''
+          }`}
+        >
+          {isMobile ? (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+              Quay lại danh sách
+            </>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          )}
         </button>
         <span className="text-sm font-semibold text-gray-900 flex-1 truncate">{name}</span>
         <button onClick={() => onMessage(contact)}
           title="Nhắn tin"
-          className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+          className="p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center gap-1 text-xs font-semibold">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          {isMobile && <span>Nhắn tin</span>}
         </button>
       </div>
 
