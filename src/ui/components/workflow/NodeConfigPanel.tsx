@@ -2806,7 +2806,7 @@ function LabelPickerField({
       <LabelPickerModal
         open={showModal}
         onClose={() => setShowModal(false)}
-        options={options.map(opt => ({ ...opt, color: opt.color || '#3b82f6' }))}
+        options={options.map(opt => ({ ...opt, color: opt.color || '#3b82f6', name: opt.name || opt.label }))}
         selected={selected}
         onChange={onChange}
         mode={mode}

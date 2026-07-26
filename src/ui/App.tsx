@@ -1291,7 +1291,7 @@ export default function App() {
             if (!acc.isConnected) continue;
             (async () => {
               try {
-                const result = await ipc.login?.checkAndRefreshAvatar(acc.zalo_id);
+                const result: any = await ipc.login?.checkAndRefreshAvatar(acc.zalo_id);
                 if (result?.success && result.refreshed && result.avatar_url) {
                   useAccountStore.getState().updateAccount(acc.zalo_id, {
                     avatar_url: result.avatar_url,

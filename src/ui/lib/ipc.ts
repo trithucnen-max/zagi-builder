@@ -1344,9 +1344,9 @@ export const ipc = {
     }
     return browserEventEmitter.on(channel, callback);
   },
-  removeAllListeners: () => {
+  removeAllListeners: (channel?: string) => {
     if (window.electronAPI?.removeAllListeners) {
-      window.electronAPI.removeAllListeners();
+      window.electronAPI.removeAllListeners(channel || '');
     } else {
       browserEventEmitter.removeAllListeners();
     }
