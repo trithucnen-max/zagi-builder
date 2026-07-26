@@ -1316,7 +1316,7 @@ Yiêu cầu quan trọng:
           </div>
 
           {/* ── CENTER: Editor ── */}
-          <div className="flex-1 min-w-0 flex flex-col overflow-hidden border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <div className="w-full lg:flex-1 lg:min-w-0 flex flex-col border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 min-h-fit lg:min-h-0">
             {/* Center topbar */}
             <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-200 dark:border-gray-700/60 flex-shrink-0 min-h-[44px] bg-gray-50/30 dark:bg-gray-900">
               {hasMsg ? (
@@ -1394,7 +1394,7 @@ Yiêu cầu quan trọng:
             </div>
 
             {/* Center content area */}
-            <div className="flex-1 min-h-0 p-4 overflow-y-auto flex flex-col gap-3.5">
+            <div className="p-4 flex flex-col gap-3.5 flex-1 lg:min-h-0 lg:overflow-y-auto">
               
               {/* ── Config Panel: Giới hạn/Ngày & Hẹn giờ chạy ── */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700/60 rounded-2xl flex-shrink-0">
@@ -1765,7 +1765,7 @@ Yiêu cầu quan trọng:
               Hủy
             </button>
             <div className="relative group">
-              <button onClick={handleSave} disabled={saving || !isValid()}
+              <button onClick={handleSave} disabled={saving}
                 className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                 {saving && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
                 <span>{saving ? (editMode ? 'Đang lưu...' : 'Đang tạo...') : (editMode ? 'Lưu thay đổi' : 'Tạo chiến dịch →')}</span>
