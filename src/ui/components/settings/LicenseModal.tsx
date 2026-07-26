@@ -107,6 +107,15 @@ export default function LicenseModal({ onClose }: LicenseModalProps) {
               </div>
             ) : (
               <div className="space-y-5">
+                {licenseInfo.isEmployeeMode && (
+                  <div className="bg-blue-950/40 border border-blue-500/30 rounded-xl p-3.5 flex items-center gap-3">
+                    <span className="text-xl">💻</span>
+                    <div>
+                      <p className="text-xs font-semibold text-blue-300">Chế độ Máy Nhân Viên (Remote Client)</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">Bản quyền của ứng dụng được quản lý trực tiếp bởi máy BOSS.</p>
+                    </div>
+                  </div>
+                )}
                 {/* License Info Card */}
                 <div className="bg-gray-900/40 border border-gray-700/60 rounded-xl p-5 space-y-4">
                   <div className="flex items-center justify-between border-b border-gray-800 pb-3">

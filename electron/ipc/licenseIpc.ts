@@ -96,12 +96,17 @@ export function registerLicenseIpc(startAppCallback?: () => Promise<void>): void
     'license:activateAfterRegister',
     'license:get',
     'license:getPlans',
+    'license:startAsEmployee',
     'license:logout',
     'license:isInGracePeriod',
     'license:isExpiringSoon',
     'license:recheck'
   ];
-  channels.forEach(ch => ipcMain.removeHandler(ch));
+  channels.forEach(ch => {
+    try {
+      ipcMain.removeHandler(ch);
+    } catch (_) {}
+  });
 
   // Xác thực license (từ license popup hoặc Settings → Bản quyền)
   ipcMain.handle('license:verify', async (_event, { email, licenseKey }: { email: string; licenseKey: string | null }) => {
@@ -149,9 +154,31 @@ export function registerLicenseIpc(startAppCallback?: () => Promise<void>): void
 
   // Lấy thông tin license hiện tại (dùng trong Settings → tab Bản quyền)
   ipcMain.handle('license:get', async () => {
-    const license = licenseManager.getCurrentLicense();
-    if (!license) return null;
-    return { ...license, displayMessage: licenseManager.getDisplayMessage(license) };
+    try {
+      const AppModeManager = require('../../src/utils/AppModeManager').default;
+      const isEmployeeMode = AppModeManager.getInstance().getMode() === 'employee';
+      const license = licenseManager.getCurrentLicense();
+      if (isEmployeeMode) {
+        return {
+          status: 'active',
+          isEmployeeMode: true,
+          email: 'Nhân viên (Remote Client)',
+          fullName: 'Máy Nhân Viên',
+          phone: 'N/A',
+          plan: 'Gói Nhân Viên (Thuộc Boss)',
+          licenseKey: license?.licenseKey || 'EMPLOYEE-MODE-CLIENT',
+          isLifetime: true,
+          daysLeft: 999,
+          displayMessage: 'Đang kết nối tới máy Boss. Bản quyền ứng dụng được quản lý trực tiếp bởi máy BOSS.'
+        };
+      }
+      if (!license) return null;
+      return { ...license, displayMessage: licenseManager.getDisplayMessage(license) };
+    } catch (_) {
+      const license = licenseManager.getCurrentLicense();
+      if (!license) return null;
+      return { ...license, displayMessage: licenseManager.getDisplayMessage(license) };
+    }
   });
 
   // Lấy danh sách gói và config ngân hàng từ GAS
