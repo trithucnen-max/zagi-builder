@@ -478,18 +478,303 @@ a{text-decoration:none}
 }
 
 @media (max-width: 768px) {
+  /* 0. Khóa chống tràn ngang tuyệt đối */
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+  .container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* 1. Topbar & Header Mobile */
+  .topbar {
+    font-size: 11.5px !important;
+    padding: 6px 12px !important;
+    text-align: center !important;
+  }
+  .header-inner {
+    padding: 10px 16px !important;
+  }
+  .zagi-brand-svg {
+    height: 38px !important;
+    width: auto !important;
+  }
+
+  /* 2. Hero Section Mobile */
+  .hero {
+    padding: 24px 0 40px !important;
+  }
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+    text-align: center !important;
+  }
+  .hero-badge {
+    margin: 0 auto 14px !important;
+    font-size: 11px !important;
+    padding: 6px 12px !important;
+  }
+  .hero h1 {
+    font-size: 25px !important;
+    line-height: 1.25 !important;
+    margin-bottom: 14px !important;
+  }
+  .hero-sub {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    margin: 0 auto 20px !important;
+    text-align: center !important;
+  }
+  .hero-ctas {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+  .hero-ctas .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    font-size: 15px !important;
+    padding: 13px 16px !important;
+  }
+  .smart-detect-note {
+    justify-content: center !important;
+    font-size: 11.5px !important;
+    margin-bottom: 18px !important;
+  }
+  .hero-trust {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 12.5px !important;
+  }
+
+  /* Mockup Kanban Board vừa khít di động */
+  .mockup {
+    perspective: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  .board {
+    transform: none !important;
+    animation: none !important;
+    padding: 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border-radius: var(--r) !important;
+  }
+  .board-title {
+    font-size: 12px !important;
+  }
+  .kanban {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 4px !important;
+  }
+  .col {
+    padding: 4px !important;
+    border-radius: 8px !important;
+  }
+  .col-h {
+    font-size: 8.5px !important;
+    margin-bottom: 4px !important;
+  }
+  .card {
+    padding: 6px 5px !important;
+    margin-bottom: 4px !important;
+  }
+  .c-name {
+    font-size: 10px !important;
+  }
+  .c-sub {
+    font-size: 8px !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .tg {
+    font-size: 7px !important;
+    padding: 1px 4px !important;
+  }
+
+  /* 3. Section General */
+  .section {
+    padding: 48px 0 !important;
+  }
+  .section-title {
+    font-size: 22px !important;
+    line-height: 1.25 !important;
+    margin-bottom: 10px !important;
+  }
+  .section-sub {
+    font-size: 14.5px !important;
+  }
+  .head-center {
+    margin-bottom: 32px !important;
+  }
+
+  /* 4. Pain Section Mobile (Khắc phục thẻ rớt chữ 1-2 từ) */
+  .pain-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  .pain-card {
+    padding: 20px 16px !important;
+    text-align: left !important;
+  }
+  .pain-card .ic {
+    width: 44px !important;
+    height: 44px !important;
+    margin-bottom: 12px !important;
+  }
+  .pain-card .ic .material-symbols-rounded {
+    font-size: 24px !important;
+  }
+  .pain-card h3 {
+    font-size: 17px !important;
+    line-height: 1.35 !important;
+    margin-bottom: 8px !important;
+  }
+  .pain-card p {
+    font-size: 13.5px !important;
+    line-height: 1.5 !important;
+  }
+
+  /* 5. Features Section Mobile */
+  .frow, .frow.rev {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+    margin-bottom: 48px !important;
+    direction: ltr !important;
+  }
+  .frow.rev > * {
+    direction: ltr !important;
+  }
+  .ftext h3 {
+    font-size: 20px !important;
+    line-height: 1.28 !important;
+  }
+  .ftext > p {
+    font-size: 14px !important;
+  }
+  .blist li {
+    font-size: 13.5px !important;
+  }
+  .fvis {
+    aspect-ratio: auto !important;
+    min-height: 220px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .src-row {
+    gap: 4px !important;
+  }
+  .src {
+    padding: 8px 4px !important;
+  }
+
+  /* 6. Numbers Band Mobile */
+  .band {
+    padding: 36px 16px !important;
+  }
+  .band-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px 14px !important;
+  }
+  .band .n {
+    font-size: 32px !important;
+  }
+  .band .l {
+    font-size: 12px !important;
+  }
+
+  /* 7. Security Section Mobile */
+  .sec-grid {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+  }
+  .sec-art {
+    padding: 20px 16px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+  .lockr {
+    width: 72px !important;
+    height: 72px !important;
+  }
+  .lockr .material-symbols-rounded {
+    font-size: 36px !important;
+  }
+
+  /* 8. Value / Stack Section Mobile */
+  .stack-h {
+    padding: 18px 16px !important;
+  }
+  .stack-h h3 {
+    font-size: 18px !important;
+  }
+  .stack-body {
+    padding: 10px 16px 16px !important;
+  }
+  .srow {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+    padding: 12px 0 !important;
+  }
+  .srow .sv {
+    text-align: left !important;
+    font-size: 13px !important;
+  }
+  .stack-total {
+    padding: 16px !important;
+  }
+  .stack-total .big {
+    font-size: 24px !important;
+  }
+  .stack-total .you b {
+    font-size: 22px !important;
+  }
+
+  /* 9. Pricing Grid Mobile */
+  .pgrid {
+    grid-template-columns: 1fr !important;
+    max-width: 100% !important;
+    gap: 16px !important;
+  }
+  .price-card {
+    padding: 24px 18px !important;
+  }
+
+  /* 10. Community Card Mobile */
+  .comm-card {
+    grid-template-columns: 1fr !important;
+  }
+  .comm-left, .comm-right {
+    padding: 24px 18px !important;
+  }
+
+  /* 11. Mobile Sticky Bar & Touch Optimization */
   .mobile-sticky-bar {
-    display: flex;
+    display: flex !important;
   }
   body {
-    padding-bottom: 76px;
+    padding-bottom: 76px !important;
   }
   .form-control {
-    font-size: 16px !important; /* Ngăn iOS Safari tự zoom */
-    min-height: 48px;
+    font-size: 16px !important; /* Chống iOS Safari tự động zoom */
+    min-height: 48px !important;
   }
   .btn {
-    min-height: 48px;
+    min-height: 48px !important;
   }
 }
 </style>
