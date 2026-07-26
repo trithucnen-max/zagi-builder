@@ -406,7 +406,7 @@ export default class ZaloService {
      */
     private async handleDownloadAttachments(attachments: string[]): Promise<string[]> {
         const downloadedFiles: string[] = [];
-        const imageDir = path.join(__dirname, '..', '..', 'data', 'image_message');
+        const imageDir = path.join(FileStorageService.getBaseDir(), 'temp_image_message');
 
         // Đảm bảo thư mục tồn tại
         if (!fs.existsSync(imageDir)) {
