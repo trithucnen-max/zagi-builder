@@ -2,6 +2,15 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.7] - 2026-07-26
+
+### 🐛 Sửa lỗi & Cải tiến
+- **Khắc phục dứt điểm lỗi gửi và forward hình ảnh trên máy BOSS (`ZaloService.ts`, `zaloIpc.ts`, `FileStorageService.ts`):**
+  - Chuyển cơ chế gửi ảnh sang truyền đường dẫn file đĩa native `string` giúp `zca-js` đọc đúng định dạng tệp và kích hoạt `imageMetadataGetter` chuẩn xác 100%.
+  - Tự động tải tệp tin ảnh từ URL CDN Zalo về đĩa tạm nếu tệp chưa có sẵn trên máy local.
+  - Nâng cấp cơ chế tra cứu và remap đường dẫn thư viện (`library/`) linh hoạt khi di chuyển dữ liệu giữa các ổ đĩa.
+  - Cập nhật chuẩn hóa toàn bộ liên kết tải xuống `v3.0.7` trên Landing Page, README.md và README.en.md.
+
 ## [v3.0.6] - 2026-07-26
 
 ### 🛡️ Bảo Mật Landing Page Bằng Supabase Edge Functions Architecture
