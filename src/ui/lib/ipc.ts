@@ -1240,6 +1240,9 @@ class BrowserEventEmitter {
     }
   }
 
+  private lastConnectAttemptTime = 0;
+  private SSE_COOLDOWN_MS = 10000; // 10s cooldown giữa các lần thử reconnect SSE
+
   private ensureConnected(): void {
     const activeWs = getActiveBrowserWorkspace();
     if (!activeWs || !activeWs.bossUrl || !activeWs.token) return;
@@ -1247,17 +1250,24 @@ class BrowserEventEmitter {
     let url = activeWs.bossUrl.trim().replace(/\/+$/, '');
     if (!url.startsWith('http://') && !url.startsWith('https://')) url = `http://${url}`;
 
+    const now = Date.now();
+
     if (this.eventSource && this.currentToken === activeWs.token && this.currentBossUrl === url) {
       if (this.eventSource.readyState === EventSource.CLOSED) {
-        this.connectSSE(url, activeWs.token);
+        if (now - this.lastConnectAttemptTime > this.SSE_COOLDOWN_MS) {
+          this.connectSSE(url, activeWs.token);
+        }
       }
       return;
     }
 
-    this.connectSSE(url, activeWs.token);
+    if (now - this.lastConnectAttemptTime > this.SSE_COOLDOWN_MS || this.currentToken !== activeWs.token || this.currentBossUrl !== url) {
+      this.connectSSE(url, activeWs.token);
+    }
   }
 
   private connectSSE(bossUrl: string, token: string): void {
+    this.lastConnectAttemptTime = Date.now();
     if (this.eventSource) {
       try { this.eventSource.close(); } catch {}
       this.eventSource = null;

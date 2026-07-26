@@ -536,7 +536,7 @@ class HttpRelayService {
         }
 
         // ── SSE event stream ──────────────────────────────────────────
-        if (req.method === 'GET' && url === '/api/events/stream') {
+        if (req.method === 'GET' && url.startsWith('/api/events/stream')) {
             return this.handleSSEStream(req, res);
         }
 
