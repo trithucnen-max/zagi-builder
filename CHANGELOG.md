@@ -2,9 +2,30 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.0.7] - 2026-07-26
+## [v3.0.7] - 2026-07-27
 
-### 🐛 Sửa lỗi & Cải tiến
+### 📱 Nâng Cấp Tối Ưu Giao Diện Di Động & Web Browser UI/UX
+- **Thiết Kế Lại Form "Tạo Chiến Dịch Tin Nhắn" (`CampaignCreateModal.tsx`):**
+  - Chuyển đổi 100% sang bố cục Single-Column Form cuộn dọc thông minh chuẩn Mobile iOS UI.
+  - Loại chiến dịch dạng Grid 4 ô vuông bằng nhau (`Tin nhắn`, `Kết bạn`, `Mời nhóm`, `Hỗn hợp`).
+  - Lựa chọn delay pill buttons (`5-15s`, `30-60s`, `2-3ph`, `5-10ph`) + Tùy chỉnh khoảng ngẫu nhiên.
+  - Các nút chèn biến nhanh (`[ Tên ]`, `[ SĐT ]`, `[ Xưng hô ]`, `[ ✏️ Trợ lý AI ]`) + Đính kèm ảnh thiết bị / thư viện.
+  - Tự động hiển thị Toast cảnh báo màu đỏ tức thì khi người dùng bấm tạo mà thiếu Tên chiến dịch, Nội dung tin nhắn, Lời nhắn kết bạn hoặc Nhóm Zalo để mời.
+- **Nâng Cấp Modal "Chọn Liên Hệ" (`TargetSelector.tsx`):**
+  - Thiết kế lại chuẩn Mobile iOS UI với Stepper Indicator (`Tạo chiến dịch` ➔ `Thêm liên hệ`).
+  - Hỗ trợ các Sub-Tabs `Theo nhãn`, `Theo SĐT`, `Theo UID`, `Chọn thủ công` và phân loại `Nhãn Local`, `Nhãn Zalo`, `Bảng chọn nhãn`.
+  - Icon Folder pastel & Kính lúp lọc minh họa Empty State chuẩn mực + Tip Banner khiên bảo vệ `🛡️ Mẹo`.
+- **Tích Hợp Bộ Lọc Di Động & Tối Ưu Menu (`CRMContactList.tsx`, `CRMPage.tsx`):**
+  - Ẩn nút `Thao tác` cồng kềnh trên giao diện di động (`hidden sm:block`).
+  - Xây dựng **Mobile Filter Sheet Drawer** dạng vuốt từ dưới lên khi bấm nút `Bộ lọc`, hỗ trợ lọc Nhãn Local/Zalo, Giới tính, Sắp xếp danh sách.
+  - Bổ sung `🚀 Chiến dịch` vào Dropdown Selector di động và ẩn menu `📋 Lịch sử gửi`.
+
+### 🔄 Tự Động Nạp Tài Khoản Nhân Viên Trên Web Khai Đăng Nhập (`EmployeeLoginModal.tsx`)
+- **Reactive State Sync (Option A):**
+  - Tích hợp cơ chế nạp trực tiếp danh sách tài khoản Zalo & quyền hạn vào Zustand State ngay sau khi đăng nhập nhân viên thành công qua web.
+  - Giúp thông tin tài khoản hiển thị ngay lập tức trong **0.1 giây** mà **KHÔNG CẦN REFRESH (F5)** lại trang.
+
+### 🐛 Sửa lỗi & Cải tiến Native Desktop
 - **Khắc phục dứt điểm lỗi gửi và forward hình ảnh trên máy BOSS (`ZaloService.ts`, `zaloIpc.ts`, `FileStorageService.ts`):**
   - Chuyển cơ chế gửi ảnh sang truyền đường dẫn file đĩa native `string` giúp `zca-js` đọc đúng định dạng tệp và kích hoạt `imageMetadataGetter` chuẩn xác 100%.
   - Tự động tải tệp tin ảnh từ URL CDN Zalo về đĩa tạm nếu tệp chưa có sẵn trên máy local.
