@@ -6,6 +6,7 @@ import ZaloService from '../zalo/ZaloService';
 import * as fs from 'fs';
 import * as path from 'path';
 import imageSize from 'image-size';
+import { applySmartSalutation, getSelfRef } from '../../utils/salutationUtils';
 
 /**
  * CRMQueueService — chạy trong main process
@@ -370,12 +371,16 @@ class CRMQueueService {
             } catch { /* ignore parse error */ }
 
             substitute = (tpl: string) => {
-                let result = (tpl || '')
+                // Bước 1: Thay thế xưng hô thông minh (context-aware capitalize)
+                // {salutation}/{gender_greeting} → viết Hoa đầu câu, thường giữa câu
+                // {tu_xung} → tự xưng phù hợp (Em/Con/Cháu/Mình...)
+                let result = applySmartSalutation(tpl || '', effectiveSalutation);
+
+                // Bước 2: Thay thế các biến còn lại
+                result = result
                     .replace(/\{name\}/g,             effectiveDisplayName || item.contact_id)
                     .replace(/\{zalo_name\}/g,        zaloName)
                     .replace(/\{userId\}/g,           effectiveContactId)
-                    .replace(/\{gender_greeting\}/g,  effectiveSalutation)
-                    .replace(/\{salutation\}/g,       effectiveSalutation)
                     .replace(/\{alias\}/g,            contactAlias)
                     .replace(/\{phone\}/g,            contactPhone)
                     .replace(/\{birthday\}/g,         bdayStr || '')

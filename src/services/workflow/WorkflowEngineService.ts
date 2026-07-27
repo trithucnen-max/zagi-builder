@@ -16,6 +16,7 @@ import { google } from 'googleapis';
 import { parseStructuredResponse, isValidStructuredResponse } from '../../utils/aiUtils';
 import { getLunarDate } from '../../utils/lunarCalendar';
 import { serializeContext, deserializeContext } from './contextSerializer';
+import { getSelfRef } from '../../utils/salutationUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1069,6 +1070,8 @@ class WorkflowEngineService {
             const genderGreeting = genderVal === 0 ? 'Anh' : (genderVal === 1 ? 'Chị' : 'Bạn');
 
             flatTrigger.salutation = contactRow?.salutation || genderGreeting;
+            // tu_xung: tự xưng phù hợp với xưng hô của khách (Em/Con/Cháu/Mình...)
+            flatTrigger.tu_xung = getSelfRef(flatTrigger.salutation);
             flatTrigger.alias = contactRow?.alias || '';
             flatTrigger.zalo_name = contactRow?.display_name || friendRow?.display_name || flatTrigger.fromName || '';
             flatTrigger.zaloName = flatTrigger.zalo_name;

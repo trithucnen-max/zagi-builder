@@ -305,6 +305,13 @@ export const TEMPLATE_VARS: TemplateVarInfo[] = [
     example: '"Anh"',
   },
   {
+    key: '$trigger.tu_xung',
+    label: 'Tự xưng của người gửi (tự động)',
+    description: 'Từ tự xưng phù hợp với xưng hô của khách: Bố/Mẹ → "con", Ông/Bà → "cháu", Anh/Chị → "em", Bạn → "mình"...',
+    group: 'crm',
+    example: '"em"',
+  },
+  {
     key: '$trigger.alias',
     label: 'Biệt danh CRM',
     description: 'Chỉ lấy biệt danh CRM bạn đã đặt riêng cho khách hàng. Sẽ để trống nếu khách hàng chưa được đặt biệt danh.',

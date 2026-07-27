@@ -1,7 +1,7 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 2.2  
+> **Phiên bản tài liệu:** 2.3  
 > **Ngày cập nhật:** 28/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.0.8 (Released)  
+> **Trạng thái sản phẩm hiện tại:** v3.0.9 (Released)  
 > **Chủ quản:** Product Management Team  
 
 
@@ -177,6 +177,22 @@ graph TD
     *   Chuyển màn hình bình thường → **Zero reconnect, zero flicker**.
     *   Mạng thực sự bị mất (disconnect) → Hệ thống vẫn tự động reconnect bình thường khi có kết nối trở lại.
     *   Token hoặc bossUrl thay đổi → Vẫn trigger reconnect đúng hành vi.
+
+### 3.14. Xưng Hô Thông Minh & Tự Xưng Tự Động (Smart Salutation & Self-Reference v3.0.9)
+
+*   **Tự động Viết Hoa / Viết Thường theo Chuẩn Tiếng Việt:**
+    *   Tự động phát hiện vị trí của `{salutation}` và `{tu_xung}` trong câu:
+        *   **Viết Hoa đầu câu:** Khi nằm ở vị trí 0 (đầu chuỗi), sau dấu ngắt câu (`.`, `!`, `?`, `…`), hoặc sau ký tự xuống dòng (`\n`). VD: `"Chị ơi!..."`, `"Bố khỏe không?"`, `"Cháu kính chào..."`.
+        *   **Viết thường giữa câu:** Khi nằm giữa câu sau dấu phẩy, chữ thường, dấu hai chấm. VD: `"Dạ em chào chị ạ"`, `"Con kính chúc bố sức khỏe"`.
+*   **Bảng Mapping Tự Xưng Phù Hợp (`{tu_xung}`):**
+    *   Tự động tính từ tự xưng của người gửi dựa trên danh xưng khách hàng:
+        *   `Bố` / `Mẹ` / `Ba` / `Má` → **con**
+        *   `Ông` / `Bà` / `Cụ` → **cháu**
+        *   `Chú` / `Cô` / `Dì` / `Thím` / `Bác` / `Mợ` → **con** / **cháu**
+        *   `Anh` / `Chị` → **em**
+        *   `Em` → **anh**
+        *   `Bạn` → **mình**
+        *   `Quý khách` → **chúng tôi**
 
 ---
 
@@ -511,6 +527,12 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
     *   Bổ sung chỉ dẫn máy Windows 7 truy cập Zagi qua Trình duyệt Web `http://<IP_MÁY_BOSS>:27799` để sử dụng đầy đủ tính năng mà không bị rào cản từ việc Microsoft/Chromium ngưng hỗ trợ Win 7.
 
 #### 👥 v27.1.3 — Quản lý nhóm, Rời nhóm hàng loạt & AI Farewell
+#### 🗣️ v3.0.9 — Xưng Hô Thông Minh & Tự Xưng Tiếng Việt (Smart Salutation & Self Ref)
+* **Tính năng mới (New):**
+  * Tự động viết Hoa/thường theo vị trí đầu câu / giữa câu chuẩn Tiếng Việt cho `{salutation}` và `{gender_greeting}`.
+  * Thêm biến tự xưng `{tu_xung}` (`{{ $trigger.tu_xung }}`) tự động suy luận xưng hô phù hợp (Anh/Chị→em, Bố/Mẹ→con, Ông/Bà→cháu, Bạn→mình...).
+  * Tích hợp UI nút chèn biến cho Chiến dịch CRM và Workflow Builder.
+
 #### 🔌 v3.0.8 — Hotfix: Kết Nối Nhân Viên Ổn Định (Zero Flicker Connection Guard)
 * **Sửa lỗi (Fixed):**
   * Khắc phục lỗi máy nhân viên hiển thị trạng thái **"Mất kết nối"** giả (~1-2 giây) mỗi khi chuyển màn hình, chuyển tab hoặc minimize/restore cửa sổ ứng dụng.

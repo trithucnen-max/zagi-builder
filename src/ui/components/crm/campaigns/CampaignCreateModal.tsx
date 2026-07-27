@@ -1519,7 +1519,7 @@ Yiêu cầu quan trọng:
                     <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-400">🤝 Lời nhắn kết bạn</span>
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className="text-[9px] text-gray-500">Chèn:</span>
-                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'}].map(v => (
+                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'}].map(v => (
                         <button key={v.k} type="button" onClick={() => insertFRVar(v.k)}
                           className="text-[9px] px-1.5 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 transition-colors font-medium"
                           title={v.k}>{v.l}</button>
@@ -1584,7 +1584,7 @@ Yiêu cầu quan trọng:
                   <div className="flex items-center justify-between flex-wrap gap-1.5 flex-shrink-0">
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className="text-[10px] text-gray-500">Chèn:</span>
-                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{phone}',l:'SĐT'}].map(v => (
+                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'},{k:'{phone}',l:'SĐT'}].map(v => (
                         <button key={v.k} type="button" onClick={() => insertFRVar(v.k)}
                           className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 transition-colors font-medium"
                           title={v.k}>{v.l}</button>

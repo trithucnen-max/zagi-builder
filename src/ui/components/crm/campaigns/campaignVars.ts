@@ -63,6 +63,13 @@ export const CAMPAIGN_VARS: CampaignVarInfo[] = [
     example: 'Anh',
   },
   {
+    key: '{tu_xung}',
+    label: 'Tự xưng (tự động)',
+    description: 'Tự động tính từ xưng hô của khách: Bố/Mẹ → "con", Ông/Bà → "cháu", Anh/Chị → "em", Bạn → "mình"... Auto viết Hoa/thường theo đầu câu.',
+    group: 'contact',
+    example: 'em',
+  },
+  {
     key: '{gender_greeting}',
     label: 'Anh/Chị (tự động)',
     description: 'Tự động xưng hô theo giới tính. (Đã đồng bộ trực tiếp với trường Xưng hô tùy chỉnh của bạn).',
