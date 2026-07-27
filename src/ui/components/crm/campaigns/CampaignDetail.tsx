@@ -369,86 +369,167 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
           </div>
         )}
 
-        {/* Campaign summary report (Only show for active, paused, done) */}
-        {campaign.status !== 'draft' && stats.total > 0 && (
-          <div className="mt-3 p-3 bg-gray-900/50 border border-gray-700/60 rounded-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-                <AppIcon name="chart" className="text-blue-400" size={12} />
-                Báo cáo chiến dịch
-                {campaign.status === 'done' && (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">Hoàn thành</span>
-                )}
-                {campaign.status === 'active' && (
-                  <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 animate-pulse">Đang chạy</span>
-                )}
-                {campaign.status === 'paused' && (
-                  <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-500/30">Tạm dừng</span>
-                )}
+        {/* ── BÁO CÁO CHIẾN DỊCH (Modern Premium Dashboard Style matching user mockup) ── */}
+        <div className="mt-4 p-4 bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-750 rounded-2xl shadow-sm space-y-3.5">
+          {/* Header: Title + Status Pill + Action Buttons */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M18 20V10M12 20V4M6 20v-6" />
+                </svg>
+              </div>
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                BÁO CÁO CHIẾN DỊCH
+              </h3>
+              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider ${
+                campaign.status === 'done'
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                  : campaign.status === 'active'
+                  ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 animate-pulse'
+                  : campaign.status === 'paused'
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+              }`}>
+                {campaign.status === 'done' ? 'HOÀN THÀNH' : campaign.status === 'active' ? 'ĐANG CHẠY' : campaign.status === 'paused' ? 'TẠM DỪNG' : 'NHÁP'}
               </span>
-              
-              {/* Reset/Retry actions inside the report */}
-              <div className="flex gap-2">
-                {stats.failedCount > 0 && (campaign.status === 'done' || campaign.status === 'paused') && (
-                  <button
-                    onClick={handleRetryFailures}
-                    className="text-[10px] px-2 py-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-lg transition-colors flex items-center gap-1 font-medium"
-                    title="Gửi lại cho các liên hệ bị lỗi">
-                    <AppIcon name="sync" className="text-blue-400" size={10} />
-                    Gửi bù lỗi ({stats.failedCount})
-                  </button>
-                )}
-                {campaign.status === 'done' && (
-                  <button
-                    onClick={handleRestartCampaign}
-                    className="text-[10px] px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 rounded-lg transition-colors flex items-center gap-1 font-medium"
-                    title="Gửi lại toàn bộ liên hệ từ đầu">
-                    <AppIcon name="sync" className="text-gray-300" size={10} />
-                    Chạy lại
-                  </button>
-                )}
-              </div>
             </div>
 
-            {/* Stat counts grid */}
-            <div className="grid grid-cols-4 gap-2 text-center">
-              <div className="p-1.5 bg-gray-800/40 rounded-lg border border-gray-700/40">
-                <p className="text-[9px] text-gray-500 font-medium">Tổng số</p>
-                <p className="text-xs font-semibold text-gray-200 mt-0.5">{stats.total}</p>
-              </div>
-              <div className="p-1.5 bg-emerald-950/20 rounded-lg border border-emerald-900/20">
-                <p className="text-[9px] text-emerald-500 font-medium">Thành công</p>
-                <p className="text-xs font-semibold text-emerald-400 mt-0.5">{stats.sentCount}</p>
-              </div>
-              <div className="p-1.5 bg-rose-950/20 rounded-lg border border-rose-900/20">
-                <p className="text-[9px] text-rose-500 font-medium">Thất bại</p>
-                <p className="text-xs font-semibold text-rose-400 mt-0.5">{stats.failedCount}</p>
-              </div>
-              <div className="p-1.5 bg-gray-800/40 rounded-lg border border-gray-700/40">
-                <p className="text-[9px] text-gray-500 font-medium">Đang chờ</p>
-                <p className="text-xs font-semibold text-gray-400 mt-0.5">{stats.pendingCount + stats.sendingCount}</p>
-              </div>
+            {/* Reset/Retry Action buttons */}
+            <div className="flex items-center gap-2">
+              {stats.failedCount > 0 && (campaign.status === 'done' || campaign.status === 'paused') && (
+                <button
+                  onClick={handleRetryFailures}
+                  className="px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-2xs"
+                  title="Gửi lại cho các liên hệ bị lỗi"
+                >
+                  <AppIcon name="sync" size={12} />
+                  <span>Gửi bù lỗi ({stats.failedCount})</span>
+                </button>
+              )}
+              {(campaign.status === 'done' || campaign.status === 'paused') && (
+                <button
+                  onClick={handleRestartCampaign}
+                  className="px-3.5 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95"
+                  title="Gửi lại toàn bộ liên hệ từ đầu"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                  </svg>
+                  <span>Chạy lại</span>
+                </button>
+              )}
             </div>
+          </div>
 
-            {/* Failures reasons summary */}
-            {stats.failedReasons.length > 0 && (
-              <div className="bg-gray-800/20 p-2 rounded-lg border border-gray-700/20">
-                <p className="text-[9px] text-rose-400 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <AppIcon name="x" className="text-rose-500" size={10} />
-                  Chi tiết lỗi gửi:
-                </p>
-                <div className="space-y-1 max-h-[80px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-                  {stats.failedReasons.map(({ reason, count }) => (
-                    <div key={reason} className="flex justify-between items-start text-[11px] text-gray-400 leading-normal gap-2">
-                      <span className="truncate flex-1">• {reason}</span>
-                      <span className="font-mono text-[9px] bg-rose-500/10 text-rose-400 border border-rose-500/20 px-1 rounded flex-shrink-0 font-medium">{count} lượt</span>
-                    </div>
-                  ))}
+          {/* ── 4 Vibrant Stat Cards Grid (Matching User Mockup) ── */}
+          <div className="grid grid-cols-4 gap-3">
+            {/* Thẻ 1: TỔNG SỐ (Blue Gradient) */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md flex items-center justify-between select-none">
+              {/* Background Watermark SVG */}
+              <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              </svg>
+
+              <div className="relative z-10 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0 shadow-inner">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-blue-100 uppercase tracking-wider">Tổng số</p>
+                  <p className="text-2xl font-black text-white leading-none mt-1">{stats.total || campaign.total_contacts || 0}</p>
                 </div>
               </div>
-            )}
+            </div>
+
+            {/* Thẻ 2: THÀNH CÔNG (Green Gradient) */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md flex items-center justify-between select-none">
+              {/* Background Watermark SVG */}
+              <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+              </svg>
+
+              <div className="relative z-10 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0 shadow-inner">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Thành công</p>
+                  <p className="text-2xl font-black text-white leading-none mt-1">{stats.sentCount || campaign.sent_count || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Thẻ 3: THẤT BẠI (Red Gradient) */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-md flex items-center justify-between select-none">
+              {/* Background Watermark SVG */}
+              <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+              </svg>
+
+              <div className="relative z-10 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0 shadow-inner">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-rose-100 uppercase tracking-wider">Thất bại</p>
+                  <p className="text-2xl font-black text-white leading-none mt-1">{stats.failedCount || campaign.failed_count || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Thẻ 4: ĐANG CHỜ (Orange Gradient) */}
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md flex items-center justify-between select-none">
+              {/* Background Watermark SVG */}
+              <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4zM10 6L8 8V4h8v4l-2-2h-4z"/>
+              </svg>
+
+              <div className="relative z-10 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0 shadow-inner">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-amber-100 uppercase tracking-wider">Đang chờ</p>
+                  <p className="text-2xl font-black text-white leading-none mt-1">{stats.pendingCount + stats.sendingCount}</p>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Failures reasons summary */}
+          {stats.failedReasons.length > 0 && (
+            <div className="bg-rose-50 dark:bg-rose-955/20 border border-rose-200 dark:border-rose-900/40 p-3 rounded-2xl text-xs">
+              <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
+                <AppIcon name="x" className="text-rose-500" size={12} />
+                Chi tiết nguyên nhân thất bại:
+              </p>
+              <div className="space-y-1 max-h-[80px] overflow-y-auto pr-1">
+                {stats.failedReasons.map(({ reason, count }) => (
+                  <div key={reason} className="flex justify-between items-start text-[11px] text-rose-800 dark:text-rose-300 leading-normal gap-2">
+                    <span className="truncate flex-1">• {reason}</span>
+                    <span className="font-mono text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 px-1.5 py-0.5 rounded font-bold flex-shrink-0">
+                      {count} lượt
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Template preview - Clickable to Edit Campaign */}
         <div
