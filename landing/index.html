@@ -2110,5 +2110,46 @@ window.addEventListener('DOMContentLoaded', () => {
   </button>
 </div>
 
+<!-- Dify AI Chatbot Widget -->
+<script>
+  window.difyChatbotConfig = {
+    token: 'app-Shoio3nzmEVuoJJOBUsycsp9',
+    baseUrl: 'http://chatbot.itngon.com'
+  };
+</script>
+<script
+  src="http://chatbot.itngon.com/embed.min.js"
+  id="app-Shoio3nzmEVuoJJOBUsycsp9"
+  defer>
+</script>
+<style>
+  #dify-chatbot-bubble-button {
+    background-color: #2563eb !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    z-index: 99999 !important;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35) !important;
+  }
+  #dify-chatbot-bubble-window {
+    bottom: 90px !important;
+    right: 24px !important;
+    z-index: 99999 !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
+  }
+  @media (max-width: 640px) {
+    #dify-chatbot-bubble-button {
+      bottom: 80px !important;
+      right: 16px !important;
+    }
+    #dify-chatbot-bubble-window {
+      bottom: 140px !important;
+      right: 12px !important;
+      width: calc(100vw - 24px) !important;
+    }
+  }
+</style>
+
 </body>
 </html>
