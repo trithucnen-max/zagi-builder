@@ -2265,7 +2265,11 @@ window.addEventListener('DOMContentLoaded', () => {
   function generateZagiAIAnswer(q) {
     const query = q.toLowerCase();
     if (query.includes('giá') || query.includes('bao nhiêu') || query.includes('gói') || query.includes('mua')) {
-      return `💰 **Bảng Giá Bản Quyền Zagi v3.0.7:**\n\n- 🎁 **Dùng Thử 14 Ngày**: **0đ** (Đầy đủ tính năng)\n- 👤 **Gói Solo 6 Tháng**: **990.000đ** (1 máy Sếp, 3 tài khoản Zalo/FB)\n- ⭐️ **Gói Solo 12 Tháng**: **1.690.000đ** (1 máy Sếp, 5 tài khoản Zalo/FB)\n- ♾️ **Gói Solo Trọn Đời**: **4.900.000đ** (1 máy Sếp, KHÔNG GIỚI HẠN tài khoản, dùng vĩnh viễn)\n- 👥 **Gói Team 6 Tháng**: **4.900.000đ** (1 Sếp + 5 máy Nhân viên từ xa)\n\nAnh/chị muốn đăng ký gói nào ạ?`;
+      const pSolo6 = (PLAN_PRICES.solo_6m || 990000).toLocaleString('vi-VN');
+      const pSolo12 = (PLAN_PRICES.solo_12m || 1690000).toLocaleString('vi-VN');
+      const pSoloLife = (PLAN_PRICES.solo_lifetime || 4900000).toLocaleString('vi-VN');
+      const pTeam6 = (PLAN_PRICES.team_6m || 4900000).toLocaleString('vi-VN');
+      return `💰 **Bảng Giá Bản Quyền Zagi v3.0.7:**\n\n- 🎁 **Dùng Thử 14 Ngày**: **0đ** (Đầy đủ tính năng)\n- 👤 **Gói Solo 6 Tháng**: **${pSolo6}đ** (1 máy Sếp, 3 tài khoản Zalo/FB)\n- ⭐️ **Gói Solo 12 Tháng**: **${pSolo12}đ** (1 máy Sếp, 5 tài khoản Zalo/FB) — *Gói khuyến nghị*\n- ♾️ **Gói Solo Trọn Đời**: **${pSoloLife}đ** (1 máy Sếp, KHÔNG GIỚI HẠN tài khoản, dùng vĩnh viễn)\n- 👥 **Gói Team 6 Tháng**: **${pTeam6}đ** (1 Sếp + 5 máy Nhân viên từ xa)\n\nAnh/chị muốn đăng ký gói nào ạ?`;
     }
     if (query.includes('tải') || query.includes('link') || query.includes('cài') || query.includes('mac') || query.includes('win')) {
       return `📥 **Bộ Cài Đặt Zagi v3.0.7 Mới Nhất:**\n\n- 🪟 **Windows 10/11**: Zagi.v3.0.7.Window.exe\n- 💻 **Surface ARM64**: Zagi.v3.0.7.Surface.exe\n- 🍏 **macOS Apple Silicon (M1/M2/M3)**: Zagi.v3.0.7.MacOS.M1+.arm64.dmg\n- 🍏 **macOS Intel**: Zagi.v3.0.7.MacOS.Intel.dmg\n- 🐧 **Linux**: Zagi.v3.0.7.Linux.AppImage / .deb\n\nAnh/chị có thể bấm nút **"Tải Zagi v3.0.7 Miễn Phí"** ngay trên trang web để hệ thống tự chọn bản tương thích nhé!`;
