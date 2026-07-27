@@ -60,6 +60,26 @@ export default function CRMDuplicateManagerModal({ open, onClose, accounts, onRe
         }
     }, [open]);
 
+    const [isReconciling, setIsReconciling] = useState(false);
+
+    const handleReconcileFriends = async () => {
+        setIsReconciling(true);
+        try {
+            const res = await ipc.crm?.reconcileLiveFriends();
+            if (res?.success) {
+                showNotification(`Đã đối chiếu thành công ${res.totalReconciled || 0} liên hệ với danh sách bạn bè Zalo thực tế!`, 'success');
+                fetchDuplicates();
+                if (onRefreshCRM) onRefreshCRM();
+            } else {
+                showNotification('Đối chiếu thất bại: ' + (res?.error || 'Lỗi không rõ'), 'error');
+            }
+        } catch (err: any) {
+            showNotification('Lỗi: ' + err.message, 'error');
+        } finally {
+            setIsReconciling(false);
+        }
+    };
+
     const handleCleanupAliases = async () => {
         setIsCleaning(true);
         try {
@@ -143,6 +163,15 @@ export default function CRMDuplicateManagerModal({ open, onClose, accounts, onRe
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleReconcileFriends}
+                            disabled={isReconciling}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
+                            title="Quét trực tiếp danh sách bạn bè Zalo thực tế từ các tài khoản Zalo đang đăng nhập để chuẩn hóa dữ liệu"
+                        >
+                            🔄 {isReconciling ? 'Đang đối chiếu Zalo...' : 'Đối Chiếu Zalo Thực Tế'}
+                        </button>
                         <button
                             type="button"
                             onClick={handleCleanupAliases}

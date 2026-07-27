@@ -720,6 +720,61 @@ export function registerCRMIpc(): void {
         }
     });
 
+    ipcHandle('crm:reconcileLiveFriends', async (_e, { zaloId }: { zaloId?: string }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const accounts = db.getAccounts();
+            let totalReconciled = 0;
+
+            const targetAccounts = zaloId ? accounts.filter((a: any) => a.zalo_id === zaloId) : accounts;
+
+            for (const acc of targetAccounts) {
+                if (!acc.zalo_id) continue;
+                try {
+                    const service = await (global as any).getZaloServiceByAuth?.(acc.zalo_id);
+                    if (service) {
+                        const res = await service.getAllFriends();
+                        let friendsList: any[] = [];
+                        if (Array.isArray(res)) friendsList = res;
+                        else if (res && typeof res === 'object') friendsList = Object.values(res);
+
+                        const normalized = friendsList.map((f: any) => ({
+                            userId: f.userId || f.uid || '',
+                            displayName: f.displayName || f.zaloName || f.display_name || '',
+                            avatar: f.avatar || '',
+                            phoneNumber: f.phoneNumber || f.phone || '',
+                        })).filter((f: any) => f.userId);
+
+                        if (normalized.length > 0) {
+                            db.saveFriends(acc.zalo_id, normalized);
+                            const contactBatch = normalized.map(f => ({
+                                owner_zalo_id: acc.zalo_id,
+                                contact_id: f.userId,
+                                display_name: f.displayName,
+                                avatar_url: f.avatar,
+                                phone: f.phoneNumber,
+                                is_friend: 1,
+                                contact_type: 'user',
+                                unread_count: 0,
+                                last_message: '',
+                                last_message_time: 0,
+                            }));
+                            db.saveContactsBatch(contactBatch);
+                            totalReconciled += normalized.length;
+                        }
+                    }
+                } catch (accErr: any) {
+                    Logger.warn(`[crmIpc] reconcileLiveFriends account ${acc.zalo_id} failed: ${accErr.message}`);
+                }
+            }
+
+            db.cleanupCrossAccountCorruptedAliases();
+            return { success: true, totalReconciled };
+        } catch (err: any) {
+            return { success: false, error: err.message, totalReconciled: 0 };
+        }
+    });
+
     ipcHandle('crm:deletePhoneScanBatch', async (_e, { batchId }: any) => {
         try {
             const db = DatabaseService.getInstance();

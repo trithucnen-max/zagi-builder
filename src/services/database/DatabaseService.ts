@@ -9742,21 +9742,51 @@ class DatabaseService {
                 [phone, contactId]
             );
 
-            for (const item of allMatching) {
-                const tags = this.query<any>(
-                    `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`,
-                    [item.owner_zalo_id, item.contact_id]
+            let masterContact = allMatching.find((c: any) => c.owner_zalo_id === targetZaloId) || allMatching[0];
+
+            if (masterContact) {
+                // Tạo/Cập nhật bản ghi chính trên targetZaloId
+                this.updateContactProfile(
+                    targetZaloId,
+                    masterContact.contact_id,
+                    masterContact.display_name,
+                    masterContact.avatar_url,
+                    masterContact.phone || phone,
+                    masterContact.contact_type || 'user',
+                    masterContact.gender,
+                    masterContact.birthday
                 );
-                for (const tag of tags) {
-                    this.assignLocalLabelToThread(targetZaloId, item.contact_id, tag.label_id);
+
+                for (const item of allMatching) {
+                    // Chuyển nhãn CRM sang targetZaloId
+                    const tags = this.query<any>(
+                        `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`,
+                        [item.owner_zalo_id, item.contact_id]
+                    );
+                    for (const tag of tags) {
+                        this.assignLocalLabelToThread(targetZaloId, item.contact_id, tag.label_id);
+                    }
+
+                    // Chuyển alias nếu tài khoản mới chưa có
+                    if (item.alias && item.owner_zalo_id !== targetZaloId) {
+                        const targetContact = this.queryOne<any>('SELECT alias FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?', [targetZaloId, item.contact_id]);
+                        if (!targetContact?.alias) {
+                            this.setContactAlias(targetZaloId, item.contact_id, item.alias);
+                        }
+                    }
+
+                    // Xóa liên hệ khỏi tài khoản cũ nếu không phải bạn bè trực tiếp của tài khoản cũ
+                    if (item.owner_zalo_id !== targetZaloId && item.is_friend !== 1) {
+                        this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [item.owner_zalo_id, item.contact_id]);
+                        this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [item.owner_zalo_id, item.contact_id]);
+                    }
                 }
-                if (item.owner_zalo_id !== targetZaloId && item.is_friend !== 1) {
-                    this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [item.owner_zalo_id, item.contact_id]);
-                    this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [item.owner_zalo_id, item.contact_id]);
-                }
+
+                EventBroadcaster.emit('db:contactsChanged', { ownerZaloId: targetZaloId });
+                this.save();
+                return true;
             }
-            this.save();
-            return true;
+            return false;
         } catch (err: any) {
             Logger.error(`[DB] mergeContactsToAccount error: ${err.message}`);
             return false;

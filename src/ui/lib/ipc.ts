@@ -296,6 +296,7 @@ declare global {
         transferContact: (params: { contactId: string; phone?: string; fromZaloId: string; toZaloId: string }) => Promise<{ success: boolean; error?: string }>;
         mergeContacts: (params: { targetZaloId: string; phone?: string; contactId: string }) => Promise<{ success: boolean; error?: string }>;
         cleanupCorruptedAliases: () => Promise<{ success: boolean; cleanedCount?: number; error?: string }>;
+        reconcileLiveFriends: (params?: { zaloId?: string }) => Promise<{ success: boolean; totalReconciled?: number; error?: string }>;
         markContactBlocked: (params: { ownerZaloId: string; contactId: string; isBlocked?: boolean }) => Promise<{ success: boolean; error?: string }>;
       };
       analytics: {
