@@ -2502,6 +2502,8 @@ function UserGuidePanel() {
               </div>
             ))}
           </>
+        )}
+
         {/* ── Roles Tab (Sếp & Nhân viên) ── */}
         {activeTab === 'roles' && (
           <Card>
