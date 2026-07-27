@@ -1,7 +1,7 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 2.1  
-> **Ngày cập nhật:** 27/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.0.7 (Released)  
+> **Phiên bản tài liệu:** 2.2  
+> **Ngày cập nhật:** 28/07/2026  
+> **Trạng thái sản phẩm hiện tại:** v3.0.8 (Released)  
 > **Chủ quản:** Product Management Team  
 
 
@@ -163,6 +163,20 @@ graph TD
 *   **Tự động Nhớ Trạng thái & Boot Mượt mà:** Tự động phát hiện active workspace (`remote` vs `local`), tự động mở thẳng giao diện tương ứng khi khởi động lại ứng dụng mà không bắt chọn lại vai trò thủ công.
 *   **Chuyển sang Chế độ BOSS & License Gate:** Người dùng nhấp nút `👑 Chuyển sang máy BOSS (Sếp)` ở Header TopBar hoặc Cài đặt. IPC `license:switchToBoss` ngắt kết nối session nhân viên, switch workspace về `default`, đồng thời mở cửa sổ License Gate bắt buộc Nhập Key / Nhận Key trước khi truy cập Chế độ BOSS.
 *   **Cô lập Bảo mật Giao diện Nhân viên:** Tự động ẩn Workspace `Default (Boss)`, ẩn các nút Thêm/Quản lý workspace trong `WorkspaceSwitcher`, và ẩn hẳn tab **🗂️ Lưu trữ (storage)** khỏi Cài đặt trên máy Nhân viên.
+
+### 3.13. Kết Nối Nhân Viên Ổn Định — Zero Flicker Connection Guard (v3.0.8)
+
+Đây là cơ chế đảm bảo máy nhân viên **không bao giờ thấy trạng thái mất kết nối giả** khi chuyển màn hình trong ứng dụng.
+
+*   **Vấn đề gốc rễ đã giải quyết:** Sự kiện `visibilitychange` và `online` của trình duyệt/Electron kích hoạt `connectRemote()` không có điều kiện — kể cả khi kết nối đang hoàn toàn ổn định. Điều này khiến `HttpConnectionManager` destroy client SSE cũ và tạo mới, gây hiện tượng **nhấp nháy kết nối** (~1-2 giây) mỗi lần người dùng chuyển tab, màn hình hoặc minimize/restore cửa sổ.
+*   **Kiến trúc 3 lớp bảo vệ:**
+    1.  **Guard UI tầng Renderer (`App.tsx`):** Trước khi gọi `connectRemote`, kiểm tra `connectionStatuses[wsId].connected`. Nếu đang kết nối → bỏ qua hoàn toàn. Nếu thực sự mất kết nối → mới trigger reconnect.
+    2.  **Getter Zustand (`workspaceStore.ts`):** Bổ sung `getConnectionStatus(wsId)` để các component đọc trạng thái kết nối tức thì từ store mà không cần IPC roundtrip.
+    3.  **Guard tầng Core (`HttpConnectionManager.ts`):** Thêm kiểm tra `existingStatus.connected && sameUrl && sameToken` trong `connect()`. Dù bị gọi từ bất kỳ đâu, nếu client đang healthy → skip và return `{ success: true }` ngay lập tức.
+*   **Hành vi sau khi fix:**
+    *   Chuyển màn hình bình thường → **Zero reconnect, zero flicker**.
+    *   Mạng thực sự bị mất (disconnect) → Hệ thống vẫn tự động reconnect bình thường khi có kết nối trở lại.
+    *   Token hoặc bossUrl thay đổi → Vẫn trigger reconnect đúng hành vi.
 
 ---
 
@@ -497,6 +511,12 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
     *   Bổ sung chỉ dẫn máy Windows 7 truy cập Zagi qua Trình duyệt Web `http://<IP_MÁY_BOSS>:27799` để sử dụng đầy đủ tính năng mà không bị rào cản từ việc Microsoft/Chromium ngưng hỗ trợ Win 7.
 
 #### 👥 v27.1.3 — Quản lý nhóm, Rời nhóm hàng loạt & AI Farewell
+#### 🔌 v3.0.8 — Hotfix: Kết Nối Nhân Viên Ổn Định (Zero Flicker Connection Guard)
+* **Sửa lỗi (Fixed):**
+  * Khắc phục lỗi máy nhân viên hiển thị trạng thái **"Mất kết nối"** giả (~1-2 giây) mỗi khi chuyển màn hình, chuyển tab hoặc minimize/restore cửa sổ ứng dụng.
+  * **Root Cause:** Sự kiện `visibilitychange` kích hoạt `connectRemote()` mù quáng → `HttpConnectionManager.connect()` destroy client SSE đang healthy rồi tạo mới → UI flash "disconnected".
+  * **3-Layer Fix:** Guard kiểm tra `connected` tại `App.tsx` (UI) + getter `getConnectionStatus` trong Zustand store + guard normalize URL tại `HttpConnectionManager.ts` (Core).
+
 #### 🏆 v3.0.7 — Bản Phân Quyền Sếp/Nhân Viên, License Gate & Tối Ưu Bảo Mật Triệt Để (Official Release)
 * **Tính năng mới (New):**
   * **👑 Onboarding Phân Quyền Sếp & Nhân viên (Role Isolation & License Gate)**:

@@ -2,6 +2,15 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.8] - 2026-07-28
+
+### 🔌 Sửa Lỗi Quan Trọng: Kết Nối Nhân Viên Bị Nhấp Nháy / Ngắt Ngẫu Nhiên Khi Chuyển Màn Hình
+
+- **Root Cause đã xác định:** Sự kiện `visibilitychange` (trình duyệt kích hoạt mỗi khi người dùng chuyển tab/section) luôn gọi `connectRemote()` ngay cả khi máy nhân viên đang kết nối khỏe mạnh. Hàm `HttpConnectionManager.connect()` khi đó destroy client SSE cũ rồi tạo mới → Renderer nhận sự kiện `workspace:connectionStatus { connected: false }` → Giao diện hiển thị trạng thái **"Mất kết nối"** trong ~1-2 giây → Client mới kết nối thành công → Giao diện phục hồi. Lỗi này lặp đi lặp lại mỗi khi người dùng chuyển màn hình trong ứng dụng.
+- **Fix Layer 1 — `App.tsx` (Guard UI):** Thêm kiểm tra `connStatus?.connected` trước khi gọi lại `connectRemote`. Nếu workspace đang connected → bỏ qua hoàn toàn, không trigger reconnect thừa.
+- **Fix Layer 2 — `workspaceStore.ts` (Getter mới):** Bổ sung hàm `getConnectionStatus(wsId)` vào Zustand store để Layer 1 có thể query trạng thái kết nối realtime.
+- **Fix Layer 3 — `HttpConnectionManager.ts` (Defense-in-depth):** Thêm guard normalize URL trong `connect()`: nếu client đang healthy với cùng `bossUrl` + `token` → skip, không destroy. Bảo vệ tầng lõi khỏi mọi lời gọi thừa từ bất kỳ nguồn nào trong tương lai.
+
 ## [v3.0.7] - 2026-07-27
 
 ### 📱 Nâng Cấp Tối Ưu Giao Diện Di Động & Web Browser UI/UX

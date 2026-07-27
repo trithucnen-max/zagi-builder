@@ -139,8 +139,25 @@ class HttpConnectionManager {
         }
 
         if (this.clients.has(workspaceId)) {
+            const existing = this.clients.get(workspaceId)!;
+            const existingStatus = existing.service.getStatus();
+
+            // Guard: nếu client đang kết nối healthy với cùng bossUrl và token thì
+            // không cần làm gì — tránh destroy rồi tạo mới gây "nháy mất kết nối" ngắn.
+            const normalizeUrl = (u: string) => {
+                let url = u.trim();
+                if (!url.startsWith('http://') && !url.startsWith('https://')) url = `http://${url}`;
+                return url.replace(/\/+$/, '');
+            };
+            if (existingStatus.connected
+                && normalizeUrl(existing.service.getBossUrl()) === normalizeUrl(bossUrl)
+                && existing.service.getToken() === token) {
+                Logger.log(`[HttpConnectionManager] ✅ Skip connect for "${workspaceId}": already connected and healthy`);
+                return { success: true };
+            }
+
             Logger.warn(`[HttpConnectionManager] ⚠️ connect() replacing EXISTING client for "${workspaceId}" — old SSE will be destroyed`);
-            this.clients.get(workspaceId)!.service.disconnect();
+            existing.service.disconnect();
             this.clients.delete(workspaceId);
         }
 

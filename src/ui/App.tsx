@@ -1020,10 +1020,19 @@ export default function App() {
   useEffect(() => {
     const handleWakeup = async () => {
       const activeWs = useWorkspaceStore.getState().activeWorkspace();
-      if (activeWs && activeWs.type === 'remote' && activeWs.bossUrl && activeWs.token) {
-        console.log('[App] ⚡ Window wake-up / network recovery detected -> Triggering connectRemote auto reconnect');
-        await ipc.workspace?.connectRemote?.(activeWs.id, activeWs.bossUrl, activeWs.token);
+      if (!activeWs || activeWs.type !== 'remote' || !activeWs.bossUrl || !activeWs.token) return;
+
+      // Guard: chỉ reconnect khi workspace thực sự đã mất kết nối.
+      // Không gọi connectRemote khi đang connected — tránh HttpConnectionManager
+      // destroy client đang healthy rồi tạo mới, gây "nháy mất kết nối" ngắn.
+      const connStatus = useWorkspaceStore.getState().getConnectionStatus(activeWs.id);
+      if (connStatus?.connected) {
+        console.log('[App] ⚡ Wake-up detected but workspace already connected — skipping reconnect');
+        return;
       }
+
+      console.log('[App] ⚡ Window wake-up / network recovery detected -> workspace disconnected, triggering connectRemote');
+      await ipc.workspace?.connectRemote?.(activeWs.id, activeWs.bossUrl, activeWs.token);
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') handleWakeup();

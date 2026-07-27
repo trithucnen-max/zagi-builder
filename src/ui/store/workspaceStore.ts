@@ -67,6 +67,7 @@ interface WorkspaceStore {
     // ─── Connection statuses for remote workspaces (background) ─────
     connectionStatuses: Record<string, WorkspaceConnectionStatus>;
     setConnectionStatus: (wsId: string, status: WorkspaceConnectionStatus) => void;
+    getConnectionStatus: (wsId: string) => WorkspaceConnectionStatus | null;
 
     // ─── Switching state ────────────────────────────────────────────
     isSwitching: boolean;
@@ -98,6 +99,8 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     setConnectionStatus: (wsId, status) => set(state => ({
         connectionStatuses: { ...state.connectionStatuses, [wsId]: status },
     })),
+
+    getConnectionStatus: (wsId) => get().connectionStatuses[wsId] ?? null,
 
     setIsSwitching: (v) => set({ isSwitching: v }),
 
