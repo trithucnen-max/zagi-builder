@@ -136,3 +136,4 @@ const isLight = resolved === 'light';
    - 🗑️ **Xóa (`onDelete`)**: Xóa chiến dịch kèm hộp thoại xác nhận `showConfirm`.
 2. **Click-to-Edit Content Box**: Trong `CampaignDetail.tsx`, người dùng có thể nhấp trực tiếp vào box **Template tin nhắn / Nội dung chiến dịch** hoặc nút **Sửa chiến dịch** để lập tức mở modal chỉnh sửa `CampaignCreateModal.tsx`.
 3. **Clean Layout**: Đã loại bỏ khối banner quảng cáo ở chân trang danh sách chiến dịch để tối ưu không gian hiển thị danh sách.
+4. **Vibrant 4-Stat Cards Dashboard**: Giao diện **BÁO CÁO CHIẾN DỊCH** trong `CampaignDetail.tsx` được thiết kế lại dạng 4 Thẻ Gradient nổi bật (Tổng số - Blue, Thành công - Green, Thất bại - Red, Đang chờ - Orange) với icon lồng Glassmorphism và hình chìm Watermark cực kỳ sang trọng.
