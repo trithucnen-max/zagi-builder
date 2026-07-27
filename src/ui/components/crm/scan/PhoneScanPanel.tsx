@@ -107,6 +107,8 @@ export default function PhoneScanPanel() {
     // Local Labels (Tags)
     const [localLabels, setLocalLabels] = useState<any[]>([]);
     const [limitStatusList, setLimitStatusList] = useState<any[]>([]);
+    const [scanTimeFilter, setScanTimeFilter] = useState<'all' | 'today' | 'this_week' | 'this_month'>('all');
+    const [filteredStats, setFilteredStats] = useState<{ total: number; scanned: number; found: number; notFound: number; error: number; pending: number } | null>(null);
     const accounts = useAccountStore(s => s.accounts);
     const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
 
@@ -211,6 +213,22 @@ export default function PhoneScanPanel() {
             console.error('Failed to fetch limit status:', err);
         }
     }, []);
+
+    // Fetch Overall Stats by Time Filter
+    const fetchOverallStats = useCallback(async (timeRange: 'all' | 'today' | 'this_week' | 'this_month') => {
+        try {
+            const res = await ipc.crm?.getPhoneScanOverallStats({ timeRange });
+            if (res?.success && res.stats) {
+                setFilteredStats(res.stats);
+            }
+        } catch (err) {
+            console.error('Failed to fetch overall stats:', err);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchOverallStats(scanTimeFilter);
+    }, [scanTimeFilter, fetchOverallStats]);
 
     // Fetch Local Labels
     const fetchLocalLabels = useCallback(async () => {
@@ -711,7 +729,22 @@ export default function PhoneScanPanel() {
                             Quét danh sách số điện thoại số lượng lớn, tự động nhận diện và gán nhãn CRM định kỳ hàng ngày.
                         </p>
                     </div>
-                    <div>
+                    <div className="flex items-center gap-2">
+                        {/* Time Range Filter Pill */}
+                        <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1 shadow-2xs">
+                            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">⏱️ Thời gian quét:</span>
+                            <select
+                                value={scanTimeFilter}
+                                onChange={(e) => setScanTimeFilter(e.target.value as any)}
+                                className="bg-transparent text-gray-900 dark:text-white font-bold text-xs focus:outline-none cursor-pointer"
+                            >
+                                <option value="all" className="bg-white dark:bg-gray-900">🌐 Mọi lúc (Tất cả)</option>
+                                <option value="today" className="bg-white dark:bg-gray-900">🎁 Hôm nay</option>
+                                <option value="this_week" className="bg-white dark:bg-gray-900">📆 Tuần này</option>
+                                <option value="this_month" className="bg-white dark:bg-gray-900">🎉 Tháng này</option>
+                            </select>
+                        </div>
+
                         <button
                             onClick={() => setShowCreateForm(true)}
                             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors"
@@ -725,7 +758,7 @@ export default function PhoneScanPanel() {
                 {/* Overall Stats Cards */}
                 <div className="grid grid-cols-5 gap-4">
                     {(() => {
-                        const totals = batches.reduce(
+                        const batchTotals = batches.reduce(
                             (acc, b) => {
                                 acc.total += b.total_count;
                                 acc.scanned += b.scanned_count;
@@ -736,7 +769,11 @@ export default function PhoneScanPanel() {
                             },
                             { total: 0, scanned: 0, found: 0, notFound: 0, error: 0 }
                         );
+
+                        const totals = (scanTimeFilter !== 'all' && filteredStats) ? filteredStats : batchTotals;
                         const progress = totals.total > 0 ? Math.round((totals.scanned / totals.total) * 100) : 0;
+                        const timeLabel = scanTimeFilter === 'today' ? '(HÔM NAY)' : scanTimeFilter === 'this_week' ? '(TUẦN NÀY)' : scanTimeFilter === 'this_month' ? '(THÁNG NÀY)' : '';
+
                         return (
                             <>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
@@ -744,23 +781,23 @@ export default function PhoneScanPanel() {
                                     <span className="text-xl font-bold text-white mt-1">{totals.total.toLocaleString()}</span>
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Đã quét</span>
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Đã quét {timeLabel}</span>
                                     <div className="flex items-baseline justify-between mt-1">
                                         <span className="text-xl font-bold text-blue-400">{totals.scanned.toLocaleString()}</span>
-                                        <span className="text-[10px] text-gray-400">({progress}%)</span>
+                                        {scanTimeFilter === 'all' && <span className="text-[10px] text-gray-400">({progress}%)</span>}
                                     </div>
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Có Zalo (found)</span>
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Có Zalo (found) {timeLabel}</span>
                                     <span className="text-xl font-bold text-emerald-400 mt-1">{totals.found.toLocaleString()}</span>
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Không có Zalo</span>
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Không có Zalo {timeLabel}</span>
                                     <span className="text-xl font-bold text-amber-400 mt-1">{totals.notFound.toLocaleString()}</span>
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
                                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Số lượng còn lại</span>
-                                    <span className="text-xl font-bold text-gray-300 mt-1">{(totals.total - totals.scanned).toLocaleString()}</span>
+                                    <span className="text-xl font-bold text-gray-300 mt-1">{(totals.total - (scanTimeFilter === 'all' ? totals.scanned : batchTotals.scanned)).toLocaleString()}</span>
                                 </div>
                             </>
                         );

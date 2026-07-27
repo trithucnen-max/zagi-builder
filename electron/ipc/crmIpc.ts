@@ -626,6 +626,15 @@ export function registerCRMIpc(): void {
         }
     });
 
+    ipcHandle('crm:getPhoneScanOverallStats', async (_e, { timeRange }: any = {}) => {
+        try {
+            const db = DatabaseService.getInstance();
+            return { success: true, stats: db.getPhoneScanOverallStats(timeRange) };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
     ipcHandle('crm:getPhoneScanItems', async (_e, { batchId, limit, offset, status }: any) => {
         try {
             const db = DatabaseService.getInstance();

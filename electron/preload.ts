@@ -298,6 +298,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getScheduledMessages: (params: any) => ipcRenderer.invoke('crm:getScheduledMessages', params),
     cancelScheduledMessage: (params: any) => ipcRenderer.invoke('crm:cancelScheduledMessage', params),
     getPhoneScanBatches: (params: any) => ipcRenderer.invoke('crm:getPhoneScanBatches', params),
+    getPhoneScanOverallStats: (params: any) => ipcRenderer.invoke('crm:getPhoneScanOverallStats', params),
     getPhoneScanItems: (params: any) => ipcRenderer.invoke('crm:getPhoneScanItems', params),
     createPhoneScanBatch: (params: any) => ipcRenderer.invoke('crm:createPhoneScanBatch', params),
     deletePhoneScanBatch: (params: any) => ipcRenderer.invoke('crm:deletePhoneScanBatch', params),
