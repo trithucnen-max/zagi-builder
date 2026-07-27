@@ -74,6 +74,16 @@ function playDoubleNotificationSound(volume = 0.5) {
 }
 
 export function playNotificationSound(volume = 0.5) {
+  try {
+    const rawNotif = localStorage.getItem('zagi_notif_settings');
+    if (rawNotif) {
+      const parsed = JSON.parse(rawNotif);
+      if (parsed.soundEnabled === false) {
+        return; // Người dùng đã tắt âm thanh thông báo
+      }
+    }
+  } catch {}
+
   const now = Date.now();
   if (now - lastPlayTime < 3000) {
     return;

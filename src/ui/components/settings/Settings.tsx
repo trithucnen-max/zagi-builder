@@ -184,7 +184,7 @@ export default function Settings() {
     return useEmployeeStore.getState().hasPermission(perm);
   };
   const visibleNavItems = NAV_ITEMS.filter(item => {
-    if ((item.id === 'webhook' || item.id === 'telemetry') && empMode === 'employee') return false;
+    if ((item.id === 'webhook' || item.id === 'telemetry' || item.id === 'workspace') && empMode === 'employee') return false;
     return hasSettingsPerm(item.requiredPerm);
   });
 
