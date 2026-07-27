@@ -13,6 +13,8 @@ export interface DeviceTelemetryInfo {
   os_release: string;
   hostname: string;
   app_version: string;
+  license_key?: string;
+  license_plan?: string;
   account_ids: string[];
   account_names: string[];
   last_seen_at: string;
@@ -168,9 +170,21 @@ export class TelemetryService {
   /** Lấy dữ liệu telemetry hiện tại của máy này */
   public getDeviceInfo(accounts: Array<{ zaloId: string; displayName?: string }> = []): DeviceTelemetryInfo & { app_mode: string } {
     let appMode = 'boss';
+    let licenseKey = '';
+    let licensePlan = '';
+
     try {
       const AppModeManager = require('../../utils/AppModeManager').default;
       appMode = AppModeManager.getInstance().getMode();
+    } catch {}
+
+    try {
+      const LicenseManager = require('../license/LicenseManager').default;
+      const stored = LicenseManager.getInstance().getStoredLicense();
+      if (stored) {
+        licenseKey = stored.licenseKey || '';
+        licensePlan = stored.plan || '';
+      }
     } catch {}
 
     return {
@@ -182,6 +196,8 @@ export class TelemetryService {
       hostname: os.hostname(),
       app_version: pkg.version || '3.0.7',
       app_mode: appMode,
+      license_key: licenseKey,
+      license_plan: licensePlan,
       account_ids: accounts.map(a => a.zaloId).filter(Boolean),
       account_names: accounts.map(a => a.displayName || a.zaloId).filter(Boolean),
       last_seen_at: new Date().toISOString(),
