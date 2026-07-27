@@ -53,6 +53,45 @@ const STATUS_STYLE: Record<string, string> = {
   sent: 'text-green-400', failed: 'text-red-400',
 };
 
+function renderFormattedTemplate(msg?: string) {
+  if (!msg) return <span className="text-gray-500 italic">Chưa có nội dung tin nhắn</span>;
+
+  let parsed: any = null;
+  if (msg.trim().startsWith('{') && msg.trim().endsWith('}')) {
+    try {
+      parsed = JSON.parse(msg);
+    } catch {}
+  }
+
+  if (parsed && Array.isArray(parsed.blocks)) {
+    const blocks: Array<{ id?: string; text: string; images?: string[] }> = parsed.blocks;
+    const mode = parsed.mode === 'sequential' ? 'Tuần tự' : 'Xoay vòng ngẫu nhiên';
+
+    return (
+      <div className="space-y-1.5 mt-1">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-md font-semibold border border-blue-500/30">
+            🔀 Chế độ: {mode} ({blocks.length} biến thể)
+          </span>
+        </div>
+        <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+          {blocks.map((b, i) => (
+            <div key={b.id || i} className="bg-gray-800/80 border border-gray-700/60 rounded-lg p-2 text-xs">
+              <span className="font-bold text-blue-400 mr-1.5">Mẫu {i + 1}:</span>
+              <span className="text-gray-200 whitespace-pre-wrap">{b.text || <em className="text-gray-500">(Nội dung kèm ảnh)</em>}</span>
+              {b.images && b.images.length > 0 && (
+                <span className="ml-2 text-[10px] text-emerald-400 font-medium">📷 +{b.images.length} ảnh</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return <p className="text-xs text-gray-200 line-clamp-3 leading-relaxed font-normal pr-16">{msg}</p>;
+}
+
 export default function CampaignDetail({ campaign, zaloId, allLabels, localLabels, localLabelThreadMap, onStatusChange, onAddContacts, onUpdate }: CampaignDetailProps) {
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -442,11 +481,9 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
                 <AppIcon name="message" className="text-blue-400" size={12} />
                 {campaign.campaign_type === 'friend_request' ? 'Tin nhắn kết bạn:' : 'Template tin nhắn:'}
               </p>
-              <p className="text-xs text-gray-200 line-clamp-3 leading-relaxed font-normal pr-16">
-                {campaign.campaign_type === 'friend_request'
-                  ? campaign.friend_request_message
-                  : campaign.template_message}
-              </p>
+              {campaign.campaign_type === 'friend_request'
+                ? <p className="text-xs text-gray-200 line-clamp-3 leading-relaxed font-normal pr-16">{campaign.friend_request_message}</p>
+                : renderFormattedTemplate(campaign.template_message)}
               {campaign.campaign_type === 'mixed' && campaign.friend_request_message && (
                 <>
                   <p className="text-[11px] text-gray-400 mt-2 mb-1 font-medium">Fallback kết bạn:</p>
