@@ -2114,11 +2114,11 @@ window.addEventListener('DOMContentLoaded', () => {
 <script>
   window.difyChatbotConfig = {
     token: 'app-Shoio3nzmEVuoJJOBUsycsp9',
-    baseUrl: 'http://chatbot.itngon.com'
+    baseUrl: 'https://chatbot.itngon.com'
   };
 </script>
 <script
-  src="http://chatbot.itngon.com/embed.min.js"
+  src="https://chatbot.itngon.com/embed.min.js"
   id="app-Shoio3nzmEVuoJJOBUsycsp9"
   defer>
 </script>
@@ -2131,12 +2131,17 @@ window.addEventListener('DOMContentLoaded', () => {
     box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35) !important;
   }
   #dify-chatbot-bubble-window {
+    background-color: #ffffff !important;
     bottom: 90px !important;
     right: 24px !important;
+    width: 24rem !important;
+    height: 38rem !important;
+    max-height: calc(100vh - 120px) !important;
     z-index: 99999 !important;
     border-radius: 16px !important;
     overflow: hidden !important;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
   }
   @media (max-width: 640px) {
     #dify-chatbot-bubble-button {
@@ -2147,6 +2152,7 @@ window.addEventListener('DOMContentLoaded', () => {
       bottom: 140px !important;
       right: 12px !important;
       width: calc(100vw - 24px) !important;
+      height: 70vh !important;
     }
   }
 </style>
