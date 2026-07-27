@@ -110,9 +110,27 @@ export default function TopBar() {
       if (activeWs?.success && activeWs.workspace?.id) {
         await ipc.workspace?.disconnectRemote?.(activeWs.workspace.id);
       }
-      showNotification('Dắt kết nối Boss', 'success');
+      showNotification('Đã ngắt kết nối Boss', 'success');
     } catch (err: any) {
       showNotification('Lỗi: ' + err.message, 'error');
+    } finally {
+      setBossPopupOpen(false);
+    }
+  }, [showNotification]);
+
+  const handleSwitchToBossMode = useCallback(async () => {
+    try {
+      showNotification('🔄 Đang chuyển sang Chế độ BOSS (Sếp)...', 'info');
+      const activeWs = await ipc.workspace?.getActive?.();
+      if (activeWs?.success && activeWs.workspace?.id) {
+        await ipc.workspace?.disconnectRemote?.(activeWs.workspace.id);
+      }
+      await ipc.workspace?.switch?.('default');
+      useEmployeeStore.getState().setMode('boss');
+      useEmployeeStore.getState().setBossConnected(false);
+      showNotification('Đã chuyển sang Chế độ BOSS (Sếp) thành công', 'success');
+    } catch (err: any) {
+      showNotification('Lỗi chuyển chế độ: ' + err.message, 'error');
     } finally {
       setBossPopupOpen(false);
     }
@@ -443,7 +461,20 @@ export default function TopBar() {
                       <line x1="18" y1="6" x2="6" y2="18" />
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
-                    <span>Ngắt kết nối</span>
+                    <span>Ngắt kết nối Boss</span>
+                  </button>
+
+                  {/* Switch to Boss Mode */}
+                  <button
+                    onClick={handleSwitchToBossMode}
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-xs transition-colors font-medium ${
+                      isLightTheme
+                        ? 'text-blue-700 hover:bg-blue-50 font-semibold'
+                        : 'text-blue-400 hover:bg-blue-500/10 font-semibold'
+                    }`}
+                  >
+                    <span className="text-sm">👑</span>
+                    <span>Chuyển sang máy BOSS (Sếp)</span>
                   </button>
 
                   <div className={`my-1 border-t ${isLightTheme ? 'border-gray-100' : 'border-gray-700/60'}`} />
