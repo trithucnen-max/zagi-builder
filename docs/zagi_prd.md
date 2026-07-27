@@ -497,14 +497,27 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
     *   Bổ sung chỉ dẫn máy Windows 7 truy cập Zagi qua Trình duyệt Web `http://<IP_MÁY_BOSS>:27799` để sử dụng đầy đủ tính năng mà không bị rào cản từ việc Microsoft/Chromium ngưng hỗ trợ Win 7.
 
 #### 👥 v27.1.3 — Quản lý nhóm, Rời nhóm hàng loạt & AI Farewell
-*   **Tính năng mới (New):**
-    *   Tích hợp `SmartGroupModal` và `BulkLeaveGroupModal` để xử lý rời nhóm hàng loạt chuyên nghiệp.
-    *   Thêm cơ chế tự động chuyển quyền Trưởng nhóm cho phó nhóm hoặc thành viên khác trước khi rời đi để tránh mất nhóm.
-    *   Thêm tính năng gửi tin nhắn Tạm biệt tự động soạn thảo bằng AI Assistant trước khi rời nhóm.
-    *   Tích hợp Popover "Cẩm nang an toàn Zalo" trên TopBar hiển thị các nguyên tắc gửi tin và tự động nhận diện Zalo Business.
-    *   Bổ sung cảnh báo màu Đỏ/Vàng khi tạo chiến dịch gửi tin dựa trên các quy định an toàn của Zalo (gửi người lạ, chứa link lạ, delay quá ngắn).
-*   **Cải tiến (Improved):**
-    *   Đồng bộ thiết kế lại toàn bộ giao diện chi tiết CRM, pipeline Kanban và các bảng dữ liệu liên quan sang theme đen/trắng sang trọng.
+#### 🏆 v3.0.7 — Bản Phân Quyền Sếp/Nhân Viên, License Gate & Tối Ưu Bảo Mật Triệt Để (Official Release)
+* **Tính năng mới (New):**
+  * **👑 Onboarding Phân Quyền Sếp & Nhân viên (Role Isolation & License Gate)**:
+    * Khi khởi chạy Zagi lần đầu, hệ thống hiển thị màn hình Onboarding cho phép chọn Chế độ **👑 Sếp (Boss)** hoặc **👨‍💻 Nhân viên (Employee)**.
+    * Chọn Chế độ Sếp yêu cầu qua cửa ải xác thực License Key (bản quyền dùng thử 14 ngày hoặc bản quyền mua chính thức).
+    * Chọn Chế độ Nhân viên yêu cầu nhập địa chỉ kết nối IP/Port máy Sếp. Tắt/mở lại ứng dụng tự động nhớ cấu hình và vào thẳng Chế độ Nhân viên.
+    * Khi Nhân viên bấm chuyển sang Chế độ Sếp, ứng dụng bảo mật qua 2 lớp cửa ải nhập License Key để ngăn chặn nhân viên truy cập trái phép quyền Boss.
+    * Trên giao diện tài khoản Nhân viên: Ẩn hoàn toàn Workspace Mặc định (Boss), nút thêm/quản lý workspace và khu vực lưu trữ CSDL.
+  * **📊 Báo cáo Chiến dịch Gradient 4 Thẻ Dashboard Rực Rỡ**:
+    * Thiết kế mới 4 thẻ Gradient sống động: *Tổng số lượng gửi, Gửi thành công (Xanh lá), Gửi thất bại (Đỏ), Đang gửi / Chờ xử lý*.
+    * Tích hợp bộ lọc khoảng thời gian quét Zalo linh hoạt và hỗ trợ giải mã khối văn bản Spin block dạng human-readable trực quan.
+  * **📋 Nhân bản Chiến dịch CRM (Campaign Clone) với 2 Lựa chọn**:
+    * Lựa chọn 1: Nhân bản CÓ kèm danh sách liên hệ khách hàng cũ.
+    * Lựa chọn 2: Nhân bản KHÔNG kèm khách hàng (chỉ nhân bản kịch bản & cấu hình thời gian).
+  * **🌐 Tải Installer v3.0.7 Official Release trên Landing Page & Docs**:
+    * Cập nhật đường dẫn tải bộ cài v3.0.7 chính thức từ GitHub Releases cho macOS (ARM64 Apple Silicon & Intel x64), Windows 10/11 (x64 & Surface ARM64), và Linux (.AppImage & .deb).
+* **Bảo mật & Tối ưu Mã nguồn (Security Hardening & Refactoring):**
+  * Sửa triệt để 100% các cảnh báo bảo mật từ hệ thống quét (Security Scan): loại bỏ secret key gán cứng trong `build-mac.sh` và `integrationIpc.ts`, cách ly tham số command execution trong xác thực sinh trắc học Windows Hello (`lockScreenIpc.ts`).
+  * Tái cấu trúc mã nguồn DRY: Gom nhóm `isEmployeeMode()` và `ipcHandle()` về `proxyHelper.ts`, loại bỏ 100% các hàm trùng lặp (`Duplicate Function Names`), dọn dẹp các tệp và hàm thừa (`openCheckoutModal`, export `notifySyncComplete`).
+
+#### 🚀 v3.0.6 — Quản lý nhóm hàng loạt & Cơ chế chống khóa tài khoản Zalo
 
 #### 💻 v27.1.2 — Bản cài Windows ARM64 cho Surface & Render Markdown AI
 *   **Tính năng mới (New):**

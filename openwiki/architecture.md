@@ -15,7 +15,8 @@
 │      │         │  WorkflowEngine  ZaloService         │     │
 │      │         │  DatabaseService EventBroadcaster    │     │
 │      │         │  HttpRelayService HttpClientService  │     │
-│      │         │  CRMQueueService  AIAssistantService │     │
+│      │         │  CRMQueueService  proxyHelper (DRY)  │     │
+│      │         │  AIAssistantService                  │     │
 │      │         └────────────────────────────────────┘      │
 │      │                                                      │
 │  preload.ts ──► window.api (bridge)                        │
