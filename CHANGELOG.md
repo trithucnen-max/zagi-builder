@@ -2,7 +2,7 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.0.10] - 2026-07-28
+## [v3.0.8] - 2026-07-28
 
 ### 🎛️ Giao Diện Quản Lý Bảng Quy Tắc Xưng Hô & Tự Xưng (Salutation Self-Reference UI Manager)
 
@@ -14,9 +14,7 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 - **Lưu Đĩa & Đồng Bộ Tức Thời (SQLite Persistence & Realtime IPC):**
   - Lưu bảng quy tắc tùy chỉnh vào SQLite `app_settings` (`custom_salutation_map`), đồng bộ tức thì cho cả máy Boss, Employee, CRM Campaigns và Workflow Engine.
 
-## [v3.0.9] - 2026-07-28
-
-### 🗣️ Tính Năng Mới: Xưng Hố Thông Minh & Tự Xưng Tự Động Theo Chuẩn Tiếng Việt (Smart Salutation & Self Reference)
+### 🗣️ Tính Năng Mới: Xưng Hô Thông Minh & Tự Xưng Tự Động Theo Chuẩn Tiếng Việt (Smart Salutation & Self Reference)
 
 - **Tự động Viết Hoa / Viết thường theo Ngữ cảnh (Context-Aware Capitalization):**
   - **Đầu câu / Sau dấu ngắt câu (`.`, `!`, `?`, `…`, `\n`) / Đầu chuỗi:** Tự động viết Hoa chữ cái đầu (VD: `Chị ơi!...`, `Bố khỏe không?`, `Cháu chào...`).
@@ -34,8 +32,6 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Bổ sung nút chèn biến `{tu_xung}` vào bộ gõ Chiến dịch CRM (`CampaignCreateModal.tsx` & `campaignVars.ts`).
   - Bổ sung `{{ $trigger.tu_xung }}` vào gợi ý biến tự động của Workflow Builder (`templateVars.ts`).
 - **Unit Test Coverage:** Thêm `salutationUtils.test.ts` kiểm thử 100% tất cả các kịch bản viết Hoa/thường và cặp xưng hô - tự xưng.
-
-## [v3.0.8] - 2026-07-28
 
 ### 🔌 Sửa Lỗi Quan Trọng: Kết Nối Nhân Viên Bị Nhấp Nháy / Ngắt Ngẫu Nhiên Khi Chuyển Màn Hình
 
