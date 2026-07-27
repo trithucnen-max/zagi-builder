@@ -1,34 +1,14 @@
-import { ipcMain } from 'electron';
-import WorkspaceManager from '../../src/utils/WorkspaceManager';
-import { proxyToBossAsync } from './proxyHelper';
-
-function isEmployeeMode(): boolean {
-  try {
-    const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
-    if (activeWs?.type === 'remote') return true;
-  } catch {}
-  return false;
-}
-
-function ipcHandle(channel: string, handler: any) {
-  ipcMain.handle(channel, async (event: any, ...args: any[]) => {
-    if (isEmployeeMode()) {
-      return await proxyToBossAsync(channel, args[0]);
-    }
-    return handler(event, ...args);
-  });
-}
-
+import { ipcHandle } from './proxyHelper';
 import ErpCalendarService from '../../src/services/erp/ErpCalendarService';
 import { withErpAuth, erpValidate } from './erpIpcMiddleware';
 
 export function registerErpCalendarIpc(): void {
-  const svc = () => ErpCalendarService.getInstance();
+  const calendarSvc = () => ErpCalendarService.getInstance();
 
   ipcHandle('erp:calendar:listEvents', withErpAuth('calendar.view', async (input: any, ctx) => {
     erpValidate.int(input?.from, 'from');
     erpValidate.int(input?.to,   'to');
-    return { events: svc().listEventsForEmployee(ctx.employeeId, {
+    return { events: calendarSvc().listEventsForEmployee(ctx.employeeId, {
       from: Number(input.from),
       to:   Number(input.to),
       limit: input?.limit,
@@ -42,17 +22,17 @@ export function registerErpCalendarIpc(): void {
     if (input?.input?.end_at !== undefined && input?.input?.end_at !== null && input?.input?.end_at !== '') {
       erpValidate.int(input?.input?.end_at, 'end_at');
     }
-    return { event: svc().createEvent(input.input, ctx.employeeId) };
+    return { event: calendarSvc().createEvent(input.input, ctx.employeeId) };
   }));
 
   ipcHandle('erp:calendar:updateEvent', withErpAuth('calendar.update', async (input: any, ctx) => {
     erpValidate.string(input?.id, 'id');
-    return { event: svc().updateEventForEmployee(input.id, input.patch ?? {}, ctx.employeeId) };
+    return { event: calendarSvc().updateEventForEmployee(input.id, input.patch ?? {}, ctx.employeeId) };
   }));
 
   ipcHandle('erp:calendar:deleteEvent', withErpAuth('calendar.delete', async (input: any, ctx) => {
     erpValidate.string(input?.id, 'id');
-    svc().deleteEventForEmployee(input.id, ctx.employeeId);
+    calendarSvc().deleteEventForEmployee(input.id, ctx.employeeId);
     return {};
   }));
 
@@ -68,7 +48,7 @@ export function registerErpCalendarIpc(): void {
     }
     erpValidate.int(input?.start_at, 'start_at');
     erpValidate.int(input?.end_at,   'end_at');
-    return { conflicts: svc().checkConflict(
+    return { conflicts: calendarSvc().checkConflict(
       employeeIds.length ? employeeIds : [ctx.employeeId], Number(input.start_at), Number(input.end_at), input.excludeEventId,
     ) };
   }));
@@ -76,7 +56,7 @@ export function registerErpCalendarIpc(): void {
   ipcHandle('erp:calendar:respond', withErpAuth('calendar.update', async (input: any, ctx) => {
     erpValidate.string(input?.eventId, 'eventId');
     erpValidate.enum(input?.status, 'status', ['accepted', 'declined', 'tentative'] as const);
-    svc().respondToEvent(input.eventId, ctx.employeeId, input.status);
+    calendarSvc().respondToEvent(input.eventId, ctx.employeeId, input.status);
     return {};
   }));
 }

@@ -9,13 +9,13 @@ import WorkspaceManager from '../../src/utils/WorkspaceManager';
 import Logger from '../../src/utils/Logger';
 
 export function registerEmployeeIpc(): void {
-    const svc = () => EmployeeService.getInstance();
+    const empSvc = () => EmployeeService.getInstance();
 
     // ─── CRUD ──────────────────────────────────────────────────────────
 
     ipcMain.handle('employee:list', async () => {
         try {
-            const employees = svc().getEmployees();
+            const employees = empSvc().getEmployees();
             // Strip password_hash before sending to renderer
             const safe = employees.map(e => ({ ...e, password_hash: undefined }));
             return { success: true, employees: safe };
@@ -27,7 +27,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:getById', async (_e, { employeeId }: { employeeId: string }) => {
         try {
-            const emp = svc().getEmployeeById(employeeId);
+            const emp = empSvc().getEmployeeById(employeeId);
             if (!emp) return { success: false, error: 'Không tìm thấy nhân viên' };
             return { success: true, employee: { ...emp, password_hash: undefined } };
         } catch (err: any) {
@@ -39,7 +39,7 @@ export function registerEmployeeIpc(): void {
         username: string; password: string; display_name: string; avatar_url?: string; role?: 'boss' | 'employee';
     }) => {
         try {
-            const result = await svc().createEmployee(params);
+            const result = await empSvc().createEmployee(params);
             if (result.employee) result.employee.password_hash = '' as any;
             return result;
         } catch (err: any) {
@@ -51,7 +51,7 @@ export function registerEmployeeIpc(): void {
         employeeId: string; updates: { display_name?: string; avatar_url?: string; password?: string; is_active?: number; role?: string; group_id?: string | null };
     }) => {
         try {
-            return svc().updateEmployee(employeeId, updates);
+            return empSvc().updateEmployee(employeeId, updates);
         } catch (err: any) {
             return { success: false, error: err.message };
         }
@@ -59,7 +59,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:delete', async (_e, { employeeId }: { employeeId: string }) => {
         try {
-            return svc().deleteEmployee(employeeId);
+            return empSvc().deleteEmployee(employeeId);
         } catch (err: any) {
             return { success: false, error: err.message };
         }
@@ -71,7 +71,7 @@ export function registerEmployeeIpc(): void {
         employeeId: string; permissions: Array<{ module: string; can_access: boolean }>;
     }) => {
         try {
-            const result = svc().setPermissions(employeeId, permissions);
+            const result = empSvc().setPermissions(employeeId, permissions);
             Logger.log(`[employeeIpc] setPermissions → employee=${employeeId} permissions=${permissions.length} success=${result.success}`);
             if (result.success) {
                 // Auto-create ERP profile when erp module is enabled
@@ -102,7 +102,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:getPermissions', async (_e, { employeeId }: { employeeId: string }) => {
         try {
-            const perms = svc().getPermissions(employeeId);
+            const perms = empSvc().getPermissions(employeeId);
             return { success: true, permissions: perms };
         } catch (err: any) {
             return { success: false, error: err.message };
@@ -115,7 +115,7 @@ export function registerEmployeeIpc(): void {
         employeeId: string; zaloIds: string[];
     }) => {
         try {
-            const result = svc().assignAccounts(employeeId, zaloIds);
+            const result = empSvc().assignAccounts(employeeId, zaloIds);
             Logger.log(`[employeeIpc] assignAccounts → employee=${employeeId} assigned=${zaloIds.length} success=${result.success} zaloIds=${JSON.stringify(zaloIds)}`);
             if (result.success) {
                 HttpRelayService.getInstance().updateEmployeeRooms(employeeId, zaloIds);
@@ -129,7 +129,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:getAssignedAccounts', async (_e, { employeeId }: { employeeId: string }) => {
         try {
-            const accounts = svc().getAssignedAccounts(employeeId);
+            const accounts = empSvc().getAssignedAccounts(employeeId);
             return { success: true, accounts };
         } catch (err: any) {
             return { success: false, error: err.message };
@@ -142,7 +142,7 @@ export function registerEmployeeIpc(): void {
         employeeId: string; sinceTs?: number; untilTs?: number;
     }) => {
         try {
-            const stats = svc().getEmployeeStats(employeeId, sinceTs, untilTs);
+            const stats = empSvc().getEmployeeStats(employeeId, sinceTs, untilTs);
             return { success: true, stats };
         } catch (err: any) {
             return { success: false, error: err.message };
@@ -153,7 +153,7 @@ export function registerEmployeeIpc(): void {
         employeeId: string; limit?: number;
     }) => {
         try {
-            const sessions = svc().getEmployeeSessions(employeeId, limit);
+            const sessions = empSvc().getEmployeeSessions(employeeId, limit);
             return { success: true, sessions };
         } catch (err: any) {
             return { success: false, error: err.message };
@@ -164,7 +164,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:login', async (_e, { username, password }: { username: string; password: string }) => {
         try {
-            const result = await svc().authenticate(username, password);
+            const result = await empSvc().authenticate(username, password);
             if (result.employee) result.employee.password_hash = '' as any;
             return result;
         } catch (err: any) {
@@ -174,7 +174,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:validateToken', async (_e, { token }: { token: string }) => {
         try {
-            return svc().validateToken(token);
+            return empSvc().validateToken(token);
         } catch (err: any) {
             return { valid: false, error: err.message };
         }
@@ -268,7 +268,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:listGroups', async () => {
         try {
-            const groups = svc().getGroups();
+            const groups = empSvc().getGroups();
             return { success: true, groups };
         } catch (err: any) {
             return { success: false, error: err.message };
@@ -277,7 +277,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:createGroup', async (_e, { name, color }: { name: string; color?: string }) => {
         try {
-            return svc().createGroup({ name, color });
+            return empSvc().createGroup({ name, color });
         } catch (err: any) {
             return { success: false, error: err.message };
         }
@@ -285,7 +285,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:updateGroup', async (_e, { groupId, updates }: { groupId: string; updates: { name?: string; color?: string; sort_order?: number } }) => {
         try {
-            return svc().updateGroup(groupId, updates);
+            return empSvc().updateGroup(groupId, updates);
         } catch (err: any) {
             return { success: false, error: err.message };
         }
@@ -293,7 +293,7 @@ export function registerEmployeeIpc(): void {
 
     ipcMain.handle('employee:deleteGroup', async (_e, { groupId }: { groupId: string }) => {
         try {
-            return svc().deleteGroup(groupId);
+            return empSvc().deleteGroup(groupId);
         } catch (err: any) {
             return { success: false, error: err.message };
         }

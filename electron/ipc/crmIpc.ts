@@ -4,17 +4,9 @@ import CRMQueueService from '../../src/services/crm/CRMQueueService';
 import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import AppModeManager from '../../src/utils/AppModeManager';
 import Logger from '../../src/utils/Logger';
-import { proxyToBoss, uploadEmployeeMedia, proxyToBossAsync } from './proxyHelper';
+import { proxyToBoss, uploadEmployeeMedia, proxyToBossAsync, isEmployeeMode } from './proxyHelper';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
 import { ipcHandlerRegistry } from './ipcRegistry';
-
-function isEmployeeMode(): boolean {
-    try {
-        const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
-        if (activeWs?.type === 'remote') return true;
-    } catch {}
-    return false;
-}
 
 const CUSTOM_EMPLOYEE_CHANNELS = new Set(['crm:saveNote', 'crm:saveCampaign', 'crm:cloneCampaign']);
 

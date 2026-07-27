@@ -156,3 +156,25 @@ export async function uploadEmployeeMedia(filePaths: string[], zaloId?: string):
     return bossPaths;
 }
 
+/** Check if the current context is running in employee/remote mode. */
+export function isEmployeeMode(): boolean {
+    try {
+        const WorkspaceManager = require('../../src/utils/WorkspaceManager').default;
+        const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
+        return activeWs?.type === 'remote';
+    } catch {
+        return false;
+    }
+}
+
+/** Wrapper around ipcMain.handle that proxies execution to Boss if running in Employee mode. */
+export function ipcHandle(channel: string, handler: any): void {
+    const { ipcMain } = require('electron');
+    ipcMain.handle(channel, async (event: any, ...args: any[]) => {
+        if (isEmployeeMode()) {
+            return await proxyToBossAsync(channel, args[0]);
+        }
+        return handler(event, ...args);
+    });
+}
+

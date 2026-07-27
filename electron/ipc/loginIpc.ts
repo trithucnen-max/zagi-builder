@@ -8,14 +8,7 @@ import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import Logger from '../../src/utils/Logger';
 import ZaloLoginHelper from '../../src/utils/ZaloLoginHelper';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
-
-function isEmployeeMode(): boolean {
-    try {
-        const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
-        if (activeWs?.type === 'remote') return true;
-    } catch {}
-    return false;
-}
+import { isEmployeeMode } from './proxyHelper';
 
 function postLoginSetup(_zaloId: string, _mainWindow: BrowserWindow | null, _name?: string, _phone?: string) {
     // No-op in open-source build.

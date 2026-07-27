@@ -4,20 +4,12 @@ import FileStorageService from '../../src/services/file/FileStorageService';
 import WorkflowEngineService from '../../src/services/workflow/WorkflowEngineService';
 import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import MediaCacheService from '../../src/services/cache/MediaCacheService';
-import { proxyToBoss, proxyToBossAsync } from './proxyHelper';
+import { proxyToBoss, proxyToBossAsync, isEmployeeMode } from './proxyHelper';
 import Logger from '../../src/utils/Logger';
 import * as path from 'path';
 import * as fs from 'fs';
 import AppModeManager from '../../src/utils/AppModeManager';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
-
-function isEmployeeMode(): boolean {
-    try {
-        const activeWs = WorkspaceManager.getInstance().getActiveWorkspace();
-        if (activeWs?.type === 'remote') return true;
-    } catch {}
-    return false;
-}
 
 // Copy toàn bộ thư mục src → dest (async, recursive).
 // opts.overwrite=true → ghi đè file đã tồn tại; opts.onFile → progress callback.
