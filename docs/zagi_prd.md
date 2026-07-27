@@ -511,6 +511,14 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
   * **📋 Nhân bản Chiến dịch CRM (Campaign Clone) với 2 Lựa chọn**:
     * Lựa chọn 1: Nhân bản CÓ kèm danh sách liên hệ khách hàng cũ.
     * Lựa chọn 2: Nhân bản KHÔNG kèm khách hàng (chỉ nhân bản kịch bản & cấu hình thời gian).
+  * **🤝 Hệ Thống Đại Lý & Hoa Hồng Win-Win (Affiliate System)**:
+    * Xây dựng CSDL Supabase 4 tầng (`partner_tiers`, `partners`, `commissions`, `payout_cycles`).
+    * Mã giới thiệu bằng Số điện thoại Đại lý; Chống tự giới thiệu (`buyer_phone !== referral_phone`).
+    * Người mua nhập mã giới thiệu được **TẶNG THÊM 1 THÁNG** thời hạn sử dụng gói.
+    * Hoa hồng trọn đời cho Đại lý mỗi khi khách gia hạn/nâng cấp gói; Tự động thăng cấp theo doanh số (kèm cờ `is_manual_tier` cho Admin).
+    * Thanh toán hoa hồng định kỳ cho Đại lý vào **ngày 10 hàng tháng**.
+  * **📦 Cập nhật Gói Cước & Email Hỗ Trợ Chính Thức**:
+    * Chuyển Gói Solo Vĩnh Viễn ➔ **Gói Solo 5 Năm (1.825 ngày)**; Đổi email hỗ trợ hệ thống sang **`info@zagi.vn`**.
   * **🌐 Tải Installer v3.0.7 Official Release trên Landing Page & Docs**:
     * Cập nhật đường dẫn tải bộ cài v3.0.7 chính thức từ GitHub Releases cho macOS (ARM64 Apple Silicon & Intel x64), Windows 10/11 (x64 & Surface ARM64), và Linux (.AppImage & .deb).
 * **Bảo mật & Tối ưu Mã nguồn (Security Hardening & Refactoring):**

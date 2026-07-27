@@ -1261,17 +1261,17 @@ a{text-decoration:none}
         <button onclick="openCheckout('solo_12m')" class="btn btn-primary">Mua gói 1 năm</button>
       </div>
 
-      <!-- Gói Solo Lifetime -->
-      <div class="pcard reveal" data-plan="solo_lifetime">
-        <div class="pname">Gói Solo Vĩnh Viễn</div>
-        <div class="ptag">Thanh toán một lần, sở hữu phần mềm trọn đời.</div>
-        <div class="pamt"><span class="num">4.900.000</span><span class="per">đ / Vĩnh viễn</span></div>
+      <!-- Gói Solo 5 Năm -->
+      <div class="pcard reveal" data-plan="solo_5y">
+        <div class="pname">Gói Solo 5 Năm</div>
+        <div class="ptag">Thanh toán 1 lần, sở hữu phần mềm trọn vẹn 5 năm (1.825 ngày).</div>
+        <div class="pamt"><span class="num">4.900.000</span><span class="per">đ / 5 Năm</span></div>
         <ul class="pfeat">
-          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp) trọn đời</li>
+          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp) 5 năm (1.825 ngày)</li>
           <li><span class="material-symbols-rounded">check</span>Không phí duy trì hàng năm</li>
-          <li><span class="material-symbols-rounded">check</span>Cập nhật phiên bản trọn đời</li>
+          <li><span class="material-symbols-rounded">check</span>Tặng thêm +1 tháng khi nhập Mã Giới Thiệu</li>
         </ul>
-        <button onclick="openCheckout('solo_lifetime')" class="btn btn-accent">Sở hữu trọn đời</button>
+        <button onclick="openCheckout('solo_5y')" class="btn btn-accent">Đăng Ký Gói 5 Năm</button>
       </div>
 
       <!-- Gói Team 12M -->
@@ -1524,15 +1524,20 @@ a{text-decoration:none}
           <input type="tel" id="cust-phone" class="form-control" placeholder="0985999959">
         </div>
         <div class="form-group">
+          <label>Mã giới thiệu / SĐT Người giới thiệu (Nếu có)</label>
+          <input type="tel" id="ref-phone" class="form-control" placeholder="Nhập SĐT Đại lý (Tặng thêm 1 tháng sử dụng)">
+          <small style="color:#059669;font-size:12px;display:block;margin-top:4px;">🎁 Nhập SĐT Đại lý/Người giới thiệu để được <strong>TẶNG THÊM 1 THÁNG</strong> sử dụng miễn phí.</small>
+        </div>
+        <div class="form-group">
           <label>Chọn gói dịch vụ *</label>
           <select id="cust-plan" class="form-control">
             <option value="trial_14d" selected>Gói Dùng thử 14 ngày — 0 đ (Miễn phí)</option>
             <option value="solo_6m">Gói Solo 6 tháng — 990.000 đ</option>
             <option value="solo_12m">Gói Solo 12 tháng — 1.690.000 đ (Tiết kiệm)</option>
-            <option value="solo_lifetime">Gói Solo Vĩnh viễn — 4.900.000 đ</option>
+            <option value="solo_5y">Gói Solo 5 Năm — 4.900.000 đ (Ưu đãi đặc biệt)</option>
             <option value="team_6m">Gói Team 6 tháng — 4.900.000 đ</option>
             <option value="team_12m">Gói Team 12 tháng — 8.900.000 đ</option>
-            <option value="team_lifetime">Gói Team Vĩnh viễn — 14.900.000 đ</option>
+            <option value="team_5y">Gói Team 5 Năm — 14.900.000 đ</option>
           </select>
         </div>
         <button onclick="submitOrder()" class="btn btn-primary btn-lg" style="width:100%" id="submit-btn">
@@ -1960,14 +1965,20 @@ function closeCheckout() {
 // genKey() đã bị xóa — key bây giờ được sinh bằng crypto.randomUUID() phía Edge Function
 
 async function submitOrder() {
-  hideErr();
-  const name  = document.getElementById('cust-name').value.trim();
-  const email = document.getElementById('cust-email').value.trim().toLowerCase();
-  const phone = document.getElementById('cust-phone').value.trim();
-  const plan  = document.getElementById('cust-plan').value;
+  const name     = document.getElementById('cust-name').value.trim();
+  const email    = document.getElementById('cust-email').value.trim().toLowerCase();
+  const phone    = document.getElementById('cust-phone').value.trim();
+  const refPhone = document.getElementById('ref-phone') ? document.getElementById('ref-phone').value.trim() : '';
+  const plan     = document.getElementById('cust-plan').value;
 
   if (!email || !phone) {
     showErr('Vui lòng nhập đầy đủ Email và Số điện thoại!');
+    return;
+  }
+
+  // Chống tự giới thiệu chính mình
+  if (refPhone && refPhone === phone) {
+    showErr('Không thể tự nhập Số điện thoại của chính mình làm Mã giới thiệu!');
     return;
   }
 
@@ -1983,7 +1994,7 @@ async function submitOrder() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ name, email, phone, plan }),
+      body: JSON.stringify({ name, email, phone, plan, refPhone }),
     });
 
     const data = await res.json();
