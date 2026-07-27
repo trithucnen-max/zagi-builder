@@ -6,7 +6,7 @@ import Logger from '../../src/utils/Logger';
 
 /** Keys used in DB settings for Named Tunnel config */
 export const CF_TUNNEL_KEYS = {
-    TOKEN:             'cf_tunnel_token',
+    SETTING_KEY_TOKEN: 'cf_tunnel_token',
     DOMAIN_INTEGRATION:'cf_domain_integration',
     DOMAIN_WORKFLOW:   'cf_domain_workflow',
     DOMAIN_RELAY:      'cf_domain_relay',
@@ -19,7 +19,7 @@ export const CF_TUNNEL_KEYS = {
 export function loadTunnelConfig(): void {
     try {
         const db = DatabaseService.getInstance();
-        const token = db.getSetting(CF_TUNNEL_KEYS.TOKEN) || null;
+        const token = db.getSetting(CF_TUNNEL_KEYS.SETTING_KEY_TOKEN) || null;
 
         // Read dynamic ports from DB settings
         const intPortStr = db.getSetting('webhook_port_integration');
@@ -362,7 +362,7 @@ export function registerIntegrationIpc(): void {
             const db = DatabaseService.getInstance();
             return {
                 success: true,
-                token: db.getSetting(CF_TUNNEL_KEYS.TOKEN) || '',
+                token: db.getSetting(CF_TUNNEL_KEYS.SETTING_KEY_TOKEN) || '',
                 domainIntegration: db.getSetting(CF_TUNNEL_KEYS.DOMAIN_INTEGRATION) || '',
                 domainWorkflow:    db.getSetting(CF_TUNNEL_KEYS.DOMAIN_WORKFLOW) || '',
                 domainRelay:       db.getSetting(CF_TUNNEL_KEYS.DOMAIN_RELAY) || '',
@@ -397,7 +397,7 @@ export function registerIntegrationIpc(): void {
             }
             const db = DatabaseService.getInstance();
             const config: any = params.config || {};
-            db.setSetting(CF_TUNNEL_KEYS.TOKEN,              config.token?.trim() || '');
+            db.setSetting(CF_TUNNEL_KEYS.SETTING_KEY_TOKEN,       config.token?.trim() || '');
             db.setSetting(CF_TUNNEL_KEYS.DOMAIN_INTEGRATION, config.domainIntegration?.trim() || '');
             db.setSetting(CF_TUNNEL_KEYS.DOMAIN_WORKFLOW,    config.domainWorkflow?.trim() || '');
             db.setSetting(CF_TUNNEL_KEYS.DOMAIN_RELAY,       config.domainRelay?.trim() || '');

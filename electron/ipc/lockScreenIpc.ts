@@ -304,8 +304,10 @@ function checkBiometricAvailable(): boolean {
     return false;
 }
 
-/** Prompt Windows Hello verification via WinRT UserConsentVerifier */
+/** Prompt Windows Hello verification via WinRT UserConsentVerifier (Windows-only) */
 function promptWindowsHello(): Promise<boolean> {
+    if (process.platform !== 'win32') return Promise.resolve(false);
+
     return new Promise((resolve) => {
         // Use reflection to load WinRT types — works across PS 5.1 and 7
         // Returns: 0=Verified, 1=Canceled, 2=RetriesExhausted, 99=NotAvailable, -1=Error
