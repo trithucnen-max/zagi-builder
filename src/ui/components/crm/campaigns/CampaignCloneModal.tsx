@@ -65,35 +65,37 @@ export default function CampaignCloneModal({ campaignName, totalContacts, onClos
 
           {/* Include contacts option */}
           <div>
-            <p className="text-xs text-gray-400 font-medium mb-2">Tuỳ chọn sao chép tệp khách</p>
-            <div className="grid grid-cols-2 gap-2">
+            <p className="text-xs text-gray-400 font-semibold mb-2">Chọn phương thức sao chép:</p>
+            <div className="grid grid-cols-2 gap-2.5">
               <button
-                onClick={() => setIncludeContacts(false)}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-colors ${
-                  !includeContacts
-                    ? 'border-blue-500 bg-blue-500/15 text-white'
-                    : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+                type="button"
+                onClick={() => setIncludeContacts(true)}
+                className={`flex flex-col items-center gap-1.5 p-3.5 rounded-xl border text-center transition-all ${
+                  includeContacts
+                    ? 'border-emerald-500 bg-emerald-500/15 text-white ring-1 ring-emerald-500/40 shadow-sm'
+                    : 'border-gray-700 bg-gray-900/40 text-gray-400 hover:border-gray-600 hover:text-gray-200'
                 }`}
               >
-                <AppIcon name="file_text" className={!includeContacts ? 'text-blue-400' : 'text-gray-400'} size={20} />
-                <span className="text-xs font-semibold">Chỉ clone template</span>
-                <span className="text-[11px] leading-snug opacity-70">
-                  Sao chép nội dung trừ danh sách tệp gửi.
+                <AppIcon name="layers" className={includeContacts ? 'text-emerald-400' : 'text-gray-400'} size={20} />
+                <span className="text-xs font-bold text-emerald-400">Sao chép CẢ Người Nhận</span>
+                <span className="text-[11px] leading-snug opacity-80 mt-0.5">
+                  Giữ nguyên kịch bản & toàn bộ <b className="text-white">{totalContacts}</b> người nhận.
                 </span>
               </button>
 
               <button
-                onClick={() => setIncludeContacts(true)}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-colors ${
-                  includeContacts
-                    ? 'border-emerald-500 bg-emerald-500/15 text-white'
-                    : 'border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+                type="button"
+                onClick={() => setIncludeContacts(false)}
+                className={`flex flex-col items-center gap-1.5 p-3.5 rounded-xl border text-center transition-all ${
+                  !includeContacts
+                    ? 'border-blue-500 bg-blue-500/15 text-white ring-1 ring-blue-500/40 shadow-sm'
+                    : 'border-gray-700 bg-gray-900/40 text-gray-400 hover:border-gray-600 hover:text-gray-200'
                 }`}
               >
-                <AppIcon name="layers" className={includeContacts ? 'text-emerald-400' : 'text-gray-400'} size={20} />
-                <span className="text-xs font-semibold">Clone giống hệt</span>
-                <span className="text-[11px] leading-snug opacity-70">
-                  Sao chép toàn bộ, cả danh sách tệp gửi.
+                <AppIcon name="file_text" className={!includeContacts ? 'text-blue-400' : 'text-gray-400'} size={20} />
+                <span className="text-xs font-bold text-blue-400">KHÔNG sao chép Người Nhận</span>
+                <span className="text-[11px] leading-snug opacity-80 mt-0.5">
+                  Chỉ clone kịch bản & cài đặt. Danh sách người nhận để trống (0).
                 </span>
               </button>
             </div>
