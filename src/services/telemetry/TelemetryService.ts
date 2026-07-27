@@ -166,7 +166,13 @@ export class TelemetryService {
   }
 
   /** Lấy dữ liệu telemetry hiện tại của máy này */
-  public getDeviceInfo(accounts: Array<{ zaloId: string; displayName?: string }> = []): DeviceTelemetryInfo {
+  public getDeviceInfo(accounts: Array<{ zaloId: string; displayName?: string }> = []): DeviceTelemetryInfo & { app_mode: string } {
+    let appMode = 'boss';
+    try {
+      const AppModeManager = require('../../utils/AppModeManager').default;
+      appMode = AppModeManager.getInstance().getMode();
+    } catch {}
+
     return {
       machine_id: this.machineId,
       os_platform: os.platform(),
@@ -174,7 +180,8 @@ export class TelemetryService {
       os_arch: os.arch(),
       os_release: os.release(),
       hostname: os.hostname(),
-      app_version: pkg.version || '3.0.6',
+      app_version: pkg.version || '3.0.7',
+      app_mode: appMode,
       account_ids: accounts.map(a => a.zaloId).filter(Boolean),
       account_names: accounts.map(a => a.displayName || a.zaloId).filter(Boolean),
       last_seen_at: new Date().toISOString(),

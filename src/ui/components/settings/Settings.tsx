@@ -172,7 +172,6 @@ export default function Settings() {
     { id: 'employees',     icon: 'employees',     label: 'Nhân viên', requiredPerm: 'settings_employees' },
     { id: 'workspace',     icon: 'workspace',     label: 'Workspace' },
     { id: 'webhook',       icon: 'integration',   label: 'Webhooks' },
-    { id: 'telemetry',     icon: 'workspace',     label: 'Thống kê máy' },
     { id: 'storage',       icon: 'storage',       label: 'Lưu trữ' },
     { id: 'introduction',  icon: 'introduction',  label: 'Giới thiệu' },
   ];
@@ -184,7 +183,7 @@ export default function Settings() {
     return useEmployeeStore.getState().hasPermission(perm);
   };
   const visibleNavItems = NAV_ITEMS.filter(item => {
-    if ((item.id === 'webhook' || item.id === 'telemetry' || item.id === 'workspace' || item.id === 'storage') && empMode === 'employee') return false;
+    if ((item.id === 'webhook' || item.id === 'workspace' || item.id === 'storage') && empMode === 'employee') return false;
     return hasSettingsPerm(item.requiredPerm);
   });
 
