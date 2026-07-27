@@ -321,4 +321,25 @@ Quản lý thư viện media dùng chung của hệ thống (Ảnh, Video, Âm t
 - **Mạng LAN (Employee Mode):** Máy nhân viên (Remote workspace) giao tiếp với `LibraryService` của Boss qua endpoint `/api/library/*`. Kết quả danh sách thư mục và nhãn dán trả về từ REST API là mảng phẳng trực tiếp (`res.data`), cần bóc tách đúng định dạng ở frontend Client qua `DataAccessor`.
 - **Thumbnail:** Sử dụng thư viện `sharp` để nén và resize ảnh nhỏ đại diện cho ảnh gốc nhằm giảm tải băng thông tải danh sách.
 
+---
+
+## PhoneScanService & Batch Stats Engine
+
+**File:** `src/services/crm/PhoneScanService.ts`, `src/services/database/DatabaseService.ts`
+**Chạy:** Boss / Standalone / Sub-process
+
+### Purpose
+Quản lý tính năng Quét số điện thoại Zalo hàng loạt, phân chia công việc công bằng (Fair Round-Robin) giữa các tài khoản Zalo, và tính toán số liệu thống kê thời gian thực.
+
+### Key Methods & Features
+- `getPhoneScanOverallStats(timeRange)` — Trả về số liệu thống kê tổng thể (`total`, `scanned`, `found`, `notFound`, `error`, `pending`) được lọc theo thời gian quét mốc `scanned_at`:
+  - `'all'`: Mọi lúc (tổng lũy kế).
+  - `'today'`: Bắt đầu từ 00:00:00 ngày hôm nay (Múi giờ Việt Nam).
+  - `'this_week'`: Bắt đầu từ 00:00:00 Thứ hai tuần này.
+  - `'this_month'`: Bắt đầu từ 00:00:00 Ngày 1 tháng này.
+- `crm:getPhoneScanOverallStats` — IPC Endpoint cung cấp số liệu cho `PhoneScanPanel.tsx`.
+
+---
+
+
 
