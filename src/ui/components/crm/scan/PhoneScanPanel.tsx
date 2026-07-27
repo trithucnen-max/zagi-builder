@@ -76,6 +76,7 @@ export default function PhoneScanPanel() {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [formName, setFormName] = useState('');
     const [formAssignedAccount, setFormAssignedAccount] = useState<string>('');
+    const [formTargetAccountId, setFormTargetAccountId] = useState<string>('');
     const [formContactAssignmentMode, setFormContactAssignmentMode] = useState<'single' | 'distributed' | 'all_accounts'>('distributed');
     const [showReassignModal, setShowReassignModal] = useState(false);
     const [reassignMode, setReassignMode] = useState<'single' | 'distributed' | 'all_accounts'>('distributed');
@@ -422,7 +423,7 @@ export default function PhoneScanPanel() {
             return;
         }
 
-        if (formContactAssignmentMode === 'single' && !formAssignedAccount) {
+        if (formContactAssignmentMode === 'single' && !formTargetAccountId) {
             showNotification('Vui lòng chọn 1 tài khoản Zalo nhận dữ liệu liên hệ', 'error');
             return;
         }
@@ -430,7 +431,8 @@ export default function PhoneScanPanel() {
         try {
             const res = await ipc.crm?.createPhoneScanBatch({
                 name: formName.trim(),
-                assignedAccountId: formContactAssignmentMode === 'single' ? (formAssignedAccount || null) : null,
+                assignedAccountId: formAssignedAccount || null,
+                targetAccountId: formContactAssignmentMode === 'single' ? (formTargetAccountId || null) : null,
                 contactAssignmentMode: formContactAssignmentMode,
                 autoTagIds: formAutoTagIds,
                 dailyLimit: formDailyLimit,
@@ -1402,8 +1404,8 @@ export default function PhoneScanPanel() {
                                                     {formContactAssignmentMode === 'single' && (
                                                         <div className="mt-2">
                                                             <select
-                                                                value={formAssignedAccount}
-                                                                onChange={e => setFormAssignedAccount(e.target.value)}
+                                                                value={formTargetAccountId}
+                                                                onChange={e => setFormTargetAccountId(e.target.value)}
                                                                 className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100"
                                                             >
                                                                 <option value="">-- Chọn tài khoản Zalo nhận toàn bộ --</option>

@@ -636,12 +636,13 @@ export function registerCRMIpc(): void {
         }
     });
 
-    ipcHandle('crm:createPhoneScanBatch', async (_e, { name, assignedAccountId, contactAssignmentMode, autoTagIds, dailyLimit, hourlyLimit, priority, status, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, phones }: any) => {
+    ipcHandle('crm:createPhoneScanBatch', async (_e, { name, assignedAccountId, targetAccountId, contactAssignmentMode, autoTagIds, dailyLimit, hourlyLimit, priority, status, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, phones }: any) => {
         try {
             const db = DatabaseService.getInstance();
             const batchId = db.createPhoneScanBatch({
                 name,
                 assignedAccountId,
+                targetAccountId,
                 contactAssignmentMode,
                 autoTagIds,
                 dailyLimit,

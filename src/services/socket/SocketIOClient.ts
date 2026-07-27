@@ -101,17 +101,19 @@ class SocketIOClient {
     });
 
     // ─── Auto reconnect on Wake-up / Network Recovery ─────────────
-    if (typeof window !== 'undefined' && window.addEventListener) {
+    const gWindow = typeof globalThis !== 'undefined' ? (globalThis as any).window : null;
+    const gDoc = typeof globalThis !== 'undefined' ? (globalThis as any).document : null;
+    if (gWindow && gWindow.addEventListener) {
       const handleWakeup = () => {
         if (this.socket && !this.socket.connected && this.bossUrl && this.token) {
           Logger.log(`[SocketIOClient] ⚡ System wake-up / network back online -> reconnecting to ${this.bossUrl}`);
           this.socket.connect();
         }
       };
-      window.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') handleWakeup();
+      gWindow.addEventListener('visibilitychange', () => {
+        if (gDoc && gDoc.visibilityState === 'visible') handleWakeup();
       });
-      window.addEventListener('online', handleWakeup);
+      gWindow.addEventListener('online', handleWakeup);
     }
   }
 

@@ -177,6 +177,7 @@ class PhoneScanService {
             // Midnight local time today to check daily limits
             const now = new Date();
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const accountsUsedInTick = new Set<string>();
 
             for (const item of pendingItems) {
                 let targetZaloId: string | null = null;
@@ -186,7 +187,7 @@ class PhoneScanService {
                 const oneHourAgo = Date.now() - 60 * 60 * 1000;
 
                 if (assignedId) {
-                    if (eligibleZaloIds.includes(assignedId)) {
+                    if (eligibleZaloIds.includes(assignedId) && !accountsUsedInTick.has(assignedId)) {
                         const todayCount = db.getDailyScanCountForAccount(assignedId, startOfToday);
                         const hourlyCount = db.getHourlyScanCountForAccount(assignedId, oneHourAgo);
                         if (todayCount < dailyLimit && hourlyCount < hourlyLimit) {
@@ -195,15 +196,17 @@ class PhoneScanService {
                     }
                 } else {
                     let bestZaloId: string | null = null;
-                    let minScannedCount = Infinity;
+                    let minHourlyCount = Infinity;
 
                     for (const zaloId of eligibleZaloIds) {
+                        if (accountsUsedInTick.has(zaloId)) continue;
+
                         const todayCount = db.getDailyScanCountForAccount(zaloId, startOfToday);
                         const hourlyCount = db.getHourlyScanCountForAccount(zaloId, oneHourAgo);
 
                         if (todayCount < dailyLimit && hourlyCount < hourlyLimit) {
-                            if (todayCount < minScannedCount) {
-                                minScannedCount = todayCount;
+                            if (hourlyCount < minHourlyCount) {
+                                minHourlyCount = hourlyCount;
                                 bestZaloId = zaloId;
                             }
                         }
@@ -222,6 +225,9 @@ class PhoneScanService {
                     continue;
                 }
 
+                // Mark account as used in this tick for parallel multi-account batching
+                accountsUsedInTick.add(targetZaloId);
+
                 // Picked! Lock item status to scanning
                 db.updatePhoneScanItemStatus({
                     itemId: item.id,
@@ -238,8 +244,6 @@ class PhoneScanService {
                     .catch(err => {
                         Logger.error(`[PhoneScanService] Scan execution error for item ${item.id}: ${err.message}`);
                     });
-
-                break; // 1 item per tick per account for rate safety
             }
         } catch (err: any) {
             Logger.error(`[PhoneScanService] tick error: ${err.message}`);
@@ -336,12 +340,12 @@ class PhoneScanService {
                 });
 
                 // Resolve target accounts based on batch assignment mode
-                const batchInfo = db.queryOne<any>('SELECT name, update_zalo_alias, auto_workflow_id, contact_assignment_mode, assigned_account_id FROM phone_scan_batches WHERE id = ?', [batchId]);
+                const batchInfo = db.queryOne<any>('SELECT name, update_zalo_alias, auto_workflow_id, contact_assignment_mode, assigned_account_id, target_account_id FROM phone_scan_batches WHERE id = ?', [batchId]);
                 const assignmentMode = batchInfo?.contact_assignment_mode || (batchInfo?.assigned_account_id ? 'single' : 'distributed');
                 
                 let targetAccountIds: string[] = [];
                 if (assignmentMode === 'single') {
-                    const targetId = batchInfo?.assigned_account_id || zaloId;
+                    const targetId = batchInfo?.target_account_id || batchInfo?.assigned_account_id || zaloId;
                     if (targetId) targetAccountIds = [targetId];
                 } else if (assignmentMode === 'all_accounts') {
                     const activeAccounts = db.getAccounts() || [];

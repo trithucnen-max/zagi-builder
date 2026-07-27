@@ -1207,6 +1207,11 @@ class DatabaseService {
             }
             const hasAssignmentMode = cols.some((c: any) => c.name === 'contact_assignment_mode');
             if (!hasAssignmentMode) {
+                const hasTargetAccountId = cols.some((c: any) => c.name === 'target_account_id');
+                if (!hasTargetAccountId) {
+                    this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN target_account_id TEXT`);
+                    Logger.log('[DatabaseService] ✅ Migration: added target_account_id column to phone_scan_batches');
+                }
                 this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN contact_assignment_mode TEXT NOT NULL DEFAULT 'distributed'`);
                 Logger.log('[DatabaseService] ✅ Migration: added contact_assignment_mode column to phone_scan_batches');
             }
@@ -9168,6 +9173,7 @@ class DatabaseService {
     public createPhoneScanBatch(params: {
         name: string;
         assignedAccountId: string | null;
+        targetAccountId?: string | null;
         contactAssignmentMode?: string;
         autoTagIds: number[];
         dailyLimit: number;
@@ -9190,6 +9196,7 @@ class DatabaseService {
             const autoWorkflowId = params.autoWorkflowId ? Number(params.autoWorkflowId) : null;
             const updateZaloAlias = params.updateZaloAlias !== false ? 1 : 0;
             const contactAssignmentMode = params.contactAssignmentMode || (params.assignedAccountId ? 'single' : 'distributed');
+            const targetAccountId = params.targetAccountId || null;
 
             // Get max sort_order
             const maxSort = this.queryOne<any>('SELECT MAX(sort_order) as m FROM phone_scan_batches')?.m ?? 0;
@@ -9201,9 +9208,9 @@ class DatabaseService {
             // 1. Insert batch
             this.run(`
                 INSERT INTO phone_scan_batches 
-                (name, assigned_account_id, contact_assignment_mode, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, sort_order, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [params.name, params.assignedAccountId, contactAssignmentMode, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, nextSortOrder, now]);
+                (name, assigned_account_id, target_account_id, contact_assignment_mode, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, sort_order, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [params.name, params.assignedAccountId, targetAccountId, contactAssignmentMode, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, nextSortOrder, now]);
 
             const batchId = this.queryOne<any>(`SELECT last_insert_rowid() as id`)?.id;
             if (!batchId) {
