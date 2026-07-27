@@ -174,11 +174,24 @@ async function main() {
   }
 
   console.log(`Đang tải lên các tệp tin cài đặt macOS vào Release ${tag}...`);
-  try {
-    execSync(`GH_TOKEN=${GH_TOKEN} gh release upload ${tag} "${macArmPath}" "${macIntelPath}" "${macArmDotPath}" "${macIntelDotPath}" --clobber`, { stdio: 'inherit', cwd: ROOT_DIR });
-    console.log('🎉 Tải lên các tệp macOS thành công!');
-  } catch (err) {
-    console.error('❌ Lỗi khi tải lên GitHub Release:', err.message);
+  const filesToUpload = [macArmPath, macIntelPath, macArmDotPath, macIntelDotPath];
+  for (const filePath of filesToUpload) {
+    if (!fs.existsSync(filePath)) continue;
+    const fileName = path.basename(filePath);
+    console.log(` ⬆️ Đang tải lên tệp: ${fileName}...`);
+
+    // Xóa asset trùng tên cũ trên GitHub Release nếu có (tránh lỗi HTTP 404 clobber của GitHub CLI)
+    try {
+      execSync(`GH_TOKEN=${GH_TOKEN} gh release delete-asset ${tag} "${fileName}" -y`, { stdio: 'pipe', cwd: ROOT_DIR });
+    } catch {}
+
+    // Tải lên từng file một
+    try {
+      execSync(`GH_TOKEN=${GH_TOKEN} gh release upload ${tag} "${filePath}" --clobber`, { stdio: 'inherit', cwd: ROOT_DIR });
+      console.log(`   ✅ Tải thành công: ${fileName}`);
+    } catch (err) {
+      console.error(`   ❌ Lỗi khi tải lên ${fileName}:`, err.message);
+    }
   }
 
   console.log('\n🏁 QUY TRÌNH HOÀN TẤT!');
