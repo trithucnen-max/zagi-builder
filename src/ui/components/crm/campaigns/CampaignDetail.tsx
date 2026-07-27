@@ -267,12 +267,12 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
             </p>
           </div>
           <div className="flex gap-1.5 flex-shrink-0">
-            {/* Nút Sửa: chỉ hiện khi nháp hoặc tạm dừng */}
-            {canEdit && onUpdate && (
+            {/* Nút Sửa: bấm để mở modal chỉnh sửa */}
+            {onUpdate && (
               <button onClick={() => setShowEdit(true)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors flex items-center gap-1 font-medium">
-                <AppIcon name="edit" className="text-gray-300" size={11} />
-                Sửa
+                className="text-xs px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 transition-colors flex items-center gap-1 font-semibold">
+                <AppIcon name="edit" className="text-blue-400" size={11} />
+                Sửa chiến dịch
               </button>
             )}
             {campaign.status === 'draft' && (
@@ -411,36 +411,46 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
           </div>
         )}
 
-        {/* Template preview */}
-        <div className="mt-3 p-2.5 bg-gray-700/50 rounded-lg">
+        {/* Template preview - Clickable to Edit Campaign */}
+        <div
+          onClick={() => setShowEdit(true)}
+          title="Bấm vào để chỉnh sửa kịch bản & cài đặt chiến dịch"
+          className="mt-3 p-3 bg-gray-700/50 hover:bg-gray-700/80 border border-transparent hover:border-blue-500/50 rounded-xl cursor-pointer transition-all group relative shadow-xs"
+        >
+          <div className="absolute top-2.5 right-2.5 opacity-60 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-bold text-blue-400 bg-blue-600/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+            <AppIcon name="edit" size={11} />
+            <span>Sửa nội dung</span>
+          </div>
+
           {campaign.campaign_type === 'invite_to_group' ? (() => {
             let groupIds: string[] = [];
             try { groupIds = JSON.parse(campaign.mixed_config || '{}').group_ids || []; } catch {}
             return (
               <>
-                <p className="text-[11px] text-gray-500 mb-1 flex items-center gap-1">
-                  <AppIcon name="users" className="text-gray-500" size={12} />
+                <p className="text-[11px] text-gray-400 font-medium mb-1 flex items-center gap-1">
+                  <AppIcon name="users" className="text-gray-400" size={12} />
                   Nhóm đích:
                 </p>
                 {groupIds.length > 0
-                  ? <p className="text-xs text-orange-300">{groupIds.length} nhóm đã chọn</p>
+                  ? <p className="text-xs text-orange-300 font-semibold">{groupIds.length} nhóm đã chọn</p>
                   : <p className="text-xs text-gray-500 italic">Chưa cấu hình nhóm</p>}
               </>
             );
           })() : (
             <>
-              <p className="text-[11px] text-gray-500 mb-1">
+              <p className="text-[11px] text-gray-400 font-medium mb-1 flex items-center gap-1">
+                <AppIcon name="message" className="text-blue-400" size={12} />
                 {campaign.campaign_type === 'friend_request' ? 'Tin nhắn kết bạn:' : 'Template tin nhắn:'}
               </p>
-              <p className="text-xs text-gray-300 line-clamp-2">
+              <p className="text-xs text-gray-200 line-clamp-3 leading-relaxed font-normal pr-16">
                 {campaign.campaign_type === 'friend_request'
                   ? campaign.friend_request_message
                   : campaign.template_message}
               </p>
               {campaign.campaign_type === 'mixed' && campaign.friend_request_message && (
                 <>
-                  <p className="text-[11px] text-gray-500 mt-1.5 mb-1">Fallback kết bạn:</p>
-                  <p className="text-xs text-gray-400 line-clamp-1">{campaign.friend_request_message}</p>
+                  <p className="text-[11px] text-gray-400 mt-2 mb-1 font-medium">Fallback kết bạn:</p>
+                  <p className="text-xs text-gray-300 line-clamp-1">{campaign.friend_request_message}</p>
                 </>
               )}
             </>

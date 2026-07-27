@@ -249,29 +249,52 @@ export default function CampaignList({
                         </span>
                       </div>
                     </div>
-                    <span
-                      className={`text-[10px] px-2.5 py-1 rounded-full font-bold flex-shrink-0 ${
-                        isScheduled
-                          ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20'
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                      {/* Clone / Sao chép */}
+                      <button
+                        onClick={() => onClone(c.id)}
+                        title="Sao chép (Clone) chiến dịch này"
+                        className="p-1 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <AppIcon name="copy" size={13} />
+                      </button>
+
+                      {/* Xóa chiến dịch */}
+                      <button
+                        onClick={async () => {
+                          const ok = await showConfirm(`Bạn có chắc chắn muốn xóa chiến dịch "${c.name}"?`);
+                          if (ok) onDelete(c.id);
+                        }}
+                        title="Xóa chiến dịch này"
+                        className="p-1 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <AppIcon name="trash" size={13} />
+                      </button>
+
+                      <span
+                        className={`text-[10px] px-2.5 py-1 rounded-full font-bold ml-1 ${
+                          isScheduled
+                            ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20'
+                            : c.status === 'active'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                            : c.status === 'paused'
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                            : c.status === 'done'
+                            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                        }`}
+                      >
+                        {isScheduled
+                          ? 'Đã lên lịch'
                           : c.status === 'active'
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                          ? '▶ Đang chạy'
                           : c.status === 'paused'
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                          ? '⏸ Tạm dừng'
                           : c.status === 'done'
-                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                      }`}
-                    >
-                      {isScheduled
-                        ? 'Đã lên lịch'
-                        : c.status === 'active'
-                        ? '▶ Đang chạy'
-                        : c.status === 'paused'
-                        ? '⏸ Tạm dừng'
-                        : c.status === 'done'
-                        ? '✓ Hoàn thành'
-                        : 'Nháp'}
-                    </span>
+                          ? '✓ Hoàn thành'
+                          : 'Nháp'}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Progress bar */}
@@ -286,28 +309,6 @@ export default function CampaignList({
             })}
           </div>
         )}
-
-        {/* Bottom Banner Card (Matching Mockup Image 1) */}
-        <div className="mt-4 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-4 flex items-center justify-between shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-gray-900 dark:text-white">Chọn chiến dịch</p>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">để xem chi tiết</p>
-            </div>
-          </div>
-          <button
-            onClick={onCreate}
-            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-          >
-            <span>Tạo chiến dịch mới</span>
-            <span>→</span>
-          </button>
-        </div>
       </div>
     </div>
   );
