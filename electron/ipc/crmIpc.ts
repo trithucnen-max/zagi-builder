@@ -7,6 +7,7 @@ import Logger from '../../src/utils/Logger';
 import { proxyToBoss, uploadEmployeeMedia, proxyToBossAsync, isEmployeeMode } from './proxyHelper';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
 import { ipcHandlerRegistry } from './ipcRegistry';
+import { setCustomSalutationMap, resetSalutationMapToDefault, getEffectiveSalutationMap, DEFAULT_SALUTATION_SELF_REF_MAP } from '../../src/utils/salutationUtils';
 
 const CUSTOM_EMPLOYEE_CHANNELS = new Set(['crm:saveNote', 'crm:saveCampaign', 'crm:cloneCampaign']);
 
@@ -887,6 +888,53 @@ export function registerCRMIpc(): void {
             return { success: true };
         } catch (err: any) {
             return { success: false, error: err.message };
+        }
+    });
+
+    // ─── Salutation Map Management ──────────────────────────────────────────
+    try {
+        const rawMap = DatabaseService.getInstance().getSetting('custom_salutation_map');
+        if (rawMap) {
+            const parsed = JSON.parse(rawMap);
+            setCustomSalutationMap(parsed);
+        }
+    } catch (e) { /* ignore parse error at startup */ }
+
+    ipcHandle('crm:getSalutationMap', async () => {
+        try {
+            const raw = DatabaseService.getInstance().getSetting('custom_salutation_map');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                setCustomSalutationMap(parsed);
+                return { success: true, map: parsed };
+            }
+            return { success: true, map: getEffectiveSalutationMap() };
+        } catch (e: any) {
+            return { success: false, error: e.message, map: DEFAULT_SALUTATION_SELF_REF_MAP };
+        }
+    });
+
+    ipcHandle('crm:saveSalutationMap', async (_e, { map }: { map: Record<string, string> }) => {
+        try {
+            DatabaseService.getInstance().setSetting('custom_salutation_map', JSON.stringify(map));
+            DatabaseService.getInstance().save();
+            setCustomSalutationMap(map);
+            EventBroadcaster.emit('crm:salutationMapChanged', { map });
+            return { success: true };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:resetSalutationMap', async () => {
+        try {
+            DatabaseService.getInstance().setSetting('custom_salutation_map', '');
+            DatabaseService.getInstance().save();
+            const defaultMap = resetSalutationMapToDefault();
+            EventBroadcaster.emit('crm:salutationMapChanged', { map: defaultMap });
+            return { success: true, map: defaultMap };
+        } catch (e: any) {
+            return { success: false, error: e.message };
         }
     });
 }

@@ -77,7 +77,7 @@ export function lowercaseVietnamese(word: string): string {
  *   Em (gửi đến người trẻ) → Anh (mặc định — người dùng có thể ghi đè)
  *   Bạn                   → Mình
  */
-export const SALUTATION_SELF_REF_MAP: Record<string, string> = {
+export const DEFAULT_SALUTATION_SELF_REF_MAP: Record<string, string> = {
     // Bậc trên (gia đình)
     'bố':        'con',
     'ba':        'con',
@@ -114,6 +114,38 @@ export const SALUTATION_SELF_REF_MAP: Record<string, string> = {
     'quý chị':   'em',
 };
 
+// Map mặc định hiện tại
+export const SALUTATION_SELF_REF_MAP = DEFAULT_SALUTATION_SELF_REF_MAP;
+
+let activeSalutationMap: Record<string, string> = { ...DEFAULT_SALUTATION_SELF_REF_MAP };
+
+/** Lấy map xưng hô hiện tại (bao gồm các quy tắc tùy chỉnh của người dùng) */
+export function getEffectiveSalutationMap(): Record<string, string> {
+    return { ...activeSalutationMap };
+}
+
+/** Cập nhật map xưng hô tùy chỉnh từ DB / UI */
+export function setCustomSalutationMap(customMap?: Record<string, string> | null): void {
+    if (customMap && typeof customMap === 'object' && Object.keys(customMap).length > 0) {
+        // Lowercase tất cả keys để so khớp không phân biệt hoa thường
+        const normalized: Record<string, string> = {};
+        for (const [k, v] of Object.entries(customMap)) {
+            if (k && typeof k === 'string' && v && typeof v === 'string') {
+                normalized[k.trim().toLowerCase()] = v.trim();
+            }
+        }
+        activeSalutationMap = normalized;
+    } else {
+        activeSalutationMap = { ...DEFAULT_SALUTATION_SELF_REF_MAP };
+    }
+}
+
+/** Khôi phục map xưng hô về mặc định hệ thống */
+export function resetSalutationMapToDefault(): Record<string, string> {
+    activeSalutationMap = { ...DEFAULT_SALUTATION_SELF_REF_MAP };
+    return getEffectiveSalutationMap();
+}
+
 /**
  * Lấy tự xưng phù hợp từ xưng hô của khách.
  * @param salutation  Xưng hô của khách (VD: "Anh", "Chị", "Bố"...)
@@ -121,7 +153,8 @@ export const SALUTATION_SELF_REF_MAP: Record<string, string> = {
  */
 export function getSelfRef(salutation: string, fallback = 'em'): string {
     if (!salutation) return fallback;
-    return SALUTATION_SELF_REF_MAP[salutation.trim().toLowerCase()] ?? fallback;
+    const key = salutation.trim().toLowerCase();
+    return activeSalutationMap[key] ?? fallback;
 }
 
 // ── 3. applySmartSalutation — thay thế thông minh ────────────────────────────

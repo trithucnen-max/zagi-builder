@@ -3,11 +3,12 @@ import { useAccountStore } from '@/store/accountStore';
 import AccountMultiDropdown from '../common/AccountMultiDropdown';
 import QuickMessageSettings from './conversation/QuickMessageSettings';
 import LabelSettings from './conversation/LabelSettings';
+import SalutationSettings from './conversation/SalutationSettings';
 
 import AppIcon from '../common/AppIcon';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type MainTab = 'quick_msg' | 'labels';
+type MainTab = 'quick_msg' | 'labels' | 'salutations';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ConversationSettings() {
@@ -33,8 +34,9 @@ export default function ConversationSettings() {
         {/* Main tabs — pill style */}
         <div className="flex bg-gray-800 rounded-lg p-0.5 gap-0.5 my-2">
           {([
-            { id: 'quick_msg' as const, label: 'Tin nhắn nhanh', icon: 'zap' as const },
-            { id: 'labels'    as const, label: 'Quản lý nhãn', icon: 'labels' as const },
+            { id: 'quick_msg'   as const, label: 'Tin nhắn nhanh',  icon: 'zap' as const },
+            { id: 'labels'      as const, label: 'Quản lý nhãn',   icon: 'labels' as const },
+            { id: 'salutations' as const, label: '🗣️ Xưng hô & Tự xưng', icon: 'chat' as const },
           ]).map(tab => (
             <button
               key={tab.id}
@@ -94,6 +96,9 @@ export default function ConversationSettings() {
             filterAccounts={filterAccounts}
             searchText={searchText}
           />
+        )}
+        {activeTab === 'salutations' && (
+          <SalutationSettings />
         )}
       </div>
     </div>

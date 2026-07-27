@@ -1,7 +1,7 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 2.3  
+> **Phiên bản tài liệu:** 2.4  
 > **Ngày cập nhật:** 28/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.0.9 (Released)  
+> **Trạng thái sản phẩm hiện tại:** v3.0.10 (Released)  
 > **Chủ quản:** Product Management Team  
 
 
@@ -527,6 +527,13 @@ Dưới đây là tổng hợp lịch sử các phiên bản từ `v27.1.0` đ�
     *   Bổ sung chỉ dẫn máy Windows 7 truy cập Zagi qua Trình duyệt Web `http://<IP_MÁY_BOSS>:27799` để sử dụng đầy đủ tính năng mà không bị rào cản từ việc Microsoft/Chromium ngưng hỗ trợ Win 7.
 
 #### 👥 v27.1.3 — Quản lý nhóm, Rời nhóm hàng loạt & AI Farewell
+#### 🎛️ v3.0.10 — Giao Diện Quản Lý Bảng Quy Tắc Xưng Hô & Tự Xưng (Salutation Manager UI)
+* **Tính năng mới (New):**
+  * Tích hợp Tab **"🗣️ Xưng hô & Tự xưng"** trong Cài đặt Hội thoại (`ConversationSettings.tsx`).
+  * Cho phép người dùng trực tiếp **Xem, Tìm kiếm, Thêm mới, Chỉnh sửa, Xóa** và **Khôi phục mặc định** bảng quy tắc xưng hô & tự xưng.
+  * Tích hợp khu vực thử nghiệm **Live Preview** xem trước kết quả viết Hoa đầu câu / viết thường giữa câu theo thời gian thực.
+  * Tự động lưu đĩa SQLite `app_settings` và đồng bộ qua IPC cho CRM và Workflow Engine.
+
 #### 🗣️ v3.0.9 — Xưng Hô Thông Minh & Tự Xưng Tiếng Việt (Smart Salutation & Self Ref)
 * **Tính năng mới (New):**
   * Tự động viết Hoa/thường theo vị trí đầu câu / giữa câu chuẩn Tiếng Việt cho `{salutation}` và `{gender_greeting}`.

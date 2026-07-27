@@ -2,6 +2,18 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.10] - 2026-07-28
+
+### 🎛️ Giao Diện Quản Lý Bảng Quy Tắc Xưng Hô & Tự Xưng (Salutation Self-Reference UI Manager)
+
+- **Thêm Tab "🗣️ Xưng hô & Tự xưng" vào Cài Đặt Hội Thoại (`ConversationSettings.tsx`):**
+  - Tích hợp ngay cạnh tab *Tin nhắn nhanh* và *Quản lý nhãn*.
+  - Cho phép người dùng trực tiếp **Xem, Tìm kiếm, Thêm mới, Chỉnh sửa, Xóa** và **Khôi phục mặc định** bảng quy tắc tự xưng tiếng Việt.
+- **Thử Nghiệm Trực Tiếp (Live Interactive Tester):**
+  - Tích hợp khu vực thử nghiệm Live Preview giúp người dùng chọn danh xưng (`Anh`, `Chị`, `Thầy`, `Sếp`...) và xem ngay kết quả viết Hoa đầu câu / viết thường giữa câu theo thời gian thực.
+- **Lưu Đĩa & Đồng Bộ Tức Thời (SQLite Persistence & Realtime IPC):**
+  - Lưu bảng quy tắc tùy chỉnh vào SQLite `app_settings` (`custom_salutation_map`), đồng bộ tức thì cho cả máy Boss, Employee, CRM Campaigns và Workflow Engine.
+
 ## [v3.0.9] - 2026-07-28
 
 ### 🗣️ Tính Năng Mới: Xưng Hố Thông Minh & Tự Xưng Tự Động Theo Chuẩn Tiếng Việt (Smart Salutation & Self Reference)
