@@ -24,7 +24,7 @@ function isRemoteMode(): boolean {
 }
 
 /** Notify the renderer that a sync operation completed so it can reload data. */
-function notifySyncComplete(workspaceId: string, syncType: 'full' | 'delta', syncTs?: number): void {
+export function notifySyncComplete(workspaceId: string, syncType: 'full' | 'delta', syncTs?: number): void {
     try {
         const win = BrowserWindow.getAllWindows()[0];
         if (win && !win.isDestroyed()) {
