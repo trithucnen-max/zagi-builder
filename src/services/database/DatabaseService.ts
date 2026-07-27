@@ -6173,6 +6173,8 @@ class DatabaseService {
         pipelineStageId?: number | null | 'unclassified' | 'any';
         gender?: 'male' | 'female' | 'unknown' | 'all' | string;
         birthdayFilter?: 'today' | 'this_week' | 'this_month' | 'has_birthday' | 'no_birthday' | 'all' | string;
+        birthdayMonth?: number; // 1 - 12
+        birthdayYear?: number; // 1950 - 2050
         salutation?: string;
         hasPhone?: boolean;
         hasNotes?: boolean;
@@ -6428,8 +6430,54 @@ class DatabaseService {
                             if (parts.length < 2) return false;
                             return parseInt(parts[1], 10) === currentMonthNum;
                         });
+                    } else if (filter.startsWith('month_')) {
+                        const targetMonth = parseInt(filter.replace('month_', ''), 10);
+                        if (!isNaN(targetMonth)) {
+                            all = all.filter(c => {
+                                if (!c.birthday) return false;
+                                const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                                const parts = cleanBday.split('/');
+                                if (parts.length < 2) return false;
+                                return parseInt(parts[1], 10) === targetMonth;
+                            });
+                        }
+                    } else if (filter.startsWith('year_')) {
+                        const targetYear = parseInt(filter.replace('year_', ''), 10);
+                        if (!isNaN(targetYear)) {
+                            all = all.filter(c => {
+                                if (!c.birthday) return false;
+                                const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                                const parts = cleanBday.split('/');
+                                if (parts.length < 3) return false;
+                                return parseInt(parts[2], 10) === targetYear;
+                            });
+                        }
                     }
                 }
+            }
+
+            // Apply specific birthdayMonth option if provided
+            if (opts.birthdayMonth && opts.birthdayMonth >= 1 && opts.birthdayMonth <= 12) {
+                const targetMonth = opts.birthdayMonth;
+                all = all.filter(c => {
+                    if (!c.birthday) return false;
+                    const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                    const parts = cleanBday.split('/');
+                    if (parts.length < 2) return false;
+                    return parseInt(parts[1], 10) === targetMonth;
+                });
+            }
+
+            // Apply specific birthdayYear option if provided
+            if (opts.birthdayYear && opts.birthdayYear >= 1900 && opts.birthdayYear <= 2100) {
+                const targetYear = opts.birthdayYear;
+                all = all.filter(c => {
+                    if (!c.birthday) return false;
+                    const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                    const parts = cleanBday.split('/');
+                    if (parts.length < 3) return false;
+                    return parseInt(parts[2], 10) === targetYear;
+                });
             }
 
             // Apply salutation filter

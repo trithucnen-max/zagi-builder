@@ -74,6 +74,7 @@ export default function PhoneScanPanel() {
     
     // Creation Form
     const [showCreateForm, setShowCreateForm] = useState(false);
+    const [isCreateFormMaximized, setIsCreateFormMaximized] = useState(false);
     const [formName, setFormName] = useState('');
     const [formAssignedAccount, setFormAssignedAccount] = useState<string>('');
     const [formTargetAccountId, setFormTargetAccountId] = useState<string>('');
@@ -1304,10 +1305,14 @@ export default function PhoneScanPanel() {
 
             {/* MODAL: Create New Batch Form (Redesigned matching Image 2 Campaign style) */}
             {showCreateForm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+                <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs ${isCreateFormMaximized ? 'p-0' : 'p-4'}`}>
                     <div
-                        className="bg-[#f4f5f8] dark:bg-gray-900 border border-gray-200 dark:border-gray-700/80 rounded-2xl w-full max-w-[1280px] shadow-2xl flex flex-col text-gray-900 dark:text-gray-100 overflow-hidden"
-                        style={{ height: 'min(94vh, 50rem)' }}
+                        className={`bg-[#f4f5f8] dark:bg-gray-900 border border-gray-200 dark:border-gray-700/80 shadow-2xl flex flex-col text-gray-900 dark:text-gray-100 overflow-hidden transition-all duration-200 ${
+                            isCreateFormMaximized
+                                ? 'w-full h-full max-w-none max-h-none rounded-none'
+                                : 'rounded-2xl w-full max-w-[1280px]'
+                        }`}
+                        style={{ height: isCreateFormMaximized ? '100vh' : 'min(94vh, 50rem)' }}
                     >
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-3.5 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 bg-[#f4f5f8] dark:bg-gray-900">
@@ -1319,15 +1324,33 @@ export default function PhoneScanPanel() {
                                     ⚠️ Tránh quét dồn dập nhiều số điện thoại cùng lúc để hạn chế bị khóa tài khoản.
                                 </span>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowCreateForm(false)}
-                                className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800 transition-all"
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                                </svg>
-                            </button>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCreateFormMaximized(!isCreateFormMaximized)}
+                                    title={isCreateFormMaximized ? "Thu nhỏ lại" : "Mở rộng full màn hình"}
+                                    className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800 transition-all"
+                                >
+                                    {isCreateFormMaximized ? (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                                        </svg>
+                                    ) : (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                                        </svg>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreateForm(false)}
+                                    className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800 transition-all"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Modal Body: 2-column layout matching Image 2 */}

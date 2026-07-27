@@ -311,32 +311,88 @@ function BirthdayFilterDropdown({ value, onChange }: {
     { key: 'no_birthday', label: 'Chưa có', icon: '❌' },
   ];
 
-  const current = OPTIONS.find(o => o.key === value);
+  const getLabel = () => {
+    if (value.startsWith('month_')) {
+      const m = value.replace('month_', '');
+      return `🎂 Tháng ${m}`;
+    }
+    if (value.startsWith('year_')) {
+      const y = value.replace('year_', '');
+      return `🎂 Năm ${y}`;
+    }
+    const found = OPTIONS.find(o => o.key === value);
+    return found ? `${found.icon} ${found.label}` : '🎂 Sinh nhật';
+  };
+
   const isActive = value !== 'all';
+  const YEARS = Array.from({ length: 101 }, (_, i) => 1950 + i);
 
   return (
     <div ref={ref} className="relative flex-shrink-0">
       <button onClick={() => setOpen(v => !v)}
         className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors ${
-          isActive ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-600 text-gray-400 hover:border-gray-500'
+          isActive ? 'bg-blue-600 border-blue-600 text-white font-medium' : 'border-gray-600 text-gray-400 hover:border-gray-500'
         }`}>
-        {isActive ? `${current?.icon} ${current?.label}` : '🎂 Sinh nhật'}
+        {getLabel()}
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="ml-0.5">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
+
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[180px] overflow-hidden">
-          {OPTIONS.map(opt => (
-            <button key={opt.key} onClick={() => { onChange(opt.key); setOpen(false); }}
-              className={`w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-700 text-left transition-colors ${
-                value === opt.key ? 'bg-gray-700/60' : ''
-              }`}>
-              <span className="text-xs">{opt.icon}</span>
-              <span className="text-xs text-gray-200">{opt.label}</span>
-              {value === opt.key && <span className="ml-auto text-blue-400 text-[11px]">✓</span>}
-            </button>
-          ))}
+        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[240px] p-2.5 space-y-2 text-xs">
+          {/* Lọc Nhanh */}
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Lọc nhanh</div>
+          <div className="grid grid-cols-2 gap-1">
+            {OPTIONS.map(opt => (
+              <button key={opt.key} onClick={() => { onChange(opt.key); setOpen(false); }}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left transition-colors ${
+                  value === opt.key ? 'bg-blue-600/30 text-blue-300 font-semibold border border-blue-500/40' : 'hover:bg-gray-700/60 text-gray-300'
+                }`}>
+                <span>{opt.icon}</span>
+                <span className="truncate">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="border-t border-gray-700 my-1" />
+
+          {/* Lọc Theo Tháng (1 - 12) */}
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Theo Tháng sinh (1 - 12)</div>
+          <div className="grid grid-cols-4 gap-1">
+            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+              const key = `month_${m}` as BirthdayFilter;
+              const isSelected = value === key;
+              return (
+                <button key={m} onClick={() => { onChange(key); setOpen(false); }}
+                  className={`py-1 text-center rounded-md font-semibold transition-colors ${
+                    isSelected ? 'bg-amber-500 text-gray-900 font-bold' : 'bg-gray-700/60 hover:bg-gray-700 text-gray-200'
+                  }`}>
+                  Th{m}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="border-t border-gray-700 my-1" />
+
+          {/* Lọc Theo Năm Sinh (1950 - 2050) */}
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Theo Năm sinh (1950 - 2050)</div>
+          <select
+            value={value.startsWith('year_') ? value.replace('year_', '') : ''}
+            onChange={(e) => {
+              if (e.target.value) {
+                onChange(`year_${e.target.value}` as BirthdayFilter);
+                setOpen(false);
+              }
+            }}
+            className="w-full bg-gray-900 text-gray-100 border border-gray-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+          >
+            <option value="">-- Chọn năm sinh --</option>
+            {YEARS.map(y => (
+              <option key={y} value={y}>Năm {y}</option>
+            ))}
+          </select>
         </div>
       )}
     </div>
