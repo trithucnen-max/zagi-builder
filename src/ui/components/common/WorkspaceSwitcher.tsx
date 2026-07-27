@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useWorkspaceStore, WorkspaceInfo } from '@/store/workspaceStore';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
+import { useEmployeeStore } from '@/store/employeeStore';
 
 /** Build normalized Boss URL — handles both IP:Port and full tunnel URL */
 function buildBossUrl(address: string, port: string): string {
@@ -22,9 +23,18 @@ export default function WorkspaceSwitcher() {
         connectionStatuses, unreadCounts, isSwitching, setIsSwitching,
     } = useWorkspaceStore();
     const { showNotification } = useAppStore();
+    const empMode = useEmployeeStore(s => s.mode);
     const [open, setOpen] = useState(false);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const activeWs = workspaces.find(w => w.id === activeWorkspaceId);
+    const isEmployeeMode = activeWs?.type === 'remote' || empMode === 'employee';
+
+    // On employee accounts: hide Default (Boss) workspace, and hide Add/Manage workspace actions
+    const visibleWorkspaces = isEmployeeMode
+        ? workspaces.filter(ws => ws.id !== 'default')
+        : workspaces;
 
     // ─── Load workspaces on mount ────────────────────────────────────
     const loadWorkspaces = useCallback(async () => {
@@ -88,8 +98,6 @@ export default function WorkspaceSwitcher() {
     // ─── Only show if multi-workspace ────────────────────────────────
     if (workspaces.length <= 1) return null;
 
-    const activeWs = workspaces.find(w => w.id === activeWorkspaceId);
-
     return (
         <div ref={dropdownRef} className="relative">
             {/* Trigger button */}
@@ -134,7 +142,7 @@ export default function WorkspaceSwitcher() {
                 <div className="absolute top-full left-0 mt-1.5 w-64 bg-gray-800 border border-gray-600/60 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
                     {/* Workspace list */}
                     <div className="py-1.5 max-h-64 overflow-y-auto">
-                        {workspaces.map(ws => (
+                        {visibleWorkspaces.map(ws => (
                             <WorkspaceRow
                                 key={ws.id}
                                 workspace={ws}
@@ -146,36 +154,38 @@ export default function WorkspaceSwitcher() {
                         ))}
                     </div>
 
-                    {/* Footer actions */}
-                    <div className="border-t border-gray-700 px-2 py-1.5 space-y-0.5">
-                        {showCreateForm ? (
-                            <CreateWorkspaceInline
-                                onCreated={() => { setShowCreateForm(false); loadWorkspaces(); }}
-                                onCancel={() => setShowCreateForm(false)}
-                            />
-                        ) : (
-                            <>
-                                <button
-                                    onClick={() => setShowCreateForm(true)}
-                                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded-lg transition-colors"
-                                >
-                                    <span>➕</span>
-                                    <span>Thêm workspace...</span>
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setOpen(false);
-                                        window.dispatchEvent(new CustomEvent('nav:view', { detail: { view: 'settings' } }));
-                                        setTimeout(() => window.dispatchEvent(new CustomEvent('nav:settings', { detail: { tab: 'workspace' } })), 80);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded-lg transition-colors"
-                                >
-                                    <span>⚙️</span>
-                                    <span>Quản lý workspace</span>
-                                </button>
-                            </>
-                        )}
-                    </div>
+                    {/* Footer actions (hidden on employee mode) */}
+                    {!isEmployeeMode && (
+                        <div className="border-t border-gray-700 px-2 py-1.5 space-y-0.5">
+                            {showCreateForm ? (
+                                <CreateWorkspaceInline
+                                    onCreated={() => { setShowCreateForm(false); loadWorkspaces(); }}
+                                    onCancel={() => setShowCreateForm(false)}
+                                />
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={() => setShowCreateForm(true)}
+                                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded-lg transition-colors"
+                                    >
+                                        <span>➕</span>
+                                        <span>Thêm workspace...</span>
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setOpen(false);
+                                            window.dispatchEvent(new CustomEvent('nav:view', { detail: { view: 'settings' } }));
+                                            setTimeout(() => window.dispatchEvent(new CustomEvent('nav:settings', { detail: { tab: 'workspace' } })), 80);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded-lg transition-colors"
+                                    >
+                                        <span>⚙️</span>
+                                        <span>Quản lý workspace</span>
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

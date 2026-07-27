@@ -953,8 +953,11 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Kiểm tra license: nếu chưa kích hoạt → mở license popup thay vì app chính
-  if (licenseManager.needsActivation()) {
+  // Kiểm tra license: nếu chưa kích hoạt → mở license popup (trừ khi thiết bị đang chạy Workspace Nhân Viên)
+  const activeWsForBoot = WorkspaceManager.getInstance().getActiveWorkspace();
+  const isEmployeeModeBoot = activeWsForBoot && activeWsForBoot.type === 'remote';
+
+  if (licenseManager.needsActivation() && !isEmployeeModeBoot) {
     createLicenseWindow(async () => {
       if (!mainWindow) {
         createWindow();
@@ -1332,7 +1335,10 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  if (licenseManager.needsActivation()) {
+  const activeWsForBoot = WorkspaceManager.getInstance().getActiveWorkspace();
+  const isEmployeeModeBoot = activeWsForBoot && activeWsForBoot.type === 'remote';
+
+  if (licenseManager.needsActivation() && !isEmployeeModeBoot) {
     const licenseWins = BrowserWindow.getAllWindows().filter(w => w.getTitle() && w.getTitle().includes('Kích hoạt bản quyền'));
     if (licenseWins.length === 0) {
       createLicenseWindow(async () => {
