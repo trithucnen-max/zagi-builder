@@ -1,53 +1,63 @@
-# 🔑 Hệ thống Quản lý Bản quyền (License Management System) - Zagi v3.0.6
+# 🔑 Hệ thống Quản lý Bản quyền & Đại Lý Affiliate (License & Affiliate System) - Zagi v3.0.7
 
-Tài liệu này mô tả chi tiết kiến trúc, luồng hoạt động, cấu trúc dữ liệu và cơ chế bảo mật của hệ thống quản lý bản quyền **Supabase Hybrid Cloud Engine** trên ứng dụng **Zagi v3.0.6**.
+Tài liệu này mô tả chi tiết kiến trúc, luồng hoạt động, cấu trúc dữ liệu CSDL Supabase và cơ chế Đại Lý & Hoa Hồng (Affiliate System) Win-Win trên ứng dụng **Zagi v3.0.7**.
 
 ---
 
 ## 1. Tổng quan Kiến trúc (Architecture Overview)
 
-Hệ thống quản lý bản quyền của Zagi v3.0.6 hoạt động theo mô hình **Local-first kết hợp Supabase Native REST API & Edge Functions**, bao gồm ba thành phần chính:
+Hệ thống quản lý bản quyền & đại lý của Zagi v3.0.7 hoạt động theo mô hình **Local-first kết hợp Supabase Native REST API, Edge Functions & Affiliate Engine**, bao gồm bốn thành phần chính:
 
-1. **Client-side (Electron Main Process):** Được điều khiển bởi [LicenseManager.ts](file:///Users/kimtrungduong/Downloads/deplao/src/services/license/LicenseManager.ts). Chịu trách nhiệm mã hóa `safeStorage`, lưu trữ thông tin bản quyền cục bộ (`license.dat`), khóa thiết bị phần cứng `boss_machine_id`, thực thi giới hạn `max_employees` / `max_zalo_accounts`, và kiểm soát quyền truy cập.
-2. **Supabase Database & Dynamic Pricing:** Toàn bộ bản quyền (188+ khách hàng) được lưu trữ tại bảng `licenses`. Bảng giá động được lưu tại bảng `plans` của Supabase Project `paxejunvgfhjdyulzutb.supabase.co`. Tốc độ phản hồi API cực nhanh (**~0.05 giây**).
-3. **SePay Webhook & Auto Activation (Edge Function 24/7):** Edge Function `sepay-webhook` nhận dữ liệu chuyển khoản MB Bank `422777999` từ SePay.vn 24/7/365, tự động đổi `status = 'active'` cho khách hàng trong 1-2 giây ngay sau khi thanh toán.
+1. **Client-side (Electron Main Process):** Được điều khiển bởi [LicenseManager.ts](file:///Users/kimtrungduong/Downloads/zagi/src/services/license/LicenseManager.ts). Chịu trách nhiệm mã hóa `safeStorage`, lưu trữ thông tin bản quyền cục bộ (`license.dat`), khóa thiết bị phần cứng `boss_machine_id`, thực thi giới hạn `max_employees` / `max_zalo_accounts`, và kiểm soát quyền truy cập.
+2. **Supabase Database & Dynamic Pricing:** Toàn bộ bản quyền được lưu trữ tại bảng `licenses`. Bảng giá động lưu tại bảng `plans`. Hệ thống đại lý & hoa hồng lưu tại 4 bảng (`partner_tiers`, `partners`, `commissions`, `payout_cycles`). Tốc độ phản hồi API cực nhanh (**~0.05 giây**).
+3. **SePay Webhook & Auto Activation (Edge Function 24/7):** Edge Function `sepay-webhook` nhận dữ liệu chuyển khoản MB Bank `422777999` từ SePay.vn 24/7/365, tự động đổi `status = 'active'` cho khách hàng trong 1-2 giây ngay sau khi thanh toán và tự động tính hoa hồng cho Đại lý.
+4. **Affiliate & Referral Engine (Win-Win):** Sử dụng **Số điện thoại** làm Mã giới thiệu. Người mua nhập mã được **TẶNG THÊM 1 THÁNG** sử dụng; Đại lý nhận hoa hồng trọn đời từ **15% đến 45%** (Trần ngân sách 60%), thanh toán định kỳ vào **ngày 10 hàng tháng**.
 
 ```mermaid
 graph TD
-    A[Zagi Client App] -->|1. REST API Verify / Register (0.05s)| B[Supabase Cloud Database]
+    A[Zagi Client App / Landing Page] -->|1. REST API Verify / Register (0.05s)| B[Supabase Cloud Database]
     A -->|2. Encrypt safeStorage| C[(license.dat)]
     D[Khách quét VietQR MB Bank 422777999] -->|3. Tiền vào MB Bank| E[SePay.vn Gateway]
     E -->|4. HTTP POST Webhook (24/7)| F[Supabase Edge Function: sepay-webhook]
     F -->|5. Auto PATCH status='active'| B
-    F -->|6. Trigger Mail Notice| G[Google Mail Service]
+    F -->|6. Calculate Commission & Insert| H[Supabase Commissions Table]
+    F -->|7. Trigger Mail Notice info@zagi.vn| G[Google Mail Service]
 ```
 
 ---
 
 ## 2. Cấu hình & Kết nối API (API Configuration)
 
-Thông tin kết nối Supabase Cloud được quản lý động qua `LicenseManager.ts`:
+Thông tin kết nối Supabase Cloud & Support Email được quản lý động qua `LicenseManager.ts`:
 
 *   **Supabase URL:** `https://paxejunvgfhjdyulzutb.supabase.co`
 *   **Supabase Key:** `sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo`
+*   **Email Hỗ Trợ Chính Thức:** `info@zagi.vn`
 *   **Edge Function Webhook:** `https://paxejunvgfhjdyulzutb.supabase.co/functions/v1/sepay-webhook`
 *   **Ngân hàng nhận thanh toán:**
     *   **Ngân hàng:** MB Bank (Ngân hàng Quân Đội)
     *   **Số tài khoản:** `422777999`
     *   **Tên tài khoản:** `CONG TY CO PHAN BASAN`
-    *   **VietQR Format:** `https://img.vietqr.io/image/MB-422777999-compact2.png...`
 
 ---
 
-## 3. Các Luồng Nghiệp Vụ Chính (Core Workflows)
+## 3. Danh Sách Gói Cước & Chính Sách Đại Lý (Plans & Affiliate Policy)
 
-### 3.1. Đăng ký Dùng Thử 14 Ngày (`trial`)
-*   Khách chọn gói dùng thử 14 ngày (`trial`).
-*   System tự động sinh key `ZAGI-TRIAL-XXXX-YYYY`.
-*   Tự động tính ngày hết hạn: `Expiry Date = NOW() + 14 ngày`.
-*   Lưu dòng mới lên Supabase với `status = 'active'`, tự động gán `boss_machine_id` máy Sếp.
+### 3.1. Các Gói Dịch Vụ Chuẩn (v3.0.7)
+*   **Gói Dùng Thử 14 Ngày (`trial_14d`):** 0đ (Đầy đủ tính năng, 1 Máy Sếp + 1 Máy Nhân viên).
+*   **Gói Solo 6 Tháng (`solo_6m`):** 990.000đ.
+*   **Gói Solo 12 Tháng (`solo_12m`):** 1.690.000đ.
+*   **Gói Solo 5 Năm (`solo_5y`):** 4.900.000đ — Sử dụng trọn vẹn 5 năm (1.825 ngày).
+*   **Gói Team 6 Tháng (`team_6m`):** 4.900.000đ (1 Máy Sếp + 5 Máy Nhân viên).
+*   **Gói Team 12 Tháng (`team_12m`):** 8.900.000đ.
+*   **Gói Team 5 Năm (`team_5y`):** 14.900.000đ.
 
-### 3.2. Đăng ký Gói Trả Phí (`solo_6m`, `solo_12m`, `solo_lifetime`, `team_6m`, `team_12m`, `team_lifetime`)
+### 3.2. Cấp Bậc Đại Lý & Tỷ Lệ Hoa Hồng (`partner_tiers`)
+*   **Cộng Tác Viên (`ctv`):** 15% Hoa hồng trực tiếp | Doanh số tích lũy: 0đ.
+*   **Đại Lý (`dl`):** 25% Hoa hồng trực tiếp | 5% Hoa hồng đè F2 | Doanh số tích lũy: 5.000.000đ.
+*   **Tổng Đại Lý (`tdl`):** 35% Hoa hồng trực tiếp | 10% Hoa hồng đè F2 | Doanh số tích lũy: 30.000.000đ.
+*   **Nhà Phân Phối (`npp`):** 45% Hoa hồng trực tiếp | 15% Hoa hồng đè F2 | Doanh số tích lũy: 100.000.000đ.
+*   **Chu Kỳ Đối Soát & Thanh Toán:** Ngày **10 hàng tháng** (qua view `view_partner_payout_summary`).
 *   Khách chọn gói trả phí ➔ Nhập Email, Họ tên, SĐT.
 *   System tạo key `ZAGI-XXXX-YYYY-ZZZZ` trên Supabase với `status = 'pending'`.
 *   Hiển thị mã VietQR MB Bank `422777999` với số tiền tương ứng và nội dung chuyển khoản `ZAGI <SHORT_KEY>`.

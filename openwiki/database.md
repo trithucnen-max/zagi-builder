@@ -55,8 +55,17 @@ EmployeeService.getInstance().pinToCurrentDb();
 | `phone_scan_items` | Danh sách SĐT trong lô quét. Fields: id, batch_id, phone, phone_normalized, status, scanned_by_account_id |
 | `workflow_checkpoints` | Persistent checkpoints cho workflow. Fields: id, workflow_id, workflow_name, triggered_by, run_id, resume_at, created_at, resume_node_id, wait_label, context_json, status, error_message |
 
+## Supabase Cloud Tables & Affiliate Engine (v3.0.7)
 
-## Query Pattern for Multi-Account
+| Table / View | Engine | Purpose |
+|---|---|---|
+| `licenses` | Supabase REST API | Quản lý bản quyền (188+ khách hàng), gán `boss_machine_id`, `plan_code`, `status`, `expires_at` |
+| `plans` | Supabase REST API | Bảng giá cước động (Gói Solo 5 Năm, Team 5 Năm, Trial 14d) |
+| `partner_tiers` | Supabase REST API | Cấp bậc Đại lý & Hoa hồng: `ctv` (15%), `dl` (25%), `tdl` (35%), `npp` (45%) |
+| `partners` | Supabase REST API | Mã giới thiệu Đại lý (PK: SĐT), `tier_code`, `parent_phone`, `is_manual_tier` |
+| `commissions` | Supabase REST API | Lịch sử hoa hồng trọn đời (F1 direct / F2 override), trạng thái `pending_payout` |
+| `payout_cycles` | Supabase REST API | Lịch đối soát & thanh toán hoa hồng định kỳ vào **ngày 10 hàng tháng** |
+| `view_partner_payout_summary` | Supabase SQL View | View thống kê tổng hợp tiền hoa hồng chờ thanh toán cho Admin 1-click |
 
 Hầu hết query đều filter theo `owner_zalo_id`:
 ```sql
