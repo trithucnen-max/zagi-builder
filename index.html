@@ -1938,8 +1938,6 @@ function openCheckout(planCode) {
   document.getElementById('checkout-modal').classList.add('active');
 }
 
-}
-
 function updateSubmitBtnText(planCode) {
   const btn = document.getElementById('submit-btn');
   if (!btn) return;
@@ -1965,6 +1963,7 @@ function closeCheckout() {
 // genKey() đã bị xóa — key bây giờ được sinh bằng crypto.randomUUID() phía Edge Function
 
 async function submitOrder() {
+  hideErr();
   const name     = document.getElementById('cust-name').value.trim();
   const email    = document.getElementById('cust-email').value.trim().toLowerCase();
   const phone    = document.getElementById('cust-phone').value.trim();
