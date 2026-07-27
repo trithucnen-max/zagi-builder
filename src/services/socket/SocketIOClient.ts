@@ -99,6 +99,34 @@ class SocketIOClient {
     this.socket.on('error', (err) => {
       Logger.warn(`[SocketIOClient] Error: ${err.message}`);
     });
+
+    // ─── Auto reconnect on Wake-up / Network Recovery ─────────────
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      const handleWakeup = () => {
+        if (this.socket && !this.socket.connected && this.bossUrl && this.token) {
+          Logger.log(`[SocketIOClient] ⚡ System wake-up / network back online -> reconnecting to ${this.bossUrl}`);
+          this.socket.connect();
+        }
+      };
+      window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') handleWakeup();
+      });
+      window.addEventListener('online', handleWakeup);
+    }
+  }
+
+  /**
+   * Chủ động ép thử kết nối lại ngay lập tức nếu đang ngắt
+   */
+  public reconnectIfNeeded(): void {
+    if (this.socket) {
+      if (!this.socket.connected) {
+        Logger.log(`[SocketIOClient] 🔄 Manual reconnect trigger to ${this.bossUrl}`);
+        this.socket.connect();
+      }
+    } else if (this.bossUrl && this.token) {
+      this.connect(this.bossUrl, this.token);
+    }
   }
 
   /**

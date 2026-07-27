@@ -1461,7 +1461,8 @@ export default class ZaloService {
 
             const payload: any = {
                 voiceUrl,
-                ttl: voiceOptions.ttl || 0
+                ttl: voiceOptions.ttl || 0,
+                duration: (voiceOptions as any).duration || (voiceOptions as any).dur || (voiceOptions as any).paramsDuration || 5000,
             };
 
             if (quoteParsed) {

@@ -151,8 +151,15 @@ function isVideoType(msgType: string): boolean {
   return msgType === 'chat.video.msg' || msgType === 'video';
 }
 
-function isVoiceType(msgType: string): boolean {
-  return msgType === 'chat.voice' || msgType === 'audio';
+function isVoiceType(msgType: string, content?: string): boolean {
+  if (['chat.voice', 'voice', 'audio'].includes(msgType)) return true;
+  if (content && typeof content === 'string') {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed?.href && (parsed.href.includes('.aac') || parsed.href.includes('.m4a') || parsed.href.includes('.mp3'))) return true;
+    } catch {}
+  }
+  return false;
 }
 
 function isLocationType(msgType: string): boolean {
@@ -1126,11 +1133,15 @@ function EcardBubble({ msg, onManage }: { msg: any; onManage?: () => void }) {
   );
 }
 
-function LinkBubble({ parsed, isSelf }: { parsed: any; isSelf: boolean }) {
+function LinkBubble({ parsed, msgContent, isSelf }: { parsed: any; msgContent?: string; isSelf: boolean }) {
   const params = (() => { try { const p = parsed.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
-  const href = String(parsed.href || parsed.url || parsed.link || params.rawUrl || parsed.title || '');
-  const title = String(params.mediaTitle || parsed.title || href || 'Liên kết');
-  const domain = String(params.src || (href.startsWith('http') ? new URL(href).hostname : ''));
+  let href = String(parsed.href || parsed.url || parsed.link || params.rawUrl || (parsed.title && String(parsed.title).startsWith('http') ? parsed.title : '') || '');
+  if (!href && msgContent) {
+    const match = String(msgContent).match(/https?:\/\/[^\s"':<>]+/i);
+    if (match) href = match[0];
+  }
+  const title = String(params.mediaTitle || parsed.title || href || 'Liên kết chia sẻ');
+  const domain = String(params.src || (href.startsWith('http') ? (() => { try { return new URL(href).hostname; } catch { return ''; } })() : ''));
   const thumb = String(parsed.thumb || params.thumb || '');
   const description = String(params.mediaDesc || parsed.description || '');
 
@@ -1464,8 +1475,14 @@ function CardBubble({ msg, isSelf, onOpenProfile }: { msg: any; isSelf: boolean;
     parsed = msg.content;
   }
   const action = String(parsed.action || '');
-  const isLinkMsg = action.includes('link') || parsed.href || parsed.url || parsed.link || (parsed.title && (String(parsed.title).startsWith('http://') || String(parsed.title).startsWith('https://')));
-  if (isLinkMsg) return <LinkBubble parsed={parsed} isSelf={isSelf} />;
+  const mt = String(msg.msgType || msg.msg_type || '');
+
+  // Nếu msgType là share.link/chat.link/link HOẶC content chứa link/action link → Ép chắc chắn vào LinkBubble
+  const isLinkMsg = mt === 'share.link' || mt === 'chat.link' || mt === 'link' ||
+    action.includes('link') || parsed.href || parsed.url || parsed.link ||
+    (parsed.title && (String(parsed.title).startsWith('http://') || String(parsed.title).startsWith('https://')));
+
+  if (isLinkMsg) return <LinkBubble parsed={parsed} msgContent={msg.content} isSelf={isSelf} />;
   if (action.includes('calltime') || action.includes('misscall')) return <CallBubble parsed={parsed} isSelf={isSelf} />;
   return <ContactCardBubble parsed={parsed} isSelf={isSelf} onOpenProfile={onOpenProfile} />;
 }
@@ -2022,7 +2039,7 @@ export function MessageBubble({ msg, isSelf, senderName, onManage, onView, onOpe
   }
 
   // ── Voice ──
-  if (isVoiceType(mt)) {
+  if (isVoiceType(mt, mc)) {
     return (
       <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'} mb-0.5`}>
         <VoiceBubble msg={msg} isSelf={isSelf} />

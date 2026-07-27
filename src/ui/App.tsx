@@ -1016,6 +1016,26 @@ export default function App() {
     return () => unsub?.();
   }, []);
 
+  // ─── Auto Reconnect on Window Wake-up / Online ─────────────
+  useEffect(() => {
+    const handleWakeup = async () => {
+      const activeWs = useWorkspaceStore.getState().activeWorkspace();
+      if (activeWs && activeWs.type === 'remote' && activeWs.bossUrl && activeWs.token) {
+        console.log('[App] ⚡ Window wake-up / network recovery detected -> Triggering connectRemote auto reconnect');
+        await ipc.workspace?.connectRemote?.(activeWs.id, activeWs.bossUrl, activeWs.token);
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') handleWakeup();
+    };
+    window.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('online', handleWakeup);
+    return () => {
+      window.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('online', handleWakeup);
+    };
+  }, []);
+
   // ─── Handle auth expired: token hết hạn → dừng retry loop, yêu cầu login lại ───
   useEffect(() => {
     const unsub = window.electronAPI?.on('workspace:authExpired', (data: any) => {

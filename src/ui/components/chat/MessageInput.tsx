@@ -2361,11 +2361,12 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
             return;
           }
 
-          // Gửi voice message
+          // Gửi voice message kèm thời lượng duration (ms) chính xác
           const quotePayload = buildQuotePayload(replyTo);
+          const voiceDurationMs = Math.max(1000, Math.round((recordingDuration || 5) * 1000));
           await ipc.zalo?.sendVoice({
             auth,
-            options: { voiceUrl },
+            options: { voiceUrl, duration: voiceDurationMs },
             threadId: activeThreadId,
             type: activeThreadType,
             ...(quotePayload ? { quote: quotePayload } : {}),
