@@ -112,7 +112,7 @@ async function main() {
     const newPath = path.join(distDir, m.to);
     if (fs.existsSync(oldPath)) {
       console.log(`  -> Đổi tên: ${m.from} ===> ${m.to}`);
-      fs.copyFileSync(oldPath, newPath);
+      fs.renameSync(oldPath, newPath);
     }
   }
 

@@ -141,25 +141,21 @@ async function main() {
 
   // Verify built macOS files exist
   const distDir = path.join(ROOT_DIR, 'dist-electron-build');
-  const macArmFile = `Zagi v${targetVersion} MacOS M1+ arm64.dmg`;
-  const macIntelFile = `Zagi v${targetVersion} MacOS Intel.dmg`;
   const macArmDotFile = `Zagi.v${targetVersion}.MacOS.M1+.arm64.dmg`;
   const macIntelDotFile = `Zagi.v${targetVersion}.MacOS.Intel.dmg`;
 
-  const macArmPath = path.join(distDir, macArmFile);
-  const macIntelPath = path.join(distDir, macIntelFile);
   const macArmDotPath = path.join(distDir, macArmDotFile);
   const macIntelDotPath = path.join(distDir, macIntelDotFile);
 
-  if (!fs.existsSync(macArmPath) || !fs.existsSync(macIntelPath)) {
+  if (!fs.existsSync(macArmDotPath) || !fs.existsSync(macIntelDotPath)) {
     console.error('❌ Lỗi: Không tìm thấy file DMG sau khi build macOS!');
     rl.close();
     return;
   }
 
   console.log('\n✅ Build macOS thành công:');
-  console.log(`  - ${macArmFile}`);
-  console.log(`  - ${macIntelFile}`);
+  console.log(`  - ${macArmDotFile}`);
+  console.log(`  - ${macIntelDotFile}`);
 
   // 5. Upload macOS binaries to GitHub Release
   console.log(`\n⚡ Bước 5: Tải bản macOS lên GitHub Release...`);
@@ -173,8 +169,20 @@ async function main() {
     }
   }
 
+  // Dọn dẹp các asset cũ có khoảng trắng bị trùng lặp trên GitHub Release (nếu có)
+  const legacySpaceFiles = [
+    `Zagi v${targetVersion} MacOS M1+ arm64.dmg`,
+    `Zagi v${targetVersion} MacOS Intel.dmg`
+  ];
+  for (const legacyName of legacySpaceFiles) {
+    try {
+      execSync(`GH_TOKEN=${GH_TOKEN} gh release delete-asset ${tag} "${legacyName}" -y`, { stdio: 'pipe', cwd: ROOT_DIR });
+      console.log(` 🧹 Đã dọn dẹp asset trùng lặp cũ: ${legacyName}`);
+    } catch {}
+  }
+
   console.log(`Đang tải lên các tệp tin cài đặt macOS vào Release ${tag}...`);
-  const filesToUpload = [macArmPath, macIntelPath, macArmDotPath, macIntelDotPath];
+  const filesToUpload = [macArmDotPath, macIntelDotPath];
   for (const filePath of filesToUpload) {
     if (!fs.existsSync(filePath)) continue;
     const fileName = path.basename(filePath);

@@ -137,14 +137,14 @@ async function main() {
   const version = pkg.version;
 
   const renameMappings = [
-    { from: `Zagi-Setup-${version}-x64.exe`, to: `Zagi v${version} Window.exe` },
-    { from: `Zagi-Setup-${version}-arm64.exe`, to: `Zagi v${version} Surface.exe` },
-    { from: `Zagi-${version}-arm64.dmg`, to: `Zagi v${version} MacOS M1+ arm64.dmg` },
-    { from: `Zagi-${version}.dmg`, to: `Zagi v${version} MacOS Intel.dmg` },
-    { from: `Zagi-${version}-arm64.AppImage`, to: `Zagi v${version} Linux.AppImage` },
-    { from: `Zagi-${version}-x86_64.AppImage`, to: `Zagi v${version} Linux.AppImage` },
-    { from: `zagi_${version}_arm64.deb`, to: `Zagi v${version} Linux Debian.deb` },
-    { from: `zagi_${version}_amd64.deb`, to: `Zagi v${version} Linux Debian.deb` }
+    { from: `Zagi-Setup-${version}-x64.exe`, to: `Zagi.v${version}.Windows.exe` },
+    { from: `Zagi-Setup-${version}-arm64.exe`, to: `Zagi.v${version}.Surface.exe` },
+    { from: `Zagi-${version}-arm64.dmg`, to: `Zagi.v${version}.MacOS.M1+.arm64.dmg` },
+    { from: `Zagi-${version}.dmg`, to: `Zagi.v${version}.MacOS.Intel.dmg` },
+    { from: `Zagi-${version}-arm64.AppImage`, to: `Zagi.v${version}.Linux.arm64.AppImage` },
+    { from: `Zagi-${version}-x86_64.AppImage`, to: `Zagi.v${version}.Linux.x86_64.AppImage` },
+    { from: `zagi_${version}_arm64.deb`, to: `Zagi.v${version}.Linux.arm64.deb` },
+    { from: `zagi_${version}_amd64.deb`, to: `Zagi.v${version}.Linux.amd64.deb` }
   ];
 
   for (const m of renameMappings) {
@@ -152,7 +152,7 @@ async function main() {
     const newPath = path.join(distDir, m.to);
     if (fs.existsSync(oldPath)) {
       console.log(`  -> Đổi tên: ${m.from} ===> ${m.to}`);
-      fs.copyFileSync(oldPath, newPath);
+      fs.renameSync(oldPath, newPath);
     }
   }
 
