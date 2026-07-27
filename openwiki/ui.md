@@ -137,3 +137,14 @@ const isLight = resolved === 'light';
 2. **Click-to-Edit Content Box**: Trong `CampaignDetail.tsx`, người dùng có thể nhấp trực tiếp vào box **Template tin nhắn / Nội dung chiến dịch** hoặc nút **Sửa chiến dịch** để lập tức mở modal chỉnh sửa `CampaignCreateModal.tsx`.
 3. **Clean Layout**: Đã loại bỏ khối banner quảng cáo ở chân trang danh sách chiến dịch để tối ưu không gian hiển thị danh sách.
 4. **Vibrant 4-Stat Cards Dashboard**: Giao diện **BÁO CÁO CHIẾN DỊCH** trong `CampaignDetail.tsx` được thiết kế lại dạng 4 Thẻ Gradient nổi bật (Tổng số - Blue, Thành công - Green, Thất bại - Red, Đang chờ - Orange) với icon lồng Glassmorphism và hình chìm Watermark cực kỳ sang trọng.
+
+---
+
+## Employee Mode Security & UX Isolation
+
+**Files:** `src/ui/components/common/WorkspaceSwitcher.tsx`, `src/ui/components/settings/Settings.tsx`, `electron/main.ts`
+
+### Key Security & UX Enhancements for Employee Mode
+1. **Workspace Selector Isolation**: Khi chạy ở Chế độ Nhân viên (`type === 'remote'` hoặc `empMode === 'employee'`), `WorkspaceSwitcher.tsx` tự động ẩn workspace **Default (Boss)**, đồng thời ẩn nút **➕ Thêm workspace...** và **⚙️ Quản lý workspace**.
+2. **Settings Isolation**: Tự động ẩn hẳn tab **🗂️ Lưu trữ (storage)** khỏi menu Cài đặt trên tài khoản nhân viên.
+3. **Seamless Employee Restart**: Khi nhân viên khởi động lại Zagi Desktop, Electron `main.ts` tự động phát hiện active workspace là `remote` và bỏ qua màn hình Onboarding chọn vai trò, mở thẳng giao diện Chế độ Nhân viên mượt mà.
