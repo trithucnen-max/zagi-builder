@@ -121,3 +121,16 @@ const isLight = resolved === 'light';
 ```
 
 > **MUST NOT** đọc `document.documentElement.getAttribute('data-theme')` trực tiếp trong render — DOM không trigger re-render, gây bug "đổi theme phải đóng mở lại mới cập nhật". `data-theme` chỉ là đầu ra cho Tailwind, không phải nguồn đọc cho React.
+
+---
+
+## CRM Campaign UI Workflow
+
+**Files:** `src/ui/components/crm/campaigns/CampaignList.tsx`, `src/ui/components/crm/campaigns/CampaignDetail.tsx`
+
+### Key Highlights
+1. **Quick Actions on Cards**: Mọi card chiến dịch trong `CampaignList.tsx` đều có nút bấm thao tác nhanh:
+   - 📋 **Sao chép / Clone (`onClone`)**: Nhân bản cấu hình chiến dịch thành bản nháp mới.
+   - 🗑️ **Xóa (`onDelete`)**: Xóa chiến dịch kèm hộp thoại xác nhận `showConfirm`.
+2. **Click-to-Edit Content Box**: Trong `CampaignDetail.tsx`, người dùng có thể nhấp trực tiếp vào box **Template tin nhắn / Nội dung chiến dịch** hoặc nút **Sửa chiến dịch** để lập tức mở modal chỉnh sửa `CampaignCreateModal.tsx`.
+3. **Clean Layout**: Đã loại bỏ khối banner quảng cáo ở chân trang danh sách chiến dịch để tối ưu không gian hiển thị danh sách.
