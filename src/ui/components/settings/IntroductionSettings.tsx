@@ -2302,7 +2302,7 @@ const ENRICHED_COMBO_SCENARIOS = [
 ];
 
 function UserGuidePanel() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'crm' | 'workflow' | 'integration' | 'combo'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'roles' | 'crm' | 'workflow' | 'integration' | 'combo'>('overview');
 
   return (
     <div className="space-y-4">
@@ -2310,6 +2310,7 @@ function UserGuidePanel() {
       <div className="flex border-b border-gray-700/60 pb-1 flex-shrink-0 overflow-x-auto gap-0.5">
         {([
           { id: 'overview', icon: 'sparkles' as const, label: 'Tổng quan' },
+          { id: 'roles', icon: 'users' as const, label: 'Sếp & Nhân viên' },
           { id: 'crm', icon: 'crm' as const, label: 'CRM & Nhóm' },
           { id: 'workflow', icon: 'tools' as const, label: 'Workflow' },
           { id: 'integration', icon: 'integration' as const, label: 'Tích hợp' },
@@ -2501,6 +2502,48 @@ function UserGuidePanel() {
               </div>
             ))}
           </>
+        {/* ── Roles Tab (Sếp & Nhân viên) ── */}
+        {activeTab === 'roles' && (
+          <Card>
+            <SectionTitle icon="users">👑 Mô hình Sếp ↔ Nhân viên & Phân quyền Bảo mật (v3.0.7)</SectionTitle>
+            <Paragraph>
+              Zagi hoạt động theo mô hình <strong>Local-first Boss/Employee</strong> cho phép máy Sếp quản lý tập trung và phân quyền an toàn cho đội ngũ Nhân viên làm việc từ xa:
+            </Paragraph>
+
+            <div className="space-y-3 mt-3">
+              <div className="bg-gray-900/60 border border-gray-700/60 rounded-xl p-3.5 space-y-1.5 text-xs">
+                <div className="font-semibold text-blue-400 flex items-center gap-1.5">
+                  <span>👑 Máy BOSS (Sếp / Chủ shop)</span>
+                </div>
+                <p className="text-gray-300">
+                  - Quản lý tài khoản gốc Zalo/Facebook, CSDL SQLite cục bộ và cấp quyền cho Nhân viên.<br/>
+                  - Khởi động lần đầu chọn Máy BOSS <strong>bắt buộc nhập License Key</strong> hoặc nhận Key dùng thử/mua gói.<br/>
+                  - Khi tắt đi bật lại app: Zagi tự động nhận diện và mở thẳng giao diện BOSS mượt mà.
+                </p>
+              </div>
+
+              <div className="bg-gray-900/60 border border-gray-700/60 rounded-xl p-3.5 space-y-1.5 text-xs">
+                <div className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                  <span>💻 Máy Nhân Viên</span>
+                </div>
+                <p className="text-gray-300">
+                  - Kết nối tới máy BOSS qua mạng LAN hoặc Cloudflare Tunnel từ xa.<br/>
+                  - <strong>Không cần License Key</strong>. Màn hình khởi động tự động kết nối và tải phiên làm việc.<br/>
+                  - Giao diện được cô lập bảo mật: Tự động ẩn workspace Default (Boss), nút thêm workspace và tab Lưu trữ CSDL.
+                </p>
+              </div>
+
+              <div className="bg-amber-900/10 border border-amber-500/30 rounded-xl p-3.5 space-y-1.5 text-xs">
+                <div className="font-semibold text-amber-400 flex items-center gap-1.5">
+                  <span>🔄 Chuyển sang máy BOSS (Sếp)</span>
+                </div>
+                <p className="text-gray-300">
+                  - Để chuyển từ Chế độ Nhân viên sang Chế độ BOSS, nhấp vào trạng thái kết nối trên Header TopBar hoặc Cài đặt và chọn <strong>👑 Chuyển sang máy BOSS (Sếp)</strong>.<br/>
+                  - Zagi ngắt kết nối session nhân viên và kích hoạt <strong>License Gate (`popup.html`)</strong> bắt buộc Nhập/Xác thực Key hợp lệ trước khi truy cập Chế độ BOSS.
+                </p>
+              </div>
+            </div>
+          </Card>
         )}
 
       </div>

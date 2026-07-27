@@ -341,5 +341,17 @@ Quản lý tính năng Quét số điện thoại Zalo hàng loạt, phân chia 
 
 ---
 
+## LicenseManager & License Gate (v3.0.7)
+
+**File:** `src/services/license/LicenseManager.ts`, `electron/ipc/licenseIpc.ts`
+**Chạy:** Electron Main Process
+
+### Key Methods & Features
+- `license:switchToBoss` — IPC handler thực thi luồng chuyển từ Chế độ Nhân viên sang Chế độ BOSS. Tự động ngắt kết nối session nhân viên, switch active workspace về `'default'`, kiểm tra bản quyền `licenseManager.needsActivation()`:
+  - Nếu máychưa có Key BOSS hợp lệ: Đóng main window, kích hoạt cửa sổ License Gate (`createLicenseWindow` với `popup.html`) để Sếp thực hiện **Nhập Key** hoặc **Nhận Key** dùng thử/mua gói trước khi được mở app chính Chế độ BOSS.
+  - Nếu máy đã có Key BOSS hợp lệ: Relaunch app để vào trực tiếp Chế độ BOSS.
+- `license:startAsEmployee` — Bỏ qua kích hoạt Key máy BOSS và boot trực tiếp vào Chế độ Nhân viên cho thiết bị của nhân viên.
+
+
 
 

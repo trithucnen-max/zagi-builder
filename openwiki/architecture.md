@@ -124,6 +124,7 @@ zca-js listener (ZaloLoginHelper)
 |---|---|
 | SQLite (better-sqlite3) | Offline-first, single file DB, sync API |
 | Supabase Edge Functions (v3.0.6) | Serverless architecture cho License Checkout, Rate-limit IP & sinh key bảo mật bằng `crypto.randomUUID()` |
+| License Gate & Role Isolation (v3.0.7) | Onboarding phân nhánh BOSS/Nhân viên. BOSS bắt buộc Nhập/Nhận Key (`popup.html`). Nhân viên vào thẳng không cần Key. Nút `👑 Chuyển sang máy BOSS` mở License Gate xác thực Key hợp lệ |
 | Zustand over Redux | Đơn giản hơn, ít boilerplate |
 | ReactFlow | Workflow drag-drop graph editor |
 | Cloudflared tunnel | Nhân viên ở ngoài mạng nội bộ vẫn kết nối Boss |
