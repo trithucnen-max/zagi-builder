@@ -14,8 +14,9 @@
 | HttpClientService | `src/services/http/HttpClientService.ts` | 88KB | HTTP client cho Nhân viên (kết nối tới Boss) |
 | HttpConnectionManager | `src/services/http/HttpConnectionManager.ts` | 13KB | Quản lý HttpClientService instances theo workspace |
 | CRMQueueService | `src/services/crm/CRMQueueService.ts` | 48KB | Campaign gửi tin hàng loạt CRM |
+| PhoneScanService | `src/services/crm/PhoneScanService.ts` | 21KB | Quét SĐT hàng loạt Multi-Account Parallel, Fair Round-Robin Distribution |
 | MessageSchedulerService | `src/services/chat/MessageSchedulerService.ts` | 15KB | Hẹn giờ & tự động gửi tin nhắn Zalo |
-| AIAssistantService | `src/services/ai/AIAssistantService.ts` | 34KB | AI chat assistant tích hợp nhiều provider |
+| AIAssistantService | `src/services/ai/AIAssistantService.ts` | 34KB | AI chat assistant tích hợp Dify Chatbot `app-Shoio3nzmEVuoJJOBUsycsp9` |
 | EmployeeService | `src/services/employee/EmployeeService.ts` | 16KB | Quản lý nhân viên, auth, permissions |
 | DataSyncService | `src/services/employee/DataSyncService.ts` | 30KB | Đồng bộ dữ liệu Boss → Nhân viên (Zalo, ERP, Facebook) |
 | UploadChunkService | `src/services/file/UploadChunkService.ts` | 4KB | Tiếp nhận và ghép nối phân đoạn file upload từ nhân viên |

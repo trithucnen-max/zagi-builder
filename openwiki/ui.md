@@ -40,12 +40,13 @@ Khi Boss có nhiều tài khoản Zalo, events PHẢI được verify trước k
 
 ### `/src/ui/components/`
 
-| Folder | Purpose |
+| Folder / Component | Purpose |
 |---|---|
 | `chat/` | MessageList, MessageInput, ThreadList, TypingIndicator |
-| `crm/` | ContactList, CampaignManager, LabelManager |
+| `crm/` | ContactList, CampaignManager, LabelManager, PhoneScanPanel (Quét SĐT Multi-Account) |
+| `common/GlobalSupportChat.tsx` | Widget Trợ lý AI hỗ trợ Zagi kết nối Dify Chatbot `app-Shoio3nzmEVuoJJOBUsycsp9` (hỗ trợ cả Boss & Employee Web Mode) |
 | `workflow/` | NodeConfigPanel, WorkflowEditor (ReactFlow), NodePicker |
-| `settings/` | AccountSettings, ChangelogSettings, EmployeeSettings |
+| `settings/` | AccountSettings, EmployeeSettings (Ẩn Workspace tab với nhân viên), NotificationSettings |
 | `analytics/` | Dashboard charts (Recharts) |
 | `auth/` | Login screens |
 | `layout/` | Sidebar, Topbar, MainLayout |
