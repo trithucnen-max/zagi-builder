@@ -89,12 +89,12 @@ export default function GlobalSupportChat() {
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant')?.content || '';
 
   return (
-    <div className="fixed bottom-5 right-5 z-[99] flex flex-col items-end pointer-events-none">
+    <div className="fixed bottom-16 right-4 sm:bottom-5 sm:right-5 z-[9999] flex flex-col items-end pointer-events-none">
       {/* Minimized Compact Bar */}
       {isOpen && isMinimized && (
         <div
           onClick={() => setIsMinimized(false)}
-          className="pointer-events-auto w-[320px] h-11 bg-gray-900/95 backdrop-blur border border-blue-500/40 rounded-xl shadow-2xl flex items-center justify-between px-3 mb-3 cursor-pointer hover:bg-gray-850 transition-all text-xs text-gray-200"
+          className="pointer-events-auto w-[calc(100vw-32px)] sm:w-[320px] h-11 bg-gray-900/95 backdrop-blur border border-blue-500/40 rounded-xl shadow-2xl flex items-center justify-between px-3 mb-3 cursor-pointer hover:bg-gray-850 transition-all text-xs text-gray-200"
           title="Bấm để phóng to cửa sổ AI"
         >
           <div className="flex items-center gap-2 overflow-hidden mr-2">
@@ -129,7 +129,7 @@ export default function GlobalSupportChat() {
 
       {/* Full Chat Window */}
       {isOpen && !isMinimized && (
-        <div className="pointer-events-auto w-[380px] sm:w-[420px] h-[520px] max-h-[calc(100vh-100px)] bg-gray-850/98 backdrop-blur border border-gray-700/80 rounded-2xl shadow-2xl flex flex-col mb-3 overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
+        <div className="pointer-events-auto w-[calc(100vw-24px)] sm:w-[420px] h-[520px] max-h-[calc(100vh-100px)] bg-gray-850/98 backdrop-blur border border-gray-700/80 rounded-2xl shadow-2xl flex flex-col mb-3 overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
           {/* Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-blue-600/30 to-indigo-600/20 border-b border-gray-700 flex items-center justify-between">
             <div className="flex items-center gap-2">

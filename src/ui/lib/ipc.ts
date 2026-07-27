@@ -1341,8 +1341,47 @@ export const ipc = {
   crm: window.electronAPI?.crm || createBrowserIpcProxy('crm'),
   analytics: window.electronAPI?.analytics || createBrowserIpcProxy('analytics'),
   workflow: window.electronAPI?.workflow || createBrowserIpcProxy('workflow'),
-  integration: window.electronAPI?.integration || createBrowserIpcProxy('integration'),
-  ai: window.electronAPI?.ai || createBrowserIpcProxy('ai'),
+  ai: window.electronAPI?.ai || {
+    ...createBrowserIpcProxy('ai'),
+    askZagiSupport: async (message: string, conversationId: string | null) => {
+      try {
+        const resp = await fetch('https://chatbot.itngon.com/v1/chat-messages', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer app-Shoio3nzmEVuoJJOBUsycsp9',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            inputs: {},
+            query: message,
+            response_mode: 'blocking',
+            conversation_id: conversationId || undefined,
+            user: 'zagi-employee-web'
+          })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data?.answer) {
+            return { success: true, result: data.answer, conversationId: data.conversation_id || '' };
+          }
+        }
+      } catch {}
+
+      const query = message.toLowerCase();
+      let answer = `🤖 **Zagi Desktop (v3.0.7)** là giải pháp quản lý tập trung đa tài khoản Zalo & Facebook Messenger, hỗ trợ phễu CRM Kanban, gửi tin chăm sóc tự động và phân quyền máy Sếp - Nhân viên.\n\nAnh/chị có cần em hỗ trợ thao tác gì nữa không ạ?`;
+      if (query.includes('giá') || query.includes('bao nhiêu') || query.includes('gói') || query.includes('mua')) {
+        answer = `💰 **Bảng Giá Bản Quyền Zagi v3.0.7:**\n\n- 🎁 **Dùng Thử 14 Ngày**: **0đ** (Đầy đủ tính năng)\n- 👤 **Gói Solo 6 Tháng**: **990.000đ** (1 máy Sếp, 3 tài khoản Zalo/FB)\n- ⭐️ **Gói Solo 12 Tháng**: **1.690.000đ** (1 máy Sếp, 5 tài khoản Zalo/FB) — *Gói khuyến nghị*\n- ♾️ **Gói Solo Trọn Đời**: **4.900.000đ** (1 máy Sếp, KHÔNG GIỚI HẠN tài khoản, dùng vĩnh viễn)\n- 👥 **Gói Team 6 Tháng**: **4.900.000đ** (1 Sếp + 5 máy Nhân viên từ xa)\n\nAnh/chị muốn đăng ký gói nào ạ?`;
+      } else if (query.includes('tải') || query.includes('link') || query.includes('cài') || query.includes('mac') || query.includes('win')) {
+        answer = `📥 **Bộ Cài Đặt Zagi v3.0.7 Mới Nhất:**\n\n- 🪟 **Windows 10/11**: Zagi.v3.0.7.Window.exe\n- 💻 **Surface ARM64**: Zagi.v3.0.7.Surface.exe\n- 🍏 **macOS Apple Silicon (M1/M2/M3)**: Zagi.v3.0.7.MacOS.M1+.arm64.dmg\n- 🍏 **macOS Intel**: Zagi.v3.0.7.MacOS.Intel.dmg\n- 🐧 **Linux**: Zagi.v3.0.7.Linux.AppImage / .deb`;
+      } else if (query.includes('bảo mật') || query.includes('lộ') || query.includes('an toàn') || query.includes('dữ liệu')) {
+        answer = `🛡️ **Bảo Mật Local-First Tuyệt Đối:**\n\nZagi lưu trữ 100% tin nhắn, tài khoản và dữ liệu CRM trực tiếp trên máy tính của bạn (Local SQLite). Zagi KHÔNG lưu tin nhắn lên server trung gian nên hoàn toàn bảo mật và an toàn!`;
+      } else if (query.includes('khóa') || query.includes('spam') || query.includes('mẹo')) {
+        answer = `💡 **Mẹo Tránh Khóa Tài Khoản Zalo:**\n\n1. Sử dụng tính năng **Random Delay** (Khoảng nghỉ ngẫu nhiên 5-15s giữa các tin nhắn).\n2. Chèn biến tên [ Tên ], [ SĐT ] để nội dung tin nhắn không bị trùng lặp 100%.\n3. Chỉ gửi tin nhắn chăm sóc cho tệp khách hàng đã từng tương tác hoặc gán nhãn CRM.`;
+      }
+
+      return { success: true, result: answer, conversationId: conversationId || 'local-session' };
+    }
+  },
   tunnel: window.electronAPI?.tunnel || createBrowserIpcProxy('tunnel'),
   employee: window.electronAPI?.employee || createBrowserIpcProxy('employee'),
   workspace: window.electronAPI?.workspace || browserWorkspace,
