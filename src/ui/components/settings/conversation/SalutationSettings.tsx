@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ipc from '@/lib/ipc';
 import { showConfirm } from '../../common/ConfirmDialog';
-import { applySmartSalutation, DEFAULT_SALUTATION_SELF_REF_MAP } from '@/utils/salutationUtils';
+import { applySmartSalutation, DEFAULT_SALUTATION_SELF_REF_MAP } from '../../../../utils/salutationUtils';
 
 interface RuleItem {
   key: string;   // Xưng hô của khách (lowercase)
