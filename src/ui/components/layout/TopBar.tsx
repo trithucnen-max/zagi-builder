@@ -120,15 +120,18 @@ export default function TopBar() {
 
   const handleSwitchToBossMode = useCallback(async () => {
     try {
-      showNotification('🔄 Đang chuyển sang Chế độ BOSS (Sếp)...', 'info');
+      showNotification('🔄 Đang mở màn hình Kích hoạt / Nhận key máy BOSS...', 'info');
       const activeWs = await ipc.workspace?.getActive?.();
       if (activeWs?.success && activeWs.workspace?.id) {
         await ipc.workspace?.disconnectRemote?.(activeWs.workspace.id);
       }
-      await ipc.workspace?.switch?.('default');
       useEmployeeStore.getState().setMode('boss');
       useEmployeeStore.getState().setBossConnected(false);
-      showNotification('Đã chuyển sang Chế độ BOSS (Sếp) thành công', 'success');
+
+      const res = await ipc.license?.switchToBoss?.();
+      if (!res?.success) {
+        showNotification(res?.error || 'Lỗi chuyển chế độ BOSS', 'error');
+      }
     } catch (err: any) {
       showNotification('Lỗi chuyển chế độ: ' + err.message, 'error');
     } finally {

@@ -97,6 +97,7 @@ export function registerLicenseIpc(startAppCallback?: () => Promise<void>): void
     'license:get',
     'license:getPlans',
     'license:startAsEmployee',
+    'license:switchToBoss',
     'license:logout',
     'license:isInGracePeriod',
     'license:isExpiringSoon',
@@ -203,6 +204,39 @@ export function registerLicenseIpc(startAppCallback?: () => Promise<void>): void
       return { success: true };
     }
     return { success: false, error: 'Không thể khởi động ứng dụng' };
+  });
+
+  // Chuyển từ Chế độ Nhân viên sang Chế độ BOSS:
+  // Luôn bắt buộc kiểm tra Key hoặc hiển thị popup Nhập Key / Nhận Key trước khi vào Chế độ BOSS.
+  ipcMain.handle('license:switchToBoss', async () => {
+    try {
+      const WorkspaceManager = require('../../src/utils/WorkspaceManager').default;
+      const wm = WorkspaceManager.getInstance();
+      wm.setActiveWorkspace('default');
+
+      if (licenseManager.needsActivation()) {
+        const wins = BrowserWindow.getAllWindows();
+        wins.forEach(w => {
+          if (w !== licenseWindow && !w.isDestroyed()) {
+            try { w.close(); } catch {}
+          }
+        });
+        createLicenseWindow(async () => {
+          const { createWindow, createTray, registerWindowControls, startupAfterLicenseCheck } = require('../main');
+          createWindow();
+          createTray();
+          registerWindowControls();
+          startupAfterLicenseCheck();
+        });
+        return { success: true, requiresActivation: true };
+      } else {
+        app.relaunch();
+        app.exit(0);
+        return { success: true, requiresActivation: false };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   });
 
   // Đăng xuất bản quyền → xóa license.dat + database + cache + restart app

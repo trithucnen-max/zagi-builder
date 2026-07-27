@@ -1342,6 +1342,7 @@ export const ipc = {
   crm: window.electronAPI?.crm || createBrowserIpcProxy('crm'),
   analytics: window.electronAPI?.analytics || createBrowserIpcProxy('analytics'),
   workflow: window.electronAPI?.workflow || createBrowserIpcProxy('workflow'),
+  license: (window as any).licenseAPI || createBrowserIpcProxy('license'),
   ai: window.electronAPI?.ai || {
     ...createBrowserIpcProxy('ai'),
     askZagiSupport: async (message: string, conversationId: string | null) => {

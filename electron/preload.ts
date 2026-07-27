@@ -820,6 +820,8 @@ contextBridge.exposeInMainWorld('licenseAPI', {
     ipcRenderer.invoke('license:getPlans'),
   startAsEmployee: () =>
     ipcRenderer.invoke('license:startAsEmployee'),
+  switchToBoss: () =>
+    ipcRenderer.invoke('license:switchToBoss'),
   isInGracePeriod: () =>
     ipcRenderer.invoke('license:isInGracePeriod'),
   isExpiringSoon: () =>
