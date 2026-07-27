@@ -12,6 +12,18 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const BRIDGE_DIR = path.join(ROOT_DIR, 'src', 'bridge-e2ee');
 const BUILD_DIR = path.join(BRIDGE_DIR, 'build');
 
+// Nạp biến môi trường từ .env.local hoặc .env nếu có
+const envLocalPath = path.join(ROOT_DIR, '.env.local');
+if (fs.existsSync(envLocalPath)) {
+  const envConfig = fs.readFileSync(envLocalPath, 'utf8');
+  envConfig.split('\n').forEach(line => {
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*["']?([^"'\r\n]+)["']?/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2];
+    }
+  });
+}
+
 function run(cmd, cwd = ROOT_DIR) {
   console.log(`[build-mac] $ ${cmd} (cwd: ${path.relative(ROOT_DIR, cwd) || '.'})`);
   execSync(cmd, { cwd, stdio: 'inherit' });
