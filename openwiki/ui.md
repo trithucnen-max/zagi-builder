@@ -130,7 +130,9 @@ const isLight = resolved === 'light';
 
 ### Key Highlights
 1. **Quick Actions on Cards**: Mọi card chiến dịch trong `CampaignList.tsx` đều có nút bấm thao tác nhanh:
-   - 📋 **Sao chép / Clone (`onClone`)**: Nhân bản cấu hình chiến dịch thành bản nháp mới.
+   - 📋 **Sao chép / Clone (`onClone`)**: Nhân bản cấu hình chiến dịch thành bản nháp mới qua `CampaignCloneModal.tsx` hỗ trợ 2 tùy chọn:
+     - 👥 **Sao chép CẢ Người Nhận** (`includeContacts: true`): Giữ nguyên kịch bản & danh sách tệp gửi.
+     - 📝 **KHÔNG sao chép Người Nhận** (`includeContacts: false`): Chỉ nhân bản kịch bản & cấu hình, danh sách người nhận trống (0).
    - 🗑️ **Xóa (`onDelete`)**: Xóa chiến dịch kèm hộp thoại xác nhận `showConfirm`.
 2. **Click-to-Edit Content Box**: Trong `CampaignDetail.tsx`, người dùng có thể nhấp trực tiếp vào box **Template tin nhắn / Nội dung chiến dịch** hoặc nút **Sửa chiến dịch** để lập tức mở modal chỉnh sửa `CampaignCreateModal.tsx`.
 3. **Clean Layout**: Đã loại bỏ khối banner quảng cáo ở chân trang danh sách chiến dịch để tối ưu không gian hiển thị danh sách.
