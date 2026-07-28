@@ -75,6 +75,18 @@ function formatPhoneDisplay(phone: string): string {
   return phone;
 }
 
+function formatAccountDisplayName(acc?: any): string {
+  if (!acc) return '';
+  if (acc.full_name && acc.full_name.trim()) return acc.full_name.trim();
+  if (acc.display_name && acc.display_name.trim()) return acc.display_name.trim();
+  if (acc.phone && acc.phone.trim()) return formatPhoneDisplay(acc.phone);
+  const idStr = String(acc.zalo_id || '');
+  if (idStr.length > 8) {
+    return `Zalo (...${idStr.slice(-4)})`;
+  }
+  return idStr || 'Zalo Account';
+}
+
 export default function UnifiedLabelPickerModal({
   open,
   onClose,
@@ -336,7 +348,7 @@ export default function UnifiedLabelPickerModal({
                     <AccountAvatar account={acc as any} size="md" />
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium truncate">
-                        {acc.full_name || acc.display_name || acc.zalo_id}
+                        {formatAccountDisplayName(acc)}
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                         {acc.phone && <span>{formatPhoneDisplay(acc.phone)}</span>}
@@ -510,7 +522,7 @@ export default function UnifiedLabelPickerModal({
                           <div className="flex items-center gap-2 ml-auto">
                             <AccountAvatar account={acc as any} size="sm" />
                             <span className="text-[11px] text-gray-400">
-                              {acc.full_name || acc.display_name || acc.zalo_id}
+                              {formatAccountDisplayName(acc)}
                             </span>
                           </div>
                         )}
