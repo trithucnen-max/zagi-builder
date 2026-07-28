@@ -425,15 +425,15 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
           {/* ── 4 Vibrant Stat Cards Grid (Matching User Mockup) ── */}
           <div className="grid grid-cols-4 gap-3">
             {/* Thẻ 1: TỔNG SỐ (Blue Gradient) */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-md flex items-center justify-between select-none">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-blue-600 to-blue-700 !text-white shadow-md flex items-center justify-between select-none" style={{ color: '#ffffff' }}>
               {/* Background Watermark SVG */}
               <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
               </svg>
 
               <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
+                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 !text-white flex items-center justify-center flex-shrink-0 shadow-sm" style={{ color: '#ffffff' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" className="text-white">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                     <circle cx="9" cy="7" r="4" />
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -441,70 +441,70 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-black text-white uppercase tracking-wider">Tổng số</p>
-                  <p className="text-2xl font-black text-white leading-none mt-1">{stats.total || campaign.total_contacts || 0}</p>
+                  <p className="text-xs font-black !text-white uppercase tracking-wider" style={{ color: '#ffffff' }}>Tổng số</p>
+                  <p className="text-2xl font-black !text-white leading-none mt-1" style={{ color: '#ffffff' }}>{stats.total || campaign.total_contacts || 0}</p>
                 </div>
               </div>
             </div>
 
             {/* Thẻ 2: THÀNH CÔNG (Green Gradient) */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md flex items-center justify-between select-none">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-500 to-teal-600 !text-white shadow-md flex items-center justify-between select-none" style={{ color: '#ffffff' }}>
               {/* Background Watermark SVG */}
               <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
               </svg>
 
               <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 !text-white flex items-center justify-center flex-shrink-0 shadow-sm" style={{ color: '#ffffff' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="text-white">
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-black text-white uppercase tracking-wider">Thành công</p>
-                  <p className="text-2xl font-black text-white leading-none mt-1">{stats.sentCount || campaign.sent_count || 0}</p>
+                  <p className="text-xs font-black !text-white uppercase tracking-wider" style={{ color: '#ffffff' }}>Thành công</p>
+                  <p className="text-2xl font-black !text-white leading-none mt-1" style={{ color: '#ffffff' }}>{stats.sentCount || campaign.sent_count || 0}</p>
                 </div>
               </div>
             </div>
 
             {/* Thẻ 3: THẤT BẠI (Red Gradient) */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-md flex items-center justify-between select-none">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-rose-500 to-red-600 !text-white shadow-md flex items-center justify-between select-none" style={{ color: '#ffffff' }}>
               {/* Background Watermark SVG */}
               <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
               </svg>
 
               <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 !text-white flex items-center justify-center flex-shrink-0 shadow-sm" style={{ color: '#ffffff' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="text-white">
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-black text-white uppercase tracking-wider">Thất bại</p>
-                  <p className="text-2xl font-black text-white leading-none mt-1">{stats.failedCount || campaign.failed_count || 0}</p>
+                  <p className="text-xs font-black !text-white uppercase tracking-wider" style={{ color: '#ffffff' }}>Thất bại</p>
+                  <p className="text-2xl font-black !text-white leading-none mt-1" style={{ color: '#ffffff' }}>{stats.failedCount || campaign.failed_count || 0}</p>
                 </div>
               </div>
             </div>
 
             {/* Thẻ 4: ĐANG CHỜ (Orange Gradient) */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md flex items-center justify-between select-none">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-orange-600 !text-white shadow-md flex items-center justify-between select-none" style={{ color: '#ffffff' }}>
               {/* Background Watermark SVG */}
               <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4zM10 6L8 8V4h8v4l-2-2h-4z"/>
               </svg>
 
               <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
+                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 !text-white flex items-center justify-center flex-shrink-0 shadow-sm" style={{ color: '#ffffff' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" className="text-white">
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-black text-white uppercase tracking-wider">Đang chờ</p>
-                  <p className="text-2xl font-black text-white leading-none mt-1">{stats.pendingCount + stats.sendingCount}</p>
+                  <p className="text-xs font-black !text-white uppercase tracking-wider" style={{ color: '#ffffff' }}>Đang chờ</p>
+                  <p className="text-2xl font-black !text-white leading-none mt-1" style={{ color: '#ffffff' }}>{stats.pendingCount + stats.sendingCount}</p>
                 </div>
               </div>
             </div>
