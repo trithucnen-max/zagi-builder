@@ -619,10 +619,10 @@ export function registerCRMIpc(): void {
         }
     });
 
-    ipcHandle('crm:getPhoneScanOverallStats', async (_e, { timeRange }: any = {}) => {
+    ipcHandle('crm:getPhoneScanOverallStats', async (_e, { timeRange, startDate, endDate }: any = {}) => {
         try {
             const db = DatabaseService.getInstance();
-            return { success: true, stats: db.getPhoneScanOverallStats(timeRange) };
+            return { success: true, stats: db.getPhoneScanOverallStats(timeRange, startDate, endDate) };
         } catch (err: any) {
             return { success: false, error: err.message };
         }

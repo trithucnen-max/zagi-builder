@@ -107,8 +107,11 @@ export default function PhoneScanPanel() {
     // Local Labels (Tags)
     const [localLabels, setLocalLabels] = useState<any[]>([]);
     const [limitStatusList, setLimitStatusList] = useState<any[]>([]);
-    const [scanTimeFilter, setScanTimeFilter] = useState<'all' | 'today' | 'this_week' | 'this_month'>('all');
-    const [filteredStats, setFilteredStats] = useState<{ total: number; scanned: number; found: number; notFound: number; error: number; pending: number } | null>(null);
+    const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+    const [scanTimeFilter, setScanTimeFilter] = useState<'all' | 'today' | 'this_week' | 'this_month' | 'custom'>('all');
+    const [customStartDate, setCustomStartDate] = useState<string>(todayStr);
+    const [customEndDate, setCustomEndDate] = useState<string>(todayStr);
+    const [filteredStats, setFilteredStats] = useState<{ total: number; scanned: number; found: number; notFound: number; error: number; pending: number; startTimestamp?: number; endTimestamp?: number } | null>(null);
     const accounts = useAccountStore(s => s.accounts);
     const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
 
@@ -124,6 +127,15 @@ export default function PhoneScanPanel() {
             pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
         }));
     }, [localLabels]);
+
+    const timeFilteredBatches = useMemo(() => {
+        if (scanTimeFilter === 'all' || !filteredStats?.startTimestamp || !filteredStats?.endTimestamp) {
+            return batches;
+        }
+        const start = filteredStats.startTimestamp;
+        const end = filteredStats.endTimestamp;
+        return batches.filter(b => b.created_at >= start && b.created_at <= end);
+    }, [batches, scanTimeFilter, filteredStats]);
     
     // Drag & Drop reorder state
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -742,8 +754,28 @@ export default function PhoneScanPanel() {
                                 <option value="today" className="bg-white dark:bg-gray-900">🎁 Hôm nay</option>
                                 <option value="this_week" className="bg-white dark:bg-gray-900">📆 Tuần này</option>
                                 <option value="this_month" className="bg-white dark:bg-gray-900">🎉 Tháng này</option>
+                                <option value="custom" className="bg-white dark:bg-gray-900">📅 Tùy chọn khoảng thời gian...</option>
                             </select>
                         </div>
+
+                        {scanTimeFilter === 'custom' && (
+                            <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border border-blue-500/40 rounded-lg px-2.5 py-1 text-xs">
+                                <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Từ:</span>
+                                <input
+                                    type="date"
+                                    value={customStartDate}
+                                    onChange={(e) => setCustomStartDate(e.target.value)}
+                                    className="bg-gray-200 dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded px-1.5 py-0.5 text-xs font-mono focus:outline-none focus:border-blue-500 cursor-pointer"
+                                />
+                                <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Đến:</span>
+                                <input
+                                    type="date"
+                                    value={customEndDate}
+                                    onChange={(e) => setCustomEndDate(e.target.value)}
+                                    className="bg-gray-200 dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded px-1.5 py-0.5 text-xs font-mono focus:outline-none focus:border-blue-500 cursor-pointer"
+                                />
+                            </div>
+                        )}
 
                         <button
                             onClick={() => setShowCreateForm(true)}
@@ -765,26 +797,31 @@ export default function PhoneScanPanel() {
                                 acc.found += b.found_count;
                                 acc.notFound += b.not_found_count;
                                 acc.error += b.error_count;
+                                acc.pending += Math.max(0, b.total_count - b.scanned_count);
                                 return acc;
                             },
-                            { total: 0, scanned: 0, found: 0, notFound: 0, error: 0 }
+                            { total: 0, scanned: 0, found: 0, notFound: 0, error: 0, pending: 0 }
                         );
 
                         const totals = (scanTimeFilter !== 'all' && filteredStats) ? filteredStats : batchTotals;
                         const progress = totals.total > 0 ? Math.round((totals.scanned / totals.total) * 100) : 0;
-                        const timeLabel = scanTimeFilter === 'today' ? '(HÔM NAY)' : scanTimeFilter === 'this_week' ? '(TUẦN NÀY)' : scanTimeFilter === 'this_month' ? '(THÁNG NÀY)' : '';
+                        const timeLabel = scanTimeFilter === 'today' ? '(HÔM NAY)'
+                                        : scanTimeFilter === 'this_week' ? '(TUẦN NÀY)'
+                                        : scanTimeFilter === 'this_month' ? '(THÁNG NÀY)'
+                                        : scanTimeFilter === 'custom' ? `(${customStartDate} ➔ ${customEndDate})`
+                                        : '';
 
                         return (
                             <>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tổng SĐT tải lên</span>
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tổng SĐT tải lên {timeLabel}</span>
                                     <span className="text-xl font-bold text-white mt-1">{totals.total.toLocaleString()}</span>
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
                                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Đã quét {timeLabel}</span>
                                     <div className="flex items-baseline justify-between mt-1">
                                         <span className="text-xl font-bold text-blue-400">{totals.scanned.toLocaleString()}</span>
-                                        {scanTimeFilter === 'all' && <span className="text-[10px] text-gray-400">({progress}%)</span>}
+                                        <span className="text-[10px] text-gray-400">({progress}%)</span>
                                     </div>
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
@@ -796,8 +833,8 @@ export default function PhoneScanPanel() {
                                     <span className="text-xl font-bold text-amber-400 mt-1">{totals.notFound.toLocaleString()}</span>
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Số lượng còn lại</span>
-                                    <span className="text-xl font-bold text-gray-300 mt-1">{(totals.total - (scanTimeFilter === 'all' ? totals.scanned : batchTotals.scanned)).toLocaleString()}</span>
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Số lượng còn lại {timeLabel}</span>
+                                    <span className="text-xl font-bold text-gray-300 mt-1">{(totals.pending ?? (totals.total - totals.scanned)).toLocaleString()}</span>
                                 </div>
                             </>
                         );
@@ -868,7 +905,7 @@ export default function PhoneScanPanel() {
                             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
                             <span>Đang tải thông tin...</span>
                         </div>
-                    ) : batches.filter(b => batchFilterTab === 'all' ? true : b.status === batchFilterTab).length === 0 ? (
+                    ) : timeFilteredBatches.filter(b => batchFilterTab === 'all' ? true : b.status === batchFilterTab).length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-900/30">
                             <span className="text-gray-400 dark:text-gray-500 text-xs">Không có lô quét nào phù hợp bộ lọc.</span>
                             <button
@@ -881,7 +918,7 @@ export default function PhoneScanPanel() {
                     ) : (
                         <div className="flex flex-col gap-3">
                             {(() => {
-                                const displayedBatches = batches.filter(b => batchFilterTab === 'all' ? true : b.status === batchFilterTab);
+                                const displayedBatches = timeFilteredBatches.filter(b => batchFilterTab === 'all' ? true : b.status === batchFilterTab);
                                 const activeBatchesList = displayedBatches.filter(b => b.status === 'active');
 
                                 return displayedBatches.map((batch, index) => {

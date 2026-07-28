@@ -16,6 +16,7 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 - **Sửa Lỗi IPC Lưu Quy Tắc Xưng Hô (`saveSalutationMap`):** Khai báo `getSalutationMap`, `saveSalutationMap`, `resetSalutationMap` trong `electron/preload.ts`, khắc phục lỗi modal *"saveSalutationMap is not a function"*.
 - **Sửa Lỗi Tạo Lô Quét SDT Hàng Loạt (`createPhoneScanBatch`):** Thêm 2 cột `target_account_id` và `contact_assignment_mode` vào bảng SQLite `phone_scan_batches`, khắc phục lỗi toast *"Could not create batch"*.
 - **Chuẩn Hóa Xưng Hô Mặc Định Chưa Rõ Giới Tính:** Chuyển fallback xưng hô chưa rõ giới tính từ `Bạn/Mình` ➔ **`Anh/Chị`** (tự xưng **`Em`**).
+- **Bộ Lọc Khoảng Thời Gian Tùy Chọn Quét SĐT (`PhoneScanPanel.tsx`):** Bổ sung tùy chọn chọn ngày bắt đầu & kết thúc (`Từ ngày` ➔ `Đến ngày`). Thống kê chính xác số lượng SĐT tải lên, đã quét, có Zalo, không có Zalo và số lượng còn lại (chưa quét) theo đúng khoảng thời gian chỉ định.
 
 ### 🗣️ Tính Năng Mới: Xưng Hô Thông Minh & Tự Xưng Tự Động Theo Chuẩn Tiếng Việt (Smart Salutation & Self Reference)
 

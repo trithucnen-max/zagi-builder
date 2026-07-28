@@ -9568,13 +9568,19 @@ class DatabaseService {
         }
     }
 
-    public getPhoneScanOverallStats(timeRange: 'all' | 'today' | 'this_week' | 'this_month' = 'all'): {
+    public getPhoneScanOverallStats(
+        timeRange: 'all' | 'today' | 'this_week' | 'this_month' | 'custom' = 'all',
+        startDate?: string,
+        endDate?: string
+    ): {
         total: number;
         scanned: number;
         found: number;
         notFound: number;
         error: number;
         pending: number;
+        startTimestamp?: number;
+        endTimestamp?: number;
     } {
         if (!this.initialized) return { total: 0, scanned: 0, found: 0, notFound: 0, error: 0, pending: 0 };
         try {
@@ -9600,29 +9606,74 @@ class DatabaseService {
             const vnTimeString = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
             const vnTime = new Date(vnTimeString);
             let startTimestamp = 0;
+            let endTimestamp = Date.now() + 86400000; // default end of time
 
             if (timeRange === 'today') {
                 const startOfDay = new Date(vnTime.getFullYear(), vnTime.getMonth(), vnTime.getDate(), 0, 0, 0, 0);
+                const endOfDay = new Date(vnTime.getFullYear(), vnTime.getMonth(), vnTime.getDate(), 23, 59, 59, 999);
                 startTimestamp = startOfDay.getTime();
+                endTimestamp = endOfDay.getTime();
             } else if (timeRange === 'this_week') {
                 const monday = new Date(vnTime);
                 const day = vnTime.getDay();
                 const diff = day === 0 ? -6 : 1 - day;
                 monday.setDate(vnTime.getDate() + diff);
                 monday.setHours(0, 0, 0, 0);
+                const sunday = new Date(monday);
+                sunday.setDate(monday.getDate() + 6);
+                sunday.setHours(23, 59, 59, 999);
                 startTimestamp = monday.getTime();
+                endTimestamp = sunday.getTime();
             } else if (timeRange === 'this_month') {
                 const startOfMonth = new Date(vnTime.getFullYear(), vnTime.getMonth(), 1, 0, 0, 0, 0);
+                const endOfMonth = new Date(vnTime.getFullYear(), vnTime.getMonth() + 1, 0, 23, 59, 59, 999);
                 startTimestamp = startOfMonth.getTime();
+                endTimestamp = endOfMonth.getTime();
+            } else if (timeRange === 'custom') {
+                if (startDate) {
+                    const [y, m, d] = startDate.split('-').map(Number);
+                    if (y && m && d) {
+                        startTimestamp = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+                    }
+                }
+                if (endDate) {
+                    const [y, m, d] = endDate.split('-').map(Number);
+                    if (y && m && d) {
+                        endTimestamp = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+                    }
+                }
             }
 
-            const foundRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'found' AND scanned_at >= ?`, [startTimestamp]) || { cnt: 0 };
-            const notFoundRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'not_found' AND scanned_at >= ?`, [startTimestamp]) || { cnt: 0 };
-            const errorRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'error' AND scanned_at >= ?`, [startTimestamp]) || { cnt: 0 };
-            const totalRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items`) || { cnt: 0 };
-            const pendingRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'pending'`) || { cnt: 0 };
+            // Total SĐT uploaded within this time range (by created_at)
+            const totalRow = this.queryOne<any>(
+                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE created_at >= ? AND created_at <= ?`,
+                [startTimestamp, endTimestamp]
+            ) || { cnt: 0 };
+
+            // Scanned statuses within this time range (by scanned_at)
+            const foundRow = this.queryOne<any>(
+                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'found' AND scanned_at >= ? AND scanned_at <= ?`,
+                [startTimestamp, endTimestamp]
+            ) || { cnt: 0 };
+
+            const notFoundRow = this.queryOne<any>(
+                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'not_found' AND scanned_at >= ? AND scanned_at <= ?`,
+                [startTimestamp, endTimestamp]
+            ) || { cnt: 0 };
+
+            const errorRow = this.queryOne<any>(
+                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'error' AND scanned_at >= ? AND scanned_at <= ?`,
+                [startTimestamp, endTimestamp]
+            ) || { cnt: 0 };
+
+            // Pending (unscanned) items uploaded within this time range (by created_at)
+            const pendingRow = this.queryOne<any>(
+                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'pending' AND created_at >= ? AND created_at <= ?`,
+                [startTimestamp, endTimestamp]
+            ) || { cnt: 0 };
 
             const scanned = foundRow.cnt + notFoundRow.cnt + errorRow.cnt;
+            const pending = Math.max(pendingRow.cnt, totalRow.cnt - scanned);
 
             return {
                 total: totalRow.cnt,
@@ -9630,7 +9681,9 @@ class DatabaseService {
                 found: foundRow.cnt,
                 notFound: notFoundRow.cnt,
                 error: errorRow.cnt,
-                pending: pendingRow.cnt
+                pending,
+                startTimestamp,
+                endTimestamp
             };
         } catch (err: any) {
             Logger.error(`[DB] getPhoneScanOverallStats error: ${err.message}`);
