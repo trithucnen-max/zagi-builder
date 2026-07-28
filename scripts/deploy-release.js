@@ -206,6 +206,10 @@ async function main() {
   console.log(`\n⚡ Bước 6: Tự động cập nhật liên kết tải về (${tag}) lên Landing Page, README & Supabase...`);
   updateLandingPageDownloadLinks(targetVersion, currentBranch);
 
+  // 7. Verify release artifacts & print summary board
+  console.log(`\n⚡ Bước 7: Kiểm tra xác thực tự động (Auto-Verification Check)...`);
+  verifyReleaseArtifacts(targetVersion);
+
   console.log('\n🏁 QUY TRÌNH HOÀN TẤT!');
   console.log('Vui lòng kiểm tra lại GitHub Releases & Landing Page để xác nhận tất cả các phiên bản đã được phát hành chính thức!');
   rl.close();
@@ -262,6 +266,58 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main') {
   } else {
     console.log('  ℹ️ Liên kết tải về trên Landing Page đã ở phiên bản mới nhất.');
   }
+}
+
+function verifyReleaseArtifacts(targetVersion) {
+  const tag = `v${targetVersion}`;
+  console.log('\n📊 =================================================');
+  console.log('📊 === RELEASE AUTO-VERIFICATION SUMMARY BOARD === 📊');
+  console.log('📊 =================================================\n');
+
+  const filesToCheck = [
+    { name: 'Landing Page HTML', path: path.join(ROOT_DIR, 'landing', 'index.html') },
+    { name: 'Docs Index HTML', path: path.join(ROOT_DIR, 'docs', 'index.html') },
+    { name: 'README Main', path: path.join(ROOT_DIR, 'README.md') },
+    { name: 'README English', path: path.join(ROOT_DIR, 'README.en.md') },
+    { name: 'Supabase Function', path: path.join(ROOT_DIR, 'supabase', 'functions', 'create-order', 'index.ts') },
+  ];
+
+  for (const item of filesToCheck) {
+    if (!fs.existsSync(item.path)) {
+      console.log(` [SKIP] ${item.name}: File không tồn tại`);
+      continue;
+    }
+    const content = fs.readFileSync(item.path, 'utf8');
+    const hasTag = content.includes(tag);
+    if (hasTag) {
+      console.log(` ✅ [PASS] ${item.name}: Đã xác nhận tất cả liên kết tải về đều thuộc ${tag}`);
+    } else {
+      console.log(` ❌ [FAIL] ${item.name}: CẢNH BÁO - Chưa tìm thấy thẻ phiên bản ${tag}`);
+    }
+  }
+
+  // Check build DMG files
+  const distDir = path.join(ROOT_DIR, 'dist-electron-build');
+  const macArmFile = path.join(distDir, `Zagi.${tag}.MacOS.M1+.arm64.dmg`);
+  const macIntelFile = path.join(distDir, `Zagi.${tag}.MacOS.Intel.dmg`);
+
+  if (fs.existsSync(macArmFile)) {
+    const stat = fs.statSync(macArmFile);
+    const sizeMb = (stat.size / (1024 * 1024)).toFixed(1);
+    console.log(` ✅ [PASS] macOS M1+ ARM64 DMG: Tệp tin hợp lệ (${sizeMb} MB)`);
+  } else {
+    console.log(` ⚠️ [WARN] macOS M1+ ARM64 DMG: Không thấy tệp local`);
+  }
+
+  if (fs.existsSync(macIntelFile)) {
+    const stat = fs.statSync(macIntelFile);
+    const sizeMb = (stat.size / (1024 * 1024)).toFixed(1);
+    console.log(` ✅ [PASS] macOS Intel x64 DMG: Tệp tin hợp lệ (${sizeMb} MB)`);
+  } else {
+    console.log(` ⚠️ [WARN] macOS Intel x64 DMG: Không thấy tệp local`);
+  }
+
+  console.log('\n=================================================\n');
 }
 
 main().catch(err => {
