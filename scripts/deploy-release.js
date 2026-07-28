@@ -252,7 +252,7 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main') {
   if (anyModified) {
     try {
       console.log('  -> Đang tự động commit & push liên kết Landing Page vừa cập nhật...');
-      runCmd('git add landing/ docs/ README.md README.en.md supabase/');
+      runCmd('git add -f landing/ docs/ README.md README.en.md supabase/');
       runCmd(`git commit -m "docs: auto-update landing page and release download links for ${tag}"`);
       runCmd(`git push origin ${currentBranch}`);
       console.log('  ✅ Đã push thành công liên kết Landing Page lên GitHub!');
