@@ -16,3 +16,16 @@ scratch/
 src/bridge-e2ee/build/
 *.exe~
 
+# Internal Documentation & Infrastructure Specs
+docs/
+call-analytics-zalo-poll-fix.md
+chat-toolbar-library-fix.md
+crm-name-salutation.md
+docker-build-pack.md
+erp-sync-fix.md
+scan-setup-auto-account.md
+security-bugfix.md
+zagi-macos-sign.md
+zagi-rich-features.md
+
+
