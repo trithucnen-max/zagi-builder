@@ -194,7 +194,12 @@ export default function ChatWindow() {
   const lastScrolledThreadRef = useRef<string | null>(null);
 
   const threadKey = activeAccountId && activeThreadId ? `${activeAccountId}_${activeThreadId}` : '';
-  const msgs = threadKey ? (messages[threadKey] || []) : [];
+  const rawMsgs = threadKey ? (messages[threadKey] || []) : [];
+  const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
+  const msgs = React.useMemo(() => {
+    if (!rawMsgs || rawMsgs.length === 0) return [];
+    return [...rawMsgs].sort((a, b) => normTs(a.timestamp) - normTs(b.timestamp));
+  }, [rawMsgs]);
   msgsRef.current = msgs;
 
   const contactList = activeAccountId ? (contacts[activeAccountId] || []) : [];

@@ -1028,15 +1028,20 @@ export default function ConversationList() {
           .then((histRes: any) => {
             const msgs: any[] = histRes?.response?.data || histRes?.response || [];
             if (msgs.length > 0) {
-              const converted = msgs.map((m: any) => ({
-                msg_id: m.msgId || String(Date.now() + Math.random()),
-                owner_zalo_id: zaloId!, thread_id: contactId, thread_type: threadType,
-                sender_id: String(m.uidFrom || ''),
-                content: typeof m.data?.content === 'object' ? JSON.stringify(m.data?.content) : String(m.data?.content || ''),
-                msg_type: m.msgType || m.data?.msgType || 'text',
-                timestamp: m.serverTime || Date.now(),
-                is_sent: String(m.uidFrom) === String(zaloId) ? 1 : 0, status: 'received',
-              }));
+              const converted = msgs.map((m: any) => {
+                const rawTs = Number(m.serverTime || m.ts || m.timestamp || m.time || m.data?.ts || m.data?.time || 0);
+                let timestamp = rawTs > 0 ? rawTs : Date.now();
+                if (timestamp < 10000000000) timestamp = timestamp * 1000;
+                return {
+                  msg_id: m.msgId || String(Date.now() + Math.random()),
+                  owner_zalo_id: zaloId!, thread_id: contactId, thread_type: threadType,
+                  sender_id: String(m.uidFrom || ''),
+                  content: typeof m.data?.content === 'object' ? JSON.stringify(m.data?.content) : String(m.data?.content || ''),
+                  msg_type: m.msgType || m.data?.msgType || 'text',
+                  timestamp,
+                  is_sent: String(m.uidFrom) === String(zaloId) ? 1 : 0, status: 'received',
+                };
+              });
               setMessages(zaloId!, contactId, converted.reverse());
             }
           }).catch(() => {});

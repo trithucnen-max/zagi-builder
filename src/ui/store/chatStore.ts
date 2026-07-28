@@ -191,9 +191,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           })
         : messages;
 
+      const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
+      const sorted = [...merged].sort((a, b) => normTs(a.timestamp) - normTs(b.timestamp));
+
       // Evict old cached threads to cap memory — keep active thread + 20 most recent
       const MAX_CACHED_THREADS = 20;
-      let newMessages = { ...state.messages, [key]: merged };
+      let newMessages = { ...state.messages, [key]: sorted };
       const threadKeys = Object.keys(newMessages);
       if (threadKeys.length > MAX_CACHED_THREADS) {
         const activeKey = state.activeThreadId ? `${zaloId}_${state.activeThreadId}` : null;
