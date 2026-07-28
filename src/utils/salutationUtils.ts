@@ -100,6 +100,8 @@ export const DEFAULT_SALUTATION_SELF_REF_MAP: Record<string, string> = {
     // Ngang cấp / kính trên
     'anh':       'em',
     'chị':       'em',
+    'anh/chị':   'em',
+    'anh / chị': 'em',
 
     // Gửi đến người trẻ hơn / cấp dưới
     'em':        'anh',

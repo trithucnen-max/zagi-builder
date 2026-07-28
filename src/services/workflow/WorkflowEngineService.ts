@@ -1067,7 +1067,7 @@ class WorkflowEngineService {
 
           if (contactRow || friendRow) {
             const genderVal = contactRow?.gender;
-            const genderGreeting = genderVal === 0 ? 'Anh' : (genderVal === 1 ? 'Chị' : 'Bạn');
+            const genderGreeting = genderVal === 0 ? 'Anh' : (genderVal === 1 ? 'Chị' : 'Anh/Chị');
 
             flatTrigger.salutation = contactRow?.salutation || genderGreeting;
             // tu_xung: tự xưng phù hợp với xưng hô của khách (Em/Con/Cháu/Mình...)
@@ -2140,7 +2140,7 @@ class WorkflowEngineService {
                 r.notes = noteMap[r.contact_id] || [];
                 r.notesText = (noteMap[r.contact_id] || []).map((n: any) => n.content).join('\n');
                 r.salutation = r.salutation || '';
-                r.salutationLabel = r.salutation || (r.gender === 0 ? 'Anh' : r.gender === 1 ? 'Chị' : 'Bạn');
+                r.salutationLabel = r.salutation || (r.gender === 0 ? 'Anh' : r.gender === 1 ? 'Chị' : 'Anh/Chị');
                 r.genderLabel = r.gender === 0 ? 'Nam' : r.gender === 1 ? 'Nữ' : 'Không xác định';
                 r.pipelineStageName = r.pipeline_stage_id ? (stageMap[r.pipeline_stage_id]?.name || '') : 'Chưa phân loại';
                 r.pipelineStageColor = r.pipeline_stage_id ? (stageMap[r.pipeline_stage_id]?.color || '') : '#6b7280';

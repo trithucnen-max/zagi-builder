@@ -314,6 +314,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     mergeContacts: (params: any) => ipcRenderer.invoke('crm:mergeContacts', params),
     cleanupCorruptedAliases: () => ipcRenderer.invoke('crm:cleanupCorruptedAliases'),
     markContactBlocked: (params: any) => ipcRenderer.invoke('crm:markContactBlocked', params),
+    getSalutationMap: () => ipcRenderer.invoke('crm:getSalutationMap'),
+    saveSalutationMap: (params: any) => ipcRenderer.invoke('crm:saveSalutationMap', params),
+    resetSalutationMap: () => ipcRenderer.invoke('crm:resetSalutationMap'),
   },
 
   // ─── Analytics / Reporting ──────────────────────────────────────────

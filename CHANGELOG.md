@@ -13,6 +13,9 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Tích hợp khu vực thử nghiệm Live Preview giúp người dùng chọn danh xưng (`Anh`, `Chị`, `Thầy`, `Sếp`...) và xem ngay kết quả viết Hoa đầu câu / viết thường giữa câu theo thời gian thực.
 - **Lưu Đĩa & Đồng Bộ Tức Thời (SQLite Persistence & Realtime IPC):**
   - Lưu bảng quy tắc tùy chỉnh vào SQLite `app_settings` (`custom_salutation_map`), đồng bộ tức thì cho cả máy Boss, Employee, CRM Campaigns và Workflow Engine.
+- **Sửa Lỗi IPC Lưu Quy Tắc Xưng Hô (`saveSalutationMap`):** Khai báo `getSalutationMap`, `saveSalutationMap`, `resetSalutationMap` trong `electron/preload.ts`, khắc phục lỗi modal *"saveSalutationMap is not a function"*.
+- **Sửa Lỗi Tạo Lô Quét SDT Hàng Loạt (`createPhoneScanBatch`):** Thêm 2 cột `target_account_id` và `contact_assignment_mode` vào bảng SQLite `phone_scan_batches`, khắc phục lỗi toast *"Could not create batch"*.
+- **Chuẩn Hóa Xưng Hô Mặc Định Chưa Rõ Giới Tính:** Chuyển fallback xưng hô chưa rõ giới tính từ `Bạn/Mình` ➔ **`Anh/Chị`** (tự xưng **`Em`**).
 
 ### 🗣️ Tính Năng Mới: Xưng Hô Thông Minh & Tự Xưng Tự Động Theo Chuẩn Tiếng Việt (Smart Salutation & Self Reference)
 
