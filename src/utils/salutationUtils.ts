@@ -52,15 +52,21 @@ export function isStartOfSentence(str: string, index: number): boolean {
     return /[.!?…\n]/.test(str[i]);
 }
 
-/** Viết hoa chữ đầu (hỗ trợ tiếng Việt diacritics) */
+/** Viết hoa chữ đầu (hỗ trợ compound như "Anh/Chị" -> "Anh/Chị") */
 export function capitalizeVietnamese(word: string): string {
     if (!word) return word;
+    if (word.includes('/')) {
+        return word.split('/').map(p => capitalizeVietnamese(p.trim())).join('/');
+    }
     return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-/** Viết thường chữ đầu */
+/** Viết thường chữ đầu (hỗ trợ compound như "Anh/Chị" -> "anh/chị") */
 export function lowercaseVietnamese(word: string): string {
     if (!word) return word;
+    if (word.includes('/')) {
+        return word.split('/').map(p => lowercaseVietnamese(p.trim())).join('/');
+    }
     return word.charAt(0).toLowerCase() + word.slice(1);
 }
 

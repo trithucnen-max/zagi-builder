@@ -293,15 +293,21 @@ class CRMQueueService {
             db.updateCampaignContactStatus(item.id!, 'sending');
 
             // ── Phone resolution at send time ──────────────────────────────
-            if (item.contact_id.startsWith('phone:')) {
-                const phone = item.contact_id.slice(6);
+            const rawContactId = String(item.contact_id || '').trim();
+            const rawPhone = String((item as any).phone || (item as any).contact_phone || '').trim();
+            const isPhoneFormat = rawContactId.startsWith('phone:') ||
+                                  /^(0|84)[35789]\d{8}$/.test(rawContactId) ||
+                                  (rawPhone && (rawContactId === rawPhone || /^(0|84)[35789]\d{8}$/.test(rawPhone)));
+
+            if (isPhoneFormat) {
+                const phone = rawContactId.startsWith('phone:') ? rawContactId.slice(6) : (rawPhone || rawContactId);
                 Logger.log(`[CRMQueue] Resolving phone ${phone} at send time...`);
                 const resolved = await this.resolvePhoneContact(phone, conn.api);
                 if (!resolved) {
-                    Logger.warn(`[CRMQueue] Phone ${phone} not found on Zalo, marking failed`);
-                    db.updateCampaignContactStatus(item.id!, 'failed', 'Không tìm thấy SĐT trên Zalo');
+                    Logger.warn(`[CRMQueue] Phone ${phone} not found on Zalo or privacy blocked, marking failed`);
+                    db.updateCampaignContactStatus(item.id!, 'failed', 'SĐT chưa đăng ký Zalo hoặc bị chặn tìm kiếm');
                     db.save();
-                    this.broadcastProgress(zaloId, item.campaign_id, item.contact_id, 'failed', 'Không tìm thấy SĐT trên Zalo');
+                    this.broadcastProgress(zaloId, item.campaign_id, item.contact_id, 'failed', 'SĐT chưa đăng ký Zalo hoặc bị chặn tìm kiếm');
                     this.isProcessing.set(zaloId, false);
                     return;
                 }
