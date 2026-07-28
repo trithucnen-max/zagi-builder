@@ -206,103 +206,216 @@ export default function CampaignList({
           </div>
         ) : (
           <div className="space-y-3">
-            {paged.map(c => {
+            {paged.map((c, index) => {
               const isScheduled = c.status === 'active' && c.scheduled_start_at && c.scheduled_start_at > Date.now();
               const isSelected = activeId === c.id;
+              const progressPercent = c.total_contacts > 0 ? Math.min(100, Math.round((c.sent_count / c.total_contacts) * 100)) : 0;
+              const itemIndex = (page - 1) * pageSize + index + 1;
+
               return (
                 <div
                   key={c.id}
                   onClick={() => onSelect(c.id)}
-                  className={`rounded-2xl border p-4 cursor-pointer transition-all shadow-xs ${
+                  className={`group relative rounded-3xl border p-4 cursor-pointer transition-all duration-200 ${
                     isSelected
-                      ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 ring-2 ring-blue-500/20'
-                      : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
+                      ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-950/20 shadow-md ring-2 ring-blue-500/20'
+                      : 'border-gray-200/80 dark:border-gray-800 bg-white dark:bg-gray-850 hover:border-blue-300 dark:hover:border-gray-700 hover:shadow-md'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">{c.name}</h4>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {c.campaign_type === 'friend_request' && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/20">
-                            👤 Kết bạn
-                          </span>
-                        )}
-                        {c.campaign_type === 'invite_to_group' && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/20">
-                            👥 Mời nhóm
-                          </span>
-                        )}
-                        {c.campaign_type === 'mixed' && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold border border-purple-500/20">
-                            🔀 Hỗn hợp
-                          </span>
-                        )}
-                        {c.campaign_type === 'message' && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
-                            💬 Tin nhắn
-                          </span>
-                        )}
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                          ⏱ {c.delay_seconds}s delay
-                          {c.created_at ? <span>· 📅 {fmtDate(c.created_at)}</span> : null}
-                        </span>
+                  {/* ── Top Header Row ── */}
+                  <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                    {/* Left: Index badge + Campaign Type + Name */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {/* Index Box (e.g. 1, 2, 3) */}
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-extrabold text-sm flex items-center justify-center flex-shrink-0 border border-blue-200/50 dark:border-blue-800/40 shadow-2xs">
+                        {itemIndex}
                       </div>
+
+                      {/* Type Badge */}
+                      {c.campaign_type === 'message' && (
+                        <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-xs font-extrabold flex items-center gap-1 flex-shrink-0">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                          Tin nhắn
+                        </span>
+                      )}
+                      {c.campaign_type === 'friend_request' && (
+                        <span className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 text-xs font-extrabold flex items-center gap-1 flex-shrink-0">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <line x1="19" y1="8" x2="19" y2="14" />
+                            <line x1="16" y1="11" x2="22" y2="11" />
+                          </svg>
+                          Kết bạn
+                        </span>
+                      )}
+                      {c.campaign_type === 'invite_to_group' && (
+                        <span className="px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40 text-xs font-extrabold flex items-center gap-1 flex-shrink-0">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                          </svg>
+                          Mời nhóm
+                        </span>
+                      )}
+                      {c.campaign_type === 'mixed' && (
+                        <span className="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40 text-xs font-extrabold flex items-center gap-1 flex-shrink-0">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="16 3 21 3 21 8" />
+                            <line x1="4" y1="20" x2="21" y2="3" />
+                            <polyline points="21 16 21 21 16 21" />
+                            <line x1="15" y1="15" x2="21" y2="21" />
+                            <line x1="4" y1="4" x2="9" y2="9" />
+                          </svg>
+                          Hỗn hợp
+                        </span>
+                      )}
+
+                      {/* Campaign Name */}
+                      <h4 className="text-sm font-extrabold text-gray-900 dark:text-white truncate ml-1" title={c.name}>
+                        {c.name}
+                      </h4>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                      {/* Clone / Sao chép */}
+
+                    {/* Right: Actions (Copy & Delete) + Status Pill */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                      {/* Copy Button */}
                       <button
                         onClick={() => onClone(c.id)}
                         title="Sao chép (Clone) chiến dịch này"
-                        className="p-1 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-750 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 flex items-center justify-center transition-colors shadow-2xs"
                       >
-                        <AppIcon name="copy" size={13} />
+                        <AppIcon name="copy" size={14} />
                       </button>
 
-                      {/* Xóa chiến dịch */}
+                      {/* Delete Button */}
                       <button
                         onClick={async () => {
                           const ok = await showConfirm(`Bạn có chắc chắn muốn xóa chiến dịch "${c.name}"?`);
                           if (ok) onDelete(c.id);
                         }}
                         title="Xóa chiến dịch này"
-                        className="p-1 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-750 text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/40 flex items-center justify-center transition-colors shadow-2xs"
                       >
-                        <AppIcon name="trash" size={13} />
+                        <AppIcon name="trash" size={14} />
                       </button>
 
+                      {/* Status Badge */}
                       <span
-                        className={`text-[10px] px-2.5 py-1 rounded-full font-bold ml-1 ${
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold flex items-center gap-1 shadow-2xs transition-colors ${
                           isScheduled
-                            ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20'
-                            : c.status === 'active'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                            : c.status === 'paused'
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                            ? 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800/40'
                             : c.status === 'done'
-                            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                            ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40'
+                            : c.status === 'active'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 animate-pulse'
+                            : c.status === 'paused'
+                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
+                            : c.failed_count > 0
+                            ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/40'
+                            : 'bg-gray-100 dark:bg-gray-750 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
                         }`}
                       >
                         {isScheduled
-                          ? 'Đã lên lịch'
-                          : c.status === 'active'
-                          ? '▶ Đang chạy'
-                          : c.status === 'paused'
-                          ? '⏸ Tạm dừng'
+                          ? '⏱️ Đã lên lịch'
                           : c.status === 'done'
                           ? '✓ Hoàn thành'
+                          : c.status === 'active'
+                          ? '▶️ Đang chạy'
+                          : c.status === 'paused'
+                          ? '⏸️ Tạm dừng'
+                          : c.failed_count > 0
+                          ? '⚠️ Có lỗi gửi'
                           : 'Nháp'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Progress bar */}
-                  <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-750 flex items-center justify-between text-xs">
-                    <span className="text-gray-500 dark:text-gray-400 font-medium">Tiến độ:</span>
-                    <span className="font-bold text-gray-900 dark:text-white">
-                      {c.sent_count} / {c.total_contacts} liên hệ
-                    </span>
+                  {/* ── Middle Section: Parameters Container ── */}
+                  <div className="bg-gray-50/80 dark:bg-gray-800/50 border border-gray-200/60 dark:border-gray-700/50 rounded-2xl p-3 flex items-center justify-between">
+                    {/* Left: Delay Parameter */}
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-blue-100/70 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Thời gian chờ</p>
+                        <p className="text-xs font-black text-gray-900 dark:text-white mt-0.5">{c.delay_seconds || 10}s delay</p>
+                      </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="w-px h-7 bg-gray-200 dark:bg-gray-700/80" />
+
+                    {/* Right: Date Parameter */}
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-rose-100/70 dark:bg-rose-950/60 text-rose-500 dark:text-rose-400 flex items-center justify-center flex-shrink-0">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Ngày gửi</p>
+                        <p className="text-xs font-black text-gray-900 dark:text-white mt-0.5">
+                          {c.created_at ? fmtDate(c.created_at) : 'Hôm nay'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Bottom Section: Progress Bar & Total Contacts ── */}
+                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-4">
+                    {/* Left: Progress Track */}
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
+                          <span>Tiến độ</span>
+                          <span>{progressPercent}%</span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-100 dark:bg-gray-750 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              c.status === 'done'
+                                ? 'bg-blue-600'
+                                : c.status === 'active'
+                                ? 'bg-gradient-to-r from-blue-500 to-blue-600'
+                                : c.status === 'paused'
+                                ? 'bg-amber-500'
+                                : c.failed_count > 0
+                                ? 'bg-rose-500'
+                                : 'bg-gray-300 dark:bg-gray-600'
+                            }`}
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="w-px h-8 bg-gray-200 dark:bg-gray-700/80" />
+
+                    {/* Right: Contact Counts */}
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-base font-black text-gray-900 dark:text-white leading-none">
+                        {c.sent_count} / {c.total_contacts}
+                      </p>
+                      <p className="text-[10px] font-medium text-gray-400 mt-0.5">liên hệ</p>
+                    </div>
                   </div>
                 </div>
               );
