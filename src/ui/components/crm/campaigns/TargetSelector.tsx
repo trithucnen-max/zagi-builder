@@ -417,10 +417,10 @@ export default function TargetSelector({
         <div className="px-4 py-2.5 bg-gray-50/60 dark:bg-gray-900/60 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2 overflow-x-auto scrollbar-none flex-shrink-0">
           {[
             { id: 'by_label', label: 'Theo nhãn', icon: '🏷️' },
-            { id: 'groups_only', label: 'Theo nhóm Zalo', icon: '👨‍👩‍👧‍👦' },
             { id: 'by_phone', label: 'Theo SĐT', icon: '📞' },
             { id: 'by_uid', label: 'Theo UID', icon: '🔗' },
-            { id: 'manual', label: 'Liên hệ', icon: '👤' },
+            { id: 'manual', label: 'Theo Liên hệ', icon: '👤' },
+            { id: 'groups_only', label: 'Theo nhóm', icon: '👨‍👩‍👧‍👦' },
           ].map(tab => {
             const isActive = mode === tab.id;
             return (
