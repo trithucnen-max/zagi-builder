@@ -338,20 +338,6 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
           </div>
         </div>
 
-        {/* Progress */}
-        {campaign.total_contacts > 0 && (
-          <div>
-            <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-              <span className="text-green-400">{campaign.sent_count} đã gửi</span>
-              <span className="text-gray-500">{campaign.pending_count} chờ</span>
-              {campaign.failed_count > 0 && <span className="text-red-400">{campaign.failed_count} lỗi</span>}
-              <span>{Math.round(progress)}%</span>
-            </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        )}
 
         {/* Daily progress */}
         {campaign.daily_send_limit > 0 && (
