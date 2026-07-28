@@ -39,6 +39,9 @@ export interface CRMCampaign {
   pending_count: number;
   failed_count: number;
   sent_today_count: number;    // computed: gửi trong ngày hôm nay
+  quiet_hours_enabled?: number;
+  quiet_hours_start?: string;
+  quiet_hours_end?: string;
 }
 
 export interface CRMContact {

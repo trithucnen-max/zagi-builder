@@ -363,11 +363,11 @@ class CRMQueueService {
             }
 
             // ── Template preparation ───────────────────────────────────────
-            const now = new Date();
-            const todayDD = String(now.getDate()).padStart(2, '0');
-            const todayMM = String(now.getMonth() + 1).padStart(2, '0');
-            const todayYYYY = now.getFullYear();
-            const todayTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const nowDate = new Date();
+            const todayDD = String(nowDate.getDate()).padStart(2, '0');
+            const todayMM = String(nowDate.getMonth() + 1).padStart(2, '0');
+            const todayYYYY = nowDate.getFullYear();
+            const todayTime = `${String(nowDate.getHours()).padStart(2, '0')}:${String(nowDate.getMinutes()).padStart(2, '0')}`;
 
             const genderVal = (item as any).gender;
             const genderGreeting = genderVal === 0 ? 'Anh' : (genderVal === 1 ? 'Chị' : 'Anh/Chị');
@@ -870,13 +870,13 @@ class CRMQueueService {
             }
 
             // Tiêu thụ 1 token
-            const now = Date.now();
+            const nowMs = Date.now();
             this.tokens.set(zaloId, Math.max(0, (this.tokens.get(zaloId) ?? 1) - 1));
-            this.lastSentAt.set(zaloId, now);
+            this.lastSentAt.set(zaloId, nowMs);
 
             // Sinh khoảng delay ngẫu nhiên MỚI hoàn toàn cho tin tiếp theo trong dải [delayMinSec, delayMaxSec]
             const nextRandomSec = delayMinSec + Math.random() * (delayMaxSec - delayMinSec);
-            const nextSendAt = now + Math.round(nextRandomSec * 1000);
+            const nextSendAt = nowMs + Math.round(nextRandomSec * 1000);
             this.nextAllowedSendTime.set(zaloId, nextSendAt);
             Logger.log(`[CRMQueue] ⏱ Next message for account ${zaloId} scheduled in ${nextRandomSec.toFixed(1)}s (at ${new Date(nextSendAt).toLocaleTimeString('vi-VN')})`);
             db.save();
@@ -886,12 +886,12 @@ class CRMQueueService {
             this.checkCampaignCompletion(item.campaign_id, zaloId);
 
         } catch (err: any) {
-            const now = Date.now();
-            this.lastSentAt.set(zaloId, now);
+            const errNowMs = Date.now();
+            this.lastSentAt.set(zaloId, errNowMs);
             const errMinSec = (item as any).delay_min_seconds ?? 5;
             const errMaxSec = (item as any).delay_max_seconds ?? (errMinSec + 10);
             const nextRandomSec = errMinSec + Math.random() * (Math.max(errMinSec, errMaxSec) - errMinSec);
-            this.nextAllowedSendTime.set(zaloId, now + Math.round(nextRandomSec * 1000));
+            this.nextAllowedSendTime.set(zaloId, errNowMs + Math.round(nextRandomSec * 1000));
 
             const errMsg = err?.message || String(err);
             Logger.error(`[CRMQueue] ❌ Failed to send to ${effectiveContactId}: ${errMsg}`);
