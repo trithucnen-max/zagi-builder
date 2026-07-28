@@ -184,13 +184,86 @@ export default function TargetSelector({
     return [...localOpts, ...zaloOpts];
   }, [effectiveLocalLabels, allLabels, zaloId, accounts]);
 
+  const [allGroups, setAllGroups] = useState<any[]>([]);
+
   useEffect(() => {
     if (!zaloId) return;
     setLoading(true);
+    let isMounted = true;
+
     ipc.crm?.getContacts({ zaloId, opts: { limit: 5000 } }).then(res => {
-      if (res?.contacts) setAllContacts(res.contacts);
-    }).finally(() => setLoading(false));
-  }, [zaloId]);
+      if (isMounted && res?.contacts) setAllContacts(res.contacts);
+    }).finally(() => {
+      if (isMounted) setLoading(false);
+    });
+
+    const loadGroups = async () => {
+      const groupMap = new Map<string, any>();
+
+      // 1. From useChatStore
+      const storeContacts = useChatStore.getState().contacts[zaloId] || [];
+      storeContacts.forEach((c: any) => {
+        if (c.contact_type === 'group' || c.is_group === 1) {
+          groupMap.set(c.contact_id, {
+            contact_id: c.contact_id,
+            display_name: c.display_name || c.alias || c.zalo_name || `Nhóm ${c.contact_id}`,
+            avatar: c.avatar_url || c.avatar,
+            contact_type: 'group',
+            member_count: c.member_count || c.total_members || 0,
+          });
+        }
+      });
+
+      // 2. From DB conversations
+      try {
+        const convRes = await ipc.db?.getConversations({ zaloId });
+        const convs = convRes?.conversations || [];
+        convs.forEach((c: any) => {
+          if (c.contact_type === 'group' || c.is_group === 1 || String(c.thread_type || c.type) === '1') {
+            const gId = c.contact_id || c.thread_id;
+            if (gId && !groupMap.has(gId)) {
+              groupMap.set(gId, {
+                contact_id: gId,
+                display_name: c.display_name || c.alias || c.name || `Nhóm ${gId}`,
+                avatar: c.avatar_url || c.avatar,
+                contact_type: 'group',
+                member_count: c.member_count || c.total_members || 0,
+              });
+            }
+          }
+        });
+      } catch {}
+
+      // 3. From Zalo API
+      const acc = accounts.find(a => a.zalo_id === zaloId);
+      if (acc) {
+        try {
+          const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+          const groupsRes = await ipc.zalo?.getGroups(auth);
+          if (groupsRes?.response?.gridInfoMap) {
+            Object.entries(groupsRes.response.gridInfoMap).forEach(([gId, gInfo]: [string, any]) => {
+              const existing = groupMap.get(gId);
+              groupMap.set(gId, {
+                contact_id: gId,
+                display_name: gInfo?.name || existing?.display_name || `Nhóm ${gId}`,
+                avatar: gInfo?.avatar || gInfo?.avt || existing?.avatar,
+                contact_type: 'group',
+                member_count: gInfo?.memberCount || gInfo?.totalMember || existing?.member_count || 0,
+              });
+            });
+          }
+        } catch {}
+      }
+
+      if (isMounted) {
+        setAllGroups(Array.from(groupMap.values()));
+      }
+    };
+
+    loadGroups();
+
+    return () => { isMounted = false; };
+  }, [zaloId, accounts]);
 
   // Handle phone textarea input
   useEffect(() => {
@@ -621,15 +694,36 @@ export default function TargetSelector({
               {/* 2. Tab Loại trừ Theo Nhóm Zalo */}
               {exclusionTab === 'group' && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
                       Chọn Nhóm Zalo cần loại trừ toàn bộ thành viên:
                     </span>
-                    {excludedGroupIds.size > 0 && (
-                      <span className="text-[11px] text-red-500 font-bold">
-                        🚫 Đã chọn {excludedGroupIds.size} nhóm
-                      </span>
-                    )}
+                    {(() => {
+                      const filteredExGroups = allGroups.filter(g => (!exGroupSearch || (g.display_name || '').toLowerCase().includes(exGroupSearch.toLowerCase())));
+                      const allSelected = filteredExGroups.length > 0 && filteredExGroups.every(g => excludedGroupIds.has(g.contact_id));
+                      return (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (allSelected) {
+                                setExcludedGroupIds(new Set());
+                              } else {
+                                setExcludedGroupIds(new Set(filteredExGroups.map(g => g.contact_id)));
+                              }
+                            }}
+                            className="text-[11px] px-2.5 py-1 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-2xs"
+                          >
+                            {allSelected ? '☒ Bỏ chọn tất cả' : `☑️ Chọn tất cả nhóm loại trừ (${filteredExGroups.length} nhóm)`}
+                          </button>
+                          {excludedGroupIds.size > 0 && (
+                            <span className="text-[11px] text-red-500 font-bold">
+                              🚫 Đã chọn {excludedGroupIds.size} nhóm
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <input
                     value={exGroupSearch}
@@ -639,7 +733,7 @@ export default function TargetSelector({
                   />
                   <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                     {(() => {
-                      const groups = allContacts.filter(c => c.contact_type === 'group' && (!exGroupSearch || (c.alias || c.display_name || '').toLowerCase().includes(exGroupSearch.toLowerCase())));
+                      const groups = allGroups.filter(g => (!exGroupSearch || (g.display_name || '').toLowerCase().includes(exGroupSearch.toLowerCase())));
                       if (groups.length === 0) return <p className="text-xs text-gray-400 italic py-2 text-center">Không tìm thấy nhóm Zalo nào.</p>;
                       return groups.map(group => {
                         const isExcluded = excludedGroupIds.has(group.contact_id);
@@ -654,10 +748,17 @@ export default function TargetSelector({
                                 : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 hover:bg-gray-100'
                             }`}
                           >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-base">👨‍👩‍👧‍👦</span>
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors flex-shrink-0 ${
+                                isExcluded ? 'bg-red-600 border-red-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                              }`}>
+                                {isExcluded && <span className="text-xs font-bold">✓</span>}
+                              </div>
+                              <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
+                                {group.avatar ? <img src={group.avatar} alt="" className="w-full h-full object-cover" /> : '👨‍👩‍👧‍👦'}
+                              </div>
                               <div className="min-w-0">
-                                <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{group.alias || group.display_name}</p>
+                                <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{group.display_name}</p>
                                 {dbMembers.length > 0 && <p className="text-[10px] text-gray-400">{dbMembers.length} thành viên</p>}
                               </div>
                             </div>
@@ -677,9 +778,38 @@ export default function TargetSelector({
               {/* 3. Tab Loại trừ Theo Liên Hệ Cụ Thể */}
               {exclusionTab === 'contact' && (
                 <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                    Danh sách {excludedContactIds.size} liên hệ đang bị loại trừ:
-                  </span>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                      Chọn liên hệ cá nhân cần loại trừ khỏi chiến dịch:
+                    </span>
+                    {(() => {
+                      const filteredExContacts = allContacts.filter(c => c.contact_type !== 'group' && (!exContactSearch || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(exContactSearch.toLowerCase())));
+                      const allSelected = filteredExContacts.length > 0 && filteredExContacts.every(c => excludedContactIds.has(c.contact_id));
+                      return (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (allSelected) {
+                                setExcludedContactIds(new Set());
+                              } else {
+                                setExcludedContactIds(new Set(filteredExContacts.map(c => c.contact_id)));
+                              }
+                            }}
+                            className="text-[11px] px-2.5 py-1 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-2xs"
+                          >
+                            {allSelected ? '☒ Bỏ chọn tất cả' : `🚫 Chọn tất cả loại trừ (${filteredExContacts.length} liên hệ)`}
+                          </button>
+                          {excludedContactIds.size > 0 && (
+                            <span className="text-[11px] text-red-500 font-bold">
+                              Đã chọn {excludedContactIds.size} liên hệ
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
                   {excludedContactIds.size > 0 && (
                     <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto p-1.5 bg-red-50/50 dark:bg-red-950/20 rounded-xl border border-red-100 dark:border-red-900/40">
                       {Array.from(excludedContactIds).map(cId => {
@@ -711,7 +841,7 @@ export default function TargetSelector({
                     {(() => {
                       const contacts = allContacts.filter(c => c.contact_type !== 'group' && (!exContactSearch || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(exContactSearch.toLowerCase())));
                       if (contacts.length === 0) return <p className="text-xs text-gray-400 italic py-2 text-center">Không tìm thấy liên hệ nào.</p>;
-                      return contacts.slice(0, 50).map(c => {
+                      return contacts.slice(0, 100).map(c => {
                         const isExcluded = excludedContactIds.has(c.contact_id);
                         return (
                           <div
@@ -723,7 +853,13 @@ export default function TargetSelector({
                                 : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 hover:bg-gray-100'
                             }`}
                           >
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {/* Checkbox at the START (left-hand side) - Matching Request 4 */}
+                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors flex-shrink-0 ${
+                                isExcluded ? 'bg-red-600 border-red-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                              }`}>
+                                {isExcluded && <span className="text-xs font-bold">✓</span>}
+                              </div>
                               <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
                                 {c.avatar ? <img src={c.avatar} alt="" className="w-full h-full object-cover" /> : (c.alias || c.display_name || '?').slice(0, 1).toUpperCase()}
                               </div>
@@ -732,11 +868,11 @@ export default function TargetSelector({
                                 <p className="text-[10px] text-gray-400 truncate">{c.phone || c.contact_id}</p>
                               </div>
                             </div>
-                            <span className={`text-[11px] px-2.5 py-1 rounded-lg border font-bold transition-all ${
-                              isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-red-100 hover:text-red-600'
-                            }`}>
-                              {isExcluded ? '🚫 Đã loại trừ' : '+ Loại trừ'}
-                            </span>
+                            {isExcluded && (
+                              <span className="text-[11px] px-2.5 py-1 rounded-lg bg-red-600 text-white font-bold shadow-2xs">
+                                🚫 Đã loại trừ
+                              </span>
+                            )}
                           </div>
                         );
                       });
@@ -933,43 +1069,52 @@ export default function TargetSelector({
             </div>
           )}
 
-          {/* Groups Only Mode (Theo nhóm) */}
+          {/* Groups Only Mode (Theo nhóm - Matching Request 1 / Hình 1) */}
           {mode === 'groups_only' && (
             <div className="space-y-3">
               {/* Group Toolbar Controls */}
-              <div className="flex items-center justify-between gap-2 flex-wrap bg-blue-50/70 dark:bg-blue-950/30 p-3 rounded-2xl border border-blue-100 dark:border-blue-900/50">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const allGroupIds = filtered.filter(c => c.contact_type === 'group').map(g => g.contact_id);
-                      setSelectedGroupIds(new Set(allGroupIds));
-                    }}
-                    className="text-xs px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-2xs"
-                  >
-                    ☑️ Chọn tất cả ({filtered.filter(c => c.contact_type === 'group').length} nhóm)
-                  </button>
-                  {selectedGroupIds.size > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedGroupIds(new Set())}
-                      className="text-xs px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold transition-all"
-                    >
-                      ☒ Bỏ chọn
-                    </button>
-                  )}
-                </div>
-                <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                  {selectedGroupIds.size > 0
-                    ? `✓ Đã chọn ${selectedGroupIds.size} nhóm ➔ ${extractedUniqueMembers.length} thành viên độc nhất (tự động khử trùng)`
-                    : 'Hãy chọn 1 hoặc nhiều nhóm bên dưới'}
-                </span>
-              </div>
+              {(() => {
+                const groups = allGroups.filter(g => (!search || (g.display_name || '').toLowerCase().includes(search.toLowerCase())));
+                const allSelected = groups.length > 0 && groups.every(g => selectedGroupIds.has(g.contact_id));
+                return (
+                  <div className="flex items-center justify-between gap-2 flex-wrap bg-blue-50/70 dark:bg-blue-950/30 p-3 rounded-2xl border border-blue-100 dark:border-blue-900/50">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (allSelected) {
+                            setSelectedGroupIds(new Set());
+                          } else {
+                            setSelectedGroupIds(new Set(groups.map(g => g.contact_id)));
+                          }
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-2xs"
+                      >
+                        {allSelected ? '☒ Bỏ chọn tất cả' : `☑️ Chọn tất cả (${groups.length} nhóm)`}
+                      </button>
+                      {selectedGroupIds.size > 0 && !allSelected && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGroupIds(new Set())}
+                          className="text-xs px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold transition-all"
+                        >
+                          ☒ Bỏ chọn
+                        </button>
+                      )}
+                    </div>
+                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                      {selectedGroupIds.size > 0
+                        ? `✓ Đã chọn ${selectedGroupIds.size} nhóm ➔ ${extractedUniqueMembers.length} thành viên độc nhất (tự động khử trùng)`
+                        : 'Hãy chọn 1 hoặc nhiều nhóm bên dưới'}
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* Group List */}
               <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
                 {(() => {
-                  const groups = filtered.filter(c => c.contact_type === 'group');
+                  const groups = allGroups.filter(g => (!search || (g.display_name || '').toLowerCase().includes(search.toLowerCase())));
                   if (groups.length === 0) {
                     return (
                       <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -1001,9 +1146,9 @@ export default function TargetSelector({
                             {group.avatar ? <img src={group.avatar} alt="" className="w-full h-full object-cover" /> : '👨‍👩‍👧‍👦'}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{group.alias || group.display_name || group.contact_id}</p>
+                            <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{group.display_name}</p>
                             <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                              {dbMembers.length > 0 ? `${dbMembers.length} thành viên` : 'Nhóm Zalo'}
+                              {dbMembers.length > 0 ? `${dbMembers.length} thành viên` : (group.member_count > 0 ? `${group.member_count} thành viên` : 'Nhóm Zalo')}
                             </p>
                           </div>
                         </div>
@@ -1020,85 +1165,103 @@ export default function TargetSelector({
             </div>
           )}
 
-          {/* Friends Only Mode (Theo Liên hệ) */}
-          {mode === 'friends_only' && (
-            <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">
-                Danh sách {filtered.filter(c => c.contact_type !== 'group').length} liên hệ cá nhân ({selectedCount} sẵn sàng)
-              </p>
-              {filtered.filter(c => c.contact_type !== 'group').slice(0, 100).map(c => (
-                <div
-                  key={c.contact_id}
-                  className="p-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 flex items-center justify-between gap-3 shadow-2xs"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
-                      {c.avatar ? <img src={c.avatar} alt="" className="w-full h-full object-cover" /> : (c.alias || c.display_name || '?').slice(0, 1).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleExcludeContact(c.contact_id)}
-                    className={`text-[11px] px-2.5 py-1 rounded-xl border font-bold transition-all flex items-center gap-1 ${
-                      excludedContactIds.has(c.contact_id)
-                        ? 'bg-red-600 text-white border-red-600 shadow-2xs'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-red-500 hover:border-red-300'
-                    }`}
-                  >
-                    <span>🚫</span>
-                    <span>{excludedContactIds.has(c.contact_id) ? 'Đã loại trừ' : 'Loại trừ'}</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Manual Select Mode */}
-          {mode === 'manual' && (
-            <div className="space-y-2">
-              {filtered.slice(0, 100).map(c => {
-                const isSelected = manualSelected.has(c.contact_id);
+          {/* Manual / Friends Select Mode (Theo Liên hệ - Matching Request 1 & 2 / Hình 2) */}
+          {(mode === 'manual' || mode === 'friends_only') && (
+            <div className="space-y-3">
+              {/* Toolbar Controls */}
+              {(() => {
+                const contacts = allContacts.filter(c => c.contact_type !== 'group' && (!search || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(search.toLowerCase())));
+                const allSelected = contacts.length > 0 && contacts.every(c => manualSelected.has(c.contact_id));
                 return (
-                  <div
-                    key={c.contact_id}
-                    onClick={() => toggleManualSelect(c.contact_id)}
-                    className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center gap-3 ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 ring-2 ring-blue-500/20'
-                        : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800'
-                    }`}
-                  >
-                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
-                      isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600'
-                    }`}>
-                      {isSelected && <span className="text-xs font-bold">✓</span>}
+                  <div className="flex items-center justify-between gap-2 flex-wrap bg-blue-50/70 dark:bg-blue-950/30 p-3 rounded-2xl border border-blue-100 dark:border-blue-900/50">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (allSelected) {
+                            setManualSelected(new Set());
+                          } else {
+                            setManualSelected(new Set(contacts.map(c => c.contact_id)));
+                          }
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-2xs"
+                      >
+                        {allSelected ? '☒ Bỏ chọn tất cả' : `☑️ Chọn tất cả (${contacts.length} liên hệ)`}
+                      </button>
+                      {manualSelected.size > 0 && !allSelected && (
+                        <button
+                          type="button"
+                          onClick={() => setManualSelected(new Set())}
+                          className="text-xs px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold transition-all"
+                        >
+                          ☒ Bỏ chọn
+                        </button>
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleExcludeContact(c.contact_id);
-                      }}
-                      className={`text-[11px] px-2.5 py-1 rounded-xl border font-bold transition-all flex items-center gap-1 ${
-                        excludedContactIds.has(c.contact_id)
-                          ? 'bg-red-600 text-white border-red-600 shadow-2xs'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-red-500 hover:border-red-300'
-                      }`}
-                    >
-                      <span>🚫</span>
-                      <span>{excludedContactIds.has(c.contact_id) ? 'Đã loại trừ' : 'Loại trừ'}</span>
-                    </button>
+                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                      {manualSelected.size > 0
+                        ? `✓ Đã chọn ${manualSelected.size} liên hệ để thêm vào chiến dịch`
+                        : 'Tích chọn 1 hoặc nhiều liên hệ bên dưới để thêm gửi tin'}
+                    </span>
                   </div>
                 );
-              })}
+              })()}
+
+              {/* Contact List */}
+              <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+                {(() => {
+                  const contacts = allContacts.filter(c => c.contact_type !== 'group' && (!search || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(search.toLowerCase())));
+                  if (contacts.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <span className="text-3xl mb-2">👤</span>
+                        <p className="text-xs font-bold text-gray-600 dark:text-gray-300">Không tìm thấy liên hệ nào.</p>
+                      </div>
+                    );
+                  }
+                  return contacts.slice(0, 300).map(c => {
+                    const isSelected = manualSelected.has(c.contact_id);
+                    return (
+                      <div
+                        key={c.contact_id}
+                        onClick={() => toggleManualSelect(c.contact_id)}
+                        className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 ring-2 ring-blue-500/20 shadow-2xs'
+                            : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Checkbox at the START (left-hand side) */}
+                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors flex-shrink-0 ${
+                            isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                          }`}>
+                            {isSelected && <span className="text-xs font-bold">✓</span>}
+                          </div>
+
+                          {/* Avatar người dùng - Matching Request 1 */}
+                          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
+                            {c.avatar ? <img src={c.avatar} alt="" className="w-full h-full object-cover" /> : (c.alias || c.display_name || '?').slice(0, 1).toUpperCase()}
+                          </div>
+
+                          {/* Contact Info */}
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
+                          </div>
+                        </div>
+
+                        {/* Status Tag on the right (NO EXCLUDE BUTTON HERE!) */}
+                        {isSelected && (
+                          <span className="text-[11px] px-2.5 py-1 rounded-xl bg-blue-600 text-white font-bold shadow-2xs">
+                            ✓ Đã chọn
+                          </span>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </div>
           )}
         </div>
