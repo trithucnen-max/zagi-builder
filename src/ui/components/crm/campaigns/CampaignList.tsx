@@ -210,7 +210,7 @@ export default function CampaignList({
               const isScheduled = c.status === 'active' && c.scheduled_start_at && c.scheduled_start_at > Date.now();
               const isSelected = activeId === c.id;
               const progressPercent = c.total_contacts > 0 ? Math.min(100, Math.round((c.sent_count / c.total_contacts) * 100)) : 0;
-              const itemIndex = (page - 1) * pageSize + index + 1;
+              const itemIndex = page * PAGE_SIZE + index + 1;
 
               return (
                 <div
