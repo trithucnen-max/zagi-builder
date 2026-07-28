@@ -9623,10 +9623,10 @@ class DatabaseService {
             if (!timeRange || timeRange === 'all') {
                 const totalRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items`) || { cnt: 0 };
                 const foundRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'found'`) || { cnt: 0 };
-                const notFoundRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'not_found'`) || { cnt: 0 };
+                const notFoundRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status IN ('not_found', 'error')`) || { cnt: 0 };
                 const errorRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'error'`) || { cnt: 0 };
                 const pendingRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'pending'`) || { cnt: 0 };
-                const scanned = foundRow.cnt + notFoundRow.cnt + errorRow.cnt;
+                const scanned = foundRow.cnt + notFoundRow.cnt;
 
                 return {
                     total: totalRow.cnt,
@@ -9700,11 +9700,11 @@ class DatabaseService {
                 [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp]
             ) || { cnt: 0 };
 
-            // Not found items
+            // Not found items (includes both 'not_found' and 'error' lookups)
             const notFoundRow = this.queryOne<any>(
                 `SELECT COUNT(*) as cnt FROM phone_scan_items psi
                  JOIN phone_scan_batches psb ON psi.batch_id = psb.id
-                 WHERE psi.status = 'not_found' AND (
+                 WHERE psi.status IN ('not_found', 'error') AND (
                      (psi.scanned_at >= ? AND psi.scanned_at <= ?) OR
                      (psi.created_at >= ? AND psi.created_at <= ?) OR
                      (psb.created_at >= ? AND psb.created_at <= ?)
@@ -9735,7 +9735,7 @@ class DatabaseService {
                 [startTimestamp, endTimestamp, startTimestamp, endTimestamp]
             ) || { cnt: 0 };
 
-            const scanned = foundRow.cnt + notFoundRow.cnt + errorRow.cnt;
+            const scanned = foundRow.cnt + notFoundRow.cnt;
             const pending = Math.max(pendingRow.cnt, totalRow.cnt - scanned);
 
             return {
