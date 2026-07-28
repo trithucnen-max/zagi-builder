@@ -75,6 +75,15 @@ export default function UpdateModal({
     return <p className="text-xs text-gray-500">{JSON.stringify(notes)}</p>;
   };
 
+  const osName = React.useMemo(() => {
+    if (typeof navigator === 'undefined') return 'Cross-Platform';
+    const platform = (navigator.platform || navigator.userAgent || '').toLowerCase();
+    if (platform.includes('win')) return 'Windows 🪟';
+    if (platform.includes('mac')) return 'macOS 🍎';
+    if (platform.includes('linux')) return 'Linux 🐧';
+    return 'Desktop';
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="relative w-full max-w-lg bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-750 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
@@ -98,7 +107,7 @@ export default function UpdateModal({
                   v{updateInfo.version || '3.0.9'}
                 </span>
               </div>
-              <p className="text-xs text-blue-100 mt-0.5">Zagi macOS Auto-Update System</p>
+              <p className="text-xs text-blue-100 mt-0.5">Zagi {osName} Auto-Update System</p>
             </div>
           </div>
         </div>
