@@ -1425,7 +1425,12 @@ export default function CRMContactList({
                   })()}
                   {/* Labels (Local + Zalo) under name */}
                   {(() => {
-                    const threadLIds = localLabelThreadMap?.[contact.contact_id] || [];
+                    const threadLIds = Array.from(new Set([
+                      ...(localLabelThreadMap?.[contact.contact_id] || []),
+                      ...(contact.contact_id.startsWith('g') ? localLabelThreadMap?.[contact.contact_id.slice(1)] || [] : localLabelThreadMap?.[`g${contact.contact_id}`] || []),
+                      ...(contact.phone ? localLabelThreadMap?.[contact.phone] || [] : []),
+                      ...(contact.user_id ? localLabelThreadMap?.[contact.user_id] || [] : []),
+                    ]));
                     const hasLabels = threadLIds.length > 0 || contactLabels.length > 0;
                     if (!hasLabels) return null;
                     return (

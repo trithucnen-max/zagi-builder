@@ -4,6 +4,17 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.9] - 2026-07-29
 
+### 🐛 Sửa Lỗi Lọc Liên Hệ Theo Nhãn & Tải Nhóm Trong Chiến Dịch (`TargetSelector.tsx`)
+- **Khắc Phục Lỗi Tìm Thấy 0 Liên Hệ Khi Lọc Theo Nhãn (Hình 1 & Hình 2):**
+  - Mở rộng cơ chế đối soát nhãn Local tương đương theo tên (`Name-based equivalency`), đảm bảo ngay cả khi ID nhãn giữa các tài khoản khác nhau vẫn lọc và khớp 100% các liên hệ được gán nhãn đó (ví dụ nhãn `TD`).
+  - Hợp nhất bản đồ nhãn Local (`effectiveThreadMap`) giữa dữ liệu từ props và truy vấn trực tiếp từ SQLite DB (`local_label_threads`).
+  - Đa dạng hóa định dạng ID khi tìm nhãn (khớp cả `contact_id`, `g` prefix, `phone`, `user_id`).
+- **Khắc Phục Lỗi Không Load Được Danh Sách Nhóm (Hình 4):**
+  - Import bổ sung `useChatStore` bị thiếu trong `TargetSelector.tsx` gây crash ngầm hàm `loadGroups()`.
+  - Bổ sung truy vấn trực tiếp nhóm từ cơ sở dữ liệu SQLite (`contactType: 'group'`), đảm bảo hiển thị đủ 100% danh sách 271+ nhóm Zalo ngay khi mở modal chọn liên hệ.
+- **Khai Thác Nhãn Local Dưới Tên Liên Hệ (`CRMContactList.tsx`):**
+  - Chuẩn hóa việc tra cứu `threadLIds` hỗ trợ đa định dạng ID, giúp huy hiệu nhãn Local (như `[TD]`) hiển thị lập tức dưới tên liên hệ trên danh sách CRM mà không cần khởi động lại ứng dụng Zagi.
+
 ### 🚀 Cải Tiến Quy Trình Nâng Cấp Tự Động (Auto-Update System)
 - **Sửa Lỗi React Error #310:** Đưa `useMemo` lên trước câu lệnh điều kiện `if (!open) return null` trong `UpdateModal.tsx` để tuân thủ triệt để Rules of Hooks.
 - **Phát Hiện Cập Nhật Tức Thì:** 

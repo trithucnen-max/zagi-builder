@@ -8,6 +8,7 @@ import { formatPhone, normalizePhone } from '@/utils/phoneUtils';
 import AppIcon from '@/components/common/AppIcon';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 import { useAccountStore } from '@/store/accountStore';
+import { useChatStore } from '@/store/chatStore';
 
 export interface LocalLabelItem {
   id: number;
@@ -152,8 +153,22 @@ export default function TargetSelector({
 
   const effectiveThreadMap = useMemo(() => {
     const propMap = localLabelThreadMap || {};
-    if (Object.keys(propMap).length > 0) return propMap;
-    return fetchedThreadMap;
+    const merged: Record<string, number[]> = { ...fetchedThreadMap };
+    Object.entries(propMap).forEach(([k, v]) => {
+      if (!v || !Array.isArray(v)) return;
+      if (!merged[k]) {
+        merged[k] = [...v];
+      } else {
+        merged[k] = Array.from(new Set([...merged[k], ...v]));
+      }
+      const clean = k.startsWith('g') ? k.slice(1) : k;
+      if (!merged[clean]) {
+        merged[clean] = [...v];
+      } else {
+        merged[clean] = Array.from(new Set([...merged[clean], ...v]));
+      }
+    });
+    return merged;
   }, [localLabelThreadMap, fetchedThreadMap]);
 
   const accounts = useAccountStore(s => s.accounts);
@@ -201,20 +216,39 @@ export default function TargetSelector({
       const groupMap = new Map<string, any>();
 
       // 1. From useChatStore
-      const storeContacts = useChatStore.getState().contacts[zaloId] || [];
-      storeContacts.forEach((c: any) => {
-        if (c.contact_type === 'group' || c.is_group === 1) {
-          groupMap.set(c.contact_id, {
-            contact_id: c.contact_id,
-            display_name: c.display_name || c.alias || c.zalo_name || `Nhóm ${c.contact_id}`,
-            avatar: c.avatar_url || c.avatar,
-            contact_type: 'group',
-            member_count: c.member_count || c.total_members || 0,
-          });
-        }
-      });
+      try {
+        const storeContacts = useChatStore.getState().contacts[zaloId] || [];
+        storeContacts.forEach((c: any) => {
+          if (c.contact_type === 'group' || c.is_group === 1) {
+            groupMap.set(c.contact_id, {
+              contact_id: c.contact_id,
+              display_name: c.display_name || c.alias || c.zalo_name || `Nhóm ${c.contact_id}`,
+              avatar: c.avatar_url || c.avatar,
+              contact_type: 'group',
+              member_count: c.member_count || c.total_members || 0,
+            });
+          }
+        });
+      } catch {}
 
-      // 2. From DB conversations
+      // 2. From DB contacts (groups in contacts table)
+      try {
+        const cRes = await ipc.crm?.getContacts({ zaloId, opts: { contactType: 'group', limit: 2000 } });
+        const gContacts = cRes?.contacts || [];
+        gContacts.forEach((c: any) => {
+          if (c.contact_id && !groupMap.has(c.contact_id)) {
+            groupMap.set(c.contact_id, {
+              contact_id: c.contact_id,
+              display_name: c.display_name || c.alias || `Nhóm ${c.contact_id}`,
+              avatar: c.avatar || c.avatar_url || '',
+              contact_type: 'group',
+              member_count: c.member_count || 0,
+            });
+          }
+        });
+      } catch {}
+
+      // 3. From DB conversations
       try {
         const convRes = await ipc.db?.getConversations({ zaloId });
         const convs = convRes?.conversations || [];
@@ -234,7 +268,7 @@ export default function TargetSelector({
         });
       } catch {}
 
-      // 3. From Zalo API
+      // 4. From Zalo API
       const acc = accounts.find(a => a.zalo_id === zaloId);
       if (acc) {
         try {
@@ -408,16 +442,42 @@ export default function TargetSelector({
       list = list.filter(c => c.contact_type === 'group');
     } else if (mode === 'by_label') {
       if (totalLabelFilters === 0) return [];
+
+      // Build expanded set of local label IDs that share the same name(s) as selectedLocalLabelIds
+      const selectedNames = (effectiveLocalLabels || [])
+        .filter(l => selectedLocalLabelIds.includes(l.id))
+        .map(l => (l.name || '').trim().toLowerCase())
+        .filter(Boolean);
+
+      const expandedLocalLabelIds = new Set<number>([
+        ...selectedLocalLabelIds,
+        ...(effectiveLocalLabels || [])
+          .filter(l => selectedNames.includes((l.name || '').trim().toLowerCase()))
+          .map(l => l.id)
+      ]);
+
       list = list.filter(c => {
-        const cId = c.contact_id;
+        const cId = c.contact_id || c.user_id;
+        if (!cId) return false;
         const isGroup = c.contact_type === 'group';
-        const prefId = isGroup ? `g${cId}` : cId;
+        const prefId = isGroup ? (cId.startsWith('g') ? cId : `g${cId}`) : cId;
+        const cleanId = cId.startsWith('g') ? cId.slice(1) : cId;
+
         const matchesZalo = selectedZaloLabelIds.some(lId => {
           const lObj = allLabels.find(l => l.id === lId);
-          return lObj?.conversations?.includes(cId) || (isGroup && lObj?.conversations?.includes(prefId));
+          return lObj?.conversations?.includes(cId) || (isGroup && (lObj?.conversations?.includes(prefId) || lObj?.conversations?.includes(cleanId)));
         });
-        const threadLabels = effectiveThreadMap[cId] || effectiveThreadMap[prefId] || [];
-        const matchesLocal = selectedLocalLabelIds.some(lId => threadLabels.includes(lId));
+
+        // Collect all label IDs assigned to this contact/thread across any ID variation
+        const threadLabelIds = new Set<number>([
+          ...(effectiveThreadMap[cId] || []),
+          ...(effectiveThreadMap[prefId] || []),
+          ...(effectiveThreadMap[cleanId] || []),
+          ...(c.phone ? effectiveThreadMap[c.phone] || [] : []),
+          ...(c.user_id ? effectiveThreadMap[c.user_id] || [] : []),
+        ]);
+
+        const matchesLocal = Array.from(expandedLocalLabelIds).some(lId => threadLabelIds.has(lId));
         return matchesZalo || matchesLocal;
       });
     }
