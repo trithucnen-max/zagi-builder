@@ -173,49 +173,65 @@ export function UpdateNotification() {
   return (
     <>
       {hasUpdate && !dismissedToast && !showModal && (
-        <div className={`fixed bottom-5 right-5 z-[9990] max-w-sm w-full p-4 rounded-3xl shadow-2xl border transition-all duration-300 ${
-          isLight 
-            ? 'bg-white/95 border-blue-200 text-gray-800 shadow-blue-500/10' 
-            : 'bg-gray-900/95 border-blue-800/50 text-gray-100 shadow-blue-900/20'
-        } backdrop-blur-md animate-in fade-in slide-in-from-bottom-4`}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md shrink-0 animate-bounce">
-                🚀
+        <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 pointer-events-none">
+          {/* Centered update notification card */}
+          <div className={`pointer-events-auto w-full max-w-sm rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-6 ${
+            isLight
+              ? 'bg-white border-blue-100 shadow-blue-500/15'
+              : 'bg-gray-900 border-blue-800/40 shadow-blue-900/30'
+          }`}>
+            {/* Blue header strip */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center text-2xl shadow-sm animate-bounce">
+                  🚀
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-white leading-tight">
+                    Có bản cập nhật mới!
+                  </h4>
+                  <p className="text-xs text-blue-100 mt-0.5">
+                    Zagi <span className="font-bold">{updateState.version}</span> đã sẵn sàng
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-sm font-extrabold leading-tight">
-                  Có bản cập nhật mới Zagi {updateState.version}!
-                </h4>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                  Bản hiện tại: v{CURRENT_VERSION}
-                </p>
-              </div>
+              <button
+                onClick={handleDismissToast}
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white text-xs transition-colors cursor-pointer"
+                title="Bỏ qua"
+              >
+                ✕
+              </button>
             </div>
 
-            <button
-              onClick={handleDismissToast}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg transition-colors text-xs cursor-pointer"
-              title="Bỏ qua"
-            >
-              ✕
-            </button>
-          </div>
+            {/* Body */}
+            <div className="px-5 py-4">
+              <p className={`text-xs leading-relaxed ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                Bản hiện tại: <span className="font-semibold">v{CURRENT_VERSION}</span>
+                &nbsp;→&nbsp;
+                <span className={`font-bold ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>{updateState.version}</span>
+              </p>
+            </div>
 
-          <div className="mt-3.5 flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-            <button
-              onClick={handleDismissToast}
-              className="px-3.5 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full transition-colors"
-            >
-              Để sau
-            </button>
-            <button
-              onClick={() => setShowModal(true)}
-              className="px-4 py-2 text-xs font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-95 rounded-full transition-all shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Xem điểm mới & Nâng cấp</span>
-              <span>→</span>
-            </button>
+            {/* Footer buttons */}
+            <div className={`px-5 pb-5 flex items-center gap-3`}>
+              <button
+                onClick={handleDismissToast}
+                className={`flex-1 py-2.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${
+                  isLight
+                    ? 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                    : 'border-gray-700 text-gray-400 hover:bg-gray-800'
+                }`}
+              >
+                Để sau
+              </button>
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex-[2] py-2.5 rounded-full text-xs font-black text-white bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all shadow-md shadow-blue-500/25 cursor-pointer"
+              >
+                Xem điểm mới &amp; Nâng cấp →
+              </button>
+            </div>
           </div>
         </div>
       )}

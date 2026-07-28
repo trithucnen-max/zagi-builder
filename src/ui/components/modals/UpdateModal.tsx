@@ -31,9 +31,21 @@ export default function UpdateModal({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const campaigns = useCRMStore(s => s.campaigns || []);
-  const runningCampaigns = campaigns.filter((c: any) => c.status === 'running');
 
+  // ✅ FIX: useMemo MUST be before any conditional return (Rules of Hooks)
+  const osName = React.useMemo(() => {
+    if (typeof navigator === 'undefined') return 'Cross-Platform';
+    const platform = (navigator.platform || navigator.userAgent || '').toLowerCase();
+    if (platform.includes('win')) return 'Windows 🪟';
+    if (platform.includes('mac')) return 'macOS 🍎';
+    if (platform.includes('linux')) return 'Linux 🐧';
+    return 'Desktop';
+  }, []);
+
+  // ✅ early return AFTER all hooks
   if (!open) return null;
+
+  const runningCampaigns = campaigns.filter((c: any) => c.status === 'running');
 
   const formatBytes = (bytes?: number) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -64,8 +76,8 @@ export default function UpdateModal({
     if (!notes) {
       return (
         <ul className="space-y-1.5 text-xs text-gray-600 dark:text-gray-300 list-disc list-inside">
-          <li>Cải tiến hiệu năng & tối ưu hóa bộ nhớ cho hệ thống.</li>
-          <li>Nâng cấp tính năng Xưng hô thông minh & Tự xưng tự động theo chuẩn Tiếng Việt.</li>
+          <li>Cải tiến hiệu năng &amp; tối ưu hóa bộ nhớ cho hệ thống.</li>
+          <li>Nâng cấp tính năng Xưng hô thông minh &amp; Tự xưng tự động theo chuẩn Tiếng Việt.</li>
           <li>Sửa lỗi nhỏ và tăng cường độ ổn định kết nối Zalo.</li>
         </ul>
       );
@@ -94,19 +106,10 @@ export default function UpdateModal({
     return <p className="text-xs text-gray-500">{JSON.stringify(notes)}</p>;
   };
 
-  const osName = React.useMemo(() => {
-    if (typeof navigator === 'undefined') return 'Cross-Platform';
-    const platform = (navigator.platform || navigator.userAgent || '').toLowerCase();
-    if (platform.includes('win')) return 'Windows 🪟';
-    if (platform.includes('mac')) return 'macOS 🍎';
-    if (platform.includes('linux')) return 'Linux 🐧';
-    return 'Desktop';
-  }, []);
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-750 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-        
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+
         {/* Toast Feedback Notification */}
         {toastMessage && (
           <div className="absolute top-4 left-4 right-4 z-[10000] p-3.5 bg-emerald-600 text-white rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
@@ -115,11 +118,11 @@ export default function UpdateModal({
           </div>
         )}
 
-        {/* Modal Top Banner Gradient Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6 text-white relative">
+        {/* Modal Top Banner — Zagi Blue only */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer"
           >
             ✕
           </button>
@@ -133,7 +136,7 @@ export default function UpdateModal({
                 <h3 className="text-lg font-black tracking-tight text-white">
                   {confirmStage ? 'XÁC NHẬN NÂNG CẤP ZAGI' : 'BẢN CẬP NHẬT MỚI'}
                 </h3>
-                <span className="px-2.5 py-0.5 rounded-full bg-white/25 border border-white/40 text-white font-extrabold text-xs shadow-2xs">
+                <span className="px-2.5 py-0.5 rounded-full bg-white/25 border border-white/40 text-white font-extrabold text-xs">
                   v{updateInfo.version || '3.0.9'}
                 </span>
               </div>
@@ -145,7 +148,6 @@ export default function UpdateModal({
         {/* Modal Body Content */}
         <div className="p-6 space-y-4 flex-1">
           {confirmStage ? (
-            /* Option A + B Safety Confirmation View */
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
               <div className="text-xs text-gray-700 dark:text-gray-200 space-y-1">
                 <p className="font-extrabold text-sm text-gray-900 dark:text-white">
@@ -156,9 +158,8 @@ export default function UpdateModal({
                 </p>
               </div>
 
-              {/* Running CRM Campaigns Warning Card */}
               {runningCampaigns.length > 0 && (
-                <div className="bg-amber-50 dark:bg-amber-955/40 border border-amber-300 dark:border-amber-700/60 rounded-2xl p-4 flex items-start gap-3 text-amber-900 dark:text-amber-200">
+                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-2xl p-4 flex items-start gap-3 text-amber-900 dark:text-amber-200">
                   <span className="text-2xl shrink-0">⚠️</span>
                   <div className="text-xs leading-relaxed">
                     <p className="font-extrabold text-amber-950 dark:text-amber-100 text-sm">
@@ -172,7 +173,6 @@ export default function UpdateModal({
               )}
             </div>
           ) : (
-            /* Standard Release Notes View */
             <>
               <div>
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
@@ -183,9 +183,8 @@ export default function UpdateModal({
                 </div>
               </div>
 
-              {/* Downloading Progress Section */}
               {updateInfo.status === 'downloading' && (
-                <div className="bg-blue-50/60 dark:bg-blue-955/30 border border-blue-200 dark:border-blue-900/50 rounded-2xl p-4 space-y-2.5">
+                <div className="bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-2xl p-4 space-y-2.5">
                   <div className="flex items-center justify-between text-xs font-bold text-gray-800 dark:text-gray-200">
                     <span className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                       <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
@@ -193,28 +192,21 @@ export default function UpdateModal({
                     </span>
                     <span className="font-mono">{updateInfo.percent || 0}%</span>
                   </div>
-
-                  {/* Progress Track */}
                   <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 rounded-full transition-all duration-300"
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-700 rounded-full transition-all duration-300"
                       style={{ width: `${Math.max(3, updateInfo.percent || 0)}%` }}
                     />
                   </div>
-
-                  {/* Details (MB & Speed) */}
                   <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 font-mono">
-                    <span>
-                      {formatBytes(updateInfo.transferred)} / {formatBytes(updateInfo.total)}
-                    </span>
+                    <span>{formatBytes(updateInfo.transferred)} / {formatBytes(updateInfo.total)}</span>
                     <span>{formatSpeed(updateInfo.bytesPerSecond)}</span>
                   </div>
                 </div>
               )}
 
-              {/* Downloaded Ready Status */}
               {updateInfo.status === 'downloaded' && (
-                <div className="bg-emerald-50 dark:bg-emerald-955/30 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-4 flex items-center gap-3 text-emerald-800 dark:text-emerald-300">
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-4 flex items-center gap-3 text-emerald-800 dark:text-emerald-300">
                   <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-lg flex-shrink-0">
                     ✓
                   </div>
@@ -225,9 +217,8 @@ export default function UpdateModal({
                 </div>
               )}
 
-              {/* Error Status */}
               {updateInfo.status === 'error' && (
-                <div className="bg-rose-50 dark:bg-rose-955/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl p-4 flex items-start gap-3 text-xs text-rose-800 dark:text-rose-300">
+                <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl p-4 flex items-start gap-3 text-xs text-rose-800 dark:text-rose-300">
                   <span className="text-lg">⚠️</span>
                   <div>
                     <p className="font-bold">Không thể tải bản cập nhật:</p>
@@ -240,9 +231,8 @@ export default function UpdateModal({
         </div>
 
         {/* Modal Footer Buttons */}
-        <div className="p-4 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-200/80 dark:border-gray-750 flex items-center justify-end gap-2 text-xs">
+        <div className="p-4 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-200/80 dark:border-gray-700 flex items-center justify-end gap-2 text-xs">
           {confirmStage ? (
-            /* Option A + B Buttons */
             <>
               <button
                 onClick={() => setConfirmStage(false)}
@@ -252,7 +242,7 @@ export default function UpdateModal({
               </button>
               <button
                 onClick={handleInstallOnQuit}
-                className="px-4 py-2.5 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                className="px-4 py-2.5 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                 title="Tự nâng cấp ngầm khi bạn chủ động tắt ứng dụng"
               >
                 <span>🌙 Cài khi tôi tắt Zagi</span>
@@ -265,7 +255,6 @@ export default function UpdateModal({
               </button>
             </>
           ) : (
-            /* Main Stage Buttons */
             <>
               <button
                 onClick={onClose}
@@ -277,7 +266,7 @@ export default function UpdateModal({
               {updateInfo.status === 'available' || updateInfo.status === 'idle' ? (
                 <button
                   onClick={onStartDownload}
-                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-black shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   <span>🚀 Nâng cấp ngay</span>
                   <span>→</span>
@@ -295,7 +284,7 @@ export default function UpdateModal({
                   onClick={() => setConfirmStage(true)}
                   className="px-6 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer animate-pulse"
                 >
-                  <span>🔄 Khởi động lại & Cập nhật</span>
+                  <span>🔄 Khởi động lại &amp; Cập nhật</span>
                 </button>
               ) : updateInfo.status === 'error' ? (
                 <button
