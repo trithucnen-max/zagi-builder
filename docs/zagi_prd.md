@@ -6,16 +6,19 @@
 
 ---
 
-#### 🚀 v3.0.8 — Xưng Hô Thông Minh, Bộ Lọc Loại Trừ 3 Tiêu Chí, Giờ Nghỉ Đêm & Delay Ngẫu Nhiên CRM (Official Release)
+#### 🚀 v3.0.8 — Khử Trùng Thành Viên Nhóm, Xưng Hô Thông Minh, Loại Trừ 3 Tiêu Chí & Giờ Nghỉ Đêm CRM (Official Release)
 * **Tính năng mới (New):**
-  * **🚫 Bộ Lọc Loại Trừ Đối Tượng 3 Tiêu Chí Mở Rộng (`TargetSelector.tsx`)**:
-    * Tích hợp khối bộ lọc loại trừ nâng cao với 3 Sub-tab: `🏷️ Theo Nhãn` (Local & Zalo), `👨‍👩‍👧‍👦 Theo Nhóm Zalo` (loại trừ toàn bộ thành viên nhóm chỉ định), và `👤 Theo Liên hệ` (xem danh sách loại trừ & chọn loại trừ từng cá nhân cụ thể).
-    * Bổ sung nút `🚫 Loại trừ` 1-click trực tiếp trên danh sách liên hệ chính.
-    * Chuẩn hóa thứ tự các tab sub-menu chọn đối tượng: `🏷️ Theo nhãn`, `📞 Theo SĐT`, `🔗 Theo UID`, `👤 Theo Liên hệ`, `👨‍👩‍👧‍👦 Theo nhóm`.
+  * **👨‍👩‍👧‍👦 Chọn Nhiều Nhóm Zalo & Khử Trùng Thành Viên Tự Động (`TargetSelector.tsx`)**:
+    * Cho phép tích chọn nhiều Nhóm Zalo cùng lúc ở tab `Theo nhóm` (`☑️ Chọn tất cả` / `☒ Bỏ chọn`).
+    * Tự động giải nén toàn bộ thành viên từ các nhóm được chọn và thực thi khử trùng 100% (Deduplicate by Member ID). Đảm bảo mỗi cá nhân chỉ đứng 1 vị trí duy nhất và chỉ nhận 1 tin nhắn.
+    * Thống kê trực quan thời gian thực: `✓ Đã chọn X nhóm ➔ Y thành viên độc nhất`.
+  * **🚫 Bộ Lọc Loại Trừ 3 Tiêu Chí Nâng Cao & Tìm Kiếm Nhanh (`TargetSelector.tsx`)**:
+    * Tích hợp ô tìm kiếm nhóm Zalo (`exGroupSearch`) và ô tìm kiếm bạn bè (`exContactSearch`) trong khối loại trừ.
+    * Tự động loại trừ toàn bộ thành viên thuộc các nhóm Zalo chỉ định hoặc loại trừ từng cá nhân cụ thể với mác đỏ `🚫 [Tên liên hệ] (✕)` trực quan.
   * **🎯 Động Cơ Phân Phát Tin Nhắn Chờ Ngẫu Nhiên Từng Tin CRM (`CRMQueueService.ts`)**:
     * Tính toán khoảng delay ngẫu nhiên hoàn toàn MỚI (`nextAllowedSendTime`) cho từng tin nhắn/liên hệ riêng biệt trong dải `[delay_min_seconds, delay_max_seconds]`, loại bỏ hiện tượng bị gửi dồn ở mốc tối thiểu.
   * **🌙 Giờ Nghỉ Đêm Tự Động Tránh Khóa Tài Khoản CRM (Quiet Hours)**:
-    * Tự động nghỉ gửi tin từ `23:30` đến `07:00` sáng hôm sau (hỗ trợ bật/tắt và cài đặt tùy chỉnh giờ).
+    * Tự động nghỉ gửi tin từ `23:30` đến `07:00` sáng hôm sau (hỗ trợ bật/tắt, cài đặt giờ tùy chỉnh và tự động phát tín hiệu trạng thái `quiet_hours`).
   * **🗣️ Quản Lý Xưng Hô & Tự Xưng Thông Minh (Smart Salutation & Self-Reference)**:
     * Thêm tab *"🗣️ Xưng hô & Tự xưng"* vào Cài đặt Hội thoại (`SalutationSettings.tsx`). Cho phép Xem, Tìm kiếm, Thêm mới, Sửa, Xóa và Khôi phục bảng quy tắc tự xưng tiếng Việt.
     * Tích hợp bộ thử nghiệm Live Preview theo thời gian thực giúp người dùng thử chọn danh xưng (`Anh`, `Chị`, `Sếp`, `Thầy`...) và xem ngay kết quả tự xưng (`em`, `cháu`, `con`, `mình`...) viết Hoa đầu câu hay viết thường giữa câu.
@@ -26,6 +29,7 @@
   * **📅 Bộ Lọc Khoảng Thời Gian Quét SĐT Linh Hoạt (`PhoneScanPanel.tsx`)**:
     * Cho phép chọn ngày bắt đầu & ngày kết thúc (`Từ ngày` ➔ `Đến ngày`). Thống kê chính xác số lượng SĐT tải lên, đã quét, có Zalo, không Zalo và số còn lại chưa quét theo đúng khoảng thời gian.
 * **Sửa lỗi & Chuẩn hóa Hệ thống (Bug Fixes & Optimization):**
+  * **🏷️ Chuẩn Hóa Hiển Thị Modal Chọn Nhãn (`UnifiedLabelPickerModal.tsx`)**: Sửa triệt để lỗi avatar/tên tài khoản Zalo hiển thị số `2` và dãy Zalo ID 18 chữ số ➔ Khôi phục hiển thị `[Avatar Người Dùng] + Tên Người Dùng` chuẩn xác 100% theo thiết kế.
   * **📊 Báo Cáo Chiến Dịch Card Phản Quang (`CampaignDetail.tsx`)**: Dọn dẹp dòng tiến độ mảnh dư thừa, chuyển màu chữ/số/icon trên 4 card thống kê (Tổng số, Thành công, Thất bại, Đang chờ) sang trắng phản quang nổi bật trên nền tối.
   * **👤 Tự Chọn Tài Khoản Nhận CRM Mặc Định (`CRMPage.tsx`)**: Tự chọn Zalo Account đầu tiên có sẵn khi gom về 1 tài khoản, tránh lỗi quên chọn.
   * **Sửa Lỗi Hiển Thị Bong Bóng Ảnh & Thumbnail (`mediaUtils.ts` & `ChatWindow.tsx`)**: Chuẩn hóa bóc tách toàn bộ trường CDN URL Zalo (`hdUrl`, `normalUrl`, `thumbUrl`, `url`), dọn dẹp bong bóng ảnh tạm (`temp_xxx`) khi tin nhắn thật từ Zalo API trả về, triệt tiêu hoàn toàn lỗi lặp 2 hình ảnh hỏng.

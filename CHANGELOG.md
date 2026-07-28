@@ -4,19 +4,29 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.8] - 2026-07-28
 
+### 👨‍👩‍👧‍👦 Giải Nén Thành Viên Nhóm & Khử Trùng Tự Động (`TargetSelector.tsx`)
+- **Tích Chọn Nhiều Nhóm & Tự Động Bóc Tách Thành Viên:**
+  - Trong tab `👨‍👩‍👧‍👦 Theo nhóm`, hệ thống load toàn bộ danh sách Nhóm Zalo của tài khoản, cho phép tìm kiếm nhanh tên nhóm và tích chọn nhiều nhóm cùng lúc (`☑️ Chọn tất cả` / `☒ Bỏ chọn`).
+- **Khử Trùng Tuyệt Đối (Deduplicate by Member ID):**
+  - Tự động giải nén toàn bộ thành viên từ các nhóm được chọn và lọc trùng 100% (nếu 1 người nằm ở nhiều nhóm khác nhau), đảm bảo mỗi cá nhân chỉ đứng 1 vị trí duy nhất và chỉ nhận đúng 1 tin nhắn.
+- **Hiển Thị Số Lượng Thành Viên Độc Nhất:**
+  - Thẻ thông báo thời gian thực: `✓ Đã chọn X nhóm ➔ Y thành viên độc nhất (tự động khử trùng)`.
+
+### 🚫 Bộ Lọc Loại Trừ Đối Tượng 3 Tiêu Chí Nâng Cao (`TargetSelector.tsx`)
+- **Tìm Kiếm Nhanh Trong Các Tab Loại Trừ:**
+  - Thêm ô tìm kiếm tên nhóm Zalo (`exGroupSearch`) và ô tìm kiếm bạn bè/liên hệ (`exContactSearch`).
+- **Loại Trừ Toàn Bộ Thành Viên Nhóm & Chọn Cá Nhân:**
+  - Tích chọn loại trừ nhóm Zalo ➔ Tự động loại bỏ toàn bộ thành viên thuộc nhóm đó khỏi danh sách nhận tin.
+  - Tích chọn loại trừ liên hệ cá nhân ➔ Thêm mác badge đỏ loại trừ `🚫 [Tên liên hệ] (✕)` trực quan.
+
+### 🏷️ Chuẩn Hóa Hiển Thị Modal Chọn Nhãn Nâng Cao (`UnifiedLabelPickerModal.tsx`)
+- **Sửa Lỗi Hiển Thị Avatar & Tên Tài Khoản:**
+  - Khắc phục triệt để lỗi hiển thị hình tròn xanh có chữ số `2` và dãy Zalo ID 18 chữ số mơ hồ.
+  - Khôi phục chuẩn xác hiển thị **`[Avatar Người Dùng] + Tên Người Dùng`** (ví dụ: `[Avatar Duong Kim] Duong Kim`) trên danh sách nhãn ở cột bên phải.
+
 ### 🎯 Chiến Dịch CRM: Động Cơ Khoảng Thời Gian Chờ Ngẫu Nhiên Riêng Cho Từng Tin Nhắn (`CRMQueueService.ts`)
 - **Tự Động Sinh Khoảng Delay Ngẫu Nhiên Riêng Cho Mỗi Tin Nhắn (`nextAllowedSendTime`):**
   - Khắc phục triệt để vấn đề thời gian gửi bị dồn về mốc cận dưới tối thiểu. Khi chọn khoảng delay ngẫu nhiên (ví dụ 5s–15s), hệ thống tự động bốc thăm một số ngẫu nhiên hoàn toàn mới cho từng tin nhắn/liên hệ cụ thể ngay sau khi tin trước đó gửi đi (ví dụ: tin 1 chờ 12.4s, tin 2 chờ 6.1s, tin 3 chờ 14.8s,...).
-
-### 🚫 Bộ Lọc Loại Trừ Đối Tượng 3 Tiêu Chí Mở Rộng (`TargetSelector.tsx`)
-- **Tích Hợp Khối Bộ Lọc Loại Trừ Với 3 Sub-Tab Linh Hoạt:**
-  - **`🏷️ Theo Nhãn`**: Loại trừ Nhãn Local & Nhãn Zalo (VD: loại trừ các liên hệ có nhãn `Đã gửi`, `Đã chốt`, `Từ chối`).
-  - **`👨‍👩‍👧‍👦 Theo Nhóm Zalo`**: Loại trừ toàn bộ thành viên thuộc các Nhóm Zalo chỉ định.
-  - **`👤 Theo Liên hệ`**: Cho phép xem danh sách liên hệ bị loại trừ và chọn loại trừ từng cá nhân cụ thể.
-- **Nút "🚫 Loại Trừ" Trực Tiếp Trên Danh Sách:**
-  - Thêm nút `🚫 Loại trừ` cạnh mỗi dòng liên hệ trong giao diện chọn, cho phép loại trừ nhanh 1-click.
-- **Chuẩn Hóa Dãy Tab Đầu Vào:**
-  - Sắp xếp thứ tự các tab sub-menu chọn đối tượng: `🏷️ Theo nhãn`, `📞 Theo SĐT`, `🔗 Theo UID`, `👤 Theo Liên hệ` (thay cho "Chọn thủ công"), `👨‍👩‍👧‍👦 Theo nhóm`.
 
 ### 📊 Báo Cáo Chiến Dịch Gọn Gàng & Giao Diện Card Phản Quang (`CampaignDetail.tsx`)
 - **Dọn Dẹp Thanh Tiến Độ Dư Thừa:**
@@ -25,8 +35,8 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Chuyển đổi toàn bộ chữ, số liệu tổng quan (Tổng số, Thành công, Thất bại, Đang chờ) và icon hiển thị trên các thẻ báo cáo sang màu trắng nổi bật trên nền tối.
 
 ### 🌙 Giờ Nghỉ Đêm Tự Động Tránh Khóa Tài Khoản CRM (`Quiet Hours`)
-- **Tự Động Dừng Gửi Tin Đêm:**
-  - Thiết lập mặc định khung giờ quiet hours từ `23:30` đến `07:00` sáng hôm sau, hỗ trợ công tắc bật/tắt và cài đặt tùy chỉnh giờ gửi tin an toàn cho tài khoản Zalo.
+- **Tự Động Dừng Gửi Tin Đêm & Cảnh Báo Trạng Thái:**
+  - Thiết lập mặc định khung giờ quiet hours từ `23:30` đến `07:00` sáng hôm sau, tự động phát tín hiệu trạng thái `quiet_hours` đồng bộ lên giao diện khi chiến dịch tạm dừng trong đêm.
 
 ### 👤 Tự Động Gán Tài Khoản Nhận CRM Mặc Định (`CRMPage.tsx` & `PhoneScanPanel.tsx`)
 - **Tự Chọn Tài Khoản Zalo Đầu Tiên:**
