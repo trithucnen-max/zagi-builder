@@ -56,6 +56,15 @@ export default function TargetSelector({
   const [excludedZaloLabelIds, setExcludedZaloLabelIds] = useState<number[]>([]);
   const [excludedLocalLabelIds, setExcludedLocalLabelIds] = useState<number[]>([]);
   const [excludedGroupIds, setExcludedGroupIds] = useState<Set<string>>(new Set());
+  const [excludedContactIds, setExcludedContactIds] = useState<Set<string>>(new Set());
+
+  const toggleExcludeContact = (cId: string) => {
+    setExcludedContactIds(prev => {
+      const next = new Set(prev);
+      if (next.has(cId)) next.delete(cId); else next.add(cId);
+      return next;
+    });
+  };
 
   // ── Phone tab state ──
   const [phoneInput, setPhoneInput] = useState('');
@@ -217,7 +226,7 @@ export default function TargetSelector({
   const totalLabelFilters = selectedZaloLabelIds.length + selectedLocalLabelIds.length;
 
   const allExcludedIds = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(excludedContactIds);
     if (excludedZaloLabelIds.length > 0 || excludedLocalLabelIds.length > 0) {
       allContacts.forEach(c => {
         const cId = c.contact_id;
@@ -242,7 +251,7 @@ export default function TargetSelector({
       });
     }
     return set;
-  }, [excludedZaloLabelIds, excludedLocalLabelIds, excludedGroupIds, allContacts, allLabels, effectiveThreadMap, groupInfoCache, zaloId]);
+  }, [excludedContactIds, excludedZaloLabelIds, excludedLocalLabelIds, excludedGroupIds, allContacts, allLabels, effectiveThreadMap, groupInfoCache, zaloId]);
 
   const filtered = useMemo(() => {
     let list = allContacts;
@@ -402,7 +411,7 @@ export default function TargetSelector({
             { id: 'groups_only', label: 'Theo nhóm Zalo', icon: '👨‍👩‍👧‍👦' },
             { id: 'by_phone', label: 'Theo SĐT', icon: '📞' },
             { id: 'by_uid', label: 'Theo UID', icon: '🔗' },
-            { id: 'manual', label: 'Chọn thủ công', icon: '👥' },
+            { id: 'manual', label: 'Liên hệ', icon: '👤' },
           ].map(tab => {
             const isActive = mode === tab.id;
             return (
@@ -444,7 +453,7 @@ export default function TargetSelector({
           {showExclusionSection && (
             <div className="mt-2 p-3 rounded-2xl bg-white dark:bg-gray-850 border border-red-200 dark:border-red-900/40 space-y-2.5 shadow-2xs">
               <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-                Tích chọn các Nhãn hoặc Nhóm bên dưới để <strong>bỏ qua</strong> các liên hệ nằm trong danh sách loại trừ:
+                Tích chọn các Nhãn, Nhóm hoặc Liên hệ bên dưới để <strong>bỏ qua</strong> các đối tượng nằm trong danh sách loại trừ:
               </p>
 
               {/* 1. Loại trừ theo Nhãn Local */}
@@ -500,6 +509,36 @@ export default function TargetSelector({
                   </div>
                 </div>
               )}
+
+              {/* 3. Loại trừ theo Liên hệ cụ thể */}
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                  Loại trừ Liên hệ cụ thể ({excludedContactIds.size}):
+                </span>
+                {excludedContactIds.size > 0 ? (
+                  <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto">
+                    {Array.from(excludedContactIds).map(cId => {
+                      const contact = allContacts.find(c => c.contact_id === cId);
+                      const name = contact?.alias || contact?.display_name || cId;
+                      return (
+                        <button
+                          key={`ex-c-${cId}`}
+                          type="button"
+                          onClick={() => toggleExcludeContact(cId)}
+                          className="text-[11px] px-2.5 py-1 rounded-full bg-red-600 text-white font-semibold flex items-center gap-1 shadow-2xs hover:bg-red-700 transition-colors"
+                        >
+                          <span>🚫 {name}</span>
+                          <span className="text-[10px] opacity-75">✕</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-400 italic">
+                    Bấm vào nút "🚫 Loại trừ" bên cạnh từng liên hệ bên dưới để đưa vào danh sách loại trừ.
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -713,6 +752,21 @@ export default function TargetSelector({
                       <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
                       <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExcludeContact(c.contact_id);
+                      }}
+                      className={`text-[11px] px-2.5 py-1 rounded-xl border font-bold transition-all flex items-center gap-1 ${
+                        excludedContactIds.has(c.contact_id)
+                          ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-red-500 hover:border-red-300'
+                      }`}
+                    >
+                      <span>🚫</span>
+                      <span>{excludedContactIds.has(c.contact_id) ? 'Đã loại trừ' : 'Loại trừ'}</span>
+                    </button>
                   </div>
                 );
               })}
