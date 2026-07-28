@@ -1,20 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import ipc from '@/lib/ipc';
 
-function AccountAvatar({ account, size = 'sm' }: { account: { avatar_url?: string; full_name?: string; display_name?: string; zalo_id: string }; size?: 'sm' | 'md' | 'lg' }) {
+function AccountAvatar({ account, size = 'sm' }: { account: { avatar_url?: string; avatar?: string; full_name?: string; display_name?: string; name?: string; zalo_id?: string }; size?: 'sm' | 'md' | 'lg' }) {
   const sizeClasses = {
     sm: 'w-5 h-5 text-[10px]',
     md: 'w-7 h-7 text-xs',
     lg: 'w-9 h-9 text-sm',
   };
-  const name = account.full_name || account.display_name || account.zalo_id;
-  const initial = name.charAt(0).toUpperCase();
+  const displayName = account.full_name || account.display_name || account.name;
+  const avatarUrl = account.avatar_url || account.avatar;
 
-  if (account.avatar_url) {
+  if (avatarUrl) {
     return (
       <img
-        src={account.avatar_url}
-        alt={name}
+        src={avatarUrl}
+        alt={displayName || ''}
         className={`${sizeClasses[size]} rounded-full object-cover flex-shrink-0 border border-gray-700`}
         onError={(e) => {
           (e.target as HTMLElement).style.display = 'none';
@@ -22,6 +22,8 @@ function AccountAvatar({ account, size = 'sm' }: { account: { avatar_url?: strin
       />
     );
   }
+
+  const initial = displayName && displayName.trim() ? displayName.trim().charAt(0).toUpperCase() : '👤';
 
   return (
     <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center font-bold text-white flex-shrink-0`}>
@@ -470,8 +472,12 @@ export default function UnifiedLabelPickerModal({
                     const isSelected = selected.includes(opt.value);
                     const bgColor = opt.color || '#6b7280';
                     const textColor = opt.textColor || getContrastColor(bgColor);
-                    const accId = opt.pageId || (opt.pageIds && opt.pageIds[0]);
+                    const accId = opt.pageId || opt.accountZaloId || (opt.pageIds && opt.pageIds[0]);
                     const acc = accId ? accountMap.get(accId) : undefined;
+                    const displayName = acc?.full_name || acc?.display_name || (acc as any)?.name || opt.accountName;
+                    const avatarUrl = acc?.avatar_url || (acc as any)?.avatar;
+                    const effectiveAcc = { avatar_url: avatarUrl, full_name: displayName, display_name: displayName, zalo_id: accId || '' };
+                    const isZaloIdOnly = !displayName || displayName === accId;
 
                     return (
                       <button
@@ -517,12 +523,12 @@ export default function UnifiedLabelPickerModal({
                           {opt.emoji || '🏷️'} {opt.name}
                         </span>
 
-                        {/* Account info */}
-                        {selectedAccountId === 'all' && acc && (
-                          <div className="flex items-center gap-2 ml-auto">
-                            <AccountAvatar account={acc as any} size="sm" />
-                            <span className="text-[11px] text-gray-400">
-                              {formatAccountDisplayName(acc)}
+                        {/* Account info on the right-hand side */}
+                        {selectedAccountId === 'all' && (displayName || acc) && (
+                          <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+                            <AccountAvatar account={effectiveAcc} size="sm" />
+                            <span className="text-xs font-medium text-gray-300">
+                              {!isZaloIdOnly ? displayName : (acc ? formatAccountDisplayName(acc) : (accId ? `Zalo (...${accId.slice(-4)})` : ''))}
                             </span>
                           </div>
                         )}
