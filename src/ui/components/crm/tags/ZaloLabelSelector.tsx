@@ -45,7 +45,7 @@ export default function ZaloLabelSelector({ allLabels, selectedIds, onChange, si
         <span className="ml-auto text-gray-500 text-xs">▾</span>
       </div>
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-xl z-50 max-h-[min(78vh,520px)] overflow-y-auto">
           {allLabels.length === 0 && (
             <p className="text-xs text-gray-500 p-3 text-center">Chưa có nhãn nào</p>
           )}

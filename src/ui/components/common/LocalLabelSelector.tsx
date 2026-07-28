@@ -78,7 +78,7 @@ export default function LocalLabelSelector({
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-xl z-50 max-h-[min(78vh,520px)] overflow-y-auto">
           {labels.length === 0 && (
             <p className="text-xs text-gray-500 p-3 text-center">{emptyText}</p>
           )}

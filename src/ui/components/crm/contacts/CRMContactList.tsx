@@ -111,7 +111,7 @@ function LabelFilterDropdown({ allLabels, filterLabelIds, filterLocalLabelIds, o
         🏷️ {activeCount > 0 ? `${activeCount} nhãn` : 'Nhãn'}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[180px] max-h-64 overflow-hidden flex flex-col">
+        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[220px] max-h-[min(78vh,540px)] overflow-hidden flex flex-col">
           {/* Local / Zalo tabs */}
           <div className="px-2 pt-1.5 pb-1 border-b border-gray-700/60 flex-shrink-0">
             <div className="flex bg-gray-700/60 rounded-md p-0.5 gap-0.5">
