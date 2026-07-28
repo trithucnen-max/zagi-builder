@@ -17,6 +17,7 @@ class CRMQueueService {
     private static instance: CRMQueueService;
     private timers: Map<string, ReturnType<typeof setInterval>> = new Map();
     private lastSentAt: Map<string, number> = new Map();
+    private nextAllowedSendTime: Map<string, number> = new Map();
     private isProcessing: Map<string, boolean> = new Map();
     // Token bucket: max 60/giờ — refill 1 token mỗi 60s
     private tokens: Map<string, number> = new Map();
@@ -140,6 +141,7 @@ class CRMQueueService {
         if (timer) { clearInterval(timer); this.timers.delete(zaloId); }
         // Clean up satellite maps to prevent unbounded memory growth
         this.lastSentAt.delete(zaloId);
+        this.nextAllowedSendTime.delete(zaloId);
         this.isProcessing.delete(zaloId);
         this.tokens.delete(zaloId);
         this.lastRefillAt.delete(zaloId);
@@ -279,9 +281,15 @@ class CRMQueueService {
         const rawMax = itemAny.delay_max_seconds ?? Math.max(rawMin, (item.delay_seconds || 60) + 10);
         const delayMinSec = Math.max(this.MIN_DELAY_MS / 1000, rawMin);
         const delayMaxSec = Math.max(delayMinSec, rawMax);
-        const actualDelayMs = (delayMinSec + Math.random() * (delayMaxSec - delayMinSec)) * 1000;
-        const lastSent = this.lastSentAt.get(zaloId) || 0;
-        if (Date.now() - lastSent < actualDelayMs) return;
+
+        let nextTime = this.nextAllowedSendTime.get(zaloId);
+        if (!nextTime) {
+            const lastSent = this.lastSentAt.get(zaloId) || 0;
+            const initialRandomSec = delayMinSec + Math.random() * (delayMaxSec - delayMinSec);
+            nextTime = (lastSent > 0 ? lastSent : Date.now()) + (initialRandomSec * 1000);
+            this.nextAllowedSendTime.set(zaloId, nextTime);
+        }
+        if (Date.now() < nextTime) return;
 
         // Get connection
         const conn = ConnectionManager.getConnection(zaloId);
@@ -862,8 +870,15 @@ class CRMQueueService {
             }
 
             // Tiêu thụ 1 token
+            const now = Date.now();
             this.tokens.set(zaloId, Math.max(0, (this.tokens.get(zaloId) ?? 1) - 1));
-            this.lastSentAt.set(zaloId, Date.now());
+            this.lastSentAt.set(zaloId, now);
+
+            // Sinh khoảng delay ngẫu nhiên MỚI hoàn toàn cho tin tiếp theo trong dải [delayMinSec, delayMaxSec]
+            const nextRandomSec = delayMinSec + Math.random() * (delayMaxSec - delayMinSec);
+            const nextSendAt = now + Math.round(nextRandomSec * 1000);
+            this.nextAllowedSendTime.set(zaloId, nextSendAt);
+            Logger.log(`[CRMQueue] ⏱ Next message for account ${zaloId} scheduled in ${nextRandomSec.toFixed(1)}s (at ${new Date(nextSendAt).toLocaleTimeString('vi-VN')})`);
             db.save();
 
             Logger.log(`[CRMQueue] ✅ Sent to ${effectiveContactId} (campaign ${item.campaign_id})`);
@@ -871,6 +886,13 @@ class CRMQueueService {
             this.checkCampaignCompletion(item.campaign_id, zaloId);
 
         } catch (err: any) {
+            const now = Date.now();
+            this.lastSentAt.set(zaloId, now);
+            const errMinSec = (item as any).delay_min_seconds ?? 5;
+            const errMaxSec = (item as any).delay_max_seconds ?? (errMinSec + 10);
+            const nextRandomSec = errMinSec + Math.random() * (Math.max(errMinSec, errMaxSec) - errMinSec);
+            this.nextAllowedSendTime.set(zaloId, now + Math.round(nextRandomSec * 1000));
+
             const errMsg = err?.message || String(err);
             Logger.error(`[CRMQueue] ❌ Failed to send to ${effectiveContactId}: ${errMsg}`);
 
