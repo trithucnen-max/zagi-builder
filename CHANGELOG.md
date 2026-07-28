@@ -18,7 +18,8 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 - **Chuẩn Hóa Xưng Hô Mặc Định Chưa Rõ Giới Tính:** Chuyển fallback xưng hô chưa rõ giới tính từ `Bạn/Mình` ➔ **`Anh/Chị`** (tự xưng **`Em`**).
 - **Bộ Lọc Khoảng Thời Gian Tùy Chọn Quét SĐT (`PhoneScanPanel.tsx`):** Bổ sung tùy chọn chọn ngày bắt đầu & kết thúc (`Từ ngày` ➔ `Đến ngày`). Thống kê chính xác số lượng SĐT tải lên, đã quét, có Zalo, không có Zalo và số lượng còn lại (chưa quét) theo đúng khoảng thời gian chỉ định.
 - **Hệ Thống Tự Động Nâng Cấp 1-Click Đa Nền Tảng (`UpdateModal.tsx` & `electron-updater`):** Tích hợp Modal "Có gì mới" (Release Notes) và luồng tự động tải ngầm gói cập nhật (.zip/.exe/.AppImage). Hỗ trợ nhận diện hệ điều hành động (Windows 🪟, macOS 🍎, Linux 🐧).
-- **Cơ Chế Xác Nhận An Toàn 2 Bước & Cảnh Báo Chiến Dịch CRM (Safety Guard Confirmation):** Khi bấm *Khởi động lại & Cập nhật*, hiển thị màn hình xác nhận 2 bước với cảnh báo thẻ vàng ⚠️ nếu đang có chiến dịch CRM gửi tin nhắn hoạt động. Cho phép lựa chọn giữa **`🚀 Khởi động lại ngay`** hoặc **`🌙 Cài khi tôi tắt Zagi`** (tự động áp dụng bản mới ở lần tắt app sau mà không ngắt quãng công việc hiện tại).
+- **Sửa Lỗi Hiển Thị Bong Bóng Ảnh & Lỗi Nổi "Không Tải Được Ảnh" (`mediaUtils.ts` & `ChatWindow.tsx`):** Chuẩn hóa bóc tách toàn bộ trường CDN URL hình ảnh của Zalo (`hdUrl`, `normalUrl`, `thumbUrl`, `url`), đồng thời nâng cấp bộ lọc loại bỏ bong bóng ảnh tạm (`temp_xxx`) khi tin nhắn thật từ Zalo API / WebChat trả về, triệt tiêu hoàn toàn lỗi lặp 2 hình ảnh hỏng.
+- **Sửa Lỗi Thứ Tự Tin Nhắn Bị Nhảy Ngược Thời Gian (`normalizeTimestamp`):** Tự động quy đổi timestamp dạng giây (10 chữ số) từ Zalo Event Listener ➔ miligiây (13 chữ số ms). Đảm bảo thứ tự sắp xếp tin nhắn chuẩn xác 100% theo thời gian thực (tin nhắn hỏi đến trước, tin nhắn trả lời xếp theo sau).
 
 ### 🗣️ Tính Năng Mới: Xưng Hô Thông Minh & Tự Xưng Tự Động Theo Chuẩn Tiếng Việt (Smart Salutation & Self Reference)
 

@@ -11,6 +11,7 @@ import { getFilteredUnreadCount } from '@/lib/badgeUtils';
 import Logger from "../../utils/Logger";
 import { extractUserProfile } from "../../utils/profileUtils";
 import { cacheSentBankCard } from '@/lib/bankCardCache';
+import { normalizeTimestamp } from '@/utils/mediaUtils';
 
 // ─── Contact fetch cache (7 ngày) ────────────────────────────────────────────
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -955,7 +956,7 @@ export function useZaloEvents() {
 
       // Ưu tiên rawMsgType (share.file, photo, etc.); fall back to image detection
       const msgType = rawMsgType ? String(rawMsgType) : (isImage ? 'image' : 'text');
-      const timestamp = parseInt(message.data?.ts) || Date.now();
+      const timestamp = normalizeTimestamp(message.data?.ts);
 
       // Trích dẫn (quote)
       let quote_data: string | undefined;

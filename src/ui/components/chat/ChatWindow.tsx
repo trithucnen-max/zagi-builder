@@ -20,6 +20,7 @@ import ipc from '@/lib/ipc';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import { formatPhone } from '@/utils/phoneUtils';
 import { PollDetailView as SharedPollDetailView } from './PollView';
+import { extractMediaRemoteUrl, normalizeTimestamp } from '@/utils/mediaUtils';
 import { useEmployeeStore } from '@/store/employeeStore';
 
 const EMOJI_TO_REACTION: Record<string, string> = {
@@ -3705,28 +3706,15 @@ function MediaBubble({ msg, onView, isSent, allContacts, groupMembersList, onMen
   }
 
   // Parse remote URL + caption
-  let remoteUrl = '';
+  let remoteUrl = extractMediaRemoteUrl(msg.content, msg.attachments);
   let caption = '';
   try {
     const parsed = JSON.parse(msg.content || '{}');
-    if (parsed && typeof parsed === 'object') {
-      let paramsObj: any = parsed.params;
-      if (typeof paramsObj === 'string') {
-        try { paramsObj = JSON.parse(paramsObj); } catch { paramsObj = null; }
-      }
-      remoteUrl = paramsObj?.hd || paramsObj?.rawUrl || parsed.href || parsed.thumb || '';
-      if (parsed.title && typeof parsed.title === 'string') {
-        const t = parsed.title.trim();
-        if (t && !t.startsWith('http')) caption = t;
-      }
+    if (parsed && typeof parsed === 'object' && parsed.title && typeof parsed.title === 'string') {
+      const t = parsed.title.trim();
+      if (t && !t.startsWith('http')) caption = t;
     }
   } catch {}
-  if (!remoteUrl) {
-    try {
-      const attachments = JSON.parse(msg.attachments || '[]');
-      remoteUrl = attachments[0]?.url || attachments[0]?.href || attachments[0]?.thumb || '';
-    } catch {}
-  }
 
   // Remote-first: CDN hiển thị ngay; chuyển local khi file đã tải xong
   // Nếu local lỗi (race condition file chưa kịp ghi) → tự fallback về CDN

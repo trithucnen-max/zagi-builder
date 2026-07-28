@@ -243,15 +243,26 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       let filtered = existing;
       if (message.is_sent === 1 && !message.msg_id.startsWith('temp_')) {
         const incomingText = extractDedupText(message.content);
-        filtered = existing.filter(
-          (m) => !(m.msg_id.startsWith('temp_') && m.is_sent === 1 && extractDedupText(m.content) === incomingText)
-        );
+        const isMedia = message.msg_type === 'image' || message.msg_type === 'photo' || message.msg_type === 'video' || message.msg_type === 'share.file';
+        filtered = existing.filter((m) => {
+          if (!m.msg_id?.startsWith('temp_') || m.is_sent !== 1) return true;
+          // Match 1: Plain text / RTF match
+          if (incomingText && extractDedupText(m.content) === incomingText) return false;
+          // Match 2: Media message echo (temp image/video vs real image/video within 60s)
+          const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
+          const msgTs = normTs(message.timestamp);
+          const tempTs = normTs(m.timestamp);
+          if (isMedia && (m.msg_type === message.msg_type || m.msg_type === 'image' || m.msg_type === 'photo') && Math.abs(msgTs - tempTs) < 60000) {
+            return false;
+          }
+          return true;
+        });
       }
 
       const updated = [...filtered, message];
-      // Sort by timestamp ASC to maintain chronological order
-      // (needed when old messages arrive after new ones, e.g. getGroupChatHistory)
-      updated.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      // Sort by timestamp ASC (normalize 10-digit sec to 13-digit ms)
+      const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
+      updated.sort((a, b) => normTs(a.timestamp) - normTs(b.timestamp));
       return { messages: { ...state.messages, [key]: updated } };
     });
   },

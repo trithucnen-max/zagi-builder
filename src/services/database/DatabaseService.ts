@@ -2991,8 +2991,9 @@ class DatabaseService {
             const cliMsgId = rawMessage.data?.cliMsgId || null;
             const uidFrom = rawMessage.data?.uidFrom || ownerZaloId;
             const msgType = rawMessage.data?.msgType || 'text';
-            // data.ts là string timestamp ms từ server
-            const timestamp = parseInt(rawMessage.data?.ts) || Date.now();
+            // data.ts là string timestamp (ms hoặc s) từ server Zalo
+            let timestamp = parseInt(rawMessage.data?.ts) || Date.now();
+            if (timestamp < 10000000000) timestamp = timestamp * 1000;
 
             // Trích dẫn (quote) - lưu nếu có
             let quoteData: string | null = null;

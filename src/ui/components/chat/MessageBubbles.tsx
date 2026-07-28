@@ -14,6 +14,8 @@ import { toLocalMediaUrl } from '@/lib/localMedia';
 import { formatPhone } from '@/utils/phoneUtils';
 import PhoneDisplay from '../common/PhoneDisplay';
 
+import { extractMediaRemoteUrl, normalizeTimestamp } from '@/utils/mediaUtils';
+
 // ── Zalo emoji codes → Unicode emoji ─────────────────────────────────────────
 const ZALO_CODE_TO_EMOJI: Record<string, string> = {
   '/-heart': '❤️', '/-strong': '👍', ':>': '😄', ':o': '😮',
@@ -400,26 +402,15 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
 
   if (isCleaned) return <span className="text-xs opacity-60 italic">[Ảnh đã dọn dẹp để tiết kiệm bộ nhớ]</span>;
 
-  let remoteUrl = '';
+  let remoteUrl = extractMediaRemoteUrl(msg.content, msg.attachments);
   let caption = '';
   try {
     const parsed = JSON.parse(msg.content || '{}');
-    if (parsed && typeof parsed === 'object') {
-      let paramsObj: any = parsed.params;
-      if (typeof paramsObj === 'string') { try { paramsObj = JSON.parse(paramsObj); } catch { paramsObj = null; } }
-      remoteUrl = paramsObj?.hd || paramsObj?.rawUrl || parsed.href || parsed.thumb || '';
-      if (parsed.title && typeof parsed.title === 'string') {
-        const t = parsed.title.trim();
-        if (t && !t.startsWith('http')) caption = t;
-      }
+    if (parsed && typeof parsed === 'object' && parsed.title && typeof parsed.title === 'string') {
+      const t = parsed.title.trim();
+      if (t && !t.startsWith('http')) caption = t;
     }
   } catch {}
-  if (!remoteUrl) {
-    try {
-      const atts = JSON.parse(msg.attachments || '[]');
-      remoteUrl = atts[0]?.url || atts[0]?.href || atts[0]?.thumb || '';
-    } catch {}
-  }
 
   // Multi-image grid (FB batch send temp OR single)
   const allUrls = fbLocalUrls.length > 1 ? fbLocalUrls : null;
