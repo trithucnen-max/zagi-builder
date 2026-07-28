@@ -108,12 +108,22 @@ export default function PhoneScanPanel() {
     const [localLabels, setLocalLabels] = useState<any[]>([]);
     const [limitStatusList, setLimitStatusList] = useState<any[]>([]);
     const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
-    const [scanTimeFilter, setScanTimeFilter] = useState<'all' | 'today' | 'this_week' | 'this_month' | 'custom'>('all');
+    const [scanTimeFilter, setScanTimeFilter] = useState<'all' | 'today' | 'this_week' | 'this_month' | 'custom'>('today');
     const [customStartDate, setCustomStartDate] = useState<string>(todayStr);
     const [customEndDate, setCustomEndDate] = useState<string>(todayStr);
     const [filteredStats, setFilteredStats] = useState<{ total: number; scanned: number; found: number; notFound: number; error: number; pending: number; startTimestamp?: number; endTimestamp?: number } | null>(null);
     const accounts = useAccountStore(s => s.accounts);
     const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
+
+    // Auto-select 1st Zalo account when single assignment mode is selected if empty
+    useEffect(() => {
+        if (formContactAssignmentMode === 'single' && !formTargetAccountId && accounts.length > 0) {
+            const firstZalo = accounts.find(a => a.is_active !== 0 && (!a.channel || a.channel === 'zalo')) || accounts[0];
+            if (firstZalo?.zalo_id) {
+                setFormTargetAccountId(firstZalo.zalo_id);
+            }
+        }
+    }, [formContactAssignmentMode, formTargetAccountId, accounts]);
 
     const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
         return localLabels.map((l: any) => ({

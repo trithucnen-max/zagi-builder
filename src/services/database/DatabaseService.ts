@@ -9239,7 +9239,7 @@ class DatabaseService {
         if (!this.initialized) return [];
         try {
             this.backfillPhoneScanAliases();
-            return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY sort_order ASC, priority DESC, id ASC`);
+            return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY created_at DESC, id DESC`);
         } catch (err: any) {
             Logger.error(`[DB] getPhoneScanBatches: ${err.message}`);
             return [];
