@@ -336,7 +336,7 @@ class CRMQueueService {
             const todayTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
             const genderVal = (item as any).gender;
-            const genderGreeting = genderVal === 0 ? 'Anh' : (genderVal === 1 ? 'Chị' : 'Anh/Chị');
+            const genderGreeting = genderVal === 0 ? 'Anh' : (genderVal === 1 ? 'Chị' : 'Bạn');
 
             // {salutation}: ưu tiên giá trị tùy chỉnh từ DB, fallback về genderGreeting
             const salutationVal = (item as any).salutation;

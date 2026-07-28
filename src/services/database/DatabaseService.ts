@@ -3353,7 +3353,7 @@ class DatabaseService {
 
             // Update gender & birthday if provided (separate UPDATE to keep INSERT clean)
             if (gender !== undefined && gender !== null) {
-                const autoSalutation = gender === 0 ? 'Anh' : (gender === 1 ? 'Chị' : 'Anh/Chị');
+                const autoSalutation = gender === 0 ? 'Anh' : (gender === 1 ? 'Chị' : 'Bạn');
                 this.run(
                     `UPDATE contacts SET 
                        gender = CASE WHEN gender IS NULL THEN ? ELSE gender END,
@@ -6523,7 +6523,7 @@ class DatabaseService {
                 const targetSal = opts.salutation;
                 all = all.filter(c => {
                     const effectiveSalutation = c.salutation ||
-                        (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Anh/Chị');
+                        (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Bạn');
                     return effectiveSalutation === targetSal;
                 });
             }
