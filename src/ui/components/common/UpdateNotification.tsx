@@ -15,19 +15,19 @@ interface ReleaseInfo {
   published_at: string;
 }
 
-function parseV3Version(tag: string): { major: number; minor: number; patch: number } | null {
+function parseSemver(tag: string): { major: number; minor: number; patch: number } | null {
   if (!tag) return null;
   const clean = tag.trim().replace(/^v/i, '');
   const parts = clean.split('.').map(n => parseInt(n, 10));
-  if (parts.length >= 3 && parts[0] === 3 && parts.every(n => !isNaN(n))) {
+  if (parts.length >= 3 && parts.every(n => !isNaN(n))) {
     return { major: parts[0], minor: parts[1], patch: parts[2] };
   }
   return null;
 }
 
-function isNewerV3Version(latestTag: string, currentVersion: string): boolean {
-  const latest = parseV3Version(latestTag);
-  const current = parseV3Version(currentVersion);
+function isNewerVersion(latestTag: string, currentVersion: string): boolean {
+  const latest = parseSemver(latestTag);
+  const current = parseSemver(currentVersion);
   if (!latest || !current) return false;
 
   if (latest.major > current.major) return true;
@@ -90,7 +90,7 @@ export function UpdateNotification() {
       setUpdateState(prev => ({
         ...prev,
         status: 'error',
-        error: err?.message || 'Không thể tải bản cập nhật.'
+        error: err?.message || 'Không thể tải bản cập nhật tự động.'
       }));
     });
 
@@ -103,6 +103,11 @@ export function UpdateNotification() {
   }, []);
 
   const checkGitHubRelease = useCallback(async () => {
+    // Also trigger Electron autoUpdater check in main process
+    if (ipc.update?.check) {
+      ipc.update.check();
+    }
+
     try {
       const res = await fetch(GITHUB_RELEASES_API, {
         headers: { Accept: 'application/vnd.github.v3+json' },
@@ -112,28 +117,29 @@ export function UpdateNotification() {
       const releases: ReleaseInfo[] = await res.json();
       if (!Array.isArray(releases) || releases.length === 0) return;
 
-      const validV3Releases = releases
-        .filter(r => parseV3Version(r.tag_name) !== null)
+      const validReleases = releases
+        .filter(r => parseSemver(r.tag_name) !== null)
         .sort((a, b) => {
-          const vA = parseV3Version(a.tag_name)!;
-          const vB = parseV3Version(b.tag_name)!;
+          const vA = parseSemver(a.tag_name)!;
+          const vB = parseSemver(b.tag_name)!;
           if (vA.major !== vB.major) return vB.major - vA.major;
           if (vA.minor !== vB.minor) return vB.minor - vA.minor;
           return vB.patch - vA.patch;
         });
 
-      if (validV3Releases.length === 0) return;
+      if (validReleases.length === 0) return;
 
-      const latestV3 = validV3Releases[0];
+      const latest = validReleases[0];
       const dismissedTag = localStorage.getItem('zagi_dismissed_update_tag');
 
-      if (isNewerV3Version(latestV3.tag_name, CURRENT_VERSION) && dismissedTag !== latestV3.tag_name) {
+      if (isNewerVersion(latest.tag_name, CURRENT_VERSION) && dismissedTag !== latest.tag_name) {
         setUpdateState(prev => {
           if (prev.status !== 'idle') return prev;
           return {
             ...prev,
-            version: latestV3.tag_name,
-            releaseNotes: latestV3.body,
+            version: latest.tag_name,
+            releaseNotes: latest.body,
+            htmlUrl: latest.html_url,
             status: 'available'
           };
         });

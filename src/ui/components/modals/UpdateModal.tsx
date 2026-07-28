@@ -10,6 +10,7 @@ export interface UpdateInfoState {
   total?: number;
   status: 'idle' | 'available' | 'downloading' | 'downloaded' | 'error';
   error?: string;
+  htmlUrl?: string;
 }
 
 interface UpdateModalProps {
@@ -218,12 +219,20 @@ export default function UpdateModal({
               )}
 
               {updateInfo.status === 'error' && (
-                <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl p-4 flex items-start gap-3 text-xs text-rose-800 dark:text-rose-300">
-                  <span className="text-lg">⚠️</span>
-                  <div>
-                    <p className="font-bold">Không thể tải bản cập nhật:</p>
-                    <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">{updateInfo.error || 'Vui lòng kiểm tra lại kết nối mạng.'}</p>
+                <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl p-4 flex items-start justify-between gap-3 text-xs text-rose-800 dark:text-rose-300">
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg">⚠️</span>
+                    <div>
+                      <p className="font-bold">Không thể tải bản cập nhật tự động:</p>
+                      <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">{updateInfo.error || 'Vui lòng kiểm tra lại kết nối mạng.'}</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => window.open(updateInfo.htmlUrl || 'https://github.com/trithucnen-max/zagi-builder/releases/latest', '_blank')}
+                    className="px-3 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold shrink-0 text-xs transition-colors cursor-pointer"
+                  >
+                    Tải từ Web 🌐
+                  </button>
                 </div>
               )}
             </>

@@ -1274,9 +1274,9 @@ async function startupAfterLicenseCheck(): Promise<void> {
     autoUpdater.autoDownload = false;         // Chờ người dùng xem Modal "Có gì mới" & bấm Nâng cấp ngay
     autoUpdater.autoInstallOnAppQuit = true; // tự cài khi quit nếu đã tải xong
 
-    // Check lần đầu khi khởi động và mỗi 4 giờ
+    // Check lần đầu khi khởi động và mỗi 30 phút
     autoUpdater.checkForUpdatesAndNotify();
-    setInterval(() => autoUpdater.checkForUpdatesAndNotify(), 4 * 60 * 60 * 1000);
+    setInterval(() => autoUpdater.checkForUpdatesAndNotify(), 30 * 60 * 1000);
 
     autoUpdater.on('update-available', (info) => {
       mainWindow?.webContents.send('update:available', {

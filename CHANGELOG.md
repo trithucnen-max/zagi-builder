@@ -2,6 +2,16 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.0.9] - 2026-07-29
+
+### 🚀 Cải Tiến Quy Trình Nâng Cấp Tự Động (Auto-Update System)
+- **Sửa Lỗi React Error #310:** Đưa `useMemo` lên trước câu lệnh điều kiện `if (!open) return null` trong `UpdateModal.tsx` để tuân thủ triệt để Rules of Hooks.
+- **Phát Hiện Cập Nhật Tức Thì:** 
+  - Thêm event listener `window.onfocus` ➔ Tự động check cập nhật mới ngay khi người dùng chuyển sang cửa sổ Zagi mà không cần khởi động lại ứng dụng.
+  - Tăng tần suất kiểm tra ngầm từ 4 giờ xuống 30 phút một lần (ở cả Renderer UI và Electron Main process).
+- **Hỗ Trợ Phiên Bản Tương Lai (Semver Fix):** Chuẩn hóa bộ lọc phiên bản `parseSemver` thay vì giới hạn `major === 3`, sẵn sàng tương thích cho các bản phát hành v4+.
+- **Tùy Chọn Tải Thủ Công Nâng Cao (Fallback):** Thêm nút `Tải từ Web 🌐` trong trường hợp tải tự động gặp sự cố mạng hoặc môi trường đặc thù.
+
 ## [v3.0.8] - 2026-07-28
 
 ### 👨‍👩‍👧‍👦 Giải Nén Thành Viên Nhóm & Khử Trùng Tự Động (`TargetSelector.tsx`)
