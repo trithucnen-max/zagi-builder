@@ -407,13 +407,6 @@ export default function TargetSelector({
                 🔄 Nhãn Zalo ({allLabels.length})
               </button>
             </div>
-
-            <button
-              onClick={() => setShowLabelPickerModal(true)}
-              className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-200 dark:border-blue-800 text-xs font-bold flex items-center gap-1 hover:bg-blue-100 transition-colors"
-            >
-              🏷️ Bảng chọn nhãn
-            </button>
           </div>
         )}
 
