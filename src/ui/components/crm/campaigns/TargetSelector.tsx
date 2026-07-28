@@ -53,6 +53,7 @@ export default function TargetSelector({
 
   // ── Exclusion Filter State ──
   const [showExclusionSection, setShowExclusionSection] = useState(false);
+  const [exclusionTab, setExclusionTab] = useState<'label' | 'group' | 'contact'>('label');
   const [excludedZaloLabelIds, setExcludedZaloLabelIds] = useState<number[]>([]);
   const [excludedLocalLabelIds, setExcludedLocalLabelIds] = useState<number[]>([]);
   const [excludedGroupIds, setExcludedGroupIds] = useState<Set<string>>(new Set());
@@ -62,6 +63,14 @@ export default function TargetSelector({
     setExcludedContactIds(prev => {
       const next = new Set(prev);
       if (next.has(cId)) next.delete(cId); else next.add(cId);
+      return next;
+    });
+  };
+
+  const toggleExcludeGroup = (gId: string) => {
+    setExcludedGroupIds(prev => {
+      const next = new Set(prev);
+      if (next.has(gId)) next.delete(gId); else next.add(gId);
       return next;
     });
   };
@@ -451,94 +460,164 @@ export default function TargetSelector({
           </div>
 
           {showExclusionSection && (
-            <div className="mt-2 p-3 rounded-2xl bg-white dark:bg-gray-850 border border-red-200 dark:border-red-900/40 space-y-2.5 shadow-2xs">
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-                Tích chọn các Nhãn, Nhóm hoặc Liên hệ bên dưới để <strong>bỏ qua</strong> các đối tượng nằm trong danh sách loại trừ:
-              </p>
-
-              {/* 1. Loại trừ theo Nhãn Local */}
-              {effectiveLocalLabels.length > 0 && (
-                <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Loại trừ Nhãn Local:
-                  </span>
-                  <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto">
-                    {effectiveLocalLabels.map(label => {
-                      const isExcluded = excludedLocalLabelIds.includes(label.id);
-                      return (
-                        <button
-                          key={`ex-local-${label.id}`}
-                          type="button"
-                          onClick={() => setExcludedLocalLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
-                          className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
-                            isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
-                          }`}
-                        >
-                          {isExcluded && <span>🚫</span>}
-                          <span>{label.emoji || '🏷️'} {label.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+            <div className="mt-2 p-3 rounded-2xl bg-white dark:bg-gray-850 border border-red-200 dark:border-red-900/40 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-800 pb-2">
+                <div className="flex gap-1.5 overflow-x-auto">
+                  {[
+                    { id: 'label', label: 'Theo Nhãn', icon: '🏷️', count: excludedLocalLabelIds.length + excludedZaloLabelIds.length },
+                    { id: 'group', label: 'Theo Nhóm Zalo', icon: '👨‍👩‍👧‍👦', count: excludedGroupIds.size },
+                    { id: 'contact', label: 'Theo Liên hệ', icon: '👤', count: excludedContactIds.size },
+                  ].map(tab => {
+                    const isActive = exclusionTab === tab.id;
+                    return (
+                      <button
+                        key={`ex-tab-${tab.id}`}
+                        type="button"
+                        onClick={() => setExclusionTab(tab.id as any)}
+                        className={`text-[11px] px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+                          isActive
+                            ? 'bg-red-600 text-white shadow-2xs'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        <span>{tab.icon}</span>
+                        <span>{tab.label}</span>
+                        {tab.count > 0 && (
+                          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${isActive ? 'bg-white text-red-600' : 'bg-red-500 text-white'}`}>
+                            {tab.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
-
-              {/* 2. Loại trừ theo Nhãn Zalo */}
-              {allLabels.length > 0 && (
-                <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Loại trừ Nhãn Zalo:
-                  </span>
-                  <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto">
-                    {allLabels.map(label => {
-                      const isExcluded = excludedZaloLabelIds.includes(label.id);
-                      return (
-                        <button
-                          key={`ex-zalo-${label.id}`}
-                          type="button"
-                          onClick={() => setExcludedZaloLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
-                          className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
-                            isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
-                          }`}
-                        >
-                          {isExcluded && <span>🚫</span>}
-                          <span>🏷️ {label.text}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* 3. Loại trừ theo Liên hệ cụ thể */}
-              <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                  Loại trừ Liên hệ cụ thể ({excludedContactIds.size}):
-                </span>
-                {excludedContactIds.size > 0 ? (
-                  <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto">
-                    {Array.from(excludedContactIds).map(cId => {
-                      const contact = allContacts.find(c => c.contact_id === cId);
-                      const name = contact?.alias || contact?.display_name || cId;
-                      return (
-                        <button
-                          key={`ex-c-${cId}`}
-                          type="button"
-                          onClick={() => toggleExcludeContact(cId)}
-                          className="text-[11px] px-2.5 py-1 rounded-full bg-red-600 text-white font-semibold flex items-center gap-1 shadow-2xs hover:bg-red-700 transition-colors"
-                        >
-                          <span>🚫 {name}</span>
-                          <span className="text-[10px] opacity-75">✕</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-gray-400 italic">
-                    Bấm vào nút "🚫 Loại trừ" bên cạnh từng liên hệ bên dưới để đưa vào danh sách loại trừ.
-                  </p>
-                )}
               </div>
+
+              {/* 1. Tab Loại trừ Theo Nhãn */}
+              {exclusionTab === 'label' && (
+                <div className="space-y-2.5">
+                  {effectiveLocalLabels.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                        Nhãn Local:
+                      </span>
+                      <div className="flex gap-1.5 flex-wrap max-h-28 overflow-y-auto">
+                        {effectiveLocalLabels.map(label => {
+                          const isExcluded = excludedLocalLabelIds.includes(label.id);
+                          return (
+                            <button
+                              key={`ex-local-${label.id}`}
+                              type="button"
+                              onClick={() => setExcludedLocalLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
+                              className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
+                                isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+                              }`}
+                            >
+                              {isExcluded && <span>🚫</span>}
+                              <span>{label.emoji || '🏷️'} {label.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {allLabels.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                        Nhãn Zalo:
+                      </span>
+                      <div className="flex gap-1.5 flex-wrap max-h-28 overflow-y-auto">
+                        {allLabels.map(label => {
+                          const isExcluded = excludedZaloLabelIds.includes(label.id);
+                          return (
+                            <button
+                              key={`ex-zalo-${label.id}`}
+                              type="button"
+                              onClick={() => setExcludedZaloLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
+                              className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
+                                isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+                              }`}
+                            >
+                              {isExcluded && <span>🚫</span>}
+                              <span>🏷️ {label.text}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 2. Tab Loại trừ Theo Nhóm Zalo */}
+              {exclusionTab === 'group' && (
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                    Chọn Nhóm Zalo cần loại trừ toàn bộ thành viên:
+                  </span>
+                  {allContacts.filter(c => c.contact_type === 'group').length > 0 ? (
+                    allContacts.filter(c => c.contact_type === 'group').map(group => {
+                      const isExcluded = excludedGroupIds.has(group.contact_id);
+                      return (
+                        <div
+                          key={`ex-group-${group.contact_id}`}
+                          onClick={() => toggleExcludeGroup(group.contact_id)}
+                          className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                            isExcluded
+                              ? 'border-red-500 bg-red-50 dark:bg-red-950/30 ring-1 ring-red-500/30'
+                              : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base">👨‍👩‍👧‍👦</span>
+                            <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{group.alias || group.display_name}</span>
+                          </div>
+                          <span className={`text-[11px] px-2.5 py-1 rounded-lg border font-bold transition-all ${
+                            isExcluded ? 'bg-red-600 text-white border-red-600' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                          }`}>
+                            {isExcluded ? '🚫 Đã loại trừ' : '+ Loại trừ'}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-gray-400 italic py-2">Không tìm thấy nhóm Zalo nào.</p>
+                  )}
+                </div>
+              )}
+
+              {/* 3. Tab Loại trừ Theo Liên Hệ Cụ Thể */}
+              {exclusionTab === 'contact' && (
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                    Danh sách {excludedContactIds.size} liên hệ đang bị loại trừ:
+                  </span>
+                  {excludedContactIds.size > 0 ? (
+                    <div className="flex gap-1.5 flex-wrap max-h-32 overflow-y-auto">
+                      {Array.from(excludedContactIds).map(cId => {
+                        const contact = allContacts.find(c => c.contact_id === cId);
+                        const name = contact?.alias || contact?.display_name || cId;
+                        return (
+                          <button
+                            key={`ex-c-${cId}`}
+                            type="button"
+                            onClick={() => toggleExcludeContact(cId)}
+                            className="text-[11px] px-2.5 py-1 rounded-full bg-red-600 text-white font-semibold flex items-center gap-1.5 shadow-2xs hover:bg-red-700 transition-colors"
+                          >
+                            <span>🚫 {name}</span>
+                            <span className="text-[10px] opacity-80">✕</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-gray-400 italic py-1">
+                      Chưa có liên hệ nào bị chọn loại trừ. Bấm nút "🚫 Loại trừ" cạnh từng liên hệ trong danh sách chính bên dưới để đưa vào đây.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
