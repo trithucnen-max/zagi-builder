@@ -125,9 +125,78 @@ interface ChatStore {
   setSeen: (zaloId: string, threadId: string, seenUids: string[], msgId: string, isGroup: boolean) => void;
   // Per-account last active thread (restored when switching back)
   perAccountThread: Record<string, { threadId: string; threadType: number } | null>;
-  saveAccountThread: (accountId: string, threadId: string, threadType: number) => void;
-  /** Reset all chat state when switching workspace — clears messages cache, active thread, etc. */
   resetForWorkspaceSwitch: () => void;
+}
+
+function isMediaMsgType(type?: string, id?: string): boolean {
+  const t = String(type || '').toLowerCase();
+  const idStr = String(id || '').toLowerCase();
+  return (
+    t === 'image' ||
+    t === 'photo' ||
+    t === 'chat.photo' ||
+    t === 'video' ||
+    t === 'chat.video.msg' ||
+    t === 'share.file' ||
+    t === 'file' ||
+    idStr.startsWith('temp_img_') ||
+    idStr.startsWith('temp_vid_') ||
+    idStr.startsWith('temp_file_')
+  );
+}
+
+function extractDedupText(c?: string): string {
+  if (!c) return '';
+  try {
+    const p = JSON.parse(c);
+    if (p?.action === 'rtf' && typeof p.title === 'string') return p.title;
+    if (typeof p === 'string') return p;
+  } catch {}
+  return String(c);
+}
+
+const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
+
+export function filterTempDuplicates(msgs: MessageItem[]): MessageItem[] {
+  if (!msgs || msgs.length === 0) return msgs;
+  const realMsgs = msgs.filter((m) => !String(m.msg_id).startsWith('temp_'));
+  const tempMsgs = msgs.filter((m) => String(m.msg_id).startsWith('temp_'));
+
+  if (tempMsgs.length === 0) return msgs;
+
+  const validTempMsgs = tempMsgs.filter((temp) => {
+    const tempTs = normTs(temp.timestamp);
+    const tempText = extractDedupText(temp.content);
+    const tempIsMedia = isMediaMsgType(temp.msg_type, temp.msg_id);
+
+    // If temp is older than 2 minutes and there are real messages after it, drop it
+    const now = Date.now();
+    if (tempTs > 0 && now - tempTs > 120000 && realMsgs.length > 0) {
+      const latestRealTs = normTs(realMsgs[realMsgs.length - 1].timestamp);
+      if (latestRealTs > tempTs) return false;
+    }
+
+    // Filter out temp message if any real message matches it
+    const hasRealMatch = realMsgs.some((real) => {
+      const realTs = normTs(real.timestamp);
+      const realText = extractDedupText(real.content);
+      const realIsMedia = isMediaMsgType(real.msg_type, real.msg_id);
+
+      // Match 1: Text content match
+      if (tempText && realText && tempText === realText) return true;
+
+      // Match 2: Media message match within 120s window
+      if (tempIsMedia && realIsMedia && Math.abs(realTs - tempTs) < 120000) return true;
+
+      return false;
+    });
+
+    return !hasRealMatch;
+  });
+
+  const merged = [...realMsgs, ...validTempMsgs];
+  merged.sort((a, b) => normTs(a.timestamp) - normTs(b.timestamp));
+  return merged;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -191,12 +260,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           })
         : messages;
 
-      const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
-      const sorted = [...merged].sort((a, b) => normTs(a.timestamp) - normTs(b.timestamp));
+      const deduplicated = filterTempDuplicates([...merged, ...existing.filter(m => String(m.msg_id).startsWith('temp_'))]);
 
       // Evict old cached threads to cap memory — keep active thread + 20 most recent
       const MAX_CACHED_THREADS = 20;
-      let newMessages = { ...state.messages, [key]: sorted };
+      let newMessages = { ...state.messages, [key]: deduplicated };
       const threadKeys = Object.keys(newMessages);
       if (threadKeys.length > MAX_CACHED_THREADS) {
         const activeKey = state.activeThreadId ? `${zaloId}_${state.activeThreadId}` : null;
@@ -231,41 +299,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         return state;
       }
 
-      // Khi real sent message đến (không phải temp_), xóa temp_ message trùng nội dung
-      // để tránh hiển thị 2 lần do optimistic update + self-listen echo.
-      // RTF/styled messages arrive as webchat with JSON content {action:'rtf', title, params:{styles}}
-      // so we compare extracted plain text to handle both plain and RTF temp messages.
-      const extractDedupText = (c: string): string => {
-        try {
-          const p = JSON.parse(c);
-          if (p?.action === 'rtf' && typeof p.title === 'string') return p.title;
-          if (typeof p === 'string') return p;
-        } catch {}
-        return c;
-      };
-      let filtered = existing;
-      if (message.is_sent === 1 && !message.msg_id.startsWith('temp_')) {
-        const incomingText = extractDedupText(message.content);
-        const isMedia = message.msg_type === 'image' || message.msg_type === 'photo' || message.msg_type === 'video' || message.msg_type === 'share.file';
-        filtered = existing.filter((m) => {
-          if (!m.msg_id?.startsWith('temp_') || m.is_sent !== 1) return true;
-          // Match 1: Plain text / RTF match
-          if (incomingText && extractDedupText(m.content) === incomingText) return false;
-          // Match 2: Media message echo (temp image/video vs real image/video within 60s)
-          const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
-          const msgTs = normTs(message.timestamp);
-          const tempTs = normTs(m.timestamp);
-          if (isMedia && (m.msg_type === message.msg_type || m.msg_type === 'image' || m.msg_type === 'photo') && Math.abs(msgTs - tempTs) < 60000) {
-            return false;
-          }
-          return true;
-        });
-      }
-
-      const updated = [...filtered, message];
-      // Sort by timestamp ASC (normalize 10-digit sec to 13-digit ms)
-      const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
-      updated.sort((a, b) => normTs(a.timestamp) - normTs(b.timestamp));
+      const updated = filterTempDuplicates([...existing, message]);
       return { messages: { ...state.messages, [key]: updated } };
     });
   },
@@ -277,7 +311,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const existingIds = new Set(existing.map(m => m.msg_id));
       const newMessages = messages.filter(m => !existingIds.has(m.msg_id));
       if (newMessages.length === 0) return state;
-      return { messages: { ...state.messages, [key]: [...newMessages, ...existing] } };
+      const updated = filterTempDuplicates([...newMessages, ...existing]);
+      return { messages: { ...state.messages, [key]: updated } };
     });
   },
 

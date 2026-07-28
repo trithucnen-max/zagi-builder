@@ -1,6 +1,6 @@
 import DateInputVN from '@/components/common/DateInputVN';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useChatStore } from '@/store/chatStore';
+import { useChatStore, filterTempDuplicates } from '@/store/chatStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import MediaViewer, { MediaViewerImage } from './MediaViewer';
@@ -195,10 +195,9 @@ export default function ChatWindow() {
 
   const threadKey = activeAccountId && activeThreadId ? `${activeAccountId}_${activeThreadId}` : '';
   const rawMsgs = threadKey ? (messages[threadKey] || []) : [];
-  const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
   const msgs = React.useMemo(() => {
     if (!rawMsgs || rawMsgs.length === 0) return [];
-    return [...rawMsgs].sort((a, b) => normTs(a.timestamp) - normTs(b.timestamp));
+    return filterTempDuplicates(rawMsgs);
   }, [rawMsgs]);
   msgsRef.current = msgs;
 
