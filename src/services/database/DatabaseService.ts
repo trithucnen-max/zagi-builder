@@ -3382,9 +3382,108 @@ class DatabaseService {
                     [birthday, ownerZaloId, contactId]
                 );
             }
+
+            // Auto-merge duplicate phone entries if phone is updated
+            if (normalizedPhone) {
+                this.mergeDuplicateContactsByPhone(ownerZaloId);
+            }
         } catch (err: any) {
             Logger.error(`[DatabaseService] updateContactProfile error: ${err.message}`);
         }
+    }
+
+    /** Merge duplicate contact rows under the same phone number for an account */
+    public mergeDuplicateContactsByPhone(ownerZaloId?: string): { mergedCount: number } {
+        if (!this.initialized) return { mergedCount: 0 };
+        let mergedCount = 0;
+        try {
+            const sql = (ownerZaloId && ownerZaloId !== 'all')
+                ? `SELECT phone, owner_zalo_id, COUNT(*) as cnt FROM contacts WHERE phone IS NOT NULL AND phone != '' AND owner_zalo_id = ? GROUP BY owner_zalo_id, phone HAVING cnt > 1`
+                : `SELECT phone, owner_zalo_id, COUNT(*) as cnt FROM contacts WHERE phone IS NOT NULL AND phone != '' GROUP BY owner_zalo_id, phone HAVING cnt > 1`;
+
+            const dupGroups = this.query<{ phone: string; owner_zalo_id: string; cnt: number }>(sql, (ownerZaloId && ownerZaloId !== 'all') ? [ownerZaloId] : []);
+
+            for (const grp of dupGroups) {
+                const ownerId = grp.owner_zalo_id;
+                const normPhone = this.normalizeVietnamPhone(grp.phone);
+                if (!normPhone) continue;
+
+                const rows = this.query<any>(
+                    `SELECT * FROM contacts WHERE owner_zalo_id = ? AND (phone = ? OR phone = ?)`,
+                    [ownerId, grp.phone, normPhone]
+                );
+
+                if (rows.length <= 1) continue;
+
+                // Pick master record: prefer Zalo UID (longer digits or is_friend = 1)
+                rows.sort((a: any, b: any) => {
+                    const aIsUid = /^\d{10,20}$/.test(a.contact_id) ? 2 : 0;
+                    const bIsUid = /^\d{10,20}$/.test(b.contact_id) ? 2 : 0;
+                    const aFriend = a.is_friend === 1 ? 1 : 0;
+                    const bFriend = b.is_friend === 1 ? 1 : 0;
+                    const aScore = aIsUid + aFriend;
+                    const bScore = bIsUid + bFriend;
+                    if (aScore !== bScore) return bScore - aScore;
+                    return (b.last_message_time || 0) - (a.last_message_time || 0);
+                });
+
+                const master = rows[0];
+                const secondaries = rows.slice(1);
+
+                for (const sec of secondaries) {
+                    const secId = sec.contact_id;
+                    const masterId = master.contact_id;
+                    if (secId === masterId) continue;
+
+                    // Transfer labels from secondary to master in local_label_threads
+                    const labelRows = this.query<{ label_id: number }>(
+                        `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`,
+                        [ownerId, secId]
+                    );
+                    for (const l of labelRows) {
+                        this.run(
+                            `INSERT OR IGNORE INTO local_label_threads (owner_zalo_id, label_id, thread_id) VALUES (?, ?, ?)`,
+                            [ownerId, l.label_id, masterId]
+                        );
+                    }
+                    this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [ownerId, secId]);
+
+                    // Transfer tags in crm_contact_tags
+                    const tagRows = this.query<{ tag_id: number }>(
+                        `SELECT tag_id FROM crm_contact_tags WHERE owner_zalo_id = ? AND contact_id = ?`,
+                        [ownerId, secId]
+                    );
+                    for (const t of tagRows) {
+                        this.run(
+                            `INSERT OR IGNORE INTO crm_contact_tags (owner_zalo_id, contact_id, tag_id) VALUES (?, ?, ?)`,
+                            [ownerId, masterId, t.tag_id]
+                        );
+                    }
+                    this.run(`DELETE FROM crm_contact_tags WHERE owner_zalo_id = ? AND contact_id = ?`, [ownerId, secId]);
+
+                    // Transfer notes
+                    this.run(`UPDATE crm_notes SET contact_id = ? WHERE owner_zalo_id = ? AND contact_id = ?`, [masterId, ownerId, secId]);
+
+                    // Merge fields (alias, pipeline_stage_id, salutation, etc.)
+                    if (sec.alias && !master.alias) {
+                        this.run(`UPDATE contacts SET alias = ? WHERE owner_zalo_id = ? AND contact_id = ?`, [sec.alias, ownerId, masterId]);
+                    }
+                    if (sec.pipeline_stage_id && !master.pipeline_stage_id) {
+                        this.run(`UPDATE contacts SET pipeline_stage_id = ? WHERE owner_zalo_id = ? AND contact_id = ?`, [sec.pipeline_stage_id, ownerId, masterId]);
+                    }
+                    if (sec.salutation && !master.salutation) {
+                        this.run(`UPDATE contacts SET salutation = ? WHERE owner_zalo_id = ? AND contact_id = ?`, [sec.salutation, ownerId, masterId]);
+                    }
+
+                    // Delete secondary duplicate
+                    this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [ownerId, secId]);
+                    mergedCount++;
+                }
+            }
+        } catch (err: any) {
+            Logger.error(`[DatabaseService] mergeDuplicateContactsByPhone error: ${err.message}`);
+        }
+        return { mergedCount };
     }
 
     /**
@@ -6258,6 +6357,7 @@ class DatabaseService {
         if (!this.initialized) return { contacts: [], total: 0 };
         try {
             this.backfillPhoneScanAliases();
+            this.mergeDuplicateContactsByPhone(ownerZaloId);
             const { search, tagIds, contactIds, isFriendOnly, contactType = 'all', contactTypes, isBlocked, sortBy = 'name', sortDir = 'asc', limit = 50, offset = 0 } = opts;
 
             let all: any[] = [];

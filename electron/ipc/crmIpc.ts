@@ -691,6 +691,16 @@ export function registerCRMIpc(): void {
         }
     });
 
+    ipcHandle('crm:mergeDuplicateContactsByPhone', async (_e, params?: { zaloId?: string }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const result = db.mergeDuplicateContactsByPhone(params?.zaloId);
+            return { success: true, ...result };
+        } catch (err: any) {
+            return { success: false, error: err.message, mergedCount: 0 };
+        }
+    });
+
     ipcHandle('crm:transferContact', async (_e, params: { contactId: string; phone?: string; fromZaloId: string; toZaloId: string }) => {
         try {
             const db = DatabaseService.getInstance();

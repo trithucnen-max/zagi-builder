@@ -293,6 +293,7 @@ declare global {
         reorderPhoneScanBatches: (params: { batchIds: number[] }) => Promise<{ success: boolean; error?: string }>;
         reassignContactsOwner: (params: { fromZaloId: string; targetZaloId: string; contactIds: string[] }) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
         getDuplicateContacts: () => Promise<{ success: boolean; duplicates?: any[]; error?: string }>;
+        mergeDuplicateContactsByPhone: (params?: { zaloId?: string }) => Promise<{ success: boolean; mergedCount?: number; error?: string }>;
         getSalutationMap: () => Promise<{ success: boolean; map?: Record<string, string>; error?: string }>;
         saveSalutationMap: (params: { map: Record<string, string> }) => Promise<{ success: boolean; error?: string }>;
         resetSalutationMap: () => Promise<{ success: boolean; map?: Record<string, string>; error?: string }>;

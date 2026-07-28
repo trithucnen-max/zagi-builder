@@ -513,12 +513,13 @@ function SalutationFilterDropdown({ contacts, value, onChange }: {
   );
 }
 
-function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onImportData }: {
+function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onImportData, onMergeDuplicates }: {
   total: number;
   exportingCSV: boolean;
   onExportCSV: () => void;
   onImportPhones?: () => void;
   onImportData?: () => void;
+  onMergeDuplicates?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -541,7 +542,7 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onI
         </svg>
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[200px] overflow-hidden py-1">
+        <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[210px] overflow-hidden py-1">
           {/* Export CSV */}
           <button
             onClick={() => { onExportCSV(); setOpen(false); }}
@@ -581,6 +582,18 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onI
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
               <span>Import CSV khách hàng</span>
+            </button>
+          )}
+          {/* Merge Duplicate Contacts */}
+          {onMergeDuplicates && (
+            <button
+              onClick={() => { onMergeDuplicates(); setOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-amber-300 hover:bg-gray-700 transition-colors text-left font-semibold border-t border-gray-700">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-amber-400">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
+                <polyline points="17 11 19 13 23 9"/>
+              </svg>
+              <span>🧹 Gộp liên hệ trùng SĐT</span>
             </button>
           )}
         </div>
@@ -746,6 +759,25 @@ export default function CRMContactList({
   const [selectingAllPages, setSelectingAllPages] = useState(false);
   const [exportingCSV, setExportingCSV] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  const handleMergeDuplicates = async () => {
+    try {
+      const res = await ipc.crm.mergeDuplicateContactsByPhone({ zaloId: 'all' });
+      if (res?.success) {
+        const count = res.mergedCount || 0;
+        if (count > 0) {
+          showNotification(`Đã gộp thành công ${count} cặp liên hệ trùng SĐT!`, 'success');
+        } else {
+          showNotification('Không có liên hệ nào bị trùng SĐT.', 'info');
+        }
+        onFilterChange({});
+      } else {
+        showNotification('Lỗi gộp liên hệ: ' + (res?.error || 'Không xác định'), 'error');
+      }
+    } catch (err: any) {
+      showNotification('Lỗi: ' + err.message, 'error');
+    }
+  };
 
   // ─── Debounced Search State ──────────────────────────────────────────
   const [localSearch, setLocalSearch] = useState(searchText);
@@ -1187,6 +1219,7 @@ export default function CRMContactList({
           onExportCSV={exportToCSV}
           onImportPhones={onImportPhones}
           onImportData={onImportData}
+          onMergeDuplicates={handleMergeDuplicates}
         />
 
         {/* Batch Save button — chỉ hiện khi có pending edits */}
