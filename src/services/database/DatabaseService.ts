@@ -9639,73 +9639,100 @@ class DatabaseService {
             }
 
             const now = new Date();
-            const vnTimeString = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
-            const vnTime = new Date(vnTimeString);
+            const getIctDateStr = (d: Date) => {
+                return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+            };
+
             let startTimestamp = 0;
-            let endTimestamp = Date.now() + 86400000; // default end of time
+            let endTimestamp = Date.now() + 86400000;
 
             if (timeRange === 'today') {
-                const startOfDay = new Date(vnTime.getFullYear(), vnTime.getMonth(), vnTime.getDate(), 0, 0, 0, 0);
-                const endOfDay = new Date(vnTime.getFullYear(), vnTime.getMonth(), vnTime.getDate(), 23, 59, 59, 999);
-                startTimestamp = startOfDay.getTime();
-                endTimestamp = endOfDay.getTime();
+                const todayStr = getIctDateStr(now);
+                startTimestamp = new Date(`${todayStr}T00:00:00+07:00`).getTime();
+                endTimestamp = new Date(`${todayStr}T23:59:59.999+07:00`).getTime();
             } else if (timeRange === 'this_week') {
-                const monday = new Date(vnTime);
-                const day = vnTime.getDay();
-                const diff = day === 0 ? -6 : 1 - day;
-                monday.setDate(vnTime.getDate() + diff);
-                monday.setHours(0, 0, 0, 0);
-                const sunday = new Date(monday);
-                sunday.setDate(monday.getDate() + 6);
-                sunday.setHours(23, 59, 59, 999);
-                startTimestamp = monday.getTime();
-                endTimestamp = sunday.getTime();
+                const todayStr = getIctDateStr(now);
+                const todayDate = new Date(`${todayStr}T12:00:00+07:00`);
+                const dayOfWeek = todayDate.getDay();
+                const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+                const monDate = new Date(todayDate.getTime() + diffToMon * 86400000);
+                const sunDate = new Date(monDate.getTime() + 6 * 86400000);
+                
+                const monStr = getIctDateStr(monDate);
+                const sunStr = getIctDateStr(sunDate);
+                startTimestamp = new Date(`${monStr}T00:00:00+07:00`).getTime();
+                endTimestamp = new Date(`${sunStr}T23:59:59.999+07:00`).getTime();
             } else if (timeRange === 'this_month') {
-                const startOfMonth = new Date(vnTime.getFullYear(), vnTime.getMonth(), 1, 0, 0, 0, 0);
-                const endOfMonth = new Date(vnTime.getFullYear(), vnTime.getMonth() + 1, 0, 23, 59, 59, 999);
-                startTimestamp = startOfMonth.getTime();
-                endTimestamp = endOfMonth.getTime();
+                const todayStr = getIctDateStr(now);
+                const [y, m] = todayStr.split('-');
+                const startStr = `${y}-${m}-01`;
+                const lastDayNum = new Date(Number(y), Number(m), 0).getDate();
+                const endStr = `${y}-${m}-${String(lastDayNum).padStart(2, '0')}`;
+                
+                startTimestamp = new Date(`${startStr}T00:00:00+07:00`).getTime();
+                endTimestamp = new Date(`${endStr}T23:59:59.999+07:00`).getTime();
             } else if (timeRange === 'custom') {
                 if (startDate) {
-                    const [y, m, d] = startDate.split('-').map(Number);
-                    if (y && m && d) {
-                        startTimestamp = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
-                    }
+                    startTimestamp = new Date(`${startDate}T00:00:00+07:00`).getTime();
                 }
                 if (endDate) {
-                    const [y, m, d] = endDate.split('-').map(Number);
-                    if (y && m && d) {
-                        endTimestamp = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
-                    }
+                    endTimestamp = new Date(`${endDate}T23:59:59.999+07:00`).getTime();
                 }
             }
 
-            // Total SĐT uploaded within this time range (by created_at)
+            // Total SĐT uploaded within this time range
             const totalRow = this.queryOne<any>(
-                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE created_at >= ? AND created_at <= ?`,
-                [startTimestamp, endTimestamp]
+                `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                 JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                 WHERE (psi.created_at >= ? AND psi.created_at <= ?) OR (psb.created_at >= ? AND psb.created_at <= ?)`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp]
             ) || { cnt: 0 };
 
-            // Scanned statuses within this time range (by scanned_at)
+            // Found items
             const foundRow = this.queryOne<any>(
-                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'found' AND scanned_at >= ? AND scanned_at <= ?`,
-                [startTimestamp, endTimestamp]
+                `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                 JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                 WHERE psi.status = 'found' AND (
+                     (psi.scanned_at >= ? AND psi.scanned_at <= ?) OR
+                     (psi.created_at >= ? AND psi.created_at <= ?) OR
+                     (psb.created_at >= ? AND psb.created_at <= ?)
+                 )`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp]
             ) || { cnt: 0 };
 
+            // Not found items
             const notFoundRow = this.queryOne<any>(
-                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'not_found' AND scanned_at >= ? AND scanned_at <= ?`,
-                [startTimestamp, endTimestamp]
+                `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                 JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                 WHERE psi.status = 'not_found' AND (
+                     (psi.scanned_at >= ? AND psi.scanned_at <= ?) OR
+                     (psi.created_at >= ? AND psi.created_at <= ?) OR
+                     (psb.created_at >= ? AND psb.created_at <= ?)
+                 )`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp]
             ) || { cnt: 0 };
 
+            // Error items
             const errorRow = this.queryOne<any>(
-                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'error' AND scanned_at >= ? AND scanned_at <= ?`,
-                [startTimestamp, endTimestamp]
+                `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                 JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                 WHERE psi.status = 'error' AND (
+                     (psi.scanned_at >= ? AND psi.scanned_at <= ?) OR
+                     (psi.created_at >= ? AND psi.created_at <= ?) OR
+                     (psb.created_at >= ? AND psb.created_at <= ?)
+                 )`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp]
             ) || { cnt: 0 };
 
-            // Pending (unscanned) items uploaded within this time range (by created_at)
+            // Pending items
             const pendingRow = this.queryOne<any>(
-                `SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'pending' AND created_at >= ? AND created_at <= ?`,
-                [startTimestamp, endTimestamp]
+                `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                 JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                 WHERE psi.status = 'pending' AND (
+                     (psi.created_at >= ? AND psi.created_at <= ?) OR
+                     (psb.created_at >= ? AND psb.created_at <= ?)
+                 )`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp]
             ) || { cnt: 0 };
 
             const scanned = foundRow.cnt + notFoundRow.cnt + errorRow.cnt;

@@ -227,20 +227,24 @@ export default function PhoneScanPanel() {
     }, []);
 
     // Fetch Overall Stats by Time Filter
-    const fetchOverallStats = useCallback(async (timeRange: 'all' | 'today' | 'this_week' | 'this_month') => {
+    const fetchOverallStats = useCallback(async (timeRange: 'all' | 'today' | 'this_week' | 'this_month' | 'custom') => {
         try {
-            const res = await ipc.crm?.getPhoneScanOverallStats({ timeRange });
+            const res = await ipc.crm?.getPhoneScanOverallStats({
+                timeRange,
+                startDate: customStartDate,
+                endDate: customEndDate
+            });
             if (res?.success && res.stats) {
                 setFilteredStats(res.stats);
             }
         } catch (err) {
             console.error('Failed to fetch overall stats:', err);
         }
-    }, []);
+    }, [customStartDate, customEndDate]);
 
     useEffect(() => {
         fetchOverallStats(scanTimeFilter);
-    }, [scanTimeFilter, fetchOverallStats]);
+    }, [scanTimeFilter, customStartDate, customEndDate, fetchOverallStats]);
 
     // Fetch Local Labels
     const fetchLocalLabels = useCallback(async () => {
@@ -275,16 +279,18 @@ export default function PhoneScanPanel() {
         fetchBatches();
         fetchLocalLabels();
         fetchLimitStatus();
+        fetchOverallStats(scanTimeFilter);
         
         pollingTimer.current = setInterval(() => {
             fetchBatches();
             fetchLimitStatus();
+            fetchOverallStats(scanTimeFilter);
         }, 3000); // Poll progress every 3 seconds
 
         return () => {
             if (pollingTimer.current) clearInterval(pollingTimer.current);
         };
-    }, [fetchBatches, fetchLocalLabels, fetchLimitStatus]);
+    }, [fetchBatches, fetchLocalLabels, fetchLimitStatus, fetchOverallStats, scanTimeFilter]);
 
     // Handle batch selection changes (to view details)
     useEffect(() => {
