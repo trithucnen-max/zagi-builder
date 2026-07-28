@@ -425,15 +425,15 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
           {/* ── 4 Vibrant Stat Cards Grid (Matching User Mockup) ── */}
           <div className="grid grid-cols-4 gap-3">
             {/* Thẻ 1: TỔNG SỐ (Blue Gradient) */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md flex items-center justify-between select-none">
+            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-md flex items-center justify-between select-none">
               {/* Background Watermark SVG */}
               <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
               </svg>
 
               <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0 shadow-inner">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                     <circle cx="9" cy="7" r="4" />
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -441,7 +441,7 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-blue-100 uppercase tracking-wider">Tổng số</p>
+                  <p className="text-xs font-black text-white uppercase tracking-wider">Tổng số</p>
                   <p className="text-2xl font-black text-white leading-none mt-1">{stats.total || campaign.total_contacts || 0}</p>
                 </div>
               </div>
@@ -455,13 +455,13 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
               </svg>
 
               <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0 shadow-inner">
+                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-emerald-100 uppercase tracking-wider">Thành công</p>
+                  <p className="text-xs font-black text-white uppercase tracking-wider">Thành công</p>
                   <p className="text-2xl font-black text-white leading-none mt-1">{stats.sentCount || campaign.sent_count || 0}</p>
                 </div>
               </div>
@@ -475,14 +475,14 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
               </svg>
 
               <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0 shadow-inner">
+                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-rose-100 uppercase tracking-wider">Thất bại</p>
+                  <p className="text-xs font-black text-white uppercase tracking-wider">Thất bại</p>
                   <p className="text-2xl font-black text-white leading-none mt-1">{stats.failedCount || campaign.failed_count || 0}</p>
                 </div>
               </div>
@@ -496,14 +496,14 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
               </svg>
 
               <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0 shadow-inner">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-amber-100 uppercase tracking-wider">Đang chờ</p>
+                  <p className="text-xs font-black text-white uppercase tracking-wider">Đang chờ</p>
                   <p className="text-2xl font-black text-white leading-none mt-1">{stats.pendingCount + stats.sendingCount}</p>
                 </div>
               </div>
