@@ -164,7 +164,7 @@ export default function SalutationSettings() {
   }, [testSalutation, map]);
 
   const livePreviewMiddle = useMemo(() => {
-    return applySmartSalutation('Dạ em xin chào {salutation}, {tu_xung} chúc {salutation} ngày mới tốt lành!', testSalutation, map[testSalutation.toLowerCase()]);
+    return applySmartSalutation('Dạ {tu_xung} xin chào {salutation}, {tu_xung} chúc {salutation} ngày mới tốt lành!', testSalutation, map[testSalutation.toLowerCase()]);
   }, [testSalutation, map]);
 
   return (
