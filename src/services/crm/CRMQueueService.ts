@@ -345,7 +345,8 @@ class CRMQueueService {
                 : genderGreeting;
 
             const contactAlias = (item as any).alias || '';
-            const zaloName     = item.display_name || item.contact_id || '';
+            const zaloName     = (item as any).zalo_name || item.display_name || item.contact_id || '';
+            const smartName    = contactAlias || effectiveDisplayName || zaloName;
 
             let bDay = '';
             let bMonth = '';
@@ -378,7 +379,7 @@ class CRMQueueService {
 
                 // Bước 2: Thay thế các biến còn lại
                 result = result
-                    .replace(/\{name\}/g,             effectiveDisplayName || item.contact_id)
+                    .replace(/\{name\}/g,             smartName || item.contact_id)
                     .replace(/\{zalo_name\}/g,        zaloName)
                     .replace(/\{userId\}/g,           effectiveContactId)
                     .replace(/\{alias\}/g,            contactAlias)

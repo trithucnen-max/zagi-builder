@@ -1363,8 +1363,12 @@ export default function CRMContactList({
                         )}
                     {contact.note_count > 0 && <span className="text-[12px] text-yellow-500 flex-shrink-0">📝</span>}
                   </div>
-                  {contact.alias && contact.alias !== contact.display_name &&
-                    <p className="text-[11px] text-gray-500 truncate md:hidden">{contact.display_name}</p>}
+                  {contact.alias && contact.alias !== contact.display_name && (
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5 flex items-center gap-1 font-sans">
+                      <span className="text-[10px] text-blue-500 dark:text-blue-400 font-bold bg-blue-500/10 px-1 rounded shrink-0">Zalo gốc</span>
+                      <span className="truncate">{contact.display_name}</span>
+                    </p>
+                  )}
                   {/* Facebook Link display */}
                   {contact.extra_data && (() => {
                     try {
