@@ -245,6 +245,12 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main') {
       `-${tag}-`
     );
 
+    // Replace all text version strings in titles, prompts & modals (e.g. "Tải phần mềm Zagi Desktop v3.0.7", "Zagi v3.0.7")
+    content = content.replace(
+      /v3\.\d+\.\d+/g,
+      tag
+    );
+
     if (content !== originalContent) {
       fs.writeFileSync(filePath, content, 'utf8');
       const relativeName = path.relative(ROOT_DIR, filePath);
