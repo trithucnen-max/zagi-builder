@@ -747,20 +747,7 @@ export function registerCRMIpc(): void {
                         })).filter((f: any) => f.userId);
 
                         if (normalized.length > 0) {
-                            db.saveFriends(acc.zalo_id, normalized);
-                            const contactBatch = normalized.map(f => ({
-                                owner_zalo_id: acc.zalo_id,
-                                contact_id: f.userId,
-                                display_name: f.displayName,
-                                avatar_url: f.avatar,
-                                phone: f.phoneNumber,
-                                is_friend: 1,
-                                contact_type: 'user',
-                                unread_count: 0,
-                                last_message: '',
-                                last_message_time: 0,
-                            }));
-                            db.saveContactsBatch(contactBatch);
+                            db.replaceFriendsForAccount(acc.zalo_id, normalized);
                             totalReconciled += normalized.length;
                         }
                     }

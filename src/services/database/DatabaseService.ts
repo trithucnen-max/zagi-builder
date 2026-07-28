@@ -4006,6 +4006,41 @@ class DatabaseService {
         }
     }
 
+    /** Thay thế toàn bộ danh sách bạn bè chuẩn xác từ Zalo API, xóa bỏ dữ liệu bạn bè cũ bị sai lệch */
+    public replaceFriendsForAccount(ownerZaloId: string, friends: Array<{ userId: string; displayName?: string; zaloName?: string; avatar?: string; phoneNumber?: string }>): void {
+        if (!this.initialized || !ownerZaloId) return;
+        const now = Date.now();
+        try {
+            this.run('DELETE FROM friends WHERE owner_zalo_id = ?', [ownerZaloId]);
+            const stmt = db!.prepare(
+                `INSERT INTO friends (owner_zalo_id, user_id, display_name, avatar, phone, updated_at)
+                 VALUES (?,?,?,?,?,?)`
+            );
+            for (const f of friends) {
+                if (!f.userId) continue;
+                stmt.run(ownerZaloId, f.userId, f.displayName || f.zaloName || f.userId, f.avatar || '', this.normalizeVietnamPhone(f.phoneNumber || ''), now);
+            }
+            const friendUserIds = friends.map(f => f.userId).filter(Boolean);
+            if (friendUserIds.length > 0) {
+                const placeholders = friendUserIds.map(() => '?').join(',');
+                this.run(
+                    `UPDATE contacts SET is_friend = 1 WHERE owner_zalo_id = ? AND contact_id IN (${placeholders})`,
+                    [ownerZaloId, ...friendUserIds]
+                );
+                this.run(
+                    `UPDATE contacts SET is_friend = 0 WHERE owner_zalo_id = ? AND contact_id NOT IN (${placeholders})`,
+                    [ownerZaloId, ...friendUserIds]
+                );
+            } else {
+                this.run(`UPDATE contacts SET is_friend = 0 WHERE owner_zalo_id = ?`, [ownerZaloId]);
+            }
+            this.save();
+            Logger.log(`[DatabaseService] Replaced ${friends.length} friends for ${ownerZaloId}`);
+        } catch (err: any) {
+            Logger.error(`[DatabaseService] replaceFriendsForAccount error: ${err.message}`);
+        }
+    }
+
     /**
      * Batch upsert contacts — single prepare + single disk write.
      * Dùng cho fetchAllFriendsInBackground thay vì gọi saveContact() từng dòng.
@@ -9713,7 +9748,7 @@ class DatabaseService {
                            CASE WHEN f.user_id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
                            c.contact_type
                     FROM contacts c
-                    LEFT JOIN friends f ON f.owner_zalo_id = c.owner_zalo_id AND (f.user_id = c.contact_id OR (f.phone != '' AND c.phone != '' AND f.phone = c.phone))
+                    LEFT JOIN friends f ON f.owner_zalo_id = c.owner_zalo_id AND f.user_id = c.contact_id
                     WHERE (c.phone = ? AND c.phone != '') OR c.contact_id = ?
                 `, [keyPhone, keyUid]);
 
@@ -9774,11 +9809,14 @@ class DatabaseService {
                     this.assignLocalLabelToThread(toZaloId, contact.contact_id, tag.label_id);
                 }
 
-                this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [fromZaloId, contact.contact_id]);
+                // Delete from old account unconditionally upon explicit transfer request
+                this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND (contact_id = ? OR (phone = ? AND phone != ''))`, [fromZaloId, contact.contact_id, phone]);
                 this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [fromZaloId, contact.contact_id]);
 
                 EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: fromZaloId, contactId: contact.contact_id, alias: '' });
                 EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: toZaloId, contactId: contact.contact_id, alias: contact.alias });
+                EventBroadcaster.emit('db:contactsChanged', { ownerZaloId: fromZaloId });
+                EventBroadcaster.emit('db:contactsChanged', { ownerZaloId: toZaloId });
                 this.save();
                 return true;
             }
@@ -9831,10 +9869,17 @@ class DatabaseService {
                         }
                     }
 
-                    // Xóa liên hệ khỏi tài khoản cũ nếu không phải bạn bè trực tiếp của tài khoản cũ
-                    if (item.owner_zalo_id !== targetZaloId && item.is_friend !== 1) {
-                        this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [item.owner_zalo_id, item.contact_id]);
+                    // Check if item is a real friend of item.owner_zalo_id in friends table
+                    const isRealFriend = this.queryOne<any>(
+                        `SELECT 1 FROM friends WHERE owner_zalo_id = ? AND user_id = ? LIMIT 1`,
+                        [item.owner_zalo_id, item.contact_id]
+                    );
+
+                    // Xóa liên hệ khỏi tài khoản cũ nếu không phải bạn bè thực tế của tài khoản cũ
+                    if (item.owner_zalo_id !== targetZaloId && !isRealFriend) {
+                        this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND (contact_id = ? OR (phone = ? AND phone != ''))`, [item.owner_zalo_id, item.contact_id, phone]);
                         this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [item.owner_zalo_id, item.contact_id]);
+                        EventBroadcaster.emit('db:contactsChanged', { ownerZaloId: item.owner_zalo_id });
                     }
                 }
 
@@ -9884,7 +9929,7 @@ class DatabaseService {
                   AND NOT EXISTS (
                     SELECT 1 FROM friends f
                     WHERE f.owner_zalo_id = contacts.owner_zalo_id
-                      AND (f.user_id = contacts.contact_id OR (f.phone != '' AND contacts.phone != '' AND f.phone = contacts.phone))
+                      AND f.user_id = contacts.contact_id
                   )
             `);
 
@@ -9896,7 +9941,7 @@ class DatabaseService {
                   AND EXISTS (
                     SELECT 1 FROM friends f
                     WHERE f.owner_zalo_id = contacts.owner_zalo_id
-                      AND (f.user_id = contacts.contact_id OR (f.phone != '' AND contacts.phone != '' AND f.phone = contacts.phone))
+                      AND f.user_id = contacts.contact_id
                   )
             `);
 
