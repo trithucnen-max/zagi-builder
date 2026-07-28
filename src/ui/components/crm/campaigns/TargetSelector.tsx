@@ -51,6 +51,12 @@ export default function TargetSelector({
   const [loading, setLoading] = useState(true);
   const [showTip, setShowTip] = useState(true);
 
+  // ── Exclusion Filter State ──
+  const [showExclusionSection, setShowExclusionSection] = useState(false);
+  const [excludedZaloLabelIds, setExcludedZaloLabelIds] = useState<number[]>([]);
+  const [excludedLocalLabelIds, setExcludedLocalLabelIds] = useState<number[]>([]);
+  const [excludedGroupIds, setExcludedGroupIds] = useState<Set<string>>(new Set());
+
   // ── Phone tab state ──
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneList, setPhoneList] = useState<string[]>([]);
@@ -210,6 +216,34 @@ export default function TargetSelector({
 
   const totalLabelFilters = selectedZaloLabelIds.length + selectedLocalLabelIds.length;
 
+  const allExcludedIds = useMemo(() => {
+    const set = new Set<string>();
+    if (excludedZaloLabelIds.length > 0 || excludedLocalLabelIds.length > 0) {
+      allContacts.forEach(c => {
+        const cId = c.contact_id;
+        const isGroup = c.contact_type === 'group';
+        const prefId = isGroup ? `g${cId}` : cId;
+        const matchesZalo = excludedZaloLabelIds.some(lId => {
+          const lObj = allLabels.find(l => l.id === lId);
+          return lObj?.conversations?.includes(cId) || (isGroup && lObj?.conversations?.includes(prefId));
+        });
+        const threadLabels = effectiveThreadMap[cId] || effectiveThreadMap[prefId] || [];
+        const matchesLocal = excludedLocalLabelIds.some(lId => threadLabels.includes(lId));
+        if (matchesZalo || matchesLocal) set.add(cId);
+      });
+    }
+    if (excludedGroupIds.size > 0) {
+      excludedGroupIds.forEach(gId => {
+        set.add(gId);
+        const cache = groupInfoCache?.[zaloId]?.[gId];
+        if (cache?.members) {
+          cache.members.forEach((m: any) => set.add(m.userId));
+        }
+      });
+    }
+    return set;
+  }, [excludedZaloLabelIds, excludedLocalLabelIds, excludedGroupIds, allContacts, allLabels, effectiveThreadMap, groupInfoCache, zaloId]);
+
   const filtered = useMemo(() => {
     let list = allContacts;
     if (mode === 'friends_only') {
@@ -232,6 +266,11 @@ export default function TargetSelector({
       });
     }
 
+    // Apply Exclusion Filter
+    if (allExcludedIds.size > 0) {
+      list = list.filter(c => !allExcludedIds.has(c.contact_id));
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(c =>
@@ -242,7 +281,7 @@ export default function TargetSelector({
       );
     }
     return list;
-  }, [allContacts, mode, selectedZaloLabelIds, selectedLocalLabelIds, totalLabelFilters, search, allLabels, effectiveThreadMap]);
+  }, [allContacts, mode, selectedZaloLabelIds, selectedLocalLabelIds, totalLabelFilters, allExcludedIds, search, allLabels, effectiveThreadMap]);
 
   const effectiveSelectedContacts = useMemo(() => {
     if (mode === 'by_label' || mode === 'friends_only' || mode === 'groups_only') {
@@ -360,6 +399,7 @@ export default function TargetSelector({
         <div className="px-4 py-2.5 bg-gray-50/60 dark:bg-gray-900/60 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2 overflow-x-auto scrollbar-none flex-shrink-0">
           {[
             { id: 'by_label', label: 'Theo nhãn', icon: '🏷️' },
+            { id: 'groups_only', label: 'Theo nhóm Zalo', icon: '👨‍👩‍👧‍👦' },
             { id: 'by_phone', label: 'Theo SĐT', icon: '📞' },
             { id: 'by_uid', label: 'Theo UID', icon: '🔗' },
             { id: 'manual', label: 'Chọn thủ công', icon: '👥' },
@@ -380,6 +420,88 @@ export default function TargetSelector({
               </button>
             );
           })}
+        </div>
+
+        {/* ── Exclusion Filter Section ── */}
+        <div className="px-4 py-2 bg-red-50/40 dark:bg-red-950/20 border-b border-red-100 dark:border-red-900/40 flex-shrink-0">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowExclusionSection(!showExclusionSection)}
+              className="flex items-center gap-1.5 text-xs font-bold text-red-600 dark:text-red-400 hover:opacity-80 transition-opacity"
+            >
+              <span>🚫</span>
+              <span>Bộ lọc Loại Trừ (Nhãn, Nhóm, Liên hệ)</span>
+              {allExcludedIds.size > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold">
+                  Đang loại trừ {allExcludedIds.size} liên hệ
+                </span>
+              )}
+              <span className="text-[10px] text-gray-400 ml-1">{showExclusionSection ? '▲' : '▼'}</span>
+            </button>
+          </div>
+
+          {showExclusionSection && (
+            <div className="mt-2 p-3 rounded-2xl bg-white dark:bg-gray-850 border border-red-200 dark:border-red-900/40 space-y-2.5 shadow-2xs">
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                Tích chọn các Nhãn hoặc Nhóm bên dưới để <strong>bỏ qua</strong> các liên hệ nằm trong danh sách loại trừ:
+              </p>
+
+              {/* 1. Loại trừ theo Nhãn Local */}
+              {effectiveLocalLabels.length > 0 && (
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                    Loại trừ Nhãn Local:
+                  </span>
+                  <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto">
+                    {effectiveLocalLabels.map(label => {
+                      const isExcluded = excludedLocalLabelIds.includes(label.id);
+                      return (
+                        <button
+                          key={`ex-local-${label.id}`}
+                          type="button"
+                          onClick={() => setExcludedLocalLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
+                          className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
+                            isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+                          }`}
+                        >
+                          {isExcluded && <span>🚫</span>}
+                          <span>{label.emoji || '🏷️'} {label.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Loại trừ theo Nhãn Zalo */}
+              {allLabels.length > 0 && (
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                    Loại trừ Nhãn Zalo:
+                  </span>
+                  <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto">
+                    {allLabels.map(label => {
+                      const isExcluded = excludedZaloLabelIds.includes(label.id);
+                      return (
+                        <button
+                          key={`ex-zalo-${label.id}`}
+                          type="button"
+                          onClick={() => setExcludedZaloLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
+                          className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
+                            isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+                          }`}
+                        >
+                          {isExcluded && <span>🚫</span>}
+                          <span>🏷️ {label.text}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Sub-tabs for Label Mode (Row 2 - Matching Mockup Image 3) ── */}
