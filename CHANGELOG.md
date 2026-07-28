@@ -4,8 +4,39 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.8] - 2026-07-28
 
-### 🎛️ Giao Diện Quản Lý Bảng Quy Tắc Xưng Hô & Tự Xưng (Salutation Self-Reference UI Manager)
+### 🎯 Chiến Dịch CRM: Động Cơ Khoảng Thời Gian Chờ Ngẫu Nhiên Riêng Cho Từng Tin Nhắn (`CRMQueueService.ts`)
+- **Tự Động Sinh Khoảng Delay Ngẫu Nhiên Riêng Cho Mỗi Tin Nhắn (`nextAllowedSendTime`):**
+  - Khắc phục triệt để vấn đề thời gian gửi bị dồn về mốc cận dưới tối thiểu. Khi chọn khoảng delay ngẫu nhiên (ví dụ 5s–15s), hệ thống tự động bốc thăm một số ngẫu nhiên hoàn toàn mới cho từng tin nhắn/liên hệ cụ thể ngay sau khi tin trước đó gửi đi (ví dụ: tin 1 chờ 12.4s, tin 2 chờ 6.1s, tin 3 chờ 14.8s,...).
 
+### 🚫 Bộ Lọc Loại Trừ Đối Tượng 3 Tiêu Chí Mở Rộng (`TargetSelector.tsx`)
+- **Tích Hợp Khối Bộ Lọc Loại Trừ Với 3 Sub-Tab Linh Hoạt:**
+  - **`🏷️ Theo Nhãn`**: Loại trừ Nhãn Local & Nhãn Zalo (VD: loại trừ các liên hệ có nhãn `Đã gửi`, `Đã chốt`, `Từ chối`).
+  - **`👨‍👩‍👧‍👦 Theo Nhóm Zalo`**: Loại trừ toàn bộ thành viên thuộc các Nhóm Zalo chỉ định.
+  - **`👤 Theo Liên hệ`**: Cho phép xem danh sách liên hệ bị loại trừ và chọn loại trừ từng cá nhân cụ thể.
+- **Nút "🚫 Loại Trừ" Trực Tiếp Trên Danh Sách:**
+  - Thêm nút `🚫 Loại trừ` cạnh mỗi dòng liên hệ trong giao diện chọn, cho phép loại trừ nhanh 1-click.
+- **Chuẩn Hóa Dãy Tab Đầu Vào:**
+  - Sắp xếp thứ tự các tab sub-menu chọn đối tượng: `🏷️ Theo nhãn`, `📞 Theo SĐT`, `🔗 Theo UID`, `👤 Theo Liên hệ` (thay cho "Chọn thủ công"), `👨‍👩‍👧‍👦 Theo nhóm`.
+
+### 📊 Báo Cáo Chiến Dịch Gọn Gàng & Giao Diện Card Phản Quang (`CampaignDetail.tsx`)
+- **Dọn Dẹp Thanh Tiến Độ Dư Thừa:**
+  - Loại bỏ hoàn toàn thanh tiến độ mảnh dư thừa nằm trên thẻ Báo cáo Chiến dịch.
+- **Thẻ Báo Cáo Phản Quang Nổi Bật (White Text / Icons):**
+  - Chuyển đổi toàn bộ chữ, số liệu tổng quan (Tổng số, Thành công, Thất bại, Đang chờ) và icon hiển thị trên các thẻ báo cáo sang màu trắng nổi bật trên nền tối.
+
+### 🌙 Giờ Nghỉ Đêm Tự Động Tránh Khóa Tài Khoản CRM (`Quiet Hours`)
+- **Tự Động Dừng Gửi Tin Đêm:**
+  - Thiết lập mặc định khung giờ quiet hours từ `23:30` đến `07:00` sáng hôm sau, hỗ trợ công tắc bật/tắt và cài đặt tùy chỉnh giờ gửi tin an toàn cho tài khoản Zalo.
+
+### 👤 Tự Động Gán Tài Khoản Nhận CRM Mặc Định (`CRMPage.tsx` & `PhoneScanPanel.tsx`)
+- **Tự Chọn Tài Khoản Zalo Đầu Tiên:**
+  - Khi chọn chế độ Gom về 1 tài khoản, hệ thống tự động gán tài khoản Zalo đầu tiên có sẵn thay vì để trống, khắc phục nguy cơ phát sinh lỗi do quên chọn.
+
+### 🗑️ Dọn Dẹp Mã Nguồn Rà Soát Trùng Lặp Cũ (`CRMDuplicateManagerModal.tsx`)
+- **Xóa Bỏ Tính Năng Cũ Không Hiệu Quả:**
+  - Xóa bỏ nút bấm, state và modal "Rà soát trùng lặp" cũ để mã nguồn gọn gàng và tối ưu hiệu năng.
+
+### 🎛️ Giao Diện Quản Lý Bảng Quy Tắc Xưng Hô & Tự Xưng (Salutation Self-Reference UI Manager)
 - **Thêm Tab "🗣️ Xưng hô & Tự xưng" vào Cài Đặt Hội Thoại (`ConversationSettings.tsx`):**
   - Tích hợp ngay cạnh tab *Tin nhắn nhanh* và *Quản lý nhãn*.
   - Cho phép người dùng trực tiếp **Xem, Tìm kiếm, Thêm mới, Chỉnh sửa, Xóa** và **Khôi phục mặc định** bảng quy tắc tự xưng tiếng Việt.

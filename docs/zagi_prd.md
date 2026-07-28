@@ -6,8 +6,16 @@
 
 ---
 
-#### 🚀 v3.0.8 — Xưng Hô Thông Minh, Tự Động Nâng Cấp 1-Click Đa Nền Tảng & Chuẩn Hóa Lọc Trùng Zalo (Official Release)
+#### 🚀 v3.0.8 — Xưng Hô Thông Minh, Bộ Lọc Loại Trừ 3 Tiêu Chí, Giờ Nghỉ Đêm & Delay Ngẫu Nhiên CRM (Official Release)
 * **Tính năng mới (New):**
+  * **🚫 Bộ Lọc Loại Trừ Đối Tượng 3 Tiêu Chí Mở Rộng (`TargetSelector.tsx`)**:
+    * Tích hợp khối bộ lọc loại trừ nâng cao với 3 Sub-tab: `🏷️ Theo Nhãn` (Local & Zalo), `👨‍👩‍👧‍👦 Theo Nhóm Zalo` (loại trừ toàn bộ thành viên nhóm chỉ định), và `👤 Theo Liên hệ` (xem danh sách loại trừ & chọn loại trừ từng cá nhân cụ thể).
+    * Bổ sung nút `🚫 Loại trừ` 1-click trực tiếp trên danh sách liên hệ chính.
+    * Chuẩn hóa thứ tự các tab sub-menu chọn đối tượng: `🏷️ Theo nhãn`, `📞 Theo SĐT`, `🔗 Theo UID`, `👤 Theo Liên hệ`, `👨‍👩‍👧‍👦 Theo nhóm`.
+  * **🎯 Động Cơ Phân Phát Tin Nhắn Chờ Ngẫu Nhiên Từng Tin CRM (`CRMQueueService.ts`)**:
+    * Tính toán khoảng delay ngẫu nhiên hoàn toàn MỚI (`nextAllowedSendTime`) cho từng tin nhắn/liên hệ riêng biệt trong dải `[delay_min_seconds, delay_max_seconds]`, loại bỏ hiện tượng bị gửi dồn ở mốc tối thiểu.
+  * **🌙 Giờ Nghỉ Đêm Tự Động Tránh Khóa Tài Khoản CRM (Quiet Hours)**:
+    * Tự động nghỉ gửi tin từ `23:30` đến `07:00` sáng hôm sau (hỗ trợ bật/tắt và cài đặt tùy chỉnh giờ).
   * **🗣️ Quản Lý Xưng Hô & Tự Xưng Thông Minh (Smart Salutation & Self-Reference)**:
     * Thêm tab *"🗣️ Xưng hô & Tự xưng"* vào Cài đặt Hội thoại (`SalutationSettings.tsx`). Cho phép Xem, Tìm kiếm, Thêm mới, Sửa, Xóa và Khôi phục bảng quy tắc tự xưng tiếng Việt.
     * Tích hợp bộ thử nghiệm Live Preview theo thời gian thực giúp người dùng thử chọn danh xưng (`Anh`, `Chị`, `Sếp`, `Thầy`...) và xem ngay kết quả tự xưng (`em`, `cháu`, `con`, `mình`...) viết Hoa đầu câu hay viết thường giữa câu.
@@ -15,10 +23,11 @@
     * Đồng bộ bảng quy tắc tự xưng tùy chỉnh vào SQLite `app_settings` (`custom_salutation_map`), tự động áp dụng cho Boss, Employee, CRM Campaigns và Workflow Engine.
   * **🚀 Tự Động Cập Nhật 1-Click Đa Nền Tảng & Bảo Vệ An Toàn 2 Bước (1-Click Auto-Updater & Safety Guard)**:
     * Tích hợp Modal *"Có gì mới"* (`UpdateModal.tsx`) hiển thị Release Notes + thanh tiến trình tải ngầm (% MB, tốc độ). Tự động nhận diện hệ điều hành (`Windows 🪟`, `macOS 🍎`, `Linux 🐧`).
-    * Cơ chế bảo vệ 2 bước (Safety Guard Confirmation): Phát hiện chiến dịch CRM đang gửi tin nhắn, hiển thị cảnh báo thẻ vàng ⚠️ và cung cấp 2 phương án: **`🚀 Khởi động lại ngay`** hoặc **`🌙 Cài khi tôi tắt Zagi`** (tự động áp dụng bản mới ở lần tắt app sau mà không ngắt quãng công việc).
   * **📅 Bộ Lọc Khoảng Thời Gian Quét SĐT Linh Hoạt (`PhoneScanPanel.tsx`)**:
     * Cho phép chọn ngày bắt đầu & ngày kết thúc (`Từ ngày` ➔ `Đến ngày`). Thống kê chính xác số lượng SĐT tải lên, đã quét, có Zalo, không Zalo và số còn lại chưa quét theo đúng khoảng thời gian.
 * **Sửa lỗi & Chuẩn hóa Hệ thống (Bug Fixes & Optimization):**
+  * **📊 Báo Cáo Chiến Dịch Card Phản Quang (`CampaignDetail.tsx`)**: Dọn dẹp dòng tiến độ mảnh dư thừa, chuyển màu chữ/số/icon trên 4 card thống kê (Tổng số, Thành công, Thất bại, Đang chờ) sang trắng phản quang nổi bật trên nền tối.
+  * **👤 Tự Chọn Tài Khoản Nhận CRM Mặc Định (`CRMPage.tsx`)**: Tự chọn Zalo Account đầu tiên có sẵn khi gom về 1 tài khoản, tránh lỗi quên chọn.
   * **Sửa Lỗi Hiển Thị Bong Bóng Ảnh & Thumbnail (`mediaUtils.ts` & `ChatWindow.tsx`)**: Chuẩn hóa bóc tách toàn bộ trường CDN URL Zalo (`hdUrl`, `normalUrl`, `thumbUrl`, `url`), dọn dẹp bong bóng ảnh tạm (`temp_xxx`) khi tin nhắn thật từ Zalo API trả về, triệt tiêu hoàn toàn lỗi lặp 2 hình ảnh hỏng.
   * **Sửa Lỗi Thứ Tự Tin Nhắn (`normalizeTimestamp`)**: Tự động quy đổi timestamp 10 chữ số (số giây) từ Zalo Event Listener ➔ 13 chữ số (ms), sắp xếp tin nhắn chuẩn xác 100% theo thời gian thực.
   * **Tối Ưu Rà Soát Trùng Lặp & Đối Chiếu Zalo Thực Tế (`DatabaseService.ts` & `crmIpc.ts`)**: Khớp bạn bè Zalo theo Zalo UID duy nhất (bỏ so sánh SĐT mơ hồ); Nạp danh bạ sống từ Zalo API qua `replaceFriendsForAccount()` và thực thi xóa triệt để liên hệ khỏi tài khoản cũ khi Chuyển/Gộp liên hệ thành công.

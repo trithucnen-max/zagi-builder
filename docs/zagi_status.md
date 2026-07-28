@@ -1,7 +1,7 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 17/07/2026  
-> **Phiên bản:** v3.0.1 (Stable)  
-> **Nhánh Git hiện tại:** `main` (Working tree dơ do chỉnh sửa)
+> **Ngày cập nhật:** 28/07/2026  
+> **Phiên bản:** v3.0.8 (Stable)  
+> **Nhánh Git hiện tại:** `main`  
 
 ---
 
