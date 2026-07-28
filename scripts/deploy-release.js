@@ -202,9 +202,66 @@ async function main() {
     }
   }
 
+  // 6. Auto-update landing page, docs index, README, and Supabase functions download links
+  console.log(`\n⚡ Bước 6: Tự động cập nhật liên kết tải về (${tag}) lên Landing Page, README & Supabase...`);
+  updateLandingPageDownloadLinks(targetVersion, currentBranch);
+
   console.log('\n🏁 QUY TRÌNH HOÀN TẤT!');
-  console.log('Vui lòng kiểm tra lại GitHub Releases để xác nhận tất cả các phiên bản (Windows, Linux, macOS) đã hiển thị chính xác.');
+  console.log('Vui lòng kiểm tra lại GitHub Releases & Landing Page để xác nhận tất cả các phiên bản đã được phát hành chính thức!');
   rl.close();
+}
+
+function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main') {
+  const tag = `v${targetVersion}`;
+
+  const filesToUpdate = [
+    path.join(ROOT_DIR, 'landing', 'index.html'),
+    path.join(ROOT_DIR, 'docs', 'index.html'),
+    path.join(ROOT_DIR, 'README.md'),
+    path.join(ROOT_DIR, 'README.en.md'),
+    path.join(ROOT_DIR, 'supabase', 'functions', 'create-order', 'index.ts'),
+  ];
+
+  let anyModified = false;
+
+  for (const filePath of filesToUpdate) {
+    if (!fs.existsSync(filePath)) continue;
+    let content = fs.readFileSync(filePath, 'utf8');
+    const originalContent = content;
+
+    // Replace download release tags (e.g. /releases/download/v3.0.7/Zagi.v3.0.7.Window.exe)
+    content = content.replace(
+      /\/releases\/download\/v\d+\.\d+\.\d+\/Zagi\.v\d+\.\d+\.\d+/g,
+      `/releases/download/${tag}/Zagi.${tag}`
+    );
+
+    // Replace shield badges tags (e.g. -v3.0.7-)
+    content = content.replace(
+      /-(v3\.\d+\.\d+)-/g,
+      `-${tag}-`
+    );
+
+    if (content !== originalContent) {
+      fs.writeFileSync(filePath, content, 'utf8');
+      const relativeName = path.relative(ROOT_DIR, filePath);
+      console.log(`  ✅ Đã tự động cập nhật link tải mới trong: ${relativeName}`);
+      anyModified = true;
+    }
+  }
+
+  if (anyModified) {
+    try {
+      console.log('  -> Đang tự động commit & push liên kết Landing Page vừa cập nhật...');
+      runCmd('git add landing/ docs/ README.md README.en.md supabase/');
+      runCmd(`git commit -m "docs: auto-update landing page and release download links for ${tag}"`);
+      runCmd(`git push origin ${currentBranch}`);
+      console.log('  ✅ Đã push thành công liên kết Landing Page lên GitHub!');
+    } catch (err) {
+      console.log('  ⚠️ Không thể tự động commit landing page:', err.message);
+    }
+  } else {
+    console.log('  ℹ️ Liên kết tải về trên Landing Page đã ở phiên bản mới nhất.');
+  }
 }
 
 main().catch(err => {

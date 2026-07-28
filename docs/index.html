@@ -1,0 +1,2306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0068FF">
+<title>ZAGI — Trợ lý bán hàng của bạn, và của cả team</title>
+<meta name="description" content="Zagi giúp sales và chủ doanh nghiệp nhỏ chăm sóc lead trên Zalo/Facebook một cách tử tế: gom mọi nick về một hộp thư, chấm điểm lead, theo dõi phễu, và không để khách nào rơi. Dữ liệu lưu trên máy bạn. Dùng thử 14 ngày miễn phí.">
+<meta property="og:title" content="ZAGI — Trợ lý bán hàng của bạn, và của cả team">
+<meta property="og:description" content="Một người bán hàng không nên phải nhớ mọi thứ trong đầu. Zagi nhớ giúp bạn — và chăm khách khi bạn đang ngủ. Dùng thử 14 ngày miễn phí.">
+<meta property="og:locale" content="vi_VN">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --primary:#0068FF;--primary-dark:#0052CC;--primary-container:#D6E3FF;--on-primary-container:#001A41;
+  --accent:#FF6B00;--accent-light:#FFE8D6;
+  --teal:#00A389;--teal-container:#D1FAE5;
+  --gold:#FFB300;
+  --error:#EF4444;--error-container:#FEE2E2;
+  --surface:#FDFCFF;--surface-1:#F5F7FB;--surface-2:#EEF1F6;
+  --ink:#101319;--ink-2:#3D4452;--ink-3:#6B7280;
+  --border:#E2E6EE;
+  --e1:0 1px 2px rgba(16,19,25,.06),0 1px 3px rgba(16,19,25,.08);
+  --e2:0 2px 6px rgba(16,19,25,.08),0 4px 12px rgba(0,104,255,.08);
+  --e3:0 8px 24px rgba(16,19,25,.10),0 4px 8px rgba(0,104,255,.06);
+  --e4:0 16px 40px rgba(16,19,25,.14),0 6px 14px rgba(0,104,255,.08);
+  --ease:cubic-bezier(0.2,0,0,1);--ease-emph:cubic-bezier(0.3,0,0,1);
+  --r-sm:10px;--r:16px;--r-lg:24px;--r-xl:30px;--r-full:9999px;
+}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font-family:'Be Vietnam Pro',sans-serif;color:var(--ink);line-height:1.62;background:var(--surface);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.container{max-width:1180px;margin:0 auto;padding:0 20px}
+.material-symbols-rounded{font-family:'Material Symbols Rounded';font-weight:normal;font-style:normal;display:inline-block;line-height:1;vertical-align:middle;font-feature-settings:'liga'}
+a{text-decoration:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 26px;border-radius:var(--r-full);font-weight:700;font-size:15.5px;font-family:inherit;cursor:pointer;border:none;white-space:nowrap;position:relative;overflow:hidden;transition:all .2s var(--ease);user-select:none}
+.btn::before{content:'';position:absolute;inset:0;background:currentColor;opacity:0;transition:opacity .2s}
+.btn:hover::before{opacity:.08}.btn:active::before{opacity:.14}
+.btn-primary{background:linear-gradient(135deg,#0068FF,#0052CC);color:#fff;box-shadow:var(--e2)}
+.btn-primary:hover{box-shadow:var(--e3);transform:translateY(-2px)}
+.btn-accent{background:linear-gradient(135deg,#FF6B00,#FF8A00);color:#fff;box-shadow:var(--e2)}
+.btn-accent:hover{box-shadow:var(--e3);transform:translateY(-2px)}
+.btn-secondary{background:#fff;color:var(--primary);border:1.5px solid var(--border);box-shadow:var(--e1)}
+.btn-secondary:hover{border-color:var(--primary);box-shadow:var(--e2)}
+.btn-white{background:#fff;color:var(--primary-dark);box-shadow:var(--e2)}
+.btn-white:hover{transform:translateY(-2px);box-shadow:var(--e4)}
+.btn-ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.45)}
+.btn-ghost:hover{background:rgba(255,255,255,.12);border-color:#fff}
+.btn-lg{padding:17px 34px;font-size:17px}
+.btn .material-symbols-rounded{font-size:20px}
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.5);transform:scale(0);animation:ripple .6s var(--ease);pointer-events:none}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+
+.topbar{background:linear-gradient(90deg,#FF6B00,#FF8A00);color:#fff;text-align:center;padding:9px 18px;font-size:13.5px;font-weight:600;position:relative;overflow:hidden}
+.topbar::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);animation:shimmer 3.2s linear infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.topbar a{color:#fff;text-decoration:underline;position:relative;z-index:1}
+.topbar .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;margin-right:5px;animation:pdot 1.5s ease-in-out infinite;vertical-align:middle}
+@keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.35)}}
+@media(max-width:600px){.topbar{font-size:12px}}
+
+.header{position:sticky;top:0;z-index:100;background:rgba(253,252,255,.92);backdrop-filter:blur(18px) saturate(180%);-webkit-backdrop-filter:blur(18px) saturate(180%);border-bottom:1px solid var(--border);transition:.3s}
+.header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;max-width:1180px;margin:0 auto}
+
+/* Logo Zagi Chuẩn SVG */
+.zagi-brand{display:flex;align-items:center;gap:12px;cursor:pointer}
+.zagi-brand-svg{height:44px;width:auto}
+
+.nav{display:flex;gap:2px}
+.nav a{padding:9px 14px;border-radius:var(--r-full);color:var(--ink-2);font-weight:500;font-size:14px;transition:.2s}
+.nav a:hover{background:var(--surface-2);color:var(--primary)}
+.header .btn{padding:10px 20px;font-size:14px}
+@media(max-width:880px){.nav{display:none}}
+
+.hero{background:linear-gradient(140deg,#0A2A6B 0%,#0068FF 42%,#2E5BD8 68%,#00A389 120%);color:#fff;padding:70px 0 88px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 16% 28%,rgba(255,255,255,.14),transparent 42%),radial-gradient(circle at 86% 74%,rgba(0,163,137,.32),transparent 46%);animation:float 22s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-20px,18px) scale(1.04)}}
+.hero-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:54px;align-items:center;position:relative;z-index:1}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);color:#fff;padding:7px 15px;border-radius:var(--r-full);font-size:12.5px;font-weight:600;margin-bottom:20px;backdrop-filter:blur(8px);animation:sd .6s var(--ease-emph) both}
+.hero-badge .material-symbols-rounded{font-size:16px;color:#FFE08A}
+.hero h1{font-size:clamp(32px,4.6vw,52px);line-height:1.1;font-weight:800;letter-spacing:-.025em;margin-bottom:18px;animation:su .8s var(--ease-emph) .1s both}
+.hero h1 .hl{background:linear-gradient(120deg,#FFD54F,#FFE9A8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#FFD54F}
+.hero-sub{font-size:18px;color:#E6EEFB;margin-bottom:26px;max-width:560px;animation:su .8s var(--ease-emph) .2s both}
+.hero-sub strong{color:#fff;font-weight:700}
+.hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;animation:su .8s var(--ease-emph) .3s both}
+.smart-detect-note{font-size:12.5px;color:#7FE7D9;font-weight:600;margin-bottom:24px;display:flex;align-items:center;gap:6px}
+.smart-detect-note .material-symbols-rounded{font-size:16px}
+
+.hero-trust{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;color:#CFE0F7;animation:su .8s var(--ease-emph) .4s both}
+.hero-trust span{display:inline-flex;align-items:center;gap:6px}
+.hero-trust .material-symbols-rounded{font-size:18px;color:#7FE7D9}
+.hero-trust strong{color:#fff}
+@keyframes sd{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes su{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes sr{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
+
+.mockup{position:relative;perspective:1300px;animation:sr .8s var(--ease-emph) .3s both}
+.board{background:#fff;border-radius:var(--r-xl);padding:18px;box-shadow:0 34px 80px rgba(6,22,58,.42);color:var(--ink);transform:rotateY(-9deg) rotateX(5deg);animation:tilt 9s ease-in-out infinite}
+@keyframes tilt{0%,100%{transform:rotateY(-9deg) rotateX(5deg)}50%{transform:rotateY(-4deg) rotateX(2deg)}}
+.board-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;padding:0 4px}
+.board-title{font-weight:800;font-size:14px;display:flex;align-items:center;gap:7px}
+.board-title .material-symbols-rounded{font-size:18px;color:var(--primary)}
+.board-sync{font-size:10.5px;color:var(--teal);font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.board-sync::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--teal);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.col{background:var(--surface-1);border-radius:12px;padding:8px}
+.col-h{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:7px;display:flex;justify-content:space-between;padding:0 2px}
+.col-h .cnt{background:#fff;border-radius:6px;padding:1px 6px;font-size:9.5px;color:var(--ink-2)}
+.card{background:#fff;border-radius:9px;padding:8px 9px;margin-bottom:6px;box-shadow:var(--e1);border-left:3px solid var(--primary);animation:pop .5s ease both}
+.card:nth-child(2){animation-delay:.1s}.card:nth-child(3){animation-delay:.2s}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card.warm{border-left-color:var(--accent)}.card.hot{border-left-color:var(--error)}.card.cool{border-left-color:var(--teal)}
+.c-name{font-size:11.5px;font-weight:700;display:flex;align-items:center;gap:5px}
+.c-sub{font-size:9px;color:var(--ink-3);margin-top:1px}
+.c-tags{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
+.tg{font-size:8px;font-weight:700;padding:1px 6px;border-radius:5px}
+.tg.b{background:var(--primary-container);color:var(--on-primary-container)}.tg.a{background:var(--accent-light);color:var(--accent)}.tg.t{background:var(--teal-container);color:var(--teal)}
+.tg.score{background:#FEF3C7;color:#B45309}
+.float-c{position:absolute;background:#fff;border-radius:14px;padding:10px 13px;box-shadow:var(--e4);display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;animation:bob 3.4s ease-in-out infinite}
+.float-c.f1{top:-16px;right:-14px}.float-c.f2{bottom:16px;left:-32px;animation-delay:1.6s}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-11px)}}
+.fc-ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;flex-shrink:0}
+.fc-ic.w{background:linear-gradient(135deg,#FF6B00,#FFB300)}.fc-ic.c{background:linear-gradient(135deg,#00A389,#26C6DA)}
+.fc-ic .material-symbols-rounded{font-size:17px}
+.float-c small{display:block;color:var(--ink-3);font-weight:500;font-size:10px}
+@media(max-width:880px){.float-c{display:none}}
+
+/* MANIFESTO */
+.manifest{background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:40px 0}
+.manifest-inner{max-width:900px;margin:0 auto;text-align:center;padding:0 20px}
+.manifest-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);margin-bottom:14px}
+.manifest-tag .material-symbols-rounded{font-size:16px}
+.manifest p{font-size:19px;line-height:1.55;color:var(--ink);font-weight:500;letter-spacing:-.01em}
+.manifest p strong{color:var(--primary-dark);font-weight:700}
+.manifest .note{font-size:12.5px;color:var(--ink-3);margin-top:12px;font-weight:400;letter-spacing:0}
+@media(max-width:600px){.manifest p{font-size:17px}}
+
+.section{padding:80px 0;position:relative}
+.eyebrow{display:inline-block;padding:6px 14px;background:var(--primary-container);color:var(--on-primary-container);border-radius:var(--r-full);font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px}
+.section-title{font-size:clamp(26px,3.5vw,40px);font-weight:800;letter-spacing:-.025em;line-height:1.16;margin-bottom:14px}
+.section-sub{font-size:17px;color:var(--ink-2);max-width:680px}
+.head-center{text-align:center;max-width:730px;margin:0 auto 50px}
+.head-center .section-sub{margin:0 auto}
+.reveal{opacity:0;transform:translateY(28px);transition:all .8s var(--ease-emph)}
+.reveal.in{opacity:1;transform:translateY(0)}
+
+/* PAIN */
+.pain{background:var(--surface-1)}
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.pain-card{background:#fff;border-radius:var(--r);padding:28px;border-left:4px solid var(--error);box-shadow:var(--e1);transition:.4s var(--ease-emph);position:relative;overflow:hidden}
+.pain-card:hover{transform:translateY(-6px);box-shadow:var(--e3)}
+.pain-card .ic{width:54px;height:54px;border-radius:14px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.22);color:#EF4444;display:grid;place-items:center;margin-bottom:14px;transition:transform .4s var(--ease-emph)}
+.pain-card:hover .ic{transform:rotate(-9deg) scale(1.1)}
+.pain-card .ic .material-symbols-rounded{font-size:30px;color:#EF4444;font-weight:800}
+.pain-card h3{font-size:18px;font-weight:700;margin-bottom:9px}
+.pain-card p{color:var(--ink-2);font-size:14.5px}
+.pain-card .q{margin-top:14px;padding-top:13px;border-top:1px dashed var(--border);font-size:13px;color:var(--error);font-weight:600;font-style:italic}
+
+/* FEATURES */
+.feat-bg{background:linear-gradient(180deg,#fff,var(--surface))}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:center;margin-bottom:88px}
+.frow:last-child{margin-bottom:0}
+.frow.rev{direction:rtl}.frow.rev>*{direction:ltr}
+.fnum{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#0068FF,#0052CC);color:#fff;font-weight:800;font-size:20px;box-shadow:var(--e2);margin-bottom:16px}
+.frow:nth-child(2) .fnum{background:linear-gradient(135deg,#00A389,#26C6DA)}
+.frow:nth-child(3) .fnum{background:linear-gradient(135deg,#FF6B00,#FFB300)}
+.frow:nth-child(4) .fnum{background:linear-gradient(135deg,#5E35B1,#3949AB)}
+.ftext h3{font-size:25px;font-weight:800;line-height:1.22;margin-bottom:12px}
+.ftext>p{font-size:15.5px;color:var(--ink-2);margin-bottom:18px}
+.blist{list-style:none}
+.blist li{display:flex;gap:11px;align-items:flex-start;padding:8px 0;font-size:14.5px;color:var(--ink-2)}
+.blist .material-symbols-rounded{color:var(--teal);font-size:21px;flex-shrink:0;margin-top:1px}
+.blist code{background:var(--surface-2);padding:1px 7px;border-radius:6px;font-size:12.5px;font-family:ui-monospace,monospace;color:var(--primary-dark)}
+.fvis{aspect-ratio:1/.9;border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--e3);position:relative}
+.spotlight{position:absolute;top:14px;right:14px;background:var(--gold);color:#3B2A00;font-size:10.5px;font-weight:800;padding:5px 12px;border-radius:var(--r-full);box-shadow:var(--e2);z-index:2;display:inline-flex;align-items:center;gap:4px}
+.spotlight .material-symbols-rounded{font-size:14px}
+
+.v-attract{background:linear-gradient(135deg,#EDE7F6,#D1C4E9);padding:24px;display:flex;flex-direction:column;gap:10px;justify-content:center}
+.src-row{display:flex;gap:8px}
+.src{flex:1;background:#fff;border-radius:12px;padding:11px 8px;text-align:center;box-shadow:var(--e1);animation:pop .5s ease both}
+.src:nth-child(2){animation-delay:.1s}.src:nth-child(3){animation-delay:.2s}
+.src .si{width:34px;height:34px;margin:0 auto 6px;border-radius:10px;display:grid;place-items:center;color:#fff}
+.src.z .si{background:#0068FF}.src.f .si{background:#1877F2}.src.g .si{background:#5E35B1}
+.src .si .material-symbols-rounded{font-size:19px}
+.src strong{font-size:11px;display:block}.src span{font-size:9px;color:var(--ink-3)}
+.fa{text-align:center;color:#5E35B1}.fa .material-symbols-rounded{font-size:26px;animation:bob 2s ease-in-out infinite}
+.fbox{background:#fff;border-radius:14px;padding:13px 15px;box-shadow:var(--e2);display:flex;align-items:center;gap:11px;border:1.5px solid #D1C4E9}
+.fbox .fi{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#5E35B1,#3949AB);display:grid;place-items:center;color:#fff;flex-shrink:0}
+.fbox strong{font-size:13px;display:block}.fbox span{font-size:11px;color:var(--ink-3)}
+
+.v-inbox{background:linear-gradient(135deg,#E3F2FD,#BBDEFB);padding:22px;display:flex;flex-direction:column;gap:9px;justify-content:center}
+.acct-row{display:flex;gap:6px;margin-bottom:4px}
+.acct{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;box-shadow:var(--e1);border:2px solid #fff}
+.acct.z1{background:#0068FF}.acct.z2{background:#00A389}.acct.z3{background:#FF6B00}.acct.fb{background:#1877F2}.acct.m{background:#fff;color:var(--ink-3)}
+.im{background:#fff;border-radius:11px;padding:9px 11px;box-shadow:var(--e1);display:flex;gap:9px;align-items:center;animation:slx .6s ease both}
+.im:nth-child(3){animation-delay:.15s}.im:nth-child(4){animation-delay:.3s}
+@keyframes slx{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+.iav{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;position:relative}
+.iav .pf{position:absolute;bottom:-2px;right:-2px;width:13px;height:13px;border-radius:50%;border:2px solid #fff}
+.iav .pf.z{background:#0068FF}.iav .pf.f{background:#1877F2}
+.ib{flex:1;min-width:0}.ib strong{font-size:12.5px;display:block}
+.ib span{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.un{width:18px;height:18px;border-radius:50%;background:var(--error);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;flex-shrink:0}
+.score-badge{background:linear-gradient(135deg,#FFB300,#FF6B00);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;flex-shrink:0}
+
+.v-time{background:linear-gradient(135deg,#D1FAE5,#A7F3D0);padding:24px;display:flex;flex-direction:column;justify-content:center}
+.tlh{background:#fff;border-radius:12px;padding:11px 13px;box-shadow:var(--e1);display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.tlav{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FF6B00,#FFB300);display:grid;place-items:center;color:#fff;font-weight:800}
+.tlh strong{font-size:13.5px}.tlh small{display:block;color:var(--ink-3);font-size:11px}
+.tlst{margin-left:auto;background:var(--teal-container);color:var(--teal);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:var(--r-full)}
+.tl{position:relative;padding-left:22px}
+.tl::before{content:'';position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:rgba(0,163,137,.3)}
+.tli{position:relative;padding:7px 0;font-size:12px}
+.tli::before{content:'';position:absolute;left:-19px;top:11px;width:9px;height:9px;border-radius:50%;background:var(--teal);border:2px solid #fff;box-shadow:0 0 0 2px rgba(0,163,137,.25)}
+.tli.now::before{background:var(--error);animation:ping 1.6s infinite}
+@keyframes ping{0%,100%{box-shadow:0 0 0 2px rgba(239,68,68,.3)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
+.tli strong{font-size:12px}.tli .t{color:var(--ink-3);font-size:10.5px}
+
+.v-seq{background:linear-gradient(135deg,#FFF7E0,#FFE0B2);padding:24px;display:flex;flex-direction:column;gap:9px;justify-content:center}
+.sq{background:#fff;border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:11px;box-shadow:var(--e1);animation:slx .6s ease both}
+.sq:nth-child(2){animation-delay:.12s}.sq:nth-child(3){animation-delay:.24s}.sq:nth-child(4){animation-delay:.36s}
+.sqd{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#FF6B00,#FFB300);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0;text-align:center;line-height:1.05}
+.sqd small{font-size:8px;font-weight:500;opacity:.9;display:block}
+.sqb{flex:1}.sqb strong{display:block;font-size:12.5px}.sqb span{color:var(--ink-3);font-size:11px}
+.sq .material-symbols-rounded{font-size:19px}
+.sq .ok{color:var(--teal)}.sq .pd{color:var(--accent)}.sq .wt{color:var(--ink-3)}
+
+.band{background:linear-gradient(135deg,#0068FF,#0052CC);color:#fff;padding:50px 20px;position:relative;overflow:hidden}
+.band::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 30%,rgba(255,255,255,.12),transparent 50%)}
+.band-grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:26px;max-width:1000px;margin:0 auto;text-align:center}
+.band .n{font-size:clamp(38px,4.5vw,56px);font-weight:900;line-height:1;background:linear-gradient(135deg,#FFF176,#FFD54F);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#FFD54F;display:block;filter:drop-shadow(0 4px 12px rgba(255,213,79,0.5));letter-spacing:-0.02em}
+.band .l{font-size:13.5px;color:#FFFFFF;margin-top:8px;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,0.25)}
+@media(max-width:760px){.band-grid{grid-template-columns:1fr 1fr;gap:22px}.band .n{font-size:34px}}
+
+.sec-bg{background:var(--ink);color:#fff;position:relative;overflow:hidden}
+.sec-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 22%,rgba(0,104,255,.28),transparent 45%),radial-gradient(circle at 86% 80%,rgba(0,163,137,.24),transparent 45%)}
+.sec-grid{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.sec-grid .eyebrow{background:rgba(255,255,255,.12);color:#90CAF9}
+.sec-grid h2{font-size:clamp(25px,3.2vw,36px);font-weight:800;line-height:1.18;margin-bottom:15px}
+.sec-grid>div>p{color:rgba(255,255,255,.78);font-size:15.5px;margin-bottom:22px}
+.sec-list{list-style:none;display:grid;gap:14px}
+.sec-list li{display:flex;gap:13px;align-items:flex-start}
+.sec-list .ic{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.1);display:grid;place-items:center;flex-shrink:0;color:#7FE7D9}
+.sec-list strong{display:block;font-size:15px;margin-bottom:2px}
+.sec-list span{font-size:13px;color:rgba(255,255,255,.7)}
+.sec-art{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:var(--r-lg);padding:30px;backdrop-filter:blur(8px);text-align:center}
+.lockr{width:96px;height:96px;margin:0 auto 18px;border-radius:50%;background:linear-gradient(135deg,#00A389,#0068FF);display:grid;place-items:center;animation:lockp 2.4s infinite}
+@keyframes lockp{0%,100%{box-shadow:0 0 0 0 rgba(0,163,137,.45)}50%{box-shadow:0 0 0 18px rgba(0,163,137,0)}}
+.lockr .material-symbols-rounded{font-size:46px;color:#fff}
+.sec-art h4{font-size:17px;font-weight:700;margin-bottom:6px}
+.sec-art p{font-size:13px;color:rgba(255,255,255,.7);max-width:300px;margin:0 auto}
+.lock-tags{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+.lock-tags span{font-size:11px;font-weight:600;padding:5px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:var(--r-full)}
+
+.value{background:var(--surface-1)}
+.stack{max-width:760px;margin:0 auto;background:#fff;border-radius:var(--r-xl);box-shadow:var(--e3);overflow:hidden;border:1px solid var(--border)}
+.stack-h{background:linear-gradient(135deg,#0A2A6B,#0068FF);color:#fff;padding:26px 30px;text-align:center}
+.stack-h h3{font-size:21px;font-weight:800;margin-bottom:4px}
+.stack-h p{font-size:13.5px;color:#CFE0F7}
+.stack-body{padding:14px 30px 24px}
+.srow{display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px dashed var(--border)}
+.srow:last-of-type{border-bottom:none}
+.srow .si2{width:42px;height:42px;border-radius:11px;background:rgba(0,104,255,0.12);border:1px solid rgba(0,104,255,0.22);color:#0068FF;display:grid;place-items:center;flex-shrink:0}
+.srow .si2 .material-symbols-rounded{color:#0068FF;font-weight:800}
+.srow .st{flex:1}
+.srow .st strong{display:block;font-size:15px}
+.srow .st span{font-size:12.5px;color:var(--ink-3)}
+.srow .sv{font-weight:800;color:var(--ink-2);font-size:14px;text-align:right;white-space:nowrap}
+.stack-total{background:linear-gradient(135deg,#FFF7E0,#FFE0B2);padding:22px 30px;text-align:center}
+.stack-total .lbl{font-size:13px;color:#7A5200;font-weight:600;margin-bottom:4px}
+.stack-total .big{font-size:30px;font-weight:900;color:#B45309;text-decoration:line-through;text-decoration-thickness:3px}
+.stack-total .you{margin-top:10px;font-size:15px;color:#3B2A00}
+.stack-total .you b{color:var(--primary);font-size:26px;font-weight:900}
+.value-note{text-align:center;max-width:680px;margin:30px auto 0;font-size:15px;color:var(--ink-2)}
+.value-note strong{color:var(--ink)}
+
+.pricing{background:var(--surface)}
+.pgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;max-width:1240px;margin:0 auto;align-items:stretch}
+.pcard{background:#fff;border-radius:var(--r-xl);padding:26px 18px;border:2px solid var(--border);position:relative;transition:.4s var(--ease-emph);box-shadow:var(--e1);display:flex;flex-direction:column}
+.pcard:hover{transform:translateY(-8px);box-shadow:var(--e4)}
+.pcard.trial{border-color:var(--teal);background:linear-gradient(180deg,#fff,#E6F4F1)}
+.pcard.trial::before{content:'MIỄN PHÍ 14 NGÀY';position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#00A389,#26C6DA);color:#fff;padding:5px 14px;border-radius:var(--r-full);font-size:10px;font-weight:800;letter-spacing:.04em;box-shadow:var(--e2);white-space:nowrap}
+.pcard.featured{border-color:var(--primary);box-shadow:var(--e3);background:linear-gradient(180deg,#fff,#F0F5FF)}
+.pcard.featured::before{content:'CHỌN NHIỀU NHẤT';position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#FF6B00,#FF8A00);color:#fff;padding:5px 14px;border-radius:var(--r-full);font-size:10px;font-weight:800;letter-spacing:.04em;box-shadow:var(--e2);white-space:nowrap}
+.pcard.team{border-color:var(--teal);background:linear-gradient(180deg,#fff,#F0FFF9)}
+.pcard.team::before{content:'CHO TEAM 2–5 NGƯỜI';position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#00A389,#26C6DA);color:#fff;padding:5px 14px;border-radius:var(--r-full);font-size:10px;font-weight:800;letter-spacing:.04em;box-shadow:var(--e2);white-space:nowrap}
+.pname{font-size:12px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.ptag{font-size:12.5px;color:var(--ink-2);margin-bottom:14px;min-height:38px;line-height:1.4}
+.pamt{display:flex;align-items:baseline;gap:4px;margin-bottom:4px}
+.pamt .num{font-size:30px;font-weight:900;letter-spacing:-.02em;line-height:1;color:var(--primary-dark)}
+.pamt .per{font-size:12px;color:var(--ink-3)}
+.pfeat{list-style:none;margin-bottom:20px;flex:1}
+.pfeat li{padding:6px 0;font-size:13px;color:var(--ink-2);display:flex;gap:7px;align-items:flex-start;line-height:1.4}
+.pfeat li .material-symbols-rounded{color:var(--teal);font-size:17px;flex-shrink:0;margin-top:1px}
+
+@media(max-width:1180px){.pgrid{grid-template-columns:repeat(3,1fr);gap:18px;max-width:860px}}
+@media(max-width:768px){.pgrid{grid-template-columns:repeat(2,1fr);gap:16px;max-width:600px}}
+@media(max-width:480px){.pgrid{grid-template-columns:1fr;max-width:380px}}
+
+.founding{background:linear-gradient(135deg,#141A2E,#0A0E27);color:#fff;border-radius:var(--r-xl);padding:46px;margin:46px auto 0;max-width:1060px;display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:center;position:relative;overflow:hidden;box-shadow:var(--e4)}
+.founding::before{content:'';position:absolute;top:-50%;right:-10%;width:480px;height:480px;background:radial-gradient(circle,rgba(255,107,0,.25),transparent 70%);animation:float 16s ease-in-out infinite}
+.founding>*{position:relative;z-index:1}
+.founding .fbadge{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;padding:6px 14px;border-radius:var(--r-full);font-size:12px;font-weight:800;letter-spacing:.04em;margin-bottom:16px}
+.founding h2{font-size:30px;font-weight:800;margin-bottom:12px;line-height:1.2}
+.founding>div>p{color:#C7D0E0;font-size:15px;margin-bottom:20px}
+.founding ul{list-style:none}
+.founding ul li{padding:7px 0;color:#E2E8F0;display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.55;text-align:left;word-break:normal;overflow-wrap:anywhere}
+.founding ul li .material-symbols-rounded{color:#FFD54F;font-size:20px;flex-shrink:0;margin-top:2px}
+.founding ul li>span:last-child{flex:1;min-width:0}
+.fprice{text-align:center;background:rgba(255,255,255,.05);border-radius:var(--r);padding:30px 24px;border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(10px)}
+.fprice .lbl{font-size:12.5px;color:#A0AEC0;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.fprice .amt{font-size:46px;font-weight:900;line-height:1;letter-spacing:-.02em}
+.fprice .amt span{font-size:16px;color:#A0AEC0;font-weight:500}
+.fprice .old{color:#718096;text-decoration:line-through;font-size:15px;margin:8px 0 16px}
+.fprice .btn{width:100%}
+
+.guar{background:linear-gradient(135deg,#F0F7FF,#E6F0FF)}
+.guar-card{max-width:840px;margin:0 auto;background:#fff;border-radius:var(--r-xl);padding:40px;box-shadow:var(--e3);text-align:center;border:1px solid var(--border);position:relative;overflow:hidden}
+.guar-seal{width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,#00A389,#0068FF);display:grid;place-items:center;margin:0 auto 18px;color:#fff;box-shadow:var(--e2)}
+.guar-seal .material-symbols-rounded{font-size:44px}
+.guar-card h2{font-size:26px;font-weight:800;margin-bottom:12px}
+.guar-card p{font-size:16px;color:var(--ink-2);max-width:600px;margin:0 auto}
+.guar-card p strong{color:var(--ink)}
+
+.training{background:linear-gradient(135deg,#0A2A6B,#0052CC);color:#fff;position:relative;overflow:hidden}
+.training::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 18% 24%,rgba(255,107,0,.22),transparent 46%),radial-gradient(circle at 84% 78%,rgba(0,163,137,.26),transparent 48%);animation:float 20s ease-in-out infinite}
+.training>.container{position:relative;z-index:1}
+.training .eyebrow{background:rgba(255,255,255,.14);color:#FFE08A}
+.training .section-title,.training .section-sub{color:#fff}
+.training .section-sub{color:#DCE9FB}
+.train-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:34px;align-items:center;margin-top:8px}
+.train-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:var(--r-lg);padding:30px;backdrop-filter:blur(10px)}
+.train-card h3{font-size:20px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:9px}
+.train-card h3 .material-symbols-rounded{color:#FFD54F;font-size:24px}
+.train-card>p{color:#CFE0F7;font-size:14.5px;margin-bottom:20px}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+.slot{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:var(--r);padding:18px;text-align:center;transition:.3s var(--ease-emph)}
+.slot:hover{background:rgba(255,255,255,.13);transform:translateY(-4px)}
+.slot .si3{width:46px;height:46px;border-radius:13px;margin:0 auto 10px;display:grid;place-items:center;color:#fff}
+.slot.am .si3{background:linear-gradient(135deg,#FF6B00,#FFB300)}
+.slot.pm .si3{background:linear-gradient(135deg,#5E35B1,#3949AB)}
+.slot .si3 .material-symbols-rounded{font-size:25px}
+.slot .time{font-size:26px;font-weight:900;line-height:1}
+.slot .label{font-size:12.5px;color:#CFE0F7;margin-top:4px}
+.train-when{display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:800;padding:7px 16px;border-radius:var(--r-full);margin-bottom:20px}
+.train-when .material-symbols-rounded{font-size:17px}
+.train-card .btn{width:100%;margin-bottom:10px}
+.train-card .btn:last-child{margin-bottom:0}
+.train-side{display:grid;gap:14px}
+.train-feat{display:flex;gap:13px;align-items:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);padding:16px 18px}
+.train-feat .ic{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.1);display:grid;place-items:center;flex-shrink:0;color:#7FE7D9}
+.train-feat .ic .material-symbols-rounded{font-size:24px}
+.train-feat strong{display:block;font-size:15px;margin-bottom:2px}
+.train-feat span{font-size:13px;color:rgba(255,255,255,.72)}
+
+.community{background:var(--surface-1)}
+.comm-card{max-width:980px;margin:0 auto;background:#fff;border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--e3);border:1px solid var(--border);display:grid;grid-template-columns:1.15fr .85fr}
+.comm-left{padding:44px}
+.comm-badge{display:inline-flex;align-items:center;gap:7px;background:var(--teal-container);color:var(--teal);font-size:12.5px;font-weight:800;padding:6px 14px;border-radius:var(--r-full);margin-bottom:16px}
+.comm-badge .material-symbols-rounded{font-size:16px}
+.comm-left h2{font-size:28px;font-weight:800;line-height:1.2;margin-bottom:12px}
+.comm-left>p{color:var(--ink-2);font-size:15.5px;margin-bottom:20px}
+.comm-list{list-style:none;margin-bottom:26px}
+.comm-list li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:14.5px;color:var(--ink-2)}
+.comm-list .material-symbols-rounded{color:var(--teal);font-size:20px;flex-shrink:0;margin-top:1px}
+.comm-right{background:linear-gradient(140deg,#0068FF,#00A389);color:#fff;padding:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.comm-ic{width:88px;height:88px;border-radius:24px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);display:grid;place-items:center;margin-bottom:18px;animation:bob 3.4s ease-in-out infinite}
+.comm-ic .material-symbols-rounded{font-size:46px;color:#fff}
+.comm-right h3{font-size:19px;font-weight:800;margin-bottom:6px}
+.comm-right p{font-size:13.5px;color:#EAF2FB;margin-bottom:22px}
+.comm-right .btn{width:100%}
+@media(max-width:760px){.comm-card{grid-template-columns:1fr}.comm-left{padding:30px 24px}.comm-right{padding:34px 24px}}
+
+.faq{background:var(--surface-1)}
+.faq-list{max-width:760px;margin:0 auto}
+.faq-item{background:#fff;border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:12px;overflow:hidden;transition:.2s}
+.faq-item.open{box-shadow:var(--e2);border-color:var(--primary)}
+.faq-q{padding:18px 22px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:15.5px;gap:12px}
+.faq-q .material-symbols-rounded{font-size:24px;color:var(--primary);transition:transform .4s var(--ease-emph);flex-shrink:0}
+.faq-item.open .faq-q .material-symbols-rounded{transform:rotate(180deg)}
+.faq-a{padding:0 22px;max-height:0;overflow:hidden;transition:all .4s var(--ease-emph);color:var(--ink-2);font-size:14.5px}
+.faq-item.open .faq-a{padding:0 22px 18px;max-height:500px}
+
+.final{background:linear-gradient(140deg,#0A2A6B,#0068FF 55%,#00A389 130%);color:#fff;text-align:center;padding:80px 20px;position:relative;overflow:hidden}
+.final::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 28% 50%,rgba(255,213,79,.22),transparent 50%),radial-gradient(circle at 74% 50%,rgba(0,163,137,.3),transparent 50%);animation:float 18s ease-in-out infinite}
+.final>.container{position:relative;z-index:1}
+.final h2{font-size:clamp(28px,4.4vw,44px);font-weight:800;margin-bottom:14px;letter-spacing:-.02em;line-height:1.16}
+.final>.container>p{font-size:17px;margin-bottom:30px;color:#E6EEFB}
+.final .btn-group{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:42px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:780px;margin:0 auto}
+.step{padding:22px;background:rgba(255,255,255,.08);border-radius:var(--r);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.15);transition:.4s var(--ease-emph)}
+.step:hover{background:rgba(255,255,255,.13);transform:translateY(-4px)}
+.step-num{width:46px;height:46px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;margin:0 auto 12px;font-size:19px;border:2px solid rgba(255,255,255,.3)}
+.step-text{font-size:14.5px;color:#EAF2FB;font-weight:500}
+
+.footer{background:#0A0E27;color:#9AA6B8;padding:46px 0 30px;font-size:14px}
+.footer-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:36px;margin-bottom:30px}
+.footer h4{color:#fff;font-size:16px;font-weight:700;margin-bottom:14px}
+.footer p{color:#C7D0E0;margin-bottom:10px;line-height:1.6;font-size:13.5px}
+.footer a{color:#C7D0E0;display:flex;align-items:center;gap:8px;margin-bottom:9px;transition:.2s;font-size:13.5px}
+.footer a:hover{color:#fff}
+.footer .material-symbols-rounded{font-size:18px;color:var(--primary)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:22px;color:#6B7689;font-size:12.5px;text-align:center}
+
+/* MODAL THANH TOÁN TỰ ĐỘNG & DOWNLOAD */
+.modal-backdrop{position:fixed;inset:0;background:rgba(10,14,39,.75);backdrop-filter:blur(8px);z-index:999;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-backdrop.active{display:flex;animation:fadeIn .3s var(--ease)}
+.modal-card{background:#fff;border-radius:var(--r-xl);max-width:540px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3);overflow:hidden;position:relative;max-height:90vh;display:flex;flex-direction:column}
+.modal-card.wide{max-width:760px}
+.modal-header{background:linear-gradient(135deg,#0068FF,#0052CC);color:#fff;padding:20px 24px;display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px}
+.modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;display:grid;place-items:center;font-size:20px;transition:.2s}
+.modal-close:hover{background:rgba(255,255,255,.35)}
+.modal-body{padding:24px;overflow-y:auto}
+
+.dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+.dl-card{background:var(--surface-1);border:1.5px solid var(--border);border-radius:var(--r);padding:16px;transition:.3s var(--ease-emph);display:flex;flex-direction:column;justify-content:space-between}
+.dl-card:hover{border-color:var(--primary);box-shadow:var(--e2);transform:translateY(-2px)}
+.dl-card.highlight{border-color:var(--teal);background:linear-gradient(180deg,#fff,#F0FFF9)}
+.dl-card-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.dl-card-h .ic{width:36px;height:36px;border-radius:10px;background:var(--primary-container);color:var(--primary-dark);display:grid;place-items:center;font-weight:800}
+.dl-card-h .ic.mac{background:#E0F2FE;color:#0284C7}
+.dl-card-h .ic.win{background:#E0E7FF;color:#4338CA}
+.dl-card-h .ic.lin{background:#FFEDD5;color:#C2410C}
+.dl-card-title{font-weight:800;font-size:14.5px}
+.dl-card-sub{font-size:12px;color:var(--ink-3);margin-bottom:12px;line-height:1.4}
+.dl-card .btn{width:100%;font-size:13px;padding:10px 14px}
+
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
+.form-control{width:100%;padding:13px 16px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:14.5px;font-family:inherit;outline:none;transition:.2s}
+.form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,104,255,.12)}
+
+.qr-container{text-align:center;padding:10px 0}
+.qr-img-box{background:#fff;padding:12px;border:2px dashed var(--primary);border-radius:var(--r);display:inline-block;box-shadow:var(--e2);margin-bottom:16px;position:relative}
+.qr-img-box img{width:230px;height:230px;display:block;border-radius:8px}
+.pay-details{background:var(--surface-1);border-radius:var(--r);padding:16px;text-align:left;margin-bottom:18px}
+.pay-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13.5px}
+.pay-row:last-child{border-bottom:none}
+.pay-row span{color:var(--ink-3)}
+.pay-row strong{color:var(--ink);font-weight:700}
+.copy-badge{background:var(--primary-container);color:var(--primary-dark);font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;cursor:pointer;margin-left:6px;transition:.2s}
+.copy-badge:hover{background:var(--primary);color:#fff}
+
+.status-pulse{display:inline-flex;align-items:center;gap:8px;background:#FFF7E0;border:1px solid #FFE0B2;color:#B45309;padding:8px 16px;border-radius:var(--r-full);font-size:13px;font-weight:700;margin-bottom:14px}
+.status-pulse .dot{width:9px;height:9px;border-radius:50%;background:#FF6B00;animation:blink 1.2s infinite}
+
+.success-box{text-align:center;padding:20px 0}
+.success-icon{width:70px;height:70px;background:var(--teal-container);color:var(--teal);border-radius:50%;display:grid;place-items:center;margin:0 auto 16px;font-size:40px}
+.key-box{background:linear-gradient(135deg,#0A2A6B,#0068FF);color:#fff;border-radius:var(--r);padding:18px;margin:18px 0;font-size:22px;font-weight:900;letter-spacing:1px;word-break:break-all;box-shadow:var(--e3)}
+/* Mobile Thumb Zone Sticky Bottom Bar & Mobile Touch Targets */
+.mobile-sticky-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10, 14, 39, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 12px 16px;
+  display: none;
+  gap: 10px;
+  z-index: 998;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.35);
+}
+.mobile-sticky-bar .btn {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 12px 8px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  /* 0. Khóa chống tràn ngang tuyệt đối */
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+  .container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* 1. Topbar & Header Mobile */
+  .topbar {
+    font-size: 11.5px !important;
+    padding: 6px 12px !important;
+    text-align: center !important;
+  }
+  .header-inner {
+    padding: 10px 16px !important;
+  }
+  .zagi-brand-svg {
+    height: 38px !important;
+    width: auto !important;
+  }
+
+  /* 2. Hero Section Mobile */
+  .hero {
+    padding: 24px 0 40px !important;
+  }
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+    text-align: center !important;
+  }
+  .hero-badge {
+    margin: 0 auto 14px !important;
+    font-size: 11px !important;
+    padding: 6px 12px !important;
+  }
+  .hero h1 {
+    font-size: 25px !important;
+    line-height: 1.25 !important;
+    margin-bottom: 14px !important;
+  }
+  .hero-sub {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    margin: 0 auto 20px !important;
+    text-align: center !important;
+  }
+  .hero-ctas {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+  .hero-ctas .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    font-size: 15px !important;
+    padding: 13px 16px !important;
+  }
+  .smart-detect-note {
+    justify-content: center !important;
+    font-size: 11.5px !important;
+    margin-bottom: 18px !important;
+  }
+  .hero-trust {
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 12px !important;
+    font-size: 12px !important;
+  }
+  .hide-mobile {
+    display: none !important;
+  }
+  .float-c {
+    display: none !important;
+  }
+
+  /* Mockup Kanban Board vừa khít di động */
+  .mockup {
+    perspective: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  .board {
+    transform: none !important;
+    animation: none !important;
+    padding: 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border-radius: var(--r) !important;
+  }
+  .board-title {
+    font-size: 12px !important;
+  }
+  .kanban {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 4px !important;
+  }
+  .col {
+    padding: 4px !important;
+    border-radius: 8px !important;
+  }
+  .col-h {
+    font-size: 8.5px !important;
+    margin-bottom: 4px !important;
+  }
+  .card {
+    padding: 6px 5px !important;
+    margin-bottom: 4px !important;
+  }
+  .c-name {
+    font-size: 10px !important;
+  }
+  .c-sub {
+    font-size: 8px !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .tg {
+    font-size: 7px !important;
+    padding: 1px 4px !important;
+  }
+
+  /* 3. Section General */
+  .section {
+    padding: 48px 0 !important;
+  }
+  .section-title {
+    font-size: 22px !important;
+    line-height: 1.25 !important;
+    margin-bottom: 10px !important;
+  }
+  .section-sub {
+    font-size: 14.5px !important;
+  }
+  .head-center {
+    margin-bottom: 32px !important;
+  }
+
+  /* 4. Pain Section Mobile (Khắc phục thẻ rớt chữ 1-2 từ) */
+  .pain-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  .pain-card {
+    padding: 20px 16px !important;
+    text-align: left !important;
+  }
+  .pain-card .ic {
+    width: 44px !important;
+    height: 44px !important;
+    margin-bottom: 12px !important;
+  }
+  .pain-card .ic .material-symbols-rounded {
+    font-size: 24px !important;
+  }
+  .pain-card h3 {
+    font-size: 17px !important;
+    line-height: 1.35 !important;
+    margin-bottom: 8px !important;
+  }
+  .pain-card p {
+    font-size: 13.5px !important;
+    line-height: 1.5 !important;
+  }
+
+  /* 5. Features Section Mobile */
+  .frow, .frow.rev {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+    margin-bottom: 48px !important;
+    direction: ltr !important;
+  }
+  .frow.rev > * {
+    direction: ltr !important;
+  }
+  .ftext h3 {
+    font-size: 20px !important;
+    line-height: 1.28 !important;
+  }
+  .ftext > p {
+    font-size: 14px !important;
+  }
+  .blist li {
+    font-size: 13.5px !important;
+  }
+  .fvis {
+    aspect-ratio: auto !important;
+    min-height: 220px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .src-row {
+    gap: 4px !important;
+  }
+  .src {
+    padding: 8px 4px !important;
+  }
+
+  /* 6. Numbers Band Mobile */
+  .band {
+    padding: 36px 16px !important;
+  }
+  .band-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px 14px !important;
+  }
+  .band .n {
+    font-size: 32px !important;
+  }
+  .band .l {
+    font-size: 12px !important;
+  }
+
+  /* 7. Security Section Mobile */
+  .sec-grid {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+  }
+  .sec-art {
+    padding: 20px 16px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+  .lockr {
+    width: 72px !important;
+    height: 72px !important;
+  }
+  .lockr .material-symbols-rounded {
+    font-size: 36px !important;
+  }
+
+  /* 8. Value / Stack Section Mobile */
+  .stack-h {
+    padding: 18px 16px !important;
+  }
+  .stack-h h3 {
+    font-size: 18px !important;
+  }
+  .stack-body {
+    padding: 10px 16px 16px !important;
+  }
+  .srow {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+    padding: 12px 0 !important;
+  }
+  .srow .sv {
+    text-align: left !important;
+    font-size: 13px !important;
+  }
+  .stack-total {
+    padding: 16px !important;
+  }
+  .stack-total .big {
+    font-size: 24px !important;
+  }
+  .stack-total .you b {
+    font-size: 22px !important;
+  }
+
+  /* 9. Pricing & Founding Beta Member Mobile (Sửa Hình 1) */
+  .pgrid {
+    grid-template-columns: 1fr !important;
+    max-width: 100% !important;
+    gap: 16px !important;
+  }
+  .price-card {
+    padding: 24px 18px !important;
+  }
+  .founding {
+    grid-template-columns: 1fr !important;
+    padding: 24px 18px !important;
+    gap: 24px !important;
+    text-align: left !important;
+  }
+  .founding h2 {
+    font-size: 22px !important;
+    line-height: 1.28 !important;
+  }
+  .founding ul li {
+    font-size: 13.5px !important;
+  }
+  .fprice {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 20px 16px !important;
+  }
+  .fprice .amt {
+    font-size: 32px !important;
+  }
+
+  /* 10. Training Section Mobile (Sửa Hình 2) */
+  .train-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+  .train-card, .train-modules {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .zoom-badge-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* 11. Community Card Mobile */
+  .comm-card {
+    grid-template-columns: 1fr !important;
+  }
+  .comm-left, .comm-right {
+    padding: 24px 18px !important;
+  }
+
+  /* 12. Final CTA & Steps Grid Mobile (Sửa Hình 3) */
+  .final {
+    padding: 48px 16px !important;
+    text-align: center !important;
+  }
+  .final h2 {
+    font-size: 22px !important;
+    line-height: 1.28 !important;
+  }
+  .btn-group {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+  .btn-group .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .steps {
+    grid-template-columns: 1fr !important; /* XẾP DỌC 1 CỘT CHUẨN MOBILE */
+    gap: 12px !important;
+    margin-top: 28px !important;
+  }
+  .step {
+    padding: 16px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+  .step-text {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    word-break: normal !important;
+  }
+
+  /* 13. Footer Grid Mobile (Sửa Hình 4) */
+  .footer-grid {
+    grid-template-columns: 1fr !important; /* XẾP DỌC 1 CỘT FOOTER */
+    gap: 24px !important;
+    text-align: left !important;
+  }
+  .footer h4 {
+    font-size: 16px !important;
+    margin-bottom: 10px !important;
+  }
+  .footer p, .footer ul li a {
+    font-size: 13.5px !important;
+    word-break: normal !important;
+  }
+
+  /* 14. Synchronized Icon Palette & High Contrast */
+  .src .si, .fbox .fi, .fc-ic, .v-attract .si, .src-row .si {
+    color: #FFFFFF !important;
+    font-weight: 800 !important;
+  }
+  .src .si .material-symbols-rounded, 
+  .fbox .fi .material-symbols-rounded, 
+  .fc-ic .material-symbols-rounded {
+    color: #FFFFFF !important;
+  }
+  .src.z .si { background: linear-gradient(135deg, #0068FF, #0047AB) !important; }
+  .src.f .si { background: linear-gradient(135deg, #1877F2, #0D52B5) !important; }
+  .src.g .si { background: linear-gradient(135deg, #7C3AED, #5B21B6) !important; }
+  .pain-card .ic { background: rgba(239, 68, 68, 0.12) !important; border: 1px solid rgba(239, 68, 68, 0.22) !important; }
+  .pain-card .ic .material-symbols-rounded { color: #EF4444 !important; font-weight: 800 !important; }
+  .srow .si2 { background: rgba(0, 104, 255, 0.12) !important; border: 1px solid rgba(0, 104, 255, 0.22) !important; }
+  .srow .si2 .material-symbols-rounded { color: #0068FF !important; font-weight: 800 !important; }
+
+  /* 15. Mobile Sticky Bar & Touch Optimization */
+  .mobile-sticky-bar {
+    display: flex !important;
+  }
+  body {
+    padding-bottom: 76px !important;
+  }
+  .form-control {
+    font-size: 16px !important; /* Chống iOS Safari tự động zoom */
+    min-height: 48px !important;
+  }
+  .btn {
+    min-height: 48px !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="dot"></span>
+  Đang <strong>Beta</strong> — Dùng thử <strong>14 ngày miễn phí</strong> · Gói cá nhân từ <strong>990.000đ</strong> —
+  <a href="#training">Xem lịch học</a>
+</div>
+
+<header class="header" id="header">
+  <div class="header-inner">
+    <!-- SVG Zagi Logo Chính Thức -->
+    <a href="#" class="zagi-brand">
+      <svg class="zagi-brand-svg" viewBox="0 0 240 65" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <text x="0" y="44" font-family="'Be Vietnam Pro', sans-serif" font-weight="900" font-size="48" fill="#0047AB" letter-spacing="-1.5">zagi</text>
+        <g transform="translate(136, 4)">
+          <path d="M 0 14 C 0 6.2 6.2 0 14 0 L 42 0 C 49.8 0 56 6.2 56 14 C 56 21.8 49.8 28 42 28 L 18 28 L 6 36 L 10 25 C 3.8 22.8 0 18.8 0 14 Z" fill="#0068FF"/>
+          <text x="28" y="19" font-family="'Be Vietnam Pro', sans-serif" font-weight="800" font-size="13" fill="#FFFFFF" text-anchor="middle">Zalo</text>
+        </g>
+        <text x="2" y="60" font-family="'Be Vietnam Pro', sans-serif" font-weight="600" font-size="10.5" fill="#0068FF" letter-spacing="0.5">ERP trên nền tảng Zalo</text>
+      </svg>
+    </a>
+    <nav class="nav">
+      <a href="#pain">Vấn đề</a>
+      <a href="#features">Tính năng</a>
+      <a href="#security">Bảo mật</a>
+      <a href="#pricing">Bảng giá</a>
+      <a href="#training">Đào tạo</a>
+      <a href="#faq">Hỏi đáp</a>
+    </nav>
+    <button onclick="openCheckout('trial_14d')" class="btn btn-primary"><span class="material-symbols-rounded">download</span>Dùng thử 14 ngày Miễn Phí</button>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-badge"><span class="material-symbols-rounded">workspace_premium</span>Dành cho sales &amp; chủ doanh nghiệp bán trên Zalo, Facebook</div>
+        <h1>Quản lý Zalo &amp; Facebook<br><span class="hl">Đa Tài Khoản Tập Trung.</span></h1>
+        <p class="hero-sub">Gom mọi nick Zalo &amp; Fanpage về <strong>một hộp thư duy nhất</strong>. Tự động chấm điểm lead &amp; chăm sóc khách hàng 24/7 ngay trên máy tính của bạn.<span class="hide-mobile"> Dữ liệu ở lại trên máy bạn. Của bạn, của cả team.</span></p>
+        
+        <div class="hero-ctas">
+          <!-- Smart Auto-Detected Download/Register Button -->
+          <a id="smart-hero-btn" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg" class="btn btn-white btn-lg">
+            <span class="material-symbols-rounded">download</span>Tải Zagi v3.0.7 Miễn Phí
+          </a>
+          <button id="secondary-hero-btn" onclick="openDownloadModal()" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">laptop_mac</span>Chọn bản khác</button>
+        </div>
+        <div class="smart-detect-note" id="smart-detect-label">
+          <span class="material-symbols-rounded">verified</span>Tự động chọn tệp cài đặt phù hợp với thiết bị của bạn
+        </div>
+
+        <div class="hero-trust">
+          <span><span class="material-symbols-rounded">lock</span>Dữ liệu <strong>Local 100%</strong></span>
+          <span class="hide-mobile"><span class="material-symbols-rounded">groups</span>Sales tự giới thiệu cho đồng đội</span>
+          <span><span class="material-symbols-rounded">verified</span>Hoàn tiền 30 ngày</span>
+        </div>
+      </div>
+
+      <div class="mockup">
+        <div class="board">
+          <div class="board-top">
+            <div class="board-title"><span class="material-symbols-rounded">view_kanban</span>Phễu khách của tôi</div>
+            <div class="board-sync">Đang đồng bộ</div>
+          </div>
+          <div class="kanban">
+            <div class="col">
+              <div class="col-h">Mới quan tâm<span class="cnt">8</span></div>
+              <div class="card hot"><div class="c-name"><span class="material-symbols-rounded" style="font-size:13px;color:#EF4444">local_fire_department</span>Chị An</div><div class="c-sub">Hỏi giá hôm nay</div><div class="c-tags"><span class="tg score">92đ</span><span class="tg b">Zalo</span></div></div>
+              <div class="card warm"><div class="c-name">Anh Tuấn</div><div class="c-sub">Xin xem hàng T7</div><div class="c-tags"><span class="tg score">74đ</span><span class="tg t">FB</span></div></div>
+            </div>
+            <div class="col">
+              <div class="col-h">Đã báo giá<span class="cnt">5</span></div>
+              <div class="card"><div class="c-name">Chị Lan</div><div class="c-sub">Đã xem báo giá</div><div class="c-tags"><span class="tg a">Cần gọi lại</span></div></div>
+              <div class="card cool"><div class="c-name">Anh Hải</div><div class="c-sub">Đang so sánh</div><div class="c-tags"><span class="tg b">Theo dõi</span></div></div>
+            </div>
+            <div class="col">
+              <div class="col-h">Sắp chốt<span class="cnt">3</span></div>
+              <div class="card cool"><div class="c-name">Chị Mai</div><div class="c-sub">Hẹn ký T7</div><div class="c-tags"><span class="tg t">98đ</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="float-c f1"><div class="fc-ic w"><span class="material-symbols-rounded">notifications_active</span></div><div>Chị An vừa nhắn<br><small>Điểm nóng · nên rep ngay</small></div></div>
+        <div class="float-c f2"><div class="fc-ic c"><span class="material-symbols-rounded">smart_toy</span></div><div>Đã gửi tin D+3<br><small>Tự động · 09:00</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MANIFESTO -->
+<section class="manifest">
+  <div class="manifest-inner reveal">
+    <div class="manifest-tag"><span class="material-symbols-rounded">flag</span>Manifesto</div>
+    <p>Một cá nhân. Một chiếc máy tính. Một danh bạ Zalo. Ngày nay, bấy nhiêu đủ để <strong>vận hành một doanh nghiệp</strong>. Zagi được làm ra cho những người bán hàng đó — người đang tự chạy mọi thứ, và cần một trợ lý không bao giờ ngủ.</p>
+    <div class="note">Đồng hành cùng tinh thần <em>Nghị quyết 86/NQ‑CP</em> ngày 05/4/2026 về Chiến lược quốc gia khởi nghiệp sáng tạo &amp; mô hình "doanh nghiệp một người".</div>
+  </div>
+</section>
+
+<!-- PAIN -->
+<section class="section pain" id="pain">
+  <div class="container">
+    <div class="head-center reveal">
+      <div class="eyebrow">Vấn đề rất thật</div>
+      <h2 class="section-title">Lead thì nhiều. Người quên cũng nhiều.</h2>
+      <p class="section-sub">Nghề bán hàng không thất bại vì thiếu khách. Thất bại vì <strong>đúng khách, sai thời điểm</strong> — và không ai nhắc mình.</p>
+    </div>
+    <div class="pain-grid">
+      <div class="pain-card reveal">
+        <div class="ic"><span class="material-symbols-rounded">swap_horiz</span></div>
+        <h3>Nhiều nick Zalo, một cái đầu</h3>
+        <p>Mỗi nguồn khách một nick. Đăng xuất, đăng nhập, xoay vòng. Tin khách nóng chui xuống dưới đáy — cùng với cơ hội của bạn.</p>
+        <div class="q">"Thấy khách nhắn thì đã 2 ngày sau. Họ mua chỗ khác rồi."</div>
+      </div>
+      <div class="pain-card reveal">
+        <div class="ic"><span class="material-symbols-rounded">psychology_alt</span></div>
+        <h3>Khách này đến đâu rồi nhỉ?</h3>
+        <p>Đã báo giá chưa? Đã gặp chưa? Lần cuối nói gì? Excel không trả lời. Trí nhớ càng không. Sếp hỏi thì lục lại cả tháng chat.</p>
+        <div class="q">"Mất deal chỉ vì tưởng khách chưa quan tâm — hoá ra đã hỏi ba lần."</div>
+      </div>
+      <div class="pain-card reveal">
+        <div class="ic"><span class="material-symbols-rounded">timer_off</span></div>
+        <h3>Quên chăm — quên luôn hoa hồng</h3>
+        <p>"Tuần sau em gọi lại chị nhé" — rồi tuần sau bận việc khác. Kịch bản chăm 3–5–7 ngày chỉ tồn tại trong slide đào tạo, không tồn tại trong ngày làm việc.</p>
+        <div class="q">"Một khách tiềm năng bị bỏ quên = vài chục triệu bốc hơi."</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section feat-bg" id="features">
+  <div class="container">
+    <div class="head-center reveal">
+      <div class="eyebrow">Zagi làm gì</div>
+      <h2 class="section-title">Bốn việc — đủ để thay đổi cả một ngày bán hàng</h2>
+      <p class="section-sub">Không phải "phần mềm CRM". Là một trợ lý bán hàng thực chiến. Bạn đi ngủ, nó vẫn làm việc.</p>
+    </div>
+
+    <!-- F1 -->
+    <div class="frow reveal">
+      <div class="ftext">
+        <div class="fnum">01</div>
+        <h3>Biến mỗi cuộc trò chuyện thành một cơ hội</h3>
+        <p>Zagi giúp bạn <strong>kết nối lại với những người đã ở trong tầm với</strong>: khách cũ trong danh bạ, thành viên các nhóm Zalo bạn đang tham gia, contact mới từ Facebook. Không phải "cào data người lạ" — mà là khai thác tệp bạn đã có.</p>
+        <ul class="blist">
+          <li><span class="material-symbols-rounded">check_circle</span>Kết bạn &amp; gửi tin theo <strong>tệp SĐT hoặc danh sách bạn tự nhập</strong></li>
+          <li><span class="material-symbols-rounded">check_circle</span>Kết nối với thành viên trong các nhóm Zalo bạn đang tham gia</li>
+          <li><span class="material-symbols-rounded">check_circle</span>Gửi đúng người, đúng thời điểm — với cơ chế delay chống bị khoá nick</li>
+        </ul>
+      </div>
+      <div class="fvis v-attract">
+        <div class="src-row">
+          <div class="src z"><div class="si"><span class="material-symbols-rounded">contacts</span></div><strong>Danh bạ Zalo</strong><span>Tệp khách cũ</span></div>
+          <div class="src f"><div class="si"><span class="material-symbols-rounded">groups</span></div><strong>Nhóm Zalo</strong><span>Thành viên nhóm</span></div>
+          <div class="src g"><div class="si"><span class="material-symbols-rounded">upload_file</span></div><strong>File SĐT</strong><span>Khách sự kiện</span></div>
+        </div>
+        <div class="fa"><span class="material-symbols-rounded">arrow_downward</span></div>
+        <div class="fbox"><div class="fi"><span class="material-symbols-rounded">auto_awesome</span></div><div><strong>Tự động phân loại &amp; đưa vào phễu</strong><span>Tự gán nhãn, tự chấm điểm quan tâm</span></div></div>
+      </div>
+    </div>
+
+    <!-- F2 -->
+    <div class="frow rev reveal">
+      <div class="ftext">
+        <div class="fnum">02</div>
+        <h3>Gom mọi tài khoản về một hộp thư duy nhất</h3>
+        <p>3 nick Zalo cá nhân, 2 Fanpage Facebook — tất cả <strong>chui gọn vào một giao diện</strong>. Không đăng xuất. Không sót tin. Nhân viên trực chat phản hồi trong 5 giây.</p>
+        <ul class="blist">
+          <li><span class="material-symbols-rounded">check_circle</span>Trả lời Zalo &amp; Messenger ngay tại một màn hình</li>
+          <li><span class="material-symbols-rounded">check_circle</span>Gắn <strong>nhãn phễu</strong> (Mới, Đã báo giá, Sắp chốt, Khách cũ) trực tiếp khi chat</li>
+          <li><span class="material-symbols-rounded">check_circle</span><strong>Zagi Score</strong> tự chấm điểm lead nóng/lạnh dựa trên tần suất tương tác</li>
+        </ul>
+      </div>
+      <div class="fvis v-inbox">
+        <div class="acct-row">
+          <div class="acct z1">Z1</div><div class="acct z2">Z2</div><div class="acct z3">Z3</div><div class="acct fb">FB</div><div class="acct m">+2</div>
+        </div>
+        <div class="im"><div class="iav z">An<span class="pf z"></span></div><div class="ib"><strong>Chị An (Zalo Shop)</strong><span>"Giá lô này thế nào em?"</span></div><div class="score-badge">92đ</div><div class="un">1</div></div>
+        <div class="im"><div class="iav f">T<span class="pf f"></span></div><div class="ib"><strong>Tuấn Nguyễn (FB Fanpage)</strong><span>"Anh nhận được báo giá rồi..."</span></div><div class="score-badge">74đ</div></div>
+        <div class="im"><div class="iav z">L<span class="pf z"></span></div><div class="ib"><strong>Chị Lan (Zalo Cá nhân)</strong><span>"Gửi chị xem hợp đồng..."</span></div><div class="score-badge">88đ</div></div>
+      </div>
+    </div>
+
+    <!-- F3 -->
+    <div class="frow reveal">
+      <div class="ftext">
+        <div class="fnum">03</div>
+        <h3>Không bao giờ quên một lời hứa với khách</h3>
+        <p>Hẹn 2 ngày sau gọi lại? Hẹn cuối tuần gửi catalog? Zagi tự đặt lịch nhắc nhở và popup ngay trên màn hình khi tới giờ. Lịch sử làm việc với từng khách <strong>minh bạch từng dòng</strong>.</p>
+        <ul class="blist">
+          <li><span class="material-symbols-rounded">check_circle</span>Tự động nhắc lịch chăm sóc, lịch hẹn gặp, lịch thu hồi nợ</li>
+          <li><span class="material-symbols-rounded">check_circle</span>Nhật ký giao tiếp (Timeline) ghi nhận mọi ghi chú của sales</li>
+          <li><span class="material-symbols-rounded">check_circle</span>Giao việc cho đồng đội trong team chỉ bằng 1 cú click</li>
+        </ul>
+      </div>
+      <div class="fvis v-time">
+        <div class="tlh"><div class="tlav">CA</div><div><strong>Chị An (Khách dự án)</strong><small>Sales phụ trách: Nam</small></div><div class="tlst">Sắp chốt</div></div>
+        <div class="tl">
+          <div class="tli"><strong>10:15 hôm nay</strong><br><span class="t">Gửi báo giá phương án 2 qua Zalo</span></div>
+          <div class="tli now"><strong>14:30 chiều nay — Nhắc nhở</strong><br><span class="t">Gọi xác nhận thời gian demo cho Sếp</span></div>
+          <div class="tli"><strong>Thứ Bảy, 09:00</strong><br><span class="t">Lịch hẹn gặp tại văn phòng khách hàng</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- F4 -->
+    <div class="frow rev reveal">
+      <div class="ftext">
+        <div class="fnum">04</div>
+        <h3>Workflow Engine — Bạn đi ngủ, Zagi làm việc</h3>
+        <p>Tự thiết kế quy trình chăm sóc tự động D+1, D+3, D+7, D+30. Gửi tin chúc mừng sinh nhật, gửi ưu đãi định kỳ. Kéo-thả trực quan, không cần biết lập trình.</p>
+        <ul class="blist">
+          <li><span class="material-symbols-rounded">check_circle</span>Kịch bản chăm sóc chuỗi (Sequence) theo từng nhãn phễu</li>
+          <li><span class="material-symbols-rounded">check_circle</span>Tự động gửi ảnh, file PDF, video catalog qua Zalo</li>
+          <li><span class="material-symbols-rounded">check_circle</span>Trợ lý AI hỗ trợ viết lại tin nhắn mượt mà &amp; đúng ngữ cảnh</li>
+        </ul>
+      </div>
+      <div class="fvis v-seq">
+        <div class="sq"><div class="sqd">D+0<small>Ngay</small></div><div class="sqb"><strong>Gửi lời cảm ơn &amp; Catalog</strong><span>Zalo · Đã gửi</span></div><span class="material-symbols-rounded ok">check_circle</span></div>
+        <div class="sq"><div class="sqd">D+2<small>10:00</small></div><div class="sqb"><strong>Hỏi thăm trải nghiệm tài liệu</strong><span>Zalo · Tự động</span></div><span class="material-symbols-rounded pd">pending</span></div>
+        <div class="sq"><div class="sqd">D+5<small>15:30</small></div><div class="sqb"><strong>Gửi Case Study cùng ngành</strong><span>Zalo · Đang chờ</span></div><span class="material-symbols-rounded wt">schedule</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BAND STATS -->
+<section class="band">
+  <div class="band-grid">
+    <div><span class="n">100%</span><span class="l">Dữ liệu ở lại trên máy bạn</span></div>
+    <div><span class="n">2s</span><span class="l">Thời gian kết nối Zalo &amp; FB</span></div>
+    <div><span class="n">1</span><span class="l">Hộp thư duy nhất cho cả team</span></div>
+    <div><span class="n">0đ</span><span class="l">Chi phí máy chủ đám mây</span></div>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section class="section sec-bg" id="security">
+  <div class="container">
+    <div class="sec-grid">
+      <div class="reveal">
+        <div class="eyebrow">Bảo mật tuyệt đối</div>
+        <h2>Dữ liệu khách hàng là tài sản tối mật. Đừng gửi nó lên mây.</h2>
+        <p>Các phần mềm CRM thông thường lưu danh bạ và lịch sử chat của bạn trên Cloud của họ. Nếu họ bị hack — hoặc đổi chính sách — bạn mất tất cả. Zagi hoạt động theo triết lý <strong>Local-first</strong>.</p>
+        <ul class="sec-list">
+          <li>
+            <div class="ic"><span class="material-symbols-rounded">database</span></div>
+            <div><strong>CSDL SQLite WAL lưu trực tiếp trên ổ cứng</strong><span>Dữ liệu chat, liên hệ, ghi chú hoàn toàn thuộc về bạn.</span></div>
+          </li>
+          <li>
+            <div class="ic"><span class="material-symbols-rounded">vpn_key</span></div>
+            <div><strong>Mã hóa bằng safeStorage native OS</strong><span>Chìa khóa mã hóa nằm ở Keychain (Mac) / DPAPI (Windows).</span></div>
+          </li>
+          <li>
+            <div class="ic"><span class="material-symbols-rounded">router</span></div>
+            <div><strong>Kết nối P2P mạng nội bộ giữa Sếp &amp; Nhân viên</strong><span>Không thông qua bất kỳ server trung gian nào của bên thứ ba.</span></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sec-art reveal">
+        <div class="lockr"><span class="material-symbols-rounded">shield_lock</span></div>
+        <h4>Local-first Architecture</h4>
+        <p>Thông tin danh bạ &amp; lịch sử giao dịch ở nguyên trên máy tính của bạn.</p>
+        <div class="lock-tags">
+          <span>Encrypted SQLite</span>
+          <span>Zero-Cloud Storage</span>
+          <span>P2P Relay Server</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VALUE STACK -->
+<section class="section value">
+  <div class="container">
+    <div class="head-center reveal">
+      <div class="eyebrow">Giá trị thực tế</div>
+      <h2 class="section-title">Những gì bạn nhận được khi sở hữu Zagi</h2>
+      <p class="section-sub">Thay vì tốn hàng chục triệu mỗi tháng cho 4-5 phần mềm rời rạc, Zagi đóng gói tất cả vào một ứng dụng Desktop duy nhất.</p>
+    </div>
+
+    <div class="stack reveal">
+      <div class="stack-h">
+        <h3>Gói giải pháp Zagi All-in-One</h3>
+        <p>Bao gồm phần mềm + cập nhật + đào tạo thực chiến</p>
+      </div>
+      <div class="stack-body">
+        <div class="srow">
+          <div class="si2"><span class="material-symbols-rounded">inbox</span></div>
+          <div class="st"><strong>Phần mềm Zagi Desktop (Bản BOSS)</strong><span>Quản lý đa tài khoản Zalo/FB, CRM Kanban, Workflow</span></div>
+          <div class="sv">15.000.000đ / năm</div>
+        </div>
+        <div class="srow">
+          <div class="si2"><span class="material-symbols-rounded">smart_toy</span></div>
+          <div class="st"><strong>Tích hợp AI Assistant &amp; Workflow Engine</strong><span>Tự động soạn tin, phân loại lead, chạy kịch bản chăm</span></div>
+          <div class="sv">6.000.000đ / năm</div>
+        </div>
+        <div class="srow">
+          <div class="si2"><span class="material-symbols-rounded">school</span></div>
+          <div class="st"><strong>Khóa đào tạo Zagi Mastermind hàng tuần</strong><span>Học trực tiếp qua Zoom: kịch bản sale, tối ưu phễu</span></div>
+          <div class="sv">9.900.000đ / năm</div>
+        </div>
+        <div class="srow">
+          <div class="si2"><span class="material-symbols-rounded">support_agent</span></div>
+          <div class="st"><strong>Hỗ trợ kỹ thuật &amp; Cập nhật tính năng mới 1:1</strong><span>Đồng hành cùng doanh nghiệp trong suốt quá trình sử dụng</span></div>
+          <div class="sv">4.500.000đ / năm</div>
+        </div>
+      </div>
+      <div class="stack-total">
+        <div class="lbl">TỔNG GIÁ TRỊ THỰC TẾ:</div>
+        <div class="big">35.400.000đ</div>
+        <div class="you">Ưu đãi hôm nay: Dùng thử <b>14 ngày Miễn Phí</b> hoặc chỉ từ <b>990.000đ</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section pricing" id="pricing">
+  <div class="container">
+    <div class="head-center reveal">
+      <div class="eyebrow">Bảng giá niêm yết</div>
+      <h2 class="section-title">Chọn gói phù hợp cho bạn hoặc đội nhóm</h2>
+      <p class="section-sub">Thanh toán chuyển khoản VietQR MB Bank tự động kích hoạt 24/7 trong 2 giây.</p>
+    </div>
+
+    <div class="pgrid">
+      <!-- Gói Dùng Thử 14 Ngày -->
+      <div class="pcard trial reveal" data-plan="trial_14d">
+        <div class="pname" style="color:var(--teal)">DÙNG THỬ MIỄN PHÍ</div>
+        <div class="ptag">Trải nghiệm 100% tính năng cao cấp không cần thẻ ngân hàng.</div>
+        <div class="pamt"><span class="num" style="color:var(--teal)">0</span><span class="per">đ / 14 ngày</span></div>
+        <ul class="pfeat">
+          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp)</li>
+          <li><span class="material-symbols-rounded">check</span>Full tính năng Zagi Pro</li>
+          <li><span class="material-symbols-rounded">check</span>Không cần thanh toán</li>
+          <li><span class="material-symbols-rounded">check</span>Nhận Key kích hoạt ngay</li>
+        </ul>
+        <button onclick="openCheckout('trial_14d')" class="btn btn-secondary" style="color:var(--teal);border-color:var(--teal)">Dùng thử 14 ngày</button>
+      </div>
+
+      <!-- Gói Solo 6M -->
+      <div class="pcard reveal" data-plan="solo_6m">
+        <div class="pname">Gói Solo 6 Tháng</div>
+        <div class="ptag">Dành cho 1 người bán hàng độc lập trên 1 máy BOSS.</div>
+        <div class="pamt"><span class="num">990.000</span><span class="per">đ / 6 tháng</span></div>
+        <ul class="pfeat">
+          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp)</li>
+          <li><span class="material-symbols-rounded">check</span>Quản lý đa tài khoản Zalo &amp; FB</li>
+          <li><span class="material-symbols-rounded">check</span>CRM Kanban + AI Assistant</li>
+          <li><span class="material-symbols-rounded">check</span>Tự động hóa Workflow</li>
+        </ul>
+        <button onclick="openCheckout('solo_6m')" class="btn btn-secondary">Đăng ký ngay</button>
+      </div>
+
+      <!-- Gói Solo 12M (Popular) -->
+      <div class="pcard featured reveal" data-plan="solo_12m">
+        <div class="pname">Gói Solo 12 Tháng</div>
+        <div class="ptag">Lựa chọn tiết kiệm tối ưu 1 năm cho cá nhân kinh doanh.</div>
+        <div class="pamt"><span class="num">1.690.000</span><span class="per">đ / 12 tháng</span></div>
+        <ul class="pfeat">
+          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp)</li>
+          <li><span class="material-symbols-rounded">check</span>Đầy đủ tính năng cao cấp Zagi</li>
+          <li><span class="material-symbols-rounded">check</span>Cập nhật tính năng mới 1 năm</li>
+          <li><span class="material-symbols-rounded">check</span>Hỗ trợ kỹ thuật 1:1</li>
+        </ul>
+        <button onclick="openCheckout('solo_12m')" class="btn btn-primary">Mua gói 1 năm</button>
+      </div>
+
+      <!-- Gói Solo 5 Năm -->
+      <div class="pcard reveal" data-plan="solo_5y">
+        <div class="pname">Gói Solo 5 Năm</div>
+        <div class="ptag">Thanh toán 1 lần, sở hữu phần mềm trọn vẹn 5 năm (1.825 ngày).</div>
+        <div class="pamt"><span class="num">4.900.000</span><span class="per">đ / 5 Năm</span></div>
+        <ul class="pfeat">
+          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp) 5 năm (1.825 ngày)</li>
+          <li><span class="material-symbols-rounded">check</span>Không phí duy trì hàng năm</li>
+          <li><span class="material-symbols-rounded">check</span>Tặng thêm +1 tháng khi nhập Mã Giới Thiệu</li>
+        </ul>
+        <button onclick="openCheckout('solo_5y')" class="btn btn-accent">Đăng Ký Gói 5 Năm</button>
+      </div>
+
+      <!-- Gói Team 12M -->
+      <div class="pcard team reveal" data-plan="team_12m">
+        <div class="pname">Gói Team 12 Tháng</div>
+        <div class="ptag">1 Máy BOSS + Tối đa 5 Máy Nhân viên kết nối.</div>
+        <div class="pamt"><span class="num">8.900.000</span><span class="per">đ / 12 tháng</span></div>
+        <ul class="pfeat">
+          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS + 5 Máy Nhân viên</li>
+          <li><span class="material-symbols-rounded">check</span>Phân quyền chi tiết cho NV</li>
+          <li><span class="material-symbols-rounded">check</span>Báo cáo hiệu suất trực chat NV</li>
+          <li><span class="material-symbols-rounded">check</span>Tất cả tính năng nâng cao</li>
+        </ul>
+        <button onclick="openCheckout('team_12m')" class="btn btn-secondary">Đăng ký cho Team</button>
+      </div>
+    </div>
+
+    <!-- FOUNDING MEMBER BANNER -->
+    <div class="founding reveal">
+      <div>
+        <div class="fbadge"><span class="material-symbols-rounded">star</span>Chương trình Beta Member</div>
+        <h2>Dành cho 100 Khách hàng Đầu tiên</h2>
+        <p>Tham gia cùng Zagi ngay hôm nay để nhận đặc quyền cố định giá trọn đời và hỗ trợ setup trực tiếp từ đội ngũ phát triển.</p>
+        <ul>
+          <li><span class="material-symbols-rounded">verified</span><span>Giữ nguyên giá gia hạn năm sau không tăng giá</span></li>
+          <li><span class="material-symbols-rounded">verified</span><span>Tặng 1 buổi Zoom Setup Kịch bản Chăm sóc 1:1</span></li>
+          <li><span class="material-symbols-rounded">verified</span><span>Ưu tiên gửi yêu cầu phát triển tính năng mới</span></li>
+        </ul>
+      </div>
+      <div class="fprice">
+        <div class="lbl">Ưu đãi Beta đặc biệt</div>
+        <div class="amt">990k <span>/ 6 tháng</span></div>
+        <div class="old">Giá niêm yết: 2.450.000đ</div>
+        <button onclick="openCheckout('solo_6m')" class="btn btn-accent btn-lg"><span class="material-symbols-rounded">rocket_launch</span>Đăng ký suất Beta</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GUARANTEE -->
+<section class="section guar">
+  <div class="container">
+    <div class="guar-card reveal">
+      <div class="guar-seal"><span class="material-symbols-rounded">verified_user</span></div>
+      <h2>Cam kết hoàn tiền trong 30 ngày</h2>
+      <p>Nếu trong vòng 30 ngày sử dụng Zagi mà bạn cảm thấy ứng dụng không giúp ích cho công việc bán hàng của mình, hãy nhắn tin cho chúng tôi. <strong>Zagi sẽ hoàn trả 100% chi phí không cần lý do.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- TRAINING -->
+<section class="section training" id="training">
+  <div class="container">
+    <div class="head-center reveal">
+      <div class="eyebrow">Đào tạo &amp; Đồng hành</div>
+      <h2 class="section-title">Khóa học Zagi Mastermind — Miễn phí hàng tuần</h2>
+      <p class="section-sub">Chúng tôi không chỉ bán phần mềm. Chúng tôi hướng dẫn bạn cách xây dựng quy trình bán hàng tự động trên Zalo &amp; Facebook từ A đến Z.</p>
+    </div>
+
+    <div class="train-grid">
+      <div class="train-card reveal">
+        <h3><span class="material-symbols-rounded">event</span>Lịch học Zoom hằng tuần</h3>
+        <p>Lớp học trực tiếp qua Zoom, thực hành ngay trên máy tính của bạn:</p>
+        
+        <div class="train-when">
+          <span class="material-symbols-rounded">calendar_month</span>Tối Thứ Năm hằng tuần · 20:00 - 21:30
+        </div>
+
+        <div class="slots">
+          <div class="slot am">
+            <div class="si3"><span class="material-symbols-rounded">school</span></div>
+            <div class="time">Zoom</div>
+            <div class="label">Trực tiếp 1:1 &amp; Hỏi đáp</div>
+          </div>
+          <div class="slot pm">
+            <div class="si3"><span class="material-symbols-rounded">workspace_premium</span></div>
+            <div class="time">Miễn phí</div>
+            <div class="label">Dành riêng cho khách Zagi</div>
+          </div>
+        </div>
+
+        <a href="https://zalo.me/g/knwjjfspkamtewxz5u1a" target="_blank" class="btn btn-white btn-lg"><span class="material-symbols-rounded">group_add</span>Tham gia Nhóm Học Zalo</a>
+      </div>
+
+      <div class="train-side reveal">
+        <div class="train-feat">
+          <div class="ic"><span class="material-symbols-rounded">menu_book</span></div>
+          <div>
+            <strong>Nội dung Module 1: Xây dựng Phễu Chăm sóc</strong>
+            <span>Thiết kế kịch bản tự động D+1, D+3, D+7 không bị trôi tin nhắn.</span>
+          </div>
+        </div>
+        <div class="train-feat">
+          <div class="ic"><span class="material-symbols-rounded">psychology</span></div>
+          <div>
+            <strong>Nội dung Module 2: Ứng dụng AI vào Chat Sale</strong>
+            <span>Cách dùng AI gợi ý câu trả lời chốt deal ngay lập tức.</span>
+          </div>
+        </div>
+        <div class="train-feat">
+          <div class="ic"><span class="material-symbols-rounded">shield</span></div>
+          <div>
+            <strong>Nội dung Module 3: Nguyên tắc an toàn Zalo</strong>
+            <span>Các kỹ thuật gửi tin hàng loạt chống bị khóa tài khoản Zalo.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMMUNITY -->
+<section class="section community">
+  <div class="container">
+    <div class="comm-card reveal">
+      <div class="comm-left">
+        <div class="comm-badge"><span class="material-symbols-rounded">groups</span>Cộng đồng người dùng Zagi</div>
+        <h2>Gia nhập Zagi Mastermind Club</h2>
+        <p>Nơi giao lưu, chia sẻ kinh nghiệm bán hàng thực chiến của hàng trăm chủ shop và đội ngũ sales trên toàn quốc.</p>
+        <ul class="comm-list">
+          <li><span class="material-symbols-rounded">check</span>Chia sẻ kịch bản chăm sóc khách hàng hiệu quả cao</li>
+          <li><span class="material-symbols-rounded">check</span>Cập nhật các mẹo và thủ thuật Zalo/Facebook mới nhất</li>
+          <li><span class="material-symbols-rounded">check</span>Được đội ngũ kỹ thuật Zagi hỗ trợ 24/7</li>
+        </ul>
+        <a href="https://zalo.me/g/knwjjfspkamtewxz5u1a" target="_blank" class="btn btn-primary"><span class="material-symbols-rounded">forum</span>Tham gia nhóm Zalo ngay</a>
+      </div>
+      <div class="comm-right">
+        <div class="comm-ic"><span class="material-symbols-rounded">diversity_3</span></div>
+        <h3>Cùng nhau bán hàng tốt hơn mỗi ngày</h3>
+        <p>Cộng đồng hoàn toàn miễn phí cho người dùng Zagi.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section faq" id="faq">
+  <div class="container">
+    <div class="head-center reveal">
+      <div class="eyebrow">Hỏi đáp</div>
+      <h2 class="section-title">Các câu hỏi thường gặp</h2>
+    </div>
+
+    <div class="faq-list reveal">
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Zagi hoạt động trên hệ điều hành nào?<span class="material-symbols-rounded">expand_more</span></div>
+        <div class="faq-a">Zagi là ứng dụng Desktop chạy mượt mà trên Windows (Windows 7, 10, 11 - cả x64 và ARM64) và macOS (Intel &amp; Apple Silicon M1/M2/M3/M4). Hệ thống tự động chọn bản phù hợp với thiết bị của bạn.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Dữ liệu của tôi có bị tải lên máy chủ ngoài không?<span class="material-symbols-rounded">expand_more</span></div>
+        <div class="faq-a">Không. Zagi tuân thủ nguyên tắc Local-first. Toàn bộ tin nhắn, danh bạ và file dữ liệu lưu trực tiếp trong CSDL SQLite trên máy tính của bạn.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Dùng thử 14 ngày có cần thanh toán trước hay nhập thẻ không?<span class="material-symbols-rounded">expand_more</span></div>
+        <div class="faq-a">Hoàn toàn không. Bạn chỉ cần nhập Email và Số điện thoại Zalo để hệ thống tạo Mã Bản Quyền dùng thử 14 ngày tức thì.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Thanh toán xong thì bao lâu tôi nhận được mã kích hoạt?<span class="material-symbols-rounded">expand_more</span></div>
+        <div class="faq-a">Hệ thống chuyển khoản VietQR MB Bank kết nối với SePay tự động 24/7/365. Ngay khi chuyển tiền thành công (trong 2 giây), mã kích hoạt sẽ tự động hiện lên màn hình và gửi về Email của bạn.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Dùng Zagi gửi tin nhắn có bị khóa nick Zalo không?<span class="material-symbols-rounded">expand_more</span></div>
+        <div class="faq-a">Zagi tích hợp bộ đếm độ trễ ngẫu nhiên (Random Delay) và thuật toán chia đợt gửi tin thông minh tuân thủ nguyên tắc an toàn của Zalo, giảm thiểu tối đa nguy cơ khóa nick.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final">
+  <div class="container">
+    <h2>Sẵn sàng biến Zalo &amp; Facebook thành kênh bán hàng tự động?</h2>
+    <p>Tải bản dùng thử 14 ngày Miễn phí hoặc đăng ký kích hoạt tự động 24/7 ngay hôm nay.</p>
+    <div class="btn-group">
+      <button onclick="openCheckout('trial_14d')" class="btn btn-white btn-lg"><span class="material-symbols-rounded">rocket_launch</span>Đăng ký Dùng thử 14 ngày (0đ)</button>
+      <button onclick="openDownloadModal()" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">download</span>Tải cài đặt ứng dụng</button>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">Tải &amp; Cài đặt ứng dụng Zagi Desktop</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">Đăng nhập tài khoản Zalo / Facebook của bạn</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">Nhập Mã License Dùng thử &amp; Thưởng thức trợ lý tự động</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>ZAGI — Trợ lý bán hàng tự động</h4>
+        <p>Giải pháp quản lý đa tài khoản Zalo &amp; Facebook, CRM Local-first và Workflow Engine cho cá nhân và doanh nghiệp nhỏ.</p>
+        <p>CÔNG TY CỔ PHẦN BASAN</p>
+        <p>Địa chỉ: SA 34, FLC Garden City, P. Tây Mỗ, Q. Nam Từ Liêm, Hà Nội</p>
+      </div>
+      <div>
+        <h4>Liên kết nhanh</h4>
+        <a href="#features"><span class="material-symbols-rounded">chevron_right</span>Tính năng chính</a>
+        <a href="#security"><span class="material-symbols-rounded">chevron_right</span>Bảo mật dữ liệu</a>
+        <a href="#pricing"><span class="material-symbols-rounded">chevron_right</span>Bảng giá dịch vụ</a>
+        <a href="#training"><span class="material-symbols-rounded">chevron_right</span>Lịch học Zoom</a>
+        <a href="#" onclick="openDownloadModal();return false;"><span class="material-symbols-rounded">download</span>Tải bản cài đặt các OS</a>
+      </div>
+      <div>
+        <h4>Hỗ trợ khách hàng</h4>
+        <p>Hotline/Zalo: 0985.999.959</p>
+        <p>Email: info@zagi.vn</p>
+        <p>Giờ làm việc: 8:00 - 22:00 (Thứ 2 - Chủ Nhật)</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © 2026 ZAGI — CÔNG TY CỔ PHẦN BASAN. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<!-- MODAL THANH TOÁN TỰ ĐỘNG -->
+<div class="modal-backdrop" id="checkout-modal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3><span class="material-symbols-rounded">shopping_cart</span>Đăng ký Zagi License</h3>
+      <button class="modal-close" onclick="closeCheckout()">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Step 1: Form thông tin -->
+      <div id="step-form">
+        <div id="err-banner" style="display:none;padding:10px 14px;background:#FEE2E2;border:1px solid #FCA5A5;color:#991B1B;border-radius:8px;font-size:13px;margin-bottom:14px;font-weight:600"></div>
+
+        <div class="form-group">
+          <label>Họ và tên của bạn *</label>
+          <input type="text" id="cust-name" class="form-control" placeholder="Ví dụ: Kim Trùng Dương">
+        </div>
+        <div class="form-group">
+          <label>Email nhận Mã Bản Quyền *</label>
+          <input type="email" id="cust-email" class="form-control" placeholder="name@gmail.com">
+        </div>
+        <div class="form-group">
+          <label>Số điện thoại Zalo *</label>
+          <input type="tel" id="cust-phone" class="form-control" placeholder="0985999959">
+        </div>
+        <div class="form-group">
+          <label>Mã giới thiệu / SĐT Người giới thiệu (Nếu có)</label>
+          <input type="tel" id="ref-phone" class="form-control" placeholder="Nhập SĐT Đại lý (Tặng thêm 1 tháng sử dụng)">
+          <small style="color:#059669;font-size:12px;display:block;margin-top:4px;">🎁 Nhập SĐT Đại lý/Người giới thiệu để được <strong>TẶNG THÊM 1 THÁNG</strong> sử dụng miễn phí.</small>
+        </div>
+        <div class="form-group">
+          <label>Chọn gói dịch vụ *</label>
+          <select id="cust-plan" class="form-control">
+            <option value="trial_14d" selected>Gói Dùng thử 14 ngày — 0 đ (Miễn phí)</option>
+            <option value="solo_6m">Gói Solo 6 tháng — 990.000 đ</option>
+            <option value="solo_12m">Gói Solo 12 tháng — 1.690.000 đ (Tiết kiệm)</option>
+            <option value="solo_5y">Gói Solo 5 Năm — 4.900.000 đ (Ưu đãi đặc biệt)</option>
+            <option value="team_6m">Gói Team 6 tháng — 4.900.000 đ</option>
+            <option value="team_12m">Gói Team 12 tháng — 8.900.000 đ</option>
+            <option value="team_5y">Gói Team 5 Năm — 14.900.000 đ</option>
+          </select>
+        </div>
+        <button onclick="submitOrder()" class="btn btn-primary btn-lg" style="width:100%" id="submit-btn">
+          <span class="material-symbols-rounded">rocket_launch</span>Nhận Key Kích Hoạt
+        </button>
+      </div>
+
+      <!-- Step 2: VietQR & Status Check -->
+      <div id="step-qr" style="display:none">
+        <div class="status-pulse">
+          <span class="dot"></span>
+          Đang chờ thanh toán · Tự động kiểm tra trong 2s
+        </div>
+
+        <div class="qr-container">
+          <div class="qr-img-box">
+            <img id="vietqr-img" src="" alt="VietQR MB Bank">
+          </div>
+        </div>
+
+        <div class="pay-details">
+          <div class="pay-row">
+            <span>Ngân hàng:</span>
+            <strong>MB Bank (Ngân hàng Quân Đội)</strong>
+          </div>
+          <div class="pay-row">
+            <span>Số tài khoản:</span>
+            <strong>422777999 <span class="copy-badge" onclick="copyTxt('422777999')">Copy</span></strong>
+          </div>
+          <div class="pay-row">
+            <span>Chủ tài khoản:</span>
+            <strong>CONG TY CO PHAN BASAN</strong>
+          </div>
+          <div class="pay-row">
+            <span>Số tiền:</span>
+            <strong id="pay-amount" style="color:var(--error);font-size:16px">0 đ</strong>
+          </div>
+          <div class="pay-row">
+            <span>Nội dung CK:</span>
+            <strong id="pay-content" style="color:var(--primary-dark);font-size:16px">ZAGI <span class="copy-badge" onclick="copyTxt(currentTransferContent)">Copy</span></strong>
+          </div>
+        </div>
+        <p style="font-size:12.5px;color:var(--ink-3);text-align:center">Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống SePay tự động kích hoạt 24/7.</p>
+      </div>
+
+      <!-- Step 3: Success -->
+      <div id="step-success" style="display:none" class="success-box">
+        <div class="success-icon">✓</div>
+        <h2 style="font-size:22px;font-weight:800;color:var(--teal)" id="success-title">ĐĂNG KÝ THÀNH CÔNG!</h2>
+        <p style="font-size:14px;color:var(--ink-2);margin-top:6px" id="success-sub">Mã bản quyền Zagi của bạn đã sẵn sàng sử dụng.</p>
+        <div class="key-box" id="activated-key">ZAGI-PRO-XXXX</div>
+        
+        <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin:14px 0;text-align:left;font-size:13px;line-height:1.5">
+          <div style="font-weight:800;color:var(--primary-dark);display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span class="material-symbols-rounded" style="font-size:18px">mark_email_read</span>
+            <span>Đã gửi Email xác nhận &amp; Link tải phần mềm</span>
+          </div>
+          <div style="color:var(--ink-2)" id="email-notice-text">
+            Mã bản quyền &amp; Link tải phần mềm Zagi Desktop đã được gửi tới Email của bạn. Vui lòng mở Email trên Máy tính (PC / Laptop) để tải bản cài đặt tương ứng.
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button onclick="copyTxt(currentLicenseKey)" class="btn btn-secondary">
+            <span class="material-symbols-rounded">content_copy</span>Sao chép Mã Key
+          </button>
+          <a id="success-dl-btn" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg" class="btn btn-primary">
+            <span class="material-symbols-rounded">download</span>Tải phần mềm Zagi Desktop
+          </a>
+        </div>
+        
+        <a href="#" onclick="openDownloadModal();return false;" style="font-size:13px;color:var(--ink-3);display:inline-block;margin-top:14px">Mở danh sách tệp cài đặt (Windows, Mac, Linux) &rarr;</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CHỌN PHIÊN BẢN CÀI ĐẶT DÙNG THỬ (SMART DOWNLOAD MODAL) -->
+<div class="modal-backdrop" id="download-modal">
+  <div class="modal-card wide">
+    <div class="modal-header">
+      <h3><span class="material-symbols-rounded">download</span>Tải phần mềm Zagi Desktop v3.0.7</h3>
+      <button class="modal-close" onclick="closeDownloadModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px;color:var(--ink-2);margin-bottom:14px">Chọn đúng phiên bản dành cho hệ điều hành và thiết bị của bạn:</p>
+
+      <div class="dl-grid">
+        <!-- Mac M1+ -->
+        <div class="dl-card" id="card-mac-arm">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic mac"><span class="material-symbols-rounded">laptop_mac</span></div>
+              <div>
+                <div class="dl-card-title">macOS Apple Silicon (M1+)</div>
+                <div style="font-size:10px;font-weight:800;color:var(--teal)">M1, M2, M3, M4 / A18</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">DMG Installer · ~231 MB · Ký số Apple Developer ID chính thức BASAN CORP.</div>
+          </div>
+          <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg" class="btn btn-primary">
+            <span class="material-symbols-rounded">download</span>Tải .dmg (M1/M2/M3/M4)
+          </a>
+        </div>
+
+        <!-- Mac Intel -->
+        <div class="dl-card" id="card-mac-intel">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic mac"><span class="material-symbols-rounded">desktop_mac</span></div>
+              <div>
+                <div class="dl-card-title">macOS Intel</div>
+                <div style="font-size:10px;font-weight:700;color:var(--ink-3)">Chip Intel (2019 trở về trước)</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">DMG Installer · ~239 MB · Ký số Apple Developer ID chính thức BASAN CORP.</div>
+          </div>
+          <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.Intel.dmg" class="btn btn-secondary">
+            <span class="material-symbols-rounded">download</span>Tải .dmg (Intel)
+          </a>
+        </div>
+
+        <!-- Windows x64 -->
+        <div class="dl-card" id="card-win-x64">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic win"><span class="material-symbols-rounded">window</span></div>
+              <div>
+                <div class="dl-card-title">Windows 10 / 11 (PC/Laptop)</div>
+                <div style="font-size:10px;font-weight:700;color:var(--primary)">Dell, HP, Lenovo, Asus...</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">NSIS Installer x64 · ~164 MB · Hỗ trợ Windows 10 & 11 64-bit.</div>
+          </div>
+          <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Window.exe" class="btn btn-primary">
+            <span class="material-symbols-rounded">download</span>Tải Window.exe
+          </a>
+        </div>
+
+        <!-- Surface ARM64 -->
+        <div class="dl-card" id="card-win-arm">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic win"><span class="material-symbols-rounded">devices</span></div>
+              <div>
+                <div class="dl-card-title">Surface & Windows ARM64</div>
+                <div style="font-size:10px;font-weight:800;color:var(--accent)">Surface Pro X, 9 5G, 10, 11...</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">NSIS Installer ARM64 · ~196 MB · Tối ưu native chip Snapdragon.</div>
+          </div>
+          <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Surface.exe" class="btn btn-secondary">
+            <span class="material-symbols-rounded">download</span>Tải Surface.exe
+          </a>
+        </div>
+
+        <!-- Linux -->
+        <div class="dl-card" id="card-linux" style="grid-column: span 2">
+          <div>
+            <div class="dl-card-h">
+              <div class="ic lin"><span class="material-symbols-rounded">terminal</span></div>
+              <div>
+                <div class="dl-card-title">Linux (Ubuntu / Debian / Arch / Fedora)</div>
+                <div style="font-size:10px;font-weight:700;color:var(--ink-3)">AppImage & Debian .deb</div>
+              </div>
+            </div>
+            <div class="dl-card-sub">Chạy mượt mà trên mọi Linux distro.</div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Linux.AppImage" class="btn btn-secondary" style="flex:1">
+              <span class="material-symbols-rounded">download</span>Tải .AppImage
+            </a>
+            <a href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Linux.Debian.deb" class="btn btn-secondary" style="flex:1">
+              <span class="material-symbols-rounded">download</span>Tải .deb (Debian/Ubuntu)
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Supabase config ─────────────────────────────────────────────────────────
+// ANON KEY: an toàn để lộ public (publishable). Mọi logic nhạy cảm đã chuyển sang Edge Functions.
+const SUPABASE_URL  = "https://paxejunvgfhjdyulzutb.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo";
+const EDGE_BASE_URL = `${SUPABASE_URL}/functions/v1`;
+
+const RELEASE_LINKS = {
+  mac_arm:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.M1%2B.arm64.dmg",
+  mac_intel: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.MacOS.Intel.dmg",
+  win_x64:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Window.exe",
+  win_arm:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Surface.exe",
+  linux_app: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Linux.AppImage",
+  linux_deb: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.0.7/Zagi.v3.0.7.Linux.Debian.deb"
+};
+
+// Giá gói — chỉ dùng cho UI, server tự xác nhận lại giá đúng
+const PLAN_PRICES = {
+  'trial_14d': 0,
+  'solo_6m': 990000,
+  'solo_12m': 1690000,
+  'solo_lifetime': 4900000,
+  'team_6m': 4900000,
+  'team_12m': 8900000,
+  'team_lifetime': 14900000
+};
+
+let currentLicenseKey      = '';
+let currentTransferContent = '';
+let checkInterval          = null;
+let pollRetryCount         = 0;
+const POLL_MAX_RETRIES     = 240; // tối đa 10 phút (240 × 2.5s)
+
+// SMART OS & ARCH DETECTION ENGINE
+function detectSmartOS() {
+  const ua = navigator.userAgent || '';
+  const platform = navigator.platform || '';
+
+  // ⚡ MOBILE DETECTION (iPhone, Android, iPad hoặc Màn hình di động <= 768px)
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || window.innerWidth <= 768;
+  if (isMobile) {
+    return {
+      isMobile: true,
+      key: 'mobile_cta',
+      text: 'Dùng Thử 14 Ngày Miễn Phí (0đ)',
+      label: 'Zagi là ứng dụng Desktop chuyên sâu cho Máy tính (PC / Mac). Đăng ký để nhận Mã Key & Link tải cài đặt qua Email.',
+      cardId: null
+    };
+  }
+
+  // macOS
+  if (platform.includes('Mac') || ua.includes('Macintosh')) {
+    let isArm = false;
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (debugInfo) {
+          const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+          if (renderer.includes('Apple M') || renderer.includes('Apple A') || renderer.includes('Apple GPU')) {
+            isArm = true;
+          }
+        }
+      }
+    } catch(e){}
+
+    if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      navigator.userAgentData.getHighEntropyValues(['architecture']).then(res => {
+        if (res && res.architecture === 'arm') {
+          applySmartOSLink('mac_arm', 'Tải cho Mac M1/M2/M3/M4 (.dmg)', 'Tự động chọn tệp cài đặt phù hợp với Mac Apple Silicon M1+ của bạn');
+        }
+      }).catch(()=>{});
+    }
+
+    if (isArm) {
+      return { key: 'mac_arm', text: 'Tải Zagi cho Mac M1/M2/M3/M4 (.dmg)', label: 'Tự động chọn tệp cài đặt phù hợp với Mac Apple Silicon M1+ của bạn', cardId: 'card-mac-arm' };
+    } else {
+      return { key: 'mac_intel', text: 'Tải Zagi cho Mac Intel (.dmg)', label: 'Tự động chọn tệp cài đặt phù hợp với Mac chip Intel của bạn', cardId: 'card-mac-intel' };
+    }
+  }
+
+  // Windows
+  if (platform.includes('Win') || ua.includes('Windows')) {
+    const isArm = ua.includes('ARM64') || ua.includes('ARM');
+    if (isArm) {
+      return { key: 'win_arm', text: 'Tải Zagi cho Surface ARM64 (.exe)', label: 'Tự động chọn tệp cài đặt phù hợp với Surface / Windows ARM64', cardId: 'card-win-arm' };
+    } else {
+      return { key: 'win_x64', text: 'Tải Zagi cho Windows 10/11 (.exe)', label: 'Tự động chọn tệp cài đặt phù hợp với PC / Laptop Windows của bạn', cardId: 'card-win-x64' };
+    }
+  }
+
+  // Linux
+  if (platform.includes('Linux') || ua.includes('Linux')) {
+    return { key: 'linux_app', text: 'Tải Zagi cho Linux (.AppImage)', label: 'Tự động chọn tệp cài đặt phù hợp với Linux', cardId: 'card-linux' };
+  }
+
+  // Default Fallback
+  return { key: 'win_x64', text: 'Tải Zagi v3.0.7 Miễn Phí', label: 'Tự động chọn tệp cài đặt phù hợp với thiết bị của bạn', cardId: 'card-win-x64' };
+}
+
+function applySmartOSLink(key, text, label, cardId) {
+  const osInfo = detectSmartOS();
+  const heroBtn = document.getElementById('smart-hero-btn');
+  const secondaryBtn = document.getElementById('secondary-hero-btn');
+
+  if (osInfo.isMobile) {
+    if (heroBtn) {
+      heroBtn.href = "javascript:openCheckout('trial_14d')";
+      heroBtn.removeAttribute('download');
+      heroBtn.innerHTML = `<span class="material-symbols-rounded">rocket_launch</span>${osInfo.text}`;
+      heroBtn.className = "btn btn-primary btn-lg";
+    }
+    if (secondaryBtn) {
+      secondaryBtn.innerHTML = `<span class="material-symbols-rounded">payments</span>Xem gói cước`;
+      secondaryBtn.onclick = function() {
+        const el = document.getElementById('pricing');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      };
+    }
+    const labelEl = document.getElementById('smart-detect-label');
+    if (labelEl) {
+      labelEl.innerHTML = `<span class="material-symbols-rounded">phonelink</span>${osInfo.label}`;
+    }
+    return;
+  }
+
+  const url = RELEASE_LINKS[key] || RELEASE_LINKS.win_x64;
+  
+  if (heroBtn) {
+    heroBtn.href = url;
+    heroBtn.innerHTML = `<span class="material-symbols-rounded">download</span>${text}`;
+  }
+
+  const successBtn = document.getElementById('success-dl-btn');
+  if (successBtn) {
+    successBtn.href = url;
+    successBtn.innerHTML = `<span class="material-symbols-rounded">download</span>${text}`;
+  }
+
+  const labelEl = document.getElementById('smart-detect-label');
+  if (labelEl && label) {
+    labelEl.innerHTML = `<span class="material-symbols-rounded">verified</span>${label}`;
+  }
+
+  if (cardId) {
+    document.querySelectorAll('.dl-card').forEach(c => c.classList.remove('highlight'));
+    const card = document.getElementById(cardId);
+    if (card) card.classList.add('highlight');
+  }
+}
+
+function initSmartDownload() {
+  const detected = detectSmartOS();
+  applySmartOSLink(detected.key, detected.text, detected.label, detected.cardId);
+}
+window.addEventListener('DOMContentLoaded', initSmartDownload);
+window.addEventListener('resize', initSmartDownload);
+
+function openDownloadModal() {
+  document.getElementById('download-modal').classList.add('active');
+}
+
+function closeDownloadModal() {
+  document.getElementById('download-modal').classList.remove('active');
+}
+
+// loadSupabasePlans: đọc giá từ bảng plans (chỉ đọc public data qua RLS, không cần key nhạy cảm)
+async function loadSupabasePlans() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/plans?is_active=eq.true&order=sort_order.asc&select=plan_code,amount,name`, {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!res.ok) return;
+    const plans = await res.json();
+    if (!Array.isArray(plans)) return;
+    plans.forEach(p => {
+      if (!p.plan_code || p.amount === undefined) return;
+      PLAN_PRICES[p.plan_code] = p.amount;
+      const numEl = document.querySelector(`.pcard[data-plan="${p.plan_code}"] .num`);
+      if (numEl) numEl.innerText = p.amount.toLocaleString('vi-VN');
+      const optEl = document.querySelector(`#cust-plan option[value="${p.plan_code}"]`);
+      if (optEl) {
+        const label = p.name || optEl.innerText.split('—')[0].trim();
+        optEl.innerText = p.amount === 0
+          ? `${label} — 0 đ (Miễn phí)`
+          : `${label} — ${p.amount.toLocaleString('vi-VN')} đ`;
+      }
+    });
+  } catch (e) {
+    console.warn('[loadSupabasePlans] Bỏ qua lỗi sync giá:', e);
+  }
+}
+window.addEventListener('DOMContentLoaded', loadSupabasePlans);
+
+function hideErr() {
+  const el = document.getElementById('err-banner');
+  if (el) { el.style.display = 'none'; el.innerText = ''; }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('err-banner');
+  if (el) { el.innerText = msg; el.style.display = 'block'; }
+}
+
+function openCheckout(planCode) {
+  hideErr();
+  const selectEl = document.getElementById('cust-plan');
+  if (selectEl) selectEl.value = planCode;
+  
+  updateSubmitBtnText(planCode);
+
+  document.getElementById('step-form').style.display = 'block';
+  document.getElementById('step-qr').style.display = 'none';
+  document.getElementById('step-success').style.display = 'none';
+  document.getElementById('checkout-modal').classList.add('active');
+}
+
+function updateSubmitBtnText(planCode) {
+  const btn = document.getElementById('submit-btn');
+  if (!btn) return;
+  if (planCode === 'trial_14d') {
+    btn.innerHTML = '<span class="material-symbols-rounded">rocket_launch</span>Nhận Key Dùng Thử 14 Ngày (Miễn Phí)';
+  } else {
+    btn.innerHTML = '<span class="material-symbols-rounded">qr_code_2</span>Tạo mã VietQR Thanh toán';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const selectEl = document.getElementById('cust-plan');
+  if (selectEl) {
+    selectEl.addEventListener('change', (e) => updateSubmitBtnText(e.target.value));
+  }
+});
+
+function closeCheckout() {
+  document.getElementById('checkout-modal').classList.remove('active');
+  if (checkInterval) clearInterval(checkInterval);
+}
+
+// genKey() đã bị xóa — key bây giờ được sinh bằng crypto.randomUUID() phía Edge Function
+
+async function submitOrder() {
+  hideErr();
+  const name     = document.getElementById('cust-name').value.trim();
+  const email    = document.getElementById('cust-email').value.trim().toLowerCase();
+  const phone    = document.getElementById('cust-phone').value.trim();
+  const refPhone = document.getElementById('ref-phone') ? document.getElementById('ref-phone').value.trim() : '';
+  const plan     = document.getElementById('cust-plan').value;
+
+  if (!email || !phone) {
+    showErr('Vui lòng nhập đầy đủ Email và Số điện thoại!');
+    return;
+  }
+
+  // Chống tự giới thiệu chính mình
+  if (refPhone && refPhone === phone) {
+    showErr('Không thể tự nhập Số điện thoại của chính mình làm Mã giới thiệu!');
+    return;
+  }
+
+  // Disable nút tránh double-submit
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.6'; }
+
+  try {
+    // Gọi Edge Function create-order (logic chạy server-side, SUPABASE_KEY không lộ)
+    const res = await fetch(`${EDGE_BASE_URL}/create-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ name, email, phone, plan, refPhone }),
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      showErr(data.error || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+      return;
+    }
+
+    currentLicenseKey = data.licenseKey;
+
+    // Trial → kích hoạt ngay
+    if (data.isTrial) {
+      document.getElementById('step-form').style.display   = 'none';
+      document.getElementById('step-qr').style.display     = 'none';
+      document.getElementById('step-success').style.display = 'block';
+      document.getElementById('activated-key').innerText    = currentLicenseKey;
+      document.getElementById('success-title').innerText    = 'KÍCH HOẠT DÙNG THỬ 14 NGÀY THÀNH CÔNG!';
+      document.getElementById('success-sub').innerText      = 'Mã bản quyền Dùng thử 14 ngày của bạn đã được khởi tạo.';
+      
+      const emailNotice = document.getElementById('email-notice-text');
+      if (emailNotice) {
+        emailNotice.innerHTML = `Mã bản quyền <strong>${currentLicenseKey}</strong> &amp; Link tải phần mềm Zagi Desktop đã được gửi tới Email: <strong>${email}</strong>. Vui lòng mở Email trên Máy tính (PC / Laptop) để cài đặt và kích hoạt.`;
+      }
+      return;
+    }
+
+    // Paid → hiển thị QR
+    currentTransferContent = data.transferContent || '';
+    document.getElementById('vietqr-img').src               = data.qrUrl;
+    document.getElementById('pay-amount').innerText         = (data.amount || 0).toLocaleString('vi-VN') + ' đ';
+    
+    const payContentEl = document.getElementById('pay-content');
+    if (payContentEl) {
+      payContentEl.textContent = currentTransferContent + ' ';
+      const copyBadge = document.createElement('span');
+      copyBadge.className = 'copy-badge';
+      copyBadge.textContent = 'Copy';
+      copyBadge.onclick = () => copyTxt(currentTransferContent);
+      payContentEl.appendChild(copyBadge);
+    }
+
+    document.getElementById('step-form').style.display      = 'none';
+    document.getElementById('step-qr').style.display        = 'block';
+    pollRetryCount = 0;
+    startPollingStatus();
+
+  } catch (err) {
+    showErr('Lỗi kết nối. Vui lòng kiểm tra mạng và thử lại.');
+    console.error('[submitOrder] Error:', err);
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; }
+  }
+}
+
+function startPollingStatus() {
+  if (checkInterval) clearInterval(checkInterval);
+  pollRetryCount = 0;
+  checkInterval = setInterval(async () => {
+    // Timeout sau POLL_MAX_RETRIES lần (~10 phút) để tránh flood vô hạn
+    pollRetryCount++;
+    if (pollRetryCount > POLL_MAX_RETRIES) {
+      clearInterval(checkInterval);
+      console.warn('[poll] Hết thời gian chờ thanh toán (10 phút).');
+      return;
+    }
+    try {
+      // Gọi Edge Function check-payment thay vì Supabase REST trực tiếp
+      const res = await fetch(
+        `${EDGE_BASE_URL}/check-payment?licenseKey=${encodeURIComponent(currentLicenseKey)}`,
+        { headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.status === 'active') {
+        clearInterval(checkInterval);
+        showSuccess();
+      }
+    } catch { /* bỏ qua lỗi mạng tạm thời */ }
+  }, 2500);
+}
+
+function showSuccess() {
+  document.getElementById('step-qr').style.display = 'none';
+  document.getElementById('step-success').style.display = 'block';
+  document.getElementById('activated-key').innerText = currentLicenseKey;
+  document.getElementById('success-title').innerText = 'THỦ TỤC THANH TOÁN THÀNH CÔNG!';
+  document.getElementById('success-sub').innerText = 'Mã bản quyền Zagi của bạn đã được tự động kích hoạt 24/7.';
+}
+
+function copyTxt(txt) {
+  navigator.clipboard.writeText(txt);
+  alert('Đã sao chép: ' + txt);
+}
+
+function toggleFaq(el) {
+  const item = el.parentElement;
+  item.classList.toggle('open');
+}
+
+// Scroll Reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('in');
+    }
+  });
+}, { threshold: 0.1 });
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+});
+</script>
+
+<!-- Mobile Thumb Zone Sticky Bar -->
+<div class="mobile-sticky-bar">
+  <button onclick="openCheckout('trial_14d')" class="btn btn-primary">
+    <span class="material-symbols-rounded">rocket_launch</span>Dùng thử 14 ngày (0đ)
+  </button>
+  <button onclick="openCheckout('solo_12m')" class="btn btn-gold">
+    <span class="material-symbols-rounded">payments</span>Mua bản quyền
+  </button>
+</div>
+
+<!-- Zagi Smart AI Chatbot Widget (Always-Active 100%) -->
+<div id="zagi-chat-widget" style="position: fixed; bottom: 24px; right: 24px; z-index: 99999; font-family: inherit;">
+  <!-- Bubble Button -->
+  <button id="zagi-chat-btn" onclick="toggleZagiChat()" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; color: white; box-shadow: 0 8px 24px rgba(37,99,235,0.4); cursor: pointer; display: flex; items-center; justify-content: center; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+    <span class="material-symbols-rounded" id="zagi-chat-icon" style="font-size: 28px;">smart_toy</span>
+  </button>
+
+  <!-- Chat Window -->
+  <div id="zagi-chat-window" style="display: none; position: absolute; bottom: 70px; right: 0; width: 360px; max-width: calc(100vw - 32px); height: 520px; max-height: calc(100vh - 100px); background: #ffffff; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); border: 1px solid rgba(0,0,0,0.08); flex-direction: column; overflow: hidden; animation: zagiPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #1e293b, #0f172a); color: white; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 34px; height: 34px; border-radius: 10px; background: rgba(37,99,235,0.2); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(59,130,246,0.4);">
+          <span class="material-symbols-rounded" style="color: #60a5fa; font-size: 20px;">smart_toy</span>
+        </div>
+        <div>
+          <div style="font-weight: 700; font-size: 14px; line-height: 1.2;">Zagi AI Assistant</div>
+          <div style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 4px;">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e;"></span> Sẵn sàng hỗ trợ 24/7
+          </div>
+        </div>
+      </div>
+      <button onclick="toggleZagiChat()" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px; border-radius: 6px;" onmouseover="this.style.color='#fff'">
+        <span class="material-symbols-rounded" style="font-size: 20px;">close</span>
+      </button>
+    </div>
+
+    <!-- Messages Body -->
+    <div id="zagi-chat-messages" style="flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #f8fafc; font-size: 13px;">
+      <!-- Welcome Message -->
+      <div style="display: flex; gap: 8px; align-items: flex-start;">
+        <div style="width: 26px; height: 26px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px;">🤖</div>
+        <div style="background: white; padding: 10px 14px; border-radius: 14px; border-top-left-radius: 4px; border: 1px solid #e2e8f0; color: #1e293b; max-width: 85%; line-height: 1.5; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          Xin chào! 👋 Em là Trợ lý AI hỗ trợ Zagi Desktop (v3.0.7).<br><br>Anh/chị cần tư vấn về tính năng, giá bán gói cước hay hướng dẫn tải bộ cài ạ?
+        </div>
+      </div>
+
+      <!-- Quick Suggestion Buttons -->
+      <div id="zagi-quick-chips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+        <button onclick="sendQuickPrompt('Zagi là gì và có tính năng gì nổi bật?')" style="background: white; border: 1px solid #cbd5e1; color: #334155; padding: 6px 10px; border-radius: 16px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#cbd5e1';this.style.color='#334155'">💡 Zagi là gì?</button>
+        <button onclick="sendQuickPrompt('Bảng giá các gói cước Zagi bao nhiêu?')" style="background: white; border: 1px solid #cbd5e1; color: #334155; padding: 6px 10px; border-radius: 16px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#cbd5e1';this.style.color='#334155'">💰 Giá các gói cước?</button>
+        <button onclick="sendQuickPrompt('Tải bộ cài Zagi v3.0.7 cho máy tính ở đâu?')" style="background: white; border: 1px solid #cbd5e1; color: #334155; padding: 6px 10px; border-radius: 16px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#cbd5e1';this.style.color='#334155'">📥 Link tải bộ cài mới nhất</button>
+        <button onclick="sendQuickPrompt('Zagi có bảo mật tin nhắn không?')" style="background: white; border: 1px solid #cbd5e1; color: #334155; padding: 6px 10px; border-radius: 16px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#cbd5e1';this.style.color='#334155'">🛡️ Bảo mật dữ liệu thế nào?</button>
+      </div>
+    </div>
+
+    <!-- Input Footer -->
+    <div style="padding: 10px 12px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; align-items: center;">
+      <input id="zagi-chat-input" type="text" placeholder="Nhập câu hỏi của bạn..." style="flex: 1; border: 1px solid #cbd5e1; border-radius: 10px; px: 12px; padding: 8px 12px; font-size: 13px; outline: none;" onkeydown="if(event.key==='Enter') sendZagiMessage()">
+      <button onclick="sendZagiMessage()" style="width: 36px; height: 36px; border-radius: 10px; background: #2563eb; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+        <span class="material-symbols-rounded" style="font-size: 18px;">send</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes zagiPopIn {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+</style>
+
+<script>
+  let zagiChatOpen = false;
+  let conversationId = sessionStorage.getItem('zagi_chat_conv_id') || null;
+
+  function toggleZagiChat() {
+    zagiChatOpen = !zagiChatOpen;
+    const win = document.getElementById('zagi-chat-window');
+    const icon = document.getElementById('zagi-chat-icon');
+    if (zagiChatOpen) {
+      win.style.display = 'flex';
+      icon.innerText = 'close';
+      document.getElementById('zagi-chat-input').focus();
+    } else {
+      win.style.display = 'none';
+      icon.innerText = 'smart_toy';
+    }
+  }
+
+  function sendQuickPrompt(txt) {
+    document.getElementById('zagi-chat-input').value = txt;
+    sendZagiMessage();
+  }
+
+  async function sendZagiMessage() {
+    const input = document.getElementById('zagi-chat-input');
+    const query = input.value.trim();
+    if (!query) return;
+
+    input.value = '';
+    const container = document.getElementById('zagi-chat-messages');
+
+    // Hide chips
+    const chips = document.getElementById('zagi-quick-chips');
+    if (chips) chips.style.display = 'none';
+
+    // User Message Bubble
+    const userDiv = document.createElement('div');
+    userDiv.style.cssText = 'display:flex; justify-content:flex-end;';
+    userDiv.innerHTML = `<div style="background:#2563eb; color:white; padding:9px 13px; border-radius:14px; border-top-right-radius:4px; max-width:85%; line-height:1.4;">${escapeHtml(query)}</div>`;
+    container.appendChild(userDiv);
+
+    // Typing Indicator
+    const typingDiv = document.createElement('div');
+    typingDiv.style.cssText = 'display:flex; gap:8px; align-items:center;';
+    typingDiv.innerHTML = `<div style="width:26px; height:26px; border-radius:50%; background:#2563eb; color:white; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;">🤖</div><div style="background:white; padding:8px 12px; border-radius:12px; border:1px solid #e2e8f0; color:#64748b; font-style:italic;">AI đang suy nghĩ...</div>`;
+    container.appendChild(typingDiv);
+    container.scrollTop = container.scrollHeight;
+
+    // Call API Primary (Dify) with Fallback Local Knowledge
+    let replyText = '';
+    try {
+      const resp = await fetch('https://chatbot.itngon.com/v1/chat-messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer app-Shoio3nzmEVuoJJOBUsycsp9',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputs: {},
+          query: query,
+          response_mode: 'blocking',
+          conversation_id: conversationId || undefined,
+          user: 'landing-user'
+        })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        replyText = data.answer || '';
+        if (data.conversation_id) {
+          conversationId = data.conversation_id;
+          sessionStorage.setItem('zagi_chat_conv_id', conversationId);
+        }
+      }
+    } catch (e) {}
+
+    // Smart Local Knowledge Engine Fallback if Dify Server returns 502 or Error
+    if (!replyText) {
+      replyText = generateZagiAIAnswer(query);
+    }
+
+    // Remove Typing and Render Reply
+    container.removeChild(typingDiv);
+    const botDiv = document.createElement('div');
+    botDiv.style.cssText = 'display:flex; gap:8px; align-items:flex-start;';
+    botDiv.innerHTML = `<div style="width:26px; height:26px; border-radius:50%; background:#2563eb; color:white; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;">🤖</div><div style="background:white; padding:10px 14px; border-radius:14px; border-top-left-radius:4px; border:1px solid #e2e8f0; color:#1e293b; max-width:85%; line-height:1.5; box-shadow:0 1px 3px rgba(0,0,0,0.05);">${formatBotText(replyText)}</div>`;
+    container.appendChild(botDiv);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function generateZagiAIAnswer(q) {
+    const query = q.toLowerCase();
+    if (query.includes('giá') || query.includes('bao nhiêu') || query.includes('gói') || query.includes('mua')) {
+      const pSolo6 = (PLAN_PRICES.solo_6m || 990000).toLocaleString('vi-VN');
+      const pSolo12 = (PLAN_PRICES.solo_12m || 1690000).toLocaleString('vi-VN');
+      const pSoloLife = (PLAN_PRICES.solo_lifetime || 4900000).toLocaleString('vi-VN');
+      const pTeam6 = (PLAN_PRICES.team_6m || 4900000).toLocaleString('vi-VN');
+      return `💰 **Bảng Giá Bản Quyền Zagi v3.0.7:**\n\n- 🎁 **Dùng Thử 14 Ngày**: **0đ** (Đầy đủ tính năng)\n- 👤 **Gói Solo 6 Tháng**: **${pSolo6}đ** (1 máy Sếp, 3 tài khoản Zalo/FB)\n- ⭐️ **Gói Solo 12 Tháng**: **${pSolo12}đ** (1 máy Sếp, 5 tài khoản Zalo/FB) — *Gói khuyến nghị*\n- ♾️ **Gói Solo Trọn Đời**: **${pSoloLife}đ** (1 máy Sếp, KHÔNG GIỚI HẠN tài khoản, dùng vĩnh viễn)\n- 👥 **Gói Team 6 Tháng**: **${pTeam6}đ** (1 Sếp + 5 máy Nhân viên từ xa)\n\nAnh/chị muốn đăng ký gói nào ạ?`;
+    }
+    if (query.includes('tải') || query.includes('link') || query.includes('cài') || query.includes('mac') || query.includes('win')) {
+      return `📥 **Bộ Cài Đặt Zagi v3.0.7 Mới Nhất:**\n\n- 🪟 **Windows 10/11**: Zagi.v3.0.7.Window.exe\n- 💻 **Surface ARM64**: Zagi.v3.0.7.Surface.exe\n- 🍏 **macOS Apple Silicon (M1/M2/M3)**: Zagi.v3.0.7.MacOS.M1+.arm64.dmg\n- 🍏 **macOS Intel**: Zagi.v3.0.7.MacOS.Intel.dmg\n- 🐧 **Linux**: Zagi.v3.0.7.Linux.AppImage / .deb\n\nAnh/chị có thể bấm nút **"Tải Zagi v3.0.7 Miễn Phí"** ngay trên trang web để hệ thống tự chọn bản tương thích nhé!`;
+    }
+    if (query.includes('bảo mật') || query.includes('lộ') || query.includes('an toàn') || query.includes('dữ liệu')) {
+      return `🛡️ **Bảo Mật Local-First Tuyệt Đối:**\n\nZagi lưu trữ 100% tin nhắn, tài khoản và dữ liệu CRM trực tiếp trên máy tính của bạn (Local SQLite). Zagi KHÔNG lưu tin nhắn lên server trung gian nên hoàn toàn bảo mật và an toàn!`;
+    }
+    if (query.includes('khóa') || query.includes('spam') || query.includes('mẹo')) {
+      return `💡 **Mẹo Tránh Khóa Tài Khoản Zalo:**\n\n1. Sử dụng tính năng **Random Delay** (Khoảng nghỉ ngẫu nhiên 5-15s giữa các tin nhắn).\n2. Chèn biến tên `[ Tên ]`, `[ SĐT ]` để nội dung tin nhắn không bị trùng lặp 100%.\n3. Chỉ gửi tin nhắn chăm sóc cho tệp khách hàng đã từng tương tác hoặc gán nhãn CRM.`;
+    }
+    return `🤖 **Zagi Desktop (v3.0.7)** là giải pháp quản lý tập trung đa tài khoản Zalo & Facebook Messenger, hỗ trợ phễu CRM Kanban, gửi tin chăm sóc tự động và phân quyền máy Sếp - Nhân viên.\n\nAnh/chị có muốn dùng thử 14 ngày miễn phí (0đ) không ạ?`;
+  }
+
+  function formatBotText(txt) {
+    return escapeHtml(txt)
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+</script>
+
+</body>
+</html>
