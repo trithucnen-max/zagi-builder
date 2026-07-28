@@ -259,6 +259,7 @@ class CRMQueueService {
             
             if (isQuiet) {
                 Logger.log(`[CRMQueue] Campaign ${item.campaign_id} currently in Quiet Hours (${quietStart} - ${quietEnd}). Skipping send.`);
+                this.broadcastStatus(zaloId, 'quiet_hours');
                 return;
             }
         }
