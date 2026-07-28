@@ -158,12 +158,12 @@ describe('CRM Name and Salutation Separation Logic', () => {
       expect(row.salutation).toBe('Chị');
     });
 
-    it('should auto-fill salutation as "Bạn" for other genders when salutation is empty', () => {
+    it('should auto-fill salutation as "Anh/Chị" for other genders when salutation is empty', () => {
       db.updateContactProfile(ownerId, contactId, 'User C', 'http://avatar', '', 'user', 2, null);
       
       const row = (db as any).queryOne('SELECT salutation, gender FROM contacts WHERE contact_id = ?', [contactId]);
       expect(row.gender).toBe(2);
-      expect(row.salutation).toBe('Bạn');
+      expect(row.salutation).toBe('Anh/Chị');
     });
 
     it('should keep existing manual salutation edits intact upon profile update', () => {

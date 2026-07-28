@@ -2664,7 +2664,7 @@ class DatabaseService {
             `);
             this.run(`
                 UPDATE contacts 
-                SET salutation = 'Bạn' 
+                SET salutation = 'Anh/Chị' 
                 WHERE gender IS NOT NULL AND gender != 0 AND gender != 1 AND (salutation IS NULL OR salutation = '')
             `);
             this.save();
@@ -3353,7 +3353,7 @@ class DatabaseService {
 
             // Update gender & birthday if provided (separate UPDATE to keep INSERT clean)
             if (gender !== undefined && gender !== null) {
-                const autoSalutation = gender === 0 ? 'Anh' : (gender === 1 ? 'Chị' : 'Bạn');
+                const autoSalutation = gender === 0 ? 'Anh' : (gender === 1 ? 'Chị' : 'Anh/Chị');
                 this.run(
                     `UPDATE contacts SET 
                        gender = CASE WHEN gender IS NULL THEN ? ELSE gender END,
@@ -6523,7 +6523,7 @@ class DatabaseService {
                 const targetSal = opts.salutation;
                 all = all.filter(c => {
                     const effectiveSalutation = c.salutation ||
-                        (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Bạn');
+                        (c.gender === 0 ? 'Anh' : c.gender === 1 ? 'Chị' : 'Anh/Chị');
                     return effectiveSalutation === targetSal;
                 });
             }

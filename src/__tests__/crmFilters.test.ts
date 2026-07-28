@@ -225,8 +225,8 @@ describe('CRM Filters Comprehensive Tests (Pure JS Filtering)', () => {
       const resChi = dbService.getCRMContacts(ownerId, { salutation: 'Chị' });
       expect(resChi.contacts.map(c => c.contact_id)).toEqual(['s2']);
 
-      // Filter: Bạn (Fallback for unknown default)
-      const resBan = dbService.getCRMContacts(ownerId, { salutation: 'Bạn' });
+      // Filter: Anh/Chị (Fallback for unknown default)
+      const resBan = dbService.getCRMContacts(ownerId, { salutation: 'Anh/Chị' });
       expect(resBan.contacts.map(c => c.contact_id)).toEqual(['s3']);
 
       // Filter: Chú (Custom value)
