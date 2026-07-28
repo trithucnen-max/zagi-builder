@@ -405,22 +405,29 @@ function BlockEditor({
       const listRes = await ipc.ai?.listAssistants();
       const assistantId = listRes?.assistants?.[0]?.id || 'default';
       
-      const systemMessage = `Bạn là một trợ lý AI chuyên nghiệp giúp viết nội dung tin nhắn cho chiến dịch Zalo CRM. 
-Nhiệm vụ của bạn là viết một mẫu tin nhắn tự nhiên, lôi cuốn, và cá nhân hóa dựa trên yêu cầu của người dùng.
-HÃY CHỦ ĐỘNG SỬ DỤNG các thẻ biến sau trong văn bản để cá nhân hóa nội dung:
-- {name}: tên hiển thị của người nhận
-- {gender_greeting}: xưng hô lịch sự (Anh/Chị/Bạn)
-- {salutation}: danh xưng tùy chỉnh của khách
-- {alias}: biệt danh trong CRM
-- {phone}: số điện thoại khách hàng
+      const systemMessage = `Bạn là chuyên gia thiết lập chiến dịch Zalo Marketing & CRM chống khóa tài khoản chuyên nghiệp. 
+Nhiệm vụ: Viết mẫu tin nhắn gửi hàng loạt tự nhiên, ấm áp, cá nhân hóa sâu và TỰ ĐỘNG CHÈN NGUYÊN TẮC CHỐNG SPAM ZALO:
+
+1. QUY TẮC CÁ NHÂN HÓA BIẾN CRM:
+- {salutation}: danh xưng xưng hô với khách (Anh / Chị / Cô / Chú / Bạn / Sếp / Thầy...)
+- {tu_xung}: từ tự xưng của người gửi phù hợp với ngữ cảnh khách (em / cháu / con / mình...)
+- {name}: tên liên hệ (alias hoặc tên hiển thị)
+- {zalo_name}: tên Zalo gốc của khách
+- {alias}: biệt danh CRM riêng
+- {gender_greeting}: xưng hô mặc định (Anh/Chị/Bạn)
+- {phone}: số điện thoại khách
 - {birthday}: ngày sinh đầy đủ (dd/MM/yyyy)
-- {birthday_day}: ngày sinh nhật
-- {birthday_month}: tháng sinh nhật
+- {birthday_day}: ngày sinh
+- {birthday_month}: tháng sinh
 - {campaign_name}: tên chiến dịch
 - {date}: ngày gửi
 - {time}: giờ gửi
 
-Hãy viết nội dung tin nhắn trực tiếp, không chứa bất kỳ lời dẫn nhập hay kết luận nào ngoài nội dung tin nhắn sẽ gửi đi.`;
+2. QUY TẮC CHỐNG SPAM ZALO (SPINTAX):
+Bắt buộc chèn Spintax biến đổi từ ngữ ngẫu nhiên dạng {Từ 1|Từ 2|Từ 3} ở đầu câu chào và câu chúc để Zalo không phát hiện tin nhắn trùng lặp 100%.
+Ví dụ: "{Dạ|Hi|Xin chào} {salutation} {name}, {tu_xung} gửi {salutation} thông tin..." hoặc "{Chúc|Kính chúc} {salutation} {date} nhiều niềm vui!"
+
+Hãy xuất ra duy nhất nội dung tin nhắn mẫu (chứa các biến và spintax), không kèm bất kỳ câu dẫn nhập hay lời giải thích nào.`;
 
       const response = await ipc.ai?.chat(assistantId, [
         { role: 'system', content: systemMessage },
@@ -832,12 +839,13 @@ export default function CampaignCreateModal({
       setAiGeneratingFR(true);
       const listRes = await ipc.ai?.listAssistants();
       const assistantId = listRes?.assistants?.[0]?.id || 'default';
-      const systemMessage = `Bạn là trợ lý viết lời mời kết bạn Zalo ngắn gọn, tự nhiên, thân thiện. 
-Yiêu cầu quan trọng: 
-- Tối đa 150 ký tự (bắt buộc)
-- Có thể dùng biến: {name}, {gender_greeting}, {alias}
-- Viết trực tiếp, không giải thích, không dẫn nhập
-- Không đưa link vào nội dung`;
+      const systemMessage = `Bạn là chuyên gia viết lời mời kết bạn Zalo tự nhiên, lịch sự, tỷ lệ đồng ý cao.
+Yêu cầu quan trọng:
+- BẮT BUỘC dưới 150 ký tự.
+- Kết hợp linh hoạt Spintax chống trùng lặp: {Chào|Dạ chào|Xin chào}
+- Sử dụng các biến CRM: {salutation} (danh xưng khách), {tu_xung} (từ tự xưng), {name} (tên khách), {gender_greeting} (Anh/Chị)
+- Ví dụ: "{Dạ chào|Xin chào} {salutation} {name}, {tu_xung} kết bạn để tiện trao đổi công việc nhé!"
+- Viết trực tiếp nội dung tin nhắn, không dẫn nhập, không đưa đường link.`;
       const response = await ipc.ai?.chat(assistantId, [
         { role: 'system', content: systemMessage },
         { role: 'user', content: userPrompt }
