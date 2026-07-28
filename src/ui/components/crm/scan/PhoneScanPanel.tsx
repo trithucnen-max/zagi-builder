@@ -97,6 +97,39 @@ export default function PhoneScanPanel() {
     const [csvFilename, setCsvFilename] = useState('');
     const [isDraggingFile, setIsDraggingFile] = useState(false);
     const [availableWorkflows, setAvailableWorkflows] = useState<any[]>([]);
+    const [existingCrmPhonesSet, setExistingCrmPhonesSet] = useState<Set<string>>(new Set());
+
+    // Real-time phone duplicate check against CRM DB
+    useEffect(() => {
+        const textPhones = formPhonesText.split(/[\r\n,;]+/).map(p => p.trim()).filter(Boolean);
+        const combined = [...textPhones, ...csvPhones];
+        const unique = new Set<string>();
+        combined.forEach(p => {
+            const norm = normalizePhone(p);
+            if (norm && isValidVietnamPhone(norm)) unique.add(norm);
+        });
+        const parsed = Array.from(unique);
+
+        if (parsed.length === 0) {
+            setExistingCrmPhonesSet(new Set());
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            ipc.db?.checkPhonesDuplicate({ zaloId: 'all', phones: parsed }).then((res: any) => {
+                if (res?.duplicates && Array.isArray(res.duplicates)) {
+                    const normDups = new Set<string>();
+                    res.duplicates.forEach((p: string) => {
+                        const norm = normalizePhone(p);
+                        if (norm) normDups.add(norm);
+                    });
+                    setExistingCrmPhonesSet(normDups);
+                }
+            }).catch(() => {});
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [formPhonesText, csvPhones]);
     
     // Inline label creation form state
     const [isCreatingLabel, setIsCreatingLabel] = useState(false);
@@ -1827,12 +1860,46 @@ export default function PhoneScanPanel() {
                                     </div>
 
                                     {/* Preview and validation box */}
-                                    {getParsedPhones().length > 0 && (
-                                        <div className="p-3 bg-emerald-50 dark:bg-emerald-955/30 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs flex justify-between items-center font-semibold shadow-2xs">
-                                            <span>Tổng số điện thoại hợp lệ sẵn sàng thêm:</span>
-                                            <strong className="text-xs font-bold bg-emerald-100 dark:bg-emerald-900/60 px-2.5 py-1 rounded-full text-emerald-800 dark:text-emerald-200">{getParsedPhones().length} số</strong>
-                                        </div>
-                                    )}
+                                    {getParsedPhones().length > 0 && (() => {
+                                        const parsedCount = getParsedPhones().length;
+                                        const dupCount = existingCrmPhonesSet.size;
+                                        const newCount = Math.max(0, parsedCount - dupCount);
+                                        return (
+                                            <div className="p-3.5 bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-300 rounded-2xl text-xs space-y-2 shadow-2xs">
+                                                <div className="flex justify-between items-center font-semibold">
+                                                    <span className="flex items-center gap-1.5 font-bold text-gray-800 dark:text-gray-200">
+                                                        <span>📊</span>
+                                                        <span>Tổng số điện thoại hợp lệ đã nhập:</span>
+                                                    </span>
+                                                    <strong className="text-xs font-extrabold bg-emerald-100 dark:bg-emerald-900/60 px-3 py-1 rounded-full text-emerald-800 dark:text-emerald-200 border border-emerald-300/60 dark:border-emerald-700/60">
+                                                        {parsedCount} số
+                                                    </strong>
+                                                </div>
+
+                                                {/* Duplicate warning & explanation */}
+                                                {dupCount > 0 && (
+                                                    <div className="pt-2 border-t border-emerald-200/80 dark:border-emerald-800/50 flex items-start justify-between gap-3 text-amber-800 dark:text-amber-300">
+                                                        <div className="flex items-start gap-2 min-w-0">
+                                                            <span className="text-sm flex-shrink-0">⚠️</span>
+                                                            <div className="min-w-0">
+                                                                <span className="font-bold block text-amber-900 dark:text-amber-200">
+                                                                    Cảnh báo: Có {dupCount} số điện thoại đã tồn tại trong danh bạ CRM / Bạn bè!
+                                                                </span>
+                                                                <p className="text-[11px] opacity-90 mt-0.5 leading-snug">
+                                                                    {formSkipCrmExisting
+                                                                        ? `✓ Tùy chọn "Bỏ qua các SĐT đã tồn tại trong CRM" BẬT ➔ Hệ thống sẽ tự động lọc bỏ ${dupCount} số này và chỉ đưa ${newCount} số mới vào lô quét.`
+                                                                        : `⚠️ Tùy chọn "Bỏ qua các SĐT đã tồn tại trong CRM" TẮT ➔ Tất cả ${parsedCount} số sẽ được đưa vào hàng đợi quét.`}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-200 text-[11px] font-extrabold whitespace-nowrap flex-shrink-0">
+                                                            {dupCount} số đã có sẵn
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
 

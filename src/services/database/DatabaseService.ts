@@ -3396,12 +3396,31 @@ class DatabaseService {
         try {
             const normalized = phones.map(p => this.normalizeVietnamPhone(p)).filter(Boolean);
             if (!normalized.length) return [];
+
+            const existingSet = new Set<string>();
             const placeholders = normalized.map(() => '?').join(',');
-            const rows = this.query<{ phone: string }>(
-                `SELECT phone FROM contacts WHERE owner_zalo_id=? AND phone IN (${placeholders}) AND phone != ''`,
-                [ownerZaloId, ...normalized]
+
+            // 1. Check contacts table
+            const cRows = this.query<{ phone: string }>(
+                `SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != '' AND phone IN (${placeholders})`,
+                normalized
             );
-            return rows.map(r => r.phone);
+            cRows.forEach(r => {
+                const norm = this.normalizeVietnamPhone(r.phone);
+                if (norm) existingSet.add(norm);
+            });
+
+            // 2. Check friends table
+            const fRows = this.query<{ phone: string }>(
+                `SELECT phone FROM friends WHERE phone IS NOT NULL AND phone != '' AND phone IN (${placeholders})`,
+                normalized
+            );
+            fRows.forEach(r => {
+                const norm = this.normalizeVietnamPhone(r.phone);
+                if (norm) existingSet.add(norm);
+            });
+
+            return Array.from(existingSet);
         } catch (err: any) {
             Logger.error(`[DatabaseService] checkPhonesDuplicate error: ${err.message}`);
             return [];
@@ -9326,8 +9345,13 @@ class DatabaseService {
             let existingCrmPhones = new Set<string>();
             if (skipCrmExisting) {
                 try {
-                    const rows = this.query<{ phone: string }>('SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != ""');
-                    for (const r of rows) {
+                    const cRows = this.query<{ phone: string }>('SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != ""');
+                    for (const r of cRows) {
+                        const norm = this.normalizeVietnamPhone(r.phone);
+                        if (norm) existingCrmPhones.add(norm);
+                    }
+                    const fRows = this.query<{ phone: string }>('SELECT phone FROM friends WHERE phone IS NOT NULL AND phone != ""');
+                    for (const r of fRows) {
                         const norm = this.normalizeVietnamPhone(r.phone);
                         if (norm) existingCrmPhones.add(norm);
                     }
