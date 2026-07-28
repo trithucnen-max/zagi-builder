@@ -413,6 +413,7 @@ declare global {
       on: (channel: string, callback: (...args: any[]) => void) => () => void;
       removeAllListeners: (channel: string) => void;
       update: {
+        check:    () => void;
         download: () => void;
         install:  () => void;
       };

@@ -1271,7 +1271,7 @@ async function startupAfterLicenseCheck(): Promise<void> {
   });
   console.log('[MediaCleanup] Scheduler initialized — runs daily at 3:00 AM');
   if (!isDev) {
-    autoUpdater.autoDownload = true;          // tự tải nền — phù hợp app chạy 24/7
+    autoUpdater.autoDownload = false;         // Chờ người dùng xem Modal "Có gì mới" & bấm Nâng cấp ngay
     autoUpdater.autoInstallOnAppQuit = true; // tự cài khi quit nếu đã tải xong
 
     // Check lần đầu khi khởi động và mỗi 4 giờ
@@ -1314,6 +1314,13 @@ async function startupAfterLicenseCheck(): Promise<void> {
       });
     });
   }
+
+  // IPC từ renderer: check update
+  ipcMain.on('update:check', () => {
+    if (!isDev) {
+      autoUpdater.checkForUpdatesAndNotify();
+    }
+  });
 
   // IPC từ renderer: trigger download
   ipcMain.on('update:download', () => {
