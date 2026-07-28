@@ -4965,6 +4965,14 @@ HƯỚNG DẪN SOẠN THẢO:
               </button>
               <button
                 type="button"
+                onClick={() => appendVar(field.key, '{{ $item.tu_xung }}')}
+                className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                title="Tự xưng của người gửi (Em/Con/Cháu/Mình...)"
+              >
+                🗣️ Tự xưng
+              </button>
+              <button
+                type="button"
                 onClick={() => appendVar(field.key, '{{ $item.display_name }}')}
                 className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
                 title="Tên Zalo khách hàng"
@@ -4997,6 +5005,14 @@ HƯỚNG DẪN SOẠN THẢO:
                 title="Xưng hô người gửi"
               >
                 💬 Xưng hô
+              </button>
+              <button
+                type="button"
+                onClick={() => appendVar(field.key, '{{ $trigger.tu_xung }}')}
+                className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                title="Tự xưng của người gửi (Em/Con/Cháu/Mình...)"
+              >
+                🗣️ Tự xưng
               </button>
               <button
                 type="button"
@@ -5853,6 +5869,14 @@ function ExpandTextareaModal({
                   </button>
                   <button
                     type="button"
+                    onClick={() => appendLocalVar('{{ $item.tu_xung }}')}
+                    className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                    title="Tự xưng của người gửi (Em/Con/Cháu/Mình...)"
+                  >
+                    🗣️ Tự xưng
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => appendLocalVar('{{ $item.display_name }}')}
                     className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
                     title="Tên Zalo khách hàng"
@@ -5885,6 +5909,14 @@ function ExpandTextareaModal({
                     title="Xưng hô người gửi"
                   >
                     💬 Xưng hô
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => appendLocalVar('{{ $trigger.tu_xung }}')}
+                    className="text-[10px] bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded transition-colors font-medium"
+                    title="Tự xưng của người gửi (Em/Con/Cháu/Mình...)"
+                  >
+                    🗣️ Tự xưng
                   </button>
                   <button
                     type="button"

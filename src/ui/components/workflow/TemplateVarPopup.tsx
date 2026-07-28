@@ -55,6 +55,12 @@ export default function TemplateVarPopup({
           group: 'loop',
         },
         {
+          key: '$item.tu_xung',
+          label: 'Tự xưng người gửi (tự động)',
+          description: 'Từ tự xưng tự động khớp xưng hô khách: Em, Con, Cháu, Mình, Anh...',
+          group: 'loop',
+        },
+        {
           key: '$item.display_name',
           label: 'Tên liên hệ (thông minh)',
           description: 'Tên liên hệ. Ưu tiên biệt danh CRM (alias) nếu có, ngược lại dùng tên hiển thị Zalo.',

@@ -384,6 +384,7 @@ function BlockEditor({
     { key: '{zalo_name}',        label: 'Tên Zalo' },
     { key: '{gender_greeting}',  label: 'Anh/Chị' },
     { key: '{salutation}',       label: 'Xưng hô' },
+    { key: '{tu_xung}',          label: 'Tự xưng' },
     { key: '{phone}',            label: 'SĐT' },
     { key: '{birthday_day}',     label: 'Ngày sinh' },
   ];
