@@ -763,6 +763,11 @@ export default function CampaignCreateModal({
   const [activeBlock,   setActiveBlock]  = useState(0);
   const [dailyLimit,    setDailyLimit]   = useState(initialData?.daily_send_limit ?? 0);
   const [dailyStartTime, setDailyStartTime] = useState(initialData?.daily_start_time ?? '08:00');
+  const [quietHoursEnabled, setQuietHoursEnabled] = useState<boolean>(
+    initialData?.quiet_hours_enabled !== undefined ? Boolean(initialData.quiet_hours_enabled) : true
+  );
+  const [quietHoursStart, setQuietHoursStart] = useState<string>(initialData?.quiet_hours_start || '23:30');
+  const [quietHoursEnd, setQuietHoursEnd] = useState<string>(initialData?.quiet_hours_end || '07:00');
   const friendReqRef = useRef<HTMLTextAreaElement>(null);
   const isSavingRef = useRef(false);
 
@@ -1061,6 +1066,9 @@ Yêu cầu quan trọng:
         daily_send_limit: dailyLimit,
         daily_start_time: dailyStartTime,
         scheduled_start_at: scheduledStartAt,
+        quiet_hours_enabled: quietHoursEnabled ? 1 : 0,
+        quiet_hours_start: quietHoursStart,
+        quiet_hours_end: quietHoursEnd,
       });
     } catch (err: any) {
       console.error(err);
@@ -1506,6 +1514,43 @@ Yêu cầu quan trọng:
                     <p className={`text-[10px] mt-1 leading-relaxed ${getScheduleMessage().startsWith('⚠️') ? 'text-amber-600 font-semibold' : 'text-blue-600 dark:text-cyan-400'}`}>
                       {getScheduleMessage()}
                     </p>
+                  )}
+                </div>
+
+                {/* 🌙 Khung giờ nghỉ (Không gửi tin nhắn) */}
+                <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={quietHoursEnabled}
+                        onChange={e => setQuietHoursEnabled(e.target.checked)}
+                        className="w-4 h-4 text-amber-600 rounded border-gray-300 focus:ring-amber-500"
+                      />
+                      <span className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1">
+                        🌙 Khung giờ nghỉ (Không gửi tin)
+                      </span>
+                    </label>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Mặc định 23:30 ➔ 07:00</span>
+                  </div>
+
+                  {quietHoursEnabled && (
+                    <div className="flex items-center gap-2 mt-1 animate-fadeIn">
+                      <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Từ:</span>
+                      <input
+                        type="time"
+                        value={quietHoursStart}
+                        onChange={e => setQuietHoursStart(e.target.value)}
+                        className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-900 dark:text-gray-100 font-bold focus:outline-none focus:border-amber-500"
+                      />
+                      <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">đến:</span>
+                      <input
+                        type="time"
+                        value={quietHoursEnd}
+                        onChange={e => setQuietHoursEnd(e.target.value)}
+                        className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-900 dark:text-gray-100 font-bold focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
                   )}
                 </div>
               </div>

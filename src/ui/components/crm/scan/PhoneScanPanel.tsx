@@ -801,7 +801,7 @@ export default function PhoneScanPanel() {
                                 acc.total += b.total_count;
                                 acc.scanned += b.scanned_count;
                                 acc.found += b.found_count;
-                                acc.notFound += b.not_found_count;
+                                acc.notFound += (b.not_found_count + b.error_count);
                                 acc.error += b.error_count;
                                 acc.pending += Math.max(0, b.total_count - b.scanned_count);
                                 return acc;
@@ -836,7 +836,7 @@ export default function PhoneScanPanel() {
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
                                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Không có Zalo {timeLabel}</span>
-                                    <span className="text-xl font-bold text-amber-400 mt-1">{totals.notFound.toLocaleString()}</span>
+                                    <span className="text-xl font-bold text-amber-400 mt-1">{(scanTimeFilter === 'all' ? batchTotals.notFound : totals.notFound).toLocaleString()}</span>
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
                                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Số lượng còn lại {timeLabel}</span>
@@ -1294,24 +1294,25 @@ export default function PhoneScanPanel() {
                                                                 </span>
                                                             ) : selectedBatch?.contact_assignment_mode === 'single' ? (
                                                                 (() => {
-                                                                    const acc = visibleAccounts.find(a => a.zalo_id === selectedBatch.assigned_account_id);
+                                                                    const targetId = selectedBatch.target_account_id || selectedBatch.assigned_account_id || item.scanned_by_account_id;
+                                                                    const acc = visibleAccounts.find(a => a.zalo_id === targetId);
                                                                     return acc ? (
-                                                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800/50 truncate max-w-[120px] inline-block">
+                                                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800/50 truncate max-w-[120px] inline-block" title={acc.full_name || acc.zalo_id}>
                                                                             {acc.full_name || acc.zalo_id}
                                                                         </span>
                                                                     ) : (
-                                                                        <span className="text-gray-400 text-[10px]">TK #{selectedBatch.assigned_account_id}</span>
+                                                                        <span className="text-gray-400 text-[10px]">{targetId ? `TK #${targetId}` : 'Tài khoản quét'}</span>
                                                                     );
                                                                 })()
                                                             ) : (
                                                                 (() => {
                                                                     const acc = visibleAccounts.find(a => a.zalo_id === item.scanned_by_account_id);
                                                                     return acc ? (
-                                                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800/50 truncate max-w-[120px] inline-block">
+                                                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800/50 truncate max-w-[120px] inline-block" title={acc.full_name || acc.zalo_id}>
                                                                             {acc.full_name || acc.zalo_id}
                                                                         </span>
                                                                     ) : (
-                                                                        <span className="text-gray-400 text-[10px]">{item.scanned_by_account_id || '-'}</span>
+                                                                        <span className="text-gray-400 text-[10px]">{item.scanned_by_account_id ? `TK #${item.scanned_by_account_id}` : 'Tài khoản quét'}</span>
                                                                     );
                                                                 })()
                                                             )

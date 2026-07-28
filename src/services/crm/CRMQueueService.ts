@@ -239,7 +239,27 @@ class CRMQueueService {
             }
         }
 
-        // ── Daily start time check is bypassed to allow immediate manual runs or exact scheduling ──
+        // ── Quiet hours check (Default: 23:30 to 07:00 ICT) ────────────────────
+        if (campaignData && (campaignData.quiet_hours_enabled === undefined || Number(campaignData.quiet_hours_enabled) === 1)) {
+            const quietStart = campaignData.quiet_hours_start || '23:30';
+            const quietEnd = campaignData.quiet_hours_end || '07:00';
+            
+            const nowICT = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+            
+            let isQuiet = false;
+            if (quietStart > quietEnd) {
+                // Crosses midnight (e.g. 23:30 -> 07:00)
+                isQuiet = nowICT >= quietStart || nowICT < quietEnd;
+            } else {
+                // Same day (e.g. 01:00 -> 06:00)
+                isQuiet = nowICT >= quietStart && nowICT < quietEnd;
+            }
+            
+            if (isQuiet) {
+                Logger.log(`[CRMQueue] Campaign ${item.campaign_id} currently in Quiet Hours (${quietStart} - ${quietEnd}). Skipping send.`);
+                return;
+            }
+        }
 
         // ── Daily limit (chỉ áp dụng nếu có giới hạn, kiểm tra riêng cho từng tài khoản Zalo) ───────────────────
         if (campaignData && campaignData.daily_send_limit && campaignData.daily_send_limit > 0) {
