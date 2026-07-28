@@ -143,10 +143,24 @@ export function UpdateNotification() {
   }, []);
 
   useEffect(() => {
+    // Check on mount
     checkGitHubRelease();
-    const timer = setInterval(checkGitHubRelease, 4 * 60 * 60 * 1000);
-    return () => clearInterval(timer);
+
+    // Check every 30 minutes while app is open
+    const timer = setInterval(checkGitHubRelease, 30 * 60 * 1000);
+
+    // ✅ Check immediately when user focuses back to Zagi (no restart needed)
+    const handleFocus = () => {
+      checkGitHubRelease();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [checkGitHubRelease]);
+
 
   const handleStartDownload = () => {
     setUpdateState(prev => ({ ...prev, status: 'downloading', percent: 5 }));
