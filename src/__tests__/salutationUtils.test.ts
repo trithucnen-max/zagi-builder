@@ -103,6 +103,12 @@ describe('salutationUtils - Vietnamese Smart Salutation & Self Reference', () =>
       expect(res).toBe('Kính chào ông! Cháu xin kính chúc ông sức khỏe.');
     });
 
+    test('handles Vợ - anh in middle of sentence correctly', () => {
+      const tpl = 'Rất tiếc khi {salutation} mới bị gỡ nhãn, {tu_xung} sẽ đền bù cho {salutation}';
+      const res = applySmartSalutation(tpl, 'Vợ');
+      expect(res).toBe('Rất tiếc khi vợ mới bị gỡ nhãn, anh sẽ đền bù cho vợ');
+    });
+
     test('supports forced case override variables', () => {
       const tpl = 'chào {salutation_cap}, {tu_xung_cap} chúc {salutation_lower} vui vẻ';
       const res = applySmartSalutation(tpl, 'chị');

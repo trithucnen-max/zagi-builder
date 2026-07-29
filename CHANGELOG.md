@@ -4,6 +4,13 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.9] - 2026-07-29
 
+### 🔤 Chuẩn Hóa Viết Hoa/Thường Xưng Hổ Trong Workflow (`WorkflowEngineService.ts`)
+- **Khắc Phục Lỗi Viết Hoa Giữa Câu Khi Chạy Workflow:**
+  - Tích hợp công cụ xưng hô thông minh `applySmartSalutation` và `isStartOfSentence` vào bộ render template của Workflow Engine (`renderTemplate`).
+  - Tự động nhận diện ngữ cảnh vị trí biến trong câu: Chỉ viết **Hoa** khi đứng ở đầu câu/sau dấu câu (`.`, `!`, `?`, `…`, `\n`) và tự động chuyển về chữ **thường** khi nằm ở giữa câu (ví dụ: `"Rất tiếc khi vợ mới bị gỡ nhãn, anh sẽ đền bù cho vợ"`).
+  - Hỗ trợ đầy đủ cả cú pháp thẻ đơn `{salutation}`, `{xung_ho}`, `{tu_xung}` lẫn thẻ kép Mustache `{{ $contact.salutation }}`, `{{ tu_xung }}`.
+  - Bổ sung bảng tự xưng mặc định cho tình cảm / gia đình (`'vợ'` ➔ `'anh'`, `'chồng'` ➔ `'em'`, `'bà xã'` ➔ `'anh'`, `'ông xã'` ➔ `'em'`).
+
 ### 🐛 Sửa Lỗi Lọc Liên Hệ Theo Nhãn & Tải Nhóm Trong Chiến Dịch (`TargetSelector.tsx`)
 - **Khắc Phục Lỗi Tìm Thấy 0 Liên Hệ Khi Lọc Theo Nhãn (Hình 1 & Hình 2):**
   - Mở rộng cơ chế đối soát nhãn Local tương đương theo tên (`Name-based equivalency`), đảm bảo ngay cả khi ID nhãn giữa các tài khoản khác nhau vẫn lọc và khớp 100% các liên hệ được gán nhãn đó (ví dụ nhãn `TD`).

@@ -103,10 +103,15 @@ export const DEFAULT_SALUTATION_SELF_REF_MAP: Record<string, string> = {
     'mợ':        'con',
     'cậu':       'con',
 
-    // Ngang cấp / kính trên
+    // Ngang cấp / kính trên / gia đình
     'anh':       'em',
     'chị':       'em',
     'anh/chị':   'em',   // Mặc định cho giới tính chưa xác định
+    'vợ':        'anh',
+    'chồng':     'em',
+    'bà xã':     'anh',
+    'ông xã':    'em',
+    'người yêu': 'anh',
 
     // Gửi đến người trẻ hơn / cấp dưới
     'em':        'anh',
@@ -169,13 +174,13 @@ export function getSelfRef(salutation: string, fallback = 'em'): string {
 /**
  * Thay thế các biến xưng hô trong template với viết Hoa/thường tự động:
  *
- *   {salutation}       → xưng hô: Hoa đầu câu, thường giữa câu
- *   {gender_greeting}  → alias của {salutation} (xử lý giống nhau)
- *   {tu_xung}          → tự xưng: Hoa đầu câu, thường giữa câu
- *   {salutation_cap}   → luôn viết Hoa (override thủ công)
- *   {salutation_lower} → luôn viết thường (override thủ công)
- *   {tu_xung_cap}      → tự xưng luôn viết Hoa (override thủ công)
- *   {tu_xung_lower}    → tự xưng luôn viết thường (override thủ công)
+ *   {salutation} / {xung_ho}   → xưng hô: Hoa đầu câu, thường giữa câu
+ *   {gender_greeting}          → alias của {salutation} (xử lý giống nhau)
+ *   {tu_xung}                  → tự xưng: Hoa đầu câu, thường giữa câu
+ *   {salutation_cap}           → luôn viết Hoa (override thủ công)
+ *   {salutation_lower}         → luôn viết thường (override thủ công)
+ *   {tu_xung_cap}              → tự xưng luôn viết Hoa (override thủ công)
+ *   {tu_xung_lower}            → tự xưng luôn viết thường (override thủ công)
  *
  * @param template   Template gốc
  * @param salutation Xưng hô của khách (VD: "chị")
@@ -191,9 +196,9 @@ export function applySmartSalutation(
     const sal  = salutation?.trim() || '';
     const self = selfRef?.trim() || getSelfRef(sal);
 
-    // {salutation} và {gender_greeting} — context-aware capitalize
+    // {salutation}, {gender_greeting}, {xung_ho} — context-aware capitalize
     let result = template.replace(
-        /\{salutation\}|\{gender_greeting\}/g,
+        /\{salutation\}|\{gender_greeting\}|\{xung_ho\}/gi,
         (match, offset) => {
             if (!sal) return match;
             return isStartOfSentence(template, offset)
@@ -204,7 +209,7 @@ export function applySmartSalutation(
 
     // {tu_xung} — tự xưng context-aware (dùng `result` sau khi đã thay salutation)
     result = result.replace(
-        /\{tu_xung\}/g,
+        /\{tu_xung\}/gi,
         (_match, offset) => {
             if (!self) return '';
             return isStartOfSentence(result, offset)
@@ -213,12 +218,12 @@ export function applySmartSalutation(
         }
     );
 
-    // Override thủ công: {salutation_cap} / {salutation_lower}
+    // Override thủ công: {salutation_cap} / {salutation_lower} / {xung_ho_cap} / {xung_ho_lower}
     result = result
-        .replace(/\{salutation_cap\}/g,    capitalizeVietnamese(sal))
-        .replace(/\{salutation_lower\}/g,  lowercaseVietnamese(sal))
-        .replace(/\{tu_xung_cap\}/g,       capitalizeVietnamese(self))
-        .replace(/\{tu_xung_lower\}/g,     lowercaseVietnamese(self));
+        .replace(/\{salutation_cap\}|\{xung_ho_cap\}|\{salutation_titlecase\}|\{xung_ho_titlecase\}/gi, capitalizeVietnamese(sal))
+        .replace(/\{salutation_lower\}|\{xung_ho_lower\}/gi,  lowercaseVietnamese(sal))
+        .replace(/\{tu_xung_cap\}|\{tu_xung_titlecase\}/gi,       capitalizeVietnamese(self))
+        .replace(/\{tu_xung_lower\}/gi,     lowercaseVietnamese(self));
 
     return result;
 }

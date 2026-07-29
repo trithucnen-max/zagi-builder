@@ -16,7 +16,7 @@ import { google } from 'googleapis';
 import { parseStructuredResponse, isValidStructuredResponse } from '../../utils/aiUtils';
 import { getLunarDate } from '../../utils/lunarCalendar';
 import { serializeContext, deserializeContext } from './contextSerializer';
-import { getSelfRef } from '../../utils/salutationUtils';
+import { getSelfRef, applySmartSalutation, isStartOfSentence, capitalizeVietnamese, lowercaseVietnamese } from '../../utils/salutationUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -4801,7 +4801,46 @@ class WorkflowEngineService {
   }
 
   private renderTemplate(template: string, ctx: ExecutionContext, currentNodeId?: string): string {
-    return template.replace(/\{\{\s*([\s\S]*?)\s*\}\}/gu, (_, raw) => {
+    if (!template || typeof template !== 'string') return template;
+
+    const sal = (
+      ctx.variables?.contact?.salutation ||
+      ctx.trigger?.contact?.salutation ||
+      ctx.trigger?.salutation ||
+      ''
+    ).trim();
+
+    const selfRef = (
+      ctx.variables?.contact?.tu_xung ||
+      ctx.trigger?.tu_xung ||
+      (sal ? getSelfRef(sal) : '')
+    ).trim();
+
+    let text = template;
+
+    // 1. Single curly brace smart salutation: {salutation}, {xung_ho}, {tu_xung}, etc.
+    if (sal || selfRef) {
+      text = applySmartSalutation(text, sal, selfRef);
+    }
+
+    // 2. Double mustache {{ ... }} with smart Vietnamese capitalization for salutation & tu_xung
+    text = text.replace(/\{\{\s*([\s\S]*?)\s*\}\}/gu, (match, raw, offset) => {
+      const exprTrim = raw.trim();
+      const isSalutationExpr = /^((\$contact|contact|\$trigger|trigger)\.)?(salutation|xung_ho|gender_greeting)$/i.test(exprTrim);
+      const isTuXungExpr = /^((\$contact|contact|\$trigger|trigger)\.)?(tu_xung)$/i.test(exprTrim);
+
+      if (isSalutationExpr && sal) {
+        return isStartOfSentence(text, offset)
+          ? capitalizeVietnamese(sal)
+          : lowercaseVietnamese(sal);
+      }
+
+      if (isTuXungExpr && selfRef) {
+        return isStartOfSentence(text, offset)
+          ? capitalizeVietnamese(selfRef)
+          : lowercaseVietnamese(selfRef);
+      }
+
       const val = this.resolveExpressionValue(raw, ctx, currentNodeId);
       if (val === undefined || val === null) return '';
       if (typeof val === 'object') {
@@ -4809,6 +4848,8 @@ class WorkflowEngineService {
       }
       return String(val);
     });
+
+    return text;
   }
 
   private resolveExpressionValue(expr: string, ctx: ExecutionContext, currentNodeId?: string): any {
