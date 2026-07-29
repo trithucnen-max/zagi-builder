@@ -905,7 +905,7 @@ export function registerZaloIpc() {
                 if (!result?.success) {
                     return {
                         success: false,
-                        error: result?.error || '❌ Không thể kết nối tới máy chủ quét (zagiapp.com). Vui lòng kiểm tra lại kết nối mạng hoặc máy chủ đang bảo trì.'
+                        error: result?.error || '❌ Không thể kết nối tới máy chủ quét (deplaoapp.com). Vui lòng kiểm tra lại kết nối mạng hoặc máy chủ đang bảo trì.'
                     };
                 }
 

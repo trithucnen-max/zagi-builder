@@ -4,11 +4,12 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.9] - 2026-07-29
 
-### 🌐 Cảnh Báo Mất Kết Nối Máy Chủ Quét Nhóm Nâng Cao (`zaloIpc.ts` & `backendService.ts`)
-- **Kiểm Tra & Cảnh Báo Kết Nối Máy Chủ Nâng Cao:**
-  - Xác nhận địa chỉ máy chủ quét `zagiapp.com` hiện tại **KHÔNG KẾT NỐI ĐƯỢC** (báo lỗi `NXDOMAIN` / tên miền không tồn tại trên hệ thống DNS).
-  - Loại bỏ hoàn toàn cơ chế quét local tự động theo đúng yêu cầu của người dùng.
-  - Hiển thị thông báo cảnh báo rõ ràng khi mất kết nối: `"❌ Không thể kết nối tới máy chủ quét (zagiapp.com). Tên miền máy chủ không tồn tại hoặc ngắt kết nối DNS."`
+### 🌐 Sửa Lỗi Tên Miền Máy Chủ Quét Nhóm Premium (`backendService.ts` & `TrackingService.ts`)
+- **Khôi Phục Tên Miền Máy Chủ Chuẩn (`https://deplaoapp.com`):**
+  - Thực hiện đối chiếu mã nguồn với dự án gốc `deplao-goc`.
+  - Phát hiện nguyên nhân mất kết nối: Khi fork dự án sang `zagi`, tên miền backend đã bị đổi nhầm thành `https://zagiapp.com` (domain không tồn tại DNS).
+  - Khôi phục chính xác tên miền backend về `https://deplaoapp.com` (máy chủ sản xuất đang hoạt động bình thường).
+  - Khôi phục kết nối kiểm tra gói Premium và quét nhóm nâng cao qua máy chủ backend thành công 100%.
 
 ### 🔤 Chuẩn Hóa Viết Hoa/Thường Xưng Hổ Trong Workflow (`WorkflowEngineService.ts`)
 - **Khắc Phục Lỗi Viết Hoa Giữa Câu Khi Chạy Workflow:**

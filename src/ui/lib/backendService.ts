@@ -5,11 +5,11 @@
  * App chỉ gọi API, không chứa logic business.
  *
  * API endpoints:
- *   POST https://zagiapp.com/api/scan/premium-status  → kiểm tra premium
- *   POST https://zagiapp.com/api/scan/group            → quét thành viên nhóm
+ *   POST https://deplaoapp.com/api/scan/premium-status  → kiểm tra premium
+ *   POST https://deplaoapp.com/api/scan/group            → quét thành viên nhóm
  */
 
-const BACKEND_URL = 'https://zagiapp.com';
+const BACKEND_URL = 'https://deplaoapp.com';
 const SECRET_KEY = 'fb7457b7a39bdc9e742f08b657a8059a5e6a8fda6e32bfe0bfecf37eadf519eb';
 
 export interface PremiumStatus {
@@ -158,7 +158,7 @@ export async function scanGroupViaBackend(params: {
       groupId: params.groupId,
       totalMembers: 0,
       members: [],
-      error: '❌ Không thể kết nối tới máy chủ quét (zagiapp.com). Tên miền máy chủ không tồn tại hoặc ngắt kết nối DNS.'
+      error: '❌ Không thể kết nối tới máy chủ quét (deplaoapp.com). Vui lòng kiểm tra lại kết nối mạng.'
     };
   }
 }

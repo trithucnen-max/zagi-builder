@@ -44,7 +44,7 @@ interface TrackingApiResponse {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const API_URL = 'https://zagiapp.com/api/tracking/page';
+const API_URL = 'https://deplaoapp.com/api/tracking/page';
 const CACHE_FILENAME = 'tracking-cache.json';
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 60 phút
 
