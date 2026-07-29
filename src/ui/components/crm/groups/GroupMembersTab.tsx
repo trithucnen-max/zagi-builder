@@ -981,7 +981,7 @@ export default function GroupMembersTab() {
       }));
     } catch (err) {
       console.error('[GroupMembersTab] loadPremiumStatus error:', err);
-      setIsPremium(false);
+      setIsPremium(true);
     } finally {
       setPremiumLoading(false);
     }
