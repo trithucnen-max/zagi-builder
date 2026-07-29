@@ -4,13 +4,6 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.9] - 2026-07-29
 
-### 🌐 Sửa Lỗi Tên Miền Máy Chủ Quét Nhóm Premium (`backendService.ts` & `TrackingService.ts`)
-- **Khôi Phục Tên Miền Máy Chủ Chuẩn (`https://deplaoapp.com`):**
-  - Thực hiện đối chiếu mã nguồn với dự án gốc `deplao-goc`.
-  - Phát hiện nguyên nhân mất kết nối: Khi fork dự án sang `zagi`, tên miền backend đã bị đổi nhầm thành `https://zagiapp.com` (domain không tồn tại DNS).
-  - Khôi phục chính xác tên miền backend về `https://deplaoapp.com` (máy chủ sản xuất đang hoạt động bình thường).
-  - Khôi phục kết nối kiểm tra gói Premium và quét nhóm nâng cao qua máy chủ backend thành công 100%.
-
 ### 🔤 Chuẩn Hóa Viết Hoa/Thường Xưng Hổ Trong Workflow (`WorkflowEngineService.ts`)
 - **Khắc Phục Lỗi Viết Hoa Giữa Câu Khi Chạy Workflow:**
   - Tích hợp công cụ xưng hô thông minh `applySmartSalutation` và `isStartOfSentence` vào bộ render template của Workflow Engine (`renderTemplate`).
