@@ -124,13 +124,12 @@ export async function getPremiumStatus(pageId: string): Promise<PremiumStatus> {
   try {
     const res = await callBackend<any>('/api/scan/premium-status', { page_id: pageId });
     return {
-      isPremium: res?.is_premium ?? true,
+      isPremium: res?.is_premium ?? false,
       expiresAt: res?.premium_expires_at ?? null,
     };
   } catch (err) {
-    console.warn('[backendService] getPremiumStatus unreachable, fallback to enabled:', err);
-    // Khi máy chủ backend ngoại tuyến hoặc không kết nối được, mặc định kích hoạt để không chặn người dùng
-    return { isPremium: true, expiresAt: null };
+    console.warn('[backendService] getPremiumStatus unreachable:', err);
+    return { isPremium: false, expiresAt: null };
   }
 }
 
@@ -154,6 +153,12 @@ export async function scanGroupViaBackend(params: {
     return res;
   } catch (err: any) {
     console.error('[backendService] scanGroupViaBackend error:', err);
-    return { success: false, groupId: params.groupId, totalMembers: 0, members: [], error: err.message || 'Lỗi kết nối máy chủ quét' };
+    return {
+      success: false,
+      groupId: params.groupId,
+      totalMembers: 0,
+      members: [],
+      error: '❌ Không thể kết nối tới máy chủ quét (zagiapp.com). Tên miền máy chủ không tồn tại hoặc ngắt kết nối DNS.'
+    };
   }
 }

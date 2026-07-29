@@ -893,75 +893,20 @@ export function registerZaloIpc() {
                     );
                 }
 
-                // 3. Gọi scanGroupViaBackend tới backend server, tự động chuyển về Local Scanning nếu server ngoại tuyến
+                // 3. Gọi scanGroupViaBackend tới máy chủ backend
                 const { scanGroupViaBackend } = await import('../../src/ui/lib/backendService');
-                let result = await scanGroupViaBackend({
+                const result = await scanGroupViaBackend({
                     pageId: zaloId,
                     cookie: account.cookies,
                     imei: account.imei || '',
                     groupId,
                 });
 
-                if (!result?.success || !result.members || result.members.length === 0) {
-                    Logger.log(`[zaloIpc] Backend server unavailable (${result?.error || 'unreachable'}), falling back to local Zalo scanning engine...`);
-                    try {
-                        const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
-                        const zaloService = await getService(auth);
-                        const localMembersMap = new Map<string, any>();
-
-                        // Lấy thông tin nhóm & thành viên hiện tại
-                        try {
-                            const gRes: any = await zaloService.getGroupInfo(groupId);
-                            const gridMap = gRes?.response?.gridInfoMap || gRes?.response?.data?.gridInfoMap || {};
-                            const gData = gridMap[groupId] || Object.values(gridMap)[0] || {};
-                            const rawMems: any[] = gData.currentMems || gData.members || [];
-                            rawMems.forEach((m: any) => {
-                                const uid = String(m.id || m.userId || m.uid || '').replace(/_0$/, '').trim();
-                                if (uid && /^\d+$/.test(uid)) {
-                                    localMembersMap.set(uid, {
-                                        userId: uid,
-                                        displayName: m.name || m.displayName || m.zaloName || uid,
-                                        zaloName: m.name || m.zaloName || uid,
-                                        avatar: m.avatar || m.fullAvt || m.avt || '',
-                                    });
-                                }
-                            });
-                        } catch (e: any) {
-                            Logger.warn(`[zaloIpc] Local getGroupInfo fallback error: ${e.message}`);
-                        }
-
-                        // Quét lịch sử nhắn tin để thu thập thêm UID thành viên
-                        try {
-                            const histRes: any = await zaloService.getGroupChatHistory(groupId, 100);
-                            const msgs = histRes?.response?.groupMsgs || [];
-                            for (const msg of msgs) {
-                                const senderId = msg.data?.uidFrom || msg.senderId;
-                                if (senderId) {
-                                    const uid = String(senderId).replace(/_0$/, '').trim();
-                                    if (/^\d+$/.test(uid) && !localMembersMap.has(uid)) {
-                                        localMembersMap.set(uid, { userId: uid, displayName: uid, zaloName: uid, avatar: '' });
-                                    }
-                                }
-                            }
-                        } catch (e: any) {
-                            Logger.warn(`[zaloIpc] Local getGroupChatHistory fallback error: ${e.message}`);
-                        }
-
-                        if (localMembersMap.size > 0) {
-                            result = {
-                                success: true,
-                                groupId,
-                                totalMembers: localMembersMap.size,
-                                members: Array.from(localMembersMap.values()),
-                            };
-                        }
-                    } catch (fallbackErr: any) {
-                        Logger.error(`[zaloIpc] Local fallback scan failed: ${fallbackErr.message}`);
-                    }
-                }
-
                 if (!result?.success) {
-                    return { success: false, error: result?.error || 'Không thể quét nhóm. Vui lòng kiểm tra lại tài khoản Zalo.' };
+                    return {
+                        success: false,
+                        error: result?.error || '❌ Không thể kết nối tới máy chủ quét (zagiapp.com). Vui lòng kiểm tra lại kết nối mạng hoặc máy chủ đang bảo trì.'
+                    };
                 }
 
                 const members = result.members || [];

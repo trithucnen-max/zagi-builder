@@ -4,12 +4,11 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.0.9] - 2026-07-29
 
-### 🌐 Tự Động Chuyển Luồng Quét Nhóm Khi Máy Chủ Ngoại Tuyến (`zaloIpc.ts` & `backendService.ts`)
-- **Khắc Phục Lỗi "Không Thể Kết Nối" Khi Quét Nhóm Nâng Cao:**
-  - Phát hiện domain máy chủ quét `zagiapp.com` bị ngắt kết nối DNS (`ENOTFOUND zagiapp.com`).
-  - Thêm cơ chế **Local Scanning Engine Fallback**: Khi không thể kết nối tới máy chủ backend (hoặc máy chủ báo lỗi/timeout), Zagi sẽ **tự động chuyển sang quét trực tiếp bằng API Zalo Web local** (lấy thông tin nhóm, danh sách thành viên hiện tại + quét lịch sử nhắn tin 100 tin gần nhất) để thu thập UID thành viên.
-  - Sửa lỗi hàm mã hóa `encryptBody` tương thích an toàn trên cả Electron Main Process lẫn Web Renderer Process.
-  - Thiết lập timeout 6 giây cho các yêu cầu HTTP backend để tránh treo giao diện, đồng thời tự động cho phép tính năng hoạt động ngay cả khi máy chủ xác thực ngoại tuyến.
+### 🌐 Cảnh Báo Mất Kết Nối Máy Chủ Quét Nhóm Nâng Cao (`zaloIpc.ts` & `backendService.ts`)
+- **Kiểm Tra & Cảnh Báo Kết Nối Máy Chủ Nâng Cao:**
+  - Xác nhận địa chỉ máy chủ quét `zagiapp.com` hiện tại **KHÔNG KẾT NỐI ĐƯỢC** (báo lỗi `NXDOMAIN` / tên miền không tồn tại trên hệ thống DNS).
+  - Loại bỏ hoàn toàn cơ chế quét local tự động theo đúng yêu cầu của người dùng.
+  - Hiển thị thông báo cảnh báo rõ ràng khi mất kết nối: `"❌ Không thể kết nối tới máy chủ quét (zagiapp.com). Tên miền máy chủ không tồn tại hoặc ngắt kết nối DNS."`
 
 ### 🔤 Chuẩn Hóa Viết Hoa/Thường Xưng Hổ Trong Workflow (`WorkflowEngineService.ts`)
 - **Khắc Phục Lỗi Viết Hoa Giữa Câu Khi Chạy Workflow:**
