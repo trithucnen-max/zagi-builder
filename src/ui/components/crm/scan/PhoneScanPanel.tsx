@@ -1304,7 +1304,7 @@ export default function PhoneScanPanel() {
                             ) : (
                                 <div className="overflow-x-auto">
                                     {(() => {
-                                        const showRealName = items.some(i => i.real_name && i.real_name !== i.phone);
+                                        const showRealName = true;
                                         const showGender = items.some(i => i.gender !== null && i.gender !== undefined);
                                         const showBirthday = items.some(i => i.birthday && i.birthday.trim() !== '');
 
@@ -1313,7 +1313,7 @@ export default function PhoneScanPanel() {
                                                 <thead>
                                                     <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500">
                                                         <th className="py-2.5 px-3 font-semibold">Số điện thoại</th>
-                                                        {showRealName && <th className="py-2.5 px-3 font-semibold">Tên thật</th>}
+                                                        <th className="py-2.5 px-3 font-semibold">Tên thật (Excel / CRM)</th>
                                                         {showGender && <th className="py-2.5 px-3 font-semibold">Giới tính</th>}
                                                         {showBirthday && <th className="py-2.5 px-3 font-semibold">Ngày sinh</th>}
                                                         <th className="py-2.5 px-3 font-semibold">Trạng thái</th>

@@ -936,9 +936,9 @@ export default class ContactImportService {
         // Push into phone_scan_items for background Zalo scanning
         if (batchId) {
           db.run(
-            `INSERT INTO phone_scan_items (batch_id, phone, phone_normalized, status, created_at)
-             VALUES (?, ?, ?, 'pending', ?)`,
-            [batchId, r.phone_raw || r.phone_normalized, r.phone_normalized, now]
+            `INSERT INTO phone_scan_items (batch_id, phone, phone_normalized, real_name, status, created_at)
+             VALUES (?, ?, ?, ?, 'pending', ?)`,
+            [batchId, r.phone_raw || r.phone_normalized, r.phone_normalized, r.real_name || null, now]
           );
         }
       }
