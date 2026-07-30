@@ -1064,6 +1064,7 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
               </button>
             ) : null}
           </div>
+        </div>
       </div>
 
       {showLabelPicker && (
