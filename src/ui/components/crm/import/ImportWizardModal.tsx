@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
+import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 
 export interface BatchConfig {
   name?: string;
@@ -71,6 +72,40 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
   const [step2ScheduledTime, setStep2ScheduledTime] = useState<string>(
     batchConfig?.scheduledTime || ''
   );
+  const [step2AutoTagIds, setStep2AutoTagIds] = useState<number[]>(
+    batchConfig?.autoTagIds || []
+  );
+  const [step2SkipCrmExisting, setStep2SkipCrmExisting] = useState<boolean>(
+    batchConfig?.skipCrmExisting !== false
+  );
+  const [step2UpdateZaloAlias, setStep2UpdateZaloAlias] = useState<boolean>(
+    batchConfig?.updateZaloAlias !== false
+  );
+
+  const [localLabels, setLocalLabels] = useState<any[]>([]);
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
+
+  useEffect(() => {
+    ipc.db?.getLocalLabels({ zaloId: 'all' }).then((res: any) => {
+      if (res?.labels) setLocalLabels(res.labels);
+    });
+  }, []);
+
+  const labelOptions: LoadedLabelOption[] = useMemo(() => {
+    return localLabels.map((l: any) => ({
+      value: `local:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
+      source: 'local' as const,
+      color: l.color || '#14b8a6',
+      textColor: l.text_color || '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.name,
+    }));
+  }, [localLabels]);
+
+  const selectedLabels = useMemo(() => {
+    return localLabels.filter((l: any) => step2AutoTagIds.includes(Number(l.id)));
+  }, [localLabels, step2AutoTagIds]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -296,6 +331,9 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
           name: batchLabel.trim() || batchConfig?.name || `Lô import CSV ${new Date().toLocaleDateString('vi-VN')}`,
           status: step2Status,
           scheduledTime: step2ScheduledTime,
+          autoTagIds: step2AutoTagIds,
+          skipCrmExisting: step2SkipCrmExisting,
+          updateZaloAlias: step2UpdateZaloAlias,
         } : undefined,
       });
 
@@ -774,11 +812,27 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
               </div>
             </div>
           ) : (
-            /* Step 2: Zalo Scan & Commit Options */
-            <div className="max-w-xl mx-auto space-y-5 py-4">
+            /* Step 2: Confirmation & Batch Options */
+            <div className="max-w-2xl mx-auto space-y-4 py-3">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700/80 shadow-2xs space-y-4">
-                <h4 className="font-bold text-gray-900 dark:text-white text-base">⚙️ Cấu hình Lô Quét SĐT Zalo</h4>
+                
+                {/* Header Summary Banner */}
+                <div className="flex items-center justify-between bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 p-4 rounded-xl">
+                  <div>
+                    <h4 className="font-bold text-gray-900 dark:text-white text-sm flex items-center gap-2">
+                      📋 Xác nhận thông tin & Cấu hình Lô Quét
+                    </h4>
+                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">
+                      Đang chuẩn bị đưa <span className="font-bold text-blue-600 dark:text-blue-400">{stats?.validRows || 0} số điện thoại hợp lệ</span> vào lô quét Zalo.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] font-bold text-gray-500 block uppercase tracking-wider">Ước tính chạy</span>
+                    <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300">~{stats?.etaDays || 1} ngày</span>
+                  </div>
+                </div>
 
+                {/* Batch Creation Strategy Selector */}
                 <div className="flex gap-3 p-1 bg-gray-100 dark:bg-gray-900 rounded-xl">
                   <button
                     type="button"
@@ -805,10 +859,11 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                 </div>
 
                 {createNewBatch ? (
-                  <div className="space-y-4 pt-2">
+                  <div className="space-y-4 pt-1">
+                    {/* Tên lô */}
                     <div>
                       <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                        Tên Lô Quét SĐT Zalo
+                        TÊN LÔ QUÉT *
                       </label>
                       <input
                         type="text"
@@ -819,10 +874,11 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                       />
                     </div>
 
+                    {/* Trạng thái & Hẹn giờ */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
-                          Trạng thái khởi tạo
+                        <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
+                          TRẠNG THÁI KHỞI TẠO
                         </label>
                         <div className="flex gap-2">
                           <button
@@ -851,8 +907,8 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
-                          Hẹn giờ khởi động (Tùy chọn)
+                        <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
+                          HẸN GIỜ KHỞI ĐỘNG (TÙY CHỌN)
                         </label>
                         <input
                           type="time"
@@ -863,16 +919,68 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                       </div>
                     </div>
 
-                    <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl text-[11px] text-blue-900 dark:text-blue-200 flex items-center gap-2">
-                      <span className="text-base">💡</span>
-                      <span>
-                        {step2Status === 'paused'
-                          ? 'Lô quét sẽ tạo ở trạng thái Tạm dừng. Bạn có thể kiểm tra danh sách rồi kích hoạt sau trong mục Quét SĐT Zalo.'
-                          : step2ScheduledTime
-                          ? `Lô quét sẽ tự động chạy ngầm vào lúc ${step2ScheduledTime} hôm nay.`
-                          : 'Lô quét sẽ tự động Kích hoạt & Chạy ngay ngầm ngay sau khi hoàn tất nhập dữ liệu.'}
-                      </span>
+                    {/* Auto Tags Section */}
+                    <div className="border border-gray-200 dark:border-gray-700/80 rounded-xl p-3.5 bg-gray-50/50 dark:bg-gray-850 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider flex items-center gap-1.5">
+                          🏷️ NHÃN TỰ ĐỘNG GÁN (KHI TÌM THẤY ZALO)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowLabelPicker(true)}
+                          className="px-3 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 text-[11px] font-bold rounded-lg transition-colors border border-blue-200 dark:border-blue-800 cursor-pointer flex items-center gap-1"
+                        >
+                          <span>⚙️ Chọn / Đổi nhãn</span>
+                        </button>
+                      </div>
+
+                      {selectedLabels.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {selectedLabels.map((l: any) => (
+                            <span
+                              key={l.id}
+                              className="px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-2xs"
+                              style={{ backgroundColor: l.color || '#14b8a6', color: l.text_color || '#ffffff' }}
+                            >
+                              <span>{l.emoji || '🏷️'}</span>
+                              <span>{l.name}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/40 p-2 rounded-lg border border-amber-200 dark:border-amber-800/60">
+                          ⚠️ Chưa chọn nhãn tự động gán. Bạn nên chọn nhãn (VD: Khách VIP, Nguồn Excel...) để tự động phân loại liên hệ sau khi quét xong.
+                        </p>
+                      )}
                     </div>
+
+                    {/* Checkboxes */}
+                    <div className="space-y-2 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={step2SkipCrmExisting}
+                          onChange={e => setStep2SkipCrmExisting(e.target.checked)}
+                          className="rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                          Bỏ qua các SĐT đã tồn tại trong danh bạ CRM (Tiết kiệm hạn ngạch quét)
+                        </span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={step2UpdateZaloAlias}
+                          onChange={e => setStep2UpdateZaloAlias(e.target.checked)}
+                          className="rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                          Cập nhật tên gợi nhớ Zalo & CRM theo quy tắc: [Tên lô] - [Tên Zalo] - [SĐT]
+                        </span>
+                      </label>
+                    </div>
+
                   </div>
                 ) : (
                   <div>
@@ -956,8 +1064,24 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
               </button>
             ) : null}
           </div>
-        </div>
       </div>
+
+      {showLabelPicker && (
+        <UnifiedLabelPickerModal
+          open={showLabelPicker}
+          onClose={() => setShowLabelPicker(false)}
+          options={labelOptions}
+          selected={step2AutoTagIds.map(id => `local:${id}`)}
+          onChange={selectedVals => {
+            const ids = selectedVals
+              .map(v => Number(v.replace('local:', '')))
+              .filter(n => !isNaN(n));
+            setStep2AutoTagIds(ids);
+          }}
+          mode="multi"
+          accounts={visibleAccounts}
+        />
+      )}
     </div>
   );
 }
