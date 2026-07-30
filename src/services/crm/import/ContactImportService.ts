@@ -24,6 +24,8 @@ export interface SessionStats {
   warnRows: number;
   errorRows: number;
   dupRows: number;
+  dupInFileRows?: number;
+  dupInCrmRows?: number;
   etaDays: number;
 }
 
@@ -276,6 +278,7 @@ export default class ContactImportService {
 
     const crmDupMap = this.lookupCrmDuplicates(allPhones);
 
+    const seenPhonesInFile = new Map<string, number>(); // normalizedPhone -> first rowIndex
     const rowsToInsert: any[] = [];
     const todayStr = new Date().toLocaleDateString('vi-VN', {
       day: '2-digit',
@@ -347,20 +350,34 @@ export default class ContactImportService {
         ...genderRes.issues,
       ];
 
-      // Check duplicate in CRM
+      // Check 2-Tier Duplicates: Tier 1 (In File), Tier 2 (In CRM)
       let dupType: DupType = 'none';
       let dupContactIds: string[] = [];
       let dupAccounts: any[] = [];
 
-      if (phoneRes.normalized && crmDupMap.has(phoneRes.normalized)) {
-        dupType = 'in_crm';
-        const matches = crmDupMap.get(phoneRes.normalized)!;
-        dupContactIds = matches.map(m => m.contact_id);
-        dupAccounts = matches.map(m => ({
-          zalo_id: m.owner_zalo_id,
-          account_name: m.account_name || m.owner_zalo_id,
-          current_display_name: m.display_name,
-        }));
+      if (phoneRes.normalized) {
+        if (seenPhonesInFile.has(phoneRes.normalized)) {
+          dupType = 'in_file';
+          const firstRowIdx = seenPhonesInFile.get(phoneRes.normalized)!;
+          allIssues.push({
+            code: 'EXCEL_FLOAT_FORMAT',
+            severity: 'warning',
+            message: `Trùng SĐT với Dòng ${firstRowIdx} trong file`,
+          });
+        } else {
+          seenPhonesInFile.set(phoneRes.normalized, idx + 1);
+
+          if (crmDupMap.has(phoneRes.normalized)) {
+            dupType = 'in_crm';
+            const matches = crmDupMap.get(phoneRes.normalized)!;
+            dupContactIds = matches.map(m => m.contact_id);
+            dupAccounts = matches.map(m => ({
+              zalo_id: m.owner_zalo_id,
+              account_name: m.account_name || m.owner_zalo_id,
+              current_display_name: m.display_name,
+            }));
+          }
+        }
       }
 
       // Determine alias preview
@@ -516,6 +533,13 @@ export default class ContactImportService {
       return { totalRows: 0, validRows: 0, warnRows: 0, errorRows: 0, dupRows: 0, etaDays: 0 };
     }
 
+    const detailedDup = db.queryOne<any>(`
+      SELECT 
+        SUM(CASE WHEN dup_type = 'in_file' THEN 1 ELSE 0 END) as in_file_cnt,
+        SUM(CASE WHEN dup_type = 'in_crm' THEN 1 ELSE 0 END) as in_crm_cnt
+      FROM import_rows WHERE session_id = ?
+    `, [sessionId]);
+
     // ETA calculation: Zalo scanning safety limit is 100 contacts/day per account
     const accounts = db.getAccounts() || [];
     const activeAccountCount = Math.max(1, accounts.filter((a: any) => a.is_active !== 0).length);
@@ -528,6 +552,8 @@ export default class ContactImportService {
       warnRows: s.warn_rows || 0,
       errorRows: s.error_rows || 0,
       dupRows: s.dup_rows || 0,
+      dupInFileRows: detailedDup?.in_file_cnt || 0,
+      dupInCrmRows: detailedDup?.in_crm_cnt || 0,
       etaDays,
     };
   }
@@ -538,7 +564,7 @@ export default class ContactImportService {
   public getRows(
     sessionId: string,
     opts: {
-      filter?: 'all' | 'valid' | 'warning' | 'error' | 'dup';
+      filter?: 'all' | 'valid' | 'warning' | 'error' | 'dup' | 'dup_file' | 'dup_crm';
       offset: number;
       limit: number;
     }
@@ -548,8 +574,12 @@ export default class ContactImportService {
     const params: any[] = [sessionId];
 
     if (opts.filter && opts.filter !== 'all') {
-      if (opts.filter === 'dup') {
+      if ((opts.filter as string) === 'dup') {
         whereClause += ` AND dup_type != 'none'`;
+      } else if ((opts.filter as string) === 'dup_file') {
+        whereClause += ` AND dup_type = 'in_file'`;
+      } else if ((opts.filter as string) === 'dup_crm') {
+        whereClause += ` AND dup_type = 'in_crm'`;
       } else {
         whereClause += ` AND validity = ?`;
         params.push(opts.filter);
@@ -801,6 +831,12 @@ export default class ContactImportService {
     db.transaction(() => {
       for (const r of rows) {
         if (!r.phone_normalized) {
+          skipped++;
+          continue;
+        }
+
+        // In-file duplicate rows (Row 2, Row 3...) are automatically skipped from queuing into batch scan
+        if (r.dup_type === 'in_file') {
           skipped++;
           continue;
         }

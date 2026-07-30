@@ -477,15 +477,15 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                 </div>
               )}
 
-              {/* 4 Stat Cards + ETA */}
+              {/* 5 Stat Cards + ETA */}
               <div className="grid grid-cols-5 gap-3">
                 <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl p-3.5 shadow-2xs">
                   <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">✅ Hợp lệ</div>
                   <div className="text-2xl font-black text-emerald-800 dark:text-emerald-200 mt-0.5">{stats?.validRows || 0}</div>
                 </div>
                 <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-3.5 shadow-2xs">
-                  <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400">⚠️ Cảnh báo</div>
-                  <div className="text-2xl font-black text-amber-800 dark:text-amber-200 mt-0.5">{stats?.warnRows || 0}</div>
+                  <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400">📄 Trùng trong File</div>
+                  <div className="text-2xl font-black text-amber-800 dark:text-amber-200 mt-0.5">{stats?.dupInFileRows || 0}</div>
                 </div>
                 <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl p-3.5 shadow-2xs">
                   <div className="text-[11px] font-bold text-rose-700 dark:text-rose-400">❌ Lỗi</div>
@@ -493,7 +493,7 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                 </div>
                 <div className="bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 rounded-2xl p-3.5 shadow-2xs">
                   <div className="text-[11px] font-bold text-orange-700 dark:text-orange-400">🔁 Trùng CRM</div>
-                  <div className="text-2xl font-black text-orange-800 dark:text-orange-200 mt-0.5">{stats?.dupRows || 0}</div>
+                  <div className="text-2xl font-black text-orange-800 dark:text-orange-200 mt-0.5">{stats?.dupInCrmRows ?? stats?.dupRows ?? 0}</div>
                 </div>
                 <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-2xl p-3.5 shadow-2xs">
                   <div className="text-[11px] font-bold text-blue-700 dark:text-blue-400">⏱️ Ước tính ETA</div>
@@ -654,8 +654,9 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                   { key: 'all', label: `Tất cả (${stats?.totalRows || 0})` },
                   { key: 'valid', label: `✅ Hợp lệ (${stats?.validRows || 0})` },
                   { key: 'warning', label: `⚠️ Cảnh báo (${stats?.warnRows || 0})` },
+                  { key: 'dup_file', label: `📄 Trùng trong File (${stats?.dupInFileRows || 0})` },
+                  { key: 'dup_crm', label: `🔁 Trùng CRM (${stats?.dupInCrmRows || 0})` },
                   { key: 'error', label: `❌ Lỗi (${stats?.errorRows || 0})` },
-                  { key: 'dup', label: `🔁 Trùng (${stats?.dupRows || 0})` },
                 ].map(t => (
                   <button
                     key={t.key}
@@ -734,9 +735,13 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                               {r.gender === 0 ? 'Nam' : r.gender === 1 ? 'Nữ' : '-'}
                             </td>
                             <td className="p-3">
-                              {r.dup_type !== 'none' ? (
-                                <span className="px-2.5 py-0.5 rounded-xl text-[11px] font-medium bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
-                                  Trùng ({r.dup_account_count} TK Zalo)
+                              {r.dup_type === 'in_file' ? (
+                                <span className="px-2.5 py-0.5 rounded-xl text-[11px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                  📄 Trùng trong File
+                                </span>
+                              ) : r.dup_type === 'in_crm' ? (
+                                <span className="px-2.5 py-0.5 rounded-xl text-[11px] font-bold bg-orange-100 text-orange-900 dark:bg-orange-950/80 dark:text-orange-300 border border-orange-300 dark:border-orange-700">
+                                  🔁 Trùng CRM ({r.dup_account_count} TK Zalo)
                                 </span>
                               ) : issues.length > 0 ? (
                                 <span className="px-2.5 py-0.5 rounded-xl text-[11px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
