@@ -805,7 +805,7 @@ export default class ContactImportService {
       const hourlyLimit = cfg.hourlyLimit || 30;
       const priority = cfg.priority || 0;
       const initialStatus = cfg.status || 'active';
-      const scheduledTime = cfg.scheduledTime || null;
+      const scheduledTime = cfg.scheduledTime || '';
       const skipCrmExisting = cfg.skipCrmExisting !== false ? 1 : 0;
       const autoWorkflowId = cfg.autoWorkflowId ? Number(cfg.autoWorkflowId) : null;
       const updateZaloAlias = cfg.updateZaloAlias !== false ? 1 : 0;
