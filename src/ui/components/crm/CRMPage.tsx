@@ -94,18 +94,19 @@ function ReassignOwnerModal({
   selectedCount: number;
   fromZaloId: string;
   accounts: any[];
-  onConfirm: (targetZaloId: string) => Promise<void>;
+  onConfirm: (targetZaloId: string, mode: 'share' | 'move') => Promise<void>;
   onClose: () => void;
 }) {
   const otherAccounts = accounts.filter(a => a.zalo_id !== fromZaloId);
   const [targetId, setTargetId] = useState<string>(otherAccounts[0]?.zalo_id || '');
+  const [mode, setMode] = useState<'share' | 'move'>('share');
   const [submitting, setSubmitting] = useState(false);
 
   const handleConfirm = async () => {
     if (!targetId) return;
     setSubmitting(true);
     try {
-      await onConfirm(targetId);
+      await onConfirm(targetId, mode);
     } finally {
       setSubmitting(false);
     }
@@ -116,13 +117,13 @@ function ReassignOwnerModal({
       <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-gray-700">
           <h3 className="text-base font-semibold text-white flex items-center gap-2">
-            <span>🔀</span> Chuyển liên hệ sang Zalo khác
+            <span>🔄</span> Chuyển / Chia sẻ liên hệ Zalo
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">✕</button>
         </div>
 
         <p className="text-xs text-gray-300">
-          Bạn đang chọn <strong className="text-blue-400 font-bold">{selectedCount}</strong> liên hệ. Chọn tài khoản Zalo đích để chuyển các liên hệ này sang chăm sóc:
+          Bạn đang chọn <strong className="text-blue-400 font-bold">{selectedCount}</strong> liên hệ. Vui lòng chọn tài khoản Zalo đích và hình thức xử lý:
         </p>
 
         {otherAccounts.length === 0 ? (
@@ -130,19 +131,59 @@ function ReassignOwnerModal({
             ⚠️ Bạn chỉ đang đăng nhập 1 tài khoản Zalo. Vui lòng đăng nhập thêm tài khoản Zalo khác trên Zagi để thực hiện chuyển liên hệ.
           </div>
         ) : (
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-400">Chọn tài khoản Zalo đích:</label>
-            <select
-              value={targetId}
-              onChange={e => setTargetId(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-blue-500 transition-colors"
-            >
-              {otherAccounts.map(acc => (
-                <option key={acc.zalo_id} value={acc.zalo_id}>
-                  {acc.name || acc.display_name || acc.zalo_id} ({acc.phone || acc.zalo_id})
-                </option>
-              ))}
-            </select>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-400">Tài khoản Zalo đích nhận dữ liệu:</label>
+              <select
+                value={targetId}
+                onChange={e => setTargetId(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-blue-500 transition-colors"
+              >
+                {otherAccounts.map(acc => (
+                  <option key={acc.zalo_id} value={acc.zalo_id}>
+                    {acc.name || acc.display_name || acc.zalo_id} ({acc.phone || acc.zalo_id})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-gray-700/60">
+              <label className="text-xs font-medium text-gray-300 block">Hình thức thực hiện:</label>
+              
+              <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${mode === 'share' ? 'bg-blue-600/15 border-blue-500/60 text-white' : 'bg-gray-900/60 border-gray-700/70 text-gray-400 hover:border-gray-600'}`}>
+                <input
+                  type="radio"
+                  name="reassign_mode"
+                  value="share"
+                  checked={mode === 'share'}
+                  onChange={() => setMode('share')}
+                  className="mt-0.5 accent-blue-500"
+                />
+                <div className="space-y-0.5 text-xs">
+                  <div className="font-semibold text-gray-200">🤝 1. Chia sẻ liên hệ (Share)</div>
+                  <div className="text-[11px] text-gray-400 leading-normal">
+                    Sao chép dữ liệu + Nhãn sang Zalo mới để chạy chiến dịch. Zalo hiện tại <strong>vẫn giữ nguyên</strong> thông tin.
+                  </div>
+                </div>
+              </label>
+
+              <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${mode === 'move' ? 'bg-red-600/15 border-red-500/60 text-white' : 'bg-gray-900/60 border-gray-700/70 text-gray-400 hover:border-gray-600'}`}>
+                <input
+                  type="radio"
+                  name="reassign_mode"
+                  value="move"
+                  checked={mode === 'move'}
+                  onChange={() => setMode('move')}
+                  className="mt-0.5 accent-red-500"
+                />
+                <div className="space-y-0.5 text-xs">
+                  <div className="font-semibold text-gray-200">📦 2. Chuyển hẳn quyền sở hữu (Move)</div>
+                  <div className="text-[11px] text-gray-400 leading-normal">
+                    Chuyển toàn bộ dữ liệu + Nhãn sang Zalo mới và <strong>XÓA SẠCH</strong> khỏi danh sách Zalo hiện tại.
+                  </div>
+                </div>
+              </label>
+            </div>
           </div>
         )}
 
@@ -156,7 +197,7 @@ function ReassignOwnerModal({
           <button
             disabled={submitting || otherAccounts.length === 0 || !targetId}
             onClick={handleConfirm}
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40 transition-colors flex items-center gap-1.5"
+            className={`px-4 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-40 transition-colors flex items-center gap-1.5 ${mode === 'move' ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'}`}
           >
             {submitting && (
               <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
@@ -164,7 +205,7 @@ function ReassignOwnerModal({
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
             )}
-            Xác nhận chuyển
+            {mode === 'move' ? 'Xác nhận Chuyển Hẳn' : 'Xác nhận Chia Sẻ'}
           </button>
         </div>
       </div>
@@ -265,11 +306,15 @@ export default function CRMPage() {
 
   useEffect(() => { loadLocalLabels(); }, [activeAccountId]);
 
-  // Listen for local-labels-changed to refresh local labels
+  // Listen for local-labels-changed & ui:threadLabelsChanged to refresh local labels
   useEffect(() => {
     const handler = () => { loadLocalLabels(); };
     window.addEventListener('local-labels-changed', handler);
-    return () => window.removeEventListener('local-labels-changed', handler);
+    window.addEventListener('ui:threadLabelsChanged', handler);
+    return () => {
+      window.removeEventListener('local-labels-changed', handler);
+      window.removeEventListener('ui:threadLabelsChanged', handler);
+    };
   }, [loadLocalLabels]);
 
   // Option A: 100% Account Isolation — Auto-reset all filters & selections when switching activeAccountId
@@ -299,6 +344,11 @@ export default function CRMPage() {
   // ── Load data ────────────────────────────────────────────────────────────
   const loadContacts = useCallback(async () => {
     if (!activeAccountId) return;
+    // Auto-cleanup any ghost unscanned import contacts from DB before fetching
+    try {
+      await ipc.crm?.import?.cleanupGhostContacts?.();
+    } catch {}
+
     store.setContactsLoading(true);
     // Strip client-only filters (has_phone, has_notes) before sending to backend
     const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes');
@@ -888,7 +938,7 @@ export default function CRMPage() {
 
   const [showReassignModal, setShowReassignModal] = useState(false);
 
-  const handleConfirmReassign = async (targetZaloId: string) => {
+  const handleConfirmReassign = async (targetZaloId: string, mode: 'share' | 'move' = 'share') => {
     if (!activeAccountId || !targetZaloId) return;
     const contactIds = Array.from(store.selectedContactIds);
     if (!contactIds.length) return;
@@ -898,17 +948,20 @@ export default function CRMPage() {
         fromZaloId: activeAccountId,
         targetZaloId,
         contactIds,
+        mode,
       });
 
       if (res?.success) {
         const targetAcc = accounts.find(a => a.zalo_id === targetZaloId);
         const targetName = targetAcc?.name || targetAcc?.display_name || targetZaloId;
-        showNotification(`Đã chuyển ${res.reassignedCount || contactIds.length} liên hệ sang tài khoản ${targetName}`, 'success');
+        const actionText = mode === 'move' ? 'chuyển hẳn' : 'chia sẻ (kèm nhãn)';
+        showNotification(`Đã ${actionText} ${res.reassignedCount || contactIds.length} liên hệ sang tài khoản ${targetName}`, 'success');
         store.clearSelection();
         setShowReassignModal(false);
         loadContacts();
+        loadLocalLabels();
       } else {
-        showNotification(res?.error || 'Lỗi: Không thể chuyển liên hệ', 'error');
+        showNotification(res?.error || 'Lỗi: Không thể thực hiện chuyển liên hệ', 'error');
       }
     } catch (err: any) {
       showNotification(err?.message || 'Có lỗi xảy ra', 'error');
@@ -1116,6 +1169,17 @@ export default function CRMPage() {
                       showNotification("Lưu thất bại: " + err.message, "error");
                     }
                   }}
+                  onCleanupGhostContacts={async () => {
+                    try {
+                      const res = await ipc.crm?.import?.cleanupGhostContacts?.();
+                      if (res?.success) {
+                        showNotification(`Đã dọn dẹp sạch ${res.count || 0} liên hệ rác chưa quét Zalo khỏi CRM!`, 'success');
+                        await loadContacts();
+                      }
+                    } catch (e: any) {
+                      showNotification('Lỗi dọn dẹp: ' + e.message, 'error');
+                    }
+                  }}
                 />
               </div>
               {activeContact && (
@@ -1179,7 +1243,7 @@ export default function CRMPage() {
                 </div>
               ) : (
                 <>
-                  <div className="w-72 flex-shrink-0 border-r border-gray-700 overflow-hidden flex flex-col">
+                  <div className="w-[340px] flex-shrink-0 overflow-hidden flex flex-col">
                     <CampaignList
                       campaigns={store.campaigns}
                       loading={store.campaignsLoading}
@@ -1203,6 +1267,7 @@ export default function CRMPage() {
                         onStatusChange={handleUpdateCampaignStatus}
                         onAddContacts={handleAddContactsToCampaign}
                         onUpdate={handleUpdateCampaign}
+                        onClone={id => { setCloneCampaignId(id); setShowCloneCampaign(true); }}
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full text-gray-500">

@@ -328,6 +328,7 @@ declare global {
           rollback: (params: { sessionId: string }) => Promise<{ success: boolean; restored?: number; error?: string }>;
           cancelSession: (params: { sessionId: string }) => Promise<{ success: boolean; error?: string }>;
           getSampleTemplate: () => Promise<{ success: boolean; fileBase64?: string; error?: string }>;
+          cleanupGhostContacts: () => Promise<{ success: boolean; count?: number; error?: string }>;
         };
         mergeContacts: (params: { targetZaloId: string; phone?: string; contactId: string }) => Promise<{ success: boolean; error?: string }>;
         cleanupCorruptedAliases: () => Promise<{ success: boolean; cleanedCount?: number; error?: string }>;

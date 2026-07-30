@@ -48,6 +48,7 @@ interface CRMContactListProps {
   onMessage?: (contact: CRMContact) => void;
   onImportPhones?: () => void;
   onImportData?: () => void;
+  onCleanupGhostContacts?: () => void;
   onDeleteContact?: (contactId: string) => void;
   /** Batch patch nhiều field của một contact (inline edit) */
   onPatchContact?: (contactId: string, fields: {
@@ -513,13 +514,14 @@ function SalutationFilterDropdown({ contacts, value, onChange }: {
   );
 }
 
-function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onImportData, onMergeDuplicates }: {
+function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onImportData, onMergeDuplicates, onCleanupGhostContacts }: {
   total: number;
   exportingCSV: boolean;
   onExportCSV: () => void;
   onImportPhones?: () => void;
   onImportData?: () => void;
   onMergeDuplicates?: () => void;
+  onCleanupGhostContacts?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -542,7 +544,7 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onI
         </svg>
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[210px] overflow-hidden py-1">
+        <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[220px] overflow-hidden py-1">
           {/* Export CSV */}
           <button
             onClick={() => { onExportCSV(); setOpen(false); }}
@@ -594,6 +596,17 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onI
                 <polyline points="17 11 19 13 23 9"/>
               </svg>
               <span>🧹 Gộp liên hệ trùng SĐT</span>
+            </button>
+          )}
+          {/* Cleanup Ghost Contacts */}
+          {onCleanupGhostContacts && (
+            <button
+              onClick={() => { onCleanupGhostContacts(); setOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-gray-700 transition-colors text-left font-semibold border-t border-gray-700">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-red-400">
+                <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              <span>🧹 Dọn sạch liên hệ rác (chưa quét Zalo)</span>
             </button>
           )}
         </div>
@@ -1220,6 +1233,7 @@ export default function CRMContactList({
           onImportPhones={onImportPhones}
           onImportData={onImportData}
           onMergeDuplicates={handleMergeDuplicates}
+          onCleanupGhostContacts={onCleanupGhostContacts}
         />
 
         {/* Batch Save button — chỉ hiện khi có pending edits */}
@@ -1436,7 +1450,7 @@ export default function CRMContactList({
                     return (
                       <div className="flex gap-1 flex-wrap mt-0.5">
                         {threadLIds.slice(0, 3).map(lid => {
-                          const ll = localLabels?.find(l => l.id === lid);
+                          const ll = localLabels?.find(l => l.id === lid || Number(l.id) === Number(lid));
                           if (!ll) return null;
                           return (
                             <span key={`ll-${lid}`}

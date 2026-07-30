@@ -1048,5 +1048,14 @@ export function registerCRMIpc(): void {
             return { success: false, error: e.message };
         }
     });
+
+    ipcHandle('crm:import:cleanupGhostContacts', async () => {
+        try {
+            const count = DatabaseService.getInstance().cleanupTempUnscannedContacts();
+            return { success: true, count };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
 }
 

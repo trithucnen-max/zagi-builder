@@ -9756,10 +9756,18 @@ class DatabaseService {
     public cleanupTempUnscannedContacts(): number {
         if (!this.initialized) return 0;
         try {
-            const res = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM contacts WHERE contact_id LIKE 'tmp_%'`);
-            const cnt = res?.cnt || 0;
+            const countRow = this.queryOne<any>(`
+                SELECT COUNT(*) as cnt FROM contacts 
+                WHERE contact_id LIKE 'tmp_%' 
+                   OR (import_session_id IS NOT NULL AND (is_friend IS NULL OR is_friend = 0) AND (avatar_url IS NULL OR avatar_url = '') AND (last_message IS NULL OR last_message = ''))
+            `);
+            const cnt = countRow?.cnt || 0;
             if (cnt > 0) {
-                this.run(`DELETE FROM contacts WHERE contact_id LIKE 'tmp_%'`);
+                this.run(`
+                    DELETE FROM contacts 
+                    WHERE contact_id LIKE 'tmp_%' 
+                       OR (import_session_id IS NOT NULL AND (is_friend IS NULL OR is_friend = 0) AND (avatar_url IS NULL OR avatar_url = '') AND (last_message IS NULL OR last_message = ''))
+                `);
                 this.save();
                 Logger.log(`[DatabaseService] ✅ Cleaned up ${cnt} temporary unscanned ghost contacts from CRM`);
             }
