@@ -762,7 +762,7 @@ export default function CRMContactList({
   activeAccountId, localLabels, localLabelThreadMap, assistants, allContactsForFilter,
   onSelectContact, onActivateContact, onSelectAll, onClearAll, onSelectAllPages,
   onExportAll,
-  onFilterChange, onPageChange, onMessage, onImportPhones, onImportData,
+  onFilterChange, onPageChange, onMessage, onImportPhones, onImportData, onCleanupGhostContacts,
   onDeleteContact, onPatchContact,
 }: CRMContactListProps) {
   const totalPages = Math.ceil(total / pageSize);
