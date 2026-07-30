@@ -93,6 +93,7 @@ export default class ContactImportService {
     selectedSheet?: string;
   } {
     const db = DatabaseService.getInstance();
+    db.cleanupTempUnscannedContacts();
     const sessionId = `imp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     let rawTable: RawTable = { header: [], rows: [] };
@@ -459,7 +460,7 @@ export default class ContactImportService {
         `SELECT c.contact_id, c.owner_zalo_id, c.phone, c.display_name, a.full_name as account_name
          FROM contacts c
          LEFT JOIN accounts a ON a.zalo_id = c.owner_zalo_id
-         WHERE c.phone IN (${placeholders})`,
+         WHERE c.phone IN (${placeholders}) AND c.contact_id NOT LIKE 'tmp_%'`,
         chunk
       );
 
@@ -844,29 +845,8 @@ export default class ContactImportService {
         };
 
         if (r.dup_type === 'none') {
-          // New contact entry
-          const tempContactId = `tmp_${r.phone_normalized}`;
-          db.run(
-            `INSERT OR IGNORE INTO contacts (
-              owner_zalo_id, contact_id, display_name, phone, phone_raw, full_name_raw,
-              real_name, alias, gender, birthday, salutation, field_sources_json, import_session_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              session.owner_zalo_id,
-              tempContactId,
-              r.real_name || r.phone_normalized,
-              r.phone_normalized,
-              r.phone_raw,
-              r.full_name_raw,
-              r.real_name,
-              r.alias_preview,
-              r.gender,
-              r.birthday_value,
-              r.salutation,
-              JSON.stringify(fieldSources),
-              sessionId,
-            ]
-          );
+          // New contact entry — DO NOT pre-insert unverified temp contacts into CRM contacts table.
+          // Real contacts will be inserted by PhoneScanService ONLY when scan returns status = 'found' with a verified Zalo UID.
           inserted++;
         } else {
           // Duplicate contact update based on strategy

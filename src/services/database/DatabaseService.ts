@@ -2686,6 +2686,137 @@ class DatabaseService {
         } catch (err: any) {
             Logger.warn(`[DatabaseService] salutation auto-fill migration warning: ${err.message}`);
         }
+
+        // ── P0 Migration for CSV / Excel Contact Import ──
+        try {
+            this.ensureTable('import_sessions', `
+                CREATE TABLE IF NOT EXISTS import_sessions (
+                  id                      TEXT PRIMARY KEY,
+                  batch_id                TEXT,
+                  owner_zalo_id           TEXT,
+                  created_by_employee_id  TEXT,
+                  file_name               TEXT,
+                  file_hash               TEXT,
+                  source_type             TEXT,
+                  data_source_note        TEXT,
+                  total_rows              INTEGER DEFAULT 0,
+                  valid_rows              INTEGER DEFAULT 0,
+                  warn_rows               INTEGER DEFAULT 0,
+                  error_rows              INTEGER DEFAULT 0,
+                  dup_rows                INTEGER DEFAULT 0,
+                  column_mapping_json     TEXT,
+                  gender_convention       TEXT,
+                  date_order              TEXT DEFAULT 'DMY',
+                  dup_strategy            TEXT DEFAULT 'fill_empty',
+                  alias_use_batch_formula INTEGER DEFAULT 0,
+                  batch_label             TEXT,
+                  status                  TEXT DEFAULT 'previewing',
+                  created_at              INTEGER,
+                  committed_at            INTEGER
+                );
+            `);
+
+            this.ensureTable('import_rows', `
+                CREATE TABLE IF NOT EXISTS import_rows (
+                  id                       TEXT PRIMARY KEY,
+                  session_id               TEXT NOT NULL,
+                  row_index                INTEGER,
+                  full_name_raw            TEXT,
+                  phone_raw                TEXT,
+                  birthday_raw             TEXT,
+                  gender_raw               TEXT,
+                  note_raw                 TEXT,
+                  real_name                TEXT,
+                  phone_normalized         TEXT,
+                  birthday_value           TEXT,
+                  birthday_precision       TEXT,
+                  gender                   INTEGER,
+                  salutation               TEXT,
+                  alias_preview            TEXT,
+                  notes_merged             TEXT,
+                  name_confidence          REAL DEFAULT 1.0,
+                  name_word_count          INTEGER,
+                  name_branch              TEXT,
+                  name_alt_suggestion      TEXT,
+                  is_org                   INTEGER DEFAULT 0,
+                  validity                 TEXT,
+                  issues_json              TEXT,
+                  dup_type                 TEXT,
+                  dup_contact_ids_json     TEXT,
+                  dup_owner_accounts_json  TEXT,
+                  dup_account_count        INTEGER DEFAULT 0,
+                  user_action              TEXT,
+                  user_edited              INTEGER DEFAULT 0
+                );
+            `);
+            this.exec(`CREATE INDEX IF NOT EXISTS idx_import_rows_session ON import_rows(session_id);`);
+            this.exec(`CREATE INDEX IF NOT EXISTS idx_import_rows_valid   ON import_rows(session_id, validity);`);
+            this.exec(`CREATE INDEX IF NOT EXISTS idx_import_rows_phone   ON import_rows(session_id, phone_normalized);`);
+
+            this.ensureTable('name_split_overrides', `
+                CREATE TABLE IF NOT EXISTS name_split_overrides (
+                  full_name_normalized TEXT PRIMARY KEY,
+                  real_name            TEXT NOT NULL,
+                  hit_count            INTEGER DEFAULT 1,
+                  updated_at           INTEGER
+                );
+            `);
+
+            this.ensureTable('import_rollback_snapshots', `
+                CREATE TABLE IF NOT EXISTS import_rollback_snapshots (
+                  id          TEXT PRIMARY KEY,
+                  session_id  TEXT NOT NULL,
+                  contact_id  TEXT NOT NULL,
+                  before_json TEXT NOT NULL,
+                  created_at  INTEGER,
+                  expires_at  INTEGER
+                );
+            `);
+            this.exec(`CREATE INDEX IF NOT EXISTS idx_rollback_session ON import_rollback_snapshots(session_id);`);
+
+            this.ensureTable('name_salutation_words', `
+                CREATE TABLE IF NOT EXISTS name_salutation_words (
+                  word TEXT PRIMARY KEY,
+                  enabled INTEGER DEFAULT 1
+                );
+            `);
+            this.exec(`INSERT OR IGNORE INTO name_salutation_words (word, enabled) VALUES ('anh', 1);`);
+
+            // Add new columns to contacts
+            this.ensureColumn('contacts', 'full_name_raw', 'TEXT DEFAULT NULL');
+            this.ensureColumn('contacts', 'phone_raw', 'TEXT DEFAULT NULL');
+            this.ensureColumn('contacts', 'real_name', 'TEXT DEFAULT NULL');
+            this.ensureColumn('contacts', 'field_sources_json', 'TEXT DEFAULT NULL');
+            this.ensureColumn('contacts', 'import_session_id', 'TEXT DEFAULT NULL');
+            this.ensureColumn('contacts', 'alias_manual', 'INTEGER DEFAULT 0');
+            this.ensureColumn('contacts', 'salutation_manual', 'INTEGER DEFAULT 0');
+            this.ensureColumn('contacts', 'alias_sync_status', 'TEXT DEFAULT NULL');
+
+            this.save();
+            Logger.log('[DatabaseService] ✅ Migration: CSV import tables & contacts columns initialized');
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] CSV import migration warning: ${err.message}`);
+        }
+    }
+
+    private ensureTable(name: string, createSql: string): void {
+        try {
+            this.exec(createSql);
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] ensureTable ${name} warning: ${err.message}`);
+        }
+    }
+
+    private ensureColumn(table: string, column: string, ddl: string): void {
+        try {
+            const cols = this.query<any>(`PRAGMA table_info(${table})`);
+            if (cols.length > 0 && !cols.some((c: any) => c.name === column)) {
+                this.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+                Logger.log(`[DatabaseService] Migration: added ${column} to ${table}`);
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] ensureColumn ${table}.${column} warning: ${err.message}`);
+        }
     }
 
     // ─── Account Operations ───────────────────────────────────────────────
@@ -3371,7 +3502,7 @@ class DatabaseService {
                 this.run(
                     `UPDATE contacts SET 
                        gender = CASE WHEN gender IS NULL THEN ? ELSE gender END,
-                       salutation = CASE WHEN salutation IS NULL OR salutation = '' THEN ? ELSE salutation END
+                       salutation = CASE WHEN (salutation_manual IS NULL OR salutation_manual = 0) AND (salutation IS NULL OR salutation = '' OR salutation = 'Anh/Chị') THEN ? ELSE salutation END
                      WHERE owner_zalo_id=? AND contact_id=?`,
                     [gender, autoSalutation, ownerZaloId, contactId]
                 );
@@ -3437,8 +3568,8 @@ class DatabaseService {
 
                     // Transfer labels from secondary to master in local_label_threads
                     const labelRows = this.query<{ label_id: number }>(
-                        `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`,
-                        [ownerId, secId]
+                        `SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?)`,
+                        [ownerId, secId, normPhone, grp.phone]
                     );
                     for (const l of labelRows) {
                         this.run(
@@ -3446,7 +3577,7 @@ class DatabaseService {
                             [ownerId, l.label_id, masterId]
                         );
                     }
-                    this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [ownerId, secId]);
+                    this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?)`, [ownerId, secId, normPhone, grp.phone]);
 
                     // Transfer tags in crm_contact_tags
                     const tagRows = this.query<{ tag_id: number }>(
@@ -5464,7 +5595,7 @@ class DatabaseService {
     // ─── Local Labels ──────────────────────────────────────────────────────────
 
     /** Lấy tất cả local labels.
-     *  Nếu zaloId được cung cấp → chỉ trả về labels áp dụng cho account đó (page_ids rỗng = global). */
+     *  Nếu zaloId được cung cấp → chỉ trả về labels áp dụng cho account đó (page_ids rỗng = global hoặc có gán nhãn cho thread của account). */
     public getLocalLabels(zaloId?: string): any[] {
         if (!this.initialized) return [];
         try {
@@ -5472,8 +5603,11 @@ class DatabaseService {
                 return this.query<any>(`SELECT * FROM local_labels ORDER BY sort_order ASC, name ASC`);
             }
             return this.query<any>(
-                `SELECT * FROM local_labels WHERE page_ids = '' OR page_ids LIKE ? ORDER BY sort_order ASC, name ASC`,
-                [`%${zaloId}%`]
+                `SELECT DISTINCT ll.* FROM local_labels ll
+                 LEFT JOIN local_label_threads llt ON ll.id = llt.label_id AND llt.owner_zalo_id = ?
+                 WHERE ll.page_ids = '' OR ll.page_ids LIKE ? OR llt.label_id IS NOT NULL
+                 ORDER BY ll.sort_order ASC, ll.name ASC`,
+                [zaloId, `%${zaloId}%`]
             );
         } catch (err: any) {
             Logger.error(`[DB] getLocalLabels: ${err.message}`);
@@ -6772,33 +6906,63 @@ class DatabaseService {
         }
     }
 
-    public reassignContactsOwner(fromZaloId: string, targetZaloId: string, contactIds: string[]): { success: boolean; reassignedCount: number } {
+    public reassignContactsOwner(fromZaloId: string, targetZaloId: string, contactIds: string[], mode: 'share' | 'move' = 'share'): { success: boolean; reassignedCount: number } {
         if (!this.initialized || !contactIds.length) return { success: false, reassignedCount: 0 };
         try {
             this.run('BEGIN TRANSACTION');
             let count = 0;
+            const updatedTagAccountIds = new Set<string>([targetZaloId]);
+            if (mode === 'move') updatedTagAccountIds.add(fromZaloId);
+
             for (const cid of contactIds) {
                 const old = this.queryOne<any>(`SELECT * FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [fromZaloId, cid]);
                 if (old) {
+                    // 1. Copy/upsert contact to targetZaloId
                     const targetExisting = this.queryOne<any>(`SELECT id FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [targetZaloId, cid]);
                     if (targetExisting) {
                         this.run(
-                            `UPDATE contacts SET display_name = ?, avatar_url = ?, phone = ?, alias = ?, is_blocked = 0 WHERE owner_zalo_id = ? AND contact_id = ?`,
-                            [old.display_name || '', old.avatar_url || '', old.phone || '', old.alias || '', targetZaloId, cid]
+                            `UPDATE contacts SET display_name = ?, avatar_url = ?, phone = ?, alias = ?, gender = ?, birthday = ?, salutation = ?, pipeline_stage_id = ?, is_blocked = 0 WHERE owner_zalo_id = ? AND contact_id = ?`,
+                            [old.display_name || '', old.avatar_url || '', old.phone || '', old.alias || '', old.gender ?? null, old.birthday ?? null, old.salutation ?? null, old.pipeline_stage_id ?? null, targetZaloId, cid]
                         );
                     } else {
                         this.run(
-                            `INSERT INTO contacts (owner_zalo_id, contact_id, display_name, avatar_url, phone, is_friend, contact_type, last_message, last_message_time, alias, gender, birthday, salutation, is_blocked)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-                            [targetZaloId, cid, old.display_name || '', old.avatar_url || '', old.phone || '', old.is_friend || 0, old.contact_type || 'user', old.last_message || '', old.last_message_time || 0, old.alias || '', old.gender ?? null, old.birthday ?? null, old.salutation ?? null]
+                            `INSERT INTO contacts (owner_zalo_id, contact_id, display_name, avatar_url, phone, is_friend, contact_type, last_message, last_message_time, alias, gender, birthday, salutation, pipeline_stage_id, is_blocked)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+                            [targetZaloId, cid, old.display_name || '', old.avatar_url || '', old.phone || '', old.is_friend || 0, old.contact_type || 'user', old.last_message || '', old.last_message_time || 0, old.alias || '', old.gender ?? null, old.birthday ?? null, old.salutation ?? null, old.pipeline_stage_id ?? null]
                         );
                     }
+
+                    // 2. Copy local labels from fromZaloId to targetZaloId
+                    const oldLabels = this.query<any>(`SELECT label_id FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [fromZaloId, cid]);
+                    for (const lItem of oldLabels) {
+                        this.assignLocalLabelToThread(targetZaloId, Number(lItem.label_id), cid);
+                        EventBroadcaster.emit('db:localLabelThreadChanged', {
+                            action: 'assign',
+                            ownerZaloId: targetZaloId,
+                            labelId: Number(lItem.label_id),
+                            threadId: cid
+                        });
+                    }
+
+                    // 3. If mode === 'move', remove from fromZaloId
+                    if (mode === 'move') {
+                        this.run(`DELETE FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?`, [fromZaloId, cid]);
+                        this.run(`DELETE FROM local_label_threads WHERE owner_zalo_id = ? AND thread_id = ?`, [fromZaloId, cid]);
+                    }
+
                     count++;
                 }
             }
             this.run('COMMIT');
             this.save();
-            Logger.log(`[DB] Reassigned ${count} contact(s) from ${fromZaloId} to ${targetZaloId}`);
+
+            // Emit real-time refresh events
+            for (const accId of updatedTagAccountIds) {
+                EventBroadcaster.emit('db:localLabelChanged', { zaloId: accId });
+                EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
+            }
+
+            Logger.log(`[DB] Reassigned (${mode}) ${count} contact(s) from ${fromZaloId} to ${targetZaloId}`);
             return { success: true, reassignedCount: count };
         } catch (err: any) {
             try { this.run('ROLLBACK'); } catch {}
@@ -9368,19 +9532,24 @@ class DatabaseService {
     public getPhoneScanItems(batchId: number, limit: number = 100, offset: number = 0, status?: string): { items: any[]; total: number } {
         if (!this.initialized) return { items: [], total: 0 };
         try {
-            let queryStr = `SELECT * FROM phone_scan_items WHERE batch_id = ?`;
+            let queryStr = `
+                SELECT psi.*, c.real_name, c.gender, c.birthday, c.salutation
+                FROM phone_scan_items psi
+                LEFT JOIN contacts c ON c.phone = psi.phone_normalized
+                WHERE psi.batch_id = ?
+            `;
             let countQueryStr = `SELECT COUNT(*) as total FROM phone_scan_items WHERE batch_id = ?`;
             const params: any[] = [batchId];
             const countParams: any[] = [batchId];
 
             if (status && status !== 'all') {
-                queryStr += ` AND status = ?`;
+                queryStr += ` AND psi.status = ?`;
                 countQueryStr += ` AND status = ?`;
                 params.push(status);
                 countParams.push(status);
             }
 
-            queryStr += ` ORDER BY id ASC LIMIT ? OFFSET ?`;
+            queryStr += ` ORDER BY psi.id ASC LIMIT ? OFFSET ?`;
             params.push(limit, offset);
 
             const items = this.query<any>(queryStr, params);
@@ -9551,8 +9720,17 @@ class DatabaseService {
                     this.updateContactProfile(accId, uid, name, avatar, phoneNorm, 'user');
                     for (const tagId of tagIds) {
                         this.assignLocalLabelToThread(accId, tagId, uid);
+                        EventBroadcaster.emit('db:localLabelThreadChanged', {
+                            action: 'assign',
+                            ownerZaloId: accId,
+                            labelId: tagId,
+                            threadId: uid
+                        });
                     }
-                    EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
+                    if (tagIds.length > 0) {
+                        EventBroadcaster.emit('db:localLabelChanged', { zaloId: accId });
+                        EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
+                    }
                 }
                 count++;
             }
@@ -9572,6 +9750,23 @@ class DatabaseService {
             this.save();
         } catch (err: any) {
             Logger.error(`[DB] deletePhoneScanBatch error: ${err.message}`);
+        }
+    }
+
+    public cleanupTempUnscannedContacts(): number {
+        if (!this.initialized) return 0;
+        try {
+            const res = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM contacts WHERE contact_id LIKE 'tmp_%'`);
+            const cnt = res?.cnt || 0;
+            if (cnt > 0) {
+                this.run(`DELETE FROM contacts WHERE contact_id LIKE 'tmp_%'`);
+                this.save();
+                Logger.log(`[DatabaseService] ✅ Cleaned up ${cnt} temporary unscanned ghost contacts from CRM`);
+            }
+            return cnt;
+        } catch (err: any) {
+            Logger.error(`[DatabaseService] cleanupTempUnscannedContacts error: ${err.message}`);
+            return 0;
         }
     }
 
