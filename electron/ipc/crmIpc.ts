@@ -7,6 +7,7 @@ import Logger from '../../src/utils/Logger';
 import { proxyToBoss, uploadEmployeeMedia, proxyToBossAsync, isEmployeeMode } from './proxyHelper';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
 import { ipcHandlerRegistry } from './ipcRegistry';
+import ContactImportService from '../../src/services/crm/import/ContactImportService';
 import { setCustomSalutationMap, resetSalutationMapToDefault, getEffectiveSalutationMap, DEFAULT_SALUTATION_SELF_REF_MAP } from '../../src/utils/salutationUtils';
 
 const CUSTOM_EMPLOYEE_CHANNELS = new Set(['crm:saveNote', 'crm:saveCampaign', 'crm:cloneCampaign']);
@@ -868,10 +869,10 @@ export function registerCRMIpc(): void {
         }
     });
 
-    ipcHandle('crm:reassignContactsOwner', async (_e, { fromZaloId, targetZaloId, contactIds }: any) => {
+    ipcHandle('crm:reassignContactsOwner', async (_e, { fromZaloId, targetZaloId, contactIds, mode }: any) => {
         try {
             const db = DatabaseService.getInstance();
-            const res = db.reassignContactsOwner(fromZaloId, targetZaloId, contactIds);
+            const res = db.reassignContactsOwner(fromZaloId, targetZaloId, contactIds, mode || 'share');
             return { success: true, ...res };
         } catch (err: any) {
             return { success: false, error: err.message };
@@ -930,6 +931,119 @@ export function registerCRMIpc(): void {
             const defaultMap = resetSalutationMapToDefault();
             EventBroadcaster.emit('crm:salutationMapChanged', { map: defaultMap });
             return { success: true, map: defaultMap };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    // ─── Contact Import (CSV/Excel) IPC ───────────────────────────────────────
+    ipcHandle('crm:import:parseFile', async (_e, params: {
+        fileBase64?: string;
+        pastedText?: string;
+        fileName?: string;
+        sourceType: 'xlsx' | 'csv' | 'paste';
+        ownerZaloId: string;
+        batchLabel?: string;
+        dataSourceNote: string;
+        targetSheet?: string;
+    }) => {
+        try {
+            let buffer: Buffer | undefined;
+            if (params.fileBase64) {
+                buffer = Buffer.from(params.fileBase64, 'base64');
+            }
+            const res = ContactImportService.getInstance().createSession({
+                buffer,
+                pastedText: params.pastedText,
+                fileName: params.fileName,
+                sourceType: params.sourceType,
+                ownerZaloId: params.ownerZaloId,
+                batchLabel: params.batchLabel,
+                dataSourceNote: params.dataSourceNote,
+                targetSheet: params.targetSheet,
+            });
+            return { success: true, ...res };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:import:setConfig', async (_e, { sessionId, ...cfg }: any) => {
+        try {
+            const stats = ContactImportService.getInstance().setConfig(sessionId, cfg);
+            return { success: true, stats };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:import:getRows', async (_e, { sessionId, filter, offset, limit }: any) => {
+        try {
+            const res = ContactImportService.getInstance().getRows(sessionId, { filter, offset, limit });
+            return { success: true, ...res };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:import:updateRow', async (_e, { sessionId, rowId, patch }: any) => {
+        try {
+            const res = ContactImportService.getInstance().updateRow(sessionId, rowId, patch);
+            return { success: true, ...res };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:import:bulkAction', async (_e, { sessionId, action }: any) => {
+        try {
+            const stats = ContactImportService.getInstance().bulkAction(sessionId, action);
+            return { success: true, stats };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:import:downloadErrors', async (_e, { sessionId }: { sessionId: string }) => {
+        try {
+            const buffer = ContactImportService.getInstance().exportErrors(sessionId);
+            return { success: true, fileBase64: buffer.toString('base64') };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:import:commit', async (_e, { sessionId, batchId, createNewBatch, batchConfig }: any) => {
+        try {
+            const res = ContactImportService.getInstance().commit(sessionId, { batchId, createNewBatch, batchConfig });
+            return { success: true, ...res };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:import:rollback', async (_e, { sessionId }: { sessionId: string }) => {
+        try {
+            const res = ContactImportService.getInstance().rollback(sessionId);
+            return { success: true, ...res };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:import:cancelSession', async (_e, { sessionId }: { sessionId: string }) => {
+        try {
+            const res = ContactImportService.getInstance().cancelSession(sessionId);
+            return { success: true, ...res };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:import:getSampleTemplate', async () => {
+        try {
+            const buffer = ContactImportService.getInstance().getSampleTemplate();
+            return { success: true, fileBase64: buffer.toString('base64') };
         } catch (e: any) {
             return { success: false, error: e.message };
         }

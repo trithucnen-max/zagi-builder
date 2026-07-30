@@ -291,13 +291,44 @@ declare global {
         getPhoneScanLimitStatus: () => Promise<{ success: boolean; accountsStatus?: Array<{ zaloId: string; fullName: string; todayCount: number; hourlyCount: number }>; error?: string }>;
         updatePhoneScanBatchPriority: (params: { batchId: number; priority: number }) => Promise<{ success: boolean; error?: string }>;
         reorderPhoneScanBatches: (params: { batchIds: number[] }) => Promise<{ success: boolean; error?: string }>;
-        reassignContactsOwner: (params: { fromZaloId: string; targetZaloId: string; contactIds: string[] }) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
+        reassignContactsOwner: (params: { fromZaloId: string; targetZaloId: string; contactIds: string[]; mode?: 'share' | 'move' }) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
         getDuplicateContacts: () => Promise<{ success: boolean; duplicates?: any[]; error?: string }>;
         mergeDuplicateContactsByPhone: (params?: { zaloId?: string }) => Promise<{ success: boolean; mergedCount?: number; error?: string }>;
         getSalutationMap: () => Promise<{ success: boolean; map?: Record<string, string>; error?: string }>;
         saveSalutationMap: (params: { map: Record<string, string> }) => Promise<{ success: boolean; error?: string }>;
         resetSalutationMap: () => Promise<{ success: boolean; map?: Record<string, string>; error?: string }>;
         transferContact: (params: { contactId: string; phone?: string; fromZaloId: string; toZaloId: string }) => Promise<{ success: boolean; error?: string }>;
+        import: {
+          parseFile: (params: { fileBase64?: string; pastedText?: string; fileName?: string; sourceType: 'xlsx' | 'csv' | 'paste'; ownerZaloId: string; batchLabel?: string; dataSourceNote: string; targetSheet?: string }) => Promise<{ success: boolean; sessionId?: string; stats?: any; header?: string[]; mapping?: any; genderColumnKind?: string; sheetNames?: string[]; selectedSheet?: string; error?: string }>;
+          setConfig: (params: { sessionId: string; columnMapping?: any; genderConvention?: string; dateOrder?: string; dupStrategy?: string; aliasUseBatchFormula?: boolean; batchLabel?: string }) => Promise<{ success: boolean; stats?: any; error?: string }>;
+          getRows: (params: { sessionId: string; filter?: string; offset: number; limit: number }) => Promise<{ success: boolean; rows?: any[]; total?: number; error?: string }>;
+          updateRow: (params: { sessionId: string; rowId: string; patch: any }) => Promise<{ success: boolean; row?: any; stats?: any; error?: string }>;
+          bulkAction: (params: { sessionId: string; action: string }) => Promise<{ success: boolean; stats?: any; error?: string }>;
+          downloadErrors: (params: { sessionId: string }) => Promise<{ success: boolean; fileBase64?: string; error?: string }>;
+          commit: (params: {
+            sessionId: string;
+            batchId?: string;
+            createNewBatch?: boolean;
+            batchConfig?: {
+              name?: string;
+              assignedAccountId?: string | null;
+              targetAccountId?: string | null;
+              contactAssignmentMode?: 'single' | 'distributed' | 'all_accounts';
+              autoTagIds?: number[];
+              dailyLimit?: number;
+              hourlyLimit?: number;
+              priority?: number;
+              status?: 'active' | 'paused';
+              scheduledTime?: string;
+              skipCrmExisting?: boolean;
+              autoWorkflowId?: number | null;
+              updateZaloAlias?: boolean;
+            };
+          }) => Promise<{ success: boolean; batchId?: string; inserted?: number; updated?: number; skipped?: number; snapshotCount?: number; error?: string }>;
+          rollback: (params: { sessionId: string }) => Promise<{ success: boolean; restored?: number; error?: string }>;
+          cancelSession: (params: { sessionId: string }) => Promise<{ success: boolean; error?: string }>;
+          getSampleTemplate: () => Promise<{ success: boolean; fileBase64?: string; error?: string }>;
+        };
         mergeContacts: (params: { targetZaloId: string; phone?: string; contactId: string }) => Promise<{ success: boolean; error?: string }>;
         cleanupCorruptedAliases: () => Promise<{ success: boolean; cleanedCount?: number; error?: string }>;
         reconcileLiveFriends: (params?: { zaloId?: string }) => Promise<{ success: boolean; totalReconciled?: number; error?: string }>;

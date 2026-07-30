@@ -7,6 +7,7 @@ import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
 import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
 import AppIcon from '../../common/AppIcon';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
+import ImportWizardModal, { BatchConfig } from '../import/ImportWizardModal';
 
 function getContrastColor(hexColor: string): string {
   if (!hexColor) return '#ffffff';
@@ -59,6 +60,7 @@ interface ScanItem {
 export default function PhoneScanPanel() {
     const { showNotification } = useAppStore();
     const visibleAccounts = useVisibleAccounts();
+    const hasMultipleZaloAccounts = visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').length >= 2;
     const activeAccountId = useAccountStore(s => s.activeAccountId);
     
     // State
@@ -74,6 +76,8 @@ export default function PhoneScanPanel() {
     
     // Creation Form
     const [showCreateForm, setShowCreateForm] = useState(false);
+    const [showImportWizard, setShowImportWizard] = useState(false);
+    const [wizardInitialFile, setWizardInitialFile] = useState<File | null>(null);
     const [isCreateFormMaximized, setIsCreateFormMaximized] = useState(false);
     const [formName, setFormName] = useState('');
     const [formAssignedAccount, setFormAssignedAccount] = useState<string>('');
@@ -170,6 +174,36 @@ export default function PhoneScanPanel() {
             pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
         }));
     }, [localLabels]);
+
+    const currentBatchConfig: BatchConfig = useMemo(() => ({
+        name: formName.trim(),
+        assignedAccountId: formAssignedAccount || null,
+        targetAccountId: formContactAssignmentMode === 'single' ? (formTargetAccountId || null) : null,
+        contactAssignmentMode: formContactAssignmentMode,
+        autoTagIds: formAutoTagIds,
+        dailyLimit: formDailyLimit,
+        hourlyLimit: formHourlyLimit,
+        priority: formPriority,
+        status: formStatus,
+        scheduledTime: formScheduledTime,
+        skipCrmExisting: formSkipCrmExisting,
+        autoWorkflowId: formAutoWorkflowId ? Number(formAutoWorkflowId) : null,
+        updateZaloAlias: formUpdateZaloAlias,
+    }), [
+        formName,
+        formAssignedAccount,
+        formTargetAccountId,
+        formContactAssignmentMode,
+        formAutoTagIds,
+        formDailyLimit,
+        formHourlyLimit,
+        formPriority,
+        formStatus,
+        formScheduledTime,
+        formSkipCrmExisting,
+        formAutoWorkflowId,
+        formUpdateZaloAlias
+    ]);
 
     const timeFilteredBatches = useMemo(() => {
         if (scanTimeFilter === 'all' || !filteredStats?.startTimestamp || !filteredStats?.endTimestamp) {
@@ -437,44 +471,19 @@ export default function PhoneScanPanel() {
 
     // CSV & Excel Multi-Format File Reader
     const processUploadedFile = (file: File) => {
-        if (!file) return;
-        setCsvFilename(file.name);
+        if (!formName.trim()) {
+            showNotification('Vui lòng nhập Tên lô quét ở cột bên trái trước khi tải file!', 'error');
+            const nameInput = document.querySelector('input[placeholder*="VD: Lô khách hàng"]') as HTMLInputElement;
+            if (nameInput) nameInput.focus();
+            return;
+        }
+        if (hasMultipleZaloAccounts && formContactAssignmentMode === 'single' && !formTargetAccountId) {
+            showNotification('Vui lòng chọn tài khoản Zalo nhận dữ liệu liên hệ ở cột bên trái!', 'error');
+            return;
+        }
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const data = new Uint8Array(event.target?.result as ArrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-                const parsedPhones: string[] = [];
-
-                rawRows.forEach((row: any) => {
-                    if (!Array.isArray(row)) return;
-                    for (const cell of row) {
-                        if (cell == null) continue;
-                        const strVal = String(cell).trim();
-                        const norm = normalizePhone(strVal);
-                        if (norm && isValidVietnamPhone(norm)) {
-                            parsedPhones.push(norm);
-                            break;
-                        }
-                    }
-                });
-
-                if (parsedPhones.length > 0) {
-                    setCsvPhones(parsedPhones);
-                    showNotification(`Đọc thành công ${parsedPhones.length} số điện thoại từ file ${file.name}`, 'success');
-                } else {
-                    showNotification('Không tìm thấy cột số điện thoại hợp lệ trong file', 'error');
-                }
-            } catch (err: any) {
-                showNotification('Lỗi đọc file: ' + err.message, 'error');
-            }
-        };
-        reader.readAsArrayBuffer(file);
+        setWizardInitialFile(file);
+        setShowImportWizard(true);
     };
 
     const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -828,7 +837,7 @@ export default function PhoneScanPanel() {
 
                         <button
                             onClick={() => setShowCreateForm(true)}
-                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-colors"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#0068FF] hover:bg-[#005AE0] text-white !text-white shadow-md transition-all cursor-pointer"
                         >
                             <AppIcon name="plus" size={14} />
                             Tạo lô quét mới
@@ -1294,107 +1303,125 @@ export default function PhoneScanPanel() {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-xs border-collapse">
-                                        <thead>
-                                            <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500">
-                                                <th className="py-2.5 px-3 font-semibold">Số điện thoại</th>
-                                                <th className="py-2.5 px-3 font-semibold">Trạng thái</th>
-                                                <th className="py-2.5 px-3 font-semibold">Zalo profile</th>
-                                                <th className="py-2.5 px-3 font-semibold">Tài khoản nhận CRM</th>
-                                                <th className="py-2.5 px-3 font-semibold">Nhãn CRM đã gán</th>
-                                                <th className="py-2.5 px-3 font-semibold">Thời gian</th>
-                                                <th className="py-2.5 px-3 font-semibold">Ghi chú lỗi</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {items.map(item => (
-                                                <tr key={item.id} className="border-b border-gray-150 dark:border-gray-850 hover:bg-gray-100/40 dark:hover:bg-gray-850/30 transition-colors">
-                                                    <td className="py-3 px-3 font-mono font-medium text-gray-700 dark:text-gray-300">{item.phone}</td>
-                                                    <td className="py-3 px-3">{getStatusBadge(item.status)}</td>
-                                                    <td className="py-3 px-3">
-                                                        {item.status === 'found' && item.zalo_uid ? (
-                                                            <div className="flex items-center gap-2">
-                                                                {item.zalo_avatar ? (
-                                                                    <img src={item.zalo_avatar} alt="Avatar" className="w-5 h-5 rounded-full object-cover" />
-                                                                ) : (
-                                                                    <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white">
-                                                                        {item.zalo_name?.charAt(0).toUpperCase()}
+                                    {(() => {
+                                        const showRealName = items.some(i => i.real_name && i.real_name !== i.phone);
+                                        const showGender = items.some(i => i.gender !== null && i.gender !== undefined);
+                                        const showBirthday = items.some(i => i.birthday && i.birthday.trim() !== '');
+
+                                        return (
+                                            <table className="w-full text-left text-xs border-collapse">
+                                                <thead>
+                                                    <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500">
+                                                        <th className="py-2.5 px-3 font-semibold">Số điện thoại</th>
+                                                        {showRealName && <th className="py-2.5 px-3 font-semibold">Tên thật</th>}
+                                                        {showGender && <th className="py-2.5 px-3 font-semibold">Giới tính</th>}
+                                                        {showBirthday && <th className="py-2.5 px-3 font-semibold">Ngày sinh</th>}
+                                                        <th className="py-2.5 px-3 font-semibold">Trạng thái</th>
+                                                        <th className="py-2.5 px-3 font-semibold">Zalo profile</th>
+                                                        <th className="py-2.5 px-3 font-semibold">Tài khoản nhận CRM</th>
+                                                        <th className="py-2.5 px-3 font-semibold">Nhãn CRM đã gán</th>
+                                                        <th className="py-2.5 px-3 font-semibold">Ghi chú lỗi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {items.map(item => (
+                                                        <tr key={item.id} className="border-b border-gray-150 dark:border-gray-850 hover:bg-gray-100/40 dark:hover:bg-gray-850/30 transition-colors">
+                                                            <td className="py-3 px-3 font-mono font-medium text-gray-700 dark:text-gray-300">{item.phone}</td>
+                                                            {showRealName && (
+                                                                <td className="py-3 px-3 font-semibold text-gray-900 dark:text-white">{item.real_name || '-'}</td>
+                                                            )}
+                                                            {showGender && (
+                                                                <td className="py-3 px-3 font-medium text-gray-700 dark:text-gray-300">
+                                                                    {item.gender === 0 ? 'Nam ♂' : item.gender === 1 ? 'Nữ ♀' : 'Chưa rõ'}
+                                                                </td>
+                                                            )}
+                                                            {showBirthday && (
+                                                                <td className="py-3 px-3 font-medium text-gray-700 dark:text-gray-300">{item.birthday || '-'}</td>
+                                                            )}
+                                                            <td className="py-3 px-3">{getStatusBadge(item.status)}</td>
+                                                            <td className="py-3 px-3">
+                                                                {item.status === 'found' && item.zalo_uid ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        {item.zalo_avatar ? (
+                                                                            <img src={item.zalo_avatar} alt="Avatar" className="w-5 h-5 rounded-full object-cover" />
+                                                                        ) : (
+                                                                            <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white">
+                                                                                {item.zalo_name?.charAt(0).toUpperCase()}
+                                                                            </div>
+                                                                        )}
+                                                                        <span className="text-gray-900 dark:text-white font-medium max-w-[150px] truncate" title={item.zalo_name || ''}>
+                                                                            {item.zalo_name}
+                                                                        </span>
                                                                     </div>
+                                                                ) : (
+                                                                    <span className="text-gray-400 dark:text-gray-600">-</span>
                                                                 )}
-                                                                <span className="text-gray-900 dark:text-white font-medium max-w-[150px] truncate" title={item.zalo_name || ''}>
-                                                                    {item.zalo_name}
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-gray-400 dark:text-gray-600">-</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-3 px-3">
-                                                        {item.status === 'found' ? (
-                                                            selectedBatch?.contact_assignment_mode === 'all_accounts' ? (
-                                                                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 rounded border border-purple-200 dark:border-purple-800/50">
-                                                                    Tất cả ({visibleAccounts.length} TK)
-                                                                </span>
-                                                            ) : selectedBatch?.contact_assignment_mode === 'single' ? (
-                                                                (() => {
-                                                                    const targetId = selectedBatch.target_account_id || selectedBatch.assigned_account_id || item.scanned_by_account_id;
-                                                                    const acc = visibleAccounts.find(a => a.zalo_id === targetId);
-                                                                    return acc ? (
-                                                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800/50 truncate max-w-[120px] inline-block" title={acc.full_name || acc.zalo_id}>
-                                                                            {acc.full_name || acc.zalo_id}
+                                                            </td>
+                                                            <td className="py-3 px-3">
+                                                                {item.status === 'found' ? (
+                                                                    selectedBatch?.contact_assignment_mode === 'all_accounts' ? (
+                                                                        <span className="px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 rounded border border-purple-200 dark:border-purple-800/50">
+                                                                            Tất cả ({visibleAccounts.length} TK)
                                                                         </span>
+                                                                    ) : selectedBatch?.contact_assignment_mode === 'single' ? (
+                                                                        (() => {
+                                                                            const targetId = selectedBatch.target_account_id || selectedBatch.assigned_account_id || item.scanned_by_account_id;
+                                                                            const acc = visibleAccounts.find(a => a.zalo_id === targetId);
+                                                                            return acc ? (
+                                                                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded border border-blue-200 dark:border-blue-800/50 truncate max-w-[120px] inline-block" title={acc.full_name || acc.zalo_id}>
+                                                                                    {acc.full_name || acc.zalo_id}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-gray-400 text-[10px]">{targetId ? `TK #${targetId}` : 'Tài khoản quét'}</span>
+                                                                            );
+                                                                        })()
                                                                     ) : (
-                                                                        <span className="text-gray-400 text-[10px]">{targetId ? `TK #${targetId}` : 'Tài khoản quét'}</span>
-                                                                    );
-                                                                })()
-                                                            ) : (
-                                                                (() => {
-                                                                    const acc = visibleAccounts.find(a => a.zalo_id === item.scanned_by_account_id);
-                                                                    return acc ? (
-                                                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800/50 truncate max-w-[120px] inline-block" title={acc.full_name || acc.zalo_id}>
-                                                                            {acc.full_name || acc.zalo_id}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="text-gray-400 text-[10px]">{item.scanned_by_account_id ? `TK #${item.scanned_by_account_id}` : 'Tài khoản quét'}</span>
-                                                                    );
-                                                                })()
-                                                            )
-                                                        ) : (
-                                                            <span className="text-gray-400 dark:text-gray-600">-</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-3 px-3">
-                                                        {item.status === 'found' && selectedBatchTags.length > 0 ? (
-                                                            <div className="flex flex-wrap gap-1">
-                                                                {selectedBatchTags.map(tag => (
-                                                                    <span
-                                                                        key={tag.id}
-                                                                        className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md flex items-center gap-0.5 border"
-                                                                        style={{
-                                                                            backgroundColor: `${tag.color || '#3B82F6'}15`,
-                                                                            borderColor: `${tag.color || '#3B82F6'}50`,
-                                                                            color: tag.color || '#3B82F6'
-                                                                        }}
-                                                                    >
-                                                                        <span>{tag.emoji || '🏷️'}</span>
-                                                                        <span>{tag.name}</span>
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-gray-400 dark:text-gray-600 text-[10px]">-</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-3 px-3 text-gray-500 dark:text-gray-400 text-[10px]">
-                                                        {item.scanned_at ? new Date(item.scanned_at).toLocaleString('vi-VN') : '-'}
-                                                    </td>
-                                                    <td className="py-3 px-3 text-rose-500 dark:text-rose-400 max-w-[150px] truncate" title={item.error_msg || ''}>
-                                                        {item.error_msg || '-'}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                                                        (() => {
+                                                                            const acc = visibleAccounts.find(a => a.zalo_id === item.scanned_by_account_id);
+                                                                            return acc ? (
+                                                                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800/50 truncate max-w-[120px] inline-block" title={acc.full_name || acc.zalo_id}>
+                                                                                    {acc.full_name || acc.zalo_id}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-gray-400 text-[10px]">{item.scanned_by_account_id ? `TK #${item.scanned_by_account_id}` : 'Tài khoản quét'}</span>
+                                                                            );
+                                                                        })()
+                                                                    )
+                                                                ) : (
+                                                                    <span className="text-gray-400 dark:text-gray-600">-</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-3 px-3">
+                                                                {item.status === 'found' && selectedBatchTags.length > 0 ? (
+                                                                    <div className="flex flex-wrap gap-1">
+                                                                        {selectedBatchTags.map(tag => (
+                                                                            <span
+                                                                                key={tag.id}
+                                                                                className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md flex items-center gap-0.5 border"
+                                                                                style={{
+                                                                                    backgroundColor: `${tag.color || '#3B82F6'}15`,
+                                                                                    borderColor: `${tag.color || '#3B82F6'}50`,
+                                                                                    color: tag.color || '#3B82F6'
+                                                                                }}
+                                                                            >
+                                                                                <span>{tag.emoji || '🏷️'}</span>
+                                                                                <span>{tag.name}</span>
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-gray-400 dark:text-gray-600 text-[10px]">-</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-3 px-3 text-rose-500 dark:text-rose-400 max-w-[150px] truncate" title={item.error_msg || ''}>
+                                                                {item.error_msg || '-'}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        );
+                                    })()}
                                 </div>
                             )}
                         </div>
@@ -1495,104 +1522,106 @@ export default function PhoneScanPanel() {
                                         />
                                     </div>
 
-                                    {/* Quy tắc phân bổ liên hệ & nhãn CRM */}
-                                    <div className="bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl p-3.5 space-y-2 flex-shrink-0">
-                                        <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
-                                            Quy tắc phân bổ liên hệ CRM *
-                                        </label>
-                                        <div className="flex flex-col gap-2">
-                                            <label
-                                                onClick={() => setFormContactAssignmentMode('distributed')}
-                                                className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                                                    formContactAssignmentMode === 'distributed'
-                                                        ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500/80 ring-1 ring-emerald-500/20'
-                                                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="contact_assignment_mode"
-                                                    checked={formContactAssignmentMode === 'distributed'}
-                                                    onChange={() => setFormContactAssignmentMode('distributed')}
-                                                    className="mt-0.5"
-                                                />
-                                                <div>
-                                                    <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                                        <span>🟢 Phân tán theo tài khoản trực tiếp quét</span>
-                                                    </div>
-                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                                        Tài khoản Zalo nào trực tiếp tìm thấy SĐT thì SĐT và nhãn CRM đó thuộc về tài khoản Zalo đó.
-                                                    </div>
-                                                </div>
-                                            </label>
+                                     {/* Quy tắc phân bổ liên hệ & nhãn CRM (Chỉ hiển thị khi có từ 2 tài khoản Zalo trở lên) */}
+                                     {hasMultipleZaloAccounts && (
+                                         <div className="bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl p-3.5 space-y-2 flex-shrink-0">
+                                             <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
+                                                 Quy tắc phân bổ liên hệ CRM *
+                                             </label>
+                                             <div className="flex flex-col gap-2">
+                                                 <label
+                                                     onClick={() => setFormContactAssignmentMode('distributed')}
+                                                     className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                                         formContactAssignmentMode === 'distributed'
+                                                             ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500/80 ring-1 ring-emerald-500/20'
+                                                             : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                     }`}
+                                                 >
+                                                     <input
+                                                         type="radio"
+                                                         name="contact_assignment_mode"
+                                                         checked={formContactAssignmentMode === 'distributed'}
+                                                         onChange={() => setFormContactAssignmentMode('distributed')}
+                                                         className="mt-0.5"
+                                                     />
+                                                     <div>
+                                                         <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                             <span>🟢 Phân tán theo tài khoản trực tiếp quét</span>
+                                                         </div>
+                                                         <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                             Tài khoản Zalo nào trực tiếp tìm thấy SĐT thì SĐT và nhãn CRM đó thuộc về tài khoản Zalo đó.
+                                                         </div>
+                                                     </div>
+                                                 </label>
 
-                                            <label
-                                                onClick={() => setFormContactAssignmentMode('single')}
-                                                className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                                                    formContactAssignmentMode === 'single'
-                                                        ? 'bg-blue-50/50 dark:bg-blue-950/30 border-blue-500/80 ring-1 ring-blue-500/20'
-                                                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="contact_assignment_mode"
-                                                    checked={formContactAssignmentMode === 'single'}
-                                                    onChange={() => setFormContactAssignmentMode('single')}
-                                                    className="mt-0.5"
-                                                />
-                                                <div className="flex-1">
-                                                    <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                                        <span>🔵 Gom toàn bộ về 1 tài khoản chỉ định</span>
-                                                    </div>
-                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                                        Tất cả SĐT tìm thấy (bởi bất kỳ tài khoản nào) đều lưu profile và gán nhãn CRM về 1 tài khoản Zalo duy nhất.
-                                                    </div>
-                                                    {formContactAssignmentMode === 'single' && (
-                                                        <div className="mt-2">
-                                                            <select
-                                                                value={formTargetAccountId}
-                                                                onChange={e => setFormTargetAccountId(e.target.value)}
-                                                                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100"
-                                                            >
-                                                                <option value="">-- Chọn tài khoản Zalo nhận toàn bộ --</option>
-                                                                {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
-                                                                    <option key={acc.zalo_id} value={acc.zalo_id}>
-                                                                        {acc.full_name || acc.zalo_id}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </label>
+                                                 <label
+                                                     onClick={() => setFormContactAssignmentMode('single')}
+                                                     className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                                         formContactAssignmentMode === 'single'
+                                                             ? 'bg-blue-50/50 dark:bg-blue-950/30 border-blue-500/80 ring-1 ring-blue-500/20'
+                                                             : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                     }`}
+                                                 >
+                                                     <input
+                                                         type="radio"
+                                                         name="contact_assignment_mode"
+                                                         checked={formContactAssignmentMode === 'single'}
+                                                         onChange={() => setFormContactAssignmentMode('single')}
+                                                         className="mt-0.5"
+                                                     />
+                                                     <div className="flex-1">
+                                                         <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                             <span>🔵 Gom toàn bộ về 1 tài khoản chỉ định</span>
+                                                         </div>
+                                                         <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                             Tất cả SĐT tìm thấy (bởi bất kỳ tài khoản nào) đều lưu profile và gán nhãn CRM về 1 tài khoản Zalo duy nhất.
+                                                         </div>
+                                                         {formContactAssignmentMode === 'single' && (
+                                                             <div className="mt-2">
+                                                                 <select
+                                                                     value={formTargetAccountId}
+                                                                     onChange={e => setFormTargetAccountId(e.target.value)}
+                                                                     className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100"
+                                                                 >
+                                                                     <option value="">-- Chọn tài khoản Zalo nhận toàn bộ --</option>
+                                                                     {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
+                                                                         <option key={acc.zalo_id} value={acc.zalo_id}>
+                                                                             {acc.full_name || acc.zalo_id}
+                                                                         </option>
+                                                                     ))}
+                                                                 </select>
+                                                             </div>
+                                                         )}
+                                                     </div>
+                                                 </label>
 
-                                            <label
-                                                onClick={() => setFormContactAssignmentMode('all_accounts')}
-                                                className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                                                    formContactAssignmentMode === 'all_accounts'
-                                                        ? 'bg-purple-50/50 dark:bg-purple-950/30 border-purple-500/80 ring-1 ring-purple-500/20'
-                                                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="contact_assignment_mode"
-                                                    checked={formContactAssignmentMode === 'all_accounts'}
-                                                    onChange={() => setFormContactAssignmentMode('all_accounts')}
-                                                    className="mt-0.5"
-                                                />
-                                                <div>
-                                                    <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                                        <span>🟣 Đồng bộ có mặt ở TẤT CẢ các tài khoản Zalo</span>
-                                                    </div>
-                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                                        Tự động tạo profile liên hệ và gán nhãn CRM cho toàn bộ danh sách tài khoản Zalo active trong ứng dụng.
-                                                    </div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
+                                                 <label
+                                                     onClick={() => setFormContactAssignmentMode('all_accounts')}
+                                                     className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                                         formContactAssignmentMode === 'all_accounts'
+                                                             ? 'bg-purple-50/50 dark:bg-purple-950/30 border-purple-500/80 ring-1 ring-purple-500/20'
+                                                             : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                     }`}
+                                                 >
+                                                     <input
+                                                         type="radio"
+                                                         name="contact_assignment_mode"
+                                                         checked={formContactAssignmentMode === 'all_accounts'}
+                                                         onChange={() => setFormContactAssignmentMode('all_accounts')}
+                                                         className="mt-0.5"
+                                                     />
+                                                     <div>
+                                                         <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                             <span>🟣 Đồng bộ có mặt ở TẤT CẢ các tài khoản Zalo</span>
+                                                         </div>
+                                                         <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                             Tự động tạo profile liên hệ và gán nhãn CRM cho toàn bộ danh sách tài khoản Zalo active trong ứng dụng.
+                                                         </div>
+                                                     </div>
+                                                 </label>
+                                             </div>
+                                         </div>
+                                     )}
 
                                     {/* Assigned Account & Limits */}
                                     <div className="grid grid-cols-3 gap-3">
@@ -1793,33 +1822,56 @@ export default function PhoneScanPanel() {
                                             onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
                                             onDragLeave={() => setIsDraggingFile(false)}
                                             onDrop={handleFileDrop}
-                                            onClick={() => fileInputRef.current?.click()}
+                                            onClick={() => {
+                                                if (!formName.trim()) {
+                                                    showNotification('Vui lòng nhập Tên lô quét bên trái trước khi tải file!', 'error');
+                                                    const nameInput = document.querySelector('input[placeholder*="VD: Lô khách hàng"]') as HTMLInputElement;
+                                                    if (nameInput) nameInput.focus();
+                                                    return;
+                                                }
+                                                fileInputRef.current?.click();
+                                            }}
                                             className={`relative border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-                                                isDraggingFile
+                                                !formName.trim()
+                                                    ? 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800/60'
+                                                    : isDraggingFile
                                                     ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/50 scale-[1.01]'
                                                     : 'border-blue-300/80 dark:border-blue-800/80 bg-blue-50/20 dark:bg-blue-950/20 hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-blue-950/30'
                                             }`}
                                         >
-                                            <div className="w-11 h-11 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-2xs">
-                                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                                    <polyline points="17 8 12 3 7 8" />
-                                                    <line x1="12" y1="3" x2="12" y2="15" />
-                                                </svg>
-                                            </div>
+                                            {!formName.trim() ? (
+                                                <div className="py-2 flex flex-col items-center gap-1.5 text-amber-700 dark:text-amber-300">
+                                                    <span className="text-xs font-bold flex items-center gap-1">
+                                                        <span>⚠️</span> Vui lòng điền Tên lô quét ở cột bên trái trước
+                                                    </span>
+                                                    <span className="text-[11px] text-amber-600/90 dark:text-amber-400/80">
+                                                        Nhập tên lô & cấu hình Zalo để mở khóa ô tải file CSV/Excel
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="w-11 h-11 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-2xs">
+                                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                            <polyline points="17 8 12 3 7 8" />
+                                                            <line x1="12" y1="3" x2="12" y2="15" />
+                                                        </svg>
+                                                    </div>
 
-                                            <div>
-                                                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                                                    Chọn file CSV/Excel...
-                                                </span>
-                                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 ml-1">
-                                                    hoặc kéo thả file vào đây
-                                                </span>
-                                            </div>
+                                                    <div>
+                                                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                                                            Chọn file CSV/Excel...
+                                                        </span>
+                                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 ml-1">
+                                                            hoặc kéo thả file vào đây
+                                                        </span>
+                                                    </div>
 
-                                            <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                                                Hỗ trợ định dạng .csv, .xlsx, .xls (tối đa 10MB)
-                                            </p>
+                                                    <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                                                        Hỗ trợ định dạng .csv, .xlsx, .xls (tối đa 10MB)
+                                                    </p>
+                                                </>
+                                            )}
                                         </div>
 
                                         {/* Download template button & File name pill */}
@@ -1963,88 +2015,96 @@ export default function PhoneScanPanel() {
                         </div>
 
                         <div className="p-5 space-y-4 text-xs">
-                            <p className="text-gray-600 dark:text-gray-300">
-                                Chọn quy tắc phân bổ mới để đồng bộ lại toàn bộ profile liên hệ và nhãn CRM cho các SĐT đã tìm thấy trong Lô quét này:
-                            </p>
+                            {!hasMultipleZaloAccounts ? (
+                                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-600 dark:text-amber-300">
+                                    ⚠️ Bạn chỉ đang sử dụng 1 tài khoản Zalo. Tất cả SĐT quét được trong Lô #{selectedBatch.id} mặc định được phân bổ về tài khoản Zalo duy nhất này.
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="text-gray-600 dark:text-gray-300">
+                                        Chọn quy tắc phân bổ mới để đồng bộ lại toàn bộ profile liên hệ và nhãn CRM cho các SĐT đã tìm thấy trong Lô quét này:
+                                    </p>
 
-                            <div className="flex flex-col gap-2.5">
-                                <label
-                                    onClick={() => setReassignMode('distributed')}
-                                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                                        reassignMode === 'distributed'
-                                            ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 ring-1 ring-emerald-500/20'
-                                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                    }`}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="reassign_mode"
-                                        checked={reassignMode === 'distributed'}
-                                        onChange={() => setReassignMode('distributed')}
-                                        className="mt-0.5"
-                                    />
-                                    <div>
-                                        <div className="font-bold text-gray-900 dark:text-white">🟢 Phân tán theo tài khoản trực tiếp quét</div>
-                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Tài khoản Zalo nào quét được SĐT nào thì lưu profile và gán nhãn thuộc về tài khoản đó.</div>
-                                    </div>
-                                </label>
+                                    <div className="flex flex-col gap-2.5">
+                                        <label
+                                            onClick={() => setReassignMode('distributed')}
+                                            className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                                                reassignMode === 'distributed'
+                                                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 ring-1 ring-emerald-500/20'
+                                                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="reassign_mode"
+                                                checked={reassignMode === 'distributed'}
+                                                onChange={() => setReassignMode('distributed')}
+                                                className="mt-0.5"
+                                            />
+                                            <div>
+                                                <div className="font-bold text-gray-900 dark:text-white">🟢 Phân tán theo tài khoản trực tiếp quét</div>
+                                                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Tài khoản Zalo nào quét được SĐT nào thì lưu profile và gán nhãn thuộc về tài khoản đó.</div>
+                                            </div>
+                                        </label>
 
-                                <label
-                                    onClick={() => setReassignMode('single')}
-                                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                                        reassignMode === 'single'
-                                            ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-500 ring-1 ring-blue-500/20'
-                                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                    }`}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="reassign_mode"
-                                        checked={reassignMode === 'single'}
-                                        onChange={() => setReassignMode('single')}
-                                        className="mt-0.5"
-                                    />
-                                    <div className="flex-1">
-                                        <div className="font-bold text-gray-900 dark:text-white">🔵 Gom toàn bộ về 1 tài khoản chỉ định</div>
-                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Chuyển toàn bộ SĐT tìm thấy về lưu profile và gán nhãn ở 1 tài khoản Zalo đích.</div>
-                                        {reassignMode === 'single' && (
-                                            <select
-                                                value={reassignAccountId}
-                                                onChange={e => setReassignAccountId(e.target.value)}
-                                                className="w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100"
-                                            >
-                                                <option value="">-- Chọn tài khoản Zalo nhận dữ liệu --</option>
-                                                {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
-                                                    <option key={acc.zalo_id} value={acc.zalo_id}>
-                                                        {acc.full_name || acc.zalo_id}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        )}
-                                    </div>
-                                </label>
+                                        <label
+                                            onClick={() => setReassignMode('single')}
+                                            className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                                                reassignMode === 'single'
+                                                    ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-500 ring-1 ring-blue-500/20'
+                                                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="reassign_mode"
+                                                checked={reassignMode === 'single'}
+                                                onChange={() => setReassignMode('single')}
+                                                className="mt-0.5"
+                                            />
+                                            <div className="flex-1">
+                                                <div className="font-bold text-gray-900 dark:text-white">🔵 Gom toàn bộ về 1 tài khoản chỉ định</div>
+                                                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Chuyển toàn bộ SĐT tìm thấy về lưu profile và gán nhãn ở 1 tài khoản Zalo đích.</div>
+                                                {reassignMode === 'single' && (
+                                                    <select
+                                                        value={reassignAccountId}
+                                                        onChange={e => setReassignAccountId(e.target.value)}
+                                                        className="w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100"
+                                                    >
+                                                        <option value="">-- Chọn tài khoản Zalo nhận dữ liệu --</option>
+                                                        {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
+                                                            <option key={acc.zalo_id} value={acc.zalo_id}>
+                                                                {acc.full_name || acc.zalo_id}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                            </div>
+                                        </label>
 
-                                <label
-                                    onClick={() => setReassignMode('all_accounts')}
-                                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                                        reassignMode === 'all_accounts'
-                                            ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-500 ring-1 ring-purple-500/20'
-                                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                    }`}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="reassign_mode"
-                                        checked={reassignMode === 'all_accounts'}
-                                        onChange={() => setReassignMode('all_accounts')}
-                                        className="mt-0.5"
-                                    />
-                                    <div>
-                                        <div className="font-bold text-gray-900 dark:text-white">🟣 Đồng bộ có mặt ở TẤT CẢ các tài khoản Zalo</div>
-                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Tự động nhân bản profile và nhãn CRM cho tất cả các tài khoản Zalo active trong hệ thống.</div>
+                                        <label
+                                            onClick={() => setReassignMode('all_accounts')}
+                                            className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                                                reassignMode === 'all_accounts'
+                                                    ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-500 ring-1 ring-purple-500/20'
+                                                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="reassign_mode"
+                                                checked={reassignMode === 'all_accounts'}
+                                                onChange={() => setReassignMode('all_accounts')}
+                                                className="mt-0.5"
+                                            />
+                                            <div>
+                                                <div className="font-bold text-gray-900 dark:text-white">🟣 Đồng bộ có mặt ở TẤT CẢ các tài khoản Zalo</div>
+                                                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Tự động nhân bản profile và nhãn CRM cho tất cả các tài khoản Zalo active trong hệ thống.</div>
+                                            </div>
+                                        </label>
                                     </div>
-                                </label>
-                            </div>
+                                </>
+                            )}
                         </div>
 
                         <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-850 flex justify-end gap-2">
@@ -2066,6 +2126,21 @@ export default function PhoneScanPanel() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showImportWizard && (
+                <ImportWizardModal
+                    initialFile={wizardInitialFile}
+                    batchConfig={currentBatchConfig}
+                    onClose={() => {
+                        setShowImportWizard(false);
+                        setWizardInitialFile(null);
+                    }}
+                    onSuccess={() => {
+                        setShowCreateForm(false);
+                        fetchBatches();
+                    }}
+                />
             )}
         </div>
     );
