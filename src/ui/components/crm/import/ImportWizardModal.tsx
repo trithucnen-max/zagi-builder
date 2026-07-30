@@ -65,6 +65,12 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
   const [createNewBatch, setCreateNewBatch] = useState(true);
   const [existingBatches, setExistingBatches] = useState<any[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState('');
+  const [step2Status, setStep2Status] = useState<'active' | 'paused'>(
+    batchConfig?.status || 'paused'
+  );
+  const [step2ScheduledTime, setStep2ScheduledTime] = useState<string>(
+    batchConfig?.scheduledTime || ''
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -287,7 +293,9 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
         createNewBatch,
         batchConfig: createNewBatch ? {
           ...batchConfig,
-          name: batchLabel.trim() || batchConfig?.name,
+          name: batchLabel.trim() || batchConfig?.name || `Lô import CSV ${new Date().toLocaleDateString('vi-VN')}`,
+          status: step2Status,
+          scheduledTime: step2ScheduledTime,
         } : undefined,
       });
 
@@ -298,7 +306,11 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
       }
 
       showNotification(`Nhập dữ liệu thành công! Tạo mới: ${res.inserted}, Cập nhật: ${res.updated}`, 'success');
-      await ipc.crm.startPhoneScanImmediate();
+
+      // Only start immediate scanner if batch status is active AND no future schedule time is set
+      if (createNewBatch && step2Status === 'active' && !step2ScheduledTime) {
+        await ipc.crm.startPhoneScanImmediate();
+      }
 
       if (onSuccess) onSuccess();
       onClose();
@@ -763,33 +775,108 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
             </div>
           ) : (
             /* Step 2: Zalo Scan & Commit Options */
-            <div className="max-w-xl mx-auto space-y-5 py-6">
+            <div className="max-w-xl mx-auto space-y-5 py-4">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700/80 shadow-2xs space-y-4">
-                <h4 className="font-bold text-gray-900 dark:text-white text-base">Tạo Lô Quét SĐT Zalo mới</h4>
+                <h4 className="font-bold text-gray-900 dark:text-white text-base">⚙️ Cấu hình Lô Quét SĐT Zalo</h4>
 
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={createNewBatch}
-                      onChange={() => setCreateNewBatch(true)}
-                    />
-                    <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">Tạo Lô Quét mới cho lần import này</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={!createNewBatch}
-                      onChange={() => setCreateNewBatch(false)}
-                    />
-                    <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">Gộp vào Lô Quét có sẵn</span>
-                  </label>
+                <div className="flex gap-3 p-1 bg-gray-100 dark:bg-gray-900 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setCreateNewBatch(true)}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      createNewBatch
+                        ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-2xs'
+                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    ✨ Tạo Lô Quét mới
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreateNewBatch(false)}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      !createNewBatch
+                        ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-2xs'
+                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    📂 Gộp vào Lô Quét có sẵn
+                  </button>
                 </div>
 
-                {!createNewBatch && (
+                {createNewBatch ? (
+                  <div className="space-y-4 pt-2">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        Tên Lô Quét SĐT Zalo
+                      </label>
+                      <input
+                        type="text"
+                        value={batchLabel}
+                        onChange={e => setBatchLabel(e.target.value)}
+                        placeholder={`Lô import CSV ${new Date().toLocaleDateString('vi-VN')}`}
+                        className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
+                          Trạng thái khởi tạo
+                        </label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setStep2Status('paused')}
+                            className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                              step2Status === 'paused'
+                                ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 shadow-2xs ring-1 ring-amber-500/30'
+                                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
+                            }`}
+                          >
+                            <span>⏸️ Tạm dừng</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStep2Status('active')}
+                            className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                              step2Status === 'active'
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 shadow-2xs ring-1 ring-blue-500/30'
+                                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
+                            }`}
+                          >
+                            <span>▶️ Chạy ngay</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
+                          Hẹn giờ khởi động (Tùy chọn)
+                        </label>
+                        <input
+                          type="time"
+                          value={step2ScheduledTime}
+                          onChange={e => setStep2ScheduledTime(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl text-[11px] text-blue-900 dark:text-blue-200 flex items-center gap-2">
+                      <span className="text-base">💡</span>
+                      <span>
+                        {step2Status === 'paused'
+                          ? 'Lô quét sẽ tạo ở trạng thái Tạm dừng. Bạn có thể kiểm tra danh sách rồi kích hoạt sau trong mục Quét SĐT Zalo.'
+                          : step2ScheduledTime
+                          ? `Lô quét sẽ tự động chạy ngầm vào lúc ${step2ScheduledTime} hôm nay.`
+                          : 'Lô quét sẽ tự động Kích hoạt & Chạy ngay ngầm ngay sau khi hoàn tất nhập dữ liệu.'}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Chọn Lô Quét có sẵn:</label>
+                    <label className="block text-xs text-gray-500 mb-1 font-semibold">Chọn Lô Quét có sẵn:</label>
                     <select
                       value={selectedBatchId}
                       onChange={e => setSelectedBatchId(e.target.value)}
@@ -859,7 +946,13 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                 onClick={handleCommit}
                 className="px-6 py-2.5 rounded-xl text-xs font-bold bg-[#0068FF] hover:bg-[#005AE0] text-white !text-white shadow-md transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
-                {isCommitting ? 'Đang ghi CRM...' : '🚀 Bắt đầu Quét & Ghi CRM'}
+                {isCommitting
+                  ? 'Đang ghi CRM...'
+                  : step2Status === 'paused'
+                  ? '💾 Tạo Lô & Ghi CRM (Tạm dừng)'
+                  : step2ScheduledTime
+                  ? `⏱️ Tạo Lô & Hẹn giờ (${step2ScheduledTime})`
+                  : '🚀 Bắt đầu Quét & Ghi CRM (Chạy ngay)'}
               </button>
             ) : null}
           </div>
