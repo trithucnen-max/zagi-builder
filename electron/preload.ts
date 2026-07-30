@@ -317,6 +317,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSalutationMap: () => ipcRenderer.invoke('crm:getSalutationMap'),
     saveSalutationMap: (params: any) => ipcRenderer.invoke('crm:saveSalutationMap', params),
     resetSalutationMap: () => ipcRenderer.invoke('crm:resetSalutationMap'),
+    import: {
+      parseFile: (params: any) => ipcRenderer.invoke('crm:import:parseFile', params),
+      setConfig: (params: any) => ipcRenderer.invoke('crm:import:setConfig', params),
+      getRows: (params: any) => ipcRenderer.invoke('crm:import:getRows', params),
+      updateRow: (params: any) => ipcRenderer.invoke('crm:import:updateRow', params),
+      bulkAction: (params: any) => ipcRenderer.invoke('crm:import:bulkAction', params),
+      downloadErrors: (params: any) => ipcRenderer.invoke('crm:import:downloadErrors', params),
+      commit: (params: any) => ipcRenderer.invoke('crm:import:commit', params),
+      rollback: (params: any) => ipcRenderer.invoke('crm:import:rollback', params),
+      cancelSession: (params: any) => ipcRenderer.invoke('crm:import:cancelSession', params),
+      getSampleTemplate: () => ipcRenderer.invoke('crm:import:getSampleTemplate'),
+      cleanupGhostContacts: () => ipcRenderer.invoke('crm:import:cleanupGhostContacts'),
+    },
   },
 
   // ─── Analytics / Reporting ──────────────────────────────────────────
