@@ -22,6 +22,10 @@ export interface CachedGroupInfo {
   adminIds?: string[];
   settings?: Record<string, any>;
   fetchedAt: number;
+  linkId?: string;
+  link_id?: string;
+  groupLink?: string;
+  link?: string;
 }
 
 export interface LabelData {
