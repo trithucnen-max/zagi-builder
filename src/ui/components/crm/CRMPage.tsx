@@ -348,8 +348,8 @@ export default function CRMPage() {
     if (!activeAccountId) return;
 
     store.setContactsLoading(true);
-    // Strip client-only filters (has_phone, has_notes) before sending to backend
-    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes');
+    // Strip client-only filters (has_phone, has_notes, has_real_name) before sending to backend
+    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes' && t !== 'has_real_name');
 
     // Compute allowed contact IDs for selected Zalo labels
     const selectedZaloLabelContactIds = store.filterLabelIds.length > 0
@@ -376,6 +376,7 @@ export default function CRMPage() {
         salutation: store.filterSalutation,
         hasPhone: store.filterContactTypes.includes('has_phone'),
         hasNotes: store.filterContactTypes.includes('has_notes'),
+        hasRealName: store.filterContactTypes.includes('has_real_name'),
       },
     });
     store.setContactsLoading(false);
@@ -884,7 +885,7 @@ export default function CRMPage() {
   /** Select ALL contacts across all pages (not just current page) */
   const handleSelectAllPages = useCallback(async () => {
     if (!activeAccountId) return;
-    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes');
+    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes' && t !== 'has_real_name');
     const res = await ipc.crm?.getContacts({
       zaloId: activeAccountId,
       opts: {
@@ -893,6 +894,9 @@ export default function CRMPage() {
         contactType: backendContactTypes.length === 0 ? 'all' : undefined,
         sortBy: store.sortBy,
         sortDir: store.sortDir,
+        hasPhone: store.filterContactTypes.includes('has_phone'),
+        hasNotes: store.filterContactTypes.includes('has_notes'),
+        hasRealName: store.filterContactTypes.includes('has_real_name'),
         limit: 100000,
         offset: 0,
       },
@@ -905,7 +909,7 @@ export default function CRMPage() {
   /** Fetch toàn bộ liên hệ theo bộ lọc hiện tại (không phân trang) để xuất CSV */
   const handleExportAll = useCallback(async (): Promise<any[]> => {
     if (!activeAccountId) return [];
-    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes');
+    const backendContactTypes = store.filterContactTypes.filter(t => t !== 'has_phone' && t !== 'has_notes' && t !== 'has_real_name');
     const res = await ipc.crm?.getContacts({
       zaloId: activeAccountId,
       opts: {
@@ -914,6 +918,9 @@ export default function CRMPage() {
         contactType: backendContactTypes.length === 0 ? 'all' : undefined,
         sortBy: store.sortBy,
         sortDir: store.sortDir,
+        hasPhone: store.filterContactTypes.includes('has_phone'),
+        hasNotes: store.filterContactTypes.includes('has_notes'),
+        hasRealName: store.filterContactTypes.includes('has_real_name'),
         limit: 100000,
         offset: 0,
       },

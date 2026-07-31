@@ -6499,6 +6499,7 @@ class DatabaseService {
         salutation?: string;
         hasPhone?: boolean;
         hasNotes?: boolean;
+        hasRealName?: boolean;
         isBlocked?: boolean;
     } = {}): { contacts: any[]; total: number } {
         if (!this.initialized) return { contacts: [], total: 0 };
@@ -6831,6 +6832,11 @@ class DatabaseService {
                     const cleanCid = c.contact_id.startsWith('g') ? c.contact_id.slice(1) : c.contact_id;
                     return notesContactIds.has(cleanCid);
                 });
+            }
+
+            // Apply hasRealName filter
+            if (opts.hasRealName) {
+                all = all.filter(c => !!c.real_name && String(c.real_name).trim() !== '');
             }
 
             // Sort
