@@ -129,60 +129,63 @@ export default function GroupMembersTab() {
     if (!activeAccountId || !selectedGroupId) return;
     setCopyingLink(true);
     try {
+      const rawGid = selectedGroupId.startsWith('g') ? selectedGroupId.slice(1) : selectedGroupId;
+
+      // 1. Ưu tiên lấy trực tiếp từ Cache (Instant Copy 0ms)
+      const cachedInfo = (groupInfoCache[activeAccountId] || {})[rawGid] || (groupInfoCache[activeAccountId] || {})[selectedGroupId];
+      const cachedLinkId = cachedInfo?.linkId || cachedInfo?.link_id || cachedInfo?.groupLink || cachedInfo?.link;
+      if (cachedLinkId && !/^\d{15,22}$/.test(String(cachedLinkId))) {
+        const link = String(cachedLinkId).startsWith('http') ? String(cachedLinkId) : `https://zalo.me/g/${cachedLinkId}`;
+        setCurrentGroupLink(link);
+        await navigator.clipboard.writeText(link);
+        setCopiedLinkSuccess(true);
+        setTimeout(() => setCopiedLinkSuccess(false), 3000);
+        useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${link}`, 'success');
+        setCopyingLink(false);
+        return;
+      }
+
+      // 2. Nếu Cache chưa có linkId thì mới gọi API Zalo để lấy bổ sung
       const acc = useAccountStore.getState().getActiveAccount();
       if (!acc) throw new Error('Không tìm thấy tài khoản Zalo hoạt động');
       const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
-      const rawGid = selectedGroupId.startsWith('g') ? selectedGroupId.slice(1) : selectedGroupId;
 
-      let shortLink = '';
+      const infoRes = await ipc.zalo?.getGroupInfo({ auth, groupId: rawGid });
+      const gridMap: Record<string, any> =
+        infoRes?.response?.gridInfoMap ?? infoRes?.response?.changed_groups ?? infoRes?.response?.data?.gridInfoMap ?? {};
+      const gData = gridMap[rawGid] ?? gridMap[selectedGroupId] ?? Object.values(gridMap)[0];
 
-      // 1. Gọi API enableGroupLink (API chính thức của Zalo để kích hoạt & lấy link nhóm rút gọn zalo.me/g/slug)
-      try {
-        const linkRes: any = await ipc.zalo?.enableGroupLink({ auth, groupId: rawGid });
-        const resData = linkRes?.response ?? linkRes;
-        const linkUrl = resData?.link || resData?.groupLink || resData?.data?.link;
-        if (linkUrl && typeof linkUrl === 'string') {
-          shortLink = linkUrl.startsWith('http') ? linkUrl : `https://zalo.me/g/${linkUrl}`;
-        }
-      } catch (e) {
-        console.warn('[GroupMembersTab] enableGroupLink API error:', e);
-      }
-
-      // 2. Dự phòng: Thử tìm linkId trong getGroupInfo nếu enableGroupLink chưa trả về
-      if (!shortLink) {
-        const infoRes = await ipc.zalo?.getGroupInfo({ auth, groupId: rawGid });
-        const gridMap: Record<string, any> =
-          infoRes?.response?.gridInfoMap ?? infoRes?.response?.changed_groups ?? infoRes?.response?.data?.gridInfoMap ?? {};
-        const gData = gridMap[rawGid] ?? gridMap[selectedGroupId] ?? Object.values(gridMap)[0];
-
-        if (gData) {
-          const linkId = gData.linkId || gData.link_id || gData.linkJoin || gData.joinLink;
-          if (linkId && !/^\d{15,22}$/.test(String(linkId))) {
-            shortLink = String(linkId).startsWith('http') ? String(linkId) : `https://zalo.me/g/${linkId}`;
-          } else if (gData.groupLink || gData.inviteUrl || gData.link) {
-            const rawLink = String(gData.groupLink || gData.inviteUrl || gData.link);
-            if (rawLink && !rawLink.match(/\/g\/\d{15,22}$/)) {
-              shortLink = rawLink;
-            }
+      let link = '';
+      if (gData) {
+        const linkId = gData.linkId || gData.link_id || gData.linkJoin || gData.joinLink;
+        if (linkId && !/^\d{15,22}$/.test(String(linkId))) {
+          link = String(linkId).startsWith('http') ? String(linkId) : `https://zalo.me/g/${linkId}`;
+        } else if (gData.groupLink || gData.inviteUrl || gData.link) {
+          const rawLink = String(gData.groupLink || gData.inviteUrl || gData.link);
+          if (rawLink && !rawLink.match(/\/g\/\d{15,22}$/)) {
+            link = rawLink;
           }
         }
       }
 
-      // 3. Nếu vẫn không lấy được link rút gọn
-      if (!shortLink) {
-        shortLink = `https://zalo.me/g/${rawGid}`;
+      if (link) {
+        setCurrentGroupLink(link);
+        await navigator.clipboard.writeText(link);
+        setCopiedLinkSuccess(true);
+        setTimeout(() => setCopiedLinkSuccess(false), 3000);
+        useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${link}`, 'success');
+      } else {
+        const fallbackLink = `https://zalo.me/g/${rawGid}`;
+        setCurrentGroupLink(fallbackLink);
+        await navigator.clipboard.writeText(fallbackLink);
+        setCopiedLinkSuccess(true);
+        setTimeout(() => setCopiedLinkSuccess(false), 3000);
+        useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${fallbackLink}`, 'success');
       }
-
-      setCurrentGroupLink(shortLink);
-      await navigator.clipboard.writeText(shortLink);
-      setCopiedLinkSuccess(true);
-      setTimeout(() => setCopiedLinkSuccess(false), 3000);
-      useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm rút gọn: ${shortLink}`, 'success');
     } catch (err: any) {
       console.error('[GroupMembersTab] Copy group link error:', err);
       const rawGid = selectedGroupId.startsWith('g') ? selectedGroupId.slice(1) : selectedGroupId;
       const fallbackLink = `https://zalo.me/g/${rawGid}`;
-      setCurrentGroupLink(fallbackLink);
       await navigator.clipboard.writeText(fallbackLink).catch(() => {});
       setCopiedLinkSuccess(true);
       setTimeout(() => setCopiedLinkSuccess(false), 3000);
