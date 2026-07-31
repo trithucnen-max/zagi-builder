@@ -24,6 +24,7 @@ interface Batch {
     id: number;
     name: string;
     assigned_account_id: string | null;
+    target_account_id?: string | null;
     contact_assignment_mode?: 'single' | 'distributed' | 'all_accounts';
     auto_tag_ids: string; // JSON array
     daily_limit: number;
@@ -47,6 +48,9 @@ interface ScanItem {
     batch_id: number;
     phone: string;
     phone_normalized: string;
+    real_name?: string | null;
+    gender?: number | null;
+    birthday?: string | null;
     status: 'pending' | 'scanning' | 'found' | 'not_found' | 'error' | 'duplicate';
     zalo_uid: string | null;
     zalo_name: string | null;
