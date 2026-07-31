@@ -4,14 +4,17 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.1.1] - 2026-07-31
 
-### 🏷️ Nâng Cấp Quản Lý Nhãn CRM & Tự Động Gán Nhãn File Excel (`UnifiedLabelPickerModal.tsx`, `ImportWizardModal.tsx`, `CRMContactList.tsx`)
+### 🏷️ Nâng Cấp Quản Lý Nhãn CRM & Tự Động Gán Nhãn File Excel (`UnifiedLabelPickerModal.tsx`, `ImportWizardModal.tsx`, `CRMContactList.tsx`, `LabelSettings.tsx`)
 - **Hiển Thị Nhãn Ngay Bước Xác Nhận Excel/CSV (`ImportWizardModal.tsx`):**
   - Đã khắc phục lỗi không tải được nhãn khi quét file Excel. Nhãn được chọn/tạo mới cập nhật và hiển thị trực tiếp tại Bước 2 Xác nhận.
-- **Bộ Lọc Phạm Vi Nhãn Rõ Ràng & Trực Quan (`UnifiedLabelPickerModal.tsx`):**
+- **Bộ Lọc Phạm Vi Nhãn Rõ Ràng & Trực Quan (`UnifiedLabelPickerModal.tsx` & `LabelSettings.tsx`):**
   - Thay đổi nút toggle nhãn thành Menu thả xuống `<select>` phân biệt rõ: `🌐 Tất cả tài khoản Zalo` vs `👤 [Tên Zalo]`.
-  - Hiển thị badge Avatar + Tên tài khoản sở hữu nhãn hoặc badge `🌐 Tất cả Zalo`.
-- **Thu Gọn Nhãn Rác Danh Bạ CRM (`CRMContactList.tsx`):**
+  - Hiển thị badge Avatar + Tên tài khoản sở hữu nhãn hoặc badge **`🌐 Tất cả tài khoản Zalo (Dùng chung)`** đối với các nhãn toàn cục.
+- **Tối Ưu Thanh Tạo Nhãn Nhanh Responsive (`UnifiedLabelPickerModal.tsx`):**
+  - Thiết kế lại layout thanh tạo nhãn mới gọn gàng, tự động thu gọn menu tài khoản `max-w-[125px]`, giúp nút **`+ Tạo nhãn`** luôn hiển thị 100% rõ ràng trên mọi màn hình. Hỗ trợ bấm phím `Enter` để tạo nhãn cấp tốc.
+- **Thu Gọn Nhãn Rác Danh Bạ CRM & Bộ Lọc `✏️ Có tên thật` (`CRMContactList.tsx`):**
   - Bổ sung component `CollapsibleContactLabels`. Khách hàng có nhiều nhãn chỉ hiển thị 1 nhãn mới nhất + nút `+N ▼` thu gọn inline.
+  - Bổ sung tùy chọn bộ lọc **`✏️ Có tên thật`** trong menu bộ lọc `🗂️ Loại` của danh bạ CRM.
 
 ### 🌐 Báo Cáo Quét SĐT Hàng Loạt Theo Phân Quyền Nhân Sự (`PhoneScanPanel.tsx`, `DatabaseService.ts`)
 - **Bộ Lọc Tài Khoản Báo Cáo Phân Quyền (`PhoneScanPanel.tsx`):**
