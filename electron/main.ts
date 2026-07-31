@@ -1317,19 +1317,40 @@ async function startupAfterLicenseCheck(): Promise<void> {
 
   // IPC từ renderer: check update
   ipcMain.on('update:check', () => {
-    if (!isDev) {
-      autoUpdater.checkForUpdatesAndNotify();
+    try {
+      if (!isDev) {
+        autoUpdater.checkForUpdatesAndNotify();
+      }
+    } catch (err: any) {
+      console.error('[AutoUpdate] check error:', err?.message);
     }
   });
 
   // IPC từ renderer: trigger download
-  ipcMain.on('update:download', () => {
-    if (!isDev) autoUpdater.downloadUpdate();
+  ipcMain.on('update:download', async () => {
+    try {
+      if (!isDev) {
+        await autoUpdater.downloadUpdate();
+      } else {
+        mainWindow?.webContents.send('update:error', {
+          message: 'Môi trường Dev không hỗ trợ auto-update. Vui lòng tải file từ GitHub Release.',
+        });
+      }
+    } catch (err: any) {
+      console.error('[AutoUpdate] download error:', err?.message);
+      mainWindow?.webContents.send('update:error', {
+        message: err?.message || 'Không thể tự động tải bản cập nhật.',
+      });
+    }
   });
 
   // IPC từ renderer: install và restart
   ipcMain.on('update:install', () => {
-    if (!isDev) autoUpdater.quitAndInstall(false, true);
+    try {
+      if (!isDev) autoUpdater.quitAndInstall(false, true);
+    } catch (err: any) {
+      console.error('[AutoUpdate] install error:', err?.message);
+    }
   });
 }
 

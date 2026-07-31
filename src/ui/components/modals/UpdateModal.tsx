@@ -138,7 +138,7 @@ export default function UpdateModal({
                   {confirmStage ? 'XÁC NHẬN NÂNG CẤP ZAGI' : 'BẢN CẬP NHẬT MỚI'}
                 </h3>
                 <span className="px-2.5 py-0.5 rounded-full bg-white/25 border border-white/40 text-white font-extrabold text-xs">
-                  v{updateInfo.version || '3.0.9'}
+                  v{(updateInfo.version || '3.1.1').replace(/^v+/i, '')}
                 </span>
               </div>
               <p className="text-xs text-blue-100 mt-0.5">Zagi {osName} Auto-Update System</p>
@@ -155,7 +155,7 @@ export default function UpdateModal({
                   Bạn có muốn khởi động lại Zagi ngay bây giờ?
                 </p>
                 <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
-                  Bản cập nhật v{updateInfo.version || '3.0.9'} đã sẵn sàng. Bạn có thể chọn khởi động lại ngay hoặc để hệ thống tự áp dụng khi bạn tắt Zagi.
+                  Bản cập nhật v{(updateInfo.version || '3.1.1').replace(/^v+/i, '')} đã sẵn sàng. Bạn có thể chọn khởi động lại ngay hoặc để hệ thống tự áp dụng khi bạn tắt Zagi.
                 </p>
               </div>
 
@@ -202,6 +202,16 @@ export default function UpdateModal({
                   <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 font-mono">
                     <span>{formatBytes(updateInfo.transferred)} / {formatBytes(updateInfo.total)}</span>
                     <span>{formatSpeed(updateInfo.bytesPerSecond)}</span>
+                  </div>
+                  <div className="pt-1 border-t border-blue-200/50 dark:border-blue-900/30 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => window.open(updateInfo.htmlUrl || 'https://github.com/trithucnen-max/zagi-builder/releases/latest', '_blank')}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>🌐 Nếu bị treo hoặc không chạy, bấm vào đây để tải trực tiếp từ GitHub Release</span>
+                      <span>→</span>
+                    </button>
                   </div>
                 </div>
               )}
