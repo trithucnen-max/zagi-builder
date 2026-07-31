@@ -489,19 +489,19 @@ export default function PhoneScanPanel() {
         return Array.from(unique);
     };
 
-    // Download Sample Excel File (SĐT, Giới tính, Ngày sinh)
+    // Download Sample Excel File (SĐT, Họ và tên, Giới tính, Ngày sinh)
     const downloadSampleExcel = () => {
         try {
             const sampleData = [
-                { 'Số điện thoại': '0912345678', 'Giới tính': 'Nam', 'Ngày sinh': '15/08/1992' },
-                { 'Số điện thoại': '0987654321', 'Giới tính': 'Nữ', 'Ngày sinh': '20/11/1995' },
-                { 'Số điện thoại': '0909123456', 'Giới tính': 'Khác', 'Ngày sinh': '01/01/1990' },
+                { 'Số điện thoại': '0912345678', 'Họ và tên': 'Nguyễn Văn Anh', 'Giới tính': 'Nam', 'Ngày sinh': '15/08/1992' },
+                { 'Số điện thoại': '0987654321', 'Họ và tên': 'Trần Thị Bình', 'Giới tính': 'Nữ', 'Ngày sinh': '20/11/1995' },
+                { 'Số điện thoại': '0909123456', 'Họ và tên': 'Lê Hoàng Cường', 'Giới tính': 'Khác', 'Ngày sinh': '01/01/1990' },
             ];
             const worksheet = XLSX.utils.json_to_sheet(sampleData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'DS_SDT_Mau');
             XLSX.writeFile(workbook, 'Danh_sach_SDT_Quet_Mau.xlsx');
-            showNotification('Đã tải xuống file mẫu Excel (SĐT, Giới tính, Ngày sinh)!', 'success');
+            showNotification('Đã tải xuống file mẫu Excel (SĐT, Họ và tên, Giới tính, Ngày sinh)!', 'success');
         } catch (err: any) {
             showNotification('Tải file mẫu thất bại: ' + err.message, 'error');
         }
@@ -1938,7 +1938,7 @@ export default function PhoneScanPanel() {
                                                 onClick={(e) => { e.stopPropagation(); downloadSampleExcel(); }}
                                                 className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline transition-colors"
                                             >
-                                                <span>📥 Tải tệp CSV/Excel mẫu (SĐT, Giới tính, Ngày sinh)</span>
+                                                <span>📥 Tải tệp CSV/Excel mẫu (SĐT, Họ và tên, Giới tính, Ngày sinh)</span>
                                             </button>
 
                                             {csvFilename && (
