@@ -232,6 +232,7 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main') {
 
   const filesToUpdate = [
     path.join(ROOT_DIR, 'landing', 'index.html'),
+    path.join(ROOT_DIR, 'landing', 'src', 'constants.ts'),
     path.join(ROOT_DIR, 'docs', 'index.html'),
     path.join(ROOT_DIR, 'README.md'),
     path.join(ROOT_DIR, 'README.en.md'),
