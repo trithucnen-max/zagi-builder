@@ -855,7 +855,7 @@ export default function PhoneScanPanel() {
                                 </option>
                                 {visibleAccounts.map(acc => (
                                     <option key={acc.zalo_id} value={acc.zalo_id} className="bg-white dark:bg-gray-900">
-                                        👤 {acc.display_name || acc.name || acc.zalo_id} ({acc.zalo_id})
+                                        👤 {acc.display_name || (acc as any).name || acc.zalo_id} ({acc.zalo_id})
                                     </option>
                                 ))}
                             </select>
