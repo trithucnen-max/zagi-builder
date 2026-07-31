@@ -10,6 +10,7 @@ import { useErpPermissions } from '@/hooks/erp/useErpContext';
 import LicenseModal from '@/components/settings/LicenseModal';
 import AppIcon from '@/components/common/AppIcon';
 import useIsMobile from '@/hooks/useIsMobile';
+import { toLocalMediaUrl } from '@/lib/localMedia';
 
 interface SidebarProps {
   onAddAccount: () => void;
@@ -175,8 +176,8 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
                   }`}
                 >
                   {account.avatar_url ? (
-                    <img src={account.avatar_url} alt={account.full_name} className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = ''; }} />
+                    <img src={toLocalMediaUrl(account.avatar_url)} alt={account.full_name} className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   ) : (
                     <div className="w-full h-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
                       {(account.full_name || account.zalo_id).charAt(0).toUpperCase()}
@@ -255,10 +256,10 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
                 <div className="w-10 h-10 rounded-full overflow-hidden">
                   {account.avatar_url ? (
                     <img
-                      src={account.avatar_url}
+                      src={toLocalMediaUrl(account.avatar_url)}
                       alt={account.full_name}
                       className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = ''; }}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   ) : (
                     <div className="w-full h-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">

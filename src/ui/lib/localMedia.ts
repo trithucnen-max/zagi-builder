@@ -22,10 +22,15 @@ export function toLocalMediaUrl(filePath: string, zaloId?: string): string {
   if (!filePath) return '';
 
   const isWeb = typeof window !== 'undefined' && !(window as any).electronAPI;
+  const isEmployee = getMode() === 'employee';
 
-  if (isWeb) {
+  if (isWeb || isEmployee) {
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+
     let bossUrl = getBossBaseUrl();
-    if (!bossUrl) {
+    if (!bossUrl && isWeb) {
       try {
         const saved = localStorage.getItem('zagi_browser_workspaces');
         if (saved) {
@@ -39,10 +44,6 @@ export function toLocalMediaUrl(filePath: string, zaloId?: string): string {
     bossUrl = bossUrl.trim().replace(/\/+$/, '');
     if (!bossUrl.startsWith('http://') && !bossUrl.startsWith('https://')) bossUrl = `http://${bossUrl}`;
 
-    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-      return filePath;
-    }
-
     const cleanPath = filePath.replace(/^local-media:\/*/, '').replace(/^file:\/\/*/, '');
     if (cleanPath.startsWith('api/library/') || cleanPath.startsWith('api/media/')) {
       return `${bossUrl}/${cleanPath}`;
@@ -50,7 +51,7 @@ export function toLocalMediaUrl(filePath: string, zaloId?: string): string {
     return `${bossUrl}/api/media/file?path=${encodeURIComponent(cleanPath)}`;
   }
 
-  // Standalone/Boss & Employee Electron App: use local-media:// custom protocol
+  // Standalone/Boss Electron App: use local-media:// custom protocol
   if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('local-media://')) {
     return filePath;
   }

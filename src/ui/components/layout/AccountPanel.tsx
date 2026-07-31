@@ -6,6 +6,7 @@ import { useEmployeeStore } from '@/store/employeeStore';
 import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
 import ChannelBadge from '../common/ChannelBadge';
 import { formatPhone } from '@/utils/phoneUtils';
+import { toLocalMediaUrl } from '@/lib/localMedia';
 
 interface AccountPanelProps {
   onAddAccount: () => void;
@@ -131,9 +132,9 @@ export default function AccountPanel({ onAddAccount }: AccountPanelProps) {
                 <div className="relative flex-shrink-0">
                   <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/10">
                     {account.avatar_url ? (
-                      <img src={account.avatar_url} alt={account.full_name}
+                      <img src={toLocalMediaUrl(account.avatar_url)} alt={account.full_name}
                         className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).src = ''; }} />
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
                       <div className="w-full h-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">
                         {(account.full_name || account.zalo_id).charAt(0).toUpperCase()}
