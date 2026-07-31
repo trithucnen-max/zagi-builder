@@ -422,21 +422,22 @@ export default function UnifiedLabelPickerModal({
 
             {/* Quick create local label (only visible when activeTab === 'local') */}
             {activeTab === 'local' && (
-              <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/30 flex gap-2 items-center flex-shrink-0">
+              <div className="px-3.5 py-2.5 border-b border-gray-700 bg-gray-800/40 flex flex-wrap sm:flex-nowrap items-center gap-1.5 flex-shrink-0">
                 <input
                   type="text"
-                  placeholder="Tên nhãn local mới..."
+                  placeholder="+ Tên nhãn mới..."
                   value={newLocalLabelName}
                   onChange={e => setNewLocalLabelName(e.target.value)}
-                  className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-teal-500"
+                  onKeyDown={e => { if (e.key === 'Enter' && newLocalLabelName.trim() && !creating) handleCreateLocalLabel(); }}
+                  className="flex-1 min-w-[100px] bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
                 />
                 <select
                   value={targetScopeAccountId}
                   onChange={e => setTargetScopeAccountId(e.target.value)}
-                  className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-200 focus:outline-none focus:border-teal-500 cursor-pointer flex-shrink-0"
+                  className="max-w-[125px] bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs font-semibold text-gray-200 focus:outline-none focus:border-blue-500 cursor-pointer flex-shrink-0 truncate"
                   title="Chọn phạm vi tài khoản sử dụng nhãn này"
                 >
-                  <option value="all">🌐 Tất cả tài khoản</option>
+                  <option value="all">🌐 Tất cả Zalo</option>
                   {accounts.map(acc => (
                     <option key={acc.zalo_id} value={acc.zalo_id}>
                       👤 {formatAccountDisplayName(acc)}
@@ -446,7 +447,7 @@ export default function UnifiedLabelPickerModal({
                 <select
                   value={newLocalLabelEmoji}
                   onChange={e => setNewLocalLabelEmoji(e.target.value)}
-                  className="bg-gray-900 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-teal-500 cursor-pointer"
+                  className="w-10 bg-gray-900 border border-gray-700 rounded-lg px-1 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer flex-shrink-0 text-center"
                 >
                   {['🏷️', '🎯', '🔥', '⭐', '📢', '💡', '✅', '❌', '⚠️'].map(em => (
                     <option key={em} value={em}>{em}</option>
@@ -456,16 +457,16 @@ export default function UnifiedLabelPickerModal({
                   type="color"
                   value={newLocalLabelColor}
                   onChange={e => setNewLocalLabelColor(e.target.value)}
-                  className="w-8 h-8 rounded border border-gray-700 bg-transparent p-0.5 cursor-pointer flex-shrink-0"
+                  className="w-7 h-7 rounded border border-gray-700 bg-transparent p-0.5 cursor-pointer flex-shrink-0"
                   title="Chọn màu nhãn"
                 />
                 <button
                   type="button"
                   onClick={handleCreateLocalLabel}
                   disabled={creating || !newLocalLabelName.trim()}
-                  className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-700 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-all flex-shrink-0"
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-all flex-shrink-0 shadow-xs flex items-center gap-1"
                 >
-                  {creating ? 'Đang tạo...' : 'Tạo mới'}
+                  {creating ? 'Đang tạo...' : '+ Tạo nhãn'}
                 </button>
               </div>
             )}
