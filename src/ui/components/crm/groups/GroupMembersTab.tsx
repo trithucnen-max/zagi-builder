@@ -135,31 +135,36 @@ export default function GroupMembersTab() {
       let link = '';
       if (gData) {
         const linkId = gData.linkId || gData.link_id || gData.linkJoin || gData.joinLink;
-        if (linkId) {
-          link = linkId.startsWith('http') ? linkId : `https://zalo.me/g/${linkId}`;
+        if (linkId && !/^\d{15,22}$/.test(String(linkId))) {
+          link = String(linkId).startsWith('http') ? String(linkId) : `https://zalo.me/g/${linkId}`;
         } else if (gData.groupLink || gData.inviteUrl || gData.link) {
-          link = gData.groupLink || gData.inviteUrl || gData.link;
+          const rawLink = String(gData.groupLink || gData.inviteUrl || gData.link);
+          if (rawLink && !rawLink.match(/\/g\/\d{15,22}$/)) {
+            link = rawLink;
+          }
         }
       }
 
       if (!link) {
-        link = `https://zalo.me/g/${rawGid}`;
+        // Nhóm chưa tạo link rút gọn (linkId), sao chép ID số trực tiếp
+        link = rawGid;
+        useAppStore.getState().showNotification(`📋 Nhóm chưa bật link rút gọn. Đã sao chép ID nhóm: ${rawGid}`, 'info');
+      } else {
+        useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${link}`, 'success');
       }
 
       setCurrentGroupLink(link);
       await navigator.clipboard.writeText(link);
       setCopiedLinkSuccess(true);
       setTimeout(() => setCopiedLinkSuccess(false), 3000);
-      useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${link}`, 'success');
     } catch (err: any) {
       console.error('[GroupMembersTab] Copy group link error:', err);
       const rawGid = selectedGroupId.startsWith('g') ? selectedGroupId.slice(1) : selectedGroupId;
-      const fallbackLink = `https://zalo.me/g/${rawGid}`;
-      setCurrentGroupLink(fallbackLink);
-      await navigator.clipboard.writeText(fallbackLink).catch(() => {});
+      setCurrentGroupLink(rawGid);
+      await navigator.clipboard.writeText(rawGid).catch(() => {});
       setCopiedLinkSuccess(true);
       setTimeout(() => setCopiedLinkSuccess(false), 3000);
-      useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${fallbackLink}`, 'success');
+      useAppStore.getState().showNotification(`📋 Đã sao chép ID nhóm: ${rawGid}`, 'info');
     } finally {
       setCopyingLink(false);
     }

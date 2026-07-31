@@ -860,37 +860,63 @@ export function registerZaloIpc() {
                     return { success: false, error: `Không tìm thấy thông tin đăng nhập tài khoản Zalo ${zaloId} trên máy Boss` };
                 }
 
-                // 2. Resolve link Zalo me nếu có
+                // 2. Resolve link Zalo me hoặc Group ID
                 let groupId = cleanInput;
                 let groupInfoFromLink: any = null;
 
-                if (groupId.includes('zalo.me') || groupId.includes('chat.zalo.me') || !/^\d+$/.test(groupId)) {
-                    const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
-                    const zaloService = await getService(auth);
-                    const linkRes: any = await zaloService.getGroupLinkInfo(groupId, 1);
-                    const rawInfo = linkRes?.response || linkRes;
-                    const resolvedGroupId = rawInfo?.groupId || rawInfo?.group_id || rawInfo?.id;
-                    
-                    if (!resolvedGroupId) {
-                        return { success: false, error: linkRes?.error || linkRes?.message || 'Không lấy được thông tin nhóm từ link. Kiểm tra lại đường dẫn.' };
-                    }
-                    
-                    groupId = String(resolvedGroupId);
-                    const name = rawInfo.name || groupId;
-                    const avatar = rawInfo.fullAvt || rawInfo.avt || rawInfo.avatar || '';
-                    const creatorId = String(rawInfo.creatorId || rawInfo.ownerId || '').replace(/_0$/, '');
-                    const adminIds: string[] = (rawInfo.adminIds || []).map((a: any) => String(a).replace(/_0$/, ''));
-                    groupInfoFromLink = { groupId, name, avatar, creatorId, adminIds };
+                // Tách slug nếu input là đường dẫn zalo.me/g/xxx
+                const linkMatch = groupId.match(/zalo\.me\/g\/([a-zA-Z0-9_-]+)/i);
+                const extractedSlug = linkMatch ? linkMatch[1] : '';
 
-                    // Lưu profile nhóm vào SQLite Boss
-                    DatabaseService.getInstance().updateContactProfile(
-                        zaloId,
-                        groupId,
-                        name,
-                        avatar,
-                        '',
-                        'group'
-                    );
+                if (extractedSlug && /^\d{15,22}$/.test(extractedSlug)) {
+                    // Nếu slug phía sau /g/ chính là Group ID số
+                    groupId = extractedSlug;
+                } else if (groupId.startsWith('g') && /^\d{15,22}$/.test(groupId.slice(1))) {
+                    groupId = groupId.slice(1);
+                }
+
+                // Nếu là URL hoặc slug chữ, thử resolve qua Zalo API
+                if (groupId.includes('zalo.me') || groupId.includes('chat.zalo.me') || !/^\d+$/.test(groupId)) {
+                    try {
+                        const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
+                        const zaloService = await getService(auth);
+                        const linkRes: any = await zaloService.getGroupLinkInfo(groupId, 1);
+                        const rawInfo = linkRes?.response || linkRes;
+                        const resolvedGroupId = rawInfo?.groupId || rawInfo?.group_id || rawInfo?.id;
+                        
+                        if (resolvedGroupId) {
+                            groupId = String(resolvedGroupId);
+                            const name = rawInfo.name || groupId;
+                            const avatar = rawInfo.fullAvt || rawInfo.avt || rawInfo.avatar || '';
+                            const creatorId = String(rawInfo.creatorId || rawInfo.ownerId || '').replace(/_0$/, '');
+                            const adminIds: string[] = (rawInfo.adminIds || []).map((a: any) => String(a).replace(/_0$/, ''));
+                            groupInfoFromLink = { groupId, name, avatar, creatorId, adminIds };
+
+                            DatabaseService.getInstance().updateContactProfile(
+                                zaloId,
+                                groupId,
+                                name,
+                                avatar,
+                                '',
+                                'group'
+                            );
+                        } else {
+                            // Dự phòng: Nếu getGroupLinkInfo thất bại nhưng trong URL/chuỗi có ID số nhóm (15-22 chữ số)
+                            const digitMatch = cleanInput.match(/\d{15,22}/);
+                            if (digitMatch) {
+                                groupId = digitMatch[0];
+                            } else {
+                                return { success: false, error: linkRes?.error || linkRes?.message || 'Không lấy được thông tin nhóm từ link. Kiểm tra lại đường dẫn.' };
+                            }
+                        }
+                    } catch (err: any) {
+                        const digitMatch = cleanInput.match(/\d{15,22}/);
+                        if (digitMatch) {
+                            groupId = digitMatch[0];
+                        } else {
+                            return { success: false, error: err?.message || 'Không lấy được thông tin nhóm từ link. Kiểm tra lại đường dẫn.' };
+                        }
+                    }
                 }
 
                 // 3. Gọi scanGroupViaBackend tới máy chủ backend
