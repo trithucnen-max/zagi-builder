@@ -127,7 +127,7 @@ function LabelRow({
               {phone && <span className="text-[11px] text-gray-500">· {phone}</span>}
             </div>
           );
-        }) : <span className="text-[11px] text-gray-600 italic">Chưa gắn tài khoản nào</span>}
+        }) : <span className="text-[11px] text-blue-400/90 font-medium bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">🌐 Tất cả tài khoản Zalo (Dùng chung)</span>}
       </div>
     </div>
   );
