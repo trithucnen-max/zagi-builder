@@ -45,25 +45,45 @@ export function DeviceTelemetryPanel() {
   const [copiedSql, setCopiedSql] = useState(false);
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
 
-  const supabaseSqlSnippet = `-- Lệnh tạo bảng device_telemetry trên Supabase SQL Editor
+  const supabaseSqlSnippet = `-- Lệnh tạo hoặc nâng cấp bảng device_telemetry trên Supabase SQL Editor
 CREATE TABLE IF NOT EXISTS device_telemetry (
-  machine_id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id TEXT NOT NULL UNIQUE,
+  user_id TEXT,
+  license_key TEXT,
+  mode TEXT DEFAULT 'boss',               -- 'boss' | 'employee'
+  app_version TEXT,                       -- vd: '3.1.1'
+  platform TEXT,                          -- 'darwin' | 'win32' | 'linux'
+  connected_zalo_accounts INT DEFAULT 0,
+  system_metrics JSONB DEFAULT '{}'::jsonb, -- { cpu_usage, free_mem, total_mem }
+  last_seen TIMESTAMPTZ DEFAULT NOW(),
+  
+  -- Các cột tương thích phiên bản cũ
+  machine_id TEXT,
   os_platform TEXT,
   os_name TEXT,
   os_arch TEXT,
   os_release TEXT,
   hostname TEXT,
-  app_version TEXT,
   account_ids JSONB DEFAULT '[]'::jsonb,
   account_names JSONB DEFAULT '[]'::jsonb,
   last_seen_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Mở quyền RLS cho phép app Zagi gửi ping và đọc danh sách máy
-ALTER TABLE device_telemetry ENABLE ROW LEVEL SECURITY;
+-- Mở rộng cột nếu bảng đã tồn tại trước đó
+ALTER TABLE device_telemetry ADD COLUMN IF NOT EXISTS device_id TEXT;
+ALTER TABLE device_telemetry ADD COLUMN IF NOT EXISTS user_id TEXT;
+ALTER TABLE device_telemetry ADD COLUMN IF NOT EXISTS license_key TEXT;
+ALTER TABLE device_telemetry ADD COLUMN IF NOT EXISTS mode TEXT DEFAULT 'boss';
+ALTER TABLE device_telemetry ADD COLUMN IF NOT EXISTS platform TEXT;
+ALTER TABLE device_telemetry ADD COLUMN IF NOT EXISTS connected_zalo_accounts INT DEFAULT 0;
+ALTER TABLE device_telemetry ADD COLUMN IF NOT EXISTS system_metrics JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE device_telemetry ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ DEFAULT NOW();
 
-CREATE POLICY "Allow client ping write only" ON device_telemetry FOR ALL TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "Allow admin read all" ON device_telemetry FOR SELECT TO service_role USING (true);`;
+-- Mở quyền RLS cho phép client gửi ping không giới hạn
+ALTER TABLE device_telemetry ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow client ping write only" ON device_telemetry;
+CREATE POLICY "Allow client ping write only" ON device_telemetry FOR ALL TO anon USING (true) WITH CHECK (true);`;
 
   useEffect(() => {
     loadData();

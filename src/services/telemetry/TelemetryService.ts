@@ -168,7 +168,7 @@ export class TelemetryService {
   }
 
   /** Lấy dữ liệu telemetry hiện tại của máy này */
-  public getDeviceInfo(accounts: Array<{ zaloId: string; displayName?: string }> = []): DeviceTelemetryInfo & { app_mode: string } {
+  public getDeviceInfo(accounts: Array<{ zaloId: string; displayName?: string }> = []): Record<string, any> {
     let appMode = 'boss';
     let licenseKey = '';
     let licensePlan = '';
@@ -187,19 +187,37 @@ export class TelemetryService {
       }
     } catch {}
 
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const cpuCount = os.cpus().length || 1;
+    const loadAvg = os.loadavg();
+    const cpuUsage = loadAvg && loadAvg.length > 0 ? Math.min(100, Math.round((loadAvg[0] / cpuCount) * 100)) : 0;
+
     return {
       machine_id: this.machineId,
+      device_id: this.machineId,
+      user_id: licenseKey || null,
+      license_key: licenseKey || null,
+      license_plan: licensePlan,
+      mode: appMode,
+      app_mode: appMode,
+      app_version: pkg.version || '3.1.1',
+      platform: os.platform(),
       os_platform: os.platform(),
       os_name: this.getFriendlyOSName(),
       os_arch: os.arch(),
       os_release: os.release(),
       hostname: os.hostname(),
-      app_version: pkg.version || '3.0.7',
-      app_mode: appMode,
-      license_key: licenseKey,
-      license_plan: licensePlan,
+      connected_zalo_accounts: accounts.length,
       account_ids: accounts.map(a => a.zaloId).filter(Boolean),
       account_names: accounts.map(a => a.displayName || a.zaloId).filter(Boolean),
+      system_metrics: {
+        cpu_usage: cpuUsage,
+        free_mem: Math.round(freeMem / (1024 * 1024)),
+        total_mem: Math.round(totalMem / (1024 * 1024)),
+        cpu_count: cpuCount,
+      },
+      last_seen: new Date().toISOString(),
       last_seen_at: new Date().toISOString(),
     };
   }
