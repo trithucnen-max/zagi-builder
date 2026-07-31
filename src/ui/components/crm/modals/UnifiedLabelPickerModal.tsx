@@ -112,6 +112,8 @@ export default function UnifiedLabelPickerModal({
   const [activeTab, setActiveTab] = useState<'local' | 'zalo'>('local');
   const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
   const [newLocalLabelName, setNewLocalLabelName] = useState('');
+  const [newLocalLabelColor, setNewLocalLabelColor] = useState('#3B82F6');
+  const [newLocalLabelEmoji, setNewLocalLabelEmoji] = useState('🏷️');
   const [targetScopeAccountId, setTargetScopeAccountId] = useState<string>('all');
   const [creating, setCreating] = useState(false);
 
