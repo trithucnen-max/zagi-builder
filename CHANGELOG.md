@@ -479,6 +479,17 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v3.1.2] - 2026-07-31
+
+### 🐛 Sửa lỗi & Cải tiến
+
+- Khắc phục dứt điểm lỗi gửi và forward hình ảnh trên máy BOSS.
+- Tự động tải tệp tin ảnh từ URL CDN Zalo về đĩa tạm nếu chưa có trên máy local.
+- Nâng cấp cơ chế tra cứu và remap đường dẫn thư viện (`library/`) linh hoạt khi di chuyển dữ liệu.
+- Cập nhật chuẩn hóa liên kết tải xuống mượt mà trên Landing Page và README.
+
+
+
 ## [v4] - 2026-07-31
 
 ### 🐛 Sửa lỗi & Cải tiến
