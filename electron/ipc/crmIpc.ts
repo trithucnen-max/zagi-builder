@@ -611,19 +611,19 @@ export function registerCRMIpc(): void {
     });
 
     // ─── Zalo Bulk Phone Scanner IPC Handlers ─────────────────────────────────────
-    ipcHandle('crm:getPhoneScanBatches', async () => {
+    ipcHandle('crm:getPhoneScanBatches', async (_e, { accountIds }: any = {}) => {
         try {
             const db = DatabaseService.getInstance();
-            return { success: true, batches: db.getPhoneScanBatches() };
+            return { success: true, batches: db.getPhoneScanBatches(accountIds) };
         } catch (err: any) {
             return { success: false, error: err.message };
         }
     });
 
-    ipcHandle('crm:getPhoneScanOverallStats', async (_e, { timeRange, startDate, endDate }: any = {}) => {
+    ipcHandle('crm:getPhoneScanOverallStats', async (_e, { timeRange, startDate, endDate, accountIds }: any = {}) => {
         try {
             const db = DatabaseService.getInstance();
-            return { success: true, stats: db.getPhoneScanOverallStats(timeRange, startDate, endDate) };
+            return { success: true, stats: db.getPhoneScanOverallStats(timeRange, startDate, endDate, accountIds) };
         } catch (err: any) {
             return { success: false, error: err.message };
         }

@@ -857,24 +857,55 @@ export default function GroupMembersTab() {
     }
   }, [activeAccountId, loadGroupsFromDB]);
 
-  // ── Scan from "Quét nâng cao" tab (Ủy quyền về Boss) ──────────────
+  // ── Scan from "Quét nâng cao" tab (Gọi Deplao backend API mã hóa AES-128-CBC) ──────────────
   const handleScanTab = useCallback(async () => {
     if (!activeAccountId || !scanLinkInput.trim()) return;
 
     if (!isPremium) {
-      setScanTabError('Cần kích hoạt gói Premium để sử dụng tính năng này. Bấm nút mua gói hoặc liên hệ chăm sóc khách hàng.');
+      setScanTabError('Cần kích hoạt gói Premium để sử dụng tính năng này. Bấm nút mua gói hoặc liên hệ hỗ trợ.');
       return;
     }
+
+    const acc = useAccountStore.getState().getActiveAccount();
+    if (!acc) { setScanTabError('Không tìm thấy tài khoản'); return; }
+    const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
 
     setScanTabLoading(true);
     setScanTabError('');
     setScanTabResults([]);
     setScanTabGroupId(null);
     try {
-      const input = scanLinkInput.trim();
-      const result = await ipc.zalo?.scanAdvancedGroup?.({
-        zaloId: activeAccountId,
-        linkOrGroupId: input,
+      let groupId = scanLinkInput.trim();
+      let groupInfoFromLink: { groupId: string; name: string; avatar: string; creatorId?: string; adminIds?: string[] } | null = null;
+
+      if (groupId.includes('zalo.me') || groupId.includes('chat.zalo.me')) {
+        const info = await resolveAndSaveGroupInfo(auth, groupId);
+        if (!info) {
+          setScanTabError('Không lấy được thông tin nhóm từ link. Kiểm tra lại đường dẫn.');
+          return;
+        }
+        groupId = info.groupId;
+        groupInfoFromLink = info;
+        setResolvedGroupInfo(info);
+      } else if (/^\d+$/.test(groupId)) {
+        const info = await resolveAndSaveGroupInfo(auth, groupId);
+        if (info) {
+          groupInfoFromLink = info;
+          setResolvedGroupInfo(info);
+        }
+      }
+
+      if (!/^\d+$/.test(groupId)) {
+        setScanTabError('Group ID không hợp lệ. Nhập link nhóm hoặc Group ID dạng số.');
+        return;
+      }
+
+      const { scanGroupViaBackend } = await import('@/lib/backendService');
+      const result = await scanGroupViaBackend({
+        pageId: activeAccountId,
+        cookie: acc.cookies,
+        imei: acc.imei,
+        groupId,
       });
 
       if (!result?.success) {
@@ -882,18 +913,43 @@ export default function GroupMembersTab() {
         return;
       }
 
-      const groupId = result.groupId || input;
       const members = result.members || [];
       if (members.length === 0) {
         setScanTabError('Không tìm thấy thành viên nào trong nhóm.');
         return;
       }
 
-      setScanTabResults(members);
+      setScanTabResults(members.map((m: any) => ({
+        userId: m.userId || m.id,
+        displayName: m.displayName || m.zaloName || m.userId || m.id,
+        avatar: m.avatar || '',
+      })));
       setScanTabGroupId(groupId);
-      if (result.groupInfo) {
-        setResolvedGroupInfo(result.groupInfo);
+
+      if (!resolvedGroupInfo && !groupInfoFromLink) {
+        setResolvedGroupInfo({ groupId, name: groupId, avatar: '', creatorId: '', adminIds: [] });
       }
+
+      const creatorId = groupInfoFromLink?.creatorId || '';
+      const adminIdList = groupInfoFromLink?.adminIds || [];
+      const adminSet = new Set([creatorId, ...adminIdList].filter(Boolean));
+
+      await ipc.db?.mergeGroupMembers({
+        zaloId: activeAccountId,
+        groupId,
+        members: members.map((m: any) => {
+          const mid = m.userId || m.id;
+          let role = 0;
+          if (mid === creatorId) role = 2;
+          else if (adminSet.has(mid)) role = 1;
+          return {
+            memberId: mid,
+            displayName: m.displayName || m.zaloName || m.userId || m.id,
+            avatar: m.avatar || '',
+            role,
+          };
+        }),
+      });
 
       await loadGroupsFromDB();
       await loadMembersFromDB(groupId);
@@ -902,7 +958,7 @@ export default function GroupMembersTab() {
     } finally {
       setScanTabLoading(false);
     }
-  }, [activeAccountId, scanLinkInput, isPremium, loadGroupsFromDB, loadMembersFromDB]);
+  }, [activeAccountId, scanLinkInput, isPremium, loadGroupsFromDB, loadMembersFromDB, resolveAndSaveGroupInfo, resolvedGroupInfo]);
 
   // ── Join group from scan tab ──────────────────────────────────────────
   const handleJoinFromScanTab = useCallback(async () => {

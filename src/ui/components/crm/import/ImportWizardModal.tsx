@@ -85,11 +85,15 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
   const [localLabels, setLocalLabels] = useState<any[]>([]);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
 
-  useEffect(() => {
-    ipc.db?.getLocalLabels({ zaloId: 'all' }).then((res: any) => {
+  const fetchLocalLabels = useCallback(() => {
+    ipc.db?.getLocalLabels({}).then((res: any) => {
       if (res?.labels) setLocalLabels(res.labels);
     });
   }, []);
+
+  useEffect(() => {
+    fetchLocalLabels();
+  }, [fetchLocalLabels]);
 
   const labelOptions: LoadedLabelOption[] = useMemo(() => {
     return localLabels.map((l: any) => ({
@@ -1111,6 +1115,7 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
           }}
           mode="multi"
           accounts={visibleAccounts}
+          onNewLabelCreated={fetchLocalLabels}
         />
       )}
     </div>

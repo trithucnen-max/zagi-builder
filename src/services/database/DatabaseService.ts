@@ -9531,11 +9531,22 @@ class DatabaseService {
         }
     }
 
-    public getPhoneScanBatches(): any[] {
+    public getPhoneScanBatches(accountIds?: string[]): any[] {
         if (!this.initialized) return [];
         try {
             this.backfillPhoneScanAliases();
-            return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY created_at DESC, id DESC`);
+            if (!accountIds || accountIds.length === 0) {
+                return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY created_at DESC, id DESC`);
+            }
+            const placeholders = accountIds.map(() => '?').join(',');
+            return this.query<any>(
+                `SELECT DISTINCT * FROM phone_scan_batches 
+                 WHERE assigned_account_id IN (${placeholders}) 
+                    OR target_account_id IN (${placeholders}) 
+                    OR assigned_account_id IS NULL OR assigned_account_id = ''
+                 ORDER BY created_at DESC, id DESC`,
+                [...accountIds, ...accountIds]
+            );
         } catch (err: any) {
             Logger.error(`[DB] getPhoneScanBatches: ${err.message}`);
             return [];
@@ -9972,7 +9983,8 @@ class DatabaseService {
     public getPhoneScanOverallStats(
         timeRange: 'all' | 'today' | 'this_week' | 'this_month' | 'custom' = 'all',
         startDate?: string,
-        endDate?: string
+        endDate?: string,
+        accountIds?: string[]
     ): {
         total: number;
         scanned: number;
@@ -9985,12 +9997,50 @@ class DatabaseService {
     } {
         if (!this.initialized) return { total: 0, scanned: 0, found: 0, notFound: 0, error: 0, pending: 0 };
         try {
+            let accountSql = '';
+            let accountParams: any[] = [];
+            if (accountIds && accountIds.length > 0) {
+                const placeholders = accountIds.map(() => '?').join(',');
+                accountSql = ` AND (psb.assigned_account_id IN (${placeholders}) OR psb.target_account_id IN (${placeholders}) OR psi.scanned_by_account_id IN (${placeholders}) OR psb.assigned_account_id IS NULL OR psb.assigned_account_id = '') `;
+                accountParams = [...accountIds, ...accountIds, ...accountIds];
+            }
+
             if (!timeRange || timeRange === 'all') {
-                const totalRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items`) || { cnt: 0 };
-                const foundRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'found'`) || { cnt: 0 };
-                const notFoundRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status IN ('not_found', 'error')`) || { cnt: 0 };
-                const errorRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'error'`) || { cnt: 0 };
-                const pendingRow = this.queryOne<any>(`SELECT COUNT(*) as cnt FROM phone_scan_items WHERE status = 'pending'`) || { cnt: 0 };
+                const totalRow = this.queryOne<any>(
+                    `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                     JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                     WHERE 1=1 ${accountSql}`,
+                    accountParams
+                ) || { cnt: 0 };
+
+                const foundRow = this.queryOne<any>(
+                    `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                     JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                     WHERE psi.status = 'found' ${accountSql}`,
+                    accountParams
+                ) || { cnt: 0 };
+
+                const notFoundRow = this.queryOne<any>(
+                    `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                     JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                     WHERE psi.status IN ('not_found', 'error') ${accountSql}`,
+                    accountParams
+                ) || { cnt: 0 };
+
+                const errorRow = this.queryOne<any>(
+                    `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                     JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                     WHERE psi.status = 'error' ${accountSql}`,
+                    accountParams
+                ) || { cnt: 0 };
+
+                const pendingRow = this.queryOne<any>(
+                    `SELECT COUNT(*) as cnt FROM phone_scan_items psi
+                     JOIN phone_scan_batches psb ON psi.batch_id = psb.id
+                     WHERE psi.status = 'pending' ${accountSql}`,
+                    accountParams
+                ) || { cnt: 0 };
+
                 const scanned = foundRow.cnt + notFoundRow.cnt;
 
                 return {
@@ -10049,8 +10099,8 @@ class DatabaseService {
             const totalRow = this.queryOne<any>(
                 `SELECT COUNT(*) as cnt FROM phone_scan_items psi
                  JOIN phone_scan_batches psb ON psi.batch_id = psb.id
-                 WHERE (psi.created_at >= ? AND psi.created_at <= ?) OR (psb.created_at >= ? AND psb.created_at <= ?)`,
-                [startTimestamp, endTimestamp, startTimestamp, endTimestamp]
+                 WHERE ((psi.created_at >= ? AND psi.created_at <= ?) OR (psb.created_at >= ? AND psb.created_at <= ?)) ${accountSql}`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, ...accountParams]
             ) || { cnt: 0 };
 
             // Found items
@@ -10061,8 +10111,8 @@ class DatabaseService {
                      (psi.scanned_at >= ? AND psi.scanned_at <= ?) OR
                      (psi.created_at >= ? AND psi.created_at <= ?) OR
                      (psb.created_at >= ? AND psb.created_at <= ?)
-                 )`,
-                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp]
+                 ) ${accountSql}`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp, ...accountParams]
             ) || { cnt: 0 };
 
             // Not found items (includes both 'not_found' and 'error' lookups)
@@ -10073,8 +10123,8 @@ class DatabaseService {
                      (psi.scanned_at >= ? AND psi.scanned_at <= ?) OR
                      (psi.created_at >= ? AND psi.created_at <= ?) OR
                      (psb.created_at >= ? AND psb.created_at <= ?)
-                 )`,
-                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp]
+                 ) ${accountSql}`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp, ...accountParams]
             ) || { cnt: 0 };
 
             // Error items
@@ -10085,8 +10135,8 @@ class DatabaseService {
                      (psi.scanned_at >= ? AND psi.scanned_at <= ?) OR
                      (psi.created_at >= ? AND psi.created_at <= ?) OR
                      (psb.created_at >= ? AND psb.created_at <= ?)
-                 )`,
-                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp]
+                 ) ${accountSql}`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, startTimestamp, endTimestamp, ...accountParams]
             ) || { cnt: 0 };
 
             // Pending items
@@ -10096,8 +10146,8 @@ class DatabaseService {
                  WHERE psi.status = 'pending' AND (
                      (psi.created_at >= ? AND psi.created_at <= ?) OR
                      (psb.created_at >= ? AND psb.created_at <= ?)
-                 )`,
-                [startTimestamp, endTimestamp, startTimestamp, endTimestamp]
+                 ) ${accountSql}`,
+                [startTimestamp, endTimestamp, startTimestamp, endTimestamp, ...accountParams]
             ) || { cnt: 0 };
 
             const scanned = foundRow.cnt + notFoundRow.cnt;

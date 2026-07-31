@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useCRMStore } from '@/store/crmStore';
 import type { CRMContact } from '@/store/crmStore';
 import type { ContactTypeFilter, GenderFilter, BirthdayFilter, SalutationFilter } from '@/store/crmStore';
@@ -70,6 +70,101 @@ function defaultSalutation(gender?: number | null): string {
   if (gender === 0) return 'Anh';
   if (gender === 1) return 'Chị';
   return 'Bạn';
+}
+
+function CollapsibleContactLabels({
+  threadLIds,
+  localLabels,
+  contactLabels
+}: {
+  threadLIds: number[];
+  localLabels?: LocalLabelItem[];
+  contactLabels: LabelData[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const allLabels = useMemo(() => {
+    const list: { id: string; name: string; emoji?: string; color: string; textColor?: string }[] = [];
+
+    threadLIds.forEach(lid => {
+      const ll = localLabels?.find(l => l.id === lid || Number(l.id) === Number(lid));
+      if (ll) {
+        list.push({
+          id: `ll-${ll.id}`,
+          name: ll.name,
+          emoji: ll.emoji,
+          color: ll.color || '#3b82f6',
+          textColor: ll.text_color || '#ffffff',
+        });
+      }
+    });
+
+    contactLabels.forEach(zl => {
+      list.push({
+        id: `zl-${zl.id}`,
+        name: zl.name,
+        emoji: '☁️',
+        color: zl.color || '#0068FF',
+        textColor: '#ffffff',
+      });
+    });
+
+    return list;
+  }, [threadLIds, localLabels, contactLabels]);
+
+  if (allLabels.length === 0) return null;
+
+  const latestLabel = allLabels[allLabels.length - 1];
+  const hiddenCount = allLabels.length - 1;
+
+  if (allLabels.length === 1 || expanded) {
+    return (
+      <div className="flex gap-1 flex-wrap items-center mt-0.5" onClick={e => e.stopPropagation()}>
+        {allLabels.map(l => (
+          <span
+            key={l.id}
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium shadow-2xs max-w-[120px]"
+            style={{ backgroundColor: l.color, color: l.textColor || '#ffffff' }}
+          >
+            {l.emoji && <span className="text-[8px]">{l.emoji}</span>}
+            <span className="truncate">{l.name}</span>
+          </span>
+        ))}
+        {allLabels.length > 1 && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); setExpanded(false); }}
+            className="text-[9px] text-blue-400 hover:text-blue-300 font-bold bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 px-1 py-0.5 rounded cursor-pointer flex items-center gap-0.5"
+            title="Thu gọn nhãn"
+          >
+            <span>▲ Thu gọn</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 mt-0.5" onClick={e => e.stopPropagation()}>
+      <span
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium shadow-2xs max-w-[120px]"
+        style={{ backgroundColor: latestLabel.color, color: latestLabel.textColor || '#ffffff' }}
+      >
+        {latestLabel.emoji && <span className="text-[8px]">{latestLabel.emoji}</span>}
+        <span className="truncate">{latestLabel.name}</span>
+      </span>
+
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); setExpanded(true); }}
+        className="text-[9px] text-gray-300 hover:text-white font-bold bg-gray-700/80 hover:bg-gray-700 border border-gray-600/80 px-1.5 py-0.5 rounded cursor-pointer flex items-center gap-0.5 transition-colors"
+        title={`Xem thêm ${hiddenCount} nhãn khác`}
+      >
+        <span>+{hiddenCount}</span>
+        <span className="text-[8px]">▼</span>
+      </button>
+    </div>
+  );
 }
 
 
@@ -1445,27 +1540,12 @@ export default function CRMContactList({
                       ...(contact.phone ? localLabelThreadMap?.[contact.phone] || [] : []),
                       ...(contact.user_id ? localLabelThreadMap?.[contact.user_id] || [] : []),
                     ]));
-                    const hasLabels = threadLIds.length > 0 || contactLabels.length > 0;
-                    if (!hasLabels) return null;
                     return (
-                      <div className="flex gap-1 flex-wrap mt-0.5">
-                        {threadLIds.slice(0, 3).map(lid => {
-                          const ll = localLabels?.find(l => l.id === lid || Number(l.id) === Number(lid));
-                          if (!ll) return null;
-                          return (
-                            <span key={`ll-${lid}`}
-                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium max-w-[80px]"
-                              style={{ backgroundColor: ll.color || '#3b82f6', color: ll.text_color || '#fff' }}>
-                              {ll.emoji && <span className="text-[8px]">{ll.emoji}</span>}
-                              <span className="truncate">{ll.name}</span>
-                            </span>
-                          );
-                        })}
-                        {contactLabels.slice(0, 3).map(l => <ZaloLabelBadge key={l.id} label={l} size="xs" />)}
-                        {(threadLIds.length + contactLabels.length) > 3 && (
-                          <span className="text-[10px] text-gray-500">+{threadLIds.length + contactLabels.length - 3}</span>
-                        )}
-                      </div>
+                      <CollapsibleContactLabels
+                        threadLIds={threadLIds}
+                        localLabels={localLabels}
+                        contactLabels={contactLabels}
+                      />
                     );
                   })()}
                 </div>

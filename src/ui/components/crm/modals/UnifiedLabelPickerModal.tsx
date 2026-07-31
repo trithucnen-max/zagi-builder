@@ -112,17 +112,12 @@ export default function UnifiedLabelPickerModal({
   const [activeTab, setActiveTab] = useState<'local' | 'zalo'>('local');
   const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
   const [newLocalLabelName, setNewLocalLabelName] = useState('');
-  const [newLocalLabelColor, setNewLocalLabelColor] = useState('#14b8a6');
-  const [newLocalLabelEmoji, setNewLocalLabelEmoji] = useState('🏷️');
-  const [isGlobalScope, setIsGlobalScope] = useState(true);
+  const [targetScopeAccountId, setTargetScopeAccountId] = useState<string>('all');
   const [creating, setCreating] = useState(false);
 
   const localOpts = useMemo(() => {
-    return options.filter(o => o.source === 'local').filter(o => {
-      if (!o.pageIds || o.pageIds.length === 0) return true;
-      return o.pageIds.some(id => accounts.some(acc => acc.zalo_id === id));
-    });
-  }, [options, accounts]);
+    return options.filter(o => o.source === 'local');
+  }, [options]);
 
   const zaloOpts = useMemo(() => {
     return options.filter(o => o.source === 'zalo').filter(o => {
@@ -163,16 +158,14 @@ export default function UnifiedLabelPickerModal({
       }));
     }
 
-    const pageIds = new Set<string>();
-    currentOpts.forEach(o => {
-      if (o.pageIds) o.pageIds.forEach(p => pageIds.add(p));
-    });
-
-    return accounts.filter(a => pageIds.has(a.zalo_id)).map(acc => ({
-      ...acc,
-      avatar_url: acc.avatar_url || '',
-      labelCount: currentOpts.filter(o => o.pageIds?.includes(acc.zalo_id)).length,
-    }));
+    return accounts.map(acc => {
+      const count = currentOpts.filter(o => !o.pageIds || o.pageIds.length === 0 || o.pageIds.includes(acc.zalo_id)).length;
+      return {
+        ...acc,
+        avatar_url: acc.avatar_url || '',
+        labelCount: count,
+      };
+    }).filter(acc => acc.labelCount > 0);
   }, [activeTab, localOpts, zaloOpts, accounts]);
 
   // Filter labels by selected account
@@ -182,13 +175,18 @@ export default function UnifiedLabelPickerModal({
     if (activeTab === 'zalo') {
       return currentOpts.filter(o => !o.pageId || o.pageId === selectedAccountId);
     }
-    return currentOpts.filter(o => o.pageIds?.includes(selectedAccountId));
+    return currentOpts.filter(o => !o.pageIds || o.pageIds.length === 0 || o.pageIds.includes(selectedAccountId));
   }, [activeTab, localOpts, zaloOpts, selectedAccountId]);
 
-  // Reset account filter when switching tabs
+  // Reset account filter & sync scope when switching tabs or selecting accounts
   useEffect(() => {
     setSelectedAccountId('all');
+    setTargetScopeAccountId('all');
   }, [activeTab]);
+
+  useEffect(() => {
+    setTargetScopeAccountId(selectedAccountId);
+  }, [selectedAccountId]);
 
   // Auto-select tab based on available options
   useEffect(() => {
@@ -213,10 +211,7 @@ export default function UnifiedLabelPickerModal({
     }
     setCreating(true);
     try {
-      let pageIds = '';
-      if (!isGlobalScope) {
-        pageIds = selectedAccountId !== 'all' ? selectedAccountId : '';
-      }
+      const pageIds = targetScopeAccountId !== 'all' ? targetScopeAccountId : '';
 
       const createRes = await ipc.db?.upsertLocalLabel({
         label: {
@@ -433,18 +428,19 @@ export default function UnifiedLabelPickerModal({
                   onChange={e => setNewLocalLabelName(e.target.value)}
                   className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-teal-500"
                 />
-                <button
-                  type="button"
-                  onClick={() => setIsGlobalScope(prev => !prev)}
-                  className={`px-2 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1 flex-shrink-0 transition-all ${
-                    isGlobalScope
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                      : 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
-                  }`}
-                  title={isGlobalScope ? "Mặc định: Nhãn dùng chung cho Tất cả tài khoản. Bấm để đổi thành Nhãn riêng." : "Nhãn riêng cho tài khoản đang chọn. Bấm để đổi thành Nhãn dùng chung."}
+                <select
+                  value={targetScopeAccountId}
+                  onChange={e => setTargetScopeAccountId(e.target.value)}
+                  className="bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-200 focus:outline-none focus:border-teal-500 cursor-pointer flex-shrink-0"
+                  title="Chọn phạm vi tài khoản sử dụng nhãn này"
                 >
-                  {isGlobalScope ? '🌐 Tất cả' : '👤 Nhãn riêng'}
-                </button>
+                  <option value="all">🌐 Tất cả tài khoản</option>
+                  {accounts.map(acc => (
+                    <option key={acc.zalo_id} value={acc.zalo_id}>
+                      👤 {formatAccountDisplayName(acc)}
+                    </option>
+                  ))}
+                </select>
                 <select
                   value={newLocalLabelEmoji}
                   onChange={e => setNewLocalLabelEmoji(e.target.value)}
@@ -490,6 +486,7 @@ export default function UnifiedLabelPickerModal({
                     const isSelected = selected.includes(opt.value);
                     const bgColor = opt.color || '#6b7280';
                     const textColor = opt.textColor || getContrastColor(bgColor);
+                    const isGlobalLocal = opt.source === 'local' && (!opt.pageIds || opt.pageIds.length === 0);
                     const accId = opt.pageId || opt.accountZaloId || (opt.pageIds && opt.pageIds[0]);
                     const acc = accId ? accountMap.get(accId) : undefined;
                     const formattedAccName = formatAccountDisplayName(acc);
@@ -541,14 +538,20 @@ export default function UnifiedLabelPickerModal({
                           {opt.emoji || '🏷️'} {opt.name}
                         </span>
 
-                        {/* Account info on the right-hand side */}
-                        {selectedAccountId === 'all' && (accId || displayAccName) && (
-                          <div className="flex items-center gap-2 ml-auto flex-shrink-0">
-                            <AccountAvatar account={effectiveAcc} size="sm" />
-                            <span className="text-xs font-medium text-gray-300">
-                              {displayAccName}
+                        {/* Account info or Global Badge on the right-hand side */}
+                        {selectedAccountId === 'all' && (
+                          isGlobalLocal ? (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium ml-auto flex-shrink-0">
+                              🌐 Tất cả Zalo
                             </span>
-                          </div>
+                          ) : (accId || displayAccName) ? (
+                            <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+                              <AccountAvatar account={effectiveAcc} size="sm" />
+                              <span className="text-xs font-medium text-gray-300">
+                                {displayAccName}
+                              </span>
+                            </div>
+                          ) : null
                         )}
 
                         {/* Selected indicator */}

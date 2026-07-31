@@ -4,7 +4,24 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.1.1] - 2026-07-31
 
-### 📋 Sao Chép Kịch Bản Chiến Dịch Sang Nhiều Tài Khoản Zalo (`CopyCampaignToAccountsModal.tsx`)
+### 🏷️ Nâng Cấp Quản Lý Nhãn CRM & Tự Động Gán Nhãn File Excel (`UnifiedLabelPickerModal.tsx`, `ImportWizardModal.tsx`, `CRMContactList.tsx`)
+- **Hiển Thị Nhãn Ngay Bước Xác Nhận Excel/CSV (`ImportWizardModal.tsx`):**
+  - Đã khắc phục lỗi không tải được nhãn khi quét file Excel. Nhãn được chọn/tạo mới cập nhật và hiển thị trực tiếp tại Bước 2 Xác nhận.
+- **Bộ Lọc Phạm Vi Nhãn Rõ Ràng & Trực Quan (`UnifiedLabelPickerModal.tsx`):**
+  - Thay đổi nút toggle nhãn thành Menu thả xuống `<select>` phân biệt rõ: `🌐 Tất cả tài khoản Zalo` vs `👤 [Tên Zalo]`.
+  - Hiển thị badge Avatar + Tên tài khoản sở hữu nhãn hoặc badge `🌐 Tất cả Zalo`.
+- **Thu Gọn Nhãn Rác Danh Bạ CRM (`CRMContactList.tsx`):**
+  - Bổ sung component `CollapsibleContactLabels`. Khách hàng có nhiều nhãn chỉ hiển thị 1 nhãn mới nhất + nút `+N ▼` thu gọn inline.
+
+### 🌐 Báo Cáo Quét SĐT Hàng Loạt Theo Phân Quyền Nhân Sự (`PhoneScanPanel.tsx`, `DatabaseService.ts`)
+- **Bộ Lọc Tài Khoản Báo Cáo Phân Quyền (`PhoneScanPanel.tsx`):**
+  - Thêm bộ lọc dropdown **`👤 Báo cáo tài khoản`** ở thanh công cụ góc trên.
+  - Tự động giới hạn báo cáo số liệu tổng quan và danh sách lô quét theo danh sách tài khoản Zalo nhân sự được cấp quyền (`🌐 Tất cả tài khoản được cấp quyền (N/M TK)`) hoặc lọc riêng từng tài khoản.
+
+### 🚀 Kết Nối Deplao Quét Nhóm Nâng Cao / Nhóm Ẩn (`GroupMembersTab.tsx`, `backendService.ts`)
+- **Tích Hợp Deplao Backend API (`backendService.ts`):**
+  - Tích hợp module giao tiếp API máy chủ Deplao (`https://deplaoapp.com`) mã hóa Base64 Unicode Safe, lấy danh sách thành viên nhóm ẩn Zalo.
+  - Nhận diện linh hoạt đường dẫn link nhóm (`https://zalo.me/g/xxxx`) hoặc Group ID dạng số, tự động đồng bộ kết quả vào CSDL SQLite của máy Boss.
 - **Nút Thao Tác Nhanh Mới (`📋`):** Tích hợp nút *"Sao chép sang Zalo khác"* trực tiếp trên từng dòng danh sách chiến dịch (`CampaignList.tsx`) và trên thanh công cụ chi tiết chiến dịch (`CampaignDetail.tsx`).
 - **Modal Chọn Nhiều Tài Khoản Zalo Đích (`CopyCampaignToAccountsModal.tsx`):**
   - Hiển thị danh sách tất cả các tài khoản Zalo đang kết nối kèm Avatar, tên và Zalo ID.
