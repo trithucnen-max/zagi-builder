@@ -108,7 +108,7 @@ export default function GroupMembersTab() {
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   const [showSmartGroupModal, setShowSmartGroupModal] = useState(false);
 
-  // ── Group link state ───────────────────────────────────────────────────────
+  // ── Group link & ID copy state ─────────────────────────────────────────────
   const [currentGroupLink, setCurrentGroupLink] = useState<string>('');
   const [copyingLink, setCopyingLink] = useState(false);
   const [copiedLinkSuccess, setCopiedLinkSuccess] = useState(false);
@@ -116,6 +116,13 @@ export default function GroupMembersTab() {
   useEffect(() => {
     setCurrentGroupLink('');
     setCopiedLinkSuccess(false);
+  }, [selectedGroupId]);
+
+  const handleCopyGroupId = useCallback(async () => {
+    if (!selectedGroupId) return;
+    const rawGid = selectedGroupId.startsWith('g') ? selectedGroupId.slice(1) : selectedGroupId;
+    await navigator.clipboard.writeText(rawGid).catch(() => {});
+    useAppStore.getState().showNotification(`📋 Đã sao chép ID nhóm: ${rawGid}`, 'success');
   }, [selectedGroupId]);
 
   const handleCopyGroupLink = useCallback(async () => {
@@ -145,26 +152,28 @@ export default function GroupMembersTab() {
         }
       }
 
-      if (!link) {
-        // Nhóm chưa tạo link rút gọn (linkId), sao chép ID số trực tiếp
-        link = rawGid;
-        useAppStore.getState().showNotification(`📋 Nhóm chưa bật link rút gọn. Đã sao chép ID nhóm: ${rawGid}`, 'info');
-      } else {
+      if (link) {
+        setCurrentGroupLink(link);
+        await navigator.clipboard.writeText(link);
+        setCopiedLinkSuccess(true);
+        setTimeout(() => setCopiedLinkSuccess(false), 3000);
         useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${link}`, 'success');
+      } else {
+        const fallbackLink = `https://zalo.me/g/${rawGid}`;
+        setCurrentGroupLink(fallbackLink);
+        await navigator.clipboard.writeText(fallbackLink);
+        setCopiedLinkSuccess(true);
+        setTimeout(() => setCopiedLinkSuccess(false), 3000);
+        useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${fallbackLink}`, 'success');
       }
-
-      setCurrentGroupLink(link);
-      await navigator.clipboard.writeText(link);
-      setCopiedLinkSuccess(true);
-      setTimeout(() => setCopiedLinkSuccess(false), 3000);
     } catch (err: any) {
       console.error('[GroupMembersTab] Copy group link error:', err);
       const rawGid = selectedGroupId.startsWith('g') ? selectedGroupId.slice(1) : selectedGroupId;
-      setCurrentGroupLink(rawGid);
-      await navigator.clipboard.writeText(rawGid).catch(() => {});
+      const fallbackLink = `https://zalo.me/g/${rawGid}`;
+      await navigator.clipboard.writeText(fallbackLink).catch(() => {});
       setCopiedLinkSuccess(true);
       setTimeout(() => setCopiedLinkSuccess(false), 3000);
-      useAppStore.getState().showNotification(`📋 Đã sao chép ID nhóm: ${rawGid}`, 'info');
+      useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${fallbackLink}`, 'success');
     } finally {
       setCopyingLink(false);
     }
@@ -1588,10 +1597,25 @@ export default function GroupMembersTab() {
                   size="xs"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-bold text-white truncate">{selectedGroup.display_name}</h3>
-                    {currentGroupLink && (
-                      <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 truncate max-w-[240px]" title={currentGroupLink}>
+                    
+                    {/* Badge ID nhóm - Bấm vào copy ID nhóm số */}
+                    <button
+                      onClick={handleCopyGroupId}
+                      title="Bấm vào đây để sao chép ID nhóm Zalo dạng số"
+                      className="flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30 transition-colors cursor-pointer"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                      </svg>
+                      <span>{selectedGroup.contact_id.replace(/^g/, '')}</span>
+                    </button>
+
+                    {/* Badge Link rút gọn nếu đã tải */}
+                    {currentGroupLink && currentGroupLink.includes('zalo.me/g/') && !currentGroupLink.match(/\/g\/\d{15,22}$/) && (
+                      <span className="text-[11px] font-mono text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 truncate max-w-[200px]" title={currentGroupLink}>
                         🔗 {currentGroupLink}
                       </span>
                     )}
@@ -1609,7 +1633,7 @@ export default function GroupMembersTab() {
                 <button
                   onClick={handleCopyGroupLink}
                   disabled={copyingLink}
-                  title="Sao chép link tham gia nhóm Zalo để đi quét nhóm"
+                  title="Sao chép link tham gia nhóm Zalo rút gọn (zalo.me/g/slug)"
                   className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer"
                 >
                   {copyingLink ? (
@@ -1635,13 +1659,13 @@ export default function GroupMembersTab() {
                     setShowSmartGroupModal(true);
                   }}
                   title="Rời khỏi nhóm này"
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors shadow-sm">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white !text-white text-xs font-semibold transition-colors shadow-sm">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
-                  <span>Rời khỏi nhóm</span>
+                  <span className="text-white !text-white font-semibold">Rời khỏi nhóm</span>
                 </button>
               </div>
               {/* Stop button shown only during getUserInfo fallback */}
