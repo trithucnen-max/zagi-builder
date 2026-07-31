@@ -1,10 +1,17 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 2.5  
-> **Ngày cập nhật:** 28/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.0.8 (Released)  
+> **Phiên bản tài liệu:** 2.8  
+> **Ngày cập nhật:** 31/07/2026  
+> **Trạng thái sản phẩm hiện tại:** v3.1.1 (Released)  
 > **Chủ quản:** Product Management Team  
 
 ---
+
+#### 🚀 v3.1.1 — Sao Chép Chiến Dịch Đa Zalo, Tên Thật Inline CRM, Phân Tích Lô Quét & Nâng Cao Chatbot AI (Official Release)
+* **Tính năng mới (New):**
+  * **📋 Sao Chép Kịch Bản Chiến Dịch Sang Nhiều Zalo (`CopyCampaignToAccountsModal.tsx`)**: Cho phép nhân bản kịch bản gửi tin / kết bạn từ 1 chiến dịch sang 1 hoặc nhiều tài khoản Zalo đích. Tự động bảo tồn toàn bộ kịch bản & cấu hình, danh sách người nhận để trống (0) với trạng thái Nháp để người dùng tùy chọn tập khách hàng riêng cho từng tài khoản Zalo.
+  * **🏷️ Sửa Tên Thật Inline & Nạp Tự Động Từ Excel/CSV (`CRMContactList.tsx` & `DatabaseService.ts`)**: Hỗ trợ sửa trường Tên thật (`real_name`) trực tiếp trên bảng CRM; Tự động điền tên thật khi quét SĐT từ Excel và bảo toàn 100% khi ghi vào CRM.
+  * **📊 Báo Cáo Phân Tích Lô Quét SĐT 4 Dòng (`PhoneScanPanel.tsx`)**: Minh bạch 4 chỉ số (Tổng nhập ➔ Trùng list ➔ Trùng CRM ➔ Số thực tế sẽ quét Zalo) cập nhật thời gian thực theo công tắc lọc trùng CRM.
+  * **🤖 Đồng Bộ Biến `{real_name}` & Nâng Vị Trí Chatbot AI (`GlobalSupportChat.tsx`)**: Thẻ chèn nhanh `{real_name}` đứng ngay cạnh `{zalo_name}` & `{name}`; Giải mã biến tên thật cho cả Campaign & Workflow. Nút Chatbot AI nâng lên vị trí `bottom-32` thoáng đẹp không che phủ các nút thao tác phía dưới.
 
 #### 🚀 v3.0.8 — Khử Trùng Thành Viên Nhóm, Xưng Hô Thông Minh, Loại Trừ 3 Tiêu Chí & Giờ Nghỉ Đêm CRM (Official Release)
 * **Tính năng mới (New):**

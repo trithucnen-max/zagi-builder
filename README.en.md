@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v3.1.0** — [View all versions](#changelog)
+> **Latest version: v3.1.1** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.1.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.Window.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.1.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.Window.exe)
 
-**[Zagi.v3.1.0.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.Window.exe)**
+**[Zagi.v3.1.1.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.Window.exe)**
 
 NSIS Installer · ~164 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~164 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.1.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.MacOS.M1%2B.arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.1.1-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.MacOS.M1%2B.arm64.dmg)
 
-**[Zagi.v3.1.0.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.1.1.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.MacOS.M1%2B.arm64.dmg)**
 
 Apple Silicon DMG · Signed & Notarized · ~231 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · Signed & Notarized · ~231 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.1.0-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.MacOS.Intel.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.1.1-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.MacOS.Intel.dmg)
 
-**[Zagi.v3.1.0.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.MacOS.Intel.dmg)**
+**[Zagi.v3.1.1.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.MacOS.Intel.dmg)**
 
 Intel x64 DMG · Signed & Notarized · ~239 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · Signed & Notarized · ~239 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.1.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.Window.exe)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.1.1-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.Window.exe)
 
-**[Zagi.v3.1.0.Window.exe (Wine)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.Window.exe)**  
-**[Zagi.v3.1.0.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.1.1.Window.exe (Wine)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.Window.exe)**  
+**[Zagi.v3.1.1.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.MacOS.M1%2B.arm64.dmg)**
 
 Installer + macOS
 
@@ -98,9 +98,9 @@ Installer + macOS
 > 
 > Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.1.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.Surface.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.1.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.Surface.exe)
 
-**[Zagi.v3.1.0.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.0/Zagi.v3.1.0.Surface.exe)**
+**[Zagi.v3.1.1.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.1/Zagi.v3.1.1.Surface.exe)**
 
 NSIS Installer ARM64 · ~166 MB · Native optimization for Surface ARM
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi v3.1.0 Surface.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi v3.1.1 Surface.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi v3.1.0 Window.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi v3.1.1 Window.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x "Zagi v3.1.0 Linux.AppImage"
-./"Zagi v3.1.0 Linux.AppImage"
+chmod +x "Zagi v3.1.1 Linux.AppImage"
+./"Zagi v3.1.1 Linux.AppImage"
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i "Zagi v3.1.0 Linux Debian.deb"
+sudo dpkg -i "Zagi v3.1.1 Linux Debian.deb"
 ```
 
 </details>
@@ -384,7 +384,7 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v3.1.0</strong> — 2026-07-24 · <em>🟢 Current version</em></summary>
+<summary><strong>v3.1.1</strong> — 2026-07-24 · <em>🟢 Current version</em></summary>
 
 ### 🚀 Key Highlights & System Fixes
 
@@ -397,7 +397,7 @@ npm run production
 </details>
 
 <details>
-<summary><strong>v3.1.0</strong> — 2026-07-22</summary>
+<summary><strong>v3.1.1</strong> — 2026-07-22</summary>
 
 ### 🚀 Key Highlights & System Fixes
 
@@ -412,7 +412,7 @@ npm run production
 </details>
 
 <details>
-<summary><strong>v3.1.0</strong> — 2026-07-18</summary>
+<summary><strong>v3.1.1</strong> — 2026-07-18</summary>
 
 ### 🐛 Bug Fixes & Stability Improvements
 
@@ -423,7 +423,7 @@ npm run production
 </details>
 
 <details>
-<summary><strong>v3.1.0</strong> — 2026-07-14</summary>
+<summary><strong>v3.1.1</strong> — 2026-07-14</summary>
 
 ### 🚀 Key Highlights
 

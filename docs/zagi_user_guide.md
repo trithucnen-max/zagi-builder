@@ -109,6 +109,21 @@ Truy cập tại Sidebar → Báo cáo. Có bộ lọc theo tài khoản/thời 
 ###
 3.11. Dashboard
 Trang chủ khi mở app: thẻ trạng thái từng tài khoản (online/offline, listener), nút kết nối lại, gộp trang, kéo thả sắp xếp, tìm kiếm tài khoản, và xuất dữ liệu CRM ra CSV/Excel.
+###
+3.12. Cập nhật mới phiên bản v3.1.1
+- **📋 Sao chép kịch bản chiến dịch đa Zalo (Multi-Account Campaign Copy):**
+  - Thêm nút `📋` ("Sao chép sang Zalo khác") tại menu từng chiến dịch (`CampaignList.tsx` & `CampaignDetail.tsx`).
+  - Cho phép chọn một hoặc nhiều tài khoản Zalo đích để nhân bản kịch bản tin nhắn & cài đặt ngẫu nhiên delay / khung giờ yên tĩnh.
+  - Bảo tồn danh sách người nhận ở tài khoản mới để trống (0) với trạng thái Nháp/Tạm dừng để người dùng gán liên hệ riêng cho nick Zalo đó.
+- **🏷️ Trường Tên thật (real_name) & Import Excel/CSV:**
+  - Cho phép sửa trực tiếp trường **Tên thật** (`real_name`) ngay trên bảng danh bạ CRM (`CRMContactList.tsx`).
+  - Tự động nạp tên thật từ file Excel/CSV vào lô quét SĐT và cập nhật 100% vào profile khách hàng CRM.
+  - Thẻ chèn nhanh `{real_name}` xuất hiện trực tiếp bên cạnh `{zalo_name}` & `{name}` trong giao diện soạn kịch bản chiến dịch & Workflow Builder.
+- **📊 Bảng phân tích lô quét SĐT 4 dòng (`PhoneScanPanel.tsx`):**
+  - Thống kê minh bạch: 📥 Tổng nhập ➔ 🔁 Trùng list/Lỗi ➔ ⚠️ Trùng CRM ➔ 🚀 **Thực tế sẽ quét Zalo**.
+  - Tự động quét dọn liên hệ rác (Ghost contacts `tmp_%` chưa từng chát) khi mở trang CRM.
+- **🤖 Trợ lý AI Chatbot nổi (`GlobalSupportChat.tsx`):**
+  - Nút AI Chatbot được điều chỉnh vị trí nổi cao hơn hẳn cách đáy màn hình (`bottom-32` ~ 128px), tránh tình trạng đè lên các thanh công cụ, ô nhập liệu hay biểu tượng bên dưới.
 ##
 PHẦN 4: BẢO MẬT & QUYỀN RIÊNG TƯ 
 Dữ liệu lưu cục bộ 100% trên máy khách của khách hàng (tin nhắn, danh bạ, CRM, cài đặt). Không có server trung gian — app kết nối trực tiếp Zalo ↔ máy khách. Phiên đăng nhập được mã hóa AES, lưu cục bộ. App không lưu mật khẩu Zalo (đăng nhập qua QR). Không tích hợp SDK thu thập dữ liệu/analytics/quảng cáo bên thứ ba.
