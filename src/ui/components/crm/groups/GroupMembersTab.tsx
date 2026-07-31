@@ -108,6 +108,63 @@ export default function GroupMembersTab() {
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   const [showSmartGroupModal, setShowSmartGroupModal] = useState(false);
 
+  // ── Group link state ───────────────────────────────────────────────────────
+  const [currentGroupLink, setCurrentGroupLink] = useState<string>('');
+  const [copyingLink, setCopyingLink] = useState(false);
+  const [copiedLinkSuccess, setCopiedLinkSuccess] = useState(false);
+
+  useEffect(() => {
+    setCurrentGroupLink('');
+    setCopiedLinkSuccess(false);
+  }, [selectedGroupId]);
+
+  const handleCopyGroupLink = useCallback(async () => {
+    if (!activeAccountId || !selectedGroupId) return;
+    setCopyingLink(true);
+    try {
+      const acc = useAccountStore.getState().getActiveAccount();
+      if (!acc) throw new Error('Không tìm thấy tài khoản Zalo hoạt động');
+      const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+      const rawGid = selectedGroupId.startsWith('g') ? selectedGroupId.slice(1) : selectedGroupId;
+
+      const infoRes = await ipc.zalo?.getGroupInfo({ auth, groupId: rawGid });
+      const gridMap: Record<string, any> =
+        infoRes?.response?.gridInfoMap ?? infoRes?.response?.changed_groups ?? infoRes?.response?.data?.gridInfoMap ?? {};
+      const gData = gridMap[rawGid] ?? gridMap[selectedGroupId] ?? Object.values(gridMap)[0];
+
+      let link = '';
+      if (gData) {
+        const linkId = gData.linkId || gData.link_id || gData.linkJoin || gData.joinLink;
+        if (linkId) {
+          link = linkId.startsWith('http') ? linkId : `https://zalo.me/g/${linkId}`;
+        } else if (gData.groupLink || gData.inviteUrl || gData.link) {
+          link = gData.groupLink || gData.inviteUrl || gData.link;
+        }
+      }
+
+      if (!link) {
+        link = `https://zalo.me/g/${rawGid}`;
+      }
+
+      setCurrentGroupLink(link);
+      await navigator.clipboard.writeText(link);
+      setCopiedLinkSuccess(true);
+      setTimeout(() => setCopiedLinkSuccess(false), 3000);
+      useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${link}`, 'success');
+    } catch (err: any) {
+      console.error('[GroupMembersTab] Copy group link error:', err);
+      const rawGid = selectedGroupId.startsWith('g') ? selectedGroupId.slice(1) : selectedGroupId;
+      const fallbackLink = `https://zalo.me/g/${rawGid}`;
+      setCurrentGroupLink(fallbackLink);
+      await navigator.clipboard.writeText(fallbackLink).catch(() => {});
+      setCopiedLinkSuccess(true);
+      setTimeout(() => setCopiedLinkSuccess(false), 3000);
+      useAppStore.getState().showNotification(`📋 Đã sao chép link nhóm: ${fallbackLink}`, 'success');
+    } finally {
+      setCopyingLink(false);
+    }
+  }, [activeAccountId, selectedGroupId]);
+
   const toggleGroupSelected = (groupId: string) => {
     setSelectedGroupIds(prev => {
       const next = new Set(prev);
@@ -1557,7 +1614,14 @@ export default function GroupMembersTab() {
                   size="xs"
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-white truncate">{selectedGroup.display_name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-white truncate">{selectedGroup.display_name}</h3>
+                    {currentGroupLink && (
+                      <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 truncate max-w-[240px]" title={currentGroupLink}>
+                        🔗 {currentGroupLink}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-gray-400 mt-0.5">
                     {members.length > 0
                       ? <>{members.length} thành viên{membersLastFetched > 0 && <span className="ml-1.5 text-gray-500">· {formatTime(membersLastFetched)}</span>}</>
@@ -1568,6 +1632,24 @@ export default function GroupMembersTab() {
 
               {/* Row 2: Action Buttons */}
               <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
+                <button
+                  onClick={handleCopyGroupLink}
+                  disabled={copyingLink}
+                  title="Sao chép link tham gia nhóm Zalo để đi quét nhóm"
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+                >
+                  {copyingLink ? (
+                    <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                  )}
+                  <span>{copiedLinkSuccess ? 'Đã sao chép!' : 'Sao chép link nhóm'}</span>
+                </button>
                 <button onClick={fetchMembersFromAPI} disabled={membersLoading || manualLoadProgress !== null}
                   className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-sm">
                   {membersLoading ? SpinIcon : RefreshIcon}
