@@ -2,60 +2,49 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.1.1] - 2026-07-31
+## [v3.1.1] - 2026-08-01
+
+### 🚀 Đồng Bộ Dữ Liệu Máy Trạm (Employee Client) & Sửa Lỗi Tải Avatar / Tên Thật
+- **Không Giới Hạn Số Lượng Hội Thoại Đồng Bộ (`DataAccessor.ts`, `RestApiHandlers.ts`):**
+  - Xóa bỏ nút thắt cổ chai giới hạn 50 hội thoại cũ. Nâng hạn mức đồng bộ mặc định từ 50 lên 2.000–5.000 hội thoại.
+  - Máy trạm giờ đây tải đầy đủ 100% cuộc trò chuyện mới nhất và các hội thoại đã ghim từ máy Boss mà không bị sót.
+- **Khắc Phục Lỗi Hiển Thị Avatar Trên Máy Trạm (`localMedia.ts`, `Sidebar.tsx`, `AccountPanel.tsx`):**
+  - Trong chế độ Máy trạm (Employee Mode), đường dẫn tệp phương tiện cục bộ máy Boss được tự động chuyển đổi qua HTTP Tunnel (`bossUrl/api/media/file?path=...`).
+  - Avatar tài khoản Zalo hiển thị sắc nét trên giao diện máy trạm thay vì hiện ô số mặc định.
+- **Tự Động Tra Cứu Tên Thật Zalo Trí Tuệ (`HttpRelayService.ts`, `RestApiHandlers.ts`):**
+  - Nếu bảng `accounts` chỉ lưu UID chuỗi số, hệ thống tự động đối chiếu tra cứu Tên thật Zalo từ bảng `contacts` (`owner_zalo_id = zaloId AND contact_id = zaloId`) để hiển thị tên tài khoản Zalo đẹp mắt.
+
+### 📋 CRM Quản Lý Nhóm & Tải / Sao Chép Link Nhóm Zalo Rút Gọn (`GroupMembersTab.tsx`)
+- **Nút Sao Chép Link Nhóm Rút Gọn Tức Thì (`handleCopyGroupLink`):**
+  - Tích hợp nút *"Sao chép link nhóm"* (màu xanh lá). Sử dụng cơ chế **Cache-First 0ms** lấy ngay link rút gọn Zalo (`https://zalo.me/g/slug`) từ bộ nhớ đệm mà không phải chờ gọi API Zalo.
+  - Thông báo phản hồi rõ ràng: `📋 Đã sao chép link nhóm: https://zalo.me/g/sftdih296`.
+- **Tách Riêng Nút Sao Chép ID Nhóm Số (`handleCopyGroupId`):**
+  - Tích hợp badge ID Nhóm `🔗 5972000324903225207` ngay bên cạnh Tên nhóm. Bấm trực tiếp vào badge để copy riêng mã ID số (`5972000324903225207`).
+- **Tối Ưu Giao Diện & Tương Phản:**
+  - Chuẩn hóa chữ nút **"Rời khỏi nhóm"** thành màu trắng tinh nổi bật trên nền đỏ (`bg-rose-600 !text-white font-semibold`).
+
+### 🛠️ Ủy Quyền Quét Nhóm Nâng Cao & Tự Động Xử Lý URL/Group ID (`zaloIpc.ts`, `GroupMembersTab.tsx`)
+- **Ủy Quyền Quét Về Máy Boss (`zalo:scanAdvancedGroup`):**
+  - Toàn bộ luồng quét nhóm nâng cao từ máy trạm được tự động ủy quyền (proxy) về máy Boss.
+  - Máy Boss tự động giải mã session cookie & IMEI bảo mật Zalo trực tiếp từ CSDL SQLite, loại bỏ hoàn toàn lỗi `⚠️ Missing cookie, imei, or groupId` trên máy trạm.
+- **Tự Động Bóc Tách Link / Mã Số Nhóm Thông Minh:**
+  - Nhận diện linh hoạt mọi định dạng đường dẫn hoặc ID nhóm:
+    1. Link rút gọn Zalo (`https://zalo.me/g/sftdih296`)
+    2. Link chứa ID số (`https://zalo.me/g/2932837156664765988`)
+    3. Mã ID số nhóm nguyên gốc (`2932837156664765988` hoặc `g2932837156664765988`)
+  - Khi người dùng dán link chứa ID số 19 chữ số, hệ thống tự bóc tách chuỗi số và tiến hành quét trực tiếp mà không bị báo lỗi `Invalid group link`.
+
+### 🛡️ Thử-bẫy Lỗi Tự Động Cập Nhật (Auto-Update Fallback)
+- Thêm khối try-catch an toàn xung quanh `electron-updater` trong `electron/main.ts`. Khi không có kết nối internet hoặc máy chủ cập nhật tạm gián đoạn, ứng dụng vẫn khởi động mượt mà không bị treo ở màn hình nạp ban đầu.
 
 ### 🏷️ Nâng Cấp Quản Lý Nhãn CRM & Tự Động Gán Nhãn File Excel (`UnifiedLabelPickerModal.tsx`, `ImportWizardModal.tsx`, `CRMContactList.tsx`, `LabelSettings.tsx`)
 - **Hiển Thị Nhãn Ngay Bước Xác Nhận Excel/CSV (`ImportWizardModal.tsx`):**
   - Đã khắc phục lỗi không tải được nhãn khi quét file Excel. Nhãn được chọn/tạo mới cập nhật và hiển thị trực tiếp tại Bước 2 Xác nhận.
 - **Bộ Lọc Phạm Vi Nhãn Rõ Ràng & Trực Quan (`UnifiedLabelPickerModal.tsx` & `LabelSettings.tsx`):**
   - Thay đổi nút toggle nhãn thành Menu thả xuống `<select>` phân biệt rõ: `🌐 Tất cả tài khoản Zalo` vs `👤 [Tên Zalo]`.
-  - Hiển thị badge Avatar + Tên tài khoản sở hữu nhãn hoặc badge **`🌐 Tất cả tài khoản Zalo (Dùng chung)`** đối với các nhãn toàn cục.
-- **Tối Ưu Thanh Tạo Nhãn Nhanh Responsive (`UnifiedLabelPickerModal.tsx`):**
-  - Thiết kế lại layout thanh tạo nhãn mới gọn gàng, tự động thu gọn menu tài khoản `max-w-[125px]`, giúp nút **`+ Tạo nhãn`** luôn hiển thị 100% rõ ràng trên mọi màn hình. Hỗ trợ bấm phím `Enter` để tạo nhãn cấp tốc.
 - **Thu Gọn Nhãn Rác Danh Bạ CRM & Bộ Lọc `✏️ Có tên thật` (`CRMContactList.tsx`):**
   - Bổ sung component `CollapsibleContactLabels`. Khách hàng có nhiều nhãn chỉ hiển thị 1 nhãn mới nhất + nút `+N ▼` thu gọn inline.
   - Bổ sung tùy chọn bộ lọc **`✏️ Có tên thật`** trong menu bộ lọc `🗂️ Loại` của danh bạ CRM.
-
-### 🌐 Báo Cáo Quét SĐT Hàng Loạt Theo Phân Quyền Nhân Sự (`PhoneScanPanel.tsx`, `DatabaseService.ts`)
-- **Bộ Lọc Tài Khoản Báo Cáo Phân Quyền (`PhoneScanPanel.tsx`):**
-  - Thêm bộ lọc dropdown **`👤 Báo cáo tài khoản`** ở thanh công cụ góc trên.
-  - Tự động giới hạn báo cáo số liệu tổng quan và danh sách lô quét theo danh sách tài khoản Zalo nhân sự được cấp quyền (`🌐 Tất cả tài khoản được cấp quyền (N/M TK)`) hoặc lọc riêng từng tài khoản.
-
-### 🚀 Kết Nối Deplao Quét Nhóm Nâng Cao / Nhóm Ẩn (`GroupMembersTab.tsx`, `backendService.ts`)
-- **Tích Hợp Deplao Backend API (`backendService.ts`):**
-  - Tích hợp module giao tiếp API máy chủ Deplao (`https://deplaoapp.com`) mã hóa Base64 Unicode Safe, lấy danh sách thành viên nhóm ẩn Zalo.
-  - Nhận diện linh hoạt đường dẫn link nhóm (`https://zalo.me/g/xxxx`) hoặc Group ID dạng số, tự động đồng bộ kết quả vào CSDL SQLite của máy Boss.
-- **Nút Thao Tác Nhanh Mới (`📋`):** Tích hợp nút *"Sao chép sang Zalo khác"* trực tiếp trên từng dòng danh sách chiến dịch (`CampaignList.tsx`) và trên thanh công cụ chi tiết chiến dịch (`CampaignDetail.tsx`).
-- **Modal Chọn Nhiều Tài Khoản Zalo Đích (`CopyCampaignToAccountsModal.tsx`):**
-  - Hiển thị danh sách tất cả các tài khoản Zalo đang kết nối kèm Avatar, tên và Zalo ID.
-  - Hỗ trợ checkbox chọn một hoặc nhiều tài khoản Zalo đích (*Chọn tất cả / Bỏ chọn tất cả*).
-  - Tùy chỉnh tên chiến dịch mới cho các tài khoản Zalo nhận kịch bản.
-- **Bảo Vệ & Phân Luồng Dữ Liệu An Toàn:**
-  - Sao chép 100% kịch bản & cấu hình (nội dung tin nhắn, lời kết bạn, khoảng delay ngẫu nhiên, giới hạn gửi/ngày, khung giờ yên tĩnh...).
-  - **Bảo tồn danh sách người nhận để trống (0 liên hệ)** với trạng thái **Draft/Paused** để người dùng chủ động phân gán nhãn / danh sách khách hàng riêng cho từng tài khoản Zalo đích.
-
-### 🏷️ Trường Tên Thật & Cập Nhật Tự Động Từ Excel/CSV Vào CRM (`DatabaseService.ts` & `CRMContactList.tsx`)
-- **Chỉnh Sửa Tên Thật Trực Tiếp (Inline Edit):** Cho phép sửa trực tiếp trường **Tên thật** (`real_name`) ngay trên danh bạ CRM (`CRMContactList.tsx`), tự động lưu vào database SQLite.
-- **Tự Động Điền & Bảo Toàn Tên Thật Từ Excel/CSV:**
-  - Khi quét SĐT từ file Excel/CSV, tên thật được tự động nạp vào `phone_scan_items` và cập nhật vào báo cáo lô quét cũng như profile khách hàng CRM (`contacts.real_name`).
-  - Khắc phục triệt để lỗi ghi đè `NULL` và lỗi trùng tên cột khi JOIN database (`getPhoneScanItems`).
-
-### 📊 Phân Tích Lô Quét SĐT Rõ Ràng & Dọn Dẹp Liên Hệ Rác (`PhoneScanPanel.tsx` & `CRMPage.tsx`)
-- **Bảng Phân Tích Lô Quét 4 Dòng Trực Quan (`PhoneScanPanel.tsx`):**
-  - Thống kê chi tiết: 📥 Tổng nhập ➔ 🔁 Trùng danh sách/lỗi định dạng ➔ ⚠️ Trùng CRM (tất cả tài khoản) ➔ 🚀 **Thực tế sẽ quét Zalo**.
-  - Tự động cập nhật con số quét thực tế real-time khi bật/tắt tùy chọn *"Bỏ qua các SĐT đã có trong CRM"*.
-- **Tự Động Dọn Dẹp Ghost Contacts (`CRMPage.tsx`):**
-  - Tự động quét và dọn dẹp các liên hệ rác (tên tạm `tmp_%`, nạp từ CSV nhưng không có Zalo UID, không phải bạn bè `is_friend = 0` và chưa từng nhắn tin). Bảo toàn 100% bạn bè Zalo thực và contact đã có Zalo UID.
-
-### 🤖 Đồng Bộ Biến `Tên Thật` Về Chiến Dịch / Workflow & Tối Ưu Vị Trí Chatbot AI
-- **Thẻ Biến Chèn Nhanh `{real_name}`:**
-  - Thêm thẻ chèn nhanh `{real_name}` (Tên thật) đứng ngay cạnh `{zalo_name}` và `{name}` trong giao diện soạn thảo tin nhắn chiến dịch (`CampaignCreateModal.tsx` & `campaignVars.ts`).
-  - Đưa biến `$trigger.realName` / `$trigger.real_name` lên vị trí ưu tiên trong bộ gợi ý biến Workflow (`NodeConfigPanel.tsx` & `templateVars.ts`).
-  - Engine `CRMQueueService` và `WorkflowEngineService` giải mã đồng bộ `{real_name}`, `{realName}`, `{ten_that}` cho cả tin nhắn và lời mời kết bạn tự động.
-- **Nâng Cao Vị Trí Nút Chatbot AI (`GlobalSupportChat.tsx`):**
-  - Nâng vị trí nút Trợ lý AI nổi từ góc đáy màn hình (`bottom-5`) lên cao hơn (`bottom-32` ~ 128px), tránh che đè lên các thanh công cụ, ô nhập liệu hay nút bấm phía dưới.
-
-## [v3.2.0] - 2026-07-31
 
 ### 📥 Mô-đun Import Danh Sách Khách Hàng Từ CSV/Excel Vào Module Quét Số Hàng Loạt
 - **Trình Hướng Dẫn Wizard 2 Bước Hiện Đại (`ImportWizardModal.tsx`):**
