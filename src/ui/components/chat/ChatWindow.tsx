@@ -1358,7 +1358,15 @@ export default function ChatWindow() {
     return dedupeViewerImages(allImages);
   }, [msgs, groupedFirstMsgs, groupedSkipIds, buildImageEntry, dedupeViewerImages]);
 
-  const findViewerIndex = React.useCallback((images: MediaViewerImage[], clickedUrl: string): number => {
+  const findViewerIndex = React.useCallback((images: MediaViewerImage[], clickedUrl: string, targetMsgId?: string): number => {
+    // 1. Priority 1: Exact msgId match (100% accurate, immutable)
+    if (targetMsgId) {
+      const msgIdx = images.findIndex(img => img.msgId && String(img.msgId) === String(targetMsgId));
+      if (msgIdx >= 0) return msgIdx;
+    }
+
+    if (!clickedUrl) return -1;
+
     const normalizeUrl = (u?: string) => {
       if (!u) return '';
       return u
@@ -1368,23 +1376,41 @@ export default function ChatWindow() {
         .trim();
     };
 
+    // 2. Priority 2: Exact URL string match
     const exactIdx = images.findIndex(img => img.src === clickedUrl || img.displaySrc === clickedUrl);
     if (exactIdx >= 0) return exactIdx;
 
+    // 3. Priority 3: Normalized URL match
     const normalizedClicked = normalizeUrl(clickedUrl);
-    return images.findIndex(img => {
-      return normalizeUrl(img.src) === normalizedClicked || normalizeUrl(img.displaySrc) === normalizedClicked;
-    });
+    if (normalizedClicked) {
+      const normIdx = images.findIndex(img => {
+        return normalizeUrl(img.src) === normalizedClicked || normalizeUrl(img.displaySrc) === normalizedClicked;
+      });
+      if (normIdx >= 0) return normIdx;
+
+      // 4. Priority 4: Filename / basename match
+      const clickedFilename = normalizedClicked.split('/').pop();
+      if (clickedFilename && clickedFilename.length > 5) {
+        const fileIdx = images.findIndex(img => {
+          const fnSrc = normalizeUrl(img.src).split('/').pop();
+          const fnDisp = normalizeUrl(img.displaySrc).split('/').pop();
+          return fnSrc === clickedFilename || fnDisp === clickedFilename;
+        });
+        if (fileIdx >= 0) return fileIdx;
+      }
+    }
+
+    return -1;
   }, []);
 
   /** Mở viewer ảnh với bộ sưu tập đầy đủ từ DB (giống panel ảnh/video), fallback nhanh từ messages hiện có */
-  const openViewer = React.useCallback(async (clickedUrl: string) => {
+  const openViewer = React.useCallback(async (clickedUrl: string, targetMsgId?: string) => {
     const initialImages = buildImagesFromCurrentThread();
     if (initialImages.length > 0) {
-      const initialIdx = findViewerIndex(initialImages, clickedUrl);
+      const initialIdx = findViewerIndex(initialImages, clickedUrl, targetMsgId);
       setViewerState({ images: initialImages, index: initialIdx >= 0 ? initialIdx : 0 });
     } else {
-      setViewerState({ images: [{ src: clickedUrl }], index: 0 });
+      setViewerState({ images: [{ src: clickedUrl, msgId: targetMsgId }], index: 0 });
     }
 
     if (!activeAccountId || !activeThreadId) return;
@@ -1411,14 +1437,15 @@ export default function ChatWindow() {
       const mergedImages = dedupeViewerImages(fullImages);
       if (mergedImages.length > 0) {
         setViewerState(prev => {
-          const clickedIdx = findViewerIndex(mergedImages, clickedUrl);
+          const clickedIdx = findViewerIndex(mergedImages, clickedUrl, targetMsgId);
           if (clickedIdx >= 0) {
             return { images: mergedImages, index: clickedIdx };
           }
           const prevCurrent = prev?.images?.[prev.index || 0];
           const prevUrl = prevCurrent?.displaySrc || prevCurrent?.src || '';
-          const prevIdx = prevUrl ? findViewerIndex(mergedImages, prevUrl) : -1;
-          return { images: mergedImages, index: prevIdx >= 0 ? prevIdx : 0 };
+          const prevMsgId = prevCurrent?.msgId;
+          const prevIdx = (prevUrl || prevMsgId) ? findViewerIndex(mergedImages, prevUrl, prevMsgId) : -1;
+          return { images: mergedImages, index: prevIdx >= 0 ? prevIdx : (prev?.index ?? 0) };
         });
       }
     } catch (err) {
@@ -3663,7 +3690,7 @@ function FileBubble({ msg, isSent }: { msg: any; isSent: boolean }) {
 /** Hiển thị bubble ảnh dùng React state — tự retry khi local_paths được cập nhật sau khi tải xong */
 function MediaBubble({ msg, onView, isSent, allContacts, groupMembersList, onMentionClick }: {
   msg: any;
-  onView: (src: string) => void;
+  onView: (src: string, msgId?: string) => void;
   isSent?: boolean;
   allContacts?: any[];
   groupMembersList?: any[];
@@ -3779,7 +3806,7 @@ function MediaBubble({ msg, onView, isSent, allContacts, groupMembersList, onMen
     return (
       <div className="grid gap-1 rounded-xl overflow-hidden" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, maxWidth: 260 }}>
         {fbLocalUrls.map((src, i) => (
-          <img key={i} src={src} alt="" onClick={() => onView(src)}
+          <img key={i} src={src} alt="" onClick={() => onView(src, msg.msg_id)}
             className="w-full aspect-square object-cover cursor-pointer hover:opacity-90 transition-opacity bg-gray-700/30" />
         ))}
       </div>
@@ -3804,7 +3831,7 @@ function MediaBubble({ msg, onView, isSent, allContacts, groupMembersList, onMen
         src={displayUrl}
         alt=""
         className={`h-64 cursor-pointer hover:opacity-90 bg-gray-700/30 object-contain w-full${caption ? ' rounded-t-xl' : ' rounded-xl'}`}
-        onClick={() => onView(viewUrl)}
+        onClick={() => onView(displayUrl || viewUrl, msg.msg_id)}
         onError={handleImgError}
       />
       {/* Viền mờ overlay — hiển thị rõ ở cả giao diện sáng lẫn tối */}
@@ -4392,7 +4419,7 @@ function SingleImageInGroup({ msg, onView, isSelecting: isSelectingProp, isSelec
       e.stopPropagation();
       onToggleSelect?.(msg.msg_id);
     } else {
-      onView(viewUrl);
+      onView(displayUrl || viewUrl, msg.msg_id);
     }
   };
 

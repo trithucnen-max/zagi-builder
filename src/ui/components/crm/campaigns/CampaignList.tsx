@@ -13,21 +13,9 @@ interface CampaignListProps {
   onDelete: (id: number) => void;
   onClone: (id: number) => void;
   onUpdateStatus: (id: number, status: string) => void;
+  onEdit?: (campaign: CRMCampaign) => void;
+  onCopyToAccounts?: (campaign: CRMCampaign) => void;
   zaloId?: string;
-}
-
-const STATUS_STYLE: Record<string, string> = {
-  draft: 'bg-gray-600/30 text-gray-400',
-  active: 'bg-green-500/20 text-green-400',
-  paused: 'bg-yellow-500/20 text-yellow-400',
-  done: 'bg-blue-500/20 text-blue-400',
-};
-
-const PAGE_SIZE = 10;
-
-function fmtDate(ts: number): string {
-  if (!ts) return '';
-  return new Date(ts).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 export default function CampaignList({
@@ -39,10 +27,14 @@ export default function CampaignList({
   onDelete,
   onClone,
   onUpdateStatus,
+  onEdit,
+  onCopyToAccounts,
   zaloId,
 }: CampaignListProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState(0);
 
   const [safetyStats, setSafetyStats] = useState<{
@@ -70,6 +62,18 @@ export default function CampaignList({
     return () => clearInterval(interval);
   }, [zaloId, campaigns]);
 
+  // Counts by status
+  const counts = useMemo(() => {
+    const res = { all: campaigns.length, active: 0, paused: 0, draft: 0, done: 0 };
+    campaigns.forEach(c => {
+      if (c.status === 'active') res.active++;
+      else if (c.status === 'paused') res.paused++;
+      else if (c.status === 'draft') res.draft++;
+      else if (c.status === 'done') res.done++;
+    });
+    return res;
+  }, [campaigns]);
+
   const filtered = useMemo(() => {
     let list = campaigns;
     if (filterStatus !== 'all') list = list.filter(c => c.status === filterStatus);
@@ -80,344 +84,269 @@ export default function CampaignList({
     return list;
   }, [campaigns, search, filterStatus]);
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   const resetPage = () => setPage(0);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-      {/* Header (Matching iOS Mockup Image 1) */}
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">{campaigns.length} chiến dịch</h2>
-        <button
-          onClick={onCreate}
-          className="flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full font-bold shadow-md hover:shadow-lg transition-all active:scale-95"
-        >
-          <span className="text-sm font-bold">+</span>
-          <span>Tạo mới</span>
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Safety Stats Info Panel (Matching Card "Gửi hôm nay (Người lạ)") */}
-        {zaloId && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 shadow-xs">
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs mb-2.5">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-              <span>Gửi hôm nay (Người lạ)</span>
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-800">
+      <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
+        {/* ── Top Card: Gửi Hôm Nay (Định Mức 50) ── */}
+        <div className="bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-750 rounded-2xl p-3.5 shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5 font-bold text-xs text-gray-800 dark:text-gray-200">
+              <span className="text-amber-500 text-sm">🛡️</span>
+              <span>Gửi hôm nay <span className="text-gray-400 font-medium text-[11px]">(Định mức 50)</span></span>
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="bg-white dark:bg-gray-800/90 rounded-xl p-3 border border-gray-100 dark:border-gray-700/60 shadow-xs">
-                <span className="text-[11px] text-gray-500 dark:text-gray-400 block leading-tight mb-1 font-medium">Tin nhắn</span>
-                <span className="text-sm font-extrabold text-gray-900 dark:text-white">
-                  {safetyStats?.sentStrangerMessages || 0} <span className="text-gray-400 font-normal text-xs">/ 50</span>
-                </span>
-              </div>
-              <div className="bg-white dark:bg-gray-800/90 rounded-xl p-3 border border-gray-100 dark:border-gray-700/60 shadow-xs">
-                <span className="text-[11px] text-gray-500 dark:text-gray-400 block leading-tight mb-1 font-medium">Kết bạn</span>
-                <span className="text-sm font-extrabold text-gray-900 dark:text-white">
-                  {safetyStats?.sentStrangerInvites || 0} <span className="text-gray-400 font-normal text-xs">/ 50</span>
-                </span>
-              </div>
-            </div>
-            {safetyStats && (safetyStats.sentStrangerMessages >= 50 || safetyStats.sentStrangerInvites >= 50) && (
-              <p className="text-[10px] text-amber-500 mt-2 font-medium">
-                ⚠️ Đã đạt hạn mức an toàn trong ngày. Hãy chuyển đổi tài khoản Zalo khác.
-              </p>
-            )}
+            <button title="Chính sách gửi tin an toàn Zalo" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs">
+              ⓘ
+            </button>
           </div>
-        )}
 
-        {/* Search Bar (Pill Input) */}
+          <div className="grid grid-cols-2 gap-2.5">
+            {/* Box 1: Đã gửi tin */}
+            <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-2.5 border border-gray-100 dark:border-gray-700/50">
+              <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                <span className="w-5 h-5 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center text-[10px]">👥</span>
+                <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300">Đã gửi tin</span>
+              </div>
+              <div className="text-sm font-black text-gray-900 dark:text-white mb-1.5 text-center">
+                <span className="text-amber-500 font-extrabold">{safetyStats?.sentStrangerMessages || 0}</span>
+                <span className="text-gray-400 font-normal text-xs"> / 50</span>
+              </div>
+              <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, ((safetyStats?.sentStrangerMessages || 0) / 50) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Box 2: Đã kết bạn */}
+            <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-2.5 border border-gray-100 dark:border-gray-700/50">
+              <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                <span className="w-5 h-5 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-[10px]">👤</span>
+                <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300">Đã kết bạn</span>
+              </div>
+              <div className="text-sm font-black text-gray-900 dark:text-white mb-1.5 text-center">
+                <span className="text-emerald-500 font-extrabold">{safetyStats?.sentStrangerInvites || 0}</span>
+                <span className="text-gray-400 font-normal text-xs"> / 50</span>
+              </div>
+              <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, ((safetyStats?.sentStrangerInvites || 0) / 50) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Section Title & + Tạo Mới Button ── */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-extrabold text-gray-900 dark:text-white">Chiến dịch</h2>
+          <button
+            onClick={onCreate}
+            className="flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-xl font-bold shadow-xs hover:shadow-md transition-all active:scale-95"
+          >
+            <span className="text-sm font-bold">+</span>
+            <span>Tạo mới</span>
+          </button>
+        </div>
+
+        {/* ── Search Input (Full width, filter icon removed) ── */}
         <div className="relative">
-          <svg width="14" height="14" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+          <svg width="14" height="14" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             value={search}
             onChange={e => { setSearch(e.target.value); resetPage(); }}
-            placeholder="Tìm tên chiến dịch..."
-            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full pl-9 pr-4 py-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors shadow-xs"
+            placeholder="Tìm kiếm chiến dịch..."
+            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
           />
         </div>
 
-        {/* Status Filter Horizontal Pills (Matching Mockup Image 1) */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(['all', 'draft', 'active', 'paused', 'done'] as const).map(s => {
-            const isActive = filterStatus === s;
+        {/* ── Status Filter Pills (Horizontal Scroll) ── */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {[
+            { key: 'all', label: 'Tất cả', count: counts.all },
+            { key: 'active', label: 'Đang chạy', count: counts.active },
+            { key: 'paused', label: 'Tạm dừng', count: counts.paused },
+            { key: 'draft', label: 'Nháp', count: counts.draft },
+            { key: 'done', label: 'Hoàn thành', count: counts.done },
+          ].map(tab => {
+            const isActive = filterStatus === tab.key;
             return (
               <button
-                key={s}
-                onClick={() => { setFilterStatus(s); resetPage(); }}
-                className={`text-xs px-3.5 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-xs ${
+                key={tab.key}
+                onClick={() => { setFilterStatus(tab.key); resetPage(); }}
+                className={`text-[11px] px-2.5 py-1 rounded-full font-bold whitespace-nowrap transition-all flex items-center gap-1 ${
                   isActive
-                    ? 'bg-blue-600 text-white border border-blue-600'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
               >
-                {s === 'active' && <span className="text-[10px]">▶</span>}
-                {s === 'paused' && <span className="text-[10px]">⏸</span>}
-                {s === 'done' && <span className="text-[10px]">✓</span>}
-                <span>
-                  {s === 'all' ? 'Tất cả' : s === 'draft' ? 'Nháp' : s === 'active' ? 'Đang chạy' : s === 'paused' ? 'Tạm dừng' : 'Hoàn thành'}
+                <span>{tab.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                  {tab.count}
                 </span>
               </button>
             );
           })}
         </div>
 
-        {/* Campaign Cards or Empty State */}
+        {/* ── Campaign Items List ── */}
         {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-gray-100 dark:bg-gray-800 rounded-2xl animate-pulse" />)}
+          <div className="space-y-2.5">
+            {[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
-          /* Empty State Illustration (Matching Mockup Image 1) */
-          <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-            <div className="relative w-28 h-28 mb-4 flex items-center justify-center">
-              {/* Illustration Clipboard Icon */}
-              <div className="w-24 h-28 bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-400/30 rounded-2xl flex flex-col items-center justify-center p-3 shadow-inner">
-                <div className="w-6 h-2.5 bg-blue-500 rounded-full mb-3" />
-                <div className="w-12 h-1.5 bg-blue-300/60 rounded-full mb-2" />
-                <div className="w-10 h-1.5 bg-blue-300/40 rounded-full mb-2" />
-                <div className="w-8 h-1.5 bg-blue-300/30 rounded-full" />
-              </div>
-              <div className="absolute bottom-1 right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md">
-                +
-              </div>
-            </div>
-            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-1">Chưa có chiến dịch nào</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs mb-5 leading-relaxed">
-              {search || filterStatus !== 'all'
-                ? 'Không tìm thấy chiến dịch nào phù hợp với bộ lọc hiện tại.'
-                : 'Bạn chưa tạo chiến dịch nào. Hãy tạo chiến dịch đầu tiên để bắt đầu.'}
-            </p>
-            <button
-              onClick={onCreate}
-              className="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md hover:shadow-lg transition-transform active:scale-95 flex items-center gap-2"
-            >
-              <span>Tạo chiến dịch đầu tiên</span>
-              <span>→</span>
-            </button>
+          <div className="text-center py-8 px-3">
+            <p className="text-xs text-gray-400">Không tìm thấy chiến dịch nào</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {paged.map((c, index) => {
-              const isScheduled = c.status === 'active' && c.scheduled_start_at && c.scheduled_start_at > Date.now();
+          <div className="space-y-2">
+            {paged.map((c) => {
               const isSelected = activeId === c.id;
               const progressPercent = c.total_contacts > 0 ? Math.min(100, Math.round((c.sent_count / c.total_contacts) * 100)) : 0;
-              const itemIndex = page * PAGE_SIZE + index + 1;
 
               return (
                 <div
                   key={c.id}
                   onClick={() => onSelect(c.id)}
-                  className={`group relative rounded-3xl border p-4 cursor-pointer transition-all duration-200 ${
+                  className={`group relative rounded-xl border p-2.5 cursor-pointer transition-all duration-150 ${
                     isSelected
-                      ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-950/20 shadow-md ring-2 ring-blue-500/20'
-                      : 'border-gray-200/80 dark:border-gray-800 bg-white dark:bg-gray-850 hover:border-blue-300 dark:hover:border-gray-700 hover:shadow-md'
+                      ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 shadow-2xs ring-1 ring-blue-500/30'
+                      : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-850 hover:border-blue-300 dark:hover:border-gray-700'
                   }`}
                 >
-                  {/* ── Top Header Row ── */}
-                  <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-                    {/* Left: Index badge + Campaign Type + Name */}
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {/* Index Box (e.g. 1, 2, 3) */}
-                      <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-extrabold text-sm flex items-center justify-center flex-shrink-0 border border-blue-200/50 dark:border-blue-800/40 shadow-2xs">
-                        {itemIndex}
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    {/* Left: Status Indicator Icon (Far left) + Campaign Name (No STT) */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0 pr-1">
+                      {/* Status Indicator Icon (Visual status display on the far left) */}
+                      <div
+                        title={`Trạng thái: ${c.status === 'active' ? 'Đang chạy' : c.status === 'paused' ? 'Tạm dừng' : c.status === 'done' ? 'Hoàn thành' : 'Nháp'}`}
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          c.status === 'active'
+                            ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
+                            : c.status === 'paused'
+                            ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400'
+                            : c.status === 'done'
+                            ? 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'
+                            : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500'
+                        }`}
+                      >
+                        {c.status === 'active' ? (
+                          <AppIcon name="play" size={11} className="fill-current" />
+                        ) : c.status === 'paused' ? (
+                          <AppIcon name="pause" size={11} className="fill-current" />
+                        ) : c.status === 'done' ? (
+                          <span className="text-[11px] font-black leading-none">✓</span>
+                        ) : (
+                          <AppIcon name="file" size={11} />
+                        )}
                       </div>
 
-                      {/* Type Badge */}
-                      {c.campaign_type === 'message' && (
-                        <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-xs font-extrabold flex items-center gap-1 flex-shrink-0">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                          </svg>
-                          Tin nhắn
-                        </span>
-                      )}
-                      {c.campaign_type === 'friend_request' && (
-                        <span className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 text-xs font-extrabold flex items-center gap-1 flex-shrink-0">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <line x1="19" y1="8" x2="19" y2="14" />
-                            <line x1="16" y1="11" x2="22" y2="11" />
-                          </svg>
-                          Kết bạn
-                        </span>
-                      )}
-                      {c.campaign_type === 'invite_to_group' && (
-                        <span className="px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40 text-xs font-extrabold flex items-center gap-1 flex-shrink-0">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                          </svg>
-                          Mời nhóm
-                        </span>
-                      )}
-                      {c.campaign_type === 'mixed' && (
-                        <span className="px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40 text-xs font-extrabold flex items-center gap-1 flex-shrink-0">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="16 3 21 3 21 8" />
-                            <line x1="4" y1="20" x2="21" y2="3" />
-                            <polyline points="21 16 21 21 16 21" />
-                            <line x1="15" y1="15" x2="21" y2="21" />
-                            <line x1="4" y1="4" x2="9" y2="9" />
-                          </svg>
-                          Hỗn hợp
-                        </span>
-                      )}
-
-                      {/* Campaign Name */}
-                      <h4 className="text-sm font-extrabold text-gray-900 dark:text-white truncate ml-1" title={c.name}>
+                      <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate flex-1" title={c.name}>
                         {c.name}
                       </h4>
                     </div>
 
-                    {/* Right: Actions (Copy & Delete) + Status Pill */}
+                    {/* Right: Clickable Buttons (Copy in account, Copy to other accounts, Delete) */}
                     <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                      {/* Copy Button */}
+                      {/* Clickable Action 1: Copy / Clone in current account */}
                       <button
                         onClick={() => onClone(c.id)}
-                        title="Sao chép (Clone) chiến dịch này"
-                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-750 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 flex items-center justify-center transition-colors shadow-2xs"
+                        title="Sao chép trong tài khoản này"
+                        className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-750 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 flex items-center justify-center transition-colors"
                       >
-                        <AppIcon name="copy" size={14} />
+                        <AppIcon name="copy" size={11} />
                       </button>
 
-                      {/* Delete Button */}
+                      {/* Clickable Action 2: Copy to other Zalo accounts */}
+                      {onCopyToAccounts && (
+                        <button
+                          onClick={() => onCopyToAccounts(c)}
+                          title="Sao chép kịch bản sang Zalo khác"
+                          className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-750 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40 flex items-center justify-center transition-colors text-[11px]"
+                        >
+                          📋
+                        </button>
+                      )}
+
+                      {/* Clickable Action 3: Delete */}
                       <button
                         onClick={async () => {
                           const ok = await showConfirm(`Bạn có chắc chắn muốn xóa chiến dịch "${c.name}"?`);
                           if (ok) onDelete(c.id);
                         }}
-                        title="Xóa chiến dịch này"
-                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-750 text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/40 flex items-center justify-center transition-colors shadow-2xs"
+                        title="Xóa chiến dịch"
+                        className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-750 text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/40 flex items-center justify-center transition-colors"
                       >
-                        <AppIcon name="trash" size={14} />
+                        <AppIcon name="trash" size={11} />
                       </button>
+                    </div>
+                  </div>
 
-                      {/* Status Badge */}
-                      <span
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold flex items-center gap-1 shadow-2xs transition-colors ${
-                          isScheduled
-                            ? 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800/40'
-                            : c.status === 'done'
-                            ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40'
-                            : c.status === 'active'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 animate-pulse'
-                            : c.status === 'paused'
-                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
-                            : c.failed_count > 0
-                            ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/40'
-                            : 'bg-gray-100 dark:bg-gray-750 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
+                  {/* Progress Bar & Fraction */}
+                  <div className="flex items-center gap-2 pl-6">
+                    <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          c.status === 'done' ? 'bg-blue-600' : c.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'
                         }`}
-                      >
-                        {isScheduled
-                          ? '⏱️ Đã lên lịch'
-                          : c.status === 'done'
-                          ? '✓ Hoàn thành'
-                          : c.status === 'active'
-                          ? '▶️ Đang chạy'
-                          : c.status === 'paused'
-                          ? '⏸️ Tạm dừng'
-                          : c.failed_count > 0
-                          ? '⚠️ Có lỗi gửi'
-                          : 'Nháp'}
-                      </span>
+                        style={{ width: `${progressPercent}%` }}
+                      />
                     </div>
-                  </div>
-
-                  {/* ── Middle Section: Parameters Container (Compact: Icon top, Value below, No labels) ── */}
-                  <div className="bg-gray-50/80 dark:bg-gray-800/50 border border-gray-200/60 dark:border-gray-700/50 rounded-2xl p-2.5 flex items-center justify-around">
-                    {/* Left: Delay Parameter */}
-                    <div className="flex flex-col items-center gap-1.5 text-center flex-1">
-                      <div className="w-9 h-9 rounded-2xl bg-blue-100/70 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-2xs">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                      </div>
-                      <span className="text-xs font-black text-gray-900 dark:text-white leading-tight">
-                        {c.delay_seconds || 10}s delay
-                      </span>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="w-px h-9 bg-gray-200/80 dark:bg-gray-700/80" />
-
-                    {/* Right: Date Parameter */}
-                    <div className="flex flex-col items-center gap-1.5 text-center flex-1">
-                      <div className="w-9 h-9 rounded-2xl bg-rose-100/70 dark:bg-rose-950/60 text-rose-500 dark:text-rose-400 flex items-center justify-center shadow-2xs">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                          <line x1="16" y1="2" x2="16" y2="6" />
-                          <line x1="8" y1="2" x2="8" y2="6" />
-                          <line x1="3" y1="10" x2="21" y2="10" />
-                        </svg>
-                      </div>
-                      <span className="text-xs font-black text-gray-900 dark:text-white leading-tight">
-                        {c.created_at ? fmtDate(c.created_at) : 'Hôm nay'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* ── Bottom Section: Progress Bar & Total Contacts ── */}
-                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-4">
-                    {/* Left: Progress Track */}
-                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                      <div className="w-7 h-7 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1">
-                          <span>Tiến độ</span>
-                          <span>{progressPercent}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-100 dark:bg-gray-750 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              c.status === 'done'
-                                ? 'bg-blue-600'
-                                : c.status === 'active'
-                                ? 'bg-gradient-to-r from-blue-500 to-blue-600'
-                                : c.status === 'paused'
-                                ? 'bg-amber-500'
-                                : c.failed_count > 0
-                                ? 'bg-rose-500'
-                                : 'bg-gray-300 dark:bg-gray-600'
-                            }`}
-                            style={{ width: `${progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="w-px h-8 bg-gray-200 dark:bg-gray-700/80" />
-
-                    {/* Right: Contact Counts */}
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-base font-black text-gray-900 dark:text-white leading-none">
-                        {c.sent_count} / {c.total_contacts}
-                      </p>
-                      <p className="text-[10px] font-medium text-gray-400 mt-0.5">liên hệ</p>
-                    </div>
+                    <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 tabular-nums">
+                      {c.sent_count} / {c.total_contacts}
+                    </span>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
+      </div>
+
+      {/* ── Left Sidebar Footer Pagination ── */}
+      <div className="px-4 py-3 bg-white dark:bg-gray-850 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500 h-[52px] flex-shrink-0">
+        <div className="flex items-center gap-1">
+          <span>Hiển thị</span>
+          <select
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setPage(0); }}
+            className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-1.5 py-0.5 text-xs text-gray-800 dark:text-gray-200 focus:outline-none"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+          <span>/ trang</span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            disabled={page === 0}
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700"
+          >
+            ‹
+          </button>
+          <span className="px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-xs">
+            {page + 1}
+          </span>
+          <button
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700"
+          >
+            ›
+          </button>
+        </div>
       </div>
     </div>
   );

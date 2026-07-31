@@ -276,10 +276,10 @@ class PhoneScanService {
 
             const zaloService = await ZaloService.getInstance(conn.auth);
 
-            let zaloUser: { uid: string; name: string; avatar: string } | null = null;
+            let zaloUser: { uid: string; name: string; avatar: string; gender?: number | null } | null = null;
 
             // Helper to extract user profile from various zca-js response structures
-            const extractZaloUser = (raw: any): { uid: string; name: string; avatar: string } | null => {
+            const extractZaloUser = (raw: any): { uid: string; name: string; avatar: string; gender?: number | null } | null => {
                 if (!raw) return null;
                 const u = raw.data ?? raw.response ?? raw;
                 if (!u) return null;
@@ -287,7 +287,11 @@ class PhoneScanService {
                 if (!uid || uid === '0' || uid === 'undefined' || uid === 'null') return null;
                 const name = u.displayName || u.display_name || u.zaloName || u.zalo_name || u.name || u.dpName || phone;
                 const avatar = u.avatar || u.avatarUrl || u.avatar_url || '';
-                return { uid, name, avatar };
+                let gender: number | null = null;
+                const gVal = u.gender ?? u.sd?.gender ?? u.sex;
+                if (gVal === 0 || gVal === '0' || gVal === 'male' || gVal === 'Male') gender = 0;
+                else if (gVal === 1 || gVal === '1' || gVal === 'female' || gVal === 'Female') gender = 1;
+                return { uid, name, avatar, gender };
             };
 
             // 1. Try getMultiUsersByPhones bulk lookup first
@@ -356,9 +360,13 @@ class PhoneScanService {
                     targetAccountIds = [zaloId];
                 }
 
+                // Fetch real_name from phone_scan_items if available
+                const itemData = db.queryOne<any>('SELECT real_name FROM phone_scan_items WHERE id = ?', [itemId]);
+                const realNameFromFile = itemData?.real_name || null;
+
                 // Create/update CRM contact across target account(s)
                 for (const accId of targetAccountIds) {
-                    db.updateContactProfile(accId, uid, name, avatar, phoneNormalized, 'user');
+                    db.updateContactProfile(accId, uid, name, avatar, phoneNormalized, 'user', zaloUser?.gender, null, realNameFromFile);
                 }
 
                 // Update Zalo & CRM Alias based on Campaign/Batch rule if explicitly enabled (update_zalo_alias === 1)
@@ -405,11 +413,18 @@ class PhoneScanService {
                     for (const tagId of tagIds) {
                         try {
                             db.assignLocalLabelToThread(accId, tagId, uid);
+                            EventBroadcaster.emit('db:localLabelThreadChanged', {
+                                action: 'assign',
+                                ownerZaloId: accId,
+                                labelId: tagId,
+                                threadId: uid
+                            });
                         } catch (err: any) {
                             Logger.error(`[PhoneScanService] Failed to assign tag ${tagId} to contact ${uid} for account ${accId}: ${err.message}`);
                         }
                     }
                     if (tagIds.length > 0) {
+                        EventBroadcaster.emit('db:localLabelChanged', { zaloId: accId });
                         EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
                     }
                 }

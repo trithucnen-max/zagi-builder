@@ -159,13 +159,25 @@ async function main() {
 
   // 5. Upload macOS binaries to GitHub Release
   console.log(`\n⚡ Bước 5: Tải bản macOS lên GitHub Release...`);
-  
-  if (!isOverwrite) {
-    console.log('Đang tạo/kiểm tra GitHub Release để tải tệp lên...');
+
+  // Kiểm tra xem Release tag đã tồn tại trên GitHub chưa, nếu chưa có thì tự động tạo mới
+  console.log(`Đang kiểm tra GitHub Release ${tag}...`);
+  let releaseExists = false;
+  try {
+    execSync(`GH_TOKEN=${GH_TOKEN} gh release view ${tag}`, { stdio: 'pipe', cwd: ROOT_DIR });
+    releaseExists = true;
+    console.log(` ✅ Đã xác nhận Release ${tag} tồn tại trên GitHub.`);
+  } catch {
+    releaseExists = false;
+  }
+
+  if (!releaseExists) {
+    console.log(` 📝 Đang tạo GitHub Release mới: ${tag}...`);
     try {
-      execSync(`GH_TOKEN=${GH_TOKEN} gh release create ${tag} --title "🎉 Zagi ${tag}" --notes "Bản phát hành v${targetVersion} khắc phục dứt điểm lỗi gửi/forward ảnh trên BOSS." --draft`, { stdio: 'inherit', cwd: ROOT_DIR });
-    } catch (e) {
-      console.log('⚠️ Release đã tồn tại hoặc đang được tạo bởi CI/CD, tiếp tục tải lên...');
+      execSync(`GH_TOKEN=${GH_TOKEN} gh release create ${tag} --title "🎉 Zagi ${tag}" --notes "Bản phát hành v${targetVersion} nâng cấp CRM, Workflow, Quét SĐT & Đa tài khoản."`, { stdio: 'inherit', cwd: ROOT_DIR });
+      console.log(` ✅ Đã tạo thành công GitHub Release ${tag}!`);
+    } catch (createErr) {
+      console.error(` ❌ Lỗi khi tạo GitHub Release ${tag}:`, createErr.message);
     }
   }
 

@@ -17,6 +17,7 @@ export interface Contact {
     is_in_others?: number;
     gender?: number | null;
     birthday?: string | null;
+    real_name?: string | null;
     channel?: string;
 }
 

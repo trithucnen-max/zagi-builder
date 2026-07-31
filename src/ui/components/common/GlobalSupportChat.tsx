@@ -89,7 +89,7 @@ export default function GlobalSupportChat() {
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant')?.content || '';
 
   return (
-    <div className="fixed bottom-16 right-4 sm:bottom-5 sm:right-5 z-[9999] flex flex-col items-end pointer-events-none">
+    <div className="fixed bottom-24 right-5 sm:bottom-32 sm:right-6 z-[9999] flex flex-col items-end pointer-events-none">
       {/* Minimized Compact Bar */}
       {isOpen && isMinimized && (
         <div

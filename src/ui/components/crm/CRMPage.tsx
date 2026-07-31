@@ -10,6 +10,7 @@ import CampaignList from './campaigns/CampaignList';
 import CampaignDetail from './campaigns/CampaignDetail';
 import CampaignCreateModal from './campaigns/CampaignCreateModal';
 import CampaignCloneModal from './campaigns/CampaignCloneModal';
+import CopyCampaignToAccountsModal from './campaigns/CopyCampaignToAccountsModal';
 import TargetSelector from './campaigns/TargetSelector';
 import ZaloLabelSelector from './tags/ZaloLabelSelector';
 import LocalLabelSelector from '@/components/common/LocalLabelSelector';
@@ -229,6 +230,7 @@ export default function CRMPage() {
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
   const [showCloneCampaign, setShowCloneCampaign] = useState(false);
   const [cloneCampaignId, setCloneCampaignId] = useState<number | null>(null);
+  const [copyToAccountsCampaign, setCopyToAccountsCampaign] = useState<CRMCampaign | null>(null);
   const [showBulkLocalModal, setShowBulkLocalModal] = useState(false);
   const [showBulkZaloModal, setShowBulkZaloModal] = useState(false);
   const [showBulkGroupModal, setShowBulkGroupModal] = useState<'add' | 'remove' | null>(null);
@@ -344,10 +346,6 @@ export default function CRMPage() {
   // ── Load data ────────────────────────────────────────────────────────────
   const loadContacts = useCallback(async () => {
     if (!activeAccountId) return;
-    // Auto-cleanup any ghost unscanned import contacts from DB before fetching
-    try {
-      await ipc.crm?.import?.cleanupGhostContacts?.();
-    } catch {}
 
     store.setContactsLoading(true);
     // Strip client-only filters (has_phone, has_notes) before sending to backend
@@ -1136,10 +1134,11 @@ export default function CRMPage() {
                       phone: fields.phone,
                       gender: fields.gender,
                       birthday: fields.birthday,
+                      real_name: fields.real_name,
                     };
 
                     let hasAiUpdate = aiFields.assistantId !== undefined || aiFields.autoSummary !== undefined || aiFields.threshold !== undefined;
-                    let hasNormalUpdate = normalFields.alias !== undefined || normalFields.salutation !== undefined || normalFields.phone !== undefined || normalFields.gender !== undefined || normalFields.birthday !== undefined;
+                    let hasNormalUpdate = normalFields.alias !== undefined || normalFields.salutation !== undefined || normalFields.phone !== undefined || normalFields.gender !== undefined || normalFields.birthday !== undefined || normalFields.real_name !== undefined;
 
                     try {
                       let success = true;
@@ -1167,17 +1166,6 @@ export default function CRMPage() {
                       }
                     } catch (err: any) {
                       showNotification("Lưu thất bại: " + err.message, "error");
-                    }
-                  }}
-                  onCleanupGhostContacts={async () => {
-                    try {
-                      const res = await ipc.crm?.import?.cleanupGhostContacts?.();
-                      if (res?.success) {
-                        showNotification(`Đã dọn dẹp sạch ${res.count || 0} liên hệ rác chưa quét Zalo khỏi CRM!`, 'success');
-                        await loadContacts();
-                      }
-                    } catch (e: any) {
-                      showNotification('Lỗi dọn dẹp: ' + e.message, 'error');
                     }
                   }}
                 />
@@ -1236,6 +1224,7 @@ export default function CRMPage() {
                       onCreate={startWizard}
                       onDelete={handleDeleteCampaign}
                       onClone={id => { setCloneCampaignId(id); setShowCloneCampaign(true); }}
+                      onCopyToAccounts={c => setCopyToAccountsCampaign(c)}
                       onUpdateStatus={handleUpdateCampaignStatus}
                       zaloId={activeAccountId || ''}
                     />
@@ -1252,6 +1241,7 @@ export default function CRMPage() {
                       onCreate={startWizard}
                       onDelete={handleDeleteCampaign}
                       onClone={id => { setCloneCampaignId(id); setShowCloneCampaign(true); }}
+                      onCopyToAccounts={c => setCopyToAccountsCampaign(c)}
                       onUpdateStatus={handleUpdateCampaignStatus}
                       zaloId={activeAccountId || ''}
                     />
@@ -1268,6 +1258,7 @@ export default function CRMPage() {
                         onAddContacts={handleAddContactsToCampaign}
                         onUpdate={handleUpdateCampaign}
                         onClone={id => { setCloneCampaignId(id); setShowCloneCampaign(true); }}
+                        onCopyToAccounts={c => setCopyToAccountsCampaign(c)}
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full text-gray-500">
@@ -1422,6 +1413,18 @@ export default function CRMPage() {
           />
         ) : null;
       })()}
+
+      {copyToAccountsCampaign && (
+        <CopyCampaignToAccountsModal
+          campaignId={copyToAccountsCampaign.id}
+          campaignName={copyToAccountsCampaign.name}
+          currentZaloId={activeAccountId || ''}
+          onClose={() => setCopyToAccountsCampaign(null)}
+          onSuccess={() => {
+            loadCampaigns();
+          }}
+        />
+      )}
 
       {/* Unified Label Picker modal (multi-select, supports empty = clear all, local & zalo) */}
       {showBulkLocalModal && (

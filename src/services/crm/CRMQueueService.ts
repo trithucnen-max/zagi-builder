@@ -379,6 +379,7 @@ class CRMQueueService {
                 ? salutationVal.trim()
                 : genderGreeting;
 
+            const realName     = (item as any).real_name || (item as any).realName || '';
             const contactAlias = (item as any).alias || '';
             const zaloName     = (item as any).zalo_name || item.display_name || item.contact_id || '';
             const smartName    = contactAlias || effectiveDisplayName || zaloName;
@@ -416,6 +417,9 @@ class CRMQueueService {
                 result = result
                     .replace(/\{name\}/g,             smartName || item.contact_id)
                     .replace(/\{zalo_name\}/g,        zaloName)
+                    .replace(/\{real_name\}/g,        realName || smartName || item.contact_id)
+                    .replace(/\{realName\}/g,         realName || smartName || item.contact_id)
+                    .replace(/\{ten_that\}/g,         realName || smartName || item.contact_id)
                     .replace(/\{userId\}/g,           effectiveContactId)
                     .replace(/\{alias\}/g,            contactAlias)
                     .replace(/\{phone\}/g,            contactPhone)
@@ -491,6 +495,8 @@ class CRMQueueService {
                 blocksToSend = [blocksToSend[0]];
             }
 
+            const sendOrder = (mixedConfig as any)?.send_order || 'image_first';
+
             // Helper: send one block (text + images)
             const sendBlock = async (block: ContentBlock, threadId: string, threadType: number, isStrangerTarget: boolean): Promise<any[]> => {
                 const responses: any[] = [];
@@ -503,7 +509,7 @@ class CRMQueueService {
                 }
 
                 if (imgs.length > 0) {
-                    Logger.log(`[CRMQueue] Sending ${imgs.length} image(s) with text to ${threadId} (threadType=${threadType})`);
+                    Logger.log(`[CRMQueue] Sending ${imgs.length} image(s) (order=${sendOrder}) to ${threadId} (threadType=${threadType})`);
                     
                     const resolvedPaths: string[] = [];
                     for (const p of imgs) {
@@ -547,9 +553,34 @@ class CRMQueueService {
                     }
 
                     if (resolvedPaths.length > 0) {
-                        // Gửi cả text và file/ảnh đính kèm (dưới dạng đường dẫn chuỗi trực tiếp) trong 1 tin nhắn
-                        const resp = await (conn.api as any).sendMessage({ msg: text, attachments: resolvedPaths }, threadId, threadType);
-                        responses.push(resp);
+                        if (isStrangerTarget || !text.trim()) {
+                            // Stranger target or no text -> single message
+                            const resp = await (conn.api as any).sendMessage({ msg: text, attachments: resolvedPaths }, threadId, threadType);
+                            responses.push(resp);
+                        } else {
+                            // Friend target & both text and images exist -> Controlled sequential send based on sendOrder
+                            if (sendOrder === 'text_first') {
+                                Logger.log(`[CRMQueue] Sending Text FIRST for ${threadId}...`);
+                                const textResp = await (conn.api as any).sendMessage({ msg: text }, threadId, threadType);
+                                responses.push(textResp);
+
+                                await new Promise(resolve => setTimeout(resolve, 300));
+
+                                Logger.log(`[CRMQueue] Sending Images SECOND for ${threadId}...`);
+                                const imgResp = await (conn.api as any).sendMessage({ msg: '', attachments: resolvedPaths }, threadId, threadType);
+                                responses.push(imgResp);
+                            } else {
+                                Logger.log(`[CRMQueue] Sending Images FIRST for ${threadId}...`);
+                                const imgResp = await (conn.api as any).sendMessage({ msg: '', attachments: resolvedPaths }, threadId, threadType);
+                                responses.push(imgResp);
+
+                                await new Promise(resolve => setTimeout(resolve, 300));
+
+                                Logger.log(`[CRMQueue] Sending Text SECOND for ${threadId}...`);
+                                const textResp = await (conn.api as any).sendMessage({ msg: text }, threadId, threadType);
+                                responses.push(textResp);
+                            }
+                        }
                     }
                 } else {
                     // Không có ảnh -> Chỉ gửi tin nhắn văn bản

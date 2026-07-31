@@ -23,7 +23,8 @@ interface TargetSelectorProps {
   allLabels: LabelData[];
   localLabels?: LocalLabelItem[];
   localLabelThreadMap?: Record<string, number[]>;
-  existingContactIds: Set<string>;
+  existingContactIds?: Set<string>;
+  existingIds?: Set<string>;
   onConfirm: (contacts: any[]) => void;
   onClose: () => void;
   headerContent?: React.ReactNode;
@@ -36,12 +37,19 @@ export default function TargetSelector({
   allLabels,
   localLabels,
   localLabelThreadMap,
-  existingContactIds,
+  existingContactIds: propExistingContactIds,
+  existingIds,
   onConfirm,
   onClose,
   headerContent,
 }: TargetSelectorProps) {
+  const existingContactIds = useMemo(
+    () => propExistingContactIds || existingIds || new Set<string>(),
+    [propExistingContactIds, existingIds]
+  );
   const [mode, setMode] = useState<SelectMode>('by_label');
+  const [listPage, setListPage] = useState(0);
+  const PAGE_SIZE = 10;
   const groupInfoCache = useAppStore(s => s.groupInfoCache);
   const showNotification = useAppStore(s => s.showNotification);
   const [selectedZaloLabelIds, setSelectedZaloLabelIds] = useState<number[]>([]);
@@ -130,19 +138,30 @@ export default function TargetSelector({
 
   useEffect(() => {
     if (!zaloId) return;
-    Promise.all([
-      ipc.db?.getLocalLabels({ zaloId }),
-      ipc.db?.getLocalLabelThreads({ zaloId }),
-    ]).then(([labelsRes, threadsRes]) => {
-      const labels = (labelsRes?.labels || []).filter((l: any) => (l.is_active ?? 1) !== 0);
-      setFetchedLocalLabels(labels);
-      const map: Record<string, number[]> = {};
-      (threadsRes?.threads || []).forEach((row: any) => {
-        if (!map[row.thread_id]) map[row.thread_id] = [];
-        map[row.thread_id].push(Number(row.label_id));
-      });
-      setFetchedThreadMap(map);
-    }).catch(() => {});
+    const fetchLabels = () => {
+      Promise.all([
+        ipc.db?.getLocalLabels({ zaloId }),
+        ipc.db?.getLocalLabelThreads({ zaloId }),
+      ]).then(([labelsRes, threadsRes]) => {
+        const labels = (labelsRes?.labels || []).filter((l: any) => (l.is_active ?? 1) !== 0);
+        setFetchedLocalLabels(labels);
+        const map: Record<string, number[]> = {};
+        (threadsRes?.threads || []).forEach((row: any) => {
+          if (!map[row.thread_id]) map[row.thread_id] = [];
+          map[row.thread_id].push(Number(row.label_id));
+        });
+        setFetchedThreadMap(map);
+      }).catch(() => {});
+    };
+
+    fetchLabels();
+
+    window.addEventListener('local-labels-changed', fetchLabels);
+    window.addEventListener('ui:threadLabelsChanged', fetchLabels);
+    return () => {
+      window.removeEventListener('local-labels-changed', fetchLabels);
+      window.removeEventListener('ui:threadLabelsChanged', fetchLabels);
+    };
   }, [zaloId]);
 
   const effectiveLocalLabels = useMemo(() => {
@@ -175,6 +194,11 @@ export default function TargetSelector({
   const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
 
   const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
+    const acc = accounts.find(a => a.zalo_id === zaloId);
+    const rawAccName = acc?.full_name || acc?.display_name;
+    const formattedName = (rawAccName && !/^\d{8,}$/.test(rawAccName)) ? rawAccName : (acc?.phone ? formatPhone(acc.phone) : '');
+    const resolvedAccName = formattedName || (zaloId && zaloId.length > 8 ? `Zalo (...${zaloId.slice(-4)})` : zaloId);
+
     const localOpts: LoadedLabelOption[] = (effectiveLocalLabels || []).map((l: any) => ({
       value: `local:${l.id}`,
       name: l.name,
@@ -184,7 +208,7 @@ export default function TargetSelector({
       color: l.color,
       emoji: l.emoji,
       accountZaloId: zaloId,
-      accountName: accounts.find(a => a.zalo_id === zaloId)?.full_name || zaloId,
+      accountName: resolvedAccName,
     }));
     const zaloOpts: LoadedLabelOption[] = (allLabels || []).map((l: any) => ({
       value: `zalo:${l.id}`,
@@ -194,7 +218,7 @@ export default function TargetSelector({
       id: l.id,
       color: l.color,
       accountZaloId: zaloId,
-      accountName: accounts.find(a => a.zalo_id === zaloId)?.full_name || zaloId,
+      accountName: resolvedAccName,
     }));
     return [...localOpts, ...zaloOpts];
   }, [effectiveLocalLabels, allLabels, zaloId, accounts]);
@@ -576,10 +600,27 @@ export default function TargetSelector({
   const totalAvailable = allContacts.length;
   const selectedCount = mode === 'by_phone' ? phoneList.length : mode === 'by_uid' ? uidList.length : effectiveSelectedContacts.length;
 
+  const paginationInfo = useMemo(() => {
+    let total = 0;
+    if (mode === 'by_label') {
+      total = totalLabelFilters === 0 ? 0 : filtered.length;
+    } else if (mode === 'by_phone') {
+      total = phoneList.length;
+    } else if (mode === 'by_uid') {
+      total = uidList.length;
+    } else if (mode === 'groups_only') {
+      total = allGroups.filter(g => (!search || (g.display_name || '').toLowerCase().includes(search.toLowerCase()))).length;
+    } else if (mode === 'manual' || mode === 'friends_only') {
+      total = allContacts.filter(c => c.contact_type !== 'group' && (!search || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(search.toLowerCase()))).length;
+    }
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    return { total, totalPages };
+  }, [mode, totalLabelFilters, filtered.length, phoneList.length, uidList.length, allGroups, search, allContacts, PAGE_SIZE]);
+
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-[70] p-3 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-[70] p-3 sm:p-4 overflow-y-auto" onClick={onClose}>
       <div
-        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-[680px] shadow-2xl flex flex-col overflow-hidden text-gray-900 dark:text-white max-h-[92vh] sm:max-h-[85vh]"
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-[960px] shadow-2xl flex flex-col overflow-hidden text-gray-900 dark:text-white h-[80vh] min-h-[500px] max-h-[90vh] my-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Top Drag Indicator for Mobile */}
@@ -614,716 +655,546 @@ export default function TargetSelector({
           </button>
         </div>
 
-        {/* ── Mode selector sub-tabs (Row 1 - Matching Mockup Image 3) ── */}
-        <div className="px-4 py-2.5 bg-gray-50/60 dark:bg-gray-900/60 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2 overflow-x-auto scrollbar-none flex-shrink-0">
-          {[
-            { id: 'by_label', label: 'Theo nhãn', icon: '🏷️' },
-            { id: 'by_phone', label: 'Theo SĐT', icon: '📞' },
-            { id: 'by_uid', label: 'Theo UID', icon: '🔗' },
-            { id: 'manual', label: 'Theo Liên hệ', icon: '👤' },
-            { id: 'groups_only', label: 'Theo nhóm', icon: '👨‍👩‍👧‍👦' },
-          ].map(tab => {
-            const isActive = mode === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setMode(tab.id as any)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap border ${
-                  isActive
-                    ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-600 dark:text-blue-400 shadow-xs'
-                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* ── 2-Column Body Layout ── */}
+        <div className="flex flex-1 overflow-hidden min-h-0">
 
-        {/* ── Exclusion Filter Section ── */}
-        <div className="px-4 py-2 bg-red-50/40 dark:bg-red-950/20 border-b border-red-100 dark:border-red-900/40 flex-shrink-0">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setShowExclusionSection(!showExclusionSection)}
-              className="flex items-center gap-1.5 text-xs font-bold text-red-600 dark:text-red-400 hover:opacity-80 transition-opacity"
-            >
-              <span>🚫</span>
-              <span>Bộ lọc Loại Trừ (Nhãn, Nhóm, Liên hệ)</span>
-              {allExcludedIds.size > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold">
-                  Đang loại trừ {allExcludedIds.size} liên hệ
-                </span>
-              )}
-              <span className="text-[10px] text-gray-400 ml-1">{showExclusionSection ? '▲' : '▼'}</span>
-            </button>
-          </div>
+          {/* ════════════ LEFT PANEL: Accordion Controls (280px fixed) ════════════ */}
+          <div className="w-[280px] flex-shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-800 overflow-y-auto bg-gray-50/30 dark:bg-gray-900/30">
 
-          {showExclusionSection && (
-            <div className="mt-2 p-3 rounded-2xl bg-white dark:bg-gray-850 border border-red-200 dark:border-red-900/40 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-800 pb-2">
-                <div className="flex gap-1.5 overflow-x-auto">
-                  {[
-                    { id: 'label', label: 'Theo Nhãn', icon: '🏷️', count: excludedLocalLabelIds.length + excludedZaloLabelIds.length },
-                    { id: 'group', label: 'Theo Nhóm Zalo', icon: '👨‍👩‍👧‍👦', count: excludedGroupIds.size },
-                    { id: 'contact', label: 'Theo Liên hệ', icon: '👤', count: excludedContactIds.size },
-                  ].map(tab => {
-                    const isActive = exclusionTab === tab.id;
-                    return (
-                      <button
-                        key={`ex-tab-${tab.id}`}
-                        type="button"
-                        onClick={() => setExclusionTab(tab.id as any)}
-                        className={`text-[11px] px-3 py-1 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                          isActive
-                            ? 'bg-red-600 text-white shadow-2xs'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        <span>{tab.icon}</span>
-                        <span>{tab.label}</span>
-                        {tab.count > 0 && (
-                          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${isActive ? 'bg-white text-red-600' : 'bg-red-500 text-white'}`}>
-                            {tab.count}
-                          </span>
-                        )}
+            {/* Accordion Mode List */}
+            <div className="px-3 pt-3 pb-2">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Chọn theo</p>
+
+              {/* ── Theo nhãn ── */}
+              <div className="mb-1">
+                <button
+                  onClick={() => { setMode('by_label'); setListPage(0); }}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                    mode === 'by_label'
+                      ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>🏷️</span><span className="flex-1 text-left">Theo nhãn</span>
+                  {mode === 'by_label' && <span className="text-[10px] opacity-60">▲</span>}
+                </button>
+                {mode === 'by_label' && (
+                  <div className="mt-1.5 ml-1 space-y-2">
+                    {/* Local/Zalo sub-tabs */}
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setLabelTab('local')}
+                        className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition-colors ${
+                          labelTab === 'local' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50'
+                        }`}>
+                        📦 Local ({effectiveLocalLabels.length})
                       </button>
-                    );
-                  })}
-                </div>
+                      <button onClick={() => setLabelTab('zalo')}
+                        className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition-colors ${
+                          labelTab === 'zalo' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50'
+                        }`}>
+                        🔄 Zalo ({allLabels.length})
+                      </button>
+                    </div>
+                    {/* Label chips */}
+                    <div className="flex gap-1.5 flex-wrap">
+                      {(labelTab === 'local' ? effectiveLocalLabels : []).map(label => {
+                        const isActive = selectedLocalLabelIds.includes(label.id);
+                        const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
+                        return (
+                          <button key={`local-${label.id}`} onClick={() => { toggleLocalLabel(label.id); setListPage(0); }}
+                            className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-semibold flex items-center gap-1 ${isActive ? 'text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'}`}
+                            style={isActive ? { backgroundColor: baseColor, borderColor: baseColor } : { backgroundColor: baseColor + '10', borderColor: baseColor + '30', color: baseColor }}>
+                            {label.emoji && <span>{label.emoji}</span>}<span>{label.name}</span>
+                          </button>
+                        );
+                      })}
+                      {(labelTab === 'zalo' ? allLabels : []).map(label => {
+                        const isActive = selectedZaloLabelIds.includes(label.id);
+                        const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
+                        return (
+                          <button key={`zalo-${label.id}`} onClick={() => { toggleZaloLabel(label.id); setListPage(0); }}
+                            className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-semibold flex items-center gap-1 ${isActive ? 'text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'}`}
+                            style={isActive ? { backgroundColor: baseColor, borderColor: baseColor } : { backgroundColor: baseColor + '10', borderColor: baseColor + '30', color: baseColor }}>
+                            <span>🏷️</span><span>{label.text}</span>
+                          </button>
+                        );
+                      })}
+                      {labelTab === 'local' && effectiveLocalLabels.length === 0 && (
+                        <span className="text-[11px] text-gray-400 italic">📁 Chưa có nhãn Local</span>
+                      )}
+                      {labelTab === 'zalo' && allLabels.length === 0 && (
+                        <span className="text-[11px] text-gray-400 italic">🏷️ Chưa có nhãn Zalo</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* 1. Tab Loại trừ Theo Nhãn */}
-              {exclusionTab === 'label' && (
-                <div className="space-y-2.5">
-                  {effectiveLocalLabels.length > 0 && (
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                        Nhãn Local:
-                      </span>
-                      <div className="flex gap-1.5 flex-wrap max-h-28 overflow-y-auto">
-                        {effectiveLocalLabels.map(label => {
-                          const isExcluded = excludedLocalLabelIds.includes(label.id);
-                          return (
-                            <button
-                              key={`ex-local-${label.id}`}
-                              type="button"
-                              onClick={() => setExcludedLocalLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
-                              className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
-                                isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
-                              }`}
-                            >
-                              {isExcluded && <span>🚫</span>}
-                              <span>{label.emoji || '🏷️'} {label.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {allLabels.length > 0 && (
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                        Nhãn Zalo:
-                      </span>
-                      <div className="flex gap-1.5 flex-wrap max-h-28 overflow-y-auto">
-                        {allLabels.map(label => {
-                          const isExcluded = excludedZaloLabelIds.includes(label.id);
-                          return (
-                            <button
-                              key={`ex-zalo-${label.id}`}
-                              type="button"
-                              onClick={() => setExcludedZaloLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
-                              className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
-                                isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
-                              }`}
-                            >
-                              {isExcluded && <span>🚫</span>}
-                              <span>🏷️ {label.text}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 2. Tab Loại trừ Theo Nhóm Zalo */}
-              {exclusionTab === 'group' && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                      Chọn Nhóm Zalo cần loại trừ toàn bộ thành viên:
-                    </span>
-                    {(() => {
-                      const filteredExGroups = allGroups.filter(g => (!exGroupSearch || (g.display_name || '').toLowerCase().includes(exGroupSearch.toLowerCase())));
-                      const allSelected = filteredExGroups.length > 0 && filteredExGroups.every(g => excludedGroupIds.has(g.contact_id));
-                      return (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (allSelected) {
-                                setExcludedGroupIds(new Set());
-                              } else {
-                                setExcludedGroupIds(new Set(filteredExGroups.map(g => g.contact_id)));
-                              }
-                            }}
-                            className="text-[11px] px-2.5 py-1 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-2xs"
-                          >
-                            {allSelected ? '☒ Bỏ chọn tất cả' : `☑️ Chọn tất cả nhóm loại trừ (${filteredExGroups.length} nhóm)`}
-                          </button>
-                          {excludedGroupIds.size > 0 && (
-                            <span className="text-[11px] text-red-500 font-bold">
-                              🚫 Đã chọn {excludedGroupIds.size} nhóm
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
+              {/* ── Theo SĐT ── */}
+              <div className="mb-1">
+                <button
+                  onClick={() => { setMode('by_phone'); setListPage(0); }}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                    mode === 'by_phone'
+                      ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>📞</span><span className="flex-1 text-left">Theo SĐT</span>
+                  {mode === 'by_phone' && <span className="text-[10px] opacity-60">▲</span>}
+                </button>
+                {mode === 'by_phone' && (
+                  <div className="mt-1.5 ml-1 space-y-2">
+                    <textarea
+                      value={phoneInput}
+                      onChange={e => { setPhoneInput(e.target.value); setListPage(0); }}
+                      placeholder={"Nhập hoặc dán SĐT\n(mỗi số 1 dòng):\n0901234567\n0912345678"}
+                      className="w-full h-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 font-mono resize-none"
+                    />
+                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">{phoneList.length} SĐT hợp lệ</p>
                   </div>
-                  <input
-                    value={exGroupSearch}
-                    onChange={e => setExGroupSearch(e.target.value)}
-                    placeholder="🔍 Tìm tên nhóm Zalo..."
-                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                  />
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {(() => {
-                      const groups = allGroups.filter(g => (!exGroupSearch || (g.display_name || '').toLowerCase().includes(exGroupSearch.toLowerCase())));
-                      if (groups.length === 0) return <p className="text-xs text-gray-400 italic py-2 text-center">Không tìm thấy nhóm Zalo nào.</p>;
-                      return groups.map(group => {
-                        const isExcluded = excludedGroupIds.has(group.contact_id);
-                        const dbMembers = groupMembersMap[group.contact_id] || [];
+                )}
+              </div>
+
+              {/* ── Theo UID ── */}
+              <div className="mb-1">
+                <button
+                  onClick={() => { setMode('by_uid'); setListPage(0); }}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                    mode === 'by_uid'
+                      ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>🔗</span><span className="flex-1 text-left">Theo UID</span>
+                  {mode === 'by_uid' && <span className="text-[10px] opacity-60">▲</span>}
+                </button>
+                {mode === 'by_uid' && (
+                  <div className="mt-1.5 ml-1 space-y-2">
+                    <textarea
+                      value={uidInput}
+                      onChange={e => { setUidInput(e.target.value); setListPage(0); }}
+                      placeholder={"Nhập hoặc dán UID Zalo\n(mỗi UID 1 dòng):\n1234567890"}
+                      className="w-full h-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 font-mono resize-none"
+                    />
+                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">{uidList.length} UID hợp lệ</p>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Theo Liên hệ ── */}
+              <div className="mb-1">
+                <button
+                  onClick={() => { setMode('manual'); setListPage(0); }}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                    mode === 'manual' || mode === 'friends_only'
+                      ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>👤</span><span className="flex-1 text-left">Theo Liên hệ</span>
+                  {(mode === 'manual' || mode === 'friends_only') && <span className="text-[10px] opacity-60">▲</span>}
+                </button>
+                {(mode === 'manual' || mode === 'friends_only') && (
+                  <div className="mt-1.5 ml-1">
+                    <p className="text-[11px] text-gray-400">Tìm kiếm và tích chọn liên hệ ở cột bên phải.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Theo nhóm ── */}
+              <div className="mb-1">
+                <button
+                  onClick={() => { setMode('groups_only'); setListPage(0); }}
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                    mode === 'groups_only'
+                      ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>👨‍👩‍👧‍👦</span><span className="flex-1 text-left">Theo nhóm</span>
+                  {mode === 'groups_only' && <span className="text-[10px] opacity-60">▲</span>}
+                </button>
+                {mode === 'groups_only' && (
+                  <div className="mt-1.5 ml-1">
+                    <p className="text-[11px] text-gray-400">Tìm kiếm và tích chọn nhóm ở cột bên phải.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 dark:border-gray-800 mx-3 mt-1" />
+
+            {/* ── Exclusion Filter Section ── */}
+            <div className="px-3 py-3 flex-1">
+              <div className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/20 overflow-hidden shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setShowExclusionSection(!showExclusionSection)}
+                  className="w-full px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50/70 dark:hover:bg-red-950/40 transition-colors"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span>🚫</span>
+                    <span>Bộ lọc Loại Trừ</span>
+                    {allExcludedIds.size > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold">
+                        {allExcludedIds.size} loại trừ
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-red-400 font-bold">{showExclusionSection ? '▲' : '▼'}</span>
+                </button>
+
+                {showExclusionSection && (
+                  <div className="p-3 border-t border-red-200/60 dark:border-red-900/40 bg-white dark:bg-gray-850 space-y-2.5">
+                    <div className="flex gap-1.5 flex-wrap border-b border-gray-100 dark:border-gray-800 pb-2">
+                      {[
+                        { id: 'label', label: 'Nhãn', icon: '🏷️', count: excludedLocalLabelIds.length + excludedZaloLabelIds.length },
+                        { id: 'group', label: 'Nhóm', icon: '👨‍👩‍👧‍👦', count: excludedGroupIds.size },
+                        { id: 'contact', label: 'Liên hệ', icon: '👤', count: excludedContactIds.size },
+                      ].map(tab => {
+                        const isActive = exclusionTab === tab.id;
                         return (
-                          <div
-                            key={`ex-group-${group.contact_id}`}
-                            onClick={() => toggleExcludeGroup(group.contact_id)}
-                            className={`p-2 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                              isExcluded
-                                ? 'border-red-500 bg-red-50 dark:bg-red-950/30 ring-1 ring-red-500/30'
-                                : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors flex-shrink-0 ${
-                                isExcluded ? 'bg-red-600 border-red-600 text-white' : 'border-gray-300 dark:border-gray-600'
-                              }`}>
-                                {isExcluded && <span className="text-xs font-bold">✓</span>}
-                              </div>
-                              <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
-                                {group.avatar ? <img src={group.avatar} alt="" className="w-full h-full object-cover" /> : '👨‍👩‍👧‍👦'}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{group.display_name}</p>
-                                {dbMembers.length > 0 && <p className="text-[10px] text-gray-400">{dbMembers.length} thành viên</p>}
-                              </div>
-                            </div>
-                            <span className={`text-[11px] px-2.5 py-1 rounded-lg border font-bold transition-all ${
-                              isExcluded ? 'bg-red-600 text-white border-red-600 shadow-2xs' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-red-100 hover:text-red-600'
+                          <button key={`ex-tab-${tab.id}`} type="button"
+                            onClick={() => setExclusionTab(tab.id as any)}
+                            className={`text-[11px] px-2.5 py-1 rounded-xl font-bold transition-all flex items-center gap-1 ${
+                              isActive ? 'bg-red-600 text-white shadow-2xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
                             }`}>
-                              {isExcluded ? '🚫 Đã loại trừ' : '+ Loại trừ'}
-                            </span>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {/* 3. Tab Loại trừ Theo Liên Hệ Cụ Thể */}
-              {exclusionTab === 'contact' && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                      Chọn liên hệ cá nhân cần loại trừ khỏi chiến dịch:
-                    </span>
-                    {(() => {
-                      const filteredExContacts = allContacts.filter(c => c.contact_type !== 'group' && (!exContactSearch || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(exContactSearch.toLowerCase())));
-                      const allSelected = filteredExContacts.length > 0 && filteredExContacts.every(c => excludedContactIds.has(c.contact_id));
-                      return (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (allSelected) {
-                                setExcludedContactIds(new Set());
-                              } else {
-                                setExcludedContactIds(new Set(filteredExContacts.map(c => c.contact_id)));
-                              }
-                            }}
-                            className="text-[11px] px-2.5 py-1 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition-all shadow-2xs"
-                          >
-                            {allSelected ? '☒ Bỏ chọn tất cả' : `🚫 Chọn tất cả loại trừ (${filteredExContacts.length} liên hệ)`}
-                          </button>
-                          {excludedContactIds.size > 0 && (
-                            <span className="text-[11px] text-red-500 font-bold">
-                              Đã chọn {excludedContactIds.size} liên hệ
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {excludedContactIds.size > 0 && (
-                    <div className="flex gap-1.5 flex-wrap max-h-24 overflow-y-auto p-1.5 bg-red-50/50 dark:bg-red-950/20 rounded-xl border border-red-100 dark:border-red-900/40">
-                      {Array.from(excludedContactIds).map(cId => {
-                        const contact = allContacts.find(c => c.contact_id === cId);
-                        const name = contact?.alias || contact?.display_name || cId;
-                        return (
-                          <button
-                            key={`ex-c-${cId}`}
-                            type="button"
-                            onClick={() => toggleExcludeContact(cId)}
-                            className="text-[11px] px-2.5 py-1 rounded-full bg-red-600 text-white font-semibold flex items-center gap-1.5 shadow-2xs hover:bg-red-700 transition-colors"
-                          >
-                            <span>🚫 {name}</span>
-                            <span className="text-[10px] opacity-80">✕</span>
+                            <span>{tab.icon}</span><span>{tab.label}</span>
+                            {tab.count > 0 && (
+                              <span className={`px-1.5 rounded-full text-[10px] font-extrabold ${isActive ? 'bg-white text-red-600' : 'bg-red-500 text-white'}`}>{tab.count}</span>
+                            )}
                           </button>
                         );
                       })}
                     </div>
-                  )}
 
-                  <input
-                    value={exContactSearch}
-                    onChange={e => setExContactSearch(e.target.value)}
-                    placeholder="🔍 Tìm bạn bè, liên hệ theo tên, SĐT, UID..."
-                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                  />
-
-                  <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
-                    {(() => {
-                      const contacts = allContacts.filter(c => c.contact_type !== 'group' && (!exContactSearch || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(exContactSearch.toLowerCase())));
-                      if (contacts.length === 0) return <p className="text-xs text-gray-400 italic py-2 text-center">Không tìm thấy liên hệ nào.</p>;
-                      return contacts.slice(0, 100).map(c => {
-                        const isExcluded = excludedContactIds.has(c.contact_id);
-                        return (
-                          <div
-                            key={`ex-contact-${c.contact_id}`}
-                            onClick={() => toggleExcludeContact(c.contact_id)}
-                            className={`p-2 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                              isExcluded
-                                ? 'border-red-500 bg-red-50 dark:bg-red-950/30 ring-1 ring-red-500/30'
-                                : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              {/* Checkbox at the START (left-hand side) - Matching Request 4 */}
-                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors flex-shrink-0 ${
-                                isExcluded ? 'bg-red-600 border-red-600 text-white' : 'border-gray-300 dark:border-gray-600'
-                              }`}>
-                                {isExcluded && <span className="text-xs font-bold">✓</span>}
-                              </div>
-                              <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
-                                {c.avatar ? <img src={c.avatar} alt="" className="w-full h-full object-cover" /> : (c.alias || c.display_name || '?').slice(0, 1).toUpperCase()}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{c.alias || c.display_name || c.contact_id}</p>
-                                <p className="text-[10px] text-gray-400 truncate">{c.phone || c.contact_id}</p>
-                              </div>
+                    {exclusionTab === 'label' && (
+                      <div className="space-y-2">
+                        {effectiveLocalLabels.length > 0 && (
+                          <div>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Nhãn Local:</span>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {effectiveLocalLabels.map(label => {
+                                const isExcluded = excludedLocalLabelIds.includes(label.id);
+                                return (
+                                  <button key={`ex-local-${label.id}`} type="button"
+                                    onClick={() => setExcludedLocalLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
+                                    className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
+                                      isExcluded ? 'bg-red-600 text-white border-red-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 border-gray-200'
+                                    }`}>
+                                    {isExcluded && <span>🚫</span>}<span>{label.emoji || '🏷️'} {label.name}</span>
+                                  </button>
+                                );
+                              })}
                             </div>
-                            {isExcluded && (
-                              <span className="text-[11px] px-2.5 py-1 rounded-lg bg-red-600 text-white font-bold shadow-2xs">
-                                🚫 Đã loại trừ
-                              </span>
-                            )}
                           </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                        )}
+                        {allLabels.length > 0 && (
+                          <div>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Nhãn Zalo:</span>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {allLabels.map(label => {
+                                const isExcluded = excludedZaloLabelIds.includes(label.id);
+                                return (
+                                  <button key={`ex-zalo-${label.id}`} type="button"
+                                    onClick={() => setExcludedZaloLabelIds(prev => prev.includes(label.id) ? prev.filter(id => id !== label.id) : [...prev, label.id])}
+                                    className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all flex items-center gap-1 ${
+                                      isExcluded ? 'bg-red-600 text-white border-red-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 border-gray-200'
+                                    }`}>
+                                    {isExcluded && <span>🚫</span>}<span>🏷️ {label.text}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-        {/* ── Sub-tabs for Label Mode (Row 2 - Matching Mockup Image 3) ── */}
-        {mode === 'by_label' && (
-          <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2 flex-wrap flex-shrink-0 bg-white dark:bg-gray-900">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setLabelTab('local')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                  labelTab === 'local'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
-                }`}
-              >
-                📦 Nhãn Local ({effectiveLocalLabels.length})
-              </button>
-              <button
-                onClick={() => setLabelTab('zalo')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                  labelTab === 'zalo'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
-                }`}
-              >
-                🔄 Nhãn Zalo ({allLabels.length})
-              </button>
+                    {exclusionTab === 'group' && (
+                      <div className="space-y-2">
+                        <input value={exGroupSearch} onChange={e => setExGroupSearch(e.target.value)}
+                          placeholder="🔍 Tìm nhóm..."
+                          className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-1 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
+                        />
+                        <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                          {(() => {
+                            const groups = allGroups.filter(g => (!exGroupSearch || (g.display_name || '').toLowerCase().includes(exGroupSearch.toLowerCase())));
+                            if (groups.length === 0) return <p className="text-xs text-gray-400 italic py-2 text-center">Không tìm thấy nhóm.</p>;
+                            return groups.map(g => {
+                              const isExcluded = excludedGroupIds.has(g.contact_id);
+                              return (
+                                <div key={`ex-g-${g.contact_id}`} onClick={() => toggleExcludeGroup(g.contact_id)}
+                                  className={`p-1.5 rounded-xl border cursor-pointer flex items-center gap-2 transition-all ${
+                                    isExcluded ? 'border-red-500 bg-red-50 dark:bg-red-950/30' : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 hover:bg-gray-100'
+                                  }`}>
+                                  <div className={`w-4 h-4 rounded-md border flex items-center justify-center flex-shrink-0 ${
+                                    isExcluded ? 'bg-red-600 border-red-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                                  }`}>{isExcluded && <span className="text-[10px] font-bold">✓</span>}</div>
+                                  <span className="text-xs text-gray-800 dark:text-gray-200 truncate flex-1">{g.display_name}</span>
+                                  {isExcluded && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white font-bold">🚫</span>}
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
+                    {exclusionTab === 'contact' && (
+                      <div className="space-y-2">
+                        <input value={exContactSearch} onChange={e => setExContactSearch(e.target.value)}
+                          placeholder="🔍 Tìm liên hệ..."
+                          className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-1 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
+                        />
+                        {excludedContactIds.size > 0 && (
+                          <div className="flex gap-1 flex-wrap max-h-16 overflow-y-auto p-1 bg-red-50/50 dark:bg-red-950/20 rounded-xl border border-red-100 dark:border-red-900/40">
+                            {Array.from(excludedContactIds).map(cId => {
+                              const contact = allContacts.find(c => c.contact_id === cId);
+                              return (
+                                <button key={`ex-c-${cId}`} type="button" onClick={() => toggleExcludeContact(cId)}
+                                  className="text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white font-semibold flex items-center gap-1 hover:bg-red-700">
+                                  <span>🚫 {contact?.alias || contact?.display_name || cId}</span><span className="opacity-70">✕</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                          {(() => {
+                            const contacts = allContacts.filter(c => c.contact_type !== 'group' && (!exContactSearch || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(exContactSearch.toLowerCase())));
+                            if (contacts.length === 0) return <p className="text-xs text-gray-400 italic py-2 text-center">Không tìm thấy liên hệ.</p>;
+                            return contacts.slice(0, 100).map(c => {
+                              const isExcluded = excludedContactIds.has(c.contact_id);
+                              return (
+                                <div key={`ex-c-${c.contact_id}`} onClick={() => toggleExcludeContact(c.contact_id)}
+                                  className={`p-1.5 rounded-xl border cursor-pointer flex items-center gap-2 transition-all ${
+                                    isExcluded ? 'border-red-500 bg-red-50 dark:bg-red-950/30' : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 hover:bg-gray-100'
+                                  }`}>
+                                  <div className={`w-4 h-4 rounded-md border flex items-center justify-center flex-shrink-0 ${
+                                    isExcluded ? 'bg-red-600 border-red-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                                  }`}>{isExcluded && <span className="text-[10px] font-bold">✓</span>}</div>
+                                  <span className="text-xs font-normal text-gray-800 dark:text-gray-200 truncate flex-1">{c.alias || c.display_name || c.contact_id}</span>
+                                  {isExcluded && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white font-bold">🚫</span>}
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        )}
 
-        {/* ── Content Body ── */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {/* Tip Banner (Matching Mockup Image 3) */}
-          {showTip && mode === 'by_label' && (
-            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-2xl p-3 flex items-center justify-between shadow-xs">
-              <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300 font-semibold">
-                <span className="text-base">🛡️</span>
-                <span>Mẹo: Chọn ít nhất 1 nhãn để lọc liên hệ</span>
-              </div>
-              <button onClick={() => setShowTip(false)} className="text-blue-400 hover:text-blue-600 text-xs">✕</button>
-            </div>
-          )}
+          {/* ════════════ RIGHT PANEL: List with Search + Pagination ════════════ */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-          {/* Search Bar */}
-          {(mode === 'by_label' || mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') && (
-            <div className="relative">
-              <svg width="14" height="14" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Tìm tên, SĐT, UID..."
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full pl-9 pr-4 py-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 shadow-xs"
-              />
-            </div>
-          )}
-
-          {/* Render By Label Mode */}
-          {mode === 'by_label' && (
-            <div>
-              {/* Chips Selector */}
-              {labelTab === 'local' ? (
-                effectiveLocalLabels.length > 0 ? (
-                  <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
-                    {effectiveLocalLabels.map(label => {
-                      const isActive = selectedLocalLabelIds.includes(label.id);
-                      const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
-                      return (
-                        <button
-                          key={`local-${label.id}`}
-                          onClick={() => toggleLocalLabel(label.id)}
-                          className={`text-xs px-3 py-1.5 rounded-full border transition-all font-semibold flex items-center gap-1 ${
-                            isActive ? 'text-white shadow-sm' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400'
-                          }`}
-                          style={isActive
-                            ? { backgroundColor: baseColor, borderColor: baseColor }
-                            : { backgroundColor: baseColor + '10', borderColor: baseColor + '30', color: baseColor }}
-                        >
-                          {label.emoji && <span>{label.emoji}</span>}
-                          <span>{label.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 dark:bg-gray-800/40 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/30 text-blue-500 flex items-center justify-center text-2xl mb-2">📁</div>
-                    <p className="text-xs font-bold text-gray-800 dark:text-gray-200">Chưa có Nhãn Local nào.</p>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400">Tạo nhãn từ trang Liên hệ.</p>
-                  </div>
-                )
-              ) : (
-                allLabels.length > 0 ? (
-                  <div className="flex gap-2 overflow-x-auto pb-2 flex-wrap">
-                    {allLabels.map(label => {
-                      const isActive = selectedZaloLabelIds.includes(label.id);
-                      const baseColor = label.color && label.color.startsWith('#') ? label.color : `#${label.color || '3b82f6'}`;
-                      return (
-                        <button
-                          key={`zalo-${label.id}`}
-                          onClick={() => toggleZaloLabel(label.id)}
-                          className={`text-xs px-3 py-1.5 rounded-full border transition-all font-semibold flex items-center gap-1 ${
-                            isActive ? 'text-white shadow-sm' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400'
-                          }`}
-                          style={isActive
-                            ? { backgroundColor: baseColor, borderColor: baseColor }
-                            : { backgroundColor: baseColor + '10', borderColor: baseColor + '30', color: baseColor }}
-                        >
-                          <span>{label.emoji || '🏷️'}</span>
-                          <span>{label.text}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 py-4 text-center">Chưa có nhãn Zalo nào. Đồng bộ nhãn từ trang Liên hệ trước.</p>
-                )
-              )}
-
-              {/* Filter List or Empty Filter Illustration */}
-              {totalLabelFilters === 0 ? (
-                /* Matching Mockup Image 3 Empty State Illustration */
-                <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-                  <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-500 flex items-center justify-center text-3xl mb-3 shadow-inner">
-                    🔍
-                  </div>
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">Chọn ít nhất 1 nhãn để lọc liên hệ</h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs leading-relaxed">
-                    Sau khi chọn nhãn, danh sách liên hệ phù hợp sẽ tự động hiển thị tại đây.
-                  </p>
+            {/* Right panel top bar: Search + summary + select-all */}
+            <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center gap-2 flex-shrink-0">
+              {/* Search input */}
+              {(mode === 'by_label' || mode === 'manual' || mode === 'friends_only' || mode === 'groups_only') && (
+                <div className="relative flex-1">
+                  <svg width="13" height="13" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setListPage(0); }}
+                    placeholder={mode === 'groups_only' ? 'Tìm nhóm...' : 'Tìm tên, SĐT, UID...'}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full pl-8 pr-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                  />
                 </div>
-              ) : (
-                <div className="space-y-2 mt-3">
-                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-2">
-                    ✓ Tìm thấy {filtered.length} liên hệ phù hợp ({selectedCount} sẵn sàng)
-                  </p>
-                  {filtered.slice(0, 100).map(c => (
-                    <div
-                      key={c.contact_id}
-                      className="p-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 flex items-center gap-3 shadow-xs"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
+              )}
+              {/* Summary + select-all */}
+              <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                  {selectedCount} đã chọn · {totalAvailable} khả dụng
+                </span>
+                {(mode === 'manual' || mode === 'friends_only') && (() => {
+                  const contacts = allContacts.filter(c => c.contact_type !== 'group' && (!search || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(search.toLowerCase())));
+                  const allSelected = contacts.length > 0 && contacts.every(c => manualSelected.has(c.contact_id));
+                  return (
+                    <button type="button" onClick={() => { allSelected ? setManualSelected(new Set()) : setManualSelected(new Set(contacts.map(c => c.contact_id))); setListPage(0); }}
+                      className="text-[11px] px-2.5 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-2xs whitespace-nowrap">
+                      {allSelected ? '☒ Bỏ tất cả' : `☑️ Chọn tất cả (${contacts.length})`}
+                    </button>
+                  );
+                })()}
+                {mode === 'groups_only' && (() => {
+                  const groups = allGroups.filter(g => (!search || (g.display_name || '').toLowerCase().includes(search.toLowerCase())));
+                  const allSelected = groups.length > 0 && groups.every(g => selectedGroupIds.has(g.contact_id));
+                  return (
+                    <button type="button" onClick={() => { allSelected ? setSelectedGroupIds(new Set()) : setSelectedGroupIds(new Set(groups.map(g => g.contact_id))); setListPage(0); }}
+                      className="text-[11px] px-2.5 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-2xs whitespace-nowrap">
+                      {allSelected ? '☒ Bỏ tất cả' : `☑️ Chọn tất cả (${groups.length})`}
+                    </button>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Right panel scrollable list */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+
+              {/* By Label */}
+              {mode === 'by_label' && (
+                totalLabelFilters === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full py-10 text-center">
+                    <div className="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-500 flex items-center justify-center text-3xl mb-3">🏷️</div>
+                    <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Chọn nhãn để lọc</h4>
+                    <p className="text-xs text-gray-400 max-w-[220px]">Chọn ít nhất 1 nhãn ở bảng trái để hiển thị danh sách liên hệ phù hợp.</p>
+                  </div>
+                ) : (() => {
+                  const pageData = filtered.slice(listPage * PAGE_SIZE, (listPage + 1) * PAGE_SIZE);
+                  return pageData.map(c => (
+                    <div key={c.contact_id}
+                      className="p-2.5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 flex items-center gap-2.5 shadow-xs">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
                         {c.avatar ? <img src={c.avatar} alt="" className="w-full h-full object-cover" /> : (c.alias || c.display_name || '?').slice(0, 1).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
+                        <p className="text-xs font-normal text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
                         <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  ));
+                })()
               )}
-            </div>
-          )}
 
-          {/* Mode By Phone */}
-          {mode === 'by_phone' && (
-            <div className="space-y-3">
-              <textarea
-                value={phoneInput}
-                onChange={e => setPhoneInput(e.target.value)}
-                placeholder={"Nhập hoặc dán SĐT (mỗi số 1 dòng):\n0901234567\n0912345678\n..."}
-                className="w-full h-36 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-3 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 font-mono"
-              />
-              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                Đã nhập: {phoneList.length} SĐT hợp lệ
-              </p>
-            </div>
-          )}
+              {/* By Phone preview */}
+              {mode === 'by_phone' && (
+                phoneList.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full py-10 text-center">
+                    <div className="w-14 h-14 rounded-full bg-gray-50 dark:bg-gray-800 text-gray-400 flex items-center justify-center text-3xl mb-3">📞</div>
+                    <p className="text-xs text-gray-400">Nhập SĐT ở bảng trái để xem trước danh sách</p>
+                  </div>
+                ) : (() => {
+                  const pageData = phoneList.slice(listPage * PAGE_SIZE, (listPage + 1) * PAGE_SIZE);
+                  return pageData.map((phone, i) => (
+                    <div key={`phone-${listPage * PAGE_SIZE + i}`} className="p-2.5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">📞</div>
+                      <span className="text-xs font-mono text-gray-900 dark:text-white">{phone}</span>
+                    </div>
+                  ));
+                })()
+              )}
 
-          {/* Mode By UID */}
-          {mode === 'by_uid' && (
-            <div className="space-y-3">
-              <textarea
-                value={uidInput}
-                onChange={e => setUidInput(e.target.value)}
-                placeholder={"Nhập hoặc dán UID Zalo (mỗi UID 1 dòng):\n1234567890\n9876543210\n..."}
-                className="w-full h-36 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-3 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 font-mono"
-              />
-              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                Đã nhập: {uidList.length} UID hợp lệ
-              </p>
-            </div>
-          )}
+              {/* By UID preview */}
+              {mode === 'by_uid' && (
+                uidList.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full py-10 text-center">
+                    <div className="w-14 h-14 rounded-full bg-gray-50 dark:bg-gray-800 text-gray-400 flex items-center justify-center text-3xl mb-3">🔗</div>
+                    <p className="text-xs text-gray-400">Nhập UID ở bảng trái để xem trước danh sách</p>
+                  </div>
+                ) : (() => {
+                  const pageData = uidList.slice(listPage * PAGE_SIZE, (listPage + 1) * PAGE_SIZE);
+                  return pageData.map((uid, i) => (
+                    <div key={`uid-${listPage * PAGE_SIZE + i}`} className="p-2.5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">🔗</div>
+                      <span className="text-xs font-mono text-gray-900 dark:text-white">{uid}</span>
+                    </div>
+                  ));
+                })()
+              )}
 
-          {/* Groups Only Mode (Theo nhóm - Matching Request 1 / Hình 1) */}
-          {mode === 'groups_only' && (
-            <div className="space-y-3">
-              {/* Group Toolbar Controls */}
-              {(() => {
+              {/* Groups Mode */}
+              {mode === 'groups_only' && (() => {
                 const groups = allGroups.filter(g => (!search || (g.display_name || '').toLowerCase().includes(search.toLowerCase())));
-                const allSelected = groups.length > 0 && groups.every(g => selectedGroupIds.has(g.contact_id));
-                return (
-                  <div className="flex items-center justify-between gap-2 flex-wrap bg-blue-50/70 dark:bg-blue-950/30 p-3 rounded-2xl border border-blue-100 dark:border-blue-900/50">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (allSelected) {
-                            setSelectedGroupIds(new Set());
-                          } else {
-                            setSelectedGroupIds(new Set(groups.map(g => g.contact_id)));
-                          }
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-2xs"
-                      >
-                        {allSelected ? '☒ Bỏ chọn tất cả' : `☑️ Chọn tất cả (${groups.length} nhóm)`}
-                      </button>
-                      {selectedGroupIds.size > 0 && !allSelected && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedGroupIds(new Set())}
-                          className="text-xs px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold transition-all"
-                        >
-                          ☒ Bỏ chọn
-                        </button>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                      {selectedGroupIds.size > 0
-                        ? `✓ Đã chọn ${selectedGroupIds.size} nhóm ➔ ${extractedUniqueMembers.length} thành viên độc nhất (tự động khử trùng)`
-                        : 'Hãy chọn 1 hoặc nhiều nhóm bên dưới'}
-                    </span>
+                if (groups.length === 0) return (
+                  <div className="flex flex-col items-center justify-center h-full py-10 text-center">
+                    <span className="text-3xl mb-2">👨‍👩‍👧‍👦</span>
+                    <p className="text-xs text-gray-400">Không tìm thấy nhóm Zalo.</p>
                   </div>
                 );
+                const pageData = groups.slice(listPage * PAGE_SIZE, (listPage + 1) * PAGE_SIZE);
+                return pageData.map(group => {
+                  const isSelected = selectedGroupIds.has(group.contact_id);
+                  const dbMembers = groupMembersMap[group.contact_id] || [];
+                  return (
+                    <div key={group.contact_id} onClick={() => toggleSelectGroup(group.contact_id)}
+                      className={`p-2.5 rounded-2xl border cursor-pointer transition-all flex items-center gap-2.5 ${
+                        isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-500/20' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}>
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                      }`}>{isSelected && <span className="text-xs font-bold">✓</span>}</div>
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
+                        {group.avatar ? <img src={group.avatar} alt="" className="w-full h-full object-cover" /> : '👨‍👩‍👧‍👦'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-normal text-gray-900 dark:text-white truncate">{group.display_name}</p>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                          {dbMembers.length > 0 ? `${dbMembers.length} thành viên` : (group.member_count > 0 ? `${group.member_count} thành viên` : 'Nhóm Zalo')}
+                        </p>
+                      </div>
+                      {isSelected && <span className="text-[11px] px-2 py-0.5 rounded-xl bg-blue-600 text-white font-bold">✓</span>}
+                    </div>
+                  );
+                });
               })()}
 
-              {/* Group List */}
-              <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
-                {(() => {
-                  const groups = allGroups.filter(g => (!search || (g.display_name || '').toLowerCase().includes(search.toLowerCase())));
-                  if (groups.length === 0) {
-                    return (
-                      <div className="flex flex-col items-center justify-center py-10 text-center">
-                        <span className="text-3xl mb-2">👨‍👩‍👧‍👦</span>
-                        <p className="text-xs font-bold text-gray-600 dark:text-gray-300">Không tìm thấy nhóm Zalo nào.</p>
-                      </div>
-                    );
-                  }
-                  return groups.map(group => {
-                    const isSelected = selectedGroupIds.has(group.contact_id);
-                    const dbMembers = groupMembersMap[group.contact_id] || [];
-                    return (
-                      <div
-                        key={group.contact_id}
-                        onClick={() => toggleSelectGroup(group.contact_id)}
-                        className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
-                          isSelected
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-500/20 shadow-2xs'
-                            : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors flex-shrink-0 ${
-                            isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600'
-                          }`}>
-                            {isSelected && <span className="text-xs font-bold">✓</span>}
-                          </div>
-                          <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
-                            {group.avatar ? <img src={group.avatar} alt="" className="w-full h-full object-cover" /> : '👨‍👩‍👧‍👦'}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{group.display_name}</p>
-                            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                              {dbMembers.length > 0 ? `${dbMembers.length} thành viên` : (group.member_count > 0 ? `${group.member_count} thành viên` : 'Nhóm Zalo')}
-                            </p>
-                          </div>
-                        </div>
-                        <span className={`text-[11px] px-2.5 py-1 rounded-xl border font-bold transition-all ${
-                          isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                        }`}>
-                          {isSelected ? '✓ Đã chọn' : '+ Chọn nhóm'}
-                        </span>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* Manual / Friends Select Mode (Theo Liên hệ - Matching Request 1 & 2 / Hình 2) */}
-          {(mode === 'manual' || mode === 'friends_only') && (
-            <div className="space-y-3">
-              {/* Toolbar Controls */}
-              {(() => {
+              {/* Manual Contact Select Mode */}
+              {(mode === 'manual' || mode === 'friends_only') && (() => {
                 const contacts = allContacts.filter(c => c.contact_type !== 'group' && (!search || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(search.toLowerCase())));
-                const allSelected = contacts.length > 0 && contacts.every(c => manualSelected.has(c.contact_id));
-                return (
-                  <div className="flex items-center justify-between gap-2 flex-wrap bg-blue-50/70 dark:bg-blue-950/30 p-3 rounded-2xl border border-blue-100 dark:border-blue-900/50">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (allSelected) {
-                            setManualSelected(new Set());
-                          } else {
-                            setManualSelected(new Set(contacts.map(c => c.contact_id)));
-                          }
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-2xs"
-                      >
-                        {allSelected ? '☒ Bỏ chọn tất cả' : `☑️ Chọn tất cả (${contacts.length} liên hệ)`}
-                      </button>
-                      {manualSelected.size > 0 && !allSelected && (
-                        <button
-                          type="button"
-                          onClick={() => setManualSelected(new Set())}
-                          className="text-xs px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold transition-all"
-                        >
-                          ☒ Bỏ chọn
-                        </button>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                      {manualSelected.size > 0
-                        ? `✓ Đã chọn ${manualSelected.size} liên hệ để thêm vào chiến dịch`
-                        : 'Tích chọn 1 hoặc nhiều liên hệ bên dưới để thêm gửi tin'}
-                    </span>
+                if (contacts.length === 0) return (
+                  <div className="flex flex-col items-center justify-center h-full py-10 text-center">
+                    <span className="text-3xl mb-2">👤</span>
+                    <p className="text-xs text-gray-400">Không tìm thấy liên hệ.</p>
                   </div>
                 );
+                const pageData = contacts.slice(listPage * PAGE_SIZE, (listPage + 1) * PAGE_SIZE);
+                return pageData.map(c => {
+                  const isSelected = manualSelected.has(c.contact_id);
+                  return (
+                    <div key={c.contact_id} onClick={() => toggleManualSelect(c.contact_id)}
+                      className={`p-2.5 rounded-2xl border cursor-pointer transition-all flex items-center gap-2.5 ${
+                        isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 ring-2 ring-blue-500/20' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}>
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600'
+                      }`}>{isSelected && <span className="text-xs font-bold">✓</span>}</div>
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
+                        {c.avatar ? <img src={c.avatar} alt="" className="w-full h-full object-cover" /> : (c.alias || c.display_name || '?').slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-normal text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
+                      </div>
+                      {isSelected && <span className="text-[11px] px-2 py-0.5 rounded-xl bg-blue-600 text-white font-bold">✓</span>}
+                    </div>
+                  );
+                });
               })()}
-
-              {/* Contact List */}
-              <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
-                {(() => {
-                  const contacts = allContacts.filter(c => c.contact_type !== 'group' && (!search || (c.alias || c.display_name || c.phone || c.contact_id || '').toLowerCase().includes(search.toLowerCase())));
-                  if (contacts.length === 0) {
-                    return (
-                      <div className="flex flex-col items-center justify-center py-10 text-center">
-                        <span className="text-3xl mb-2">👤</span>
-                        <p className="text-xs font-bold text-gray-600 dark:text-gray-300">Không tìm thấy liên hệ nào.</p>
-                      </div>
-                    );
-                  }
-                  return contacts.slice(0, 300).map(c => {
-                    const isSelected = manualSelected.has(c.contact_id);
-                    return (
-                      <div
-                        key={c.contact_id}
-                        onClick={() => toggleManualSelect(c.contact_id)}
-                        className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
-                          isSelected
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 ring-2 ring-blue-500/20 shadow-2xs'
-                            : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Checkbox at the START (left-hand side) */}
-                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors flex-shrink-0 ${
-                            isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600'
-                          }`}>
-                            {isSelected && <span className="text-xs font-bold">✓</span>}
-                          </div>
-
-                          {/* Avatar người dùng - Matching Request 1 */}
-                          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden">
-                            {c.avatar ? <img src={c.avatar} alt="" className="w-full h-full object-cover" /> : (c.alias || c.display_name || '?').slice(0, 1).toUpperCase()}
-                          </div>
-
-                          {/* Contact Info */}
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
-                            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
-                          </div>
-                        </div>
-
-                        {/* Status Tag on the right (NO EXCLUDE BUTTON HERE!) */}
-                        {isSelected && (
-                          <span className="text-[11px] px-2.5 py-1 rounded-xl bg-blue-600 text-white font-bold shadow-2xs">
-                            ✓ Đã chọn
-                          </span>
-                        )}
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
             </div>
-          )}
+
+            {/* Right panel fixed bottom pagination bar */}
+            {paginationInfo.totalPages > 1 && (
+              <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-center gap-2 flex-shrink-0">
+                <button
+                  disabled={listPage === 0}
+                  onClick={() => setListPage(p => p - 1)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  ← Trước
+                </button>
+                <span className="text-xs text-gray-500 font-medium">
+                  {listPage + 1} / {paginationInfo.totalPages} · {paginationInfo.total} kết quả
+                </span>
+                <button
+                  disabled={listPage >= paginationInfo.totalPages - 1}
+                  onClick={() => setListPage(p => p + 1)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Sau →
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Fixed Footer Bar (Matching Mockup Image 3) ── */}

@@ -739,7 +739,7 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700/60">
-                    {rows.length === 0 ? (
+                  {rows.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="p-6 text-center text-gray-400 text-xs">
                           Không có dữ liệu
@@ -750,46 +750,75 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                         let issues: ImportIssue[] = [];
                         try { issues = JSON.parse(r.issues_json || '[]'); } catch {}
 
+                        const isError = r.validity === 'error';
+                        const isInFileDup = r.dup_type === 'in_file';
+                        const isInCrmDup = r.dup_type === 'in_crm';
+
+                        // Primary error/reason message
+                        const errorMsg = isError
+                          ? (issues.find(i => i.severity === 'error')?.message || issues[0]?.message || 'Số không hợp lệ')
+                          : null;
+
                         return (
-                          <tr key={r.id} className="hover:bg-blue-50/30 dark:hover:bg-gray-750 transition-colors">
-                            <td className="p-3 text-gray-400 font-mono text-[11px]">{r.row_index}</td>
+                          <tr
+                            key={r.id}
+                            className={`transition-colors ${
+                              isError
+                                ? 'bg-red-50/80 dark:bg-red-950/30 opacity-70'
+                                : isInFileDup
+                                ? 'bg-amber-50/40 dark:bg-amber-950/20'
+                                : 'hover:bg-blue-50/30 dark:hover:bg-gray-750'
+                            }`}
+                          >
+                            <td className={`p-3 font-mono text-[11px] ${isError ? 'text-red-400' : 'text-gray-400'}`}>{r.row_index}</td>
                             <td className="p-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-400 line-through text-[11px] font-mono">{r.full_name_raw}</span>
-                                <span className="text-gray-400">→</span>
-                                <input
-                                  type="text"
-                                  value={r.real_name || ''}
-                                  onChange={e => handleInlineEditName(r.id, e.target.value)}
-                                  className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1 text-xs font-semibold text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
-                                />
-                                {r.name_alt_suggestion && r.confidence < 0.8 && (
-                                  <button
-                                    title={`Gợi ý: ${r.name_alt_suggestion}`}
-                                    onClick={() => handleInlineEditName(r.id, r.name_alt_suggestion)}
-                                    className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-1.5 py-0.5 rounded-lg hover:bg-blue-200 font-bold transition-colors"
-                                  >
-                                    💡 {r.name_alt_suggestion}
-                                  </button>
-                                )}
-                              </div>
+                              {isError ? (
+                                <span className="text-gray-400 text-[11px] italic">—</span>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-400 line-through text-[11px] font-mono">{r.full_name_raw}</span>
+                                  <span className="text-gray-400">→</span>
+                                  <input
+                                    type="text"
+                                    value={r.real_name || ''}
+                                    onChange={e => handleInlineEditName(r.id, e.target.value)}
+                                    className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1 text-xs font-semibold text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
+                                  />
+                                  {r.name_alt_suggestion && r.confidence < 0.8 && (
+                                    <button
+                                      title={`Gợi ý: ${r.name_alt_suggestion}`}
+                                      onClick={() => handleInlineEditName(r.id, r.name_alt_suggestion)}
+                                      className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-1.5 py-0.5 rounded-lg hover:bg-blue-200 font-bold transition-colors"
+                                    >
+                                      💡 {r.name_alt_suggestion}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="p-3 font-mono">
-                              <span className="text-gray-400 text-[11px]">{r.phone_raw}</span>
-                              {r.phone_normalized && (
+                              <span className={`text-[11px] ${isError ? 'line-through text-red-400' : 'text-gray-400'}`}>{r.phone_raw}</span>
+                              {r.phone_normalized && !isError && (
                                 <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-bold">{r.phone_normalized}</span>
                               )}
                             </td>
-                            <td className="p-3 text-gray-700 dark:text-gray-300 font-medium">{r.birthday_value || '-'}</td>
+                            <td className="p-3 text-gray-700 dark:text-gray-300 font-medium">{isError ? '—' : (r.birthday_value || '-')}</td>
                             <td className="p-3 text-gray-700 dark:text-gray-300 font-medium">
-                              {r.gender === 0 ? 'Nam' : r.gender === 1 ? 'Nữ' : '-'}
+                              {isError ? '—' : (r.gender === 0 ? 'Nam' : r.gender === 1 ? 'Nữ' : '-')}
                             </td>
                             <td className="p-3">
-                              {r.dup_type === 'in_file' ? (
+                              {isError ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="px-2.5 py-0.5 rounded-xl text-[11px] font-bold bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400 border border-red-300 dark:border-red-700 flex items-center gap-1">
+                                    ❌ Bị loại
+                                  </span>
+                                  <span className="text-[11px] text-red-500 dark:text-red-400 font-medium">{errorMsg}</span>
+                                </div>
+                              ) : isInFileDup ? (
                                 <span className="px-2.5 py-0.5 rounded-xl text-[11px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
                                   📄 Trùng trong File
                                 </span>
-                              ) : r.dup_type === 'in_crm' ? (
+                              ) : isInCrmDup ? (
                                 <span className="px-2.5 py-0.5 rounded-xl text-[11px] font-bold bg-orange-100 text-orange-900 dark:bg-orange-950/80 dark:text-orange-300 border border-orange-300 dark:border-orange-700">
                                   🔁 Trùng CRM ({r.dup_account_count} TK Zalo)
                                 </span>
@@ -811,6 +840,7 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                 </table>
               </div>
             </div>
+
           ) : (
             /* Step 2: Confirmation & Batch Options */
             <div className="max-w-2xl mx-auto space-y-4 py-3">

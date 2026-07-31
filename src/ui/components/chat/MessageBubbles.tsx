@@ -372,7 +372,7 @@ function StickerBubble({ msg }: { msg: any }) {
 }
 
 // ── MediaBubble ───────────────────────────────────────────────────────────────
-function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onView?: (src: string) => void }) {
+function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onView?: (src: string, msgId?: string) => void }) {
   const [useRemote, setUseRemote] = React.useState(false);
   const [loadFailed, setLoadFailed] = React.useState(false);
   const repairAttemptedRef = React.useRef(false);
@@ -427,7 +427,7 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
     return (
       <div className={`grid gap-1 rounded-xl overflow-hidden`} style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, maxWidth: 240 }}>
         {allUrls.map((src, i) => (
-          <img key={i} src={src} alt="" onClick={() => onView?.(src)}
+          <img key={i} src={src} alt="" onClick={() => onView?.(src, msg.msg_id)}
             className="w-full aspect-square object-cover cursor-pointer hover:opacity-90 transition-opacity bg-gray-700/30" />
         ))}
       </div>
@@ -440,7 +440,7 @@ function MediaBubble({ msg, isSelf, onView }: { msg: any; isSelf: boolean; onVie
         src={displayUrl}
         alt=""
         className={`max-w-xs max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity bg-gray-700/30 w-full${caption ? ' rounded-t-xl' : ' rounded-xl'}`}
-        onClick={() => onView?.(viewUrl)}
+        onClick={() => onView?.(displayUrl || viewUrl, msg.msg_id)}
         onError={() => {
           if (!useRemote && localUrl && remoteUrl) {
             // Background repair: xóa file lỗi, tải lại từ CDN cho lần sau

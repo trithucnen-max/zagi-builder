@@ -2,7 +2,149 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.1.1] - 2026-07-31
+
+### 📋 Sao Chép Kịch Bản Chiến Dịch Sang Nhiều Tài Khoản Zalo (`CopyCampaignToAccountsModal.tsx`)
+- **Nút Thao Tác Nhanh Mới (`📋`):** Tích hợp nút *"Sao chép sang Zalo khác"* trực tiếp trên từng dòng danh sách chiến dịch (`CampaignList.tsx`) và trên thanh công cụ chi tiết chiến dịch (`CampaignDetail.tsx`).
+- **Modal Chọn Nhiều Tài Khoản Zalo Đích (`CopyCampaignToAccountsModal.tsx`):**
+  - Hiển thị danh sách tất cả các tài khoản Zalo đang kết nối kèm Avatar, tên và Zalo ID.
+  - Hỗ trợ checkbox chọn một hoặc nhiều tài khoản Zalo đích (*Chọn tất cả / Bỏ chọn tất cả*).
+  - Tùy chỉnh tên chiến dịch mới cho các tài khoản Zalo nhận kịch bản.
+- **Bảo Vệ & Phân Luồng Dữ Liệu An Toàn:**
+  - Sao chép 100% kịch bản & cấu hình (nội dung tin nhắn, lời kết bạn, khoảng delay ngẫu nhiên, giới hạn gửi/ngày, khung giờ yên tĩnh...).
+  - **Bảo tồn danh sách người nhận để trống (0 liên hệ)** với trạng thái **Draft/Paused** để người dùng chủ động phân gán nhãn / danh sách khách hàng riêng cho từng tài khoản Zalo đích.
+
+### 🏷️ Trường Tên Thật & Cập Nhật Tự Động Từ Excel/CSV Vào CRM (`DatabaseService.ts` & `CRMContactList.tsx`)
+- **Chỉnh Sửa Tên Thật Trực Tiếp (Inline Edit):** Cho phép sửa trực tiếp trường **Tên thật** (`real_name`) ngay trên danh bạ CRM (`CRMContactList.tsx`), tự động lưu vào database SQLite.
+- **Tự Động Điền & Bảo Toàn Tên Thật Từ Excel/CSV:**
+  - Khi quét SĐT từ file Excel/CSV, tên thật được tự động nạp vào `phone_scan_items` và cập nhật vào báo cáo lô quét cũng như profile khách hàng CRM (`contacts.real_name`).
+  - Khắc phục triệt để lỗi ghi đè `NULL` và lỗi trùng tên cột khi JOIN database (`getPhoneScanItems`).
+
+### 📊 Phân Tích Lô Quét SĐT Rõ Ràng & Dọn Dẹp Liên Hệ Rác (`PhoneScanPanel.tsx` & `CRMPage.tsx`)
+- **Bảng Phân Tích Lô Quét 4 Dòng Trực Quan (`PhoneScanPanel.tsx`):**
+  - Thống kê chi tiết: 📥 Tổng nhập ➔ 🔁 Trùng danh sách/lỗi định dạng ➔ ⚠️ Trùng CRM (tất cả tài khoản) ➔ 🚀 **Thực tế sẽ quét Zalo**.
+  - Tự động cập nhật con số quét thực tế real-time khi bật/tắt tùy chọn *"Bỏ qua các SĐT đã có trong CRM"*.
+- **Tự Động Dọn Dẹp Ghost Contacts (`CRMPage.tsx`):**
+  - Tự động quét và dọn dẹp các liên hệ rác (tên tạm `tmp_%`, nạp từ CSV nhưng không có Zalo UID, không phải bạn bè `is_friend = 0` và chưa từng nhắn tin). Bảo toàn 100% bạn bè Zalo thực và contact đã có Zalo UID.
+
+### 🤖 Đồng Bộ Biến `Tên Thật` Về Chiến Dịch / Workflow & Tối Ưu Vị Trí Chatbot AI
+- **Thẻ Biến Chèn Nhanh `{real_name}`:**
+  - Thêm thẻ chèn nhanh `{real_name}` (Tên thật) đứng ngay cạnh `{zalo_name}` và `{name}` trong giao diện soạn thảo tin nhắn chiến dịch (`CampaignCreateModal.tsx` & `campaignVars.ts`).
+  - Đưa biến `$trigger.realName` / `$trigger.real_name` lên vị trí ưu tiên trong bộ gợi ý biến Workflow (`NodeConfigPanel.tsx` & `templateVars.ts`).
+  - Engine `CRMQueueService` và `WorkflowEngineService` giải mã đồng bộ `{real_name}`, `{realName}`, `{ten_that}` cho cả tin nhắn và lời mời kết bạn tự động.
+- **Nâng Cao Vị Trí Nút Chatbot AI (`GlobalSupportChat.tsx`):**
+  - Nâng vị trí nút Trợ lý AI nổi từ góc đáy màn hình (`bottom-5`) lên cao hơn (`bottom-32` ~ 128px), tránh che đè lên các thanh công cụ, ô nhập liệu hay nút bấm phía dưới.
+
+## [v3.2.0] - 2026-07-31
+
+### 📥 Mô-đun Import Danh Sách Khách Hàng Từ CSV/Excel Vào Module Quét Số Hàng Loạt
+- **Trình Hướng Dẫn Wizard 2 Bước Hiện Đại (`ImportWizardModal.tsx`):**
+  - **Bước 1 — Preview & Ánh Xạ Cột:** Hỗ trợ kéo thả file `.xlsx`, `.csv` hoặc dán trực tiếp. Khai báo nguồn dữ liệu tuân thủ NĐ13/2023/NĐ-CP. Tự động ánh xạ 5 cột (SĐT, Tên, Ngày sinh, Giới tính, Ghi chú), thống kê 4 thẻ trạng thái (Hợp lệ, Cảnh báo, Lỗi, Trùng CRM) và tính toán ước tính ETA hoàn thành theo ngày.
+  - **Bước 2 — Quét Zalo & Ghi CRM:** Cho phép tạo Lô Quét SĐT Zalo mới hoặc gộp số vào Lô Quét có sẵn, tự động đẩy danh sách `pending` sang background worker quét tự động.
+- **Thư Viện Chuẩn Hoá & Tách Tên Thông Minh (`src/services/crm/import/`):**
+  - **`phoneNormalizer.ts`:** Khắc phục triệt để các lỗi Excel phổ biến: mất số 0 đầu, định dạng số float `.0`, dạng số khoa học `9.85E+08`, tự động chuẩn hoá mã quốc gia `+84`/`84` về `0x`, phát hiện số cố định và đầu số 11 số cũ.
+  - **`nameSplitter.ts`:** Thuật toán trích xuất tên thật thông minh (74 unit test fixture pass 100%). Tự động loại bỏ xưng hô đầu tên (`Anh`, `Chị`, `Mr`, `Ms`, `Cô`...), xử lý xưng hô đuôi (`Anh`), làm sạch emoji, ghi chú trong ngoặc `(...)` và dấu phân cách, phát hiện tên tổ chức (`Cty`, `TNHH`, `Shop`...) và tên đảo theo thứ tự Tây.
+  - **`birthdayParser.ts`:** Hỗ trợ đa dạng định dạng ngày sinh: ngày serial Excel (`32947` ➔ `15/03/1990`), ISO `YYYY-MM-DD`, `DD/MM/YYYY`, `DD/MM` (thiếu năm), `YYYY` (chỉ năm). Tự động cảnh báo ngày tương lai, tuổi > 120, và mơ hồ thứ tự Ngày/Tháng.
+  - **`genderParser.ts`:** Tự động nhận diện cột giới tính bằng chữ hoặc bằng số (`1=Nam,2=Nữ` / `0=Nam,1=F`), tự động điền danh xưng thông minh: Nam ➔ `Anh`, Nữ ➔ `Chị`, Không rõ ➔ `Anh/Chị`.
+- **Cơ Sở Dữ Liệu & Ghi CRM An Toàn (`ContactImportService.ts` & `DatabaseService.ts`):**
+  - Bổ sung 4 bảng lưu trữ tạm và lưu override: `import_sessions`, `import_rows`, `name_split_overrides`, `import_rollback_snapshots`, `name_salutation_words`.
+  - Mở rộng 8 cột mới trong bảng `contacts` (`real_name`, `phone_raw`, `full_name_raw`, `field_sources_json`, `import_session_id`, `alias_manual`, `salutation_manual`, `alias_sync_status`).
+  - Hỗ trợ 3 chiến lược xử lý trùng lặp trong CRM: `fill_empty` (chỉ điền ô trống - mặc định), `skip` (bỏ qua), `overwrite` (ghi đè kèm Snapshot hoàn tác 30 ngày).
+  - Tích hợp xuất báo cáo lỗi chi tiết dạng file `.xlsx` (`Bao_Cao_Loi_Import.xlsx`) và tải file Excel mẫu chuẩn (`mau_import_khach_hang_chuan.xlsx`).
+
+## [v3.1.0] - 2026-07-30
+
+### 🎨 Tái Thiết Kế & Nâng Cấp Giao Diện Chọn Liên Hệ 2 Cột (`TargetSelector.tsx`)
+- **Layout 2 Cột Hiện Đại:** Phân chia rõ ràng 2 cột: Cột trái quản lý danh sách tài khoản Zalo điều khiển; Cột phải là bộ lọc tìm kiếm (Theo Nhãn Local/Zalo, Theo SĐT) và danh sách liên hệ ứng viên được chọn.
+- **Ghim Bộ Lọc & Phân Trang Cố Định (Hình 1 & 2):**
+  - Đưa bộ lọc tìm kiếm Liên hệ/Nhóm sang góc trên cùng bên phải.
+  - Phân trang hiển thị 10 tài khoản/trang, bộ phân trang luôn neo cố định ở góc cuối trang.
+  - Mặc định mở tab *Theo nhãn*, tự động sổ ra danh sách nhãn Local / Zalo tương ứng. Khi chuyển sang *Theo SĐT* sẽ hiển thị ô nhập danh sách số điện thoại.
+- **Nút Thao Tác & Kích Thước Linh Hoạt (Hình 1, 3, 4):**
+  - **Hình 1:** Bổ sung nút xóa liên hệ đã chọn ở bên cạnh nút Thêm liên hệ.
+  - **Hình 3 & 4:** Cố định độ dài khung modal ở mức **80% chiều cao màn hình (`80vh`)**, bổ sung cuộn nội dung mượt cho các màn hình có độ phân giải ngắn, tránh biến đổi kích thước đột ngột.
+
+### 🐛 Sửa Lỗi & Chuẩn Hóa Logic Thao Tác Trên Chiến Dịch CRM (`CampaignDetail.tsx` & `CampaignCreateModal.tsx`)
+- **Sửa Lỗi Crash `handleRemoveSelected` (`CampaignDetail.tsx`):** Khắc phục triệt để lỗi `ReferenceError: handleRemoveSelected is not defined` khi thao tác xóa liên hệ khỏi chiến dịch.
+- **Ràng Buộc Thao Tác Thêm Liên Hệ Theo Trạng Thái Chiến Dịch:**
+  - ⛔ **Chiến dịch đã hoàn thành (`done`):** Khóa hoàn toàn chức năng thêm liên hệ mới để bảo toàn dữ liệu lịch sử gửi.
+  - ✅ **Chiến dịch đang chạy / tạm dừng / nháp (`active`, `paused`, `draft`):** Cho phép thêm liên hệ mới bình thường.
+- **Khắc Phục Lỗi Hiển Thị Tên Tài Khoản & Đồng Bộ Modal Chọn Nhãn:**
+  - **Khắc phục tên nhãn bị hiển thị bằng ID số Zalo (`266746582522774820`):** Nâng cấp hàm format tên tài khoản `formatAccountDisplayName` loại bỏ các ID số thuần, ưu tiên hiển thị Tên đầy đủ > Số điện thoại định dạng > `Zalo (...4820)`.
+### 🏷️ Nâng Cấp Logic Gán Nhãn & Sửa Lỗi Hiển Thị Nhãn Tự Động (`PhoneScanService.ts`, `DatabaseService.ts` & `UnifiedLabelPickerModal.tsx`)
+- **Tự Động Mở Rộng Scope Nhãn (`page_ids` Auto-Expand):** Nâng cấp hàm `assignLocalLabelToThread` và `getLocalLabels` tự động cập nhật tài khoản chạy quét vào danh sách scope nhãn (`page_ids`), đảm bảo dù gán nhãn ở bất kỳ tài khoản Zalo nào thì tài khoản đó cũng tải về và hiển thị đúng Badge màu nhãn trực quan.
+- **Khắc Phục Lỗi Trôi Nhãn Khi Gộp SĐT (`mergeDuplicateContactsByPhone`):** Đảm bảo chuyển giao 100% các nhãn thuộc `local_label_threads` từ SĐT/UID phụ sang UID chính khi gộp liên hệ trùng SĐT, tránh bị trôi nhãn hay mồ côi dữ liệu sau khi quét số.
+- **Bộ Chọn Scope Trực Quan Cho Nhãn Local Mới (`UnifiedLabelPickerModal.tsx`):**
+  - Mặc định tạo nhãn Local là **Global (`🌐 Tất cả`)** để hệ thống phễu CRM đồng nhất giữa tất cả các tài khoản Zalo.
+  - Bổ sung nút bấm chuyển đổi nhanh Scope ngay trên thanh nhập tên nhãn mới: `🌐 Tất cả` (Global) vs `👤 Nhãn riêng` (Tài khoản đang chọn).
+
 ## [v3.0.9] - 2026-07-29
+
+### 🎨 Tái Thiết Kế Giao Diện Quản Lý Chiến Dịch CRM Theo Mẫu Design 2 Cột Hiện Đại (`CampaignList.tsx`, `CampaignDetail.tsx` & `CRMPage.tsx`)
+- **Ghim Cố Định Bộ Lọc & Chuẩn Hóa Font Chữ (`TargetSelector.tsx`):**
+  - **Hình 1 (Tên Zalo Chữ Thường Không In Đậm):** Chuyển kiểu chữ tên liên hệ trong danh sách ứng viên từ `font-bold` thành `font-normal` đúng chuẩn giao diện bảng dữ liệu.
+  - **Hình 2 (Ghim Bộ Lọc Cố Định Ở Đầu Modal):** Đã nâng cấp các điều khiển lọc (Mode sub-tabs, Sub-tabs Nhãn Local/Zalo, Thanh tìm kiếm `🔍`, Danh sách Chip Nhãn) thành khối **Sticky Filter Header** nằm cố định trên đỉnh modal. Khi cuộn xuống danh sách liên hệ dài, bộ lọc nhãn và ô tìm kiếm **không bao giờ bị trôi khỏi màn hình**.
+- **Cập Nhật Nút Hành Động Theo Trạng Thái Chiến Dịch:**
+  - **Động Hóa Nhãn Nút Thao Tác:** Trong `CampaignDetail.tsx`, nút hành động chính bên cạnh *"Sửa chiến dịch"* tự động thay đổi nhãn và icon linh hoạt theo từng trạng thái cụ thể:
+    - ⏸ **Tạm dừng (`paused`)** ➔ Nút: `▶ Tiếp tục`
+    - ✓ **Hoàn thành (`done`)** ➔ Nút: `🔄 Chạy lại`
+    - 📝 **Nháp (`draft`)** ➔ Nút: `▶ Bắt đầu`
+    - ▶ **Đang chạy (`active`)** ➔ Nút: `⏸ Tạm dừng`
+- **Khắc Phục Lỗi & Đồng Bộ Chân Trang (Hình 1, 2):**
+  - **Sửa Lỗi Crash TargetSelector:** Khắc phục lỗi `TypeError: Cannot read properties of undefined (reading 'has')` khi bấm *"+ Thêm liên hệ"*. Hỗ trợ cả 2 tên prop `existingContactIds` & `existingIds` và bổ sung giá trị mặc định `new Set()`, đảm bảo không bao giờ bị nổ crash ứng dụng.
+  - **Đồng Bộ Chiều Cao 2 Chân Trang (`h-[52px]`):** Cân chỉnh 2 thanh chân trang cột trái (`CampaignList.tsx`) và cột phải (`CampaignDetail.tsx`) đồng kích thước `h-[52px]`, background và border đường kẻ nối liền mạch 100% trên cùng 1 đường thẳng ngang.
+- **Tinh Chỉnh Bổ Sung Theo Phản Hồi Mới (Hình 1, 2, 3):**
+  - **Hình 1:** Loại bỏ icon nút nhập tập tin thừa (`📥`) bên cạnh nút `+ Thêm liên hệ` trong trang chi tiết chiến dịch.
+  - **Hình 2:** Đưa thanh phân trang (`Hiển thị [20] / trang ... < 1 >`) xuống neo cố định tại **dưới cùng** panel bên phải (`mt-auto`), chuẩn đẹp trên mọi kích thước màn hình.
+  - **Hình 3:** Thay đổi nút xanh trong hộp thoại cảnh báo thành `"Sao chép chiến dịch đang chọn"`. Khi người dùng click nút này, hệ thống sẽ tự động kích hoạt ngay modal **Sao chép chiến dịch** cho chiến dịch hiện tại.
+- **Tối Ưu Thêm Giao Diện Theo Phản Hồi Mới (Hình 1 & 2):**
+  - **Hình 1:** Căn giữa tiêu đề và số định mức (`0 / 50`) ở cả 2 box *"Đã gửi tin"* và *"Đã kết bạn"* giúp giao diện cân đối hoàn hảo.
+  - **Hình 2:** Cho phép bấm vào bất kỳ đâu trong phần xem trước Template tin nhắn để mở modal chỉnh sửa chiến dịch. Thêm logic kiểm tra điều kiện trạng thái:
+    - 🔴 **Chiến dịch đang chạy (`active`):** Hiển thị cảnh báo không thể sửa, yêu cầu Tạm dừng hoặc Sao chép (clone) ra chiến dịch mới.
+    - 🔵 **Chiến dịch đã kết thúc (`done`):** Hiển thị cảnh báo không thể sửa, yêu cầu Sao chép (clone) ra chiến dịch mới.
+    - 🟧 **Chiến dịch tạm dừng / nháp (`paused` / `draft`):** Mở form chỉnh sửa nội dung và liên hệ bình thường.
+- **Tinh Chỉnh Giao Diện Theo Mẫu (Hình 1, 2, 3, 4):**
+  - **Hình 1:** Tên liên hệ Zalo trong bảng dữ liệu đổi thành kiểu chữ thường, độ đậm tiêu chuẩn (`font-normal`), không in đậm.
+  - **Hình 2:** Đưa Icon trạng thái chiến dịch lên đầu tiên trước Tên chiến dịch, đồng thời loại bỏ Số thứ tự (STT) để tăng thêm diện tích cho Tên chiến dịch.
+  - **Hình 3:** Bỏ hoàn toàn bộ chuyển đổi chế độ xem Card/List (`[ Card | List ]`).
+  - **Hình 4:** Loại bỏ nút Icon bộ lọc mở rộng cạnh ô Tìm kiếm chiến dịch.
+- **Tái Cấu Trúc Cột Bên Trái (`CampaignList.tsx` - Width 340px):**
+  - Thẻ định mức *"Gửi hôm nay (Định mức 50)"* với 2 thanh tiến trình phân tách *"Đã gửi tin"* (màu cam) và *"Đã kết bạn"* (màu xanh lá).
+  - Header tiêu đề *"Chiến dịch"* kèm nút `+ Tạo mới` màu xanh nổi bật.
+  - Ô tìm kiếm + Icon bộ lọc nâng cao.
+  - Thanh Tab phân loại đếm số lượng: `Tất cả`, `Đang chạy`, `Tạm dừng`, `Nháp`, `Hoàn thành`.
+  - Nút chuyển đổi chế độ xem `[ Card | List ]`.
+  - Thanh phân trang chân cột trái: Chọn số lượng dòng `10/trang` + Dãy chuyển trang `< 1 2 3 ... 10 >`.
+- **Tái Cấu Trúc Cột Bên Phải (`CampaignDetail.tsx` - Chi tiết Chiến dịch):**
+  - Header Bar: Tên chiến dịch, Status badge, Sub-metadata và nút `✏️ Sửa chiến dịch` & `▶ Tiếp tục` / `⏸ Tạm dừng`.
+  - Lưới **4 Thẻ Thống Kê KPI (KPI Summary Cards):** 👤 *Tổng số* (xanh dương), ✅ *Thành công* (xanh lá), ❌ *Thất bại* (đỏ), 🟧 *Đang chờ* (cam).
+  - Khối xem trước **Template Tin Nhắn**: Chế độ xoay vòng ngẫu nhiên, xem trước nội dung tin mẫu & nút `✏️ Sửa nội dung`.
+  - Bảng **Danh Sách Liên Hệ**: Thống kê số lượng, Nút `+ Thêm liên hệ`, `📥 Import file`, Các cột STT, Avatar/Tên, SĐT, Trạng thái (`✓ Sent`), Thời gian & Phân trang chọn nhanh `20`, `50`, `200`, `500` dòng/trang.
+
+### ⚙️ Thêm Tùy Chọn Thứ Tự Gửi Tin Nhắn "Ảnh Trước / Chữ Trước" Cho Chiến Dịch CRM (`CampaignCreateModal.tsx` & `CRMQueueService.ts`)
+- **Tùy Chọn Cấu Hình Cấp Chiến Dịch (Option A):** Bổ sung mục chọn *"THỨ TỰ GỬI TIN NHẮN (ẢNH & TEXT)"* trong giao diện tạo/sửa chiến dịch CRM (`CampaignCreateModal.tsx`), cho phép chủ doanh nghiệp chủ động lựa chọn:
+  - 🖼️ **Hình ảnh gửi trước ➔ Nội dung chữ gửi sau** *(Bắt mắt, đập vào mắt người xem trước - Mặc định)*
+  - 💬 **Nội dung chữ gửi trước ➔ Hình ảnh gửi sau** *(Chào hỏi & tư vấn trước, kèm ảnh minh họa sau)*
+- **Cố Định Thứ Tự Gửi Tuần Tự (Controlled Sequential Dispatches):** Cập nhật worker ngầm (`CRMQueueService.ts`) để gửi tuần tự đúng 100% theo thứ tự đã cài đặt (nghỉ 300ms giữa 2 tin), loại bỏ hoàn toàn sự bất nhất ngẫu nhiên do Zalo SDK tự quyết định.
+- **Tự Động Bảo Vệ Người Lạ (Stranger Safety Filter):** Khi gửi tin cho Người Lạ (chưa kết bạn), hệ thống vẫn tự động duy trì cơ chế 1 tin duy nhất (1 Ảnh kèm Caption Text) để tuân thủ 100% chính sách chống spam của Zalo.
+
+### 🧹 Ẩn "Quy Tắc Phân Bổ Liên Hệ CRM" Khi Chỉ Có 1 Tài Khoản Zalo (`PhoneScanPanel.tsx`)
+- **Tối Ưu Giao Diện Khởi Tạo Lô Quét:** Tự động ẩn khối lựa chọn *"Quy tắc phân bổ liên hệ CRM"* khi người dùng chỉ đang sử dụng 1 tài khoản Zalo duy nhất.
+- Khối này chỉ hiển thị khi ứng dụng có từ **2 tài khoản Zalo trở lên**, giúp giao diện khởi tạo lô quét gọn gàng, tránh làm rối người dùng cá nhân.
+
+### 🔄Nâng Cấp Chức Năng "Chuyển / Chia Sẻ Liên Hệ Zalo" (`DatabaseService.ts` & `CRMPage.tsx`)
+- **Tách Rõ 2 Chế Độ "Chia Sẻ (Share)" & "Chuyển Hẳn (Move)":**
+  - **Chế độ 🤝 Chia sẻ (Share):** Nhân bản dữ liệu + Nhãn Local sang Zalo đích để Zalo mới có thể lập tức lọc theo nhãn và chạy chiến dịch gửi tin. Zalo hiện tại vẫn giữ nguyên dữ liệu.
+  - **Chế độ 📦 Chuyển hẳn (Move):** Chuyển toàn bộ dữ liệu + Nhãn Local sang Zalo đích và **xóa sạch** khỏi Zalo hiện tại.
+- **Tự Động Sao Chép Nhãn (Label Copy):** Sao chép nguyên vẹn các Nhãn Local từ tài khoản gốc sang tài khoản đích khi chuyển/chia sẻ.
+- **Làm Tươi Giao Diện Tức Thời (Real-time IPC):** Phát sự kiện IPC `db:localLabelThreadChanged` và `local-labels-changed` làm tươi giao diện danh sách CRM của cả 2 tài khoản ngay lập tức mà không cần khởi động lại ứng dụng.
+
+### 🏷️ Đồng Bộ Sự Kiện Gán Nhãn Tự Động Khi Quét SĐT Hàng Loạt (`PhoneScanService.ts` & `TargetSelector.tsx`)
+- **Khắc Phục Lỗi Mất Nhãn Vừa Gán Khi Quét SĐT (Khỏi Phải Tắt App Khởi Động Lại):**
+  - **Phát Sự Kiện Chuẩn Tốc Độ Cao:** Bổ sung việc phát đồng thời 2 sự kiện IPC `db:localLabelThreadChanged` và `db:localLabelChanged` ngay sau khi tiến trình quét SĐT ngầm hoàn tất gán nhãn cho các SĐT mới trong `PhoneScanService.ts` và `DatabaseService.ts`.
+  - **Cầu Nối IPC Renderer (`useZaloEvents.ts`):** Lắng nghe thêm kênh `local-labels-changed` và phát sự kiện `ui:threadLabelsChanged` trên giao diện, giúp kết nối thông suốt giữa Main Process và UI.
+  - **Làm Tươi Danh Sách Liên Hệ Vực Tức Thì (`CRMPage.tsx`):** Tự động load lại bản đồ nhãn `localLabelThreadMap` ngay khi nhận sự kiện `ui:threadLabelsChanged` mà không cần đóng/bật lại ứng dụng.
+  - **Cập Nhật Bộ Lọc Chiến Dịch Tức Thời (`TargetSelector.tsx`):** Thêm event listener lắng nghe thay đổi nhãn thời gian thực trong modal chọn đối tượng chạy chiến dịch. Nhãn mới gán từ lô quét được nhận diện 100% lập tức để tạo chiến dịch gửi tin ngay.
 
 ### 🔤 Chuẩn Hóa Viết Hoa/Thường Xưng Hổ Trong Workflow (`WorkflowEngineService.ts`)
 - **Khắc Phục Lỗi Viết Hoa Giữa Câu Khi Chạy Workflow:**

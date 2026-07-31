@@ -2792,6 +2792,9 @@ class DatabaseService {
             this.ensureColumn('contacts', 'salutation_manual', 'INTEGER DEFAULT 0');
             this.ensureColumn('contacts', 'alias_sync_status', 'TEXT DEFAULT NULL');
 
+            // Add real_name column to phone_scan_items (stores name from Excel at import time)
+            this.ensureColumn('phone_scan_items', 'real_name', 'TEXT DEFAULT NULL');
+
             this.save();
             Logger.log('[DatabaseService] ✅ Migration: CSV import tables & contacts columns initialized');
         } catch (err: any) {
@@ -3469,7 +3472,7 @@ class DatabaseService {
      * Cập nhật display_name và avatar_url của contact vào DB.
      * Được gọi khi có thông tin tên/ảnh (từ senderInfo trong message event hoặc getUserInfo API).
      */
-    public updateContactProfile(ownerZaloId: string, contactId: string, displayName: string, avatarUrl: string, phone: string = '', contactType: string = '', gender?: number | null, birthday?: string | null): void {
+    public updateContactProfile(ownerZaloId: string, contactId: string, displayName: string, avatarUrl: string, phone: string = '', contactType: string = '', gender?: number | null, birthday?: string | null, realName?: string | null): void {
         if (!this.initialized || !contactId || contactId === 'undefined') return;
         try {
             const normalizedPhone = this.normalizeVietnamPhone(phone || '');
@@ -3511,6 +3514,12 @@ class DatabaseService {
                 this.run(
                     `UPDATE contacts SET birthday = CASE WHEN birthday IS NULL OR birthday = '' THEN ? ELSE birthday END WHERE owner_zalo_id=? AND contact_id=?`,
                     [birthday, ownerZaloId, contactId]
+                );
+            }
+            if (realName !== undefined && realName !== null && realName !== '') {
+                this.run(
+                    `UPDATE contacts SET real_name = CASE WHEN real_name IS NULL OR real_name = '' THEN ? ELSE real_name END WHERE owner_zalo_id=? AND contact_id=?`,
+                    [realName, ownerZaloId, contactId]
                 );
             }
 
@@ -3692,6 +3701,7 @@ class DatabaseService {
             phone?: string;
             gender?: number | null;
             birthday?: string | null;
+            real_name?: string | null;
         }
     ): void {
         if (!this.initialized || !contactId) return;
@@ -3709,6 +3719,7 @@ class DatabaseService {
             sets.push('birthday=?');
             vals.push(b || null);
         }
+        if (fields.real_name !== undefined)  { sets.push('real_name=?'); vals.push(fields.real_name ?? null); }
         if (sets.length === 0) return;
         vals.push(ownerZaloId, contactId);
         try {
@@ -6204,6 +6215,7 @@ class DatabaseService {
                     COALESCE(NULLIF(cont.phone,''), NULLIF(fr.phone,''), '') as contact_phone,
                     COALESCE(cont.contact_type, 'user') as contact_type,
                     COALESCE(cont.alias, '') as alias,
+                    cont.real_name AS real_name,
                     cont.gender,
                     cont.birthday,
                     cont.salutation,
@@ -6251,6 +6263,7 @@ class DatabaseService {
                     COALESCE(NULLIF(cont.phone,''), NULLIF(fr.phone,''), '') as contact_phone,
                     COALESCE(cont.contact_type, 'user') as contact_type,
                     COALESCE(cont.alias, '') as alias,
+                    cont.real_name AS real_name,
                     cont.gender,
                     cont.birthday,
                     cont.salutation,
@@ -6510,7 +6523,7 @@ class DatabaseService {
                         0 as is_friend, COALESCE(last_message_time,0) as last_message_time, 'group' as contact_type,
                         gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
                         ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter,
-                        COALESCE(is_blocked, 0) as is_blocked
+                        COALESCE(is_blocked, 0) as is_blocked, real_name
                      FROM contacts WHERE owner_zalo_id=? AND contact_type='group'
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -6525,7 +6538,7 @@ class DatabaseService {
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
                         c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation,
-                        COALESCE(c.is_blocked, 0) as is_blocked
+                        COALESCE(c.is_blocked, 0) as is_blocked, c.real_name
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -6543,7 +6556,7 @@ class DatabaseService {
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
                         c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation,
                         c.ai_assistant_id, c.ai_auto_summary, c.ai_auto_summary_threshold, c.ai_auto_summary_counter,
-                        COALESCE(c.is_blocked, 0) as is_blocked
+                        COALESCE(c.is_blocked, 0) as is_blocked, c.real_name
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -6557,7 +6570,7 @@ class DatabaseService {
                         COALESCE(contact_type,'user') as contact_type,
                         gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
                         ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter,
-                        COALESCE(is_blocked, 0) as is_blocked
+                        COALESCE(is_blocked, 0) as is_blocked, real_name
                      FROM contacts WHERE owner_zalo_id=?
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -9533,7 +9546,14 @@ class DatabaseService {
         if (!this.initialized) return { items: [], total: 0 };
         try {
             let queryStr = `
-                SELECT psi.*, c.real_name, c.gender, c.birthday, c.salutation
+                SELECT
+                  psi.id, psi.batch_id, psi.phone, psi.phone_normalized,
+                  psi.status, psi.zalo_uid, psi.zalo_name, psi.zalo_avatar,
+                  psi.error_msg, psi.scanned_by_account_id, psi.scanned_at, psi.created_at,
+                  COALESCE(psi.real_name, c.real_name) AS real_name,
+                  c.gender     AS gender,
+                  c.birthday   AS birthday,
+                  c.salutation AS salutation
                 FROM phone_scan_items psi
                 LEFT JOIN contacts c ON c.phone = psi.phone_normalized
                 WHERE psi.batch_id = ?
@@ -9717,7 +9737,7 @@ class DatabaseService {
 
                 for (const accId of targetAccountIds) {
                     if (!accId) continue;
-                    this.updateContactProfile(accId, uid, name, avatar, phoneNorm, 'user');
+                    this.updateContactProfile(accId, uid, name, avatar, phoneNorm, 'user', null, null, item.real_name || null);
                     for (const tagId of tagIds) {
                         this.assignLocalLabelToThread(accId, tagId, uid);
                         EventBroadcaster.emit('db:localLabelThreadChanged', {

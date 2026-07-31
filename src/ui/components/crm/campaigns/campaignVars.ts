@@ -56,6 +56,13 @@ export const CAMPAIGN_VARS: CampaignVarInfo[] = [
     example: 'Nguyễn Văn A',
   },
   {
+    key: '{real_name}',
+    label: 'Tên thật (Excel / CRM)',
+    description: 'Tên thật của khách hàng được nhập từ file Excel/CSV hoặc lưu trong CRM.',
+    group: 'contact',
+    example: 'Nguyễn Văn A',
+  },
+  {
     key: '{salutation}',
     label: 'Xưng hô (tùy chỉnh)',
     description: 'Danh xưng đã lưu trong CRM: "Anh", "Chị", "Cô", "Chú", "Em"... Tự động sinh từ giới tính nếu chưa được đặt.',
@@ -201,6 +208,8 @@ export function substitutePreviewCampaign(
   return (text || '')
     .replace(/\{name\}/g,             'Nguyễn Văn A')
     .replace(/\{zalo_name\}/g,        'Hồng Hoa Zalo')
+    .replace(/\{real_name\}/g,        'Nguyễn Văn A')
+    .replace(/\{realName\}/g,         'Nguyễn Văn A')
     .replace(/\{userId\}/g,           '0987654321')
     .replace(/\{gender_greeting\}/g,  'Anh')
     .replace(/\{salutation\}/g,       'Anh')

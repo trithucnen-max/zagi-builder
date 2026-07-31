@@ -1691,9 +1691,15 @@ export function useZaloEvents() {
 
     unsubs.push(ipc.on('db:localLabelChanged', (data: any) => {
       window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: data }));
+      window.dispatchEvent(new CustomEvent('ui:threadLabelsChanged', { detail: data }));
+    }));
+    unsubs.push(ipc.on('local-labels-changed', (data: any) => {
+      window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: data }));
+      window.dispatchEvent(new CustomEvent('ui:threadLabelsChanged', { detail: data }));
     }));
     unsubs.push(ipc.on('db:localLabelThreadChanged', (data: any) => {
       window.dispatchEvent(new CustomEvent('ui:threadLabelsChanged', { detail: data }));
+      window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: data }));
     }));
     unsubs.push(ipc.on('db:pinnedMessageChanged', (data: any) => {
       window.dispatchEvent(new CustomEvent('ui:pinnedChanged', { detail: data }));

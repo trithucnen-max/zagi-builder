@@ -291,6 +291,20 @@ export const TEMPLATE_VARS: TemplateVarInfo[] = [
     example: '"Anh Minh (VIP)"',
   },
   {
+    key: '$trigger.realName',
+    label: 'Tên thật (Excel / CRM)',
+    description: 'Tên thật của khách hàng được nhập từ file Excel/CSV hoặc lưu trong CRM.',
+    group: 'crm',
+    example: '"Nguyễn Văn A"',
+  },
+  {
+    key: '$trigger.real_name',
+    label: 'Tên thật (Cú pháp 2)',
+    description: 'Tên thật của khách hàng dạng snake_case ($trigger.real_name hoặc {{contact.real_name}}).',
+    group: 'crm',
+    example: '"Nguyễn Văn A"',
+  },
+  {
     key: '$trigger.zaloName',
     label: 'Tên Zalo gốc',
     description: 'Tên đăng ký Zalo gốc của khách hàng. Không lấy biệt danh CRM tự đặt.',

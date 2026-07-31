@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ipc from '@/lib/ipc';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import AppIcon from '@/components/common/AppIcon';
 import { useAppStore } from '@/store/appStore';
+import { useAccountStore } from '@/store/accountStore';
+import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 import DataAccessor from '@/lib/data/DataAccessor';
 import LibraryPickerModal from '@/components/chat/library/LibraryPickerModal';
 import CampaignVarPopup from './CampaignVarPopup';
@@ -15,7 +17,8 @@ type MixedAction  = 'message' | 'friend_request' | 'invite_to_groups';
 type SendMode     = 'random' | 'all';
 
 export type ZaloAliasRule = 'none' | 'campaign_name_phone' | 'name_phone';
-export interface MixedConfig   { actions: MixedAction[]; group_ids?: string[]; zalo_alias_rule?: ZaloAliasRule; }
+export type SendOrder = 'image_first' | 'text_first';
+export interface MixedConfig   { actions: MixedAction[]; group_ids?: string[]; zalo_alias_rule?: ZaloAliasRule; send_order?: SendOrder; }
 export interface ContentBlock  { id: string; text: string; images: string[]; }
 export interface ContentConfig { mode: SendMode; blocks: ContentBlock[]; }
 
@@ -70,7 +73,7 @@ function parseContentConfig(raw?: string): ContentConfig {
 }
 
 function parseMixedConfig(raw?: string): MixedConfig {
-  if (!raw) return { actions: ['message', 'friend_request'], zalo_alias_rule: 'none' };
+  if (!raw) return { actions: ['message', 'friend_request'], zalo_alias_rule: 'none', send_order: 'image_first' };
   try {
     const p = JSON.parse(raw);
     if (p && typeof p === 'object') {
@@ -78,10 +81,11 @@ function parseMixedConfig(raw?: string): MixedConfig {
         actions: Array.isArray(p.actions) ? p.actions : ['message', 'friend_request'],
         group_ids: Array.isArray(p.group_ids) ? p.group_ids : [],
         zalo_alias_rule: (p.zalo_alias_rule === 'campaign_name_phone' || p.zalo_alias_rule === 'name_phone') ? p.zalo_alias_rule : 'none',
+        send_order: p.send_order === 'text_first' ? 'text_first' : 'image_first',
       };
     }
   } catch {}
-  return { actions: ['message', 'friend_request'], zalo_alias_rule: 'none' };
+  return { actions: ['message', 'friend_request'], zalo_alias_rule: 'none', send_order: 'image_first' };
 }
 
 
@@ -382,6 +386,7 @@ function BlockEditor({
   const QUICK_VARS = [
     { key: '{name}',             label: 'Tên' },
     { key: '{zalo_name}',        label: 'Tên Zalo' },
+    { key: '{real_name}',        label: 'Tên thật' },
     { key: '{gender_greeting}',  label: 'Anh/Chị' },
     { key: '{salutation}',       label: 'Xưng hô' },
     { key: '{tu_xung}',          label: 'Tự xưng' },
@@ -792,6 +797,44 @@ export default function CampaignCreateModal({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [localLabelsList, setLocalLabelsList] = useState<any[]>([]);
 
+  const accounts = useAccountStore(s => s.accounts);
+  const currentAccount = useMemo(() => accounts.find(a => a.zalo_id === zaloId), [accounts, zaloId]);
+  const currentAccountDisplayName = useMemo(() => {
+    if (!currentAccount) return zaloId && zaloId.length > 8 ? `Zalo (...${zaloId.slice(-4)})` : (zaloId || 'Tài khoản');
+    const rawName = currentAccount.full_name || currentAccount.display_name;
+    if (rawName && typeof rawName === 'string' && rawName.trim() && !/^\d{8,}$/.test(rawName.trim())) {
+      return rawName.trim();
+    }
+    if (currentAccount.phone && currentAccount.phone.trim()) {
+      const cleaned = currentAccount.phone.replace(/\D/g, '');
+      if (cleaned.length === 10) return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+      return currentAccount.phone;
+    }
+    if (zaloId && zaloId.length > 8) {
+      return `Zalo (...${zaloId.slice(-4)})`;
+    }
+    return zaloId || 'Tài khoản';
+  }, [currentAccount, zaloId]);
+
+  const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
+    const rawAccName = currentAccount?.full_name || currentAccount?.display_name;
+    const formattedName = (rawAccName && !/^\d{8,}$/.test(rawAccName)) ? rawAccName : (currentAccount?.phone ? currentAccount.phone : '');
+    const resolvedAccName = formattedName || (zaloId && zaloId.length > 8 ? `Zalo (...${zaloId.slice(-4)})` : (zaloId || 'Tài khoản'));
+
+    return (localLabelsList || []).map((l: any) => ({
+      value: `local:${l.id}`,
+      name: l.name,
+      label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
+      source: 'local',
+      id: l.id,
+      color: l.color,
+      textColor: l.text_color || '#ffffff',
+      emoji: l.emoji,
+      accountZaloId: zaloId,
+      accountName: resolvedAccName,
+    }));
+  }, [localLabelsList, currentAccount, zaloId]);
+
   useEffect(() => {
     if (!zaloId) return;
     ipc.db?.getLocalLabels({ zaloId }).then((res: any) => {
@@ -912,6 +955,7 @@ Yêu cầu quan trọng:
   const [mixedActions,   setMixedActions]   = useState<MixedAction[]>(initMixed.actions);
   const [inviteGroupIds, setInviteGroupIds] = useState<string[]>(initMixed.group_ids ?? []);
   const [zaloAliasRule,  setZaloAliasRule]  = useState<ZaloAliasRule>(() => initMixed.zalo_alias_rule || 'none');
+  const [sendOrder,      setSendOrder]      = useState<SendOrder>(() => initMixed.send_order || 'image_first');
 
   const hasMsg    = type === 'message' || (type === 'mixed' && mixedActions.includes('message'));
   const hasFR     = type === 'friend_request' || (type === 'mixed' && mixedActions.includes('friend_request'));
@@ -951,7 +995,7 @@ Yêu cầu quan trọng:
     setInviteGroupIds(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
 
   const buildMixedConfig = (): string => {
-    let cfg: any = { zalo_alias_rule: zaloAliasRule };
+    let cfg: any = { zalo_alias_rule: zaloAliasRule, send_order: sendOrder };
     if (type === 'invite_to_group') {
       cfg.group_ids = inviteGroupIds;
     } else if (type === 'mixed') {
@@ -1223,6 +1267,29 @@ Yêu cầu quan trọng:
                     }`}>
                     <span className="leading-snug break-words flex-1 text-[11px] font-medium">{opt.label}</span>
                     {zaloAliasRule === opt.value && <span className="text-blue-600 dark:text-blue-400 font-bold ml-1.5 flex-shrink-0">✓</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Thứ tự gửi tin nhắn (Ảnh & Text) */}
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">
+                THỨ TỰ GỬI TIN NHẮN (ẢNH & TEXT)
+              </label>
+              <div className="space-y-1">
+                {[
+                  { value: 'image_first' as const, label: '🖼️ Hình ảnh gửi trước ➔ Chữ sau' },
+                  { value: 'text_first' as const,  label: '💬 Nội dung chữ trước ➔ Ảnh sau' },
+                ].map(opt => (
+                  <button key={opt.value} type="button" onClick={() => setSendOrder(opt.value)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border text-left text-xs transition-colors ${
+                      sendOrder === opt.value
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold shadow-2xs'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}>
+                    <span className="leading-snug break-words flex-1 text-[11px] font-medium">{opt.label}</span>
+                    {sendOrder === opt.value && <span className="text-blue-600 dark:text-blue-400 font-bold ml-1.5 flex-shrink-0">✓</span>}
                   </button>
                 ))}
               </div>
@@ -1573,7 +1640,7 @@ Yêu cầu quan trọng:
                     <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-400">🤝 Lời nhắn kết bạn</span>
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className="text-[9px] text-gray-500">Chèn:</span>
-                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'}].map(v => (
+                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{real_name}',l:'Tên thật'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'}].map(v => (
                         <button key={v.k} type="button" onClick={() => insertFRVar(v.k)}
                           className="text-[9px] px-1.5 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 transition-colors font-medium"
                           title={v.k}>{v.l}</button>
@@ -1638,7 +1705,7 @@ Yêu cầu quan trọng:
                   <div className="flex items-center justify-between flex-wrap gap-1.5 flex-shrink-0">
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className="text-[10px] text-gray-500">Chèn:</span>
-                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'},{k:'{phone}',l:'SĐT'}].map(v => (
+                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{real_name}',l:'Tên thật'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'},{k:'{phone}',l:'SĐT'}].map(v => (
                         <button key={v.k} type="button" onClick={() => insertFRVar(v.k)}
                           className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 transition-colors font-medium"
                           title={v.k}>{v.l}</button>
@@ -1860,236 +1927,43 @@ Yêu cầu quan trọng:
           </div>
         </div>
 
-        {/* ── Chọn nhãn Popup Modal ── */}
+        {/* ── Unified Label Picker Modal ── */}
         {showLabelSelectorPopup && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setShowLabelSelectorPopup(false)}>
-            <div
-              className="bg-[#f4f5f7] dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-[680px] shadow-2xl flex flex-col overflow-hidden text-gray-900 dark:text-gray-100"
-              style={{ height: '420px' }}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-900">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white text-base shadow-sm">
-                    🏷️
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 dark:text-white text-[14px]">Chọn nhãn</h4>
-                    <p className="text-[10px] text-gray-500">Có thể chọn nhiều nhãn</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowLabelSelectorPopup(false)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Body split */}
-              <div className="flex-1 min-h-0 flex overflow-hidden">
-                {/* Left Sidebar */}
-                <div className="w-44 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-gray-900 p-3 gap-1">
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider px-2 mb-1.5 block">TÀI KHOẢN</span>
-                  
-                  {/* All item */}
-                  <button
-                    type="button"
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs bg-blue-500/10 text-blue-500 font-semibold border border-blue-500/10"
-                  >
-                    <div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center text-[10px]">
-                      📋
-                    </div>
-                    <div>
-                      <p className="font-semibold">Tất cả</p>
-                      <p className="text-[9px] text-blue-500/70">{localLabelsList.length} nhãn</p>
-                    </div>
-                  </button>
-
-                  {/* Account profile item */}
-                  <div className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-left text-xs text-gray-600 dark:text-gray-400">
-                    <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
-                      {(zaloId || 'T').slice(0, 1).toUpperCase()}
-                    </div>
-                    <div className="truncate flex-1">
-                      <p className="font-semibold truncate">{zaloId || 'Tài khoản'}</p>
-                      <p className="text-[9px] text-gray-500 truncate">{localLabelsList.length} nhãn</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right content panel */}
-                <div className="flex-1 min-h-0 flex flex-col bg-gray-50 dark:bg-gray-900">
-                  {/* Tabs header */}
-                  <div className="flex border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 flex-shrink-0">
-                    <button
-                      type="button"
-                      className="px-4 py-2.5 text-xs font-semibold text-teal-600 dark:text-teal-400 border-b-2 border-teal-500 flex items-center gap-1.5"
-                    >
-                      💾 Nhãn Local <span className="bg-teal-500/15 text-teal-500 text-[10px] px-1.5 py-0.5 rounded-full font-bold">{localLabelsList.length}</span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled
-                      className="px-4 py-2.5 text-xs font-semibold text-gray-400 flex items-center gap-1.5 cursor-not-allowed opacity-40"
-                    >
-                      ☁️ Nhãn Zalo
-                    </button>
-                  </div>
-
-                  {/* Selector body */}
-                  <div className="flex-1 min-h-0 p-4 overflow-y-auto flex flex-col gap-3">
-                    
-                    {/* Create Form */}
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col gap-3 flex-shrink-0">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={newLabelName}
-                          onChange={e => setNewLabelName(e.target.value)}
-                          placeholder="Tên nhãn local mới..."
-                          className="flex-1 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:border-teal-500 transition-colors"
-                        />
-                        
-                        {/* Emoji Trigger */}
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowColorPicker(false); }}
-                            className="bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-1 min-w-[44px]"
-                          >
-                            <span>{newLabelEmoji}</span>
-                            <span className="text-[9px] text-gray-500">▼</span>
-                          </button>
-                          {showEmojiPicker && (
-                            <div className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2 shadow-2xl z-50 grid grid-cols-5 gap-1 w-44">
-                              {['🎯', '🏷️', '📞', '🔄', '🔥', '⭐', '✅', '❌', '💎', '👤'].map(em => (
-                                <button
-                                  key={em}
-                                  type="button"
-                                  onClick={() => { setNewLabelEmoji(em); setShowEmojiPicker(false); }}
-                                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"
-                                >
-                                  {em}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Color Selector Square */}
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => { setShowColorPicker(!showColorPicker); setShowEmojiPicker(false); }}
-                            className="w-7 h-7 rounded-lg border border-gray-300 dark:border-gray-700 transition-transform hover:scale-105 flex-shrink-0"
-                            style={{ backgroundColor: newLabelColor }}
-                          />
-                          {showColorPicker && (
-                            <div className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-2 shadow-2xl z-50 grid grid-cols-3 gap-1.5 w-32">
-                              {['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'].map(bg => (
-                                <button
-                                  key={bg}
-                                  type="button"
-                                  onClick={() => { setNewLabelColor(bg); setShowColorPicker(false); }}
-                                  className={`w-7 h-7 rounded-lg border transition-transform hover:scale-110 ${newLabelColor === bg ? 'border-white ring-2 ring-blue-500/50' : 'border-transparent'}`}
-                                  style={{ backgroundColor: bg }}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleCreateNewLabelInPopup();
-                          }}
-                          disabled={!newLabelName.trim()}
-                          className="px-3 py-1.5 bg-[#4f9e8a] hover:bg-[#3f8472] disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-colors flex-shrink-0"
-                        >
-                          Tạo mới
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Labels List */}
-                    <div className="flex flex-col gap-2">
-                      {localLabelsList.map(label => {
-                        const isActive = Number(selectedLabelId) === label.id;
-                        return (
-                          <div
-                            key={label.id}
-                            onClick={() => {
-                              setSelectedLabelId(label.id);
-                              setIsCreatingNewLabel(false);
-                            }}
-                            className={`border rounded-xl p-2.5 flex items-center justify-between cursor-pointer transition-colors bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                              isActive ? 'border-blue-600/50 bg-blue-500/5 dark:bg-blue-500/5' : 'border-gray-200 dark:border-gray-800/80'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              {/* Checkbox radio look */}
-                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                                isActive ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600'
-                              }`}>
-                                {isActive && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                              </div>
-                              {/* Label badge */}
-                              <span
-                                className="text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 text-white shadow-sm"
-                                style={{ backgroundColor: label.color || '#3b82f6', color: label.text_color || '#ffffff' }}
-                              >
-                                {label.emoji && <span>{label.emoji}</span>}
-                                <span>{label.name}</span>
-                              </span>
-                            </div>
-                            {/* Profile Owner */}
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                              <div className="w-4.5 h-4.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">
-                                {(zaloId || 'T').slice(0, 1).toUpperCase()}
-                              </div>
-                              <span>{zaloId || 'Tài khoản'}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="px-5 py-3.5 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between flex-shrink-0 bg-[#f4f5f7] dark:bg-gray-900">
-                <span className="text-[11px] text-gray-500">Chọn nhãn để áp dụng</span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowLabelSelectorPopup(false)}
-                    className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-transparent transition-colors font-semibold"
-                  >
-                    Đóng
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedLabelId) {
-                        setAutoLabelEnabled(true);
-                      }
-                      setShowLabelSelectorPopup(false);
-                    }}
-                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors"
-                  >
-                    Xác nhận
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
+          <UnifiedLabelPickerModal
+            open={showLabelSelectorPopup}
+            onClose={() => setShowLabelSelectorPopup(false)}
+            options={unifiedLabelOptions}
+            selected={selectedLabelId ? [`local:${selectedLabelId}`] : []}
+            mode="single"
+            accounts={accounts as any}
+            onChange={(selectedValues) => {
+              if (selectedValues.length === 0) {
+                setSelectedLabelId('');
+                setIsCreatingNewLabel(false);
+              } else {
+                const val = selectedValues[selectedValues.length - 1];
+                if (val.startsWith('local:')) {
+                  const id = Number(val.replace('local:', ''));
+                  setSelectedLabelId(id);
+                  setIsCreatingNewLabel(false);
+                }
+              }
+            }}
+            onConfirm={() => {
+              if (selectedLabelId) {
+                setAutoLabelEnabled(true);
+              }
+              setShowLabelSelectorPopup(false);
+            }}
+            onNewLabelCreated={() => {
+              if (zaloId) {
+                ipc.db?.getLocalLabels({ zaloId }).then((res: any) => {
+                  const activeLabels = (res?.labels || []).filter((l: any) => (l.is_active ?? 1) !== 0);
+                  setLocalLabelsList(activeLabels);
+                });
+              }
+            }}
+          />
         )}
       </div>
     </div>

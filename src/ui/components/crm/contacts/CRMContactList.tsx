@@ -48,7 +48,6 @@ interface CRMContactListProps {
   onMessage?: (contact: CRMContact) => void;
   onImportPhones?: () => void;
   onImportData?: () => void;
-  onCleanupGhostContacts?: () => void;
   onDeleteContact?: (contactId: string) => void;
   /** Batch patch nhiều field của một contact (inline edit) */
   onPatchContact?: (contactId: string, fields: {
@@ -60,6 +59,7 @@ interface CRMContactListProps {
     ai_assistant_id?: string | null;
     ai_auto_summary?: number;
     ai_auto_summary_threshold?: number;
+    real_name?: string | null;
   }) => Promise<void>;
   /** Danh sách trợ lý AI (để render trong cột AI) */
   assistants?: { id: string; name: string }[];
@@ -514,14 +514,13 @@ function SalutationFilterDropdown({ contacts, value, onChange }: {
   );
 }
 
-function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onImportData, onMergeDuplicates, onCleanupGhostContacts }: {
+function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onImportData, onMergeDuplicates }: {
   total: number;
   exportingCSV: boolean;
   onExportCSV: () => void;
   onImportPhones?: () => void;
   onImportData?: () => void;
   onMergeDuplicates?: () => void;
-  onCleanupGhostContacts?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -598,17 +597,7 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onI
               <span>🧹 Gộp liên hệ trùng SĐT</span>
             </button>
           )}
-          {/* Cleanup Ghost Contacts */}
-          {onCleanupGhostContacts && (
-            <button
-              onClick={() => { onCleanupGhostContacts(); setOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-gray-700 transition-colors text-left font-semibold border-t border-gray-700">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-red-400">
-                <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-              </svg>
-              <span>🧹 Dọn sạch liên hệ rác (chưa quét Zalo)</span>
-            </button>
-          )}
+
         </div>
       )}
     </div>
@@ -617,6 +606,7 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onI
 
 interface ColumnVisibility {
   zalo_name: boolean;
+  real_name: boolean;
   gender: boolean;
   salutation: boolean;
   birthday: boolean;
@@ -627,6 +617,7 @@ interface ColumnVisibility {
 
 const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
   zalo_name: false,
+  real_name: false,
   gender: true,
   salutation: true,
   birthday: true,
@@ -637,6 +628,7 @@ const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
 
 const MOBILE_COLUMN_VISIBILITY: ColumnVisibility = {
   zalo_name: false,
+  real_name: false,
   gender: false,
   salutation: false,
   birthday: false,
@@ -669,6 +661,7 @@ function ColumnSelectorDropdown({
 
   const columnsList: { key: keyof ColumnVisibility; label: string; defaultHidden?: boolean }[] = [
     { key: 'zalo_name', label: 'Tên Zalo', defaultHidden: true },
+    { key: 'real_name', label: 'Tên thật', defaultHidden: true },
     { key: 'gender', label: 'Giới tính' },
     { key: 'salutation', label: 'Xưng hô' },
     { key: 'birthday', label: 'Sinh nhật' },
@@ -762,7 +755,7 @@ export default function CRMContactList({
   activeAccountId, localLabels, localLabelThreadMap, assistants, allContactsForFilter,
   onSelectContact, onActivateContact, onSelectAll, onClearAll, onSelectAllPages,
   onExportAll,
-  onFilterChange, onPageChange, onMessage, onImportPhones, onImportData, onCleanupGhostContacts,
+  onFilterChange, onPageChange, onMessage, onImportPhones, onImportData,
   onDeleteContact, onPatchContact,
 }: CRMContactListProps) {
   const totalPages = Math.ceil(total / pageSize);
@@ -1225,6 +1218,13 @@ export default function CRMContactList({
           </>
         )}
 
+        {/* Column Visibility Dropdown */}
+        <ColumnSelectorDropdown
+          visibility={columnVisibility}
+          onToggle={toggleColumn}
+          onReset={resetColumns}
+        />
+
         {/* Actions dropdown (Export CSV + Import SĐT) */}
         <ActionsDropdown
           total={total}
@@ -1233,7 +1233,6 @@ export default function CRMContactList({
           onImportPhones={onImportPhones}
           onImportData={onImportData}
           onMergeDuplicates={handleMergeDuplicates}
-          onCleanupGhostContacts={onCleanupGhostContacts}
         />
 
         {/* Batch Save button — chỉ hiện khi có pending edits */}
@@ -1280,6 +1279,7 @@ export default function CRMContactList({
         <span className="w-8 flex-shrink-0" />
         <span className="flex-1 ml-2">Biệt danh CRM</span>
         {columnVisibility.zalo_name && <span className="flex-1 ml-2 hidden md:block">Tên Zalo</span>}
+        {columnVisibility.real_name && <span className="w-32 flex-shrink-0 hidden md:block">Tên thật</span>}
         {columnVisibility.gender && <span className="w-16 flex-shrink-0 text-center">Giới tính</span>}
         {columnVisibility.salutation && <span className="w-20 flex-shrink-0 text-center">Xưng hô</span>}
         {columnVisibility.birthday && <span className="w-24 flex-shrink-0 text-center">Sinh nhật</span>}
@@ -1474,6 +1474,55 @@ export default function CRMContactList({
                 {columnVisibility.zalo_name && (
                   <div className="flex-1 ml-2 min-w-0 hidden md:flex items-center text-xs text-gray-400 truncate">
                     {contact.display_name || contact.contact_id}
+                  </div>
+                )}
+                {/* Tên thật — inline editable (click / double-click) */}
+                {columnVisibility.real_name && (
+                  <div
+                    className={`w-32 flex-shrink-0 min-w-0 hidden md:flex items-center text-xs truncate cursor-default ${
+                      isEditMode ? 'cursor-text' : ''
+                    }`}
+                    onClick={e => {
+                      if (isEditMode) {
+                        e.stopPropagation();
+                        if (contact.contact_type === 'group') return;
+                        setEditingCell({ contactId: contact.contact_id, field: 'real_name' });
+                      }
+                    }}
+                    onDoubleClick={e => {
+                      e.stopPropagation();
+                      if (contact.contact_type === 'group') return;
+                      setEditingCell({ contactId: contact.contact_id, field: 'real_name' });
+                    }}
+                    title={isEditMode ? 'Nhấp để sửa Tên thật' : 'Nhấp đôi để sửa Tên thật'}
+                  >
+                    {editingCell?.contactId === contact.contact_id && editingCell.field === 'real_name' ? (
+                      <input
+                        autoFocus
+                        defaultValue={pendingEdits[contact.contact_id]?.real_name ?? (contact.real_name || '')}
+                        onBlur={e => commitEdit(contact.contact_id, 'real_name', e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                          if (e.key === 'Escape') setEditingCell(null);
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        placeholder="Nhập tên thật..."
+                        className="text-xs bg-gray-700 border border-blue-500 rounded px-1.5 py-0.5 outline-none text-white w-full"
+                      />
+                    ) : (
+                      <span className={`truncate ${
+                        pendingEdits[contact.contact_id]?.real_name !== undefined
+                          ? 'text-green-400 font-semibold'
+                          : contact.real_name
+                            ? 'text-emerald-400 font-medium'
+                            : 'text-gray-600 italic text-[11px]'
+                      }`}>
+                        {pendingEdits[contact.contact_id]?.real_name !== undefined
+                          ? (pendingEdits[contact.contact_id].real_name || '—')
+                          : (contact.real_name || '—')
+                        }
+                      </span>
+                    )}
                   </div>
                 )}
                 {/* Gender column */}

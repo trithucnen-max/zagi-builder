@@ -1042,12 +1042,12 @@ class WorkflowEngineService {
           let contactRow = null;
           if (ownerZaloId) {
             contactRow = (db as any).query(
-              `SELECT display_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id, ai_profile, extra_data FROM contacts WHERE owner_zalo_id = ? AND contact_id = ? LIMIT 1`,
+              `SELECT display_name, real_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id, ai_profile, extra_data FROM contacts WHERE owner_zalo_id = ? AND contact_id = ? LIMIT 1`,
               [ownerZaloId, contactId]
             )?.[0];
           } else {
             contactRow = (db as any).query(
-              `SELECT display_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id, ai_profile, extra_data FROM contacts WHERE contact_id = ? LIMIT 1`,
+              `SELECT display_name, real_name, alias, phone, salutation, avatar_url, gender, birthday, pipeline_stage_id, ai_profile, extra_data FROM contacts WHERE contact_id = ? LIMIT 1`,
               [contactId]
             )?.[0];
           }
@@ -1073,6 +1073,8 @@ class WorkflowEngineService {
             // tu_xung: tự xưng phù hợp với xưng hô của khách (Em/Con/Cháu/Mình...)
             flatTrigger.tu_xung = getSelfRef(flatTrigger.salutation);
             flatTrigger.alias = contactRow?.alias || '';
+            flatTrigger.real_name = contactRow?.real_name || '';
+            flatTrigger.realName = flatTrigger.real_name;
             flatTrigger.zalo_name = contactRow?.display_name || friendRow?.display_name || flatTrigger.fromName || '';
             flatTrigger.zaloName = flatTrigger.zalo_name;
             flatTrigger.aiProfile = contactRow?.ai_profile || '';
@@ -4891,6 +4893,8 @@ class WorkflowEngineService {
           // Automatic contact fallback for missing CRM contacts
           if (field === 'fullName' || field === 'name' || field === 'displayName') {
             val = ctx.variables?.contact?.fullName || ctx.trigger?.senderName || ctx.trigger?.zaloName || ctx.trigger?.name || ctx.variables?.item?.zaloName || ctx.variables?.item?.phone || ctx.trigger?.phone || ctx.trigger?.senderId || 'Khách hàng';
+          } else if (field === 'real_name' || field === 'realName') {
+            val = ctx.variables?.contact?.real_name || ctx.variables?.contact?.realName || ctx.trigger?.real_name || ctx.trigger?.realName || ctx.variables?.item?.real_name || ctx.variables?.item?.realName || '';
           } else if (field === 'phone' || field === 'phoneNumber') {
             val = ctx.variables?.contact?.phone || ctx.trigger?.phone || ctx.variables?.item?.phone || '';
           } else if (field === 'salutation') {

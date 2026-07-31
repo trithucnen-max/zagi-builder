@@ -79,11 +79,18 @@ function formatPhoneDisplay(phone: string): string {
 
 function formatAccountDisplayName(acc?: any): string {
   if (!acc) return '';
-  if (acc.full_name && acc.full_name.trim()) return acc.full_name.trim();
-  if (acc.display_name && acc.display_name.trim()) return acc.display_name.trim();
-  if (acc.phone && acc.phone.trim()) return formatPhoneDisplay(acc.phone);
-  const idStr = String(acc.zalo_id || '');
-  if (idStr.length > 8) {
+  const candidateNames = [acc.full_name, acc.display_name, acc.name, acc.name_zalo];
+  for (const name of candidateNames) {
+    if (name && typeof name === 'string' && name.trim()) {
+      const trimmed = name.trim();
+      if (!/^\d{8,}$/.test(trimmed)) {
+        return trimmed;
+      }
+    }
+  }
+  if (acc.phone && String(acc.phone).trim()) return formatPhoneDisplay(String(acc.phone));
+  const idStr = String(acc.zalo_id || acc.id || acc.pageId || '');
+  if (idStr && idStr.length > 8) {
     return `Zalo (...${idStr.slice(-4)})`;
   }
   return idStr || 'Zalo Account';
@@ -107,6 +114,7 @@ export default function UnifiedLabelPickerModal({
   const [newLocalLabelName, setNewLocalLabelName] = useState('');
   const [newLocalLabelColor, setNewLocalLabelColor] = useState('#14b8a6');
   const [newLocalLabelEmoji, setNewLocalLabelEmoji] = useState('🏷️');
+  const [isGlobalScope, setIsGlobalScope] = useState(true);
   const [creating, setCreating] = useState(false);
 
   const localOpts = useMemo(() => {
@@ -206,10 +214,8 @@ export default function UnifiedLabelPickerModal({
     setCreating(true);
     try {
       let pageIds = '';
-      if (selectedAccountId === 'all') {
-        pageIds = accounts.map(a => a.zalo_id).join(',');
-      } else {
-        pageIds = selectedAccountId;
+      if (!isGlobalScope) {
+        pageIds = selectedAccountId !== 'all' ? selectedAccountId : '';
       }
 
       const createRes = await ipc.db?.upsertLocalLabel({
@@ -427,6 +433,18 @@ export default function UnifiedLabelPickerModal({
                   onChange={e => setNewLocalLabelName(e.target.value)}
                   className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-teal-500"
                 />
+                <button
+                  type="button"
+                  onClick={() => setIsGlobalScope(prev => !prev)}
+                  className={`px-2 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1 flex-shrink-0 transition-all ${
+                    isGlobalScope
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                      : 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
+                  }`}
+                  title={isGlobalScope ? "Mặc định: Nhãn dùng chung cho Tất cả tài khoản. Bấm để đổi thành Nhãn riêng." : "Nhãn riêng cho tài khoản đang chọn. Bấm để đổi thành Nhãn dùng chung."}
+                >
+                  {isGlobalScope ? '🌐 Tất cả' : '👤 Nhãn riêng'}
+                </button>
                 <select
                   value={newLocalLabelEmoji}
                   onChange={e => setNewLocalLabelEmoji(e.target.value)}
@@ -474,10 +492,10 @@ export default function UnifiedLabelPickerModal({
                     const textColor = opt.textColor || getContrastColor(bgColor);
                     const accId = opt.pageId || opt.accountZaloId || (opt.pageIds && opt.pageIds[0]);
                     const acc = accId ? accountMap.get(accId) : undefined;
-                    const displayName = acc?.full_name || acc?.display_name || (acc as any)?.name || opt.accountName;
+                    const formattedAccName = formatAccountDisplayName(acc);
+                    const displayAccName = formattedAccName || (opt.accountName && !/^\d{8,}$/.test(opt.accountName) ? opt.accountName : (accId && accId.length > 8 ? `Zalo (...${accId.slice(-4)})` : accId));
                     const avatarUrl = acc?.avatar_url || (acc as any)?.avatar;
-                    const effectiveAcc = { avatar_url: avatarUrl, full_name: displayName, display_name: displayName, zalo_id: accId || '' };
-                    const isZaloIdOnly = !displayName || displayName === accId;
+                    const effectiveAcc = { avatar_url: avatarUrl, full_name: displayAccName, display_name: displayAccName, zalo_id: accId || '' };
 
                     return (
                       <button
@@ -524,11 +542,11 @@ export default function UnifiedLabelPickerModal({
                         </span>
 
                         {/* Account info on the right-hand side */}
-                        {selectedAccountId === 'all' && (displayName || acc) && (
+                        {selectedAccountId === 'all' && (accId || displayAccName) && (
                           <div className="flex items-center gap-2 ml-auto flex-shrink-0">
                             <AccountAvatar account={effectiveAcc} size="sm" />
                             <span className="text-xs font-medium text-gray-300">
-                              {!isZaloIdOnly ? displayName : (acc ? formatAccountDisplayName(acc) : (accId ? `Zalo (...${accId.slice(-4)})` : ''))}
+                              {displayAccName}
                             </span>
                           </div>
                         )}

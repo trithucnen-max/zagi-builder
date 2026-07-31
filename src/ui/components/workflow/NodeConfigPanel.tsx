@@ -476,7 +476,7 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
       key: 'message', label: 'Nội dung tin nhắn', type: 'textarea',
       placeholder: 'Xin chào {{ $trigger.fromName }}! Mình có thể giúp gì?',
       desc: 'Nội dung tin nhắn gửi đi. Dùng {{ }} để chèn dữ liệu động như tên người dùng.',
-      templateVars: ['$trigger.fromName', '$trigger.content', '$trigger.threadId'],
+      templateVars: ['$trigger.fromName', '$trigger.realName', '$trigger.salutation', '$trigger.content', '$trigger.threadId'],
     },
     {
       key: 'threadIds', label: 'Gửi đến hội thoại', type: 'contact-picker', contactType: 'all',

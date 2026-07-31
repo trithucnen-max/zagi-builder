@@ -46,59 +46,32 @@ interface CampaignDetailProps {
     daily_start_time?: string;
     scheduled_start_at?: number;
   }) => Promise<void>;
+  onClone?: (id: number) => void;
+  onCopyToAccounts?: (campaign: CRMCampaign) => void;
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  pending: 'text-gray-400', sending: 'text-blue-400 animate-pulse',
-  sent: 'text-green-400', failed: 'text-red-400',
-};
-
-function renderFormattedTemplate(msg?: string) {
-  if (!msg) return <span className="text-gray-500 italic">Chưa có nội dung tin nhắn</span>;
-
-  let parsed: any = null;
-  if (msg.trim().startsWith('{') && msg.trim().endsWith('}')) {
-    try {
-      parsed = JSON.parse(msg);
-    } catch {}
-  }
-
-  if (parsed && Array.isArray(parsed.blocks)) {
-    const blocks: Array<{ id?: string; text: string; images?: string[] }> = parsed.blocks;
-    const mode = parsed.mode === 'sequential' ? 'Tuần tự' : 'Xoay vòng ngẫu nhiên';
-
-    return (
-      <div className="space-y-1.5 mt-1">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-md font-semibold border border-blue-500/30">
-            🔀 Chế độ: {mode} ({blocks.length} biến thể)
-          </span>
-        </div>
-        <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
-          {blocks.map((b, i) => (
-            <div key={b.id || i} className="bg-gray-800/80 border border-gray-700/60 rounded-lg p-2 text-xs">
-              <span className="font-bold text-blue-400 mr-1.5">Mẫu {i + 1}:</span>
-              <span className="text-gray-200 whitespace-pre-wrap">{b.text || <em className="text-gray-500">(Nội dung kèm ảnh)</em>}</span>
-              {b.images && b.images.length > 0 && (
-                <span className="ml-2 text-[10px] text-emerald-400 font-medium">📷 +{b.images.length} ảnh</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return <p className="text-xs text-gray-200 line-clamp-3 leading-relaxed font-normal pr-16">{msg}</p>;
-}
-
-export default function CampaignDetail({ campaign, zaloId, allLabels, localLabels, localLabelThreadMap, onStatusChange, onAddContacts, onUpdate }: CampaignDetailProps) {
+export default function CampaignDetail({
+  campaign,
+  zaloId,
+  allLabels,
+  localLabels,
+  localLabelThreadMap,
+  onStatusChange,
+  onAddContacts,
+  onUpdate,
+  onClone,
+  onCopyToAccounts,
+}: CampaignDetailProps) {
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showTargetSelector, setShowTargetSelector] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
-  // ── Multi-select state for pending contacts ──────────────────────
+  // Pagination states for contacts table
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [page, setPage] = useState(0);
+
+  // Multi-select state for pending contacts
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [removing, setRemoving] = useState(false);
 
@@ -111,15 +84,13 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
 
-  // Reload when total contacts or sent count changes (e.g. from bulk actions or background queue)
   useEffect(() => {
     loadContacts();
   }, [campaign.total_contacts, campaign.sent_count, loadContacts]);
 
-  // Reset selection when campaign changes
-  useEffect(() => { setSelectedIds(new Set()); }, [campaign.id]);
+  useEffect(() => { setSelectedIds(new Set()); setPage(0); }, [campaign.id]);
 
-  // ── Real-time updates từ queue ────────────────────────────────────────────
+  // Real-time updates from queue
   useEffect(() => {
     const unsubUpdate = ipc.on?.('crm:queueUpdate', (data: any) => {
       if (data.campaignId !== campaign.id) return;
@@ -141,74 +112,42 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
     await loadContacts();
   };
 
-  // Thống kê chiến dịch gửi
   const stats = useMemo(() => {
     const total = contacts.length;
     const sentCount = contacts.filter(c => c.status === 'sent').length;
     const failedCount = contacts.filter(c => c.status === 'failed').length;
-    const pendingCount = contacts.filter(c => c.status === 'pending').length;
-    const sendingCount = contacts.filter(c => c.status === 'sending').length;
+    const pendingCount = contacts.filter(c => c.status === 'pending' || c.status === 'sending').length;
 
-    // Phân tích lý do lỗi phổ biến
-    const errorMap: Record<string, number> = {};
-    contacts.forEach(c => {
-      if (c.status === 'failed' && c.error) {
-        const err = c.error.trim();
-        errorMap[err] = (errorMap[err] || 0) + 1;
-      }
-    });
-    const failedReasons = Object.entries(errorMap)
-      .map(([reason, count]) => ({ reason, count }))
-      .sort((a, b) => b.count - a.count);
-
-    return { total, sentCount, failedCount, pendingCount, sendingCount, failedReasons };
+    return { total, sentCount, failedCount, pendingCount };
   }, [contacts]);
 
-  const handleRetryFailures = async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      const res = await ipc.crm?.retryFailedContacts({ zaloId, campaignId: campaign.id });
-      if (res?.success) {
-        await loadContacts();
-      } else {
-        console.error('[CampaignDetail] Retry failed contacts error:', res?.error);
-      }
-    } catch (err) {
-      console.error('[CampaignDetail] Retry failed contacts exception:', err);
-    } finally {
-      setLoading(false);
+  // Render template preview
+  const templateInfo = useMemo(() => {
+    const raw = campaign.template_message || '';
+    if (!raw) return { modeText: 'Biến thể đơn', blocks: [{ text: 'Chưa có nội dung', images: [] }] };
+
+    if (raw.trim().startsWith('{') && raw.trim().endsWith('}')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.blocks)) {
+          const modeText = parsed.mode === 'sequential' ? 'Tuần tự' : `Xoay vòng ngẫu nhiên (${parsed.blocks.length} biến thể)`;
+          return { modeText, blocks: parsed.blocks };
+        }
+      } catch {}
     }
-  };
+    return { modeText: '1 biến thể', blocks: [{ text: raw, images: [] }] };
+  }, [campaign.template_message]);
 
-  const handleRestartCampaign = async () => {
-    if (loading) return;
-    const ok = await showConfirm({
-      title: 'Chạy lại chiến dịch?',
-      message: `Bạn có chắc chắn muốn chạy lại toàn bộ chiến dịch này từ đầu? Tất cả trạng thái gửi và lịch sử gửi cũ của chiến dịch này sẽ được đặt lại.`,
-      variant: 'warning',
-      confirmText: 'Chạy lại',
-    });
-    if (!ok) return;
-
-    setLoading(true);
-    try {
-      const res = await ipc.crm?.restartCampaign({ zaloId, campaignId: campaign.id });
-      if (res?.success) {
-        await loadContacts();
-      } else {
-        console.error('[CampaignDetail] Restart campaign error:', res?.error);
-      }
-    } catch (err) {
-      console.error('[CampaignDetail] Restart campaign exception:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Only pending contacts can be selected & removed
   const pendingContacts = useMemo(() => contacts.filter(c => c.status === 'pending'), [contacts]);
   const allPendingSelected = pendingContacts.length > 0 && pendingContacts.every(c => selectedIds.has(c.contact_id));
+
+  const toggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingContacts.map(c => c.contact_id)));
+    }
+  };
 
   const toggleSelect = (contactId: string, isPending: boolean) => {
     if (!isPending) return;
@@ -219,480 +158,509 @@ export default function CampaignDetail({ campaign, zaloId, allLabels, localLabel
     });
   };
 
-  const toggleSelectAll = () => {
-    if (allPendingSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(pendingContacts.map(c => c.contact_id)));
-    }
-  };
+  const totalPages = Math.max(1, Math.ceil(contacts.length / pageSize));
+  const pagedContacts = contacts.slice(page * pageSize, (page + 1) * pageSize);
 
-  const handleRemoveSelected = async (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (selectedIds.size === 0) return;
-
-    // Guard: API chưa được load (cần restart app)
-    if (typeof ipc.crm?.removeCampaignContacts !== 'function') {
-      alert('⚠️ Tính năng này cần khởi động lại ứng dụng để kích hoạt.\n\nVui lòng tắt và mở lại app.');
+  const handleEditAttempt = async () => {
+    if (campaign.status === 'active') {
+      const ok = await showConfirm({
+        title: '⚠️ Không thể sửa chiến dịch đang chạy',
+        message: 'Chiến dịch đang trong trạng thái Đang chạy. Vui lòng TẠM DỪNG chiến dịch hoặc SAO CHÉP (clone) thành chiến dịch mới để chỉnh sửa nội dung/liên hệ.',
+        confirmText: 'Sao chép chiến dịch đang chọn',
+        cancelText: 'Đóng',
+        variant: 'warning',
+      });
+      if (ok && onClone) {
+        onClone(campaign.id);
+      }
       return;
     }
 
+    if (campaign.status === 'done') {
+      const ok = await showConfirm({
+        title: '⚠️ Không thể sửa chiến dịch đã hoàn thành',
+        message: 'Chiến dịch đã hoàn thành/kết thúc. Vui lòng SAO CHÉP (clone) thành chiến dịch mới để chỉnh sửa nội dung hoặc thêm liên hệ.',
+        confirmText: 'Sao chép chiến dịch đang chọn',
+        cancelText: 'Đóng',
+        variant: 'info',
+      });
+      if (ok && onClone) {
+        onClone(campaign.id);
+      }
+      return;
+    }
+
+    setShowEdit(true);
+  };
+
+  const fmtTime = (ts: number) => {
+    if (!ts) return '--:--';
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const mon = String(d.getMonth() + 1).padStart(2, '0');
+    const yr = d.getFullYear();
+    return `${hh}:${mm}  ${day}/${mon}/${yr}`;
+  };
+
+  const handleRemoveSelected = async () => {
+    if (selectedIds.size === 0) return;
+    const ok = await showConfirm({
+      title: '🗑️ Xóa liên hệ khỏi chiến dịch',
+      message: `Bạn có chắc chắn muốn xóa ${selectedIds.size} liên hệ đã chọn khỏi chiến dịch này?`,
+      confirmText: 'Xóa liên hệ',
+      cancelText: 'Hủy',
+      variant: 'danger',
+    });
+    if (!ok) return;
+
     setRemoving(true);
     try {
-      const res = await ipc.crm.removeCampaignContacts({
+      await ipc.crm?.removeCampaignContacts({
         zaloId,
         campaignId: campaign.id,
-        contactIds: [...selectedIds],
+        contactIds: Array.from(selectedIds),
       });
-      if (res?.success === false) {
-        console.error('[CampaignDetail] removeCampaignContacts failed:', res);
-      }
       setSelectedIds(new Set());
       await loadContacts();
     } catch (err) {
-      console.error('[CampaignDetail] removeCampaignContacts error:', err);
+      console.error('Failed to remove campaign contacts', err);
     } finally {
       setRemoving(false);
     }
   };
 
-  // Build dedup set: include both contact_id and phone: prefix for phone imports
-  const existingIds = new Set(contacts.flatMap((c: any) => {
-    const ids: string[] = [c.contact_id];
-    if (c.phone) ids.push(`phone:${c.phone}`);
-    return ids;
-  }));
+  const handleAddContactsClick = async () => {
+    if (campaign.status === 'done') {
+      const ok = await showConfirm({
+        title: '⚠️ Chiến dịch đã hoàn thành',
+        message: 'Chiến dịch này đã hoàn thành/kết thúc nên không thể thêm liên hệ mới. Vui lòng SAO CHÉP (clone) thành chiến dịch mới để thêm liên hệ.',
+        confirmText: 'Sao chép chiến dịch',
+        cancelText: 'Đóng',
+        variant: 'info',
+      });
+      if (ok && onClone) {
+        onClone(campaign.id);
+      }
+      return;
+    }
+    setShowTargetSelector(true);
+  };
 
-  const fmt = (ts: number) => ts ? new Date(ts).toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
-  const progress = campaign.total_contacts > 0 ? (campaign.sent_count / campaign.total_contacts) * 100 : 0;
-
-  const canEdit = campaign.status === 'draft' || campaign.status === 'paused';
+  const createdDateStr = campaign.created_at
+    ? new Date(campaign.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '';
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Campaign header */}
-      <div className="px-5 py-4 border-b border-gray-700 flex-shrink-0">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-white text-sm truncate">{campaign.name}</h3>
-            <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-              <span className="flex items-center gap-0.5">
-                <AppIcon name="clock" className="text-gray-500" size={10} />
-                ⏱ {fmtDelayRange(campaign.delay_min_seconds || Math.max(5, campaign.delay_seconds - 10), campaign.delay_max_seconds || campaign.delay_seconds + 10)}
-              </span>
-              <span>·</span>
-              <span className="flex items-center gap-0.5">
-                <AppIcon name="users" className="text-gray-500" size={10} />
-                {campaign.total_contacts} liên hệ
-              </span>
-              {campaign.daily_send_limit > 0 && (
-                <>
-                  <span>·</span>
-                  <span className="flex items-center gap-0.5">
-                    <AppIcon name="chart" className="text-gray-500" size={10} />
-                    {campaign.daily_send_limit}/ngày
-                  </span>
-                </>
-              )}
-              {campaign.scheduled_start_at > 0 && (
-                <>
-                  <span>·</span>
-                  <span className="flex items-center gap-0.5">
-                    <AppIcon name="clock" className="text-gray-500" size={10} />
-                    Hẹn giờ: {new Date(campaign.scheduled_start_at).toLocaleString('vi-VN', { hour12: false })}
-                  </span>
-                </>
-              )}
-            </p>
+    <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      {/* ── Top Header Bar ── */}
+      <div className="px-6 py-4 bg-white dark:bg-gray-850 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2.5 mb-1.5">
+            <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">{campaign.name}</h2>
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 ${
+              campaign.status === 'active'
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 animate-pulse'
+                : campaign.status === 'paused'
+                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                : campaign.status === 'done'
+                ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+            }`}>
+              {campaign.status === 'active' ? '▶ Đang chạy' : campaign.status === 'paused' ? '⏸ Tạm dừng' : campaign.status === 'done' ? '✓ Hoàn thành' : 'Nháp'}
+            </span>
           </div>
-          <div className="flex gap-1.5 flex-shrink-0">
-            {/* Nút Sửa: bấm để mở modal chỉnh sửa */}
-            {onUpdate && (
-              <button onClick={() => setShowEdit(true)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 transition-colors flex items-center gap-1 font-semibold">
-                <AppIcon name="edit" className="text-blue-400" size={11} />
-                Sửa chiến dịch
-              </button>
-            )}
-            {campaign.status === 'draft' && (
-              <button onClick={() => onStatusChange(campaign.id, 'active')}
-                className="text-xs px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center gap-1 font-medium">
-                <AppIcon name="play" className="text-white fill-white" size={10} />
-                Bắt đầu
-              </button>
-            )}
-            {campaign.status === 'active' && (
-              <button onClick={() => onStatusChange(campaign.id, 'paused')}
-                className="text-xs px-3 py-1.5 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white flex items-center gap-1 font-medium">
-                <AppIcon name="pause" className="text-white fill-white" size={10} />
-                Tạm dừng
-              </button>
-            )}
-            {campaign.status === 'paused' && (
-              <button onClick={() => onStatusChange(campaign.id, 'active')}
-                className="text-xs px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center gap-1 font-medium">
-                <AppIcon name="play" className="text-white fill-white" size={10} />
-                Tiếp tục
-              </button>
+
+          <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+            <span className="flex items-center gap-1 font-medium">
+              ⏱ {fmtDelayRange(campaign.delay_min_seconds || Math.max(5, campaign.delay_seconds - 10), campaign.delay_max_seconds || campaign.delay_seconds + 10)}
+            </span>
+            <span>·</span>
+            <span className="flex items-center gap-1 font-medium">
+              👥 {contacts.length} liên hệ
+            </span>
+            {createdDateStr && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-1 font-medium">
+                  📅 Tạo lúc: {createdDateStr}
+                </span>
+              </>
             )}
           </div>
         </div>
 
+        {/* Action Buttons: Sửa chiến dịch & Sao chép sang Zalo khác & Tiếp tục / Tạm dừng */}
+        <div className="flex items-center gap-2">
+          {onCopyToAccounts && (
+            <button
+              onClick={() => onCopyToAccounts(campaign)}
+              className="px-3.5 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-xs font-bold hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5 transition-all shadow-2xs"
+              title="Sao chép kịch bản chiến dịch sang các tài khoản Zalo khác"
+            >
+              <span>📋</span>
+              <span>Sao chép sang Zalo khác</span>
+            </button>
+          )}
 
-        {/* Daily progress */}
-        {campaign.daily_send_limit > 0 && (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-[11px] text-gray-500">Hôm nay:</span>
-            <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden max-w-[120px]">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, (campaign.sent_today_count ?? 0) / campaign.daily_send_limit * 100)}%` }}
-              />
+          {onUpdate && (
+            <button
+              onClick={handleEditAttempt}
+              className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-xs font-bold hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5 transition-all shadow-2xs"
+            >
+              <span>✏️</span>
+              <span>Sửa chiến dịch</span>
+            </button>
+          )}
+
+          {campaign.status === 'active' ? (
+            <button
+              onClick={() => onStatusChange(campaign.id, 'paused')}
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+            >
+              <span>⏸</span>
+              <span>Tạm dừng</span>
+            </button>
+          ) : campaign.status === 'done' ? (
+            <button
+              onClick={() => onStatusChange(campaign.id, 'active')}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+            >
+              <span>🔄</span>
+              <span>Chạy lại</span>
+            </button>
+          ) : campaign.status === 'draft' ? (
+            <button
+              onClick={() => onStatusChange(campaign.id, 'active')}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+            >
+              <span>▶</span>
+              <span>Bắt đầu</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => onStatusChange(campaign.id, 'active')}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+            >
+              <span>▶</span>
+              <span>Tiếp tục</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-5 flex flex-col justify-between min-h-0">
+        {/* ── Grid 4 Summary KPI Cards (Matching Mockup Image) ── */}
+        <div className="grid grid-cols-4 gap-4">
+          {/* Card 1: Tổng số */}
+          <div className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 flex items-center gap-3.5 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl flex-shrink-0">
+              👤
             </div>
-            <span className="text-[11px] text-emerald-400 font-medium tabular-nums">
-              {campaign.sent_today_count ?? 0}/{campaign.daily_send_limit}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Tổng số</p>
+              <p className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.total}</p>
+            </div>
+          </div>
+
+          {/* Card 2: Thành công */}
+          <div className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 flex items-center gap-3.5 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl flex-shrink-0">
+              ✅
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Thành công</p>
+              <p className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.sentCount}</p>
+            </div>
+          </div>
+
+          {/* Card 3: Thất bại */}
+          <div className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 flex items-center gap-3.5 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl flex-shrink-0">
+              ❌
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Thất bại</p>
+              <p className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.failedCount}</p>
+            </div>
+          </div>
+
+          {/* Card 4: Đang chờ */}
+          <div className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 flex items-center gap-3.5 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl flex-shrink-0">
+              🟧
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Đang chờ</p>
+              <p className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.pendingCount}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Template Tin Nhắn Section Card (Clickable to Edit) ── */}
+        <div
+          onClick={handleEditAttempt}
+          className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-xs space-y-3 cursor-pointer hover:border-blue-400 dark:hover:border-blue-600 transition-all hover:shadow-sm group relative"
+          title="Bấm bất kỳ đâu trong phần preview này để chỉnh sửa chiến dịch"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-extrabold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                Template tin nhắn
+              </h3>
+            </div>
+            {onUpdate && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleEditAttempt(); }}
+                className="px-3 py-1.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 flex items-center gap-1.5 transition-all shadow-2xs group-hover:border-blue-400 group-hover:text-blue-600"
+              >
+                <span>✏️</span>
+                <span>Sửa nội dung</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5">
+              <span>🔄</span>
+              <span>Chế độ: {templateInfo.modeText}</span>
             </span>
           </div>
-        )}
 
-        {/* ── BÁO CÁO CHIẾN DỊCH (Modern Premium Dashboard Style matching user mockup) ── */}
-        <div className="mt-4 p-4 bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-750 rounded-2xl shadow-sm space-y-3.5">
-          {/* Header: Title + Status Pill + Action Buttons */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M18 20V10M12 20V4M6 20v-6" />
-                </svg>
+          <div className="space-y-2">
+            {templateInfo.blocks.map((b: any, idx: number) => (
+              <div key={idx} className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-xl p-3 text-xs flex items-center justify-between gap-3 group-hover:border-blue-200 dark:group-hover:border-blue-900/40 transition-colors">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">Mẫu {idx + 1}:</span>
+                  <span className="text-gray-800 dark:text-gray-200 truncate">{b.text || '(Chưa có nội dung văn bản)'}</span>
+                </div>
+                {b.images && b.images.length > 0 && (
+                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md flex-shrink-0 flex items-center gap-1 border border-emerald-200 dark:border-emerald-800/40">
+                    <span>🖼️</span>
+                    <span>+{b.images.length} ảnh</span>
+                  </span>
+                )}
               </div>
-              <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-800 dark:text-gray-200">
-                BÁO CÁO CHIẾN DỊCH
-              </h3>
-              <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider ${
-                campaign.status === 'done'
-                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                  : campaign.status === 'active'
-                  ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 animate-pulse'
-                  : campaign.status === 'paused'
-                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-              }`}>
-                {campaign.status === 'done' ? 'HOÀN THÀNH' : campaign.status === 'active' ? 'ĐANG CHẠY' : campaign.status === 'paused' ? 'TẠM DỪNG' : 'NHÁP'}
+            ))}
+          </div>
+        </div>
+
+        {/* ── Bảng Dữ Liệu Liên Hệ Trong Chiến Dịch ── */}
+        <div className="bg-white dark:bg-gray-850 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xs flex flex-col flex-1 min-h-[340px] justify-between overflow-hidden">
+          {/* Header Bar */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3 flex-wrap">
+            <h3 className="text-sm font-extrabold text-gray-900 dark:text-white">
+              {contacts.length} liên hệ
+            </h3>
+
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={handleRemoveSelected}
+                  disabled={removing}
+                  className="px-3.5 py-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/80 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <span>🗑️</span>
+                  <span>Xóa {selectedIds.size} liên hệ đã chọn</span>
+                </button>
+              )}
+              <button
+                onClick={handleAddContactsClick}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+              >
+                <span className="text-sm font-bold">+</span>
+                <span>Thêm liên hệ</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Data Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider text-[10px]">
+                  <th className="p-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allPendingSelected}
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </th>
+                  <th className="p-3 w-12 text-center">STT</th>
+                  <th className="p-3">LIÊN HỆ</th>
+                  <th className="p-3">SỐ ĐIỆN THOẠI</th>
+                  <th className="p-3">TRẠNG THÁI</th>
+                  <th className="p-3">THỜI GIAN</th>
+                  <th className="p-3 w-10 text-center">···</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-gray-400">
+                      Đang tải danh sách liên hệ...
+                    </td>
+                  </tr>
+                ) : contacts.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-gray-400">
+                      Chưa có liên hệ nào trong chiến dịch này
+                    </td>
+                  </tr>
+                ) : (
+                  pagedContacts.map((c, idx) => {
+                    const stt = page * pageSize + idx + 1;
+                    const isPending = c.status === 'pending';
+                    const isChecked = selectedIds.has(c.contact_id);
+
+                    return (
+                      <tr key={c.id || c.contact_id} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors">
+                        <td className="p-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={!isPending}
+                            onChange={() => toggleSelect(c.contact_id, isPending)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-30"
+                          />
+                        </td>
+                        <td className="p-3 text-center font-bold text-gray-400">
+                          {stt}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2.5">
+                            {c.avatar ? (
+                              <img src={c.avatar} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 dark:border-gray-700" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-xs">
+                                {(c.display_name || 'U').charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <span className="font-normal text-gray-900 dark:text-white truncate">
+                              {c.display_name || c.contact_id}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3 font-semibold text-gray-600 dark:text-gray-300 tabular-nums">
+                          {c.phone || '--'}
+                        </td>
+                        <td className="p-3">
+                          {c.status === 'sent' ? (
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-[11px] font-bold inline-flex items-center gap-1">
+                              <span>✓</span> Sent
+                            </span>
+                          ) : c.status === 'failed' ? (
+                            <span className="px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/40 text-[11px] font-bold inline-flex items-center gap-1" title={c.error}>
+                              <span>✕</span> Failed
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700 text-[11px] font-semibold inline-flex items-center gap-1">
+                              <span>⏳</span> Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-gray-500 dark:text-gray-400 text-[11px] tabular-nums">
+                          {fmtTime(c.sent_at)}
+                        </td>
+                        <td className="p-3 text-center">
+                          <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+                            ⋮
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Table Pagination Footer (Anchored to Bottom & Matching Left Footer Height) ── */}
+          <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between gap-4 flex-wrap text-xs text-gray-500 mt-auto bg-white dark:bg-gray-850 h-[52px] flex-shrink-0">
+            <div className="flex items-center gap-1">
+              <span>Hiển thị</span>
+              <select
+                value={pageSize}
+                onChange={e => { setPageSize(Number(e.target.value)); setPage(0); }}
+                className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-800 dark:text-gray-200 focus:outline-none"
+              >
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={200}>200</option>
+                <option value={500}>500</option>
+              </select>
+              <span>/ trang</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page === 0}
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                ‹
+              </button>
+
+              <span className="w-7 h-7 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-2xs">
+                {page + 1}
               </span>
-            </div>
 
-            {/* Reset/Retry Action buttons */}
-            <div className="flex items-center gap-2">
-              {stats.failedCount > 0 && (campaign.status === 'done' || campaign.status === 'paused') && (
-                <button
-                  onClick={handleRetryFailures}
-                  className="px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-2xs"
-                  title="Gửi lại cho các liên hệ bị lỗi"
-                >
-                  <AppIcon name="sync" size={12} />
-                  <span>Gửi bù lỗi ({stats.failedCount})</span>
-                </button>
-              )}
-              {(campaign.status === 'done' || campaign.status === 'paused') && (
-                <button
-                  onClick={handleRestartCampaign}
-                  className="px-3.5 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95"
-                  title="Gửi lại toàn bộ liên hệ từ đầu"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                  </svg>
-                  <span>Chạy lại</span>
-                </button>
-              )}
-            </div>
-          </div>
+              <button
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs disabled:opacity-30 hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                ›
+              </button>
 
-          {/* ── 4 Vibrant Stat Cards Grid (Matching User Mockup) ── */}
-          <div className="grid grid-cols-4 gap-3">
-            {/* Thẻ 1: TỔNG SỐ (Blue Gradient) */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-blue-600 to-blue-700 !text-white shadow-md flex items-center justify-between select-none" style={{ color: '#ffffff' }}>
-              {/* Background Watermark SVG */}
-              <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-              </svg>
-
-              <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 !text-white flex items-center justify-center flex-shrink-0 shadow-sm" style={{ color: '#ffffff' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" className="text-white">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-xs font-black !text-white uppercase tracking-wider" style={{ color: '#ffffff' }}>Tổng số</p>
-                  <p className="text-2xl font-black !text-white leading-none mt-1" style={{ color: '#ffffff' }}>{stats.total || campaign.total_contacts || 0}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Thẻ 2: THÀNH CÔNG (Green Gradient) */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-emerald-500 to-teal-600 !text-white shadow-md flex items-center justify-between select-none" style={{ color: '#ffffff' }}>
-              {/* Background Watermark SVG */}
-              <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
-              </svg>
-
-              <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 !text-white flex items-center justify-center flex-shrink-0 shadow-sm" style={{ color: '#ffffff' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="text-white">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-xs font-black !text-white uppercase tracking-wider" style={{ color: '#ffffff' }}>Thành công</p>
-                  <p className="text-2xl font-black !text-white leading-none mt-1" style={{ color: '#ffffff' }}>{stats.sentCount || campaign.sent_count || 0}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Thẻ 3: THẤT BẠI (Red Gradient) */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-rose-500 to-red-600 !text-white shadow-md flex items-center justify-between select-none" style={{ color: '#ffffff' }}>
-              {/* Background Watermark SVG */}
-              <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-              </svg>
-
-              <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 !text-white flex items-center justify-center flex-shrink-0 shadow-sm" style={{ color: '#ffffff' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="text-white">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-xs font-black !text-white uppercase tracking-wider" style={{ color: '#ffffff' }}>Thất bại</p>
-                  <p className="text-2xl font-black !text-white leading-none mt-1" style={{ color: '#ffffff' }}>{stats.failedCount || campaign.failed_count || 0}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Thẻ 4: ĐANG CHỜ (Orange Gradient) */}
-            <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-amber-500 to-orange-600 !text-white shadow-md flex items-center justify-between select-none" style={{ color: '#ffffff' }}>
-              {/* Background Watermark SVG */}
-              <svg className="absolute -right-2 -bottom-2 w-20 h-20 text-white/10 pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4zM10 6L8 8V4h8v4l-2-2h-4z"/>
-              </svg>
-
-              <div className="relative z-10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/25 backdrop-blur-md border border-white/40 !text-white flex items-center justify-center flex-shrink-0 shadow-sm" style={{ color: '#ffffff' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" className="text-white">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-xs font-black !text-white uppercase tracking-wider" style={{ color: '#ffffff' }}>Đang chờ</p>
-                  <p className="text-2xl font-black !text-white leading-none mt-1" style={{ color: '#ffffff' }}>{stats.pendingCount + stats.sendingCount}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Failures reasons summary */}
-          {stats.failedReasons.length > 0 && (
-            <div className="bg-rose-50 dark:bg-rose-955/20 border border-rose-200 dark:border-rose-900/40 p-3 rounded-2xl text-xs">
-              <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-                <AppIcon name="x" className="text-rose-500" size={12} />
-                Chi tiết nguyên nhân thất bại:
-              </p>
-              <div className="space-y-1 max-h-[80px] overflow-y-auto pr-1">
-                {stats.failedReasons.map(({ reason, count }) => (
-                  <div key={reason} className="flex justify-between items-start text-[11px] text-rose-800 dark:text-rose-300 leading-normal gap-2">
-                    <span className="truncate flex-1">• {reason}</span>
-                    <span className="font-mono text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 px-1.5 py-0.5 rounded font-bold flex-shrink-0">
-                      {count} lượt
-                    </span>
-                  </div>
+              {/* Quick Page Size Pill Buttons (Matching Mockup: [20] [50] [200] [500]) */}
+              <div className="flex items-center gap-1 ml-2">
+                {[20, 50, 200, 500].map(sz => (
+                  <button
+                    key={sz}
+                    onClick={() => { setPageSize(sz); setPage(0); }}
+                    className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] transition-colors ${
+                      pageSize === sz
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    {sz}
+                  </button>
                 ))}
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Template preview - Clickable to Edit Campaign */}
-        <div
-          onClick={() => setShowEdit(true)}
-          title="Bấm vào để chỉnh sửa kịch bản & cài đặt chiến dịch"
-          className="mt-3 p-3 bg-gray-700/50 hover:bg-gray-700/80 border border-transparent hover:border-blue-500/50 rounded-xl cursor-pointer transition-all group relative shadow-xs"
-        >
-          <div className="absolute top-2.5 right-2.5 opacity-60 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[11px] font-bold text-blue-400 bg-blue-600/10 px-2 py-0.5 rounded-md border border-blue-500/20">
-            <AppIcon name="edit" size={11} />
-            <span>Sửa nội dung</span>
           </div>
-
-          {campaign.campaign_type === 'invite_to_group' ? (() => {
-            let groupIds: string[] = [];
-            try { groupIds = JSON.parse(campaign.mixed_config || '{}').group_ids || []; } catch {}
-            return (
-              <>
-                <p className="text-[11px] text-gray-400 font-medium mb-1 flex items-center gap-1">
-                  <AppIcon name="users" className="text-gray-400" size={12} />
-                  Nhóm đích:
-                </p>
-                {groupIds.length > 0
-                  ? <p className="text-xs text-orange-300 font-semibold">{groupIds.length} nhóm đã chọn</p>
-                  : <p className="text-xs text-gray-500 italic">Chưa cấu hình nhóm</p>}
-              </>
-            );
-          })() : (
-            <>
-              <p className="text-[11px] text-gray-400 font-medium mb-1 flex items-center gap-1">
-                <AppIcon name="message" className="text-blue-400" size={12} />
-                {campaign.campaign_type === 'friend_request' ? 'Tin nhắn kết bạn:' : 'Template tin nhắn:'}
-              </p>
-              {campaign.campaign_type === 'friend_request'
-                ? <p className="text-xs text-gray-200 line-clamp-3 leading-relaxed font-normal pr-16">{campaign.friend_request_message}</p>
-                : renderFormattedTemplate(campaign.template_message)}
-              {campaign.campaign_type === 'mixed' && campaign.friend_request_message && (
-                <>
-                  <p className="text-[11px] text-gray-400 mt-2 mb-1 font-medium">Fallback kết bạn:</p>
-                  <p className="text-xs text-gray-300 line-clamp-1">{campaign.friend_request_message}</p>
-                </>
-              )}
-            </>
-          )}
         </div>
       </div>
 
-      {/* Contact list header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          {/* Select-all checkbox for pending contacts */}
-          {pendingContacts.length > 0 && canEdit && (
-            <label className="flex items-center gap-1.5 cursor-pointer group" title="Chọn tất cả đang chờ">
-              <input
-                type="checkbox"
-                checked={allPendingSelected}
-                onChange={toggleSelectAll}
-                className="accent-blue-500 w-3.5 h-3.5"
-              />
-              <span className="text-[11px] text-gray-500 group-hover:text-gray-300 transition-colors select-none">
-                {selectedIds.size > 0 ? `${selectedIds.size} đã chọn` : `${contacts.length} liên hệ`}
-              </span>
-            </label>
-          )}
-          {pendingContacts.length === 0 && (
-            <span className="text-xs text-gray-400">{contacts.length} liên hệ</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Remove selected button */}
-          {selectedIds.size > 0 && (
-            <button
-              onClick={(e) => handleRemoveSelected(e)}
-              disabled={removing}
-              className="text-xs px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors disabled:opacity-50 flex items-center gap-1"
-            >
-              {removing ? (
-                <span className="inline-block w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <AppIcon name="trash" className="text-red-400" size={11} />
-              )}
-              Xóa {selectedIds.size}
-            </button>
-          )}
-          {canEdit && (
-            <button onClick={() => setShowTargetSelector(true)}
-              className="text-xs text-blue-400 hover:text-blue-300 transition-colors">+ Thêm liên hệ</button>
-          )}
-        </div>
-      </div>
-
-      {/* Contact rows */}
-      <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="p-4 space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="h-9 bg-gray-700/50 rounded animate-pulse" />)}</div>
-        ) : contacts.map(c => {
-          const isPending = c.status === 'pending';
-          const isSelected = selectedIds.has(c.contact_id);
-          return (
-            <div
-              key={c.id}
-              onClick={() => toggleSelect(c.contact_id, isPending)}
-              className={`flex items-center gap-2.5 px-4 py-2.5 border-b border-gray-700/50 transition-colors ${isPending && canEdit ? 'cursor-pointer hover:bg-gray-700/30' : ''} ${isSelected ? 'bg-blue-500/10' : ''}`}
-            >
-              {/* Checkbox for pending contacts */}
-              {isPending && canEdit ? (
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleSelect(c.contact_id, isPending)}
-                  onClick={e => e.stopPropagation()}
-                  className="accent-blue-500 flex-shrink-0 w-3.5 h-3.5"
-                />
-              ) : (
-                <div className="w-3.5 h-3.5 flex-shrink-0" />
-              )}
-
-              {c.avatar
-                ? <img src={c.avatar} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-                : <div className="w-7 h-7 rounded-full bg-gray-600 flex items-center justify-center text-xs text-white flex-shrink-0">
-                    {(c.display_name || c.contact_id || '?').charAt(0).toUpperCase()}
-                  </div>}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-200 truncate">{c.display_name || c.contact_id}</p>
-                {c.phone && <p className="text-[11px] text-gray-500 font-mono truncate">{c.phone}</p>}
-                {!c.phone && c.contact_id && c.contact_id !== c.display_name && (
-                  <p className="text-[11px] text-gray-600 font-mono truncate">{c.contact_id}</p>
-                )}
-              </div>
-              <span className={`text-[11px] flex-shrink-0 flex items-center gap-1 font-medium ${STATUS_STYLE[c.status]}`}>
-                {c.status === 'pending' && <AppIcon name="clock" className="text-gray-400" size={10} />}
-                {c.status === 'sending' && <AppIcon name="send" className="text-blue-400 animate-pulse" size={10} />}
-                {c.status === 'sent' && <AppIcon name="check" className="text-green-400" size={11} />}
-                {c.status === 'failed' && <AppIcon name="x" className="text-red-400" size={10} />}
-                <span className="capitalize">{c.status}</span>
-              </span>
-              {c.sent_at > 0 && <span className="text-[11px] text-gray-600 flex-shrink-0">{fmt(c.sent_at)}</span>}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* TargetSelector modal */}
+      {/* Target Selector Modal */}
       {showTargetSelector && (
         <TargetSelector
           zaloId={zaloId}
           allLabels={allLabels}
           localLabels={localLabels}
           localLabelThreadMap={localLabelThreadMap}
-          existingContactIds={existingIds}
+          existingContactIds={new Set(contacts.flatMap((c: any) => [c.contact_id, c.phone ? `phone:${c.phone}` : '']))}
+          existingIds={new Set(contacts.flatMap((c: any) => [c.contact_id, c.phone ? `phone:${c.phone}` : '']))}
           onConfirm={handleConfirmTargets}
           onClose={() => setShowTargetSelector(false)}
         />
       )}
 
-      {/* Edit modal */}
+      {/* Edit Modal */}
       {showEdit && (
         <CampaignCreateModal
+          initialData={campaign as any}
           editMode
           zaloId={zaloId}
-          initialData={{
-            name: campaign.name,
-            template_message: campaign.template_message,
-            friend_request_message: campaign.friend_request_message,
-            campaign_type: campaign.campaign_type,
-            mixed_config: campaign.mixed_config || '{}',
-            delay_seconds: campaign.delay_seconds,
-            delay_min_seconds: campaign.delay_min_seconds,
-            delay_max_seconds: campaign.delay_max_seconds,
-            per_contact_delay_min_seconds: campaign.per_contact_delay_min_seconds,
-            per_contact_delay_max_seconds: campaign.per_contact_delay_max_seconds,
-            daily_send_limit: campaign.daily_send_limit,
-            daily_start_time: campaign.daily_start_time,
-          }}
           onClose={() => setShowEdit(false)}
-          onSave={async (data) => {
-            await onUpdate?.(data);
+          onSave={async data => {
+            if (onUpdate) await onUpdate(data as any);
             setShowEdit(false);
+            loadContacts();
           }}
         />
       )}
