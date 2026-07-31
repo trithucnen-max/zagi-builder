@@ -174,7 +174,7 @@ export class DataAccessor {
   // CONVERSATIONS (Contacts)
   // ═════════════════════════════════════════════════════════════════
 
-  static async getConversations(zaloId: string, limit = 50, offset = 0) {
+  static async getConversations(zaloId: string, limit = 2000, offset = 0) {
     if (isEmployee()) {
       const res = await rest().get('/api/query/conversations', { zaloId, limit, offset });
       if (res.success && res.data) {

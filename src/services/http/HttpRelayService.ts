@@ -304,17 +304,31 @@ class HttpRelayService {
             }));
             const accountsData = allAccounts
                 .filter(a => assignedAccounts.includes(a.zalo_id))
-                .map(a => ({
-                    zalo_id: a.zalo_id,
-                    full_name: a.full_name,
-                    avatar_url: a.avatar_url,
-                    phone: a.phone || '',
-                    is_business: a.is_business || 0,
-                    is_active: a.is_active,
-                    listener_active: a.listener_active,
-                    channel: a.channel || 'zalo',
-                    facebook_id: a.facebook_id || undefined,
-                }));
+                .map(a => {
+                    let fullName = a.full_name || '';
+                    let avatarUrl = a.avatar_url || '';
+                    if (!fullName || fullName === a.zalo_id) {
+                        try {
+                            const ownerContact = DatabaseService.getInstance().queryOne<any>(
+                                'SELECT display_name, avatar_url FROM contacts WHERE owner_zalo_id=? AND contact_id=? LIMIT 1',
+                                [a.zalo_id, a.zalo_id]
+                            );
+                            if (ownerContact?.display_name) fullName = ownerContact.display_name;
+                            if (!avatarUrl && ownerContact?.avatar_url) avatarUrl = ownerContact.avatar_url;
+                        } catch {}
+                    }
+                    return {
+                        zalo_id: a.zalo_id,
+                        full_name: fullName || a.zalo_id,
+                        avatar_url: avatarUrl,
+                        phone: a.phone || '',
+                        is_business: a.is_business || 0,
+                        is_active: a.is_active,
+                        listener_active: a.listener_active,
+                        channel: a.channel || 'zalo',
+                        facebook_id: a.facebook_id || undefined,
+                    };
+                });
 
             return {
                 assignedAccounts,

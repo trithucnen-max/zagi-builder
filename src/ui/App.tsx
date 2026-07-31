@@ -772,7 +772,7 @@ export default function App() {
           try {
             const contactsRes = isEmp
               ? await Promise.race([
-                  DataAccessor.getConversations(acc.zalo_id),
+                  DataAccessor.getConversations(acc.zalo_id, 2000),
                   new Promise(r => setTimeout(() => r(null), 5000)),
                 ])
               : await Promise.race([
@@ -899,7 +899,7 @@ export default function App() {
             console.log(`[App] Requesting contacts for ${acc.zalo_id} (isEmployeeMode=${isEmpMode})...`);
             
             const contactsRes = isEmpMode
-              ? await DataAccessor.getConversations(acc.zalo_id)
+              ? await DataAccessor.getConversations(acc.zalo_id, 2000)
               : await ipc.db?.getContacts(acc.zalo_id);
               
             const contactsList = isEmpMode
@@ -1085,7 +1085,7 @@ export default function App() {
             console.log(`[App] syncComplete: Requesting contacts for ${zaloId} (isEmployeeMode=${isEmp})...`);
             const contactsRes = isEmp
               ? await Promise.race([
-                  DataAccessor.getConversations(zaloId),
+                  DataAccessor.getConversations(zaloId, 2000),
                   new Promise(r => setTimeout(() => r(null), 5000)),
                 ])
               : await Promise.race([

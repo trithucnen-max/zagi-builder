@@ -120,7 +120,15 @@ export const handlers = {
     const accountsData = zaloIds.map(zaloId => {
       try {
         const rows = db().query<any>('SELECT zalo_id, full_name, avatar_url, phone, is_active, listener_active, channel FROM accounts WHERE zalo_id=?', [zaloId]);
-        return rows[0] || { zalo_id: zaloId, full_name: '', avatar_url: '', phone: '', is_active: 1, listener_active: 0, channel: 'zalo' };
+        let acc = rows[0] || { zalo_id: zaloId, full_name: '', avatar_url: '', phone: '', is_active: 1, listener_active: 0, channel: 'zalo' };
+        if (!acc.full_name || acc.full_name === zaloId) {
+          try {
+            const ownerContact = db().queryOne<any>('SELECT display_name, avatar_url FROM contacts WHERE owner_zalo_id=? AND contact_id=? LIMIT 1', [zaloId, zaloId]);
+            if (ownerContact?.display_name) acc.full_name = ownerContact.display_name;
+            if (!acc.avatar_url && ownerContact?.avatar_url) acc.avatar_url = ownerContact.avatar_url;
+          } catch {}
+        }
+        return acc;
       } catch { return { zalo_id: zaloId, full_name: '', avatar_url: '', phone: '', is_active: 1, listener_active: 0, channel: 'zalo' }; }
     });
 
@@ -148,7 +156,7 @@ export const handlers = {
     const isAll = !requestedZaloId || requestedZaloId === 'all';
     const targetZaloIds = isAll ? assignedAccounts : [requestedZaloId];
 
-    const limit = Math.min(parseInt(params.limit) || 50, 200);
+    const limit = Math.min(parseInt(params.limit) || 500, 5000);
     const offset = parseInt(params.offset) || 0;
     const search = params.search || '';
 
