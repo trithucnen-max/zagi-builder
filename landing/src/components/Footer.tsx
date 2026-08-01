@@ -10,10 +10,7 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-200">
-                <img src={logo} alt="Zagi" className="w-8 h-8 rounded-lg object-contain" />
-              </div>
-              <span className="font-bold text-lg text-slate-950">Zagi</span>
+              <img src={logo} alt="Zagi" className="h-10 w-auto object-contain" />
             </div>
             <p className="text-slate-600 text-sm leading-relaxed max-w-sm">
               Phần mềm quản lý Zalo & Facebook chuyên nghiệp dành cho cá nhân và doanh nghiệp.

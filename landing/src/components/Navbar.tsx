@@ -26,13 +26,7 @@ const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6 h-[72px] flex items-center justify-between">
         {/* Logo */}
         <button onClick={() => scrollToSection('hero')} className="flex items-center gap-3 no-underline group bg-transparent border-none cursor-pointer">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-slate-200">
-            <img src={logo} alt="Zagi" className="w-8 h-8 rounded-lg object-contain group-hover:scale-105 transition-transform" />
-          </div>
-          <div className="text-left">
-            <span className="block font-bold text-lg text-slate-900 tracking-tight">Zagi</span>
-            <span className="block text-[11px] font-medium uppercase tracking-[0.24em] text-slate-400">operator workspace</span>
-          </div>
+          <img src={logo} alt="Zagi" className="h-10 w-auto object-contain group-hover:scale-105 transition-transform" />
         </button>
 
         {/* Desktop nav */}
