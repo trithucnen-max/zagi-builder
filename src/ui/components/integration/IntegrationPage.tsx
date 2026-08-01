@@ -127,7 +127,7 @@ const CATALOG: Record<string, CatalogItem[]> = {
       desc: 'Nhận webhook giao dịch từ SePay. Kích hoạt workflow tự động khi nhận tiền.',
       credentialFields: [
         { key: 'apiKey',          label: 'API Key', secret: true, placeholder: 'SePay API Key' },
-        { key: 'webhookSecretKey', label: 'Webhook Secret', secret: true, placeholder: 'Để trống nếu không cần' },
+        { key: 'webhookSecretKey', label: 'Webhook Secret', secret: true, placeholder: 'Để trống nếu không cần', optional: true },
       ],
     },
   ],

@@ -2574,19 +2574,19 @@ class HttpRelayService {
             // ── Integration CRUD ──
             if (pathname === '/api/command/integrations') {
                 const { IntegrationRegistry } = require('../integrations/IntegrationRegistry');
-                const saved = IntegrationRegistry.getInstance().saveIntegration(params.integration || params);
-                return { success: true, data: saved };
+                const savedId = IntegrationRegistry.saveConfig(params.integration || params);
+                return { success: true, id: savedId, data: savedId };
             }
             if (pathname.match(/^\/api\/command\/integrations\/[^/]+\/toggle$/)) {
                 const id = pathname.split('/')[3];
                 const { IntegrationRegistry } = require('../integrations/IntegrationRegistry');
-                IntegrationRegistry.getInstance().toggleIntegration(id, params.enabled !== false);
+                IntegrationRegistry.toggleEnabled(id, params.enabled !== false);
                 return { success: true };
             }
             if (pathname.match(/^\/api\/command\/integrations\/[^/]+$/)) {
                 const id = pathname.split('/').pop() || '';
                 const { IntegrationRegistry } = require('../integrations/IntegrationRegistry');
-                IntegrationRegistry.getInstance().deleteIntegration(id);
+                IntegrationRegistry.deleteConfig(id);
                 return { success: true };
             }
 
