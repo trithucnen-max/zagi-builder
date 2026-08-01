@@ -1730,6 +1730,18 @@ export function useZaloEvents() {
       }
     }));
 
+    unsubs.push(ipc.on('db:markAsRead', (data: any) => {
+      const zaloId = data?.ownerZaloId || data?.zaloId;
+      const contactId = data?.contactId;
+      if (zaloId && contactId) {
+        clearUnread(zaloId, contactId);
+        useChatStore.getState().updateContact(zaloId, {
+          contact_id: contactId,
+          unread_count: 0,
+        });
+      }
+    }));
+
     // Cache dữ liệu bank card khi Workflow gửi để BankCardBubble hiển thị hình ảnh thẻ đẹp
     unsubs.push(ipc.on('zalo:bankCardCached', (data: any) => {
       if (data?.ownerZaloId && data?.threadId && data?.binBank && data?.numAccBank) {

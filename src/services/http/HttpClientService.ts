@@ -96,6 +96,7 @@ class HttpClientService {
         'db:pinnedConversationChanged',
         'db:contactFlagsChanged',
         'db:contactAliasChanged',
+        'db:markAsRead',
         'event:friendRequestSent',
         'event:friendRequestRemoved',
         'crm:queueUpdate',
@@ -1109,6 +1110,17 @@ class HttpClientService {
                 runOnWsDb(() => {
                     if (data.ownerZaloId && data.contactId) {
                         db.setContactAlias(data.ownerZaloId, data.contactId, data.alias);
+                    }
+                });
+                return;
+            }
+
+            // ── Mark As Read ──
+            if (channel === 'db:markAsRead' && data) {
+                runOnWsDb(() => {
+                    const zid = data.ownerZaloId || data.zaloId;
+                    if (zid && data.contactId) {
+                        db.markAsRead(zid, data.contactId);
                     }
                 });
                 return;

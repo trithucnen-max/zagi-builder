@@ -149,6 +149,7 @@ export function registerDatabaseIpc() {
         try {
             if (isEmployeeMode()) proxyToBoss('db:markAsRead', { zaloId, contactId });
             DatabaseService.getInstance().markAsRead(zaloId, contactId);
+            EventBroadcaster.emit('db:markAsRead', { ownerZaloId: zaloId, zaloId, contactId });
             return { success: true };
         } catch (error: any) {
             return { success: false, error: error.message };

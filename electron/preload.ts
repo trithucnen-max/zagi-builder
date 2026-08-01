@@ -789,6 +789,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'db:pinnedConversationChanged',
       'db:contactFlagsChanged',
       'db:contactAliasChanged',
+      'db:markAsRead',
       'event:friendRequestSent',
       'event:friendRequestRemoved',
       'event:pollVote',

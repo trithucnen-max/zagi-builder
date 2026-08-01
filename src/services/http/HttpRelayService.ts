@@ -201,6 +201,7 @@ class HttpRelayService {
         'event:friendAccepted',
         'event:typing',
         'event:seen',
+        'db:markAsRead',
         'event:undo',
         'event:delete',
         'event:reminder',
