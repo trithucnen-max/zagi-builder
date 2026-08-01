@@ -173,8 +173,17 @@ class HttpClientService {
             this.socketIOClient.setOnEvent((channel, eventData) => {
                 this.handlePushedEvent(channel, eventData);
             });
+            let isInitialSocketConnect = true;
             this.socketIOClient.setOnStatusChange((connected) => {
                 Logger.log(`[HttpClientService] Socket.IO ${connected ? '🟢' : '🔴'} (workspace=${this.workspaceId})`);
+                if (connected) {
+                    if (!isInitialSocketConnect) {
+                        Logger.log(`[HttpClientService] ⚡ Socket.IO reconnected! Requesting snapshot & triggering catch-up...`);
+                        this.requestSnapshot().catch(() => {});
+                        try { this.onSSEReconnected?.(); } catch {}
+                    }
+                    isInitialSocketConnect = false;
+                }
             });
             this.socketIOClient.connect(this.bossUrl, this.token);
 

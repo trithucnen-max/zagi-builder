@@ -1744,6 +1744,34 @@ export function useZaloEvents() {
       }
     }));
 
+    // Auto-reload contacts and active thread messages on syncComplete / connection re-established
+    const handleSyncComplete = async () => {
+      Logger.log('[useZaloEvents] ⚡ workspace:syncComplete or connection re-established -> reloading contacts & messages');
+      const accounts = useAccountStore.getState().accounts;
+      for (const acc of accounts) {
+        if (!acc.zalo_id) continue;
+        try {
+          const res = await ipc.db?.getContacts(acc.zalo_id);
+          if (res?.contacts?.length > 0) {
+            useChatStore.getState().setContacts(acc.zalo_id, res.contacts);
+          }
+        } catch {}
+      }
+      const activeThreadId = useChatStore.getState().activeThreadId;
+      const activeAccountId = useAccountStore.getState().activeAccountId;
+      if (activeAccountId && activeThreadId) {
+        try {
+          const msgsRes = await ipc.db?.getMessages({ zaloId: activeAccountId, threadId: activeThreadId, limit: 50, offset: 0 });
+          if (msgsRes?.messages) {
+            useChatStore.getState().setMessages(activeAccountId, activeThreadId, msgsRes.messages);
+          }
+        } catch {}
+      }
+    };
+
+    unsubs.push(ipc.on('workspace:syncComplete', handleSyncComplete));
+    unsubs.push(ipc.on('workspace:initialState', handleSyncComplete));
+
     return () => { unsubs.forEach(u => u?.()); };
   }, []);
 }

@@ -224,8 +224,21 @@ class HttpConnectionManager {
 
         if (options?.onSyncProgress) service.setOnSyncProgress(options.onSyncProgress);
 
-        // Socket.IO tự động reconnect + catch-up (EventBuffer),
-        // không cần refresh snapshot khi reconnect nữa.
+        service.setOnSSEReconnected(async () => {
+            Logger.log(`[HttpConnectionManager] ⚡ Reconnected for workspace "${workspaceId}" — refreshing snapshot & notifying renderer`);
+            const snapRes = await service.requestSnapshot();
+            this.sendToRenderer('workspace:connectionStatus', {
+                workspaceId,
+                connected: true,
+                latency: service.getStatus().latency,
+                isUsingLan: service.getStatus().isUsingLan,
+                bossUrl: service.getBossUrl(),
+            });
+            if (snapRes.success && snapRes.snapshot) {
+                this.sendToRenderer('workspace:initialState', { workspaceId, ...snapRes.snapshot });
+            }
+            this.sendToRenderer('workspace:syncComplete', { workspaceId, syncType: 'delta', syncTs: Date.now() });
+        });
 
         const result = await service.connect(bossUrl, token);
         this.connecting.delete(workspaceId);
