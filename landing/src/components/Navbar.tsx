@@ -25,8 +25,8 @@ const Navbar: React.FC = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-slate-200/80 bg-white/88 backdrop-blur-2xl shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
       <div className="max-w-7xl mx-auto px-6 h-[72px] flex items-center justify-between">
         {/* Logo */}
-        <button onClick={() => scrollToSection('hero')} className="flex items-center gap-3 no-underline group bg-transparent border-none cursor-pointer">
-          <img src={logo} alt="Zagi" className="h-10 w-auto object-contain group-hover:scale-105 transition-transform" />
+        <button onClick={() => scrollToSection('hero')} className="flex items-center no-underline group bg-transparent border-none cursor-pointer p-0">
+          <img src={logo} alt="Zagi" className="h-14 w-auto object-contain group-hover:scale-105 transition-transform" />
         </button>
 
         {/* Desktop nav */}
