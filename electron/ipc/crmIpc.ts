@@ -477,7 +477,7 @@ export function registerCRMIpc(): void {
             }
             const db = DatabaseService.getInstance();
             const days = db.getSetting(`crm_send_log_cleanup_days_${zaloId}`);
-            return { success: true, days: days ? parseInt(days, 10) : 0 };
+            return { success: true, days: days ? parseInt(days, 10) : 30 };
         }
         catch (e: any) { return { success: false, error: e.message }; }
     });

@@ -6373,12 +6373,26 @@ class DatabaseService {
         try {
             // 1. Lấy chiến dịch đang chạy (active) của riêng tài khoản zaloId này (tối đa 1 chiến dịch active)
             const activeCampaigns = this.query<any>(
-                `SELECT id, daily_send_limit FROM crm_campaigns WHERE owner_zalo_id=? AND status='active' ORDER BY updated_at DESC, id DESC LIMIT 1`, [zaloId]
+                `SELECT id, campaign_type, daily_send_limit FROM crm_campaigns WHERE owner_zalo_id=? AND status='active' AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY updated_at DESC, id DESC LIMIT 1`, [zaloId]
             );
 
-            // 2. Lọc bỏ các chiến dịch mà zaloId này đã đạt giới hạn gửi tin trong ngày
+            // 2. Lọc bỏ các chiến dịch đã đạt giới hạn an toàn tài khoản hoặc giới hạn riêng chiến dịch
+            const todayCount = this.getTodayStrangerSentCount(zaloId);
+            const msgLimit   = this.getStrangerMsgLimit(zaloId);
+            const invLimit   = this.getFriendReqLimit(zaloId);
+
             const allowedCampaignIds: number[] = [];
             for (const camp of activeCampaigns) {
+                const cType = camp.campaign_type || 'message';
+                if (cType === 'friend_request' && todayCount.invites >= invLimit) {
+                    continue; // Đã đạt định mức kết bạn ngày của tài khoản, dừng lấy item
+                }
+                if (cType === 'message' && todayCount.messages >= msgLimit) {
+                    continue; // Đã đạt định mức tin nhắn ngày của tài khoản, dừng lấy item
+                }
+                if (cType === 'mixed' && (todayCount.messages >= msgLimit || todayCount.invites >= invLimit)) {
+                    continue;
+                }
                 if (camp.daily_send_limit > 0) {
                     const sentToday = this.getDailySentCountForCampaign(camp.id, zaloId);
                     if (sentToday >= camp.daily_send_limit) {
@@ -6577,14 +6591,14 @@ class DatabaseService {
     }
 
     public getSendLog(ownerZaloId: string, opts: { contactId?: string; campaignId?: number; limit?: number } = {}): CRMSendLog[] {
-        if (!this.initialized) return [];
+        if (!this.initialized || !ownerZaloId || !ownerZaloId.trim()) return [];
         try {
             let q = `SELECT * FROM crm_send_log WHERE owner_zalo_id=?`;
-            const params: any[] = [ownerZaloId];
+            const params: any[] = [ownerZaloId.trim()];
             if (opts.contactId) { q += ` AND contact_id=?`; params.push(opts.contactId); }
             if (opts.campaignId) { q += ` AND campaign_id=?`; params.push(opts.campaignId); }
             q += ` ORDER BY sent_at DESC LIMIT ?`;
-            params.push(opts.limit || 100);
+            params.push(opts.limit || 2000);
             return this.query<any>(q, params);
         } catch (err: any) { Logger.error(`[DB] getSendLog: ${err.message}`); return []; }
     }

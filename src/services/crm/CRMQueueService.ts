@@ -334,23 +334,25 @@ class CRMQueueService {
                 } catch { return false; }
             })();
 
-            if (!contactIsFriend) {
-                // Lấy số đã gửi hôm nay (cross-campaign) và các định mức của tài khoản
-                const todayCount = db.getTodayStrangerSentCount(zaloId);
-                const msgLimit   = db.getStrangerMsgLimit(zaloId);
-                const invLimit   = db.getFriendReqLimit(zaloId);
+            // Lấy số đã gửi hôm nay (cross-campaign) và các định mức an toàn tài khoản
+            const todayCount = db.getTodayStrangerSentCount(zaloId);
+            const msgLimit   = db.getStrangerMsgLimit(zaloId);
+            const invLimit   = db.getFriendReqLimit(zaloId);
 
-                let limitReached = false;
-                let limitType = '';
+            let limitReached = false;
+            let limitType = '';
 
-                if (contactType === 'friend_request') {
-                    if (todayCount.invites >= invLimit) {
-                        limitReached = true;
-                        limitType = 'friend_req_limit_reached';
-                        Logger.log(`[CRMQueue] ⚠️ Account ${zaloId}: Friend request quota reached (${todayCount.invites}/${invLimit})`);
-                    }
-                } else if (contactType === 'mixed') {
-                    // Mixed: dừng khi chạm bất kỳ định mức nào
+            // 1. Lời mời kết bạn luôn bị kiểm tra hạn ngạch Zalo gửi kết bạn (friend_req_daily_limit)
+            //    Zalo tính số lượt API sendFriendRequest / ngày, bất kể đối tượng là ai.
+            if (contactType === 'friend_request') {
+                if (todayCount.invites >= invLimit) {
+                    limitReached = true;
+                    limitType = 'friend_req_limit_reached';
+                    Logger.log(`[CRMQueue] ⚠️ Account ${zaloId}: Friend request quota reached (${todayCount.invites}/${invLimit})`);
+                }
+            } else if (!contactIsFriend) {
+                // 2. Gửi tin nhắn người lạ (chưa kết bạn) mới bị tính vào hạn ngạch tin nhắn người lạ
+                if (contactType === 'mixed') {
                     if (todayCount.messages >= msgLimit) {
                         limitReached = true;
                         limitType = 'msg_daily_limit_reached';
@@ -361,21 +363,21 @@ class CRMQueueService {
                         Logger.log(`[CRMQueue] ⚠️ Account ${zaloId}: Friend request quota reached (${todayCount.invites}/${invLimit}) — Mixed campaign paused`);
                     }
                 } else {
-                    // message campaign
+                    // message campaign for stranger
                     if (todayCount.messages >= msgLimit) {
                         limitReached = true;
                         limitType = 'msg_daily_limit_reached';
                         Logger.log(`[CRMQueue] ⚠️ Account ${zaloId}: Message quota reached (${todayCount.messages}/${msgLimit})`);
                     }
                 }
-
-                if (limitReached) {
-                    this.dailyPausedCampaigns.set(item.campaign_id, true);
-                    this.broadcastStatus(zaloId, limitType);
-                    return;
-                }
-                this.dailyPausedCampaigns.delete(item.campaign_id);
             }
+
+            if (limitReached) {
+                this.dailyPausedCampaigns.set(item.campaign_id, true);
+                this.broadcastStatus(zaloId, limitType);
+                return;
+            }
+            this.dailyPausedCampaigns.delete(item.campaign_id);
         }
 
         // ── Per-Campaign Daily Limit Check (Hạn mức riêng cho Chiến dịch - áp dụng cho cả Bạn bè & Người lạ) ──

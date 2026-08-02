@@ -169,10 +169,14 @@ export default function SendHistoryLog(_props: SendHistoryLogProps) {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const [cleanupDays, setCleanupDays] = useState(0);
+  const [cleanupDays, setCleanupDays] = useState(30);
 
   const loadData = useCallback(async () => {
-    if (!activeAccountId) return;
+    if (!activeAccountId) {
+      setLogs([]);
+      setAllCampaigns([]);
+      return;
+    }
     setLoading(true);
     // Load logs + all campaigns + settings in parallel
     const [logsRes, campsRes, settingsRes] = await Promise.all([
@@ -180,9 +184,15 @@ export default function SendHistoryLog(_props: SendHistoryLogProps) {
       ipc.crm?.getCampaigns({ zaloId: activeAccountId }),
       ipc.crm?.getSendLogCleanupSettings({ zaloId: activeAccountId })
     ]);
-    if (logsRes?.success) setLogs(logsRes.logs);
+    if (logsRes?.success) {
+      // Đảm bảo chỉ hiển thị log thuộc đúng tài khoản activeAccountId đang chọn
+      const accountLogs = (logsRes.logs || []).filter((l: any) => !l.owner_zalo_id || l.owner_zalo_id === activeAccountId);
+      setLogs(accountLogs);
+    } else {
+      setLogs([]);
+    }
     if (campsRes?.success) setAllCampaigns(campsRes.campaigns.map((c: any) => ({ id: c.id, name: c.name, campaign_type: c.campaign_type || 'message' })));
-    if (settingsRes?.success) setCleanupDays(settingsRes.days || 0);
+    if (settingsRes?.success) setCleanupDays(settingsRes.days ?? 30);
     setLoading(false);
     setPage(0);
   }, [activeAccountId]);
