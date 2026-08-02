@@ -1,14 +1,13 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 31/07/2026  
+> **Ngày cập nhật:** 02/08/2026  
 > **Phiên bản:** v3.1.1 (Stable)  
 > **Nhánh Git hiện tại:** `main`  
-
 ---
 
 ## 1. Thông Tin Chung & Kiến Trúc
 *   **Tên dự án:** Zagi (Hộp thư Zalo đa tài khoản tích hợp CRM, ERP, POS, Workflow và Trợ lý AI).
-*   **Đường dẫn thư mục:** `/Users/kimtrungduong/Downloads/deplao`
-*   **Tổng số tệp tin:** 644 tệp tin được quản lý trong thư mục dự án.
+*   **Đường dẫn thư mục:** `/Users/kimtrungduong/Downloads/zagi`
+*   **Tổng số tệp tin:** 645 tệp tin được quản lý trong thư mục dự án.
 
 ## 2. Ngăn Xếp Công Nghệ (Tech Stack)
 *   **Giao diện & Desktop Shell:** Electron v41 + React v18 + Vite v6 + TypeScript v5.
@@ -26,7 +25,11 @@
 1.  **Hộp thư đa tài khoản:** Đăng nhập song song QR/Cookie, gom tin nhắn, cấu hình Proxy riêng cho từng tài khoản.
 2.  **CRM & Kanban Pipeline:** Phễu Kanban, phân biệt Nhãn Zalo & Nhãn Local độc lập.
 3.  **Quản lý nhóm nâng cao:** Rời nhóm hàng loạt (tự chuyển quyền Trưởng nhóm & gửi tin nhắn tạm biệt qua AI), quét UID thành viên ẩn bằng thuật toán **Quét Bóng Thụ Động (PSS)**.
-4.  **Chiến dịch gửi tin an toàn:** Cơ chế trễ ngẫu nhiên (1-2s hoặc 2-3s) và phân đợt gửi tin (tối đa 20 người/lần, nghỉ 30s) tránh khóa tài khoản.
+4.  **Chiến dịch gửi tin an toàn & Định mức Tài khoản Zalo (v3.1.1):**
+    *   Quản lý 2 định mức độc lập theo từng tài khoản Zalo (Tin nhắn người lạ & Kết bạn).
+    *   Khắc phục nguy cơ khóa nick bằng Chặn cứng 1 chiến dịch / 1 tài khoản Zalo.
+    *   Tự động miễn trừ bạn bè khỏi định mức an toàn, hỗ trợ Giới hạn riêng cho từng chiến dịch (rải rác tin nhắn bạn bè).
+    *   Tự khôi phục ngày mới theo Khung giờ nghỉ (Quiet Hours) & Giờ hẹn cố định (`scheduled_time_of_day`).
 5.  **Workflow tự động hóa:**
     *   Động cơ Workflow chạy Sandbox Debugger trực quan (Xanh/Đỏ/Xám).
     *   Trình chọn nhiều ảnh & gửi ngẫu nhiên (`MultiImageSelector`).
