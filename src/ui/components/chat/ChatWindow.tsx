@@ -5022,39 +5022,90 @@ function EcardBubble({ msg, onManage }: { msg: any; onManage?: () => void }) {
 
 function CardBubble({ msg, isSent, onOpenProfile }: { msg: any; isSent: boolean; onOpenProfile?: (userId: string, e: React.MouseEvent) => void }) {
   let parsed: any = {};
-  try { parsed = JSON.parse(msg.content || '{}'); } catch {}
-  const action = String(parsed.action || '');
-  if (action === 'recommened.link') return <LinkBubble parsed={parsed} isSent={isSent} />;
-  // recommened.calltime = cuộc gọi có thời gian, recommened.misscall = cuộc gọi nhỡ
-  if (action === 'recommened.calltime' || action === 'recommened.misscall') return <CallBubble parsed={parsed} isSent={isSent} />;
+  if (typeof msg.content === 'string') {
+    try { parsed = JSON.parse(msg.content); } catch { parsed = { href: msg.content }; }
+  } else if (typeof msg.content === 'object' && msg.content !== null) {
+    parsed = msg.content;
+  }
+
+  const action = String(parsed?.action || '');
+  const mt = String(msg.msg_type || msg.msgType || '');
+
+  // Kiểm tra chắc chắn xem có phải tin nhắn link hay không (bao gồm share.link, chat.link, chat.recommended, href/url trong parsed, hoặc regex link trong text)
+  const isLinkMsg = mt === 'share.link' || mt === 'chat.link' || mt === 'chat.recommended' || mt === 'link' ||
+    action.includes('link') || parsed?.href || parsed?.url || parsed?.link ||
+    (parsed?.title && (String(parsed.title).startsWith('http://') || String(parsed.title).startsWith('https://'))) ||
+    (typeof msg.content === 'string' && /https?:\/\/[^\s"':<>]+/i.test(msg.content));
+
+  if (isLinkMsg) return <LinkBubble parsed={parsed} msgContent={msg.content} isSent={isSent} />;
+  if (action.includes('calltime') || action.includes('misscall')) return <CallBubble parsed={parsed} isSent={isSent} />;
   return <ContactCardBubble parsed={parsed} isSent={isSent} onOpenProfile={onOpenProfile} />;
 }
 
 // ─── LinkBubble — hiển thị tin nhắn link preview như Zalo ────────────────────
-// ─── LinkBubble — hiển thị tin nhắn link preview như Zalo ────────────────────
-function LinkBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
-  const href = String(parsed.href || parsed.title || '');
-  const params = (() => { try { const p = parsed.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
-  const title = String(params.mediaTitle || parsed.title || href);
-  const domain = String(params.src || '');
-  const thumb = String(parsed.thumb || '');
-  const description = String(params.mediaDesc || parsed.description || '');
+function LinkBubble({ parsed, msgContent, isSent }: { parsed: any; msgContent?: string; isSent: boolean }) {
+  const params = (() => {
+    try {
+      const p = parsed?.params;
+      return typeof p === 'string' ? JSON.parse(p) : (p || {});
+    } catch { return {}; }
+  })();
 
+  // Trích xuất URL linh hoạt từ tất cả các trường hoặc regex trong nội dung tin nhắn
+  let href = String(
+    parsed?.href ||
+    parsed?.url ||
+    parsed?.link ||
+    params?.rawUrl ||
+    params?.url ||
+    params?.link ||
+    (parsed?.title && String(parsed.title).startsWith('http') ? parsed.title : '') ||
+    ''
+  ).trim();
+
+  if (!href && msgContent) {
+    const strContent = typeof msgContent === 'string' ? msgContent : JSON.stringify(msgContent);
+    const match = strContent.match(/https?:\/\/[^\s"':<>]+/i);
+    if (match) href = match[0];
+  }
+
+  if (!href && typeof msgContent === 'string' && msgContent.startsWith('http')) {
+    href = msgContent.trim();
+  }
+
+  const title = String(params?.mediaTitle || parsed?.title || (href && href !== 'undefined' ? href : 'Liên kết chia sẻ'));
+  const domain = String(params?.src || (href.startsWith('http') ? (() => { try { return new URL(href).hostname; } catch { return ''; } })() : ''));
+  const thumb = String(parsed?.thumb || params?.thumb || parsed?.thumbUrl || '');
+  const description = String(params?.mediaDesc || parsed?.description || '');
+
+  // Nếu hoàn toàn không thể tìm thấy URL hợp lệ, hiển thị bóng tin nhắn text thông thường thay vì thẻ trắng trống
+  if (!href && !parsed?.title) {
+    const textContent = typeof msgContent === 'string' ? msgContent : JSON.stringify(parsed);
+    return (
+      <div className={`px-3.5 py-2.5 rounded-2xl text-sm max-w-[320px] break-words whitespace-pre-wrap ${isSent ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
+        {textContent || '(Liên kết)'}
+      </div>
+    );
+  }
+
+  // Thẻ xem trước có hình ảnh đại diện (Thumbnail)
   if (thumb) {
     return (
-      <div className="w-full max-w-sm bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col p-3 gap-2.5 text-left">
-        <a
-          href="#"
-          onClick={(e) => { e.preventDefault(); ipc.shell?.openExternal(href); }}
-          className="text-[13px] text-blue-600 hover:underline break-all leading-tight"
-        >
-          {href}
-        </a>
+      <div className="w-full max-w-sm bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col p-3 gap-2.5 text-left select-text">
+        {href && (
+          <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); ipc.shell?.openExternal(href); }}
+            className="text-[13px] text-blue-600 hover:underline break-all leading-tight font-medium"
+          >
+            {href}
+          </a>
+        )}
         <div
           onClick={() => href && ipc.shell?.openExternal(href)}
           className="w-full aspect-[16/9] rounded-lg overflow-hidden bg-gray-100 cursor-pointer border border-gray-100"
         >
-          <img src={thumb} alt="" className="w-full h-full object-cover" />
+          <img src={thumb} alt="" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
         </div>
         <div
           onClick={() => href && ipc.shell?.openExternal(href)}
@@ -5078,24 +5129,25 @@ function LinkBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
     );
   }
 
+  // Thẻ liên kết tiêu chuẩn (gọn gàng không có ảnh)
   return (
-    <div className="min-w-[220px] max-w-xs overflow-hidden bg-white border border-gray-200 rounded-xl shadow-sm text-left">
-      <div className="flex items-center gap-3 px-3 py-2.5 select-text cursor-text">
-        <div className="w-11 h-11 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center bg-gray-100 border border-gray-200">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.5">
+    <div className="min-w-[240px] max-w-sm overflow-hidden bg-white border border-gray-200 rounded-xl shadow-sm text-left select-text">
+      <div className="flex items-center gap-3 px-3 py-2.5 cursor-text">
+        <div className="w-10 h-10 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center bg-blue-50 border border-blue-100 text-blue-600">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
             <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium leading-tight break-words text-slate-900">{title}</p>
+          <p className="text-sm font-semibold leading-tight break-words text-slate-900">{title !== href ? title : (domain || 'Liên kết chia sẻ')}</p>
           {domain && <p className="text-xs mt-0.5 truncate text-slate-500">{domain}</p>}
         </div>
       </div>
       {href && (
         <button
           onClick={() => ipc.shell?.openExternal(href)}
-          className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs truncate border-t border-gray-100 text-blue-600 hover:bg-slate-50 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs break-all border-t border-gray-100 text-blue-600 hover:bg-slate-50 transition-colors font-medium select-text"
           title={href}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
@@ -5103,7 +5155,7 @@ function LinkBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
             <polyline points="15 3 21 3 21 9"/>
             <line x1="10" y1="14" x2="21" y2="3"/>
           </svg>
-          <span className="truncate">{href}</span>
+          <span className="break-all">{href}</span>
         </button>
       )}
     </div>

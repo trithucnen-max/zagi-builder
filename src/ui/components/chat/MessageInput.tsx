@@ -1921,6 +1921,26 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           await channelIpc.sendMessage('facebook', { accountId: activeAccountId, threadId: activeThreadId, body: msgText, threadType: activeThreadType, quote: quotePayload })
             .then((r: any) => { if (!r?.success) showNotification(r?.error || 'Gửi tin nhắn Facebook thất bại', 'error'); });
         } else {
+          const tempMsgId = `temp_link_${Date.now()}`;
+          const linkContent = JSON.stringify({
+            href: linkPayload.url,
+            url: linkPayload.url,
+            title: linkPayload.url,
+            action: 'share.link',
+          });
+          addMessage(activeAccountId, activeThreadId, {
+            msg_id: tempMsgId,
+            owner_zalo_id: activeAccountId,
+            thread_id: activeThreadId,
+            thread_type: activeThreadType,
+            sender_id: activeAccountId,
+            content: linkContent,
+            msg_type: 'share.link',
+            timestamp: Date.now(),
+            is_sent: 1,
+            status: 'sent',
+          });
+
           const res = await ipc.zalo?.sendLink({
             auth,
             url: linkPayload.url,
@@ -1928,12 +1948,16 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
             type: activeThreadType,
             ...(quotePayload ? { quote: quotePayload } : {}),
           });
-          if (res && !res.success) {
-            console.warn('[MessageInput] sendLink failed, falling back to sendMessage:', res.error);
+
+          if (res && res.success) {
+            if (activeAccountId) markReplied(activeAccountId, activeThreadId);
+          } else {
+            console.warn('[MessageInput] sendLink failed, falling back to sendMessage:', res?.error);
+            removeMessage(activeAccountId, activeThreadId, tempMsgId);
             // Fallback to text message
-            const tempMsgId = `temp_${Date.now()}`;
+            const fallbackTempId = `temp_${Date.now()}`;
             addMessage(activeAccountId, activeThreadId, {
-              msg_id: tempMsgId, owner_zalo_id: activeAccountId, thread_id: activeThreadId,
+              msg_id: fallbackTempId, owner_zalo_id: activeAccountId, thread_id: activeThreadId,
               thread_type: activeThreadType, sender_id: activeAccountId, content: msgText,
               msg_type: 'text', timestamp: Date.now(), is_sent: 1, status: 'sending',
             });
@@ -1944,13 +1968,13 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
               });
               if (sendRes && !sendRes.success) {
                 showNotification('Gửi thất bại: ' + sendRes.error, 'error');
-                removeMessage(activeAccountId, activeThreadId, tempMsgId);
+                removeMessage(activeAccountId, activeThreadId, fallbackTempId);
               } else {
                 if (activeAccountId) markReplied(activeAccountId, activeThreadId);
               }
             } catch (sendErr: any) {
               showNotification('Gửi thất bại: ' + sendErr.message, 'error');
-              removeMessage(activeAccountId, activeThreadId, tempMsgId);
+              removeMessage(activeAccountId, activeThreadId, fallbackTempId);
             }
           }
         }
