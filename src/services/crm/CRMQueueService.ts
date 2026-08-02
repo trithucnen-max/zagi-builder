@@ -1085,8 +1085,8 @@ class CRMQueueService {
             const isBlockedErr = (() => {
                 const lower = errMsg.toLowerCase();
                 const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
-                if (code === -201 || code === -202 || code === 108 || code === 300) return true;
-                return lower.includes('chặn') || lower.includes('blocked') || lower.includes('không thể gửi tin') || lower.includes('người lạ');
+                if (code === -201 || code === -202 || code === 108 || code === 127 || code === 300) return true;
+                return lower.includes('chặn') || lower.includes('blocked') || lower.includes('không thể nhận') || lower.includes('không thể gửi tin') || lower.includes('người lạ');
             })();
 
             if (isBlockedErr) {
@@ -1300,11 +1300,12 @@ export default CRMQueueService;
 function isMixedFallbackError(err: any): boolean {
     const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? -1);
     // Zalo error codes for "can only receive from friends" or "blocked"
-    if ([4, 9, 214, 216, 576, 579].includes(code)) return true;
+    if ([4, 9, 127, 214, 216, 576, 579].includes(code)) return true;
     const msg = String(err?.message || '').toLowerCase();
     return (
         msg.includes('block') ||
         msg.includes('chặn') ||
+        msg.includes('không thể nhận') ||
         msg.includes('bạn bè') ||
         msg.includes('không thể gửi') ||
         msg.includes('không hợp lệ') ||
