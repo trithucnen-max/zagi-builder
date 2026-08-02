@@ -17,6 +17,7 @@ interface CampaignListProps {
   onEdit?: (campaign: CRMCampaign) => void;
   onCopyToAccounts?: (campaign: CRMCampaign) => void;
   zaloId?: string;
+  queueStatus?: { running: boolean; dailyPaused?: boolean; type?: string; tokens: number; maxTokens?: number; lastSentAt: number };
 }
 
 export default function CampaignList({
@@ -31,6 +32,7 @@ export default function CampaignList({
   onEdit,
   onCopyToAccounts,
   zaloId,
+  queueStatus,
 }: CampaignListProps) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -289,28 +291,37 @@ export default function CampaignList({
                     {/* Left: Status Indicator Icon (Far left) + Campaign Name (No STT) */}
                     <div className="flex items-center gap-2 flex-1 min-w-0 pr-1">
                       {/* Status Indicator Icon (Visual status display on the far left) */}
-                      <div
-                        title={`Trạng thái: ${c.status === 'active' ? 'Đang chạy' : c.status === 'paused' ? 'Tạm dừng' : c.status === 'done' ? 'Hoàn thành' : 'Nháp'}`}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          c.status === 'active'
-                            ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
-                            : c.status === 'paused'
-                            ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400'
-                            : c.status === 'done'
-                            ? 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'
-                            : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500'
-                        }`}
-                      >
-                        {c.status === 'active' ? (
-                          <AppIcon name="play" size={11} className="fill-current" />
-                        ) : c.status === 'paused' ? (
-                          <AppIcon name="pause" size={11} className="fill-current" />
-                        ) : c.status === 'done' ? (
-                          <span className="text-[11px] font-black leading-none">✓</span>
-                        ) : (
-                          <AppIcon name="file" size={11} />
-                        )}
-                      </div>
+                      {(() => {
+                        const isQuotaPaused = c.status === 'active' && queueStatus?.running && (queueStatus.dailyPaused || queueStatus.type === 'daily_limit_reached' || queueStatus.type === 'msg_daily_limit_reached' || queueStatus.type === 'friend_req_limit_reached' || queueStatus.type === 'all_limits_reached');
+                        return (
+                          <div
+                            title={`Trạng thái: ${isQuotaPaused ? 'Đạt giới hạn · Chờ tiếp' : c.status === 'active' ? 'Đang chạy' : c.status === 'paused' ? 'Tạm dừng' : c.status === 'done' ? 'Hoàn thành' : 'Nháp'}`}
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              isQuotaPaused
+                                ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400'
+                                : c.status === 'active'
+                                ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
+                                : c.status === 'paused'
+                                ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400'
+                                : c.status === 'done'
+                                ? 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'
+                                : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500'
+                            }`}
+                          >
+                            {isQuotaPaused ? (
+                              <span className="text-[11px] font-black leading-none">⏳</span>
+                            ) : c.status === 'active' ? (
+                              <AppIcon name="play" size={11} className="fill-current" />
+                            ) : c.status === 'paused' ? (
+                              <AppIcon name="pause" size={11} className="fill-current" />
+                            ) : c.status === 'done' ? (
+                              <span className="text-[11px] font-black leading-none">✓</span>
+                            ) : (
+                              <AppIcon name="file" size={11} />
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate flex-1" title={c.name}>
                         {c.name}

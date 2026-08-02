@@ -1239,6 +1239,7 @@ export default function CRMPage() {
                       onCopyToAccounts={c => setCopyToAccountsCampaign(c)}
                       onUpdateStatus={handleUpdateCampaignStatus}
                       zaloId={activeAccountId || ''}
+                      queueStatus={queueStatus}
                     />
                   )}
                 </div>
@@ -1256,6 +1257,7 @@ export default function CRMPage() {
                       onCopyToAccounts={c => setCopyToAccountsCampaign(c)}
                       onUpdateStatus={handleUpdateCampaignStatus}
                       zaloId={activeAccountId || ''}
+                      queueStatus={queueStatus}
                     />
                   </div>
                   <div className="flex-1 overflow-hidden flex flex-col">
