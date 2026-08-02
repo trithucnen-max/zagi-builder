@@ -25,10 +25,14 @@
 1.  **Hộp thư đa tài khoản:** Đăng nhập song song QR/Cookie, gom tin nhắn, cấu hình Proxy riêng cho từng tài khoản.
 2.  **CRM & Kanban Pipeline:** Phễu Kanban, phân biệt Nhãn Zalo & Nhãn Local độc lập.
 3.  **Quản lý nhóm nâng cao:** Rời nhóm hàng loạt (tự chuyển quyền Trưởng nhóm & gửi tin nhắn tạm biệt qua AI), quét UID thành viên ẩn bằng thuật toán **Quét Bóng Thụ Động (PSS)**.
-4.  **Chiến dịch gửi tin an toàn & Định mức Tài khoản Zalo (v3.1.1):**
-    *   Quản lý 2 định mức độc lập theo từng tài khoản Zalo (Tin nhắn người lạ & Kết bạn).
+4.  **Chiến dịch gửi tin an toàn & Định mức Quét SĐT Zalo (v3.1.1):**
+    *   Quản lý 2 định mức gửi độc lập theo từng tài khoản Zalo (Tin nhắn người lạ & Kết bạn).
+    *   Nâng cấp Định mức Quét SĐT Zalo theo tài khoản (Option A): Hạn mức Ngày & Giờ riêng cho từng nick Zalo, tự động san đều tải danh sách SĐT khi quét.
+    *   Rút gọn giao diện Quét SĐT Zalo: Tích hợp Báo cáo Định mức Quét Ngày/Giờ vào Thẻ thống kê số liệu trên cùng, loại bỏ hoàn toàn khung báo cáo lớn dư thừa bên dưới.
+    *   Sửa lỗi Thumbnail vỡ & lỗi gửi ảnh trong Tin nhắn nhanh (`local-media` protocol handler fix).
+    *   Tự động tạo bảng SQLite cho các workspace DB và hỗ trợ đồng bộ dữ liệu real-time từ Boss ở chế độ Máy trạm / Employee Mode.
     *   Khắc phục nguy cơ khóa nick bằng Chặn cứng 1 chiến dịch / 1 tài khoản Zalo.
-    *   Tự động miễn trừ bạn bè khỏi định mức an toàn, hỗ trợ Giới hạn riêng cho từng chiến dịch (rải rác tin nhắn bạn bè).
+    *   Tự động miễn trừ bạn bè khỏi định mức người lạ, hỗ trợ Giới hạn riêng cho từng chiến dịch (rải rác tin nhắn bạn bè).
     *   Tự khôi phục ngày mới theo Khung giờ nghỉ (Quiet Hours) & Giờ hẹn cố định (`scheduled_time_of_day`).
 5.  **Workflow tự động hóa:**
     *   Động cơ Workflow chạy Sandbox Debugger trực quan (Xanh/Đỏ/Xám).

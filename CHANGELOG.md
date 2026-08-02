@@ -2,15 +2,35 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-### 🔍 Nâng Cấp Cơ Chế Giới Hạn Quét SĐT Zalo Theo Tài Khoản (Option A)
+## [v3.1.1] - 2026-08-02
+
+### 🔍 Nâng Cấp Phân Hệ Quét SĐT Zalo Theo Tài Khoản (Option A) & Tối Ưu Giao Diện
 - **Chuyển Giới Hạn Quét Về Tài Khoản Zalo (`DatabaseService.ts`, `PhoneScanService.ts`):**
   - Quản lý riêng **Định mức Quét SĐT Zalo / ngày** (mặc định 100) và **Định mức Quét SĐT Zalo / giờ** (mặc định 30) độc lập cho từng nick Zalo.
   - Loại bỏ hoàn toàn các ô cài đặt hạn mức theo Lô Quét (`QUÉT / NGÀY`, `QUÉT / GIỜ`) và ô chọn `TÀI KHOẢN ZALO QUÉT`. Các lô quét sẽ chạy liên tục đến khi hết danh sách số điện thoại.
   - Tự động san đều tải danh sách SĐT cho tất cả các tài khoản Zalo active online.
-- **Bảng Báo Cáo Hiện Trạng Định Mức Quét SĐT Trực Quan (`PhoneScanPanel.tsx`):**
-  - Render thẻ báo cáo hiện trạng quét của từng tài khoản Zalo ngay đầu phân hệ Quét SĐT Zalo.
-  - Thanh **Progress Bar** thông minh tự động đổi màu theo tỷ lệ (Xanh ➔ Cam ➔ Đỏ) và cảnh báo khi tài khoản tạm ngưng do chạm hạn mức.
-  - Tích hợp nút ⚙️ **Định mức** trên từng thẻ tài khoản để mở nhanh `AccountQuotaModal.tsx` cho phép điều chỉnh hạn mức tức thì.
+- **Rút Gọn Giao Diện & Tích Hợp Báo Cáo Định Mức Vào Thẻ Thống Kê (`PhoneScanPanel.tsx`):**
+  - Loại bỏ thẻ `KHÔNG CÓ ZALO` dư thừa và thay thế bằng thẻ **`ĐỊNH MỨC QUÉT ZALO`** hiển thị trực tiếp con số Đã quét / Định mức theo Ngày và Giờ.
+  - Thẻ định mức tự động chuyển đổi số liệu linh hoạt theo tài khoản Zalo được chọn trong dropdown `Báo cáo tài khoản`. Tích hợp nút `⚙️ Định mức` cho phép mở nhanh modal cài đặt định mức cho tài khoản đó.
+  - Loại bỏ hoàn toàn khung báo cáo lớn trùng lặp phía dưới giúp giao diện tinh gọn, liền mạch.
+- **Khắc Phục Hiển Thị Danh Sách Các Lô Quét:**
+  - Danh sách các Lô quét bên dưới luôn luôn hiển thị 100% tất cả các lô không bị ẩn/bị rỗng khi thay đổi bộ lọc `Thời gian quét` (Hôm nay / Tuần này / Tháng này).
+- **Mẫu Định Mức & Khuyến Nghị Chính Sách Zalo (`AccountQuotaModal.tsx`):**
+  - Ấn định mốc quét theo giờ của mẫu `🌳 Nick cũ` về `30 SĐT/giờ` để đảm bảo độ an toàn cao nhất.
+  - Bổ sung thông điệp khuyến nghị chính thức: Các con số định mức mang tính chất tham khảo và có thể thay đổi tùy thuộc vào thuật toán & chính sách bảo mật của Zalo tại từng thời điểm.
+
+### ⚡ Khắc Phục Hoàn Toàn Lỗi Tin Nhắn Nhanh Đính Kèm Ảnh/Media
+- **Khắc Phục Lỗi Thumbnail Vỡ (`local-media://` Protocol Handler in `electron/main.ts`)**:
+  - Chuẩn hóa bóc tách đường dẫn đĩa tuyệt đối trên macOS/Linux trong handler `protocol.handle('local-media')`, khắc phục triệt để lỗi đường dẫn thiếu dấu `/` khiến ảnh thumbnail bị vỡ icon `🖼️` (lỗi HTTP 404).
+- **Khắc Phục Lỗi Gửi Ảnh Dạng File Local (`FileStorageService.ts`, `localMedia.ts`, `MessageInput.tsx`)**:
+  - Cập nhật `FileStorageService.resolveAbsolutePath()` tự động bóc tách giao thức `local-media://` và `file://` về đường dẫn tuyệt đối nguyên bản trên đĩa cứng trước khi truyền sang Zalo API.
+  - Chuẩn hóa tạo URL preview bằng `toLocalMediaUrl()`, giúp tin nhắn nhanh gửi ảnh kèm nội dung text hoàn toàn thông suốt.
+
+### 🔄 Khắc Phục Lỗi Đồng Bộ Dữ Liệu Real-Time Từ Boss Ở Chế Độ Employee / Remote Mode
+- **Tự Động Tạo Cấu Trúc Bảng SQLite Cho Workspace Secondary Database (`DatabaseService.ts`)**:
+  - Thêm `ensureTablesOnSecondaryDb()`. Tự động tạo đầy đủ cấu trúc 100% các bảng (`contacts`, `messages`, `accounts`, `local_quick_messages`, `app_settings`, ...) mỗi khi mở bất kỳ tệp SQLite workspace DB nào. Khắc phục triệt để lỗi `no such table: contacts` khi lưu dữ liệu sự kiện từ Boss.
+- **Bỏ Qua Bộ Lọc Event Unowned Account Khi Ở Employee / Remote Mode (`EventBroadcaster.ts`)**:
+  - Phát hiện thông minh trạng thái `isEmpMode = true` (Employee Mode / Remote Workspace). Không chặn các sự kiện real-time từ Boss cho các nick Zalo quản lý trên Boss (`341353540552778915`, `647740174750717231`, `266746582522774820`), giúp toàn bộ dữ liệu biệt danh, tin nhắn, thông báo từ Boss đồng bộ mượt mà 100% về máy trạm.
 
 ### 🛡️ Hệ Thống Định Mức An Toàn Tùy Chọn Theo Tài Khoản Zalo (Per-Account Safety Quotas)
 - **Tùy Chỉnh 2 Định Mức Tách Biệt (`DatabaseService.ts`, `AccountQuotaModal.tsx`):**

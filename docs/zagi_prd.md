@@ -1,17 +1,17 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 2.8  
-> **Ngày cập nhật:** 31/07/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.1.1 (Released)  
+> **Phiên bản tài liệu:** 3.1.1  
+> **Ngày cập nhật:** 02/08/2026  
+> **Trạng thái sản phẩm hiện tại:** v3.1.1 (Official Release)  
 > **Chủ quản:** Product Management Team  
 
 ---
 
-#### 🚀 v3.1.1 — Sao Chép Chiến Dịch Đa Zalo, Tên Thật Inline CRM, Phân Tích Lô Quét & Nâng Cao Chatbot AI (Official Release)
-* **Tính năng mới (New):**
-  * **📋 Sao Chép Kịch Bản Chiến Dịch Sang Nhiều Zalo (`CopyCampaignToAccountsModal.tsx`)**: Cho phép nhân bản kịch bản gửi tin / kết bạn từ 1 chiến dịch sang 1 hoặc nhiều tài khoản Zalo đích. Tự động bảo tồn toàn bộ kịch bản & cấu hình, danh sách người nhận để trống (0) với trạng thái Nháp để người dùng tùy chọn tập khách hàng riêng cho từng tài khoản Zalo.
-  * **🏷️ Sửa Tên Thật Inline & Nạp Tự Động Từ Excel/CSV (`CRMContactList.tsx` & `DatabaseService.ts`)**: Hỗ trợ sửa trường Tên thật (`real_name`) trực tiếp trên bảng CRM; Tự động điền tên thật khi quét SĐT từ Excel và bảo toàn 100% khi ghi vào CRM.
-  * **📊 Báo Cáo Phân Tích Lô Quét SĐT 4 Dòng (`PhoneScanPanel.tsx`)**: Minh bạch 4 chỉ số (Tổng nhập ➔ Trùng list ➔ Trùng CRM ➔ Số thực tế sẽ quét Zalo) cập nhật thời gian thực theo công tắc lọc trùng CRM.
-  * **🤖 Đồng Bộ Biến `{real_name}` & Nâng Vị Trí Chatbot AI (`GlobalSupportChat.tsx`)**: Thẻ chèn nhanh `{real_name}` đứng ngay cạnh `{zalo_name}` & `{name}`; Giải mã biến tên thật cho cả Campaign & Workflow. Nút Chatbot AI nâng lên vị trí `bottom-32` thoáng đẹp không che phủ các nút thao tác phía dưới.
+#### 🚀 v3.1.1 — Quản Lý Định Mức Quét SĐT Theo Tài Khoản, Sửa Lỗi Tin Nhắn Nhanh Media & Đồng Bộ Real-time Máy Trạm (Official Release)
+* **Tính năng mới & Sửa lỗi nổi bật:**
+  * **🔍 Định Mức Quét SĐT Zalo Theo Tài Khoản (Option A)**: Tách riêng hạn mức Ngày & Giờ độc lập theo từng nick Zalo. Tự động san đều tải danh sách SĐT khi quét.
+  * **📱 Tinh Gọn Giao Diện Phone Scan**: Tích hợp ô báo cáo Định mức Quét Ngày/Giờ vào Thẻ thống kê #4 (thay thế ô `KHÔNG CÓ ZALO`), tự động liên kết dữ liệu theo tài khoản Zalo được chọn.
+  * **⚡ Khắc Phục Lỗi Tin Nhắn Nhanh Đính Kèm Ảnh**: Sửa handler `local-media` protocol trên macOS và quy đổi đường dẫn trong `FileStorageService.resolveAbsolutePath()`, giúp ảnh thumbnail và ảnh gửi đính kèm hoạt động 100% mượt mà.
+  * **🔄 Tự Động Khởi Tạo Cấu Trúc Bảng Workspace DB & Bỏ Qua Bộ Lọc Event Máy Trạm**: Tự động chạy `ensureTablesOnSecondaryDb()` tạo bảng SQLite cho các workspace DB; bỏ qua bộ lọc unowned account trong Employee/Remote mode giúp toàn bộ dữ liệu real-time từ Boss đồng bộ tức thì.
 
 #### 🚀 v3.0.8 — Khử Trùng Thành Viên Nhóm, Xưng Hô Thông Minh, Loại Trừ 3 Tiêu Chí & Giờ Nghỉ Đêm CRM (Official Release)
 * **Tính năng mới (New):**
