@@ -817,11 +817,21 @@ class CRMQueueService {
                             Logger.log(`[CRMQueue] Mixed/message ✅ → ${effectiveContactId} (${result.sent}/${blocksToSend.length} blocks)`);
 
                         } else if (action === 'friend_request') {
-                            const req = { type: 'sendFriendRequest', msg: friendMsg, userId: effectiveContactId };
-                            const resp = await (conn.api as any).sendFriendRequest(friendMsg, effectiveContactId);
-                            db.saveSendLog({ ...logBase, message: `[Hỗn hợp/Kết bạn] ${friendMsg}`, status: 'sent', send_type: 'friend_request',
-                                data_request: JSON.stringify(req), data_response: JSON.stringify(resp) });
-                            Logger.log(`[CRMQueue] Mixed/friend_request ✅ → ${effectiveContactId}`);
+                            const contactPhone = (item as any).contact_phone || (item as any).phone || '';
+                            const alreadySent = db.hasSentFriendRequest(zaloId, effectiveContactId, contactPhone);
+                            if (contactIsFriend) {
+                                Logger.log(`[CRMQueue] Mixed/friend_request ⏭ Target ${effectiveContactId} is ALREADY a friend. Skipping.`);
+                                db.saveSendLog({ ...logBase, message: `[Hỗn hợp/Kết bạn - Đã là bạn bè] ${friendMsg}`, status: 'sent', send_type: 'friend_request', error: 'Đã là bạn bè trên Zalo' });
+                            } else if (alreadySent) {
+                                Logger.log(`[CRMQueue] Mixed/friend_request ⏭ Target ${effectiveContactId} ALREADY received friend request previously. Skipping.`);
+                                db.saveSendLog({ ...logBase, message: `[Hỗn hợp/Kết bạn - Đã gửi trước đó] ${friendMsg}`, status: 'sent', send_type: 'friend_request', error: 'Đã gửi lời mời kết bạn trước đó' });
+                            } else {
+                                const req = { type: 'sendFriendRequest', msg: friendMsg, userId: effectiveContactId };
+                                const resp = await (conn.api as any).sendFriendRequest(friendMsg, effectiveContactId);
+                                db.saveSendLog({ ...logBase, message: `[Hỗn hợp/Kết bạn] ${friendMsg}`, status: 'sent', send_type: 'friend_request',
+                                    data_request: JSON.stringify(req), data_response: JSON.stringify(resp) });
+                                Logger.log(`[CRMQueue] Mixed/friend_request ✅ → ${effectiveContactId}`);
+                            }
 
                         } else if (action === 'invite_to_groups' && mixedGroupIds.length > 0) {
                             const req = { type: 'inviteUserToGroups', userId: effectiveContactId, groupIds: mixedGroupIds };
@@ -891,11 +901,24 @@ class CRMQueueService {
 
             } else if (campaignType === 'friend_request') {
                 // ── Kết bạn only ─────────────────────────────────────────────────
-                const req = { type: 'sendFriendRequest', msg: friendMsg, userId: effectiveContactId };
-                const resp = await (conn.api as any).sendFriendRequest(friendMsg, effectiveContactId);
-                db.updateCampaignContactStatus(item.id!, 'sent');
-                db.saveSendLog({ ...logBase, message: `[Kết bạn] ${friendMsg}`, status: 'sent', send_type: 'friend_request',
-                    data_request: JSON.stringify(req), data_response: JSON.stringify(resp) });
+                const contactPhone = (item as any).contact_phone || (item as any).phone || '';
+                const alreadySent = db.hasSentFriendRequest(zaloId, effectiveContactId, contactPhone);
+                
+                if (contactIsFriend) {
+                    Logger.log(`[CRMQueue] ⏭ Target ${effectiveContactId} (${effectiveDisplayName}) is ALREADY a friend. Skipping sendFriendRequest.`);
+                    db.updateCampaignContactStatus(item.id!, 'sent', 'Đã là bạn bè trên Zalo');
+                    db.saveSendLog({ ...logBase, message: `[Bỏ qua - Đã là bạn bè] ${friendMsg}`, status: 'sent', send_type: 'friend_request', error: 'Đã là bạn bè trên Zalo' });
+                } else if (alreadySent) {
+                    Logger.log(`[CRMQueue] ⏭ Target ${effectiveContactId} (${effectiveDisplayName}) ALREADY received a friend request previously from account ${zaloId}. Skipping duplicate API call.`);
+                    db.updateCampaignContactStatus(item.id!, 'sent', 'Đã gửi lời mời kết bạn trước đó');
+                    db.saveSendLog({ ...logBase, message: `[Bỏ qua - Đã gửi lời mời trước đó] ${friendMsg}`, status: 'sent', send_type: 'friend_request', error: 'Đã gửi lời mời kết bạn trước đó' });
+                } else {
+                    const req = { type: 'sendFriendRequest', msg: friendMsg, userId: effectiveContactId };
+                    const resp = await (conn.api as any).sendFriendRequest(friendMsg, effectiveContactId);
+                    db.updateCampaignContactStatus(item.id!, 'sent');
+                    db.saveSendLog({ ...logBase, message: `[Kết bạn] ${friendMsg}`, status: 'sent', send_type: 'friend_request',
+                        data_request: JSON.stringify(req), data_response: JSON.stringify(resp) });
+                }
 
             } else if (campaignType === 'invite_to_group') {
                 // ── Mời vào nhóm (standalone) ─────────────────────────────────────

@@ -6515,6 +6515,36 @@ class DatabaseService {
     }
 
     /**
+     * Kiểm tra xem tài khoản Zalo này đã từng gửi lời mời kết bạn cho contactId / phone này chưa
+     */
+    public hasSentFriendRequest(ownerZaloId: string, contactId: string, phone?: string): boolean {
+        if (!this.initialized || !ownerZaloId) return false;
+        try {
+            const cleanContactId = String(contactId || '').trim();
+            const cleanPhone = String(phone || '').trim();
+            if (!cleanContactId && !cleanPhone) return false;
+
+            let q = `
+                SELECT 1 FROM crm_send_log
+                WHERE owner_zalo_id = ?
+                  AND status = 'sent'
+                  AND send_type = 'friend_request'
+                  AND (
+                      contact_id = ?
+                      ${cleanPhone ? 'OR phone = ? OR contact_id = ?' : ''}
+                  )
+                LIMIT 1
+            `;
+            const params: any[] = [ownerZaloId, cleanContactId];
+            if (cleanPhone) {
+                params.push(cleanPhone, cleanPhone);
+            }
+            const row = this.queryOne<any>(q, params);
+            return !!row;
+        } catch { return false; }
+    }
+
+    /**
      * Đếm số chiến dịch đang thực sự chạy (status='active' VÀ còn contact pending)
      * cho 1 tài khoản Zalo.
      */
