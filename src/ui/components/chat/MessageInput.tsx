@@ -1567,7 +1567,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           owner_zalo_id: accountId, thread_id: threadId, thread_type: threadType,
           sender_id: accountId,
           // show first image as preview content
-          content: JSON.stringify({ href: `local-media:///${imagePaths[0].replace(/\\/g, '/')}`, width: 0, height: 0, totalCount: imagePaths.length }),
+          content: JSON.stringify({ href: toLocalMediaUrl(imagePaths[0]), width: 0, height: 0, totalCount: imagePaths.length }),
           msg_type: 'chat.photo',
           timestamp: now,
           is_sent: 1,
@@ -1584,7 +1584,7 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
           msg_id: tid,
           owner_zalo_id: accountId, thread_id: threadId, thread_type: threadType,
           sender_id: accountId,
-          content: JSON.stringify({ href: `local-media:///${vp.replace(/\\/g, '/')}` }),
+          content: JSON.stringify({ href: toLocalMediaUrl(vp) }),
           msg_type: 'chat.video.msg',
           timestamp: now + 2 + vi,
           is_sent: 1,

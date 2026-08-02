@@ -84,9 +84,22 @@ class FileStorageService {
      */
     public static resolveAbsolutePath(relOrAbsPath: string): string {
         if (!relOrAbsPath) return '';
-        const trimmed = relOrAbsPath.trim();
+        let trimmed = relOrAbsPath.trim();
         if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
             return trimmed;
+        }
+
+        // Bóc tách giao thức local-media:// hoặc file:// nếu có
+        if (trimmed.startsWith('local-media://')) {
+            trimmed = trimmed.replace(/^local-media:\/*/, '/');
+            if (process.platform === 'win32' && trimmed.startsWith('/') && trimmed.match(/^\/[a-zA-Z]:/)) {
+                trimmed = trimmed.slice(1);
+            }
+        } else if (trimmed.startsWith('file://')) {
+            trimmed = trimmed.replace(/^file:\/*/, '/');
+            if (process.platform === 'win32' && trimmed.startsWith('/') && trimmed.match(/^\/[a-zA-Z]:/)) {
+                trimmed = trimmed.slice(1);
+            }
         }
         if (!path.isAbsolute(trimmed)) {
             // Relative path: "media/zaloId/..." OR "library/zaloId/..."

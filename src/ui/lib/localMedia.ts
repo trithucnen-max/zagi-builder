@@ -52,11 +52,15 @@ export function toLocalMediaUrl(filePath: string, zaloId?: string): string {
   }
 
   // Standalone/Boss Electron App: use local-media:// custom protocol
-  if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('local-media://')) {
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
     return filePath;
   }
+  if (filePath.startsWith('local-media://')) {
+    const clean = filePath.replace(/^local-media:\/*/, '/');
+    return 'local-media://' + (clean.startsWith('/') ? clean : '/' + clean);
+  }
 
-  const stripped = filePath.replace(/^file:\/\/\//, '').replace(/^file:\/\//, '');
+  const stripped = filePath.replace(/^file:\/*/, '/');
   const normalized = stripped.replace(/\\/g, '/');
   const withSlash = normalized.startsWith('/') ? normalized : '/' + normalized;
   return 'local-media://' + withSlash;

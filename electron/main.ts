@@ -808,11 +808,14 @@ async function startupAllWorkspaces(): Promise<void> {
 
 app.whenReady().then(async () => {
   protocol.handle('local-media', async (request) => {
-    let filePath = decodeURIComponent(request.url.replace(/^local-media:\/\//, ''));
-    // Windows: strip leading slash if followed by drive letter → "/D:/..." or "/media/..."
+    let filePath = decodeURIComponent(request.url.replace(/^local-media:\/*/, '/'));
     if (process.platform === 'win32') {
       if (filePath.startsWith('/') && filePath.match(/^\/[a-zA-Z]:/)) {
         filePath = filePath.slice(1);
+      }
+    } else {
+      if (!filePath.startsWith('/')) {
+        filePath = '/' + filePath;
       }
     }
 
