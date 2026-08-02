@@ -1371,13 +1371,10 @@ function CampaignsTab({ loading, campaigns, overview }: {
                     style={{ width: `${Math.min((safetyStats.sentStrangerInvites / (safetyStats.inviteLimit || 50)) * 100, 100)}%` }}
                   />
                 </div>
-                    style={{ width: `${Math.min((safetyStats.sentStrangerInvites / 50) * 100, 100)}%` }}
-                  />
-                </div>
                 <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
-                  {safetyStats.sentStrangerInvites >= 50 
-                    ? '⚠️ Đã gửi tối đa 50 kết bạn hôm nay. Hãy chuyển tài khoản khác để tránh khóa Zalo!' 
-                    : safetyStats.sentStrangerInvites >= 40 
+                  {safetyStats.sentStrangerInvites >= (safetyStats.inviteLimit || 50) 
+                    ? '⚠️ Đã gửi tối đa hạn mức kết bạn hôm nay. Hãy chuyển tài khoản khác!' 
+                    : safetyStats.sentStrangerInvites >= (safetyStats.inviteLimit || 50) * 0.8 
                       ? '⚡ Sắp đạt giới hạn kết bạn tối đa của Zalo cá nhân hôm nay.' 
                       : '✓ Hạn mức kết bạn trong tầm kiểm soát an toàn.'}
                 </p>
