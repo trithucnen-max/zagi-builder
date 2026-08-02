@@ -308,6 +308,23 @@ class CRMQueueService {
             }
         }
 
+        // Kiểm tra contact hiện tại có phải bạn bè không
+        const contactIsFriend = (() => {
+            try {
+                const friendRow = db.queryOne<any>(
+                    `SELECT 1 FROM contacts WHERE owner_zalo_id=? AND contact_id=? AND is_friend=1 LIMIT 1`,
+                    [zaloId, item.contact_id]
+                );
+                if (friendRow) return true;
+                // Fallback: kiểm tra bảng friends
+                const f2 = db.queryOne<any>(
+                    `SELECT 1 FROM friends WHERE owner_zalo_id=? AND user_id=? LIMIT 1`,
+                    [zaloId, item.contact_id]
+                );
+                return !!f2;
+            } catch { return false; }
+        })();
+
         // ── Per-Account Safety Quota Check (thay thế daily_send_limit per-campaign) ───────────────
         //
         // Logic:
@@ -317,22 +334,6 @@ class CRMQueueService {
         //  - Mixed campaign: dừng khi chạm BẤT KỲ định mức nào (không cố chuyển mode)
         if (campaignData) {
             const contactType = (item as any).campaign_type || campaignData.campaign_type || 'message';
-            // Kiểm tra contact hiện tại có phải bạn bè không (nếu đã kết bạn → bỏ qua kiểm tra định mức)
-            const contactIsFriend = (() => {
-                try {
-                    const friendRow = db.queryOne<any>(
-                        `SELECT 1 FROM contacts WHERE owner_zalo_id=? AND contact_id=? AND is_friend=1 LIMIT 1`,
-                        [zaloId, item.contact_id]
-                    );
-                    if (friendRow) return true;
-                    // Fallback: kiểm tra bảng friends
-                    const f2 = db.queryOne<any>(
-                        `SELECT 1 FROM friends WHERE owner_zalo_id=? AND user_id=? LIMIT 1`,
-                        [zaloId, item.contact_id]
-                    );
-                    return !!f2;
-                } catch { return false; }
-            })();
 
             // Lấy số đã gửi hôm nay (cross-campaign) và các định mức an toàn tài khoản
             const todayCount = db.getTodayStrangerSentCount(zaloId);
