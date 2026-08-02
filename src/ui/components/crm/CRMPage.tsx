@@ -542,14 +542,18 @@ export default function CRMPage() {
   };
 
   const handleUpdateCampaignStatus = async (id: number, status: string) => {
-    await ipc.crm?.updateCampaignStatus({ campaignId: id, status });
+    const res = await ipc.crm?.updateCampaignStatus({ campaignId: id, status });
     await loadCampaigns();
-    showNotification(
-      status === 'active' ? '▶ Chiến dịch đang chạy'
-        : status === 'paused' ? '⏸ Đã tạm dừng'
-        : 'Đã cập nhật',
-      'info'
-    );
+    if (res && res.success === false) {
+      showNotification(res.error || 'Không thể cập nhật trạng thái chiến dịch', 'error');
+    } else {
+      showNotification(
+        status === 'active' ? '▶ Chiến dịch đang chạy'
+          : status === 'paused' ? '⏸ Đã tạm dừng'
+          : 'Đã cập nhật',
+        'info'
+      );
+    }
   };
 
   const handleDeleteCampaign = async (id: number) => {

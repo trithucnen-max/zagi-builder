@@ -44,12 +44,23 @@ export default function QueueStatusBar({ status, maxTokens: maxTokensProp = 60 }
     return rem > 0 ? `${m}p${rem}s` : `${m} phút`;
   };
 
-  const isWaitingOrPaused = status?.dailyPaused || status?.type === 'waiting_for_scheduled_time' || status?.type === 'waiting_for_start_time' || status?.type === 'daily_limit_reached';
+  const isWaitingOrPaused = status?.dailyPaused
+    || status?.type === 'waiting_for_scheduled_time'
+    || status?.type === 'waiting_for_start_time'
+    || status?.type === 'daily_limit_reached'
+    || status?.type === 'msg_daily_limit_reached'
+    || status?.type === 'friend_req_limit_reached'
+    || status?.type === 'all_limits_reached'
+    || status?.type === 'blocked_by_running_campaign';
 
   const getStatusMessage = () => {
     if (status?.type === 'waiting_for_scheduled_time') return 'Chờ đến giờ hẹn chạy';
     if (status?.type === 'waiting_for_start_time') return 'Chờ khung giờ chạy trong ngày';
-    if (status?.type === 'daily_limit_reached' || status?.dailyPaused) return 'Tạm dừng (đạt giới hạn/ngày)';
+    if (status?.type === 'msg_daily_limit_reached') return '💬 Đạt định mức tin nhắn • Tự chạy lại 07:00';
+    if (status?.type === 'friend_req_limit_reached') return '👤 Đạt định mức kết bạn • Tự chạy lại 07:00';
+    if (status?.type === 'all_limits_reached') return '🛑 Đạt cả 2 định mức • Tự chạy lại 07:00';
+    if (status?.type === 'blocked_by_running_campaign') return `⛔ Đang có chiến dịch khác chạy cùng tài khoản`;
+    if (status?.type === 'daily_limit_reached' || status?.dailyPaused) return 'Tạm dừng (đạt định mức/ngày)';
     return 'Queue đang chạy';
   };
 

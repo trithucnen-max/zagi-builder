@@ -293,6 +293,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getQueueStatus: (params: any) => ipcRenderer.invoke('crm:getQueueStatus', params),
     getCampaignStats: (params: any) => ipcRenderer.invoke('crm:getCampaignStats', params),
     getCampaignSafetyStats: (params: any) => ipcRenderer.invoke('crm:getCampaignSafetyStats', params),
+    getAccountQuota: (params: any) => ipcRenderer.invoke('crm:getAccountQuota', params),
+    setAccountQuota: (params: any) => ipcRenderer.invoke('crm:setAccountQuota', params),
     getActivityStats: (params: any) => ipcRenderer.invoke('crm:getActivityStats', params),
     scheduleMessage: (params: any) => ipcRenderer.invoke('crm:scheduleMessage', params),
     getScheduledMessages: (params: any) => ipcRenderer.invoke('crm:getScheduledMessages', params),

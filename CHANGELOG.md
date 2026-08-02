@@ -2,7 +2,24 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.1.1] - 2026-08-01
+## [v3.1.1] - 2026-08-02
+
+### 🛡️ Hệ Thống Định Mức An Toàn Tùy Chọn Theo Tài Khoản Zalo (Per-Account Safety Quotas)
+- **Tùy Chỉnh 2 Định Mức Tách Biệt (`DatabaseService.ts`, `AccountQuotaModal.tsx`):**
+  - Quản lý riêng **Định mức Tin nhắn Người lạ / ngày** (mặc định 50) và **Định mức Lời mời Kết bạn / ngày** (mặc định 50) cho từng nick Zalo độc lập.
+  - Tích hợp biểu tượng modal ⚙️ cài đặt định mức trực quan ngay tại thanh an toàn danh sách chiến dịch CRM, hỗ trợ các mốc gợi ý phù hợp với tuổi đời nick Zalo (Nick cũ, Nick thường, Nick mới).
+- **Quy Tắc Chặn Cứng 1 Chiến Dịch / 1 Tài Khoản Zalo (`CRMQueueService.ts`, `crmIpc.ts`, `CRMPage.tsx`):**
+  - Khắc phục triệt để nguy cơ chạy chồng chéo chiến dịch. Khi 1 nick Zalo đã có 1 chiến dịch đang `active` và còn liên hệ chờ gửi, hệ thống **chặn cứng** không cho kích hoạt chiến dịch thứ 2 cho cùng nick đó và hiển thị thông báo yêu cầu tạm dừng chiến dịch cũ.
+- **Phân Loại Định Mức Chuẩn Xác & Tự Tạm Dừng Chiến Dịch Hỗn Hợp:**
+  - Tin nhắn gửi cho người lạ ➔ Tính vào Định mức Tin nhắn Người lạ.
+  - Lời mời kết bạn ➔ Tính vào Định mức Kết bạn.
+  - Người dùng đã kết bạn (`is_friend = 1`) ➔ **Không tính vào bất kỳ định mức nào**, cho phép gửi bình thường.
+  - Chiến dịch Hỗn hợp (`mixed`) chạm **bất kỳ định mức nào** ➔ Tự động tạm dừng toàn bộ chiến dịch, chờ sang ngày hôm sau.
+- **Khôi Phục Tự Động Ngày Mới & Hẹn Giờ Cố Định (`CRMQueueService.ts`):**
+  - Chiến dịch giữ nguyên trạng thái `active` khi chạm định mức. Sang ngày mới (00:00 AM) bộ đếm tự reset, chiến dịch kết hợp kiểm tra khung giờ nghỉ (`quiet_hours`) và giờ hẹn cố định (`scheduled_time_of_day`) để tự động chạy tiếp lúc 07:00 AM hoặc đúng giờ hẹn.
+- **Bắt Mã Lỗi Zalo API & Ghi Nhận Lịch Sử Chi Tiết:**
+  - Tự động bắt và giải mã các mã lỗi Zalo: `Code 576` (Vượt định mức tin nhắn người lạ), `Code 579` (Vượt định mức kết bạn), `Code 4 / 214` (Khóa tính năng do spam), `Code -5000` (Hết phiên / checkpoint).
+  - Cập nhật giao diện `QueueStatusBar.tsx` và `AnalyticsPage.tsx` hiển thị hạn mức động linh hoạt theo từng nick Zalo.
 
 ### 🚀 Đồng Bộ Dữ Liệu Máy Trạm (Employee Client) & Sửa Lỗi Tải Avatar / Tên Thật
 - **Không Giới Hạn Số Lượng Hội Thoại Đồng Bộ (`DataAccessor.ts`, `RestApiHandlers.ts`):**

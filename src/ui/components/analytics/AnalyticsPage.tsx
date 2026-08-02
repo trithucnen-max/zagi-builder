@@ -1338,21 +1338,21 @@ function CampaignsTab({ loading, campaigns, overview }: {
               <div>
                 <div className="flex justify-between text-xs text-gray-400 mb-1">
                   <span>Tin nhắn gửi người lạ (Hôm nay)</span>
-                  <span className="font-bold text-white">{safetyStats.sentStrangerMessages} / 50</span>
+                  <span className="font-bold text-white">{safetyStats.sentStrangerMessages} / {safetyStats.msgLimit || 50}</span>
                 </div>
                 <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      safetyStats.sentStrangerMessages >= 50 ? 'bg-red-500' : safetyStats.sentStrangerMessages >= 40 ? 'bg-amber-500' : 'bg-green-500'
+                      safetyStats.sentStrangerMessages >= (safetyStats.msgLimit || 50) ? 'bg-red-500' : safetyStats.sentStrangerMessages >= (safetyStats.msgLimit || 50) * 0.8 ? 'bg-amber-500' : 'bg-green-500'
                     }`}
-                    style={{ width: `${Math.min((safetyStats.sentStrangerMessages / 50) * 100, 100)}%` }}
+                    style={{ width: `${Math.min((safetyStats.sentStrangerMessages / (safetyStats.msgLimit || 50)) * 100, 100)}%` }}
                   />
                 </div>
                 <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
-                  {safetyStats.sentStrangerMessages >= 50 
-                    ? '⚠️ Đã đạt hạn mức an toàn của Zalo ngày hôm nay. Hãy đổi tài khoản khác!' 
-                    : safetyStats.sentStrangerMessages >= 40 
-                      ? '⚡ Sắp đạt hạn mức Zalo cá nhân. Hãy giãn cách thời gian gửi hoặc dùng Zalo Business.' 
+                  {safetyStats.sentStrangerMessages >= (safetyStats.msgLimit || 50)
+                    ? '⚠️ Đã đạt hạn mức an toàn của tài khoản Zalo ngày hôm nay!' 
+                    : safetyStats.sentStrangerMessages >= (safetyStats.msgLimit || 50) * 0.8 
+                      ? '⚡ Sắp đạt hạn mức Zalo cá nhân. Hãy giãn cách thời gian gửi.' 
                       : '✓ Hạn mức tin nhắn người lạ trong tầm kiểm soát.'}
                 </p>
               </div>
@@ -1361,13 +1361,16 @@ function CampaignsTab({ loading, campaigns, overview }: {
               <div className="border-t border-gray-750/60 pt-3">
                 <div className="flex justify-between text-xs text-gray-400 mb-1">
                   <span>Lời mời kết bạn đã gửi (Hôm nay)</span>
-                  <span className="font-bold text-white">{safetyStats.sentStrangerInvites} / 50</span>
+                  <span className="font-bold text-white">{safetyStats.sentStrangerInvites} / {safetyStats.inviteLimit || 50}</span>
                 </div>
                 <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      safetyStats.sentStrangerInvites >= 50 ? 'bg-red-500' : safetyStats.sentStrangerInvites >= 40 ? 'bg-amber-500' : 'bg-green-500'
+                      safetyStats.sentStrangerInvites >= (safetyStats.inviteLimit || 50) ? 'bg-red-500' : safetyStats.sentStrangerInvites >= (safetyStats.inviteLimit || 50) * 0.8 ? 'bg-amber-500' : 'bg-green-500'
                     }`}
+                    style={{ width: `${Math.min((safetyStats.sentStrangerInvites / (safetyStats.inviteLimit || 50)) * 100, 100)}%` }}
+                  />
+                </div>
                     style={{ width: `${Math.min((safetyStats.sentStrangerInvites / 50) * 100, 100)}%` }}
                   />
                 </div>

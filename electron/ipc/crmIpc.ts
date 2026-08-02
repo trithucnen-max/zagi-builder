@@ -369,13 +369,22 @@ export function registerCRMIpc(): void {
     ipcHandle('crm:updateCampaignStatus', async (_e, { campaignId, status }: { campaignId: number; status: string }) => {
         try {
             const db = DatabaseService.getInstance();
-            db.updateCRMCampaignStatus(campaignId, status as any);
-            db.save();
-            // Start/stop queue
             const campaign = db.getCRMCampaign(campaignId);
             if (campaign) {
-                if (status === 'active') CRMQueueService.getInstance().startForAccount(campaign.owner_zalo_id);
-                else if (status === 'paused' || status === 'done') CRMQueueService.getInstance().checkAndStopIfIdle(campaign.owner_zalo_id);
+                if (status === 'active') {
+                    const startRes = CRMQueueService.getInstance().startForAccount(campaign.owner_zalo_id, campaignId);
+                    if (!startRes.ok) {
+                        return {
+                            success: false,
+                            error: `Tài khoản ${campaign.owner_zalo_id} đang chạy chiến dịch "${startRes.blockedByCampaignName || 'khác'}". Vui lòng tạm dừng chiến dịch đó trước.`
+                        };
+                    }
+                }
+                db.updateCRMCampaignStatus(campaignId, status as any);
+                db.save();
+                if (status === 'paused' || status === 'done') {
+                    CRMQueueService.getInstance().checkAndStopIfIdle(campaign.owner_zalo_id);
+                }
                 EventBroadcaster.emit('crm:campaignChanged', { action: 'status', ownerZaloId: campaign.owner_zalo_id, campaignId, status });
                 proxyToBoss('crm:updateCampaignStatus', { campaignId, status });
             }
@@ -491,6 +500,34 @@ export function registerCRMIpc(): void {
                 return await proxyToBossAsync('crm:getCampaignSafetyStats', { zaloId });
             }
             return { success: true, data: DatabaseService.getInstance().getCampaignSafetyStats(zaloId) };
+        }
+        catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcHandle('crm:getAccountQuota', async (_e, { zaloId }: { zaloId: string }) => {
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:getAccountQuota', { zaloId });
+            }
+            const db = DatabaseService.getInstance();
+            return {
+                success: true,
+                msgLimit: db.getStrangerMsgLimit(zaloId),
+                inviteLimit: db.getFriendReqLimit(zaloId),
+            };
+        }
+        catch (e: any) { return { success: false, error: e.message, msgLimit: 50, inviteLimit: 50 }; }
+    });
+
+    ipcHandle('crm:setAccountQuota', async (_e, { zaloId, msgLimit, inviteLimit }: { zaloId: string; msgLimit: number; inviteLimit: number }) => {
+        try {
+            if (AppModeManager.getInstance().getMode() === 'employee') {
+                return await proxyToBossAsync('crm:setAccountQuota', { zaloId, msgLimit, inviteLimit });
+            }
+            const db = DatabaseService.getInstance();
+            db.setStrangerMsgLimit(zaloId, Math.max(1, Number(msgLimit)));
+            db.setFriendReqLimit(zaloId, Math.max(1, Number(inviteLimit)));
+            return { success: true };
         }
         catch (e: any) { return { success: false, error: e.message }; }
     });

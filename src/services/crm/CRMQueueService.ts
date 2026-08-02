@@ -121,8 +121,36 @@ class CRMQueueService {
     }
 
     /** Bắt đầu dispatcher cho account */
-    public startForAccount(zaloId: string): void {
-        if (this.timers.has(zaloId)) return;
+    public startForAccount(zaloId: string, campaignId?: number): { ok: boolean; blockedByCampaignId?: number; blockedByCampaignName?: string } {
+        if (this.timers.has(zaloId)) {
+            // Queue đang chạy — kiểm tra có chiến dịch khác đang active không
+            if (campaignId) {
+                const db = DatabaseService.getInstance();
+                const runningCampaigns = db.query<any>(
+                    `SELECT id, name FROM crm_campaigns
+                     WHERE owner_zalo_id=? AND status='active'
+                       AND id != ?
+                       AND EXISTS (SELECT 1 FROM crm_campaign_contacts cc WHERE cc.campaign_id=id AND cc.status='pending')
+                     LIMIT 1`,
+                    [zaloId, campaignId]
+                );
+                if (runningCampaigns.length > 0) {
+                    const blocker = runningCampaigns[0];
+                    Logger.warn(`[CRMQueue] ⛔ BLOCKED: Account ${zaloId} already has campaign "${blocker.name}" (id=${blocker.id}) running. Cannot start campaign ${campaignId} simultaneously.`);
+                    EventBroadcaster.emit('crm:queueStatus', {
+                        zaloId, type: 'blocked_by_running_campaign',
+                        blockedByCampaignId: blocker.id,
+                        blockedByCampaignName: blocker.name,
+                        tokens: this.tokens.get(zaloId) ?? 0,
+                        maxTokens: this.MAX_TOKENS,
+                        lastSentAt: this.lastSentAt.get(zaloId) ?? 0,
+                        dailyPaused: false,
+                    });
+                    return { ok: false, blockedByCampaignId: blocker.id, blockedByCampaignName: blocker.name };
+                }
+            }
+            return { ok: true }; // Queue đã chạy, không cần khởi động lại
+        }
         Logger.log(`[CRMQueue] ▶ Starting queue for ${zaloId}`);
         if (!this.tokens.has(zaloId)) {
             this.tokens.set(zaloId, this.MAX_TOKENS);
@@ -133,6 +161,7 @@ class CRMQueueService {
         }
         const timer = setInterval(() => this.process(zaloId), this.CHECK_INTERVAL_MS);
         this.timers.set(zaloId, timer);
+        return { ok: true };
     }
 
     /** Dừng dispatcher cho account */
@@ -264,16 +293,87 @@ class CRMQueueService {
             }
         }
 
-        // ── Daily limit (chỉ áp dụng nếu có giới hạn, kiểm tra riêng cho từng tài khoản Zalo) ───────────────────
-        if (campaignData && campaignData.daily_send_limit && campaignData.daily_send_limit > 0) {
-            const dailyCount = db.getDailySentCountForCampaign(item.campaign_id, zaloId);
-            if (dailyCount >= campaignData.daily_send_limit) {
-                this.dailyPausedCampaigns.set(item.campaign_id, true);
-                Logger.log(`[CRMQueue] Campaign ${item.campaign_id} daily limit reached for account ${zaloId}: ${dailyCount}/${campaignData.daily_send_limit}`);
-                this.broadcastStatus(zaloId, 'daily_limit_reached');
-                return;
+        // ── Per-Account Safety Quota Check (thay thế daily_send_limit per-campaign) ───────────────
+        //
+        // Logic:
+        //  - Tin nhắn gửi cho NGƯỜI LẠ (chưa kết bạn) mới tính vào định mức tin nhắn
+        //  - Lời mời kết bạn luôn tính vào định mức kết bạn
+        //  - Bạn bè (đã kết bạn) KHÔNG tính vào bất kỳ định mức nào
+        //  - Mixed campaign: dừng khi chạm BẤT KỲ định mức nào (không cố chuyển mode)
+        if (campaignData) {
+            const contactType = (item as any).campaign_type || campaignData.campaign_type || 'message';
+            // Kiểm tra contact hiện tại có phải bạn bè không (nếu đã kết bạn → bỏ qua kiểm tra định mức)
+            const contactIsFriend = (() => {
+                try {
+                    const friendRow = db.queryOne<any>(
+                        `SELECT 1 FROM contacts WHERE owner_zalo_id=? AND contact_id=? AND is_friend=1 LIMIT 1`,
+                        [zaloId, item.contact_id]
+                    );
+                    if (friendRow) return true;
+                    // Fallback: kiểm tra bảng friends
+                    const f2 = db.queryOne<any>(
+                        `SELECT 1 FROM friends WHERE owner_zalo_id=? AND user_id=? LIMIT 1`,
+                        [zaloId, item.contact_id]
+                    );
+                    return !!f2;
+                } catch { return false; }
+            })();
+
+            if (!contactIsFriend) {
+                // Lấy số đã gửi hôm nay (cross-campaign) và các định mức của tài khoản
+                const todayCount = db.getTodayStrangerSentCount(zaloId);
+                const msgLimit   = db.getStrangerMsgLimit(zaloId);
+                const invLimit   = db.getFriendReqLimit(zaloId);
+
+                let limitReached = false;
+                let limitType = '';
+
+                if (contactType === 'friend_request') {
+                    if (todayCount.invites >= invLimit) {
+                        limitReached = true;
+                        limitType = 'friend_req_limit_reached';
+                        Logger.log(`[CRMQueue] ⚠️ Account ${zaloId}: Friend request quota reached (${todayCount.invites}/${invLimit})`);
+                    }
+                } else if (contactType === 'mixed') {
+                    // Mixed: dừng khi chạm bất kỳ định mức nào
+                    if (todayCount.messages >= msgLimit) {
+                        limitReached = true;
+                        limitType = 'msg_daily_limit_reached';
+                        Logger.log(`[CRMQueue] ⚠️ Account ${zaloId}: Message quota reached (${todayCount.messages}/${msgLimit}) — Mixed campaign paused`);
+                    } else if (todayCount.invites >= invLimit) {
+                        limitReached = true;
+                        limitType = 'friend_req_limit_reached';
+                        Logger.log(`[CRMQueue] ⚠️ Account ${zaloId}: Friend request quota reached (${todayCount.invites}/${invLimit}) — Mixed campaign paused`);
+                    }
+                } else {
+                    // message campaign
+                    if (todayCount.messages >= msgLimit) {
+                        limitReached = true;
+                        limitType = 'msg_daily_limit_reached';
+                        Logger.log(`[CRMQueue] ⚠️ Account ${zaloId}: Message quota reached (${todayCount.messages}/${msgLimit})`);
+                    }
+                }
+
+                if (limitReached) {
+                    this.dailyPausedCampaigns.set(item.campaign_id, true);
+                    this.broadcastStatus(zaloId, limitType);
+                    return;
+                }
+                this.dailyPausedCampaigns.delete(item.campaign_id);
             }
-            this.dailyPausedCampaigns.delete(item.campaign_id);
+        }
+
+        // ── Kiểm tra giờ hẹn daily (scheduled_time_of_day): chạy mỗi ngày vào giờ cố định ───────────
+        if (campaignData) {
+            const timeOfDay = (campaignData as any).scheduled_time_of_day as string | undefined;
+            if (timeOfDay && timeOfDay.trim()) {
+                const nowICT = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+                if (nowICT < timeOfDay.trim()) {
+                    Logger.log(`[CRMQueue] Campaign ${item.campaign_id}: waiting for daily scheduled time ${timeOfDay} (now ${nowICT} ICT)`);
+                    this.broadcastStatus(zaloId, 'waiting_for_start_time');
+                    return;
+                }
+            }
         }
 
         // Check delay: random between delay_min_seconds and delay_max_seconds (range-based)
@@ -1003,7 +1103,12 @@ class CRMQueueService {
     }
 
     private broadcastStatus(zaloId: string, type: string): void {
-        const isDailyPaused = type === 'daily_limit_reached' || type === 'waiting_for_start_time' || type === 'waiting_for_scheduled_time';
+        const isDailyPaused = type === 'daily_limit_reached'
+            || type === 'msg_daily_limit_reached'
+            || type === 'friend_req_limit_reached'
+            || type === 'all_limits_reached'
+            || type === 'waiting_for_start_time'
+            || type === 'waiting_for_scheduled_time';
         EventBroadcaster.emit('crm:queueStatus', {
             zaloId, type,
             tokens: this.tokens.get(zaloId) ?? 0,

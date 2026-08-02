@@ -1110,6 +1110,7 @@ Yêu cầu quan trọng:
         daily_send_limit: dailyLimit,
         daily_start_time: dailyStartTime,
         scheduled_start_at: scheduledStartAt,
+        scheduled_time_of_day: (isScheduled && schedTime) ? schedTime : '',
         quiet_hours_enabled: quietHoursEnabled ? 1 : 0,
         quiet_hours_start: quietHoursStart,
         quiet_hours_end: quietHoursEnd,

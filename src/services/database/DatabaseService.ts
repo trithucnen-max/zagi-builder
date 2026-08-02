@@ -2552,6 +2552,11 @@ class DatabaseService {
                     updated = true;
                     Logger.log('[DatabaseService] Migration: added scheduled_start_at to crm_campaigns');
                 }
+                if (!campCols.some((c: any) => c.name === 'scheduled_time_of_day')) {
+                    db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN scheduled_time_of_day TEXT DEFAULT ''`);
+                    updated = true;
+                    Logger.log('[DatabaseService] Migration: added scheduled_time_of_day to crm_campaigns');
+                }
                 if (updated) {
                     this.save();
                 }
@@ -5941,18 +5946,19 @@ class DatabaseService {
             const quietEnabled = (campaign as any).quiet_hours_enabled !== undefined ? ((campaign as any).quiet_hours_enabled ? 1 : 0) : 1;
             const quietStart = (campaign as any).quiet_hours_start || '23:30';
             const quietEnd = (campaign as any).quiet_hours_end || '07:00';
+            const scheduledTimeOfDay = (campaign as any).scheduled_time_of_day || '';
 
             if (campaign.id) {
                 const rows = this.query<any>(`SELECT id FROM crm_campaigns WHERE id=? AND owner_zalo_id=?`, [campaign.id, campaign.owner_zalo_id]);
                 if (rows.length > 0) {
                     this.run(
-                        `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, quiet_hours_enabled=?, quiet_hours_start=?, quiet_hours_end=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                        [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, quietEnabled, quietStart, quietEnd, now, campaign.id, campaign.owner_zalo_id]
+                        `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, scheduled_time_of_day=?, quiet_hours_enabled=?, quiet_hours_start=?, quiet_hours_end=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, scheduledTimeOfDay, quietEnabled, quietStart, quietEnd, now, campaign.id, campaign.owner_zalo_id]
                     );
                 } else {
                     this.run(
-                        `INSERT INTO crm_campaigns (id, owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                        [campaign.id, campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, quietEnabled, quietStart, quietEnd, now, now]
+                        `INSERT INTO crm_campaigns (id, owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, scheduled_time_of_day, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        [campaign.id, campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, status, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, scheduledTimeOfDay, quietEnabled, quietStart, quietEnd, now, now]
                     );
                 }
                 return campaign.id;
@@ -5968,8 +5974,8 @@ class DatabaseService {
                 }
 
                 return this.runInsert(
-                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, quietEnabled, quietStart, quietEnd, now, now]
+                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, scheduled_time_of_day, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, scheduledTimeOfDay, quietEnabled, quietStart, quietEnd, now, now]
                 );
             }
         } catch (err: any) { Logger.error(`[DB] saveCRMCampaign: ${err.message}`); return 0; }
@@ -6292,6 +6298,101 @@ class DatabaseService {
         }
     }
 
+    // ─── Per-Account Safety Quota Helpers ────────────────────────────────────
+
+    /** Đọc định mức gửi tin nhắn người lạ hàng ngày của 1 tài khoản Zalo (mặc định 50) */
+    public getStrangerMsgLimit(zaloId: string): number {
+        const v = this.getSetting(`stranger_msg_daily_limit_${zaloId}`);
+        return v ? Math.max(1, parseInt(v, 10)) : 50;
+    }
+
+    /** Đọc định mức gửi lời mời kết bạn hàng ngày của 1 tài khoản Zalo (mặc định 50) */
+    public getFriendReqLimit(zaloId: string): number {
+        const v = this.getSetting(`friend_req_daily_limit_${zaloId}`);
+        return v ? Math.max(1, parseInt(v, 10)) : 50;
+    }
+
+    /** Lưu định mức gửi tin nhắn người lạ của 1 tài khoản Zalo */
+    public setStrangerMsgLimit(zaloId: string, limit: number): void {
+        this.setSetting(`stranger_msg_daily_limit_${zaloId}`, String(Math.max(1, limit)));
+    }
+
+    /** Lưu định mức gửi lời mời kết bạn của 1 tài khoản Zalo */
+    public setFriendReqLimit(zaloId: string, limit: number): void {
+        this.setSetting(`friend_req_daily_limit_${zaloId}`, String(Math.max(1, limit)));
+    }
+
+    /**
+     * Đếm tổng số người lạ (chưa kết bạn) đã gửi hôm nay của 1 tài khoản Zalo (cross-campaign).
+     * Chỉ đếm những contact mà tại thời điểm gửi KHÔNG phải bạn bè.
+     */
+    public getTodayStrangerSentCount(zaloId: string): { messages: number; invites: number } {
+        if (!this.initialized) return { messages: 0, invites: 0 };
+        try {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const startMs = todayStart.getTime();
+
+            // Đếm tin nhắn gửi cho người lạ hôm nay (loại trừ friend_request)
+            const msgRow = this.queryOne<any>(`
+                SELECT COUNT(DISTINCT contact_id) as cnt
+                FROM crm_send_log
+                WHERE owner_zalo_id = ?
+                  AND status = 'sent'
+                  AND sent_at >= ?
+                  AND (send_type = 'message' OR send_type = '' OR send_type IS NULL)
+                  AND send_type != 'friend_request'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM friends f
+                      WHERE f.owner_zalo_id = crm_send_log.owner_zalo_id
+                        AND f.user_id = crm_send_log.contact_id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM contacts co
+                      WHERE co.owner_zalo_id = crm_send_log.owner_zalo_id
+                        AND co.contact_id = crm_send_log.contact_id
+                        AND co.is_friend = 1
+                  )
+            `, [zaloId, startMs]);
+
+            // Đếm lời mời kết bạn gửi hôm nay
+            const inviteRow = this.queryOne<any>(`
+                SELECT COUNT(DISTINCT contact_id) as cnt
+                FROM crm_send_log
+                WHERE owner_zalo_id = ?
+                  AND status = 'sent'
+                  AND sent_at >= ?
+                  AND send_type = 'friend_request'
+            `, [zaloId, startMs]);
+
+            return {
+                messages: msgRow?.cnt ?? 0,
+                invites: inviteRow?.cnt ?? 0,
+            };
+        } catch { return { messages: 0, invites: 0 }; }
+    }
+
+    /**
+     * Đếm số chiến dịch đang thực sự chạy (status='active' VÀ còn contact pending)
+     * cho 1 tài khoản Zalo.
+     */
+    public getRunningCampaignCount(zaloId: string): number {
+        if (!this.initialized) return 0;
+        try {
+            const rows = this.query<any>(`
+                SELECT COUNT(*) as cnt
+                FROM crm_campaigns c
+                WHERE c.owner_zalo_id = ?
+                  AND c.status = 'active'
+                  AND EXISTS (
+                      SELECT 1 FROM crm_campaign_contacts cc
+                      WHERE cc.campaign_id = c.id AND cc.status = 'pending'
+                  )
+            `, [zaloId]);
+            return rows[0]?.cnt ?? 0;
+        } catch { return 0; }
+    }
+
     /** Kiểm tra có campaign nào đang active không */
     public hasActiveCampaigns(ownerZaloId: string): boolean {
         if (!this.initialized) return false;
@@ -6415,9 +6516,11 @@ class DatabaseService {
     public getCampaignSafetyStats(ownerZaloId?: string): {
         sentStrangerMessages: number;
         sentStrangerInvites: number;
+        msgLimit: number;
+        inviteLimit: number;
         campaignsOverTime: Array<{ date: string; count: number }>;
     } {
-        if (!this.initialized) return { sentStrangerMessages: 0, sentStrangerInvites: 0, campaignsOverTime: [] };
+        if (!this.initialized) return { sentStrangerMessages: 0, sentStrangerInvites: 0, msgLimit: 50, inviteLimit: 50, campaignsOverTime: [] };
         try {
             const hasOwner = !!ownerZaloId;
             const startOfTodayMs = new Date();
@@ -6475,11 +6578,13 @@ class DatabaseService {
             return {
                 sentStrangerMessages: msgRow?.cnt || 0,
                 sentStrangerInvites: inviteRow?.cnt || 0,
+                msgLimit: ownerZaloId ? this.getStrangerMsgLimit(ownerZaloId) : 50,
+                inviteLimit: ownerZaloId ? this.getFriendReqLimit(ownerZaloId) : 50,
                 campaignsOverTime: timeline.map((t: any) => ({ date: t.date_str, count: t.count })),
             };
         } catch (err: any) {
             Logger.error(`[DB] getCampaignSafetyStats: ${err.message}`);
-            return { sentStrangerMessages: 0, sentStrangerInvites: 0, campaignsOverTime: [] };
+            return { sentStrangerMessages: 0, sentStrangerInvites: 0, msgLimit: 50, inviteLimit: 50, campaignsOverTime: [] };
         }
     }
 

@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { CRMCampaign } from '@/store/crmStore';
 import { showConfirm } from '@/components/common/ConfirmDialog';
 import AppIcon from '@/components/common/AppIcon';
 import ipc from '@/lib/ipc';
+import AccountQuotaModal from './AccountQuotaModal';
 
 interface CampaignListProps {
   campaigns: CRMCampaign[];
@@ -40,7 +41,10 @@ export default function CampaignList({
   const [safetyStats, setSafetyStats] = useState<{
     sentStrangerMessages: number;
     sentStrangerInvites: number;
+    msgLimit: number;
+    inviteLimit: number;
   } | null>(null);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
 
   useEffect(() => {
     if (!zaloId) {
@@ -51,7 +55,12 @@ export default function CampaignList({
       try {
         const res = await ipc.crm.getCampaignSafetyStats({ zaloId });
         if (res.success && res.data) {
-          setSafetyStats(res.data);
+          setSafetyStats({
+            sentStrangerMessages: res.data.sentStrangerMessages,
+            sentStrangerInvites: res.data.sentStrangerInvites,
+            msgLimit: res.data.msgLimit ?? 50,
+            inviteLimit: res.data.inviteLimit ?? 50,
+          });
         }
       } catch (err) {
         console.error('Error fetching safety stats in CampaignList:', err);
@@ -61,6 +70,21 @@ export default function CampaignList({
     const interval = setInterval(fetchStats, 10000);
     return () => clearInterval(interval);
   }, [zaloId, campaigns]);
+
+  const handleQuotaSaved = useCallback(() => {
+    // Re-fetch stats sau khi lưu định mức mới
+    if (!zaloId) return;
+    ipc.crm.getCampaignSafetyStats({ zaloId }).then(res => {
+      if (res.success && res.data) {
+        setSafetyStats({
+          sentStrangerMessages: res.data.sentStrangerMessages,
+          sentStrangerInvites: res.data.sentStrangerInvites,
+          msgLimit: res.data.msgLimit ?? 50,
+          inviteLimit: res.data.inviteLimit ?? 50,
+        });
+      }
+    }).catch(() => {});
+  }, [zaloId]);
 
   // Counts by status
   const counts = useMemo(() => {
@@ -90,6 +114,7 @@ export default function CampaignList({
   const resetPage = () => setPage(0);
 
   return (
+    <>
     <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-800">
       <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
         {/* ── Top Card: Gửi Hôm Nay (Định Mức 50) ── */}
@@ -97,11 +122,22 @@ export default function CampaignList({
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5 font-bold text-xs text-gray-800 dark:text-gray-200">
               <span className="text-amber-500 text-sm">🛡️</span>
-              <span>Gửi hôm nay <span className="text-gray-400 font-medium text-[11px]">(Định mức 50)</span></span>
+              <span>Gửi hôm nay <span className="text-gray-400 font-medium text-[11px]">(Định mức an toàn)</span></span>
             </div>
-            <button title="Chính sách gửi tin an toàn Zalo" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs">
-              ⓘ
-            </button>
+            <div className="flex items-center gap-1">
+              {zaloId && (
+                <button
+                  title="Cài đặt định mức an toàn cho tài khoản này"
+                  onClick={() => setShowQuotaModal(true)}
+                  className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 text-xs transition-colors px-1"
+                >
+                  ⚙️
+                </button>
+              )}
+              <button title="Chính sách gửi tin an toàn Zalo" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs">
+                ⓘ
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
@@ -112,13 +148,23 @@ export default function CampaignList({
                 <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300">Đã gửi tin</span>
               </div>
               <div className="text-sm font-black text-gray-900 dark:text-white mb-1.5 text-center">
-                <span className="text-amber-500 font-extrabold">{safetyStats?.sentStrangerMessages || 0}</span>
-                <span className="text-gray-400 font-normal text-xs"> / 50</span>
+                {(() => {
+                  const sent = safetyStats?.sentStrangerMessages || 0;
+                  const limit = safetyStats?.msgLimit ?? 50;
+                  const pct = sent / limit;
+                  const color = pct >= 1 ? 'text-red-500' : pct >= 0.8 ? 'text-orange-500' : 'text-amber-500';
+                  return (<>
+                    <span className={`font-extrabold ${color}`}>{sent}</span>
+                    <span className="text-gray-400 font-normal text-xs"> / {limit}</span>
+                  </>);
+                })()}
               </div>
               <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, ((safetyStats?.sentStrangerMessages || 0) / 50) * 100)}%` }}
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    (() => { const p = (safetyStats?.sentStrangerMessages || 0) / (safetyStats?.msgLimit ?? 50); return p >= 1 ? 'bg-red-500' : p >= 0.8 ? 'bg-orange-500' : 'bg-amber-500'; })()
+                  }`}
+                  style={{ width: `${Math.min(100, ((safetyStats?.sentStrangerMessages || 0) / (safetyStats?.msgLimit ?? 50)) * 100)}%` }}
                 />
               </div>
             </div>
@@ -130,13 +176,23 @@ export default function CampaignList({
                 <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300">Đã kết bạn</span>
               </div>
               <div className="text-sm font-black text-gray-900 dark:text-white mb-1.5 text-center">
-                <span className="text-emerald-500 font-extrabold">{safetyStats?.sentStrangerInvites || 0}</span>
-                <span className="text-gray-400 font-normal text-xs"> / 50</span>
+                {(() => {
+                  const sent = safetyStats?.sentStrangerInvites || 0;
+                  const limit = safetyStats?.inviteLimit ?? 50;
+                  const pct = sent / limit;
+                  const color = pct >= 1 ? 'text-red-500' : pct >= 0.8 ? 'text-orange-500' : 'text-emerald-500';
+                  return (<>
+                    <span className={`font-extrabold ${color}`}>{sent}</span>
+                    <span className="text-gray-400 font-normal text-xs"> / {limit}</span>
+                  </>);
+                })()}
               </div>
               <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, ((safetyStats?.sentStrangerInvites || 0) / 50) * 100)}%` }}
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    (() => { const p = (safetyStats?.sentStrangerInvites || 0) / (safetyStats?.inviteLimit ?? 50); return p >= 1 ? 'bg-red-500' : p >= 0.8 ? 'bg-orange-500' : 'bg-emerald-500'; })()
+                  }`}
+                  style={{ width: `${Math.min(100, ((safetyStats?.sentStrangerInvites || 0) / (safetyStats?.inviteLimit ?? 50)) * 100)}%` }}
                 />
               </div>
             </div>
@@ -349,5 +405,15 @@ export default function CampaignList({
         </div>
       </div>
     </div>
+
+    {/* AccountQuotaModal */}
+    {showQuotaModal && zaloId && (
+      <AccountQuotaModal
+        zaloId={zaloId}
+        onClose={() => setShowQuotaModal(false)}
+        onSaved={handleQuotaSaved}
+      />
+    )}
+    </>
   );
 }
