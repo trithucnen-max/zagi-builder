@@ -48,6 +48,8 @@ interface CampaignDetailProps {
   }) => Promise<void>;
   onClone?: (id: number) => void;
   onCopyToAccounts?: (campaign: CRMCampaign) => void;
+  /** Trạng thái queue thực tế (từ CRMQueueService), dùng để phân biệt "Đang chạy" vs "Đạt giới hạn - Chờ tiếp" */
+  queueStatus?: { running: boolean; dailyPaused?: boolean; type?: string; tokens: number; maxTokens?: number; lastSentAt: number };
 }
 
 export default function CampaignDetail({
@@ -61,6 +63,7 @@ export default function CampaignDetail({
   onUpdate,
   onClone,
   onCopyToAccounts,
+  queueStatus,
 }: CampaignDetailProps) {
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -259,17 +262,29 @@ export default function CampaignDetail({
         <div>
           <div className="flex items-center gap-2.5 mb-1.5">
             <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">{campaign.name}</h2>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 ${
-              campaign.status === 'active'
-                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 animate-pulse'
-                : campaign.status === 'paused'
-                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                : campaign.status === 'done'
-                ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-            }`}>
-              {campaign.status === 'active' ? '▶ Đang chạy' : campaign.status === 'paused' ? '⏸ Tạm dừng' : campaign.status === 'done' ? '✓ Hoàn thành' : 'Nháp'}
-            </span>
+            {/* Status Badge — phân biệt 3 trạng thái: Đang chạy / Đạt giới hạn·Chờ tiếp / Tạm dừng / Hoàn thành */}
+            {campaign.status === 'active' && queueStatus?.running && (queueStatus.dailyPaused || queueStatus.type === 'daily_limit_reached' || queueStatus.type === 'msg_daily_limit_reached' || queueStatus.type === 'friend_req_limit_reached' || queueStatus.type === 'all_limits_reached') ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                title="Đã đạt định mức gửi hôm nay — Tự động tiếp tục vào ngày mai hoặc khi hết giờ nghỉ">
+                ⏳ Đạt giới hạn · Chờ tiếp
+              </span>
+            ) : campaign.status === 'active' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 animate-pulse">
+                ▶ Đang chạy
+              </span>
+            ) : campaign.status === 'paused' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                ⏸ Tạm dừng
+              </span>
+            ) : campaign.status === 'done' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                ✓ Hoàn thành
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+                Nháp
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">

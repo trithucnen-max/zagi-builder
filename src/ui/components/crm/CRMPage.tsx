@@ -1223,7 +1223,8 @@ export default function CRMPage() {
                           onStatusChange={handleUpdateCampaignStatus}
                           onAddContacts={handleAddContactsToCampaign}
                           onUpdate={handleUpdateCampaign}
-                        />
+                        queueStatus={queueStatus}
+                         />
                       </div>
                     </div>
                   ) : (
@@ -1270,6 +1271,7 @@ export default function CRMPage() {
                         onUpdate={handleUpdateCampaign}
                         onClone={id => { setCloneCampaignId(id); setShowCloneCampaign(true); }}
                         onCopyToAccounts={c => setCopyToAccountsCampaign(c)}
+                        queueStatus={queueStatus}
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full text-gray-500">

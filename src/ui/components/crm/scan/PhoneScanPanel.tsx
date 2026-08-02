@@ -1725,48 +1725,8 @@ export default function PhoneScanPanel() {
                                          </div>
                                      )}
 
-                                    {/* Assigned Account & Limits */}
-                                    <div className="grid grid-cols-3 gap-3">
-                                        <div>
-                                            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Tài khoản Zalo quét</label>
-                                            <select
-                                                value={formAssignedAccount}
-                                                onChange={e => setFormAssignedAccount(e.target.value)}
-                                                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-2.5 py-2 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 transition-all font-medium shadow-2xs cursor-pointer"
-                                            >
-                                                <option value="">-- Tự động chia tất cả TK --</option>
-                                                {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
-                                                    <option key={acc.zalo_id} value={acc.zalo_id}>
-                                                        {acc.full_name || acc.zalo_id}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Quét / ngày</label>
-                                            <input
-                                                type="number"
-                                                required
-                                                min={10}
-                                                max={1000}
-                                                value={formDailyLimit}
-                                                onChange={e => setFormDailyLimit(Number(e.target.value))}
-                                                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 transition-all font-medium shadow-2xs"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Quét / giờ</label>
-                                            <input
-                                                type="number"
-                                                required
-                                                min={5}
-                                                max={200}
-                                                value={formHourlyLimit}
-                                                onChange={e => setFormHourlyLimit(Number(e.target.value))}
-                                                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 transition-all font-medium shadow-2xs"
-                                            />
-                                        </div>
-                                    </div>
+                                    {/* Assigned Account & Limits — không hiển thị vì hệ thống quản lý quota tự động theo từng tài khoản */}
+                                    {/* Giá trị mặc định được dùng khi tạo: formAssignedAccount='', formDailyLimit=100, formHourlyLimit=30 */}
 
                                     {/* Initial Status & Scheduled Start Time */}
                                     <div className="grid grid-cols-2 gap-3">

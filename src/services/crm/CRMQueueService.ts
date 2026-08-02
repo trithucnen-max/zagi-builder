@@ -122,33 +122,36 @@ class CRMQueueService {
 
     /** Bắt đầu dispatcher cho account */
     public startForAccount(zaloId: string, campaignId?: number): { ok: boolean; blockedByCampaignId?: number; blockedByCampaignName?: string } {
-        if (this.timers.has(zaloId)) {
-            // Queue đang chạy — kiểm tra có chiến dịch khác đang active không
-            if (campaignId) {
-                const db = DatabaseService.getInstance();
-                const runningCampaigns = db.query<any>(
-                    `SELECT id, name FROM crm_campaigns
-                     WHERE owner_zalo_id=? AND status='active'
-                       AND id != ?
-                       AND EXISTS (SELECT 1 FROM crm_campaign_contacts cc WHERE cc.campaign_id=id AND cc.status='pending')
-                     LIMIT 1`,
-                    [zaloId, campaignId]
-                );
-                if (runningCampaigns.length > 0) {
-                    const blocker = runningCampaigns[0];
-                    Logger.warn(`[CRMQueue] ⛔ BLOCKED: Account ${zaloId} already has campaign "${blocker.name}" (id=${blocker.id}) running. Cannot start campaign ${campaignId} simultaneously.`);
-                    EventBroadcaster.emit('crm:queueStatus', {
-                        zaloId, type: 'blocked_by_running_campaign',
-                        blockedByCampaignId: blocker.id,
-                        blockedByCampaignName: blocker.name,
-                        tokens: this.tokens.get(zaloId) ?? 0,
-                        maxTokens: this.MAX_TOKENS,
-                        lastSentAt: this.lastSentAt.get(zaloId) ?? 0,
-                        dailyPaused: false,
-                    });
-                    return { ok: false, blockedByCampaignId: blocker.id, blockedByCampaignName: blocker.name };
-                }
+        // ── Luôn kiểm tra 1 chiến dịch / 1 tài khoản, kể cả khi queue timer chưa tồn tại ──────────
+        // BUG FIX: trước đây check chỉ nằm trong nhánh `this.timers.has(zaloId)` → nếu 2 campaign
+        // được start gần nhau (trước khi timer khởi động), cả hai đều bypass được → chạy song song.
+        if (campaignId) {
+            const db = DatabaseService.getInstance();
+            const runningCampaigns = db.query<any>(
+                `SELECT id, name FROM crm_campaigns
+                 WHERE owner_zalo_id=? AND status='active'
+                   AND id != ?
+                   AND EXISTS (SELECT 1 FROM crm_campaign_contacts cc WHERE cc.campaign_id=id AND cc.status='pending')
+                 LIMIT 1`,
+                [zaloId, campaignId]
+            );
+            if (runningCampaigns.length > 0) {
+                const blocker = runningCampaigns[0];
+                Logger.warn(`[CRMQueue] ⛔ BLOCKED: Account ${zaloId} already has campaign "${blocker.name}" (id=${blocker.id}) running. Cannot start campaign ${campaignId} simultaneously.`);
+                EventBroadcaster.emit('crm:queueStatus', {
+                    zaloId, type: 'blocked_by_running_campaign',
+                    blockedByCampaignId: blocker.id,
+                    blockedByCampaignName: blocker.name,
+                    tokens: this.tokens.get(zaloId) ?? 0,
+                    maxTokens: this.MAX_TOKENS,
+                    lastSentAt: this.lastSentAt.get(zaloId) ?? 0,
+                    dailyPaused: false,
+                });
+                return { ok: false, blockedByCampaignId: blocker.id, blockedByCampaignName: blocker.name };
             }
+        }
+
+        if (this.timers.has(zaloId)) {
             return { ok: true }; // Queue đã chạy, không cần khởi động lại
         }
         Logger.log(`[CRMQueue] ▶ Starting queue for ${zaloId}`);

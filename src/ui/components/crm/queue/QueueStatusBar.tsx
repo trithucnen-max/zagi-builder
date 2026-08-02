@@ -54,13 +54,26 @@ export default function QueueStatusBar({ status, maxTokens: maxTokensProp = 60 }
     || status?.type === 'blocked_by_running_campaign';
 
   const getStatusMessage = () => {
+    // Tính giờ chạy tiếp: ngày mai 07:00 ICT
+    const getResumeTime = () => {
+      const now = new Date();
+      const resume = new Date();
+      resume.setHours(7, 0, 0, 0);
+      if (now.getHours() >= 7) {
+        // Sau 07:00 → tính ngày mai
+        resume.setDate(resume.getDate() + 1);
+      }
+      return resume.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) +
+        (resume.getDate() !== now.getDate() ? ' ngày mai' : '');
+    };
+
     if (status?.type === 'waiting_for_scheduled_time') return 'Chờ đến giờ hẹn chạy';
     if (status?.type === 'waiting_for_start_time') return 'Chờ khung giờ chạy trong ngày';
-    if (status?.type === 'msg_daily_limit_reached') return '💬 Đạt định mức tin nhắn • Tự chạy lại sau giờ nghỉ';
-    if (status?.type === 'friend_req_limit_reached') return '👤 Đạt định mức kết bạn • Tự chạy lại sau giờ nghỉ';
-    if (status?.type === 'all_limits_reached') return '🛑 Đạt cả 2 định mức • Tự chạy lại sau giờ nghỉ';
+    if (status?.type === 'msg_daily_limit_reached') return `💬 Đạt định mức tin nhắn · Chạy tiếp lúc ${getResumeTime()}`;
+    if (status?.type === 'friend_req_limit_reached') return `👤 Đạt định mức kết bạn · Chạy tiếp lúc ${getResumeTime()}`;
+    if (status?.type === 'all_limits_reached') return `🛑 Đạt cả 2 định mức · Chạy tiếp lúc ${getResumeTime()}`;
     if (status?.type === 'blocked_by_running_campaign') return `⛔ Đang có chiến dịch khác chạy cùng tài khoản`;
-    if (status?.type === 'daily_limit_reached' || status?.dailyPaused) return 'Tạm dừng (đạt định mức/ngày)';
+    if (status?.type === 'daily_limit_reached' || status?.dailyPaused) return `⏳ Đạt định mức/ngày · Chạy tiếp lúc ${getResumeTime()}`;
     return 'Queue đang chạy';
   };
 
