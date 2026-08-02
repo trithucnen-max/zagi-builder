@@ -122,33 +122,31 @@ class CRMQueueService {
 
     /** Bắt đầu dispatcher cho account */
     public startForAccount(zaloId: string, campaignId?: number): { ok: boolean; blockedByCampaignId?: number; blockedByCampaignName?: string } {
-        // ── Luôn kiểm tra 1 chiến dịch / 1 tài khoản, kể cả khi queue timer chưa tồn tại ──────────
-        // BUG FIX: trước đây check chỉ nằm trong nhánh `this.timers.has(zaloId)` → nếu 2 campaign
-        // được start gần nhau (trước khi timer khởi động), cả hai đều bypass được → chạy song song.
-        if (campaignId) {
-            const db = DatabaseService.getInstance();
-            const runningCampaigns = db.query<any>(
-                `SELECT id, name FROM crm_campaigns
-                 WHERE owner_zalo_id=? AND status='active'
-                   AND id != ?
-                   AND EXISTS (SELECT 1 FROM crm_campaign_contacts cc WHERE cc.campaign_id=id AND cc.status='pending')
-                 LIMIT 1`,
-                [zaloId, campaignId]
-            );
-            if (runningCampaigns.length > 0) {
-                const blocker = runningCampaigns[0];
-                Logger.warn(`[CRMQueue] ⛔ BLOCKED: Account ${zaloId} already has campaign "${blocker.name}" (id=${blocker.id}) running. Cannot start campaign ${campaignId} simultaneously.`);
-                EventBroadcaster.emit('crm:queueStatus', {
-                    zaloId, type: 'blocked_by_running_campaign',
-                    blockedByCampaignId: blocker.id,
-                    blockedByCampaignName: blocker.name,
-                    tokens: this.tokens.get(zaloId) ?? 0,
-                    maxTokens: this.MAX_TOKENS,
-                    lastSentAt: this.lastSentAt.get(zaloId) ?? 0,
-                    dailyPaused: false,
-                });
-                return { ok: false, blockedByCampaignId: blocker.id, blockedByCampaignName: blocker.name };
-            }
+        // ── Luôn kiểm tra 1 chiến dịch / 1 tài khoản ─────────────────────────────────────
+        // Quy tắc: 1 tài khoản Zalo tại một thời điểm CHỈ ĐƯỢC CÓ TỐI ĐA 1 chiến dịch ở trạng thái active.
+        // Loại bỏ điều kiện `EXISTS pending contacts` để tránh trường hợp chiến dịch mới/rỗng vẫn làm bùng nổ 2 active.
+        const targetCampaignId = campaignId || 0;
+        const db = DatabaseService.getInstance();
+        const runningCampaigns = db.query<any>(
+            `SELECT id, name FROM crm_campaigns
+             WHERE owner_zalo_id=? AND status='active'
+               AND id != ?
+             LIMIT 1`,
+            [zaloId, targetCampaignId]
+        );
+        if (runningCampaigns.length > 0) {
+            const blocker = runningCampaigns[0];
+            Logger.warn(`[CRMQueue] ⛔ BLOCKED: Account ${zaloId} already has campaign "${blocker.name}" (id=${blocker.id}) active. Cannot start campaign ${targetCampaignId} simultaneously.`);
+            EventBroadcaster.emit('crm:queueStatus', {
+                zaloId, type: 'blocked_by_running_campaign',
+                blockedByCampaignId: blocker.id,
+                blockedByCampaignName: blocker.name,
+                tokens: this.tokens.get(zaloId) ?? 0,
+                maxTokens: this.MAX_TOKENS,
+                lastSentAt: this.lastSentAt.get(zaloId) ?? 0,
+                dailyPaused: false,
+            });
+            return { ok: false, blockedByCampaignId: blocker.id, blockedByCampaignName: blocker.name };
         }
 
         if (this.timers.has(zaloId)) {
@@ -209,8 +207,22 @@ class CRMQueueService {
     /** Khởi động lại tất cả campaigns đang active (sau khi app restart) */
     public resumeActiveCampaigns(): void {
         try {
-            const owners = DatabaseService.getInstance().getActiveCampaignOwners();
+            const db = DatabaseService.getInstance();
+            const owners = db.getActiveCampaignOwners();
             for (const zaloId of owners) {
+                // Tự động dọn dẹp nếu DB lỡ chứa nhiều hơn 1 chiến dịch active cho cùng 1 tài khoản
+                const activeCamps = db.query<any>(
+                    `SELECT id, name FROM crm_campaigns WHERE owner_zalo_id=? AND status='active' ORDER BY updated_at DESC, id DESC`,
+                    [zaloId]
+                );
+                if (activeCamps.length > 1) {
+                    // Giữ lại chiến dịch mới nhất, tạm dừng các chiến dịch cũ hơn
+                    for (let i = 1; i < activeCamps.length; i++) {
+                        Logger.warn(`[CRMQueue] Tự động tạm dừng chiến dịch trùng lặp id=${activeCamps[i].id} ("${activeCamps[i].name}") của tài khoản ${zaloId}`);
+                        db.updateCRMCampaignStatus(activeCamps[i].id, 'paused');
+                    }
+                    db.save();
+                }
                 Logger.log(`[CRMQueue] Resuming queue for ${zaloId}`);
                 this.startForAccount(zaloId);
             }

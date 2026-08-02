@@ -6037,6 +6037,15 @@ class DatabaseService {
             const quietEnd = (campaign as any).quiet_hours_end || '07:00';
             const scheduledTimeOfDay = (campaign as any).scheduled_time_of_day || '';
 
+            if (status === 'active' && campaign.owner_zalo_id) {
+                // Tự động chuyển các chiến dịch khác của cùng tài khoản Zalo về trạng thái paused
+                const targetId = campaign.id || 0;
+                this.run(
+                    `UPDATE crm_campaigns SET status = 'paused', updated_at = ? WHERE owner_zalo_id = ? AND status = 'active' AND id != ?`,
+                    [now, campaign.owner_zalo_id, targetId]
+                );
+            }
+
             if (campaign.id) {
                 const rows = this.query<any>(`SELECT id FROM crm_campaigns WHERE id=? AND owner_zalo_id=?`, [campaign.id, campaign.owner_zalo_id]);
                 if (rows.length > 0) {
@@ -6072,7 +6081,19 @@ class DatabaseService {
 
     public updateCRMCampaignStatus(campaignId: number, status: CRMCampaignStatus): void {
         if (!this.initialized) return;
-        try { this.run(`UPDATE crm_campaigns SET status=?, updated_at=? WHERE id=?`, [status, Date.now(), campaignId]); }
+        try {
+            const now = Date.now();
+            if (status === 'active') {
+                const camp = this.getCRMCampaign(campaignId);
+                if (camp && camp.owner_zalo_id) {
+                    this.run(
+                        `UPDATE crm_campaigns SET status = 'paused', updated_at = ? WHERE owner_zalo_id = ? AND status = 'active' AND id != ?`,
+                        [now, camp.owner_zalo_id, campaignId]
+                    );
+                }
+            }
+            this.run(`UPDATE crm_campaigns SET status=?, updated_at=? WHERE id=?`, [status, now, campaignId]);
+        }
         catch (err: any) { Logger.error(`[DB] updateCRMCampaignStatus: ${err.message}`); }
     }
 
@@ -6332,9 +6353,9 @@ class DatabaseService {
     public getNextPendingCampaignContactCooperative(zaloId: string): CRMCampaignContact | null {
         if (!this.initialized) return null;
         try {
-            // 1. Lấy tất cả chiến dịch đang chạy (active)
+            // 1. Lấy chiến dịch đang chạy (active) của riêng tài khoản zaloId này (tối đa 1 chiến dịch active)
             const activeCampaigns = this.query<any>(
-                `SELECT id, daily_send_limit FROM crm_campaigns WHERE status='active'`, []
+                `SELECT id, daily_send_limit FROM crm_campaigns WHERE owner_zalo_id=? AND status='active' ORDER BY updated_at DESC, id DESC LIMIT 1`, [zaloId]
             );
 
             // 2. Lọc bỏ các chiến dịch mà zaloId này đã đạt giới hạn gửi tin trong ngày

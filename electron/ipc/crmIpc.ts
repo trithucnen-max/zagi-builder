@@ -262,6 +262,16 @@ export function registerCRMIpc(): void {
 
     ipcHandle('crm:saveCampaign', async (_e, { zaloId, campaign }: { zaloId: string; campaign: any }) => {
         try {
+            if (campaign?.status === 'active') {
+                const startRes = CRMQueueService.getInstance().startForAccount(zaloId, campaign?.id || 0);
+                if (!startRes.ok) {
+                    return {
+                        success: false,
+                        error: `Tài khoản ${zaloId} đang chạy chiến dịch "${startRes.blockedByCampaignName || 'khác'}". Vui lòng tạm dừng chiến dịch đó trước.`
+                    };
+                }
+            }
+
             if (AppModeManager.getInstance().getMode() === 'employee') {
                 // Upload embedded campaign images to Boss first so they exist on Boss filesystem and rewrite local paths
                 if (campaign?.template_message) {
@@ -305,6 +315,9 @@ export function registerCRMIpc(): void {
 
             const id = DatabaseService.getInstance().saveCRMCampaign({ ...campaign, owner_zalo_id: zaloId });
             DatabaseService.getInstance().save();
+            if (campaign?.status === 'active') {
+                CRMQueueService.getInstance().startForAccount(zaloId, id);
+            }
             EventBroadcaster.emit('crm:campaignChanged', { action: 'save', ownerZaloId: zaloId, id, campaign: { ...campaign, id } });
             return { success: true, id };
         } catch (e: any) { return { success: false, error: e.message }; }
