@@ -278,6 +278,8 @@ declare global {
         getCampaignSafetyStats: (params: { zaloId?: string }) => Promise<{ success: boolean; data: { sentStrangerMessages: number; sentStrangerInvites: number; msgLimit: number; inviteLimit: number; campaignsOverTime: Array<{ date: string; count: number }> } }>;
         getAccountQuota: (params: { zaloId: string }) => Promise<{ success: boolean; msgLimit: number; inviteLimit: number; error?: string }>;
         setAccountQuota: (params: { zaloId: string; msgLimit: number; inviteLimit: number }) => Promise<{ success: boolean; error?: string }>;
+        getScanQuotaSummary: () => Promise<{ success: boolean; data?: Array<{ zaloId: string; name: string; todayCount: number; scanDailyLimit: number; hourlyCount: number; scanHourlyLimit: number }>; error?: string }>;
+        setAccountScanLimits: (params: { zaloId: string; scanDailyLimit: number; scanHourlyLimit: number }) => Promise<{ success: boolean; error?: string }>;
         getActivityStats: (params: { zaloId: string; sinceTs: number; untilTs?: number; }) => Promise<{ success: boolean; conversationCount: number; messageCount: number; sentCount: number; receivedCount: number }>;
         scheduleMessage: (params: { ownerZaloId: string; threadId: string; threadType: string; channel: string; message: string; attachments?: any[]; sendAt: number }) => Promise<{ success: boolean; id?: string; error?: string }>;
         getScheduledMessages: (params: { ownerZaloId: string; threadId: string }) => Promise<{ success: boolean; scheduledMessages: any[]; error?: string }>;

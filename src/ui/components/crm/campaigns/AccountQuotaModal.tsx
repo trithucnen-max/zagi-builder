@@ -10,34 +10,49 @@ interface AccountQuotaModalProps {
 export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQuotaModalProps) {
   const [msgLimit, setMsgLimit] = useState(50);
   const [inviteLimit, setInviteLimit] = useState(50);
+  const [scanDailyLimit, setScanDailyLimit] = useState(100);
+  const [scanHourlyLimit, setScanHourlyLimit] = useState(30);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setLoading(true);
-    ipc.crm.getAccountQuota({ zaloId }).then(res => {
-      if (res.success) {
-        setMsgLimit(res.msgLimit ?? 50);
-        setInviteLimit(res.inviteLimit ?? 50);
+    Promise.all([
+      ipc.crm.getAccountQuota({ zaloId }),
+      ipc.crm.getScanQuotaSummary()
+    ]).then(([quotaRes, scanRes]) => {
+      if (quotaRes.success) {
+        setMsgLimit(quotaRes.msgLimit ?? 50);
+        setInviteLimit(quotaRes.inviteLimit ?? 50);
+      }
+      if (scanRes?.success && scanRes.data) {
+        const item = scanRes.data.find(a => a.zaloId === zaloId);
+        if (item) {
+          setScanDailyLimit(item.scanDailyLimit || 100);
+          setScanHourlyLimit(item.scanHourlyLimit || 30);
+        }
       }
     }).catch(() => {}).finally(() => setLoading(false));
   }, [zaloId]);
 
   const handleSave = async () => {
-    if (msgLimit < 1 || inviteLimit < 1) {
+    if (msgLimit < 1 || inviteLimit < 1 || scanDailyLimit < 1 || scanHourlyLimit < 1) {
       setError('Định mức tối thiểu là 1');
       return;
     }
     setSaving(true);
     setError('');
     try {
-      const res = await ipc.crm.setAccountQuota({ zaloId, msgLimit, inviteLimit });
-      if (res.success) {
+      const [res1, res2] = await Promise.all([
+        ipc.crm.setAccountQuota({ zaloId, msgLimit, inviteLimit }),
+        ipc.crm.setAccountScanLimits({ zaloId, scanDailyLimit, scanHourlyLimit })
+      ]);
+      if (res1.success && res2.success) {
         onSaved();
         onClose();
       } else {
-        setError(res.error || 'Lưu thất bại');
+        setError(res1.error || res2.error || 'Lưu thất bại');
       }
     } catch (e: any) {
       setError(e.message || 'Lỗi không xác định');
@@ -51,8 +66,8 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-lg">⚙️</span>
             <div>
@@ -63,7 +78,7 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors text-xl leading-none">×</button>
         </div>
 
-        <div className="px-5 py-5 space-y-5">
+        <div className="px-5 py-5 space-y-5 overflow-y-auto">
           {loading ? (
             <div className="text-center py-6 text-gray-400 text-sm">Đang tải...</div>
           ) : (
@@ -108,6 +123,33 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                 </div>
               </div>
 
+              {/* Định mức Quét SĐT */}
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  <span className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center text-sm">🔍</span>
+                  Định mức Quét SĐT Zalo
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 block mb-1">Quét tối đa / ngày</span>
+                    <input
+                      type="number" min={1} max={500} value={scanDailyLimit}
+                      onChange={e => setScanDailyLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-bold text-gray-900 dark:text-white text-center focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 block mb-1">Quét tối đa / giờ</span>
+                    <input
+                      type="number" min={1} max={100} value={scanHourlyLimit}
+                      onChange={e => setScanHourlyLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-bold text-gray-900 dark:text-white text-center focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Nút chọn nhanh (Quick Presets) */}
               <div className="space-y-1.5 pt-1">
                 <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -116,29 +158,29 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                 <div className="grid grid-cols-3 gap-1.5">
                   <button
                     type="button"
-                    onClick={() => { setMsgLimit(15); setInviteLimit(15); }}
+                    onClick={() => { setMsgLimit(15); setInviteLimit(15); setScanDailyLimit(30); setScanHourlyLimit(10); }}
                     className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-900 dark:text-amber-300 text-[11px] text-center font-bold transition-all active:scale-95"
                   >
                     <div>🌱 Nick mới</div>
-                    <div className="text-[10px] opacity-80 font-normal">15 lượt / ngày</div>
+                    <div className="text-[10px] opacity-80 font-normal">15 tin / 30 quét</div>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => { setMsgLimit(30); setInviteLimit(30); }}
+                    onClick={() => { setMsgLimit(30); setInviteLimit(30); setScanDailyLimit(100); setScanHourlyLimit(30); }}
                     className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-900 dark:text-blue-300 text-[11px] text-center font-bold transition-all active:scale-95"
                   >
                     <div>🌿 N.Thường</div>
-                    <div className="text-[10px] opacity-80 font-normal">30 lượt / ngày</div>
+                    <div className="text-[10px] opacity-80 font-normal">30 tin / 100 quét</div>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => { setMsgLimit(50); setInviteLimit(50); }}
+                    onClick={() => { setMsgLimit(50); setInviteLimit(50); setScanDailyLimit(200); setScanHourlyLimit(50); }}
                     className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-900 dark:text-emerald-300 text-[11px] text-center font-bold transition-all active:scale-95"
                   >
                     <div>🌳 Nick cũ</div>
-                    <div className="text-[10px] opacity-80 font-normal">50 lượt / ngày</div>
+                    <div className="text-[10px] opacity-80 font-normal">50 tin / 200 quét</div>
                   </button>
                 </div>
               </div>

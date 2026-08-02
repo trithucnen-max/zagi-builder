@@ -10091,6 +10091,69 @@ class DatabaseService {
         }
     }
 
+    public getAccountScanLimits(zaloId: string): { scanDailyLimit: number; scanHourlyLimit: number } {
+        if (!this.initialized) return { scanDailyLimit: 100, scanHourlyLimit: 30 };
+        try {
+            const dailyStr = this.getSetting(`scan_daily_limit_${zaloId}`);
+            const hourlyStr = this.getSetting(`scan_hourly_limit_${zaloId}`);
+            const scanDailyLimit = dailyStr ? Math.max(1, parseInt(dailyStr) || 100) : 100;
+            const scanHourlyLimit = hourlyStr ? Math.max(1, parseInt(hourlyStr) || 30) : 30;
+            return { scanDailyLimit, scanHourlyLimit };
+        } catch {
+            return { scanDailyLimit: 100, scanHourlyLimit: 30 };
+        }
+    }
+
+    public setAccountScanLimits(zaloId: string, scanDailyLimit: number, scanHourlyLimit: number): boolean {
+        if (!this.initialized) return false;
+        try {
+            this.setSetting(`scan_daily_limit_${zaloId}`, String(Math.max(1, scanDailyLimit)));
+            this.setSetting(`scan_hourly_limit_${zaloId}`, String(Math.max(1, scanHourlyLimit)));
+            this.save();
+            return true;
+        } catch (err: any) {
+            Logger.error(`[DB] setAccountScanLimits: ${err.message}`);
+            return false;
+        }
+    }
+
+    public getScanQuotaSummaryForAccounts(): Array<{
+        zaloId: string;
+        name: string;
+        todayCount: number;
+        scanDailyLimit: number;
+        hourlyCount: number;
+        scanHourlyLimit: number;
+    }> {
+        if (!this.initialized) return [];
+        try {
+            const accounts = this.getAccounts() || [];
+            const activeZalo = accounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+            const now = new Date();
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const oneHourAgo = Date.now() - 60 * 60 * 1000;
+
+            return activeZalo.map((acc: any) => {
+                const zaloId = String(acc.zalo_id);
+                const name = acc.full_name || acc.name || zaloId;
+                const todayCount = this.getDailyScanCountForAccount(zaloId, startOfToday);
+                const hourlyCount = this.getHourlyScanCountForAccount(zaloId, oneHourAgo);
+                const limits = this.getAccountScanLimits(zaloId);
+                return {
+                    zaloId,
+                    name,
+                    todayCount,
+                    scanDailyLimit: limits.scanDailyLimit,
+                    hourlyCount,
+                    scanHourlyLimit: limits.scanHourlyLimit,
+                };
+            });
+        } catch (err: any) {
+            Logger.error(`[DB] getScanQuotaSummaryForAccounts: ${err.message}`);
+            return [];
+        }
+    }
+
     public getPhoneScanOverallStats(
         timeRange: 'all' | 'today' | 'this_week' | 'this_month' | 'custom' = 'all',
         startDate?: string,

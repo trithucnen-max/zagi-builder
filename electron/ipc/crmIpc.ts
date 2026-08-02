@@ -835,11 +835,14 @@ export function registerCRMIpc(): void {
             const statusList = zaloAccounts.map((a: any) => {
                 const todayCount = db.getDailyScanCountForAccount(a.zalo_id, startOfTodayTimestamp);
                 const hourlyCount = db.getHourlyScanCountForAccount(a.zalo_id, oneHourAgoTimestamp);
+                const limits = db.getAccountScanLimits(a.zalo_id);
                 return {
                     zaloId: a.zalo_id,
-                    fullName: a.full_name || a.zalo_id,
+                    fullName: a.full_name || a.name || a.zalo_id,
                     todayCount,
-                    hourlyCount
+                    hourlyCount,
+                    scanDailyLimit: limits.scanDailyLimit,
+                    scanHourlyLimit: limits.scanHourlyLimit
                 };
             });
             return { success: true, accountsStatus: statusList };
@@ -1090,6 +1093,24 @@ export function registerCRMIpc(): void {
         try {
             const count = DatabaseService.getInstance().cleanupTempUnscannedContacts();
             return { success: true, count };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:getScanQuotaSummary', async () => {
+        try {
+            const summary = DatabaseService.getInstance().getScanQuotaSummaryForAccounts();
+            return { success: true, data: summary };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcHandle('crm:setAccountScanLimits', async (_e, { zaloId, scanDailyLimit, scanHourlyLimit }: { zaloId: string; scanDailyLimit: number; scanHourlyLimit: number }) => {
+        try {
+            const res = DatabaseService.getInstance().setAccountScanLimits(zaloId, scanDailyLimit, scanHourlyLimit);
+            return { success: res };
         } catch (e: any) {
             return { success: false, error: e.message };
         }

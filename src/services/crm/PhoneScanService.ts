@@ -181,38 +181,25 @@ class PhoneScanService {
 
             for (const item of pendingItems) {
                 let targetZaloId: string | null = null;
-                const assignedId = item.assigned_account_id;
-                const dailyLimit = item.daily_limit || 100;
-                const hourlyLimit = item.hourly_limit || 30;
                 const oneHourAgo = Date.now() - 60 * 60 * 1000;
+                let bestZaloId: string | null = null;
+                let minHourlyCount = Infinity;
 
-                if (assignedId) {
-                    if (eligibleZaloIds.includes(assignedId) && !accountsUsedInTick.has(assignedId)) {
-                        const todayCount = db.getDailyScanCountForAccount(assignedId, startOfToday);
-                        const hourlyCount = db.getHourlyScanCountForAccount(assignedId, oneHourAgo);
-                        if (todayCount < dailyLimit && hourlyCount < hourlyLimit) {
-                            targetZaloId = assignedId;
+                for (const zaloId of eligibleZaloIds) {
+                    if (accountsUsedInTick.has(zaloId)) continue;
+
+                    const limits = db.getAccountScanLimits(zaloId);
+                    const todayCount = db.getDailyScanCountForAccount(zaloId, startOfToday);
+                    const hourlyCount = db.getHourlyScanCountForAccount(zaloId, oneHourAgo);
+
+                    if (todayCount < limits.scanDailyLimit && hourlyCount < limits.scanHourlyLimit) {
+                        if (hourlyCount < minHourlyCount) {
+                            minHourlyCount = hourlyCount;
+                            bestZaloId = zaloId;
                         }
                     }
-                } else {
-                    let bestZaloId: string | null = null;
-                    let minHourlyCount = Infinity;
-
-                    for (const zaloId of eligibleZaloIds) {
-                        if (accountsUsedInTick.has(zaloId)) continue;
-
-                        const todayCount = db.getDailyScanCountForAccount(zaloId, startOfToday);
-                        const hourlyCount = db.getHourlyScanCountForAccount(zaloId, oneHourAgo);
-
-                        if (todayCount < dailyLimit && hourlyCount < hourlyLimit) {
-                            if (hourlyCount < minHourlyCount) {
-                                minHourlyCount = hourlyCount;
-                                bestZaloId = zaloId;
-                            }
-                        }
-                    }
-                    targetZaloId = bestZaloId;
                 }
+                targetZaloId = bestZaloId;
 
                 if (!targetZaloId) {
                     continue;

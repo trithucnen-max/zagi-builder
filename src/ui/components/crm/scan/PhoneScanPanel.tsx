@@ -8,6 +8,7 @@ import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
 import AppIcon from '../../common/AppIcon';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 import ImportWizardModal, { BatchConfig } from '../import/ImportWizardModal';
+import AccountQuotaModal from '../campaigns/AccountQuotaModal';
 
 function getContrastColor(hexColor: string): string {
   if (!hexColor) return '#ffffff';
@@ -155,6 +156,7 @@ export default function PhoneScanPanel() {
     const [filteredStats, setFilteredStats] = useState<{ total: number; scanned: number; found: number; notFound: number; error: number; pending: number; startTimestamp?: number; endTimestamp?: number } | null>(null);
     const accounts = useAccountStore(s => s.accounts);
     const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
+    const [quotaModalZaloId, setQuotaModalZaloId] = useState<string | null>(null);
 
     // Auto-select 1st Zalo account when single assignment mode is selected if empty
     useEffect(() => {
@@ -961,29 +963,95 @@ export default function PhoneScanPanel() {
                 </div>
             </div>
 
-            {/* Limit warning banners if any active account is waiting/rate-limited */}
-            {limitStatusList.some(acc => acc.hourlyCount >= 30 || acc.todayCount >= 100) && (
-                <div className="mx-5 mt-4 p-3 bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/40 rounded-xl flex flex-col gap-1.5 text-xs text-amber-800 dark:text-amber-300">
-                    {limitStatusList.map(acc => {
-                        const isHourlyLimited = acc.hourlyCount >= 30;
-                        const isDailyLimited = acc.todayCount >= 100;
-                        if (isHourlyLimited || isDailyLimited) {
+            {/* Scan Quota Summary Board per Zalo Account */}
+            {limitStatusList.length > 0 && (
+                <div className="mx-5 mt-4 p-3.5 bg-gray-800/80 border border-gray-700/80 rounded-xl shadow-xs">
+                    <div className="flex items-center justify-between mb-2.5">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs">🛡️</span>
+                            <span className="text-xs font-bold text-gray-200 uppercase tracking-wider">
+                                Hiện trạng Định mức Quét SĐT Zalo theo Tài khoản
+                            </span>
+                        </div>
+                        <span className="text-[11px] text-gray-400 italic">
+                            Tất cả tài khoản active sẽ tự động san đều tải khi quét
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        {limitStatusList.map(acc => {
+                            const dailyMax = acc.scanDailyLimit || 100;
+                            const hourlyMax = acc.scanHourlyLimit || 30;
+                            const dailyPercent = Math.min(100, Math.round((acc.todayCount / dailyMax) * 100));
+                            const hourlyPercent = Math.min(100, Math.round((acc.hourlyCount / hourlyMax) * 100));
+                            const isPaused = acc.todayCount >= dailyMax || acc.hourlyCount >= hourlyMax;
+
                             return (
-                                <div key={acc.zaloId} className="flex items-start gap-2">
-                                    <svg className="animate-pulse w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                                    </svg>
-                                    <div>
-                                        <span className="font-bold">Tài khoản Zalo [{acc.fullName}] đang tạm dừng chờ:</span>{' '}
-                                        {isHourlyLimited && `Đã quét đủ 30 số trong 1 tiếng qua. `}
-                                        {isDailyLimited && `Đã quét đủ 100 số trong ngày hôm nay. `}
-                                        Tiến trình quét tự động tạm dừng và sẽ tự động tiếp tục khi hết thời gian giới hạn.
+                                <div key={acc.zaloId} className="bg-gray-900/60 border border-gray-700/60 rounded-lg p-2.5 flex flex-col justify-between gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <div className="w-6 h-6 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">
+                                                👤
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-xs font-bold text-gray-100 truncate">{acc.fullName}</div>
+                                                <div className="text-[10px] text-gray-400 font-mono truncate">{acc.zaloId}</div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setQuotaModalZaloId(acc.zaloId)}
+                                            className="px-2 py-1 text-[10px] font-bold bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-300 rounded-md transition-all shrink-0 active:scale-95 flex items-center gap-1 cursor-pointer"
+                                            title="Cài đặt định mức quét"
+                                        >
+                                            <span>⚙️</span>
+                                            <span>Định mức</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Progress Bars */}
+                                    <div className="space-y-1.5 pt-1 border-t border-gray-800">
+                                        <div>
+                                            <div className="flex justify-between text-[10px] text-gray-300 font-medium mb-0.5">
+                                                <span>Ngày: <strong className={acc.todayCount >= dailyMax ? 'text-rose-400 font-bold' : 'text-blue-400'}>{acc.todayCount}</strong> / {dailyMax} SĐT</span>
+                                                <span className="text-gray-400">({dailyPercent}%)</span>
+                                            </div>
+                                            <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                                <div
+                                                    className={`h-full transition-all duration-300 ${
+                                                        dailyPercent >= 100 ? 'bg-rose-500' : dailyPercent >= 80 ? 'bg-amber-500' : 'bg-blue-500'
+                                                    }`}
+                                                    style={{ width: `${dailyPercent}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div className="flex justify-between text-[10px] text-gray-300 font-medium mb-0.5">
+                                                <span>Giờ này: <strong className={acc.hourlyCount >= hourlyMax ? 'text-amber-400 font-bold' : 'text-emerald-400'}>{acc.hourlyCount}</strong> / {hourlyMax} SĐT</span>
+                                                <span className="text-gray-400">({hourlyPercent}%)</span>
+                                            </div>
+                                            <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                                <div
+                                                    className={`h-full transition-all duration-300 ${
+                                                        hourlyPercent >= 100 ? 'bg-rose-500' : hourlyPercent >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                                                    }`}
+                                                    style={{ width: `${hourlyPercent}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {isPaused && (
+                                            <div className="text-[10px] font-semibold text-amber-400 bg-amber-950/40 border border-amber-800/40 rounded px-2 py-0.5 mt-1 flex items-center gap-1">
+                                                <span className="animate-pulse">⚠️</span>
+                                                <span>{acc.todayCount >= dailyMax ? 'Đã chạm định mức ngày' : 'Đã chạm định mức giờ'} (Tạm nghỉ)</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );
-                        }
-                        return null;
-                    })}
+                        })}
+                    </div>
                 </div>
             )}
 
@@ -2236,6 +2304,16 @@ export default function PhoneScanPanel() {
                     onSuccess={() => {
                         setShowCreateForm(false);
                         fetchBatches();
+                    }}
+                />
+            )}
+
+            {quotaModalZaloId && (
+                <AccountQuotaModal
+                    zaloId={quotaModalZaloId}
+                    onClose={() => setQuotaModalZaloId(null)}
+                    onSaved={() => {
+                        fetchLimitStatus();
                     }}
                 />
             )}
