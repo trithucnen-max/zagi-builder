@@ -91,15 +91,30 @@ class EventBroadcaster {
             (channel === 'event:message' ? data?.message?.zaloId || data?.message?.owner_zalo_id : undefined);
         
         if (zaloId) {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const AppModeManager = require('../../utils/AppModeManager').default;
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const WorkspaceManager = require('../../utils/WorkspaceManager').default;
+
+            const isEmpMode = AppModeManager.getInstance().isEmployeeMode() ||
+                WorkspaceManager.getInstance().getActiveWorkspace()?.type === 'remote';
+
+            if (!isEmpMode) {
+                const db = DatabaseService.getInstance();
+                if (db.getIsInitialized()) {
+                    const accounts = db.getAccounts();
+                    if (accounts && accounts.length > 0) {
+                        const isOwned = accounts.some((a: any) => a.zalo_id === zaloId);
+                        if (!isOwned) {
+                            Logger.log(`[EventBroadcaster] Filtered out event on channel ${channel} for unowned account: ${zaloId}`);
+                            return true;
+                        }
+                    }
+                }
+            }
+
             const db = DatabaseService.getInstance();
             if (db.getIsInitialized()) {
-                const accounts = db.getAccounts();
-                const isOwned = accounts.some((a: any) => a.zalo_id === zaloId);
-                if (!isOwned) {
-                    Logger.log(`[EventBroadcaster] Filtered out event on channel ${channel} for unowned account: ${zaloId}`);
-                    return true;
-                }
-
                 // Filter out duplicate friend request notifications if they are already a friend
                 if (channel === 'event:friendRequest') {
                     const friendId = data?.requester?.userId;

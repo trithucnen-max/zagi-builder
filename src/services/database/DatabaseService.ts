@@ -26,6 +26,94 @@ let _cachedSecondaryPath: string | null = null;
 let _cachedSecondaryTimer: ReturnType<typeof setTimeout> | null = null;
 const SECONDARY_DB_TTL_MS = 30_000; // auto-close after 30s idle
 
+function ensureTablesOnSecondaryDb(targetDb: BetterSqlite3.Database): void {
+    try {
+        targetDb.exec(`
+            CREATE TABLE IF NOT EXISTS accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                zalo_id TEXT UNIQUE NOT NULL,
+                full_name TEXT NOT NULL DEFAULT '',
+                avatar_url TEXT DEFAULT '',
+                imei TEXT NOT NULL,
+                user_agent TEXT NOT NULL,
+                cookies TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                is_business INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                last_seen TEXT,
+                listener_active INTEGER DEFAULT 1
+            );
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                msg_id TEXT NOT NULL,
+                cli_msg_id TEXT,
+                owner_zalo_id TEXT NOT NULL,
+                thread_id TEXT NOT NULL,
+                thread_type INTEGER NOT NULL DEFAULT 0,
+                sender_id TEXT NOT NULL,
+                content TEXT NOT NULL DEFAULT '',
+                msg_type TEXT NOT NULL DEFAULT 'text',
+                timestamp INTEGER NOT NULL,
+                is_sent INTEGER DEFAULT 0,
+                attachments TEXT DEFAULT '[]',
+                local_paths TEXT DEFAULT '{}',
+                status TEXT DEFAULT 'received',
+                is_recalled INTEGER DEFAULT 0,
+                UNIQUE(msg_id, owner_zalo_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(owner_zalo_id, thread_id, timestamp);
+            CREATE TABLE IF NOT EXISTS contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_zalo_id TEXT NOT NULL,
+                contact_id TEXT NOT NULL,
+                display_name TEXT NOT NULL DEFAULT '',
+                avatar_url TEXT DEFAULT '',
+                phone TEXT DEFAULT '',
+                alias TEXT DEFAULT '',
+                is_friend INTEGER DEFAULT 0,
+                contact_type TEXT DEFAULT 'user',
+                unread_count INTEGER DEFAULT 0,
+                last_message TEXT DEFAULT '',
+                last_message_time INTEGER DEFAULT 0,
+                pipeline_stage_id INTEGER DEFAULT NULL,
+                ai_profile TEXT DEFAULT NULL,
+                UNIQUE(owner_zalo_id, contact_id)
+            );
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS local_quick_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_zalo_id TEXT NOT NULL,
+                keyword TEXT NOT NULL,
+                title TEXT NOT NULL,
+                media_json TEXT,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                UNIQUE(owner_zalo_id, keyword)
+            );
+            CREATE INDEX IF NOT EXISTS idx_lqm_owner ON local_quick_messages(owner_zalo_id);
+            CREATE TABLE IF NOT EXISTS erp_notifications (
+                id TEXT PRIMARY KEY,
+                recipient_id TEXT NOT NULL,
+                type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                body TEXT DEFAULT '',
+                link TEXT DEFAULT '',
+                payload TEXT DEFAULT '{}',
+                read INTEGER DEFAULT 0,
+                created_at INTEGER NOT NULL
+            );
+        `);
+    } catch (err: any) {
+        Logger.warn(`[DatabaseService] ensureTablesOnSecondaryDb warning: ${err.message}`);
+    }
+}
+
 function getCachedSecondaryDb(targetDbPath: string): BetterSqlite3.Database {
     if (_cachedSecondaryPath === targetDbPath && _cachedSecondaryDb) {
         // Reset idle timer
@@ -37,6 +125,7 @@ function getCachedSecondaryDb(targetDbPath: string): BetterSqlite3.Database {
     closeCachedSecondaryDb();
     _cachedSecondaryDb = new BetterSqlite3(targetDbPath);
     _cachedSecondaryDb.pragma('journal_mode = WAL');
+    ensureTablesOnSecondaryDb(_cachedSecondaryDb);
     _cachedSecondaryPath = targetDbPath;
     _cachedSecondaryTimer = setTimeout(closeCachedSecondaryDb, SECONDARY_DB_TTL_MS);
     return _cachedSecondaryDb;
