@@ -2,6 +2,31 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.1.2] - 2026-08-02
+
+### 🎯 Tối Ưu Hệ Thống Chiến Dịch CRM, Định Mức An Toàn & Bảo Vệ Tài Khoản Zalo
+- **Quy Tắc Chặn Cứng 1 Chiến Dịch / 1 Tài Khoản Zalo (`DatabaseService.ts`, `CRMQueueService.ts`, `crmIpc.ts`):**
+  - Đảm bảo mỗi tài khoản Zalo tại một thời điểm chỉ chạy **TỐI ĐA 1 chiến dịch active**. Tự động tạm dừng chiến dịch cũ khi kích hoạt chiến dịch mới cho cùng tài khoản Zalo.
+  - Ngăn ngừa việc bắn tin dồn dập trùng lặp làm tăng nguy cơ bị Zalo khóa tài khoản.
+- **Cơ Chế Xóa Mềm & Tự Động Xóa Cứng Theo Hạn Lưu Trữ - Phương Án A (`DatabaseService.ts`):**
+  - Thêm 2 cột `is_deleted` và `deleted_at` vào bảng `crm_campaigns`. Khi xóa chiến dịch, chuyển trạng thái sang xóa mềm (`is_deleted = 1`) thay vì xóa cứng ngay.
+  - Bảo toàn 100% nhật ký lịch sử gửi tin và báo cáo thống kê.
+  - Các chiến dịch xóa mềm sẽ tự động được xóa cứng khỏi DB khi hết hạn lưu trữ (mặc định 30 ngày) hoặc khi người dùng chủ động bấm "Xóa lịch sử".
+- **Kiểm Soát Định Mức Kết Bạn & Tin Nhắn Người Lạ Nghiêm Ngặt (`CRMQueueService.ts`, `DatabaseService.ts`):**
+  - Bắt buộc kiểm tra định mức `friend_req_daily_limit` cho tất cả hành động gửi lời mời kết bạn.
+  - Cập nhật `getNextPendingCampaignContactCooperative()` tự động dừng lấy item ngay khi tài khoản đạt giới hạn ngày, giữ chiến dịch ở trạng thái `⏳ Đạt giới hạn · Chờ tiếp` thay vì hoàn thành nhầm hoặc gửi lọt lưới.
+- **Lọc Trùng Lời Mời Kết Bạn Tự Động - Deduplication (`DatabaseService.ts`, `CRMQueueService.ts`):**
+  - Thêm phương thức `hasSentFriendRequest()` tra cứu nhật ký gửi. Tự động BỎ QUA không gọi Zalo API nếu liên hệ đó **đã là bạn bè** hoặc **đã từng nhận lời mời kết bạn trước đó** từ tài khoản Zalo này.
+  - Đánh dấu trạng thái `✓ Sent` kèm ghi chú trực quan (`"Đã gửi lời mời kết bạn trước đó"` / `"Đã là bạn bè trên Zalo"`), bảo vệ tối đa định mức Zalo API và tránh tình trạng spam API Zalo.
+- **Cô Lập Nhật Ký Lịch Sử Gửi Tin Theo Tài Khoản (`DatabaseService.ts`, `SendHistoryLog.tsx`):**
+  - Kiểm tra điều kiện `owner_zalo_id = ?` nghiêm ngặt tại tầng SQLite DB.
+  - Thêm lớp bảo vệ lọc theo `activeAccountId` tại tầng UI `SendHistoryLog.tsx`, đảm bảo 100% không bị rò rỉ lịch sử gửi giữa các tài khoản Zalo khi chuyển đổi tab.
+- **Mặc Định Thời Gian Tự Động Xóa Lịch Sử 30 Ngày (`crmIpc.ts`, `SendHistoryLog.tsx`):**
+  - Đặt mặc định thời gian tự động dọn dẹp lịch sử là **30 ngày** (có thể điều chỉnh linh hoạt).
+- **Cảnh Báo Rủi Ro Tùy Chỉnh Định Mức & Giới Hạn Thanh Trượt (`AccountQuotaModal.tsx`):**
+  - Giới hạn thanh trượt cài đặt định mức tối đa **100**.
+  - Hiển thị hộp cảnh báo màu đỏ linh hoạt khi định mức vượt quá **50/ngày**: Cảnh báo rủi ro vi phạm chính sách Zalo và người dùng tự chịu trách nhiệm nếu tài khoản bị Zalo khóa/hạn chế tính năng.
+
 ## [v3.1.1] - 2026-08-02
 
 ### 🔍 Nâng Cấp Phân Hệ Quét SĐT Zalo Theo Tài Khoản (Option A) & Tối Ưu Giao Diện
