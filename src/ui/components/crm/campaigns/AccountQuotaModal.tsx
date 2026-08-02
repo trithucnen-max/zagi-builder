@@ -90,15 +90,17 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                 </label>
                 <div className="flex items-center gap-3">
                   <input
-                    type="number" min={1} max={200} value={msgLimit}
-                    onChange={e => setMsgLimit(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-24 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-bold text-gray-900 dark:text-white text-center focus:outline-none focus:border-blue-500 transition-colors"
+                    type="number" min={1} max={100} value={msgLimit}
+                    onChange={e => setMsgLimit(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
+                    className={`w-24 bg-gray-50 dark:bg-gray-800 border rounded-xl px-3 py-2 text-sm font-bold text-center focus:outline-none transition-colors ${
+                      msgLimit > 50 ? 'border-red-500/50 text-red-500' : 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
+                    }`}
                   />
                   <div className="flex-1">
-                    <input type="range" min={1} max={200} value={msgLimit}
+                    <input type="range" min={1} max={100} value={Math.min(100, msgLimit)}
                       onChange={e => setMsgLimit(parseInt(e.target.value))}
                       className={`w-full ${msgLimit > 50 ? 'accent-red-500' : 'accent-amber-500'}`} />
-                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>1</span><span>50</span><span>100</span><span className="text-red-400 font-bold">200</span></div>
+                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>1</span><span>50</span><span className="text-red-400 font-bold">100</span></div>
                   </div>
                 </div>
               </div>
@@ -110,17 +112,17 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                 </label>
                 <div className="flex items-center gap-3">
                   <input
-                    type="number" min={1} max={200} value={inviteLimit}
-                    onChange={e => setInviteLimit(Math.max(1, parseInt(e.target.value) || 1))}
+                    type="number" min={1} max={100} value={inviteLimit}
+                    onChange={e => setInviteLimit(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
                     className={`w-24 bg-gray-50 dark:bg-gray-800 border rounded-xl px-3 py-2 text-sm font-bold text-center focus:outline-none transition-colors ${
                       inviteLimit > 50 ? 'border-red-500/50 text-red-500' : 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
                     }`}
                   />
                   <div className="flex-1">
-                    <input type="range" min={1} max={200} value={inviteLimit}
+                    <input type="range" min={1} max={100} value={Math.min(100, inviteLimit)}
                       onChange={e => setInviteLimit(parseInt(e.target.value))}
                       className={`w-full ${inviteLimit > 50 ? 'accent-red-500' : 'accent-emerald-500'}`} />
-                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>1</span><span>50</span><span>100</span><span className="text-red-400 font-bold">200</span></div>
+                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>1</span><span>50</span><span className="text-red-400 font-bold">100</span></div>
                   </div>
                 </div>
               </div>
