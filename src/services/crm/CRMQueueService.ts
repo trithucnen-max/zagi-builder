@@ -129,7 +129,7 @@ class CRMQueueService {
         const db = DatabaseService.getInstance();
         const runningCampaigns = db.query<any>(
             `SELECT id, name FROM crm_campaigns
-             WHERE owner_zalo_id=? AND status='active'
+             WHERE owner_zalo_id=? AND status='active' AND (is_deleted IS NULL OR is_deleted = 0)
                AND id != ?
              LIMIT 1`,
             [zaloId, targetCampaignId]
@@ -212,7 +212,7 @@ class CRMQueueService {
             for (const zaloId of owners) {
                 // Tự động dọn dẹp nếu DB lỡ chứa nhiều hơn 1 chiến dịch active cho cùng 1 tài khoản
                 const activeCamps = db.query<any>(
-                    `SELECT id, name FROM crm_campaigns WHERE owner_zalo_id=? AND status='active' ORDER BY updated_at DESC, id DESC`,
+                    `SELECT id, name FROM crm_campaigns WHERE owner_zalo_id=? AND status='active' AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY updated_at DESC, id DESC`,
                     [zaloId]
                 );
                 if (activeCamps.length > 1) {

@@ -2700,6 +2700,19 @@ class DatabaseService {
             Logger.warn(`[DatabaseService] Quiet hours migration: ${err.message}`);
         }
 
+        // Migration: add is_deleted + deleted_at for Option A Soft-Delete to crm_campaigns
+        try {
+            const campColsDel = this.query<any>(`PRAGMA table_info(crm_campaigns)`);
+            if (campColsDel.length > 0 && !campColsDel.some((c: any) => c.name === 'is_deleted')) {
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN is_deleted INTEGER DEFAULT 0`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN deleted_at INTEGER DEFAULT 0`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added is_deleted + deleted_at to crm_campaigns');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] is_deleted migration: ${err.message}`);
+        }
+
         // ── fb_threads.is_e2ee ──────────────────────────────────────────────
         try {
             const threadCols = this.query<any>(`PRAGMA table_info(fb_threads)`);
@@ -5999,7 +6012,7 @@ class DatabaseService {
                     (SELECT COUNT(*) FROM crm_campaign_contacts cc WHERE cc.campaign_id=c.id AND cc.status='pending') as pending_count,
                     (SELECT COUNT(*) FROM crm_campaign_contacts cc WHERE cc.campaign_id=c.id AND cc.status='failed') as failed_count,
                     (SELECT COUNT(*) FROM crm_campaign_contacts cc WHERE cc.campaign_id=c.id AND cc.status='sent' AND cc.sent_at >= ?) as sent_today_count
-                 FROM crm_campaigns c WHERE c.owner_zalo_id=? ORDER BY c.created_at DESC`,
+                 FROM crm_campaigns c WHERE c.owner_zalo_id=? AND (c.is_deleted IS NULL OR c.is_deleted = 0) ORDER BY c.created_at DESC`,
                 [todayStartMs, ownerZaloId]
             );
         } catch (err: any) { Logger.error(`[DB] getCRMCampaigns: ${err.message}`); return []; }
@@ -6100,8 +6113,13 @@ class DatabaseService {
     public deleteCRMCampaign(campaignId: number, ownerZaloId: string): void {
         if (!this.initialized) return;
         try {
-            this.runNoSave(`DELETE FROM crm_campaign_contacts WHERE campaign_id=?`, [campaignId]);
-            this.runNoSave(`DELETE FROM crm_campaigns WHERE id=? AND owner_zalo_id=?`, [campaignId, ownerZaloId]);
+            // Option A: Soft-delete campaign instead of immediate hard-delete.
+            // Preserves history logs & counters for reports. Hard-delete will occur
+            // automatically when history retention cleanup triggers (based on 'N ngày' setting).
+            this.runNoSave(
+                `UPDATE crm_campaigns SET is_deleted=1, deleted_at=?, status='paused' WHERE id=? AND owner_zalo_id=?`,
+                [Date.now(), campaignId, ownerZaloId]
+            );
             this.save();
         } catch (err: any) { Logger.error(`[DB] deleteCRMCampaign: ${err.message}`); }
     }
@@ -6494,6 +6512,7 @@ class DatabaseService {
                 FROM crm_campaigns c
                 WHERE c.owner_zalo_id = ?
                   AND c.status = 'active'
+                  AND (c.is_deleted IS NULL OR c.is_deleted = 0)
                   AND EXISTS (
                       SELECT 1 FROM crm_campaign_contacts cc
                       WHERE cc.campaign_id = c.id AND cc.status = 'pending'
@@ -6510,6 +6529,7 @@ class DatabaseService {
             const rows = this.query<any>(
                 `SELECT 1 FROM crm_campaigns c
                  WHERE c.owner_zalo_id=? AND c.status='active'
+                 AND (c.is_deleted IS NULL OR c.is_deleted = 0)
                  AND EXISTS (SELECT 1 FROM crm_campaign_contacts cc WHERE cc.campaign_id=c.id AND cc.status='pending')
                  LIMIT 1`,
                 [ownerZaloId]
@@ -6523,7 +6543,7 @@ class DatabaseService {
         if (!this.initialized) return [];
         try {
             return this.query<any>(
-                `SELECT DISTINCT owner_zalo_id FROM crm_campaigns WHERE status='active'`, []
+                `SELECT DISTINCT owner_zalo_id FROM crm_campaigns WHERE status='active' AND (is_deleted IS NULL OR is_deleted = 0)`, []
             ).map((r: any) => r.owner_zalo_id);
         } catch (err: any) { Logger.error(`[DB] getActiveCampaignOwners: ${err.message}`); return []; }
     }
@@ -6573,7 +6593,13 @@ class DatabaseService {
         if (!this.initialized) return;
         try {
             this.run('DELETE FROM crm_send_log WHERE owner_zalo_id = ?', [ownerZaloId]);
-            Logger.log(`[DB] clearSendLog: cleared logs for owner=${ownerZaloId}`);
+            // Xóa cứng tất cả chiến dịch đã xóa mềm (Option A) khi người dùng chủ động xóa lịch sử
+            this.run(`
+                DELETE FROM crm_campaign_contacts
+                WHERE campaign_id IN (SELECT id FROM crm_campaigns WHERE owner_zalo_id = ? AND is_deleted = 1)
+            `, [ownerZaloId]);
+            this.run('DELETE FROM crm_campaigns WHERE owner_zalo_id = ? AND is_deleted = 1', [ownerZaloId]);
+            Logger.log(`[DB] clearSendLog: cleared logs & soft-deleted campaigns for owner=${ownerZaloId}`);
         } catch (err: any) {
             Logger.error(`[DB] clearSendLog error: ${err.message}`);
         }
@@ -6584,7 +6610,22 @@ class DatabaseService {
         try {
             const threshold = Date.now() - (days * 24 * 60 * 60 * 1000);
             this.run('DELETE FROM crm_send_log WHERE owner_zalo_id = ? AND sent_at < ?', [ownerZaloId, threshold]);
-            Logger.log(`[DB] cleanupSendLogOlderThan: deleted logs older than ${days} days for owner=${ownerZaloId}`);
+
+            // Option A: Xóa cứng các chiến dịch đã xóa mềm (is_deleted = 1) nếu ngày xóa/tạo đã vượt quá Hạn lưu trữ (days)
+            this.run(`
+                DELETE FROM crm_campaign_contacts
+                WHERE campaign_id IN (
+                    SELECT id FROM crm_campaigns
+                    WHERE owner_zalo_id = ? AND is_deleted = 1 AND (deleted_at < ? OR (deleted_at = 0 AND created_at < ?))
+                )
+            `, [ownerZaloId, threshold, threshold]);
+
+            this.run(`
+                DELETE FROM crm_campaigns
+                WHERE owner_zalo_id = ? AND is_deleted = 1 AND (deleted_at < ? OR (deleted_at = 0 AND created_at < ?))
+            `, [ownerZaloId, threshold, threshold]);
+
+            Logger.log(`[DB] cleanupSendLogOlderThan: deleted logs & soft-deleted campaigns older than ${days} days for owner=${ownerZaloId}`);
         } catch (err: any) {
             Logger.error(`[DB] cleanupSendLogOlderThan error: ${err.message}`);
         }
