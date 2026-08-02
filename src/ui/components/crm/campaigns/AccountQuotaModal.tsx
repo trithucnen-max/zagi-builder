@@ -176,8 +176,8 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
 
                   <button
                     type="button"
-                    onClick={() => { setMsgLimit(50); setInviteLimit(50); setScanDailyLimit(200); setScanHourlyLimit(50); }}
-                    className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-900 dark:text-emerald-300 text-[11px] text-center font-bold transition-all active:scale-95"
+                    onClick={() => { setMsgLimit(50); setInviteLimit(50); setScanDailyLimit(200); setScanHourlyLimit(30); }}
+                    className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-900 dark:text-emerald-300 text-[11px] text-center font-bold transition-all active:scale-95 cursor-pointer"
                   >
                     <div>🌳 Nick cũ</div>
                     <div className="text-[10px] opacity-80 font-normal">50 tin / 200 quét</div>
@@ -185,6 +185,13 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                 </div>
               </div>
 
+              {/* Recommendation Disclaimer Note */}
+              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-1.5 leading-relaxed">
+                <span className="shrink-0 text-amber-500 mt-0.5">💡</span>
+                <span>
+                  <strong>Khuyến nghị:</strong> Các con số định mức trên mang tính chất tham khảo. Số liệu thực tế có thể thay đổi tùy theo thuật toán và chính sách bảo mật của Zalo tại từng thời điểm.
+                </span>
+              </div>
 
               {error && (
                 <div className="text-red-500 text-xs text-center bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{error}</div>
