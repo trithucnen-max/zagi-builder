@@ -6,12 +6,12 @@
 
 ---
 
-#### 🚀 v3.1.1 — Quản Lý Định Mức Quét SĐT Theo Tài Khoản, Sửa Lỗi Tin Nhắn Nhanh Media & Đồng Bộ Real-time Máy Trạm (Official Release)
+#### 🚀 v3.1.1 — Quản Lý Định Mức Quét SĐT Theo Tài Khoản, Sửa Lỗi Gửi Media Máy Trạm & Phương Án A+ Đồng Bộ Real-time (Official Release)
 * **Tính năng mới & Sửa lỗi nổi bật:**
   * **🔍 Định Mức Quét SĐT Zalo Theo Tài Khoản (Option A)**: Tách riêng hạn mức Ngày & Giờ độc lập theo từng nick Zalo. Tự động san đều tải danh sách SĐT khi quét.
-  * **📱 Tinh Gọn Giao Diện Phone Scan**: Tích hợp ô báo cáo Định mức Quét Ngày/Giờ vào Thẻ thống kê #4 (thay thế ô `KHÔNG CÓ ZALO`), tự động liên kết dữ liệu theo tài khoản Zalo được chọn.
-  * **⚡ Khắc Phục Lỗi Tin Nhắn Nhanh Đính Kèm Ảnh**: Sửa handler `local-media` protocol trên macOS và quy đổi đường dẫn trong `FileStorageService.resolveAbsolutePath()`, giúp ảnh thumbnail và ảnh gửi đính kèm hoạt động 100% mượt mà.
-  * **🔄 Tự Động Khởi Tạo Cấu Trúc Bảng Workspace DB & Bỏ Qua Bộ Lọc Event Máy Trạm**: Tự động chạy `ensureTablesOnSecondaryDb()` tạo bảng SQLite cho các workspace DB; bỏ qua bộ lọc unowned account trong Employee/Remote mode giúp toàn bộ dữ liệu real-time từ Boss đồng bộ tức thì.
+  * **🚀 Sửa Triệt Để Lỗi Gửi Tệp/Ảnh Máy Trạm & Forward Media**: Khắc phục `isEmployeeMode()` upload tệp máy trạm lên Boss đĩa đệm; Bảo toàn tệp/hình ảnh khi forward tin nhắn gặp sự cố.
+  * **🎬 HTTP 206 Partial Content Video Streaming & Real-time Media Library**: Hỗ trợ Range Requests tua video/audio từ xa cực mượt; Đăng ký event bus `library:item*` cập nhật thư viện media 0ms.
+  * **🔄 Delta Catch-up Sync & Schema Init Auto**: Khôi phục bù đắp tin nhắn trôi qua `/api/sync/delta` sau rớt mạng; Tự động chạy `ensureTablesOnSecondaryDb()` tạo bảng SQLite cho các workspace DB.
 
 #### 🚀 v3.0.8 — Khử Trùng Thành Viên Nhóm, Xưng Hô Thông Minh, Loại Trừ 3 Tiêu Chí & Giờ Nghỉ Đêm CRM (Official Release)
 * **Tính năng mới (New):**

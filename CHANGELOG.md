@@ -26,6 +26,19 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Cập nhật `FileStorageService.resolveAbsolutePath()` tự động bóc tách giao thức `local-media://` và `file://` về đường dẫn tuyệt đối nguyên bản trên đĩa cứng trước khi truyền sang Zalo API.
   - Chuẩn hóa tạo URL preview bằng `toLocalMediaUrl()`, giúp tin nhắn nhanh gửi ảnh kèm nội dung text hoàn toàn thông suốt.
 
+### 🔄 Nâng Cấp Hệ Thống Đồng Bộ Boss ➔ Nhân Viên & Thư Viện Media Chung (Phương Án A+)
+- **Sửa Triệt Để Lỗi Gửi Tệp / Hình Ảnh Từ Máy Nhân Viên (`proxyHelper.ts`, `zaloIpc.ts`):**
+  - Khắc phục `isEmployeeMode()` tự động nhận diện chính xác chế độ máy Nhân viên (`activeWorkspace.type === 'remote'`), nạp 100% tệp cục bộ từ máy Nhân viên lên đĩa đệm Boss trước khi proxy gọi API Zalo.
+  - Bổ sung giải mã các trường `mediaToken` và `_libraryUuid` trong `prepareLocalFilesForProxy()`, đảm bảo tệp và hình ảnh gửi từ xa không bị mất đường dẫn đĩa đệm.
+- **Bảo Toàn Tệp / Hình Ảnh Khi Chuyển Tiếp (Forward) Tin Nhắn (`ChatWindow.tsx`):**
+  - Xử lý cơ chế Fallback khi chuyển tiếp tin nhắn có đính kèm media. Khi API forward mặc định của Zalo bị lỗi, hệ thống tự động phát hiện loại tin nhắn (`msg_type === 'photo'` / `file`) và gọi `sendImage` hoặc `sendFile` để gửi kèm tệp gốc, bảo toàn 100% hình ảnh/tệp đính kèm thay vì bị mất tệp.
+- **Tua Video Mượt Mà Từ Xa & HTTP 206 Range Streaming (`LibraryHandler.ts`):**
+  - Bổ sung hỗ trợ `HTTP 206 Partial Content` (Range Requests) cho endpoint `serveFile` (`/api/library/file/:uuid`). Giờ đây các trình xem video/âm thanh ở máy Nhân viên có thể tua (seek) thời gian mượt mà đến bất kỳ thời điểm nào.
+- **Đồng Bộ Real-Time Thư Viện Media Chung 0ms (`HttpClientService.ts`, `LibraryPickerModal.tsx`):**
+  - Đăng ký và xử lý real-time event bus (`library:itemAdded`, `library:itemUpdated`, `library:itemDeleted`) cho giao diện Thư viện Media máy Nhân viên. Khi Boss hoặc bất kỳ máy nào tải tệp mới lên, danh sách Thư viện Media ở máy Nhân viên tự động làm mới tức thì.
+- **Bù Đắp Dữ Liệu Sau Khi Ngắt Kết Nối - Delta Catch-Up Sync (`RestApiHandlers.ts`, `HttpRelayService.ts`, `DataAccessor.ts`):**
+  - Thêm endpoint `GET /api/sync/delta?since_ts=...` và phương thức `DataAccessor.getDeltaSync()`, giúp máy Nhân viên tự động truy vấn và bù đắp tin nhắn / liên hệ bị trôi sau khi rớt mạng chập chờn và kết nối lại.
+
 ### 🔄 Khắc Phục Lỗi Đồng Bộ Dữ Liệu Real-Time Từ Boss Ở Chế Độ Employee / Remote Mode
 - **Tự Động Tạo Cấu Trúc Bảng SQLite Cho Workspace Secondary Database (`DatabaseService.ts`)**:
   - Thêm `ensureTablesOnSecondaryDb()`. Tự động tạo đầy đủ cấu trúc 100% các bảng (`contacts`, `messages`, `accounts`, `local_quick_messages`, `app_settings`, ...) mỗi khi mở bất kỳ tệp SQLite workspace DB nào. Khắc phục triệt để lỗi `no such table: contacts` khi lưu dữ liệu sự kiện từ Boss.
