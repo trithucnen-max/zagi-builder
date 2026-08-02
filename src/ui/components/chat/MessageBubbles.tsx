@@ -50,20 +50,28 @@ function convertZaloEmojis(text: string): string {
 
 function parseTxt(content: string): string {
   if (!content || content === 'null') return '';
+  if (content === 'sendBubbleMessage') return '🔗 [Liên kết chia sẻ]';
   try {
     const p = JSON.parse(content);
     if (p === null || p === undefined) return '';
-    if (typeof p === 'string') return convertZaloEmojis(p);
+    if (typeof p === 'string') return p === 'sendBubbleMessage' ? '🔗 [Liên kết chia sẻ]' : convertZaloEmojis(p);
     if (typeof p !== 'object') return convertZaloEmojis(String(p));
     if (p?.action === 'zinstant.bankcard') return '🏦 [Tài khoản ngân hàng]';
     if (p?.content && typeof p.content === 'string') return convertZaloEmojis(p.content);
     if (p?.msg && typeof p.msg === 'string') return convertZaloEmojis(p.msg);
     if (p?.message && typeof p.message === 'string') return convertZaloEmojis(p.message);
-    if (p?.title && typeof p.title === 'string' && !p.href && !p.thumb) return convertZaloEmojis(p.title);
+    if (p?.title && typeof p.title === 'string' && !p.href && !p.thumb) {
+      return p.title === 'sendBubbleMessage' ? '🔗 [Liên kết chia sẻ]' : convertZaloEmojis(p.title);
+    }
     const linkStr = p?.href || p?.url || p?.link || p?.title || p?.mediaTitle || '';
-    if (linkStr && typeof linkStr === 'string') return convertZaloEmojis(linkStr);
+    if (linkStr && typeof linkStr === 'string') {
+      return linkStr === 'sendBubbleMessage' ? '🔗 [Liên kết chia sẻ]' : convertZaloEmojis(linkStr);
+    }
     return '';
-  } catch { return convertZaloEmojis(content); }
+  } catch { 
+    if (content === 'sendBubbleMessage') return '🔗 [Liên kết chia sẻ]';
+    return convertZaloEmojis(content); 
+  }
 }
 
 // ── Type detection helpers ────────────────────────────────────────────────────
@@ -1154,17 +1162,21 @@ function LinkBubble({ parsed, msgContent, isSelf }: { parsed: any; msgContent?: 
     href = msgContent.trim();
   }
 
-  const title = String(params?.mediaTitle || parsed?.title || (href && href !== 'undefined' ? href : 'Liên kết chia sẻ'));
+  let title = String(params?.mediaTitle || parsed?.title || (href && href !== 'undefined' ? href : 'Liên kết chia sẻ'));
+  if (title === 'sendBubbleMessage') {
+    title = href && href !== 'undefined' ? href : 'Liên kết chia sẻ';
+  }
   const domain = String(params?.src || (href.startsWith('http') ? (() => { try { return new URL(href).hostname; } catch { return ''; } })() : ''));
   const thumb = String(parsed?.thumb || params?.thumb || parsed?.thumbUrl || '');
   const description = String(params?.mediaDesc || parsed?.description || '');
 
   // Nếu hoàn toàn không thể tìm thấy URL hợp lệ, hiển thị bóng tin nhắn text thông thường thay vì thẻ trắng trống
-  if (!href && !parsed?.title) {
-    const textContent = typeof msgContent === 'string' ? msgContent : JSON.stringify(parsed);
+  if (!href && (!parsed?.title || parsed?.title === 'sendBubbleMessage')) {
+    const rawContent = typeof msgContent === 'string' ? msgContent : JSON.stringify(parsed);
+    const textContent = (rawContent === 'sendBubbleMessage' || !rawContent) ? '🔗 [Liên kết chia sẻ]' : rawContent;
     return (
       <div className={`px-3.5 py-2.5 rounded-2xl text-sm max-w-[320px] break-words whitespace-pre-wrap ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
-        {textContent || '(Liên kết)'}
+        {textContent}
       </div>
     );
   }
