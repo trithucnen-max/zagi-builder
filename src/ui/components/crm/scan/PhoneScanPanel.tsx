@@ -212,13 +212,9 @@ export default function PhoneScanPanel() {
     ]);
 
     const timeFilteredBatches = useMemo(() => {
-        if (scanTimeFilter === 'all' || !filteredStats?.startTimestamp || !filteredStats?.endTimestamp) {
-            return batches;
-        }
-        const start = filteredStats.startTimestamp;
-        const end = filteredStats.endTimestamp;
-        return batches.filter(b => b.created_at >= start && b.created_at <= end);
-    }, [batches, scanTimeFilter, filteredStats]);
+        // Danh sách các lô quét luôn hiển thị tất cả các lô không phụ thuộc vào lọc thời gian
+        return batches;
+    }, [batches]);
     
     // Drag & Drop reorder state
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -949,9 +945,76 @@ export default function PhoneScanPanel() {
                                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Có Zalo (found) {timeLabel}</span>
                                     <span className="text-xl font-bold text-emerald-400 mt-1">{totals.found.toLocaleString()}</span>
                                 </div>
-                                <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
-                                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Không có Zalo {timeLabel}</span>
-                                    <span className="text-xl font-bold text-amber-400 mt-1">{(scanTimeFilter === 'all' ? batchTotals.notFound : totals.notFound).toLocaleString()}</span>
+                                <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                                            {selectedScanAccount === 'all' ? 'Định mức Quét (Tổng TK)' : 'Định mức Quét Zalo'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const targetZaloId = selectedScanAccount !== 'all' ? selectedScanAccount : (visibleAccounts[0]?.zalo_id || '');
+                                                if (targetZaloId) setQuotaModalZaloId(targetZaloId);
+                                            }}
+                                            className="text-[10px] font-bold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-0.5 rounded transition-all flex items-center gap-1 cursor-pointer"
+                                            title="Cài đặt định mức quét"
+                                        >
+                                            <span>⚙️</span>
+                                            <span>Định mức</span>
+                                        </button>
+                                    </div>
+
+                                    {(() => {
+                                        const curAccStatus = selectedScanAccount !== 'all'
+                                            ? limitStatusList.find(a => a.zaloId === selectedScanAccount)
+                                            : null;
+
+                                        if (curAccStatus) {
+                                            const dailyMax = curAccStatus.scanDailyLimit || 100;
+                                            const hourlyMax = curAccStatus.scanHourlyLimit || 30;
+                                            const isDailyLimited = curAccStatus.todayCount >= dailyMax;
+                                            const isHourlyLimited = curAccStatus.hourlyCount >= hourlyMax;
+
+                                            return (
+                                                <div className="mt-1 space-y-1">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-gray-400">Ngày:</span>
+                                                        <span className={`font-bold font-mono ${isDailyLimited ? 'text-rose-400 font-bold' : 'text-blue-400'}`}>
+                                                            {curAccStatus.todayCount} / {dailyMax} SĐT
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-gray-400">Giờ này:</span>
+                                                        <span className={`font-bold font-mono ${isHourlyLimited ? 'text-amber-400 font-bold' : 'text-emerald-400'}`}>
+                                                            {curAccStatus.hourlyCount} / {hourlyMax} SĐT
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        } else {
+                                            const totalToday = limitStatusList.reduce((sum, a) => sum + (a.todayCount || 0), 0);
+                                            const totalDailyMax = limitStatusList.reduce((sum, a) => sum + (a.scanDailyLimit || 100), 0);
+                                            const totalHourly = limitStatusList.reduce((sum, a) => sum + (a.hourlyCount || 0), 0);
+                                            const totalHourlyMax = limitStatusList.reduce((sum, a) => sum + (a.scanHourlyLimit || 30), 0);
+
+                                            return (
+                                                <div className="mt-1 space-y-1">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-gray-400">Tổng Ngày:</span>
+                                                        <span className="font-bold font-mono text-blue-400">
+                                                            {totalToday} / {totalDailyMax || 100} SĐT
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-gray-400">Tổng Giờ này:</span>
+                                                        <span className="font-bold font-mono text-emerald-400">
+                                                            {totalHourly} / {totalHourlyMax || 30} SĐT
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+                                    })()}
                                 </div>
                                 <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4 flex flex-col justify-between">
                                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Số lượng còn lại {timeLabel}</span>
