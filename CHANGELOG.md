@@ -2,7 +2,15 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.1.1] - 2026-08-02
+### 🔍 Nâng Cấp Cơ Chế Giới Hạn Quét SĐT Zalo Theo Tài Khoản (Option A)
+- **Chuyển Giới Hạn Quét Về Tài Khoản Zalo (`DatabaseService.ts`, `PhoneScanService.ts`):**
+  - Quản lý riêng **Định mức Quét SĐT Zalo / ngày** (mặc định 100) và **Định mức Quét SĐT Zalo / giờ** (mặc định 30) độc lập cho từng nick Zalo.
+  - Loại bỏ hoàn toàn các ô cài đặt hạn mức theo Lô Quét (`QUÉT / NGÀY`, `QUÉT / GIỜ`) và ô chọn `TÀI KHOẢN ZALO QUÉT`. Các lô quét sẽ chạy liên tục đến khi hết danh sách số điện thoại.
+  - Tự động san đều tải danh sách SĐT cho tất cả các tài khoản Zalo active online.
+- **Bảng Báo Cáo Hiện Trạng Định Mức Quét SĐT Trực Quan (`PhoneScanPanel.tsx`):**
+  - Render thẻ báo cáo hiện trạng quét của từng tài khoản Zalo ngay đầu phân hệ Quét SĐT Zalo.
+  - Thanh **Progress Bar** thông minh tự động đổi màu theo tỷ lệ (Xanh ➔ Cam ➔ Đỏ) và cảnh báo khi tài khoản tạm ngưng do chạm hạn mức.
+  - Tích hợp nút ⚙️ **Định mức** trên từng thẻ tài khoản để mở nhanh `AccountQuotaModal.tsx` cho phép điều chỉnh hạn mức tức thì.
 
 ### 🛡️ Hệ Thống Định Mức An Toàn Tùy Chọn Theo Tài Khoản Zalo (Per-Account Safety Quotas)
 - **Tùy Chỉnh 2 Định Mức Tách Biệt (`DatabaseService.ts`, `AccountQuotaModal.tsx`):**
