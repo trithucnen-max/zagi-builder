@@ -108,14 +108,41 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                 </div>
               </div>
 
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-300 space-y-1">
-                <div className="font-semibold">💡 Gợi ý theo loại tài khoản:</div>
-                <ul className="space-y-0.5 text-amber-700 dark:text-amber-400">
-                  <li>• Nick cũ, uy tín (&gt;1 năm): 40–50 / 40–50</li>
-                  <li>• Nick thường (3–12 tháng): 20–30 / 20–30</li>
-                  <li>• Nick mới (&lt;3 tháng): 10–15 / 10–15</li>
-                </ul>
+              {/* Nút chọn nhanh (Quick Presets) */}
+              <div className="space-y-1.5 pt-1">
+                <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                  <span>⚡ Chọn nhanh mẫu định mức:</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { setMsgLimit(15); setInviteLimit(15); }}
+                    className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-900 dark:text-amber-300 text-[11px] text-center font-bold transition-all active:scale-95"
+                  >
+                    <div>🌱 Nick mới</div>
+                    <div className="text-[10px] opacity-80 font-normal">15 lượt / ngày</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMsgLimit(30); setInviteLimit(30); }}
+                    className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-900 dark:text-blue-300 text-[11px] text-center font-bold transition-all active:scale-95"
+                  >
+                    <div>🌿 N.Thường</div>
+                    <div className="text-[10px] opacity-80 font-normal">30 lượt / ngày</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMsgLimit(50); setInviteLimit(50); }}
+                    className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-900 dark:text-emerald-300 text-[11px] text-center font-bold transition-all active:scale-95"
+                  >
+                    <div>🌳 Nick cũ</div>
+                    <div className="text-[10px] opacity-80 font-normal">50 lượt / ngày</div>
+                  </button>
+                </div>
               </div>
+
 
               {error && (
                 <div className="text-red-500 text-xs text-center bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{error}</div>

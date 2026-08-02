@@ -45,6 +45,7 @@ export default function CampaignList({
     inviteLimit: number;
   } | null>(null);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
+  const [showPolicyGuide, setShowPolicyGuide] = useState(false);
 
   useEffect(() => {
     if (!zaloId) {
@@ -124,17 +125,22 @@ export default function CampaignList({
               <span className="text-amber-500 text-sm">🛡️</span>
               <span>Gửi hôm nay <span className="text-gray-400 font-medium text-[11px]">(Định mức an toàn)</span></span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               {zaloId && (
                 <button
-                  title="Cài đặt định mức an toàn cho tài khoản này"
+                  title="Cài đặt định mức an toàn riêng cho nick Zalo này"
                   onClick={() => setShowQuotaModal(true)}
-                  className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 text-xs transition-colors px-1"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-amber-500/15 to-orange-500/15 hover:from-amber-500/25 hover:to-orange-500/25 border border-amber-500/30 dark:border-amber-500/40 rounded-xl text-[11px] font-bold text-amber-800 dark:text-amber-300 transition-all hover:scale-105 active:scale-95 shadow-xs"
                 >
-                  ⚙️
+                  <span className="text-xs">⚙️</span>
+                  <span>Cài định mức</span>
                 </button>
               )}
-              <button title="Chính sách gửi tin an toàn Zalo" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs">
+              <button
+                title="Hướng dẫn & Chính sách an toàn Zalo"
+                onClick={() => setShowPolicyGuide(true)}
+                className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 text-xs font-bold transition-colors"
+              >
                 ⓘ
               </button>
             </div>
@@ -413,6 +419,98 @@ export default function CampaignList({
         onClose={() => setShowQuotaModal(false)}
         onSaved={handleQuotaSaved}
       />
+    )}
+
+    {/* Policy & Guide Modal */}
+    {showPolicyGuide && (
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+        onClick={e => { if (e.target === e.currentTarget) setShowPolicyGuide(false); }}
+      >
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 bg-amber-50/50 dark:bg-amber-950/20">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🛡️</span>
+              <div>
+                <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">Hướng dẫn Định mức An toàn Zalo</h3>
+                <p className="text-[11px] text-amber-700 dark:text-amber-400">Bảo vệ nick Zalo không bị khóa khi chạy chiến dịch</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPolicyGuide(false)}
+              className="w-7 h-7 rounded-lg bg-gray-200/60 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="p-5 space-y-4 text-xs text-gray-700 dark:text-gray-300 max-h-[70vh] overflow-y-auto">
+            {/* Mục 1 */}
+            <div className="flex gap-3 items-start bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700/50">
+              <span className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center text-sm font-bold shrink-0">1</span>
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white mb-0.5">Tại sao cần định mức?</h4>
+                <p className="leading-relaxed text-gray-600 dark:text-gray-400">
+                  Zalo tự động quét Spam nếu tài khoản gửi tin nhắn hoặc gửi lời mời kết bạn cho <strong>người lạ</strong> với tần suất lớn trong ngày (~50 lượt). Đặt định mức riêng sẽ tự phanh chiến dịch trước khi bị Zalo cảnh báo.
+                </p>
+              </div>
+            </div>
+
+            {/* Mục 2 */}
+            <div className="flex gap-3 items-start bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700/50">
+              <span className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center text-sm font-bold shrink-0">2</span>
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white mb-0.5">2 định mức tách biệt</h4>
+                <p className="leading-relaxed text-gray-600 dark:text-gray-400">
+                  • <strong>Tin nhắn người lạ</strong>: Hạn mức tin nhắn gửi cho khách hàng chưa kết bạn.<br />
+                  • <strong>Lời mời kết bạn</strong>: Hạn mức yêu cầu kết bạn mới trong ngày.<br />
+                  • <i>Lưu ý: Khách hàng đã là Bạn bè sẽ không tính vào định mức!</i>
+                </p>
+              </div>
+            </div>
+
+            {/* Mục 3 */}
+            <div className="flex gap-3 items-start bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700/50">
+              <span className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-sm font-bold shrink-0">3</span>
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white mb-0.5">Tự động khôi phục ngày mới</h4>
+                <p className="leading-relaxed text-gray-600 dark:text-gray-400">
+                  Khi chạm hạn mức, chiến dịch tự tạm dừng an toàn và sẽ <strong>tự động chạy tiếp vào 07:00 AM ngày hôm sau</strong> (hoặc theo khung giờ hẹn cố định bạn đã chọn).
+                </p>
+              </div>
+            </div>
+
+            {/* Gợi ý cài đặt */}
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-900 dark:text-amber-300">
+              <div className="font-bold mb-1 flex items-center gap-1.5">
+                <span>💡 Hướng dẫn cài đặt theo độ tuổi Nick:</span>
+              </div>
+              <ul className="space-y-1 pl-4 list-disc text-[11px] text-amber-800 dark:text-amber-400">
+                <li><strong>Nick lâu năm (uy tín &gt;1 năm)</strong>: Đặt 40 – 50 tin nhắn / ngày</li>
+                <li><strong>Nick trung bình (3 – 12 tháng)</strong>: Đặt 20 – 30 tin nhắn / ngày</li>
+                <li><strong>Nick mới tạo (&lt;3 tháng)</strong>: Đặt 10 – 15 tin nhắn / ngày để nuôi nick an toàn</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="px-5 py-3.5 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-850 flex justify-between items-center">
+            {zaloId && (
+              <button
+                onClick={() => { setShowPolicyGuide(false); setShowQuotaModal(true); }}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1"
+              >
+                <span>⚙️ Cài định mức nick này ngay</span>
+              </button>
+            )}
+            <button
+              onClick={() => setShowPolicyGuide(false)}
+              className="px-4 py-1.5 text-xs font-bold bg-gray-900 hover:bg-gray-800 text-white dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 rounded-xl transition-all shadow-xs"
+            >
+              Đã hiểu
+            </button>
+          </div>
+        </div>
+      </div>
     )}
     </>
   );
