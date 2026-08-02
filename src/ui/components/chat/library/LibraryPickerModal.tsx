@@ -381,6 +381,17 @@ export default function LibraryPickerModal({
     loadItems(next, true);
   };
 
+  // Realtime media sync: Tự động làm mới khi có ảnh/tệp mới tải lên từ Boss hoặc các máy khác
+  useEffect(() => {
+    if (!ipc.on) return;
+    const unsubs = [
+      ipc.on('library:itemAdded', () => loadItems(1)),
+      ipc.on('library:itemUpdated', () => loadItems(1)),
+      ipc.on('library:itemDeleted', () => loadItems(1)),
+    ];
+    return () => unsubs.forEach(fn => fn && fn());
+  }, [loadItems]);
+
   // ── Scroll infinite ─────────────────────────────────────────
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {

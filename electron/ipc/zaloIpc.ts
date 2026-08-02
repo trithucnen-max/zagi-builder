@@ -87,7 +87,7 @@ function resolveAuthFromConnection(auth: any, zaloId: string): any {
  * In standalone/boss mode (no-op) returns original params unchanged.
  */
 async function prepareLocalFilesForProxy(params: any): Promise<any> {
-    const singleFields = ['filePath', 'videoPath', 'thumbPath', 'voicePath', 'avatarPath', 'mediaPath'];
+    const singleFields = ['filePath', 'mediaToken', '_libraryUuid', 'videoPath', 'thumbPath', 'voicePath', 'avatarPath', 'mediaPath'];
     let result = { ...params };
 
     for (const field of singleFields) {
@@ -98,10 +98,13 @@ async function prepareLocalFilesForProxy(params: any): Promise<any> {
             // Skip local-media:// references (Boss-side media URLs)
             if (val.startsWith('local-media://')) continue;
             const absPath = FileStorageService.resolveAbsolutePath(val);
-            if (!absPath) continue; // Can't resolve — skip (don't corrupt the value)
+            if (!absPath || !fs.existsSync(absPath)) continue; // Can't resolve or missing locally — skip
             const bossPaths = await uploadEmployeeMedia([absPath]);
             if (bossPaths && bossPaths[0]) {
                 result[field] = bossPaths[0];
+                if (field === 'mediaToken' && !result.filePath) {
+                    result.filePath = bossPaths[0];
+                }
             }
         }
     }

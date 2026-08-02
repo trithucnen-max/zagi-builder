@@ -5839,9 +5839,25 @@ async function sendOneForward(
       const apiSuccess = res?.success && res?.response && (!Array.isArray(res.response.fail) || res.response.fail.length === 0);
 
       if (!apiSuccess) {
-        // Fallback: Gửi tin nhắn mới nếu forwardMessage API thất bại
+        // Fallback: Gửi tin nhắn mới nếu forwardMessage API thất bại (Bảo toàn tệp/hình ảnh đính kèm)
         const fallbackText = composeText ? `${forwardText}\n${composeText.trim()}` : forwardText;
-        if (fallbackText.trim()) {
+        const attachments = (() => {
+          try {
+            return typeof msg.attachments === 'string' ? JSON.parse(msg.attachments) : (msg.attachments || []);
+          } catch { return []; }
+        })();
+
+        const mediaPath = attachments[0]?.localPath || attachments[0]?.path || attachments[0]?.url || (typeof msg.local_paths === 'string' ? msg.local_paths : '');
+        const isImage = msg.msg_type === 'photo' || msg.msg_type === 'image' || (attachments[0] && (attachments[0].type === 'photo' || attachments[0].type === 'image'));
+        const isFile = msg.msg_type === 'file' || (attachments[0] && attachments[0].type === 'file');
+
+        if (isImage && mediaPath) {
+          const sendRes = await ipc.zalo?.sendImage({ auth, filePath: mediaPath, threadId: target.threadId, type: target.threadType, message: fallbackText.trim() });
+          if (sendRes && !sendRes.success) throw new Error(sendRes.error || 'Chuyển tiếp ảnh thất bại');
+        } else if (isFile && mediaPath) {
+          const sendRes = await ipc.zalo?.sendFile({ auth, filePath: mediaPath, threadId: target.threadId, type: target.threadType });
+          if (sendRes && !sendRes.success) throw new Error(sendRes.error || 'Chuyển tiếp tệp thất bại');
+        } else if (fallbackText.trim()) {
           const sendRes = await ipc.zalo?.sendMessage({ auth, message: fallbackText.trim(), threadId: target.threadId, type: target.threadType });
           if (sendRes && !sendRes.success) {
             throw new Error(sendRes.error || 'Chuyển tiếp tin nhắn thất bại');

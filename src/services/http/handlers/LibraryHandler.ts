@@ -324,21 +324,42 @@ export const libraryHandlers = {
 
   serveFile(req: http.IncomingMessage, res: http.ServerResponse, uuid: string): void {
     const fileInfo = lib().getFilePath(uuid);
-    if (!fileInfo) {
+    if (!fileInfo || !fs.existsSync(fileInfo.filePath)) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(error('File not found')));
       return;
     }
 
     const stat = fs.statSync(fileInfo.filePath);
-    res.writeHead(200, {
-      'Content-Type': fileInfo.mimeType,
-      'Content-Length': stat.size,
-      'Content-Disposition': `inline; filename="${fileInfo.fileName}"`,
-      'Cache-Control': 'public, max-age=604800',
-      'Accept-Ranges': 'bytes',
-    });
-    fs.createReadStream(fileInfo.filePath).pipe(res);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunkSize = (end - start) + 1;
+      const fileStream = fs.createReadStream(fileInfo.filePath, { start, end });
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunkSize,
+        'Content-Type': fileInfo.mimeType,
+        'Content-Disposition': `inline; filename="${encodeURIComponent(fileInfo.fileName)}"`,
+        'Cache-Control': 'public, max-age=604800',
+      });
+      fileStream.pipe(res);
+    } else {
+      res.writeHead(200, {
+        'Content-Type': fileInfo.mimeType,
+        'Content-Length': fileSize,
+        'Content-Disposition': `inline; filename="${encodeURIComponent(fileInfo.fileName)}"`,
+        'Cache-Control': 'public, max-age=604800',
+        'Accept-Ranges': 'bytes',
+      });
+      fs.createReadStream(fileInfo.filePath).pipe(res);
+    }
   },
 
   serveThumb(req: http.IncomingMessage, res: http.ServerResponse, uuid: string): void {

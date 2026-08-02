@@ -235,6 +235,25 @@ export const handlers = {
     return success({ items, total: items.length });
   },
 
+  getDeltaSync(employee: RegisteredEmployee, params: any): JsonResponse {
+    const zaloId = params.zaloId || employee.assigned_accounts[0];
+    if (!zaloId) return error('Missing zaloId');
+    const sinceTs = parseInt(params.sinceTs || params.since_ts) || 0;
+    const limit = Math.min(parseInt(params.limit) || 200, 500);
+
+    const updatedContacts = (db().query<any>(
+      `SELECT * FROM contacts WHERE owner_zalo_id = ? AND last_message_time > ? ORDER BY last_message_time DESC LIMIT ?`,
+      [zaloId, sinceTs, limit]
+    ) || []);
+
+    const newMessages = (db().query<any>(
+      `SELECT * FROM messages WHERE owner_zalo_id = ? AND timestamp > ? ORDER BY timestamp ASC LIMIT ?`,
+      [zaloId, sinceTs, limit]
+    ) || []);
+
+    return success({ contacts: updatedContacts, messages: newMessages, timestamp: Date.now() });
+  },
+
   getConversationById(employee: RegisteredEmployee, params: any): JsonResponse {
     const zaloId = params.zaloId || employee.assigned_accounts[0];
     if (!zaloId || !params.contactId) return error('Missing zaloId or contactId');

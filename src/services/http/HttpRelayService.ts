@@ -1693,6 +1693,9 @@ class HttpRelayService {
             if (method === 'GET' && pathname === '/api/query/conversations/updates') {
                 return this.json(res, 200, restHandlers.getConversationsUpdates(employee, params));
             }
+            if (method === 'GET' && pathname === '/api/sync/delta') {
+                return this.json(res, 200, restHandlers.getDeltaSync(employee, params));
+            }
             if (method === 'GET' && pathname === '/api/query/conversations/flags') {
                 const zaloId = params.zaloId || employee.assigned_accounts[0];
                 if (!zaloId) return this.json(res, 400, { error: 'Missing zaloId' });

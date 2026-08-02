@@ -1121,6 +1121,13 @@ export class DataAccessor {
     catch { return { success: false, items: [] }; }
   }
 
+  static async getDeltaSync(params: { zaloId: string; sinceTs: number; limit?: number }) {
+    if (isEmployee()) {
+      return rest().get('/api/sync/delta', params);
+    }
+    return { success: true, contacts: [], messages: [], timestamp: Date.now() };
+  }
+
   static async uploadToLibrary(params: {
     zaloId: string; fileName: string; mimeType: string; base64: string;
     tags?: string; folderId?: number | null;

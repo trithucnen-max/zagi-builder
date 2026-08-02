@@ -98,7 +98,7 @@ export async function proxyToBossAsync(channel: string, params: any): Promise<an
  * @returns Boss-resolved absolute file paths (preserves order)
  */
 export async function uploadEmployeeMedia(filePaths: string[], zaloId?: string): Promise<string[]> {
-    if (AppModeManager.getInstance().getMode() !== 'employee') return filePaths;
+    if (!isEmployeeMode()) return filePaths;
 
     const HCM = require('../../src/services/http/HttpConnectionManager').default;
     const hcmInstance = HCM.getInstance();

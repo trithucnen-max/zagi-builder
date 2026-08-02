@@ -1126,6 +1126,14 @@ class HttpClientService {
                 return;
             }
 
+            // ── Shared Media Library Events ──
+            if ((channel === 'library:itemAdded' || channel === 'library:itemUpdated' || channel === 'library:itemDeleted') && data) {
+                runOnWsDb(() => {
+                    EventBroadcaster.sendDirect(channel, data);
+                });
+                return;
+            }
+
             // ── ERP Notifications ──
             if (channel === 'erp:event:notification' && data?.notification) {
                 runOnWsDb(() => {
