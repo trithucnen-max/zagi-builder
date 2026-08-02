@@ -1525,20 +1525,14 @@ Yêu cầu quan trọng:
                     />
                     <span className="text-xs text-gray-500 font-medium flex-shrink-0">liên hệ</span>
                   </div>
-                  {isStrangerTarget && (
-                    dailyLimit === 0 ? (
-                      <p className="text-[10px] text-red-500 font-semibold mt-1 leading-relaxed">
-                        ⚠️ Không nên để không giới hạn khi gửi người lạ/kết bạn. Zalo giới hạn 50 người/ngày.
-                      </p>
-                    ) : dailyLimit > 50 ? (
-                      <p className="text-[10px] text-red-500 font-semibold mt-1 leading-relaxed">
-                        ⚠️ Nguy hiểm: Vượt quá giới hạn 50 người/ngày của Zalo. Tài khoản dễ bị khóa!
-                      </p>
-                    ) : dailyLimit > 20 ? (
-                      <p className="text-[10px] text-amber-600 font-medium mt-1 leading-relaxed">
-                        ⚠️ Khuyến nghị: Nên đặt hạn mức từ 10 - 20 người/ngày để an toàn tối đa.
-                      </p>
-                    ) : null
+                  {dailyLimit > 0 ? (
+                    <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium mt-1 leading-relaxed">
+                      💡 Chiến dịch sẽ tự động tạm dừng sau khi gửi đủ <strong>{dailyLimit} liên hệ / ngày</strong> (áp dụng cho cả Bạn bè & Người lạ).
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                      💡 Để trống = Không giới hạn riêng (tự động theo Định mức An toàn Zalo).
+                    </p>
                   )}
                 </div>
 

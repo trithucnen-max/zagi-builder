@@ -363,6 +363,18 @@ class CRMQueueService {
             }
         }
 
+        // ── Per-Campaign Daily Limit Check (Hạn mức riêng cho Chiến dịch - áp dụng cho cả Bạn bè & Người lạ) ──
+        if (campaignData && campaignData.daily_send_limit && campaignData.daily_send_limit > 0) {
+            const campaignDailyCount = db.getDailySentCountForCampaign(item.campaign_id, zaloId);
+            if (campaignDailyCount >= campaignData.daily_send_limit) {
+                this.dailyPausedCampaigns.set(item.campaign_id, true);
+                Logger.log(`[CRMQueue] Campaign ${item.campaign_id} daily limit reached (${campaignDailyCount}/${campaignData.daily_send_limit})`);
+                this.broadcastStatus(zaloId, 'daily_limit_reached');
+                return;
+            }
+            this.dailyPausedCampaigns.delete(item.campaign_id);
+        }
+
         // ── Kiểm tra giờ hẹn daily (scheduled_time_of_day): chạy mỗi ngày vào giờ cố định ───────────
         if (campaignData) {
             const timeOfDay = (campaignData as any).scheduled_time_of_day as string | undefined;
