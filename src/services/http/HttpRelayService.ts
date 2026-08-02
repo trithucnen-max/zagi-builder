@@ -1227,7 +1227,8 @@ class HttpRelayService {
                             } else if (channel.includes('sendFile')) {
                                 msgType = 'share.file';
                                 const filePath = params?.filePath || params?.fileUrl || params?.mediaToken || '';
-                                const fileName = filePath.split('/').pop() || 'file';
+                                // Xử lý cả Windows path (backslash) và Unix path (slash)
+                                const fileName = filePath.split(/[/\\]/).filter(Boolean).pop() || 'file';
                                 contentObj = {
                                     href: filePath,
                                     title: fileName,
@@ -1461,8 +1462,12 @@ class HttpRelayService {
                         fs.writeFileSync(bossPath, buffer);
                     }
 
-                    Logger.log(`[HttpRelayService] JSON Base64 upload: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) → ${bossPath}`);
-                    this.json(res, 200, { success: true, bossPath });
+                    // Trả về relative path thay vì Windows absolute path
+                    // (ví dụ: "media/zaloId/20250802/report.xlsx" thay vì "C:\Users\basan\...")
+                    // → Employee truyền relative path → Boss resolveAbsolutePath() khi gọi Zalo API
+                    const relativeBossPath = FileStorageService.toRelativePath(bossPath);
+                    Logger.log(`[HttpRelayService] JSON Base64 upload: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) → ${bossPath} (relative: ${relativeBossPath})`);
+                    this.json(res, 200, { success: true, bossPath: relativeBossPath });
                 } catch (err: any) {
                     Logger.error(`[HttpRelayService] JSON upload error: ${err.message}`);
                     this.json(res, 500, { success: false, error: err.message });
@@ -1500,8 +1505,10 @@ class HttpRelayService {
                         fs.writeFileSync(bossPath, buffer);
                     }
 
-                    Logger.log(`[HttpRelayService] Binary upload: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) → ${bossPath}`);
-                    this.json(res, 200, { success: true, bossPath });
+                    // Trả về relative path thay vì Windows absolute path
+                    const relativeBossPath = FileStorageService.toRelativePath(bossPath);
+                    Logger.log(`[HttpRelayService] Binary upload: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) → ${bossPath} (relative: ${relativeBossPath})`);
+                    this.json(res, 200, { success: true, bossPath: relativeBossPath });
                 } catch (err: any) {
                     Logger.error(`[HttpRelayService] Upload error: ${err.message}`);
                     this.json(res, 500, { success: false, error: err.message });
@@ -1528,8 +1535,10 @@ class HttpRelayService {
                 chunkService.saveChunk(uploadId, chunkIndex, totalChunks, buffer);
 
                 if (chunkIndex === totalChunks - 1) {
-                    const bossPath = await chunkService.mergeChunks(uploadId, totalChunks, filename, zaloId);
-                    return this.json(res, 200, { success: true, completed: true, bossPath });
+                    const bossPathAbs = await chunkService.mergeChunks(uploadId, totalChunks, filename, zaloId);
+                    const FileStorageService = require('../file/FileStorageService').default;
+                    const relativeBossPath = FileStorageService.toRelativePath(bossPathAbs);
+                    return this.json(res, 200, { success: true, completed: true, bossPath: relativeBossPath });
                 }
 
                 this.json(res, 200, { success: true });
