@@ -95,10 +95,10 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                     className="w-24 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-bold text-gray-900 dark:text-white text-center focus:outline-none focus:border-blue-500 transition-colors"
                   />
                   <div className="flex-1">
-                    <input type="range" min={1} max={100} value={Math.min(100, msgLimit)}
+                    <input type="range" min={1} max={200} value={msgLimit}
                       onChange={e => setMsgLimit(parseInt(e.target.value))}
-                      className="w-full accent-amber-500" />
-                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>1</span><span>50</span><span>100</span></div>
+                      className={`w-full ${msgLimit > 50 ? 'accent-red-500' : 'accent-amber-500'}`} />
+                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>1</span><span>50</span><span>100</span><span className="text-red-400 font-bold">200</span></div>
                   </div>
                 </div>
               </div>
@@ -112,13 +112,15 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                   <input
                     type="number" min={1} max={200} value={inviteLimit}
                     onChange={e => setInviteLimit(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-24 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-bold text-gray-900 dark:text-white text-center focus:outline-none focus:border-blue-500 transition-colors"
+                    className={`w-24 bg-gray-50 dark:bg-gray-800 border rounded-xl px-3 py-2 text-sm font-bold text-center focus:outline-none transition-colors ${
+                      inviteLimit > 50 ? 'border-red-500/50 text-red-500' : 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
+                    }`}
                   />
                   <div className="flex-1">
-                    <input type="range" min={1} max={100} value={Math.min(100, inviteLimit)}
+                    <input type="range" min={1} max={200} value={inviteLimit}
                       onChange={e => setInviteLimit(parseInt(e.target.value))}
-                      className="w-full accent-emerald-500" />
-                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>1</span><span>50</span><span>100</span></div>
+                      className={`w-full ${inviteLimit > 50 ? 'accent-red-500' : 'accent-emerald-500'}`} />
+                    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>1</span><span>50</span><span>100</span><span className="text-red-400 font-bold">200</span></div>
                   </div>
                 </div>
               </div>
@@ -185,13 +187,25 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                 </div>
               </div>
 
-              {/* Recommendation Disclaimer Note */}
-              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-1.5 leading-relaxed">
-                <span className="shrink-0 text-amber-500 mt-0.5">💡</span>
-                <span>
-                  <strong>Khuyến nghị:</strong> Các con số định mức trên mang tính chất tham khảo. Số liệu thực tế có thể thay đổi tùy theo thuật toán và chính sách bảo mật của Zalo tại từng thời điểm.
-                </span>
-              </div>
+              {/* Recommendation Disclaimer Note & Risk Warning */}
+              {(msgLimit > 50 || inviteLimit > 50) ? (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2 text-[11px] text-red-600 dark:text-red-400 leading-relaxed">
+                  <span className="text-base shrink-0">⚠️</span>
+                  <div>
+                    <span className="font-bold block">Cảnh báo rủi ro (Vượt ngưỡng an toàn &gt; 50/ngày):</span>
+                    <p className="mt-0.5 opacity-90">
+                      Đặt định mức trên 50 tin nhắn hoặc lời mời kết bạn mỗi ngày có nguy cơ cao vi phạm chính sách chống spam của Zalo. Người dùng tự chịu trách nhiệm nếu tài khoản bị Zalo khóa hoặc hạn chế tính năng.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-1.5 leading-relaxed">
+                  <span className="shrink-0 text-amber-500 mt-0.5">💡</span>
+                  <span>
+                    <strong>Khuyến nghị:</strong> Nguồn định mức an toàn tốt nhất là dưới 50/ngày. Số liệu thực tế có thể thay đổi tùy theo độ tuổi nick và chính sách của Zalo tại từng thời điểm.
+                  </span>
+                </div>
+              )}
 
               {error && (
                 <div className="text-red-500 text-xs text-center bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{error}</div>
