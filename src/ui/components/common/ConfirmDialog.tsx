@@ -140,7 +140,11 @@ export function ConfirmDialog({
  * const ok = await showConfirm({ title: 'Xóa tài khoản?', message: 'Không thể hoàn tác.', variant: 'danger' });
  * if (!ok) return;
  */
-export function showConfirm(options: ConfirmOptions): Promise<boolean> {
+export function showConfirm(options: ConfirmOptions | string): Promise<boolean> {
+  const opts: ConfirmOptions = typeof options === 'string'
+    ? { title: options, variant: 'danger' }
+    : options;
+
   return new Promise(resolve => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -154,7 +158,7 @@ export function showConfirm(options: ConfirmOptions): Promise<boolean> {
 
     root.render(
       <ConfirmDialog
-        {...options}
+        {...opts}
         open
         onConfirm={() => cleanup(true)}
         onCancel={() => cleanup(false)}

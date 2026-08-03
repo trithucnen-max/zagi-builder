@@ -388,7 +388,13 @@ export default function CampaignList({
                       {/* Clickable Action 3: Delete */}
                       <button
                         onClick={async () => {
-                          const ok = await showConfirm(`Bạn có chắc chắn muốn xóa chiến dịch "${c.name}"?`);
+                          const ok = await showConfirm({
+                            title: '🗑️ Xóa chiến dịch',
+                            message: `Bạn có chắc chắn muốn xóa chiến dịch "${c.name}"? Hành động này sẽ chuyển chiến dịch vào thùng rác.`,
+                            variant: 'danger',
+                            confirmText: 'Xác nhận xóa',
+                            cancelText: 'Hủy',
+                          });
                           if (ok) onDelete(c.id);
                         }}
                         title="Xóa chiến dịch"
