@@ -258,12 +258,12 @@ export default function CRMPage() {
         return;
       }
       const auth = { cookies: acc.cookies || '', imei: acc.imei || '', userAgent: acc.user_agent || '', zaloId: acc.zalo_id };
-      showNotification('Đang đồng bộ kéo danh sách bạn bè mới nhất từ Zalo về Zagi...', 'info');
+      showNotification('Đang làm mới danh sách bạn bè mới nhất từ ứng dụng Zalo...', 'info');
       await forceSyncFriends(activeAccountId, auth);
       await loadContacts();
-      showNotification('Đồng bộ danh bạ từ Zalo về Zagi thành công!', 'success');
+      showNotification('Làm mới danh bạ Zalo thành công!', 'success');
     } catch (err: any) {
-      showNotification('Lỗi đồng bộ Zalo: ' + (err?.message || 'Lỗi không xác định'), 'error');
+      showNotification('Lỗi làm mới danh bạ Zalo: ' + (err?.message || 'Lỗi không xác định'), 'error');
     } finally {
       setIsSyncingZaloFriends(false);
     }
@@ -1111,16 +1111,16 @@ export default function CRMPage() {
           </div>
         )}
         <div className="flex-1" />
-        {/* Đồng bộ Zalo (chỉ hiện trên Desktop) */}
+        {/* Làm mới danh bạ Zalo (chỉ hiện trên Desktop) */}
         {!isMobile && !isFacebookAccount && (
           <button
             onClick={handleSyncZaloFriends}
             disabled={isSyncingZaloFriends}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-            title="Đồng bộ kéo bạn bè mới nhất từ Zalo về Zagi"
+            title="Cập nhật ngay bạn bè mới kết bạn trên ứng dụng Zalo"
           >
-            <AppIcon name="zap" size={14} className={isSyncingZaloFriends ? 'animate-spin text-blue-400' : 'text-blue-400'} />
-            <span>{isSyncingZaloFriends ? 'Đang đồng bộ...' : 'Đồng bộ Zalo'}</span>
+            <AppIcon name="rotate-cw" size={14} className={isSyncingZaloFriends ? 'animate-spin text-blue-400' : 'text-blue-400'} />
+            <span>{isSyncingZaloFriends ? 'Đang làm mới...' : 'Làm mới danh bạ'}</span>
           </button>
         )}
         {/* Account selector */}
