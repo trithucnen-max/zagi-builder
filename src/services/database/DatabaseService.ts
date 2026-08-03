@@ -6080,7 +6080,7 @@ class DatabaseService {
                 }
 
                 return this.runInsert(
-                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, priority, queued_at, pause_reason, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, scheduled_time_of_day, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, is_deleted, deleted_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, priority, queued_at, pause_reason, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, scheduled_time_of_day, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, is_deleted, deleted_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                     [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', priority, queuedAt, pauseReason, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, scheduledTimeOfDay, quietEnabled, quietStart, quietEnd, 0, null, now, now]
                 );
             }
