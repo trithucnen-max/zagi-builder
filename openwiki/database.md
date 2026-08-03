@@ -49,7 +49,7 @@ EmployeeService.getInstance().pinToCurrentDb();
 | `local_labels` | Nhãn local (không sync Zalo). Fields: id, name, color, emoji |
 | `local_label_threads` | Map label → thread |
 | `integrations` | Config tích hợp: KiotViet, GHN, Sapo... |
-| `crm_campaigns` | CRM campaigns |
+| `crm_campaigns` | CRM campaigns. Fields: id, owner_zalo_id, name, template_message, status (`active` \| `queued` \| `paused` \| `paused_quota` \| `paused_quiet` \| `draft` \| `done`), priority (`high` \| `normal`), queued_at, pause_reason (`user_manual` \| `daily_quota` \| `quiet_hours`), delay_seconds... |
 | `crm_campaign_contacts` | Contacts trong campaign, status gửi |
 | `phone_scan_batches` | Lô quét SĐT. Fields: id, name, assigned_account_id, target_account_id, contact_assignment_mode, daily_limit, hourly_limit |
 | `phone_scan_items` | Danh sách SĐT trong lô quét. Fields: id, batch_id, phone, phone_normalized, status, scanned_by_account_id |

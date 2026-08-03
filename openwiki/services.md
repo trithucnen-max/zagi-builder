@@ -205,12 +205,16 @@ db.withDbPath(path, fn);       // Switch DB path tạm thời
 **Singleton:** `CRMQueueService.getInstance()`
 
 ### Purpose
-Gửi tin hàng loạt đến danh sách CRM contacts. Hỗ trợ delay giữa các tin, chọn account ngẫu nhiên (sendMode: random/all).
+Quản lý thực thi chiến dịch gửi tin nhắn / kết bạn hàng loạt CRM. Đảm bảo an toàn 100% bằng quy tắc **1 chiến dịch hoạt động / 1 tài khoản Zalo** kết hợp hệ thống Hàng đợi (FIFO + Priority Queue) và tự động khôi phục ngày mới.
 
-### Key Methods
-- `startCampaign(campaignId)` → bắt đầu gửi
-- `stopCampaign(campaignId)` → dừng
-- `sendMode`: `random` (chọn 1 account ngẫu nhiên), `all` (gửi từ tất cả accounts)
+### Queue Engine & Key Methods
+- `startForAccount(zaloId, targetCampaignId?)` → Kích hoạt thực thi cho tài khoản Zalo. Nếu tài khoản đang có 1 chiến dịch `active` chạy, chiến dịch mới kích hoạt sẽ tự động đặt trạng thái `queued` (Hàng đợi).
+- `promoteNextQueuedCampaign(zaloId)` → Tự động đôn chiến dịch kế tiếp trong hàng đợi lên trạng thái `active` và chạy ngay khi chiến dịch hiện tại hoàn thành (`done`) hoặc tạm dừng do hết quota (`paused_quota`). Ưu tiên đôn chiến dịch có `priority = 'high'`, sau đó đến FIFO theo thời gian `queued_at`.
+- `updateCRMCampaignStatusWithReason(id, status, reason)` → Cập nhật trạng thái kèm phân loại nguyên nhân tạm dừng `pause_reason`:
+  - `user_manual`: Người dùng chủ động bấm Tạm dừng (KHÔNG tự động chạy lại).
+  - `daily_quota`: Tạm dừng do đụng định mức an toàn ngày (Tự động chạy lại lúc 00:00 ICT ngày mới).
+  - `quiet_hours`: Tạm dừng do khung giờ nghỉ đêm (Tự động chạy lại sau 07:00 sáng).
+- `checkAndStopIfIdle(zaloId)` → Kiểm tra và dừng timer nếu không còn chiến dịch active, tự động gọi `promoteNextQueuedCampaign`.
 
 ---
 

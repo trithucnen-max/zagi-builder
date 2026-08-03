@@ -27,7 +27,36 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Giới hạn thanh trượt cài đặt định mức tối đa **100**.
   - Hiển thị hộp cảnh báo màu đỏ linh hoạt khi định mức vượt quá **50/ngày**: Cảnh báo rủi ro vi phạm chính sách Zalo và người dùng tự chịu trách nhiệm nếu tài khoản bị Zalo khóa/hạn chế tính năng.
 
-## [v3.1.1] - 2026-08-02
+## [v3.1.1] - 2026-08-03
+
+### 🚀 Hệ Thống Hàng Đợi Thực Thi Chiến Dịch CRM (FIFO + Priority Queue) & Phân Loại Lý Do Tạm Dừng
+- **Quy Tắc 1 Thời Điểm Chỉ Chạy 1 Chiến Dịch / 1 Tài Khoản Zalo (`CRMQueueService.ts`, `DatabaseService.ts`):**
+  - Giới hạn tuyệt đối 1 chiến dịch hoạt động tại một thời điểm trên cùng nick Zalo để đảm bảo an toàn tài khoản.
+  - Khi kích hoạt chiến dịch thứ 2 (hoặc tạo mới khi đã có chiến dịch khác đang chạy), chiến dịch thứ 2 sẽ tự động được chuyển sang trạng thái **`📦 Đang chờ` (`status = 'queued'`)**.
+- **Cài Đặt Mức Ưu Tiên Chiến Dịch (`priority = 'high' | 'normal'`):**
+  - Cho phép người dùng tùy chọn Mức ưu tiên (🔴 **Ưu tiên Cao** vs 🔵 **Bình thường**) trong Modal Tạo chiến dịch (`CampaignCreateModal.tsx`) và màn hình Chi tiết chiến dịch (`CampaignDetail.tsx`).
+  - Hệ thống tự động ưu tiên đôn chiến dịch có **Ưu tiên Cao** lên chạy trước. Nếu cùng mức ưu tiên, hệ thống áp dụng quy tắc **First In First Out (FIFO)** dựa theo thời gian xếp hàng `queued_at`.
+- **Phân Biệt Rõ 3 Lý Do Tạm Dừng Chiến Dịch (`pause_reason`):**
+  - **`user_manual` (Tạm dừng thủ công):** Người dùng chủ động bấm Tạm dừng $\rightarrow$ Dừng vĩnh viễn, KHÔNG tự động chạy lại trừ khi người dùng bấm Tiếp tục.
+  - **`daily_quota` (Tạm dừng hết quota an toàn):** Hệ thống tự động tạm dừng khi đụng định mức ngày $\rightarrow$ Tự động đôn chiến dịch hàng đợi kế tiếp lên chạy, và **TỰ ĐỘNG CHẠY LAI** lúc `00:00 ICT` ngày mới.
+  - **`quiet_hours` (Tạm dừng giờ nghỉ đêm):** Tự động tạm dừng khi vào giờ nghỉ đêm $\rightarrow$ **TỰ ĐỘNG CHẠY LẠI** sau `07:00 AM` sáng.
+
+### 🏷️ Nâng Cấp Checkbox 3 Trạng Thái Gán/Gỡ Nhãn Hàng Loạt CRM (Combine Option A & C)
+- **Checkbox 3 Trạng Thái (`[✓]`, `[-]`, `[ ]`) Trong `UnifiedLabelPickerModal.tsx`:**
+  - `[✓]` (Check xanh): Gán thêm nhãn này cho tất cả khách hàng được chọn.
+  - `[-]` (Trái tim / Trừ xám): Giữ nguyên nhãn cũ của từng khách hàng.
+  - `[ ]` (Bỏ check): Gỡ bỏ nhãn này khỏi tất cả khách hàng được chọn.
+  - Khắc phục triệt để lỗi ghi đè xóa nhầm nhãn cũ khi chọn nhiều nhóm đối tượng có nhãn khác nhau.
+- **Nút Xóa Tất Cả Nhãn Riêng Biệt:** Tích hợp nút *"Gỡ tất cả nhãn khỏi đối tượng đã chọn"* có popup xác nhận riêng tránh bấm nhầm.
+
+### 🐛 Khắc Phục Lỗi Zalo API 127 & Chuẩn Hóa Giao Diện Confirmation Dialog
+- **Tự Động Phát Hiện & Xử Lý Lỗi Zalo Code 127 (`CRMQueueService.ts`):**
+  - Tự động nhận diện lỗi API code `127` (*"Không thể nhận tin nhắn từ bạn"* - tài khoản bị Zalo chặn gửi tin nhắn cho người lạ) $\rightarrow$ Đánh dấu thất bại và bỏ qua thay vì treo luồng.
+- **Làm Sạch Nội Dung Tin Nhắn Bong Bóng (`sendBubbleMessage`):**
+  - Loại bỏ chuỗi mã hóa JSON raw từ API Zalo, chuẩn hóa hiển thị thành `🔗 [Liên kết chia sẻ]` thân thiện trên khung chat.
+- **Chuẩn Hóa Dialog Xác Nhận Imperative (`ConfirmDialog.tsx`, `CampaignList.tsx`):**
+  - Tự động chuẩn hóa tham số `showConfirm(string)` thành `{ title: string, variant: 'danger' }`, khắc phục lỗi popup xác nhận xóa chiến dịch bị trắng / thiếu nội dung text.
+  - Bổ sung Banner hướng dẫn *"Thêm đối tượng gửi"* khi tạo chiến dịch chưa có danh sách liên hệ.
 
 ### 🔍 Nâng Cấp Phân Hệ Quét SĐT Zalo Theo Tài Khoản (Option A) & Tối Ưu Giao Diện
 - **Chuyển Giới Hạn Quét Về Tài Khoản Zalo (`DatabaseService.ts`, `PhoneScanService.ts`):**
