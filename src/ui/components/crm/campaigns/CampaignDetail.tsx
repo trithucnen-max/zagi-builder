@@ -635,7 +635,7 @@ export default function CampaignDetail({
           </div>
 
           {/* 4. Integrated Data Table (Scrollable Body) */}
-          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 bg-white dark:bg-gray-850">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider text-[10px]">
@@ -655,7 +655,7 @@ export default function CampaignDetail({
                   <th className="p-3 w-10 text-center">···</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-850">
                 {loading ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-gray-400">
@@ -676,7 +676,7 @@ export default function CampaignDetail({
                     const errInfo = parseContactError(c);
 
                     return (
-                      <tr key={c.id || c.contact_id} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors">
+                      <tr key={c.id || c.contact_id} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 bg-white dark:bg-gray-850 transition-colors">
                         <td className="p-3 text-center">
                           <input
                             type="checkbox"

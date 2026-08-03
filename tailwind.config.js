@@ -32,6 +32,7 @@ module.exports = {
         // Surface & Background
         'app-light': '#F4F5F7', 'app-dark': '#111827',
         'surface-light': '#FFFFFF', 'surface-dark': '#1F2937',
+        'gray-850': '#1b2333', 'gray-750': '#2a3447',
         'recipient-light': '#FFFFFF', 'recipient-dark': '#374151',
         // Border
         'border-base-light': '#E5E7EB', 'border-base-dark': '#374151',

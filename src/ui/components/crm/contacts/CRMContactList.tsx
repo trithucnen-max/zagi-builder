@@ -613,18 +613,48 @@ function SalutationFilterDropdown({ contacts, value, onChange }: {
 function ActionsDropdown({ total, exportingCSV, onExportCSV }: {
   total: number;
   exportingCSV: boolean;
-  onExportCSV: () => void;
+  onExportCSV: (selectedFields?: string[]) => void;
   onImportPhones?: () => void;
   onImportData?: () => void;
   onMergeDuplicates?: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const ALL_FIELDS = [
+    { key: 'display_name',      label: 'Tên hiển thị' },
+    { key: 'alias',             label: 'Biệt danh CRM' },
+    { key: 'phone',             label: 'Số điện thoại' },
+    { key: 'contact_id',        label: 'ID Zalo (UID)' },
+    { key: 'contact_type',      label: 'Loại liên hệ' },
+    { key: 'is_friend',         label: 'Đã kết bạn' },
+    { key: 'gender',            label: 'Giới tính' },
+    { key: 'salutation',        label: 'Xưng hô' },
+    { key: 'birthday',          label: 'Ngày sinh' },
+    { key: 'last_message_time', label: 'Thời gian nhắn cuối' },
+    { key: 'note_count',        label: 'Số ghi chú' },
+  ];
+
+  const [selectedFields, setSelectedFields] = useState<string[]>(ALL_FIELDS.map(f => f.key));
+
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
   return (
-    <div className="flex-shrink-0">
+    <div ref={dropdownRef} className="relative flex-shrink-0">
       <button
-        onClick={onExportCSV}
+        onClick={() => setMenuOpen(v => !v)}
         disabled={total === 0 || exportingCSV}
         className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-1.5 rounded-lg transition-colors border border-gray-300 dark:border-gray-700 font-bold shadow-2xs disabled:opacity-40 cursor-pointer"
-        title="Xuất danh sách liên hệ đang chọn/lọc ra file CSV"
+        title="Bấm để chọn xuất toàn bộ hoặc chọn các trường xuất dữ liệu CSV"
       >
         {exportingCSV ? (
           <svg className="animate-spin flex-shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -638,7 +668,102 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV }: {
           </svg>
         )}
         <span>{exportingCSV ? 'Đang xuất...' : `Xuất CSV (${total})`}</span>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="ml-0.5 opacity-70">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
       </button>
+
+      {/* Menu dropdown lựa chọn xuất */}
+      {menuOpen && (
+        <div className="absolute top-full right-0 mt-1.5 w-60 bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden py-1 text-xs animate-fadeIn">
+          <button
+            onClick={() => { setMenuOpen(false); onExportCSV(); }}
+            className="w-full px-3.5 py-2.5 text-left font-bold text-gray-800 dark:text-gray-100 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2.5 transition-colors cursor-pointer"
+          >
+            <span className="text-sm">🌐</span>
+            <div>
+              <p className="leading-tight">Xuất toàn bộ ({total})</p>
+              <p className="text-[10px] font-normal text-gray-500 dark:text-gray-400">Xuất nhanh tất cả các trường dữ liệu</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => { setMenuOpen(false); setShowModal(true); }}
+            className="w-full px-3.5 py-2.5 text-left font-bold text-gray-800 dark:text-gray-100 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2.5 transition-colors border-t border-gray-100 dark:border-gray-800 cursor-pointer"
+          >
+            <span className="text-sm">⚙️</span>
+            <div>
+              <p className="leading-tight">Tùy chọn trường xuất...</p>
+              <p className="text-[10px] font-normal text-gray-500 dark:text-gray-400">Tự chọn các cột dữ liệu cần xuất</p>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Modal Tùy chọn trường xuất dữ liệu CSV */}
+      {showModal && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden text-gray-900 dark:text-white" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <span>⚙️</span>
+                <span>Tùy chọn trường xuất dữ liệu CSV</span>
+              </h3>
+              <button onClick={() => setShowModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <span>Chọn các cột dữ liệu xuất ra CSV:</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setSelectedFields(ALL_FIELDS.map(f => f.key))} className="text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer">Chọn tất cả</button>
+                  <span>·</span>
+                  <button onClick={() => setSelectedFields([])} className="text-gray-400 hover:underline font-medium cursor-pointer">Bỏ tất cả</button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-gray-800/40">
+                {ALL_FIELDS.map(f => {
+                  const checked = selectedFields.includes(f.key);
+                  return (
+                    <label key={f.key} className="flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={e => {
+                          if (e.target.checked) setSelectedFields(prev => [...prev, f.key]);
+                          else setSelectedFields(prev => prev.filter(k => k !== f.key));
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-xs font-medium text-gray-800 dark:text-gray-200">{f.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="px-5 py-3.5 bg-gray-50 dark:bg-gray-850 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-2">
+              <button onClick={() => setShowModal(false)} className="px-4 py-1.5 rounded-xl border border-gray-300 dark:border-gray-700 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
+                Hủy
+              </button>
+              <button
+                disabled={selectedFields.length === 0}
+                onClick={() => {
+                  setShowModal(false);
+                  onExportCSV(selectedFields);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>📥</span>
+                <span>Xuất CSV ({selectedFields.length} cột)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -935,7 +1060,7 @@ export default function CRMContactList({
     setEditingCell(null);
   }, []);
 
-  const exportToCSV = useCallback(async () => {
+  const exportToCSV = useCallback(async (selectedFieldKeys?: string[]) => {
     if (total === 0) return;
     setExportingCSV(true);
     try {
@@ -943,25 +1068,32 @@ export default function CRMContactList({
       const allContacts = onExportAll ? await onExportAll() : contacts;
       if (!allContacts.length) return;
 
-      const headers = ['Tên hiển thị', 'Biệt danh', 'Điện thoại', 'UID', 'Loại', 'Bạn bè', 'Giới tính', 'Xưng hô', 'Sinh nhật', 'Tin nhắn cuối', 'Ghi chú'];
+      const FIELD_DEFINITIONS: Record<string, { header: string; getValue: (c: any) => string }> = {
+        display_name:      { header: 'Tên hiển thị', getValue: (c: any) => c.display_name || c.contact_id },
+        alias:             { header: 'Biệt danh CRM', getValue: (c: any) => c.alias || '' },
+        phone:             { header: 'Số điện thoại', getValue: (c: any) => c.phone || '' },
+        contact_id:        { header: 'ID Zalo (UID)', getValue: (c: any) => c.contact_id },
+        contact_type:      { header: 'Loại liên hệ', getValue: (c: any) => c.contact_type === 'group' ? 'Nhóm' : c.is_friend === 1 ? 'Bạn bè' : 'Chưa là bạn bè' },
+        is_friend:         { header: 'Đã kết bạn', getValue: (c: any) => c.is_friend === 1 ? 'Có' : 'Không' },
+        gender:            { header: 'Giới tính', getValue: (c: any) => c.gender === 0 ? 'Nam' : c.gender === 1 ? 'Nữ' : '' },
+        salutation:        { header: 'Xưng hô', getValue: (c: any) => c.salutation || defaultSalutation(c.gender) },
+        birthday:          { header: 'Ngày sinh', getValue: (c: any) => c.birthday || '' },
+        last_message_time: { header: 'Thời gian nhắn cuối', getValue: (c: any) => c.last_message_time ? new Date(c.last_message_time).toLocaleString('vi-VN') : '' },
+        note_count:        { header: 'Số ghi chú', getValue: (c: any) => String(c.note_count || 0) },
+      };
+
+      const keysToUse = selectedFieldKeys && selectedFieldKeys.length > 0
+        ? selectedFieldKeys
+        : Object.keys(FIELD_DEFINITIONS);
+
+      const headers = keysToUse.map(k => FIELD_DEFINITIONS[k]?.header || k);
       const rows = allContacts.map((c: any) => {
-        const typeLabel = c.contact_type === 'group' ? 'Nhóm' : c.is_friend === 1 ? 'Bạn bè' : 'Chưa là bạn bè';
-        const genderLabel = c.gender === 0 ? 'Nam' : c.gender === 1 ? 'Nữ' : '';
-        const salutationLabel = c.salutation || defaultSalutation(c.gender);
-        return [
-          escapeCSV(c.display_name || c.contact_id),
-          escapeCSV(c.alias || ''),
-          escapeCSV(c.phone || ''),
-          escapeCSV(c.contact_id),
-          escapeCSV(typeLabel),
-          escapeCSV(c.is_friend === 1 ? 'Có' : 'Không'),
-          escapeCSV(genderLabel),
-          escapeCSV(salutationLabel),
-          escapeCSV(c.birthday || ''),
-          escapeCSV(c.last_message_time ? new Date(c.last_message_time).toLocaleString('vi-VN') : ''),
-          escapeCSV(c.note_count || 0),
-        ].join(',');
+        return keysToUse.map(k => {
+          const def = FIELD_DEFINITIONS[k];
+          return escapeCSV(def ? def.getValue(c) : '');
+        }).join(',');
       });
+
       const csv = [headers.join(','), ...rows].join('\r\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
