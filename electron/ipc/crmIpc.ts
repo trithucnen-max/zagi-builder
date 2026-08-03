@@ -262,16 +262,6 @@ export function registerCRMIpc(): void {
 
     ipcHandle('crm:saveCampaign', async (_e, { zaloId, campaign }: { zaloId: string; campaign: any }) => {
         try {
-            if (campaign?.status === 'active') {
-                const startRes = CRMQueueService.getInstance().startForAccount(zaloId, campaign?.id || 0);
-                if (!startRes.ok) {
-                    return {
-                        success: false,
-                        error: `Tài khoản ${zaloId} đang chạy chiến dịch "${startRes.blockedByCampaignName || 'khác'}". Vui lòng tạm dừng chiến dịch đó trước.`
-                    };
-                }
-            }
-
             if (AppModeManager.getInstance().getMode() === 'employee') {
                 // Upload embedded campaign images to Boss first so they exist on Boss filesystem and rewrite local paths
                 if (campaign?.template_message) {
@@ -385,18 +375,17 @@ export function registerCRMIpc(): void {
             const campaign = db.getCRMCampaign(campaignId);
             if (campaign) {
                 if (status === 'active') {
-                    const startRes = CRMQueueService.getInstance().startForAccount(campaign.owner_zalo_id, campaignId);
-                    if (!startRes.ok) {
-                        return {
-                            success: false,
-                            error: `Tài khoản ${campaign.owner_zalo_id} đang chạy chiến dịch "${startRes.blockedByCampaignName || 'khác'}". Vui lòng tạm dừng chiến dịch đó trước.`
-                        };
-                    }
-                }
-                db.updateCRMCampaignStatus(campaignId, status as any);
-                db.save();
-                if (status === 'paused' || status === 'done') {
+                    CRMQueueService.getInstance().startForAccount(campaign.owner_zalo_id, campaignId);
+                } else if (status === 'paused') {
+                    db.updateCRMCampaignStatusWithReason(campaignId, 'paused', 'user_manual');
+                    db.save();
                     CRMQueueService.getInstance().checkAndStopIfIdle(campaign.owner_zalo_id);
+                } else {
+                    db.updateCRMCampaignStatus(campaignId, status as any);
+                    db.save();
+                    if (status === 'done') {
+                        CRMQueueService.getInstance().checkAndStopIfIdle(campaign.owner_zalo_id);
+                    }
                 }
                 EventBroadcaster.emit('crm:campaignChanged', { action: 'status', ownerZaloId: campaign.owner_zalo_id, campaignId, status });
                 proxyToBoss('crm:updateCampaignStatus', { campaignId, status });
