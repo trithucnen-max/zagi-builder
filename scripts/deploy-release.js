@@ -174,11 +174,17 @@ async function main() {
   if (!releaseExists) {
     console.log(` 📝 Đang tạo GitHub Release mới: ${tag}...`);
     try {
-      execSync(`GH_TOKEN=${GH_TOKEN} gh release create ${tag} --title "🎉 Zagi ${tag}" --notes "Bản phát hành v${targetVersion} nâng cấp CRM, Workflow, Quét SĐT & Đa tài khoản."`, { stdio: 'inherit', cwd: ROOT_DIR });
+      execSync(`GH_TOKEN=${GH_TOKEN} gh release create ${tag} --latest --title "🎉 Zagi ${tag}" --notes "Bản phát hành v${targetVersion} nâng cấp CRM, Workflow, Quét SĐT & Đa tài khoản."`, { stdio: 'inherit', cwd: ROOT_DIR });
       console.log(` ✅ Đã tạo thành công GitHub Release ${tag}!`);
     } catch (createErr) {
       console.error(` ❌ Lỗi khi tạo GitHub Release ${tag}:`, createErr.message);
     }
+  } else {
+    // Đảm bảo Release luôn luôn nhận được nhãn Latest (Mới nhất)
+    try {
+      execSync(`GH_TOKEN=${GH_TOKEN} gh release edit ${tag} --latest`, { stdio: 'pipe', cwd: ROOT_DIR });
+      console.log(` 🌟 Đã cập nhật ${tag} thành phiên bản MỚI NHẤT (Latest Release) trên GitHub!`);
+    } catch {}
   }
 
   // Dọn dẹp các asset cũ có khoảng trắng bị trùng lặp trên GitHub Release (nếu có)
