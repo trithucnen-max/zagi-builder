@@ -60,8 +60,9 @@ export default function MediaViewer({ src, images, initialIndex = 0, alt = 'ản
   // Track pointer drag to avoid closing dialog after panning
   const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
   const hasDragged = useRef(false);
-  // Guard auto-repair: only attempt once per image to avoid infinite loops
+  // Guard auto-repair & fallback: only attempt once per image to avoid infinite loops
   const repairAttemptedRef = useRef(false);
+  const fallbackToRemoteAttemptedRef = useRef(false);
   // Skip resetTransform on the very first render — centerOnInit handles it.
   // Calling resetTransform(0) on mount fights against centerOnInit and causes a visible jump.
   const isMountedRef = useRef(false);
@@ -78,15 +79,7 @@ export default function MediaViewer({ src, images, initialIndex = 0, alt = 'ản
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
-  // No imageList-sync effect needed: currentIndex is derived from currentSrc via useMemo.
-  // When the full gallery loads and imageList grows, currentSrc stays the same →
-  // currentIndex recomputes automatically → zero re-renders, zero visual artifacts.
-
-  // Show loading spinner only when truly needed:
-  //   - Start with no spinner (false), then after a short delay check if image has loaded.
-  //   - If image is already cached/complete → never show spinner (no flash).
-  //   - If image is still loading after the delay → show spinner.
-  //   - Absolute timeout fallback (15s) to never spin forever.
+  // Show loading spinner only when truly needed
   useEffect(() => {
     if (!displaySrc) {
       setIsImageLoading(false);
@@ -96,19 +89,15 @@ export default function MediaViewer({ src, images, initialIndex = 0, alt = 'ản
     setIsImageLoading(false); // Reset — don't show spinner immediately
     setMainImageError(false);
     repairAttemptedRef.current = false; // Allow repair attempt for new image
+    fallbackToRemoteAttemptedRef.current = false;
 
-    // Immediately check if the image is already loaded (cache hit).
-    // img.src might not match yet on the first render tick, so we wait one frame.
     let cancelled = false;
     const frameCheck = requestAnimationFrame(() => {
       if (cancelled) return;
       const img = imgRef.current;
       if (img && img.complete && img.naturalWidth > 0) {
-        // Already loaded — nothing to do
         return;
       }
-      // Image is not yet loaded → show spinner after a 80 ms grace period
-      // (avoids flash for very-fast network loads)
       const spinnerTimer = setTimeout(() => {
         if (cancelled) return;
         const img2 = imgRef.current;
@@ -116,7 +105,6 @@ export default function MediaViewer({ src, images, initialIndex = 0, alt = 'ản
         setIsImageLoading(true);
       }, 80);
 
-      // Absolute safety timeout — never spin longer than 15 seconds.
       const safetyTimer = setTimeout(() => {
         if (cancelled) return;
         setIsImageLoading(prev => {
@@ -125,7 +113,6 @@ export default function MediaViewer({ src, images, initialIndex = 0, alt = 'ản
         });
       }, 15_000);
 
-      // Store timers so cleanup can reach them
       (frameCheck as any)._spinnerTimer = spinnerTimer;
       (frameCheck as any)._safetyTimer = safetyTimer;
     });
@@ -444,49 +431,101 @@ export default function MediaViewer({ src, images, initialIndex = 0, alt = 'ản
                 justifyContent: 'center',
               }}
             >
-              <img
-                ref={imgRef}
-                key={displaySrc}
-                src={displaySrc}
-                alt={currentAlt}
-                className={`select-none rounded-sm shadow-2xl transition-opacity duration-200 ${
-                  mainImageError ? 'opacity-30' : 'opacity-100'
-                }`}
-                style={{
-                  maxWidth: '90vw',
-                  maxHeight: '85vh',
-                  objectFit: 'contain',
-                }}
-                loading="eager"
-                decoding="async"
-                draggable={false}
-                onLoad={() => setIsImageLoading(false)}
-                onError={() => {
-                  setIsImageLoading(false);
-                  // Attempt auto-repair if we have a local path (corrupted local file)
-                  const img = imageList[currentIndex];
-                  if (img?.localPath && img?.src && zaloId && img?.msgId && !repairAttemptedRef.current) {
-                    repairAttemptedRef.current = true;
-                    ipc.file?.repairImage({
-                      zaloId,
-                      msgId: img.msgId,
-                      threadId: img.threadId,
-                      localPath: img.localPath,
-                      remoteUrl: img.src,
-                    }).then((res) => {
-                      if (res?.success && res.newLocalPath) {
-                        const newDisplaySrc = toLocalMediaUrl(res.newLocalPath);
-                        setCurrentSrc(newDisplaySrc);
+              {mainImageError ? (
+                <div className="flex flex-col items-center justify-center p-8 bg-gray-900/90 border border-gray-800 rounded-3xl text-center max-w-sm mx-4 shadow-2xl backdrop-blur-md">
+                  <div className="w-16 h-16 rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center text-3xl mb-3 shadow-inner">
+                    🖼️
+                  </div>
+                  <h4 className="text-white font-bold text-base mb-1">Không thể hiển thị hình ảnh</h4>
+                  <p className="text-gray-400 text-xs mb-5 leading-relaxed">
+                    Tệp ảnh cục bộ không tồn tại hoặc liên kết xem ảnh đã thay đổi.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
                         setMainImageError(false);
-                      } else {
-                        setMainImageError(true);
-                      }
-                    }).catch(() => setMainImageError(true));
-                  } else {
-                    setMainImageError(true);
-                  }
-                }}
-              />
+                        setIsImageLoading(true);
+                        repairAttemptedRef.current = false;
+                        fallbackToRemoteAttemptedRef.current = false;
+                        const img = imageList[currentIndex];
+                        if (img?.src && currentSrc !== img.src) {
+                          setCurrentSrc(img.src);
+                        } else if (img?.msgId && zaloId) {
+                          ipc.file?.repairImage({
+                            zaloId,
+                            msgId: img.msgId,
+                            threadId: img.threadId,
+                            localPath: img?.localPath || '',
+                            remoteUrl: img?.src || '',
+                          }).then(res => {
+                            if (res?.success && res.newLocalPath) {
+                              setCurrentSrc(toLocalMediaUrl(res.newLocalPath));
+                            } else {
+                              setMainImageError(true);
+                            }
+                          }).catch(() => setMainImageError(true))
+                            .finally(() => setIsImageLoading(false));
+                        } else {
+                          setIsImageLoading(false);
+                          setMainImageError(true);
+                        }
+                      }}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                    >
+                      <span>🔄</span>
+                      <span>Thử tải lại</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <img
+                  ref={imgRef}
+                  key={displaySrc}
+                  src={displaySrc}
+                  alt={currentAlt}
+                  className="select-none rounded-sm shadow-2xl transition-opacity duration-200 opacity-100"
+                  style={{
+                    maxWidth: '90vw',
+                    maxHeight: '85vh',
+                    objectFit: 'contain',
+                  }}
+                  loading="eager"
+                  decoding="async"
+                  draggable={false}
+                  onLoad={() => setIsImageLoading(false)}
+                  onError={() => {
+                    setIsImageLoading(false);
+                    const img = imageList[currentIndex];
+                    // 1. Fallback P1: If displaySrc (e.g. local-media://) failed, try remote URL (img.src) if available & different
+                    if (img?.src && currentSrc !== img.src && !fallbackToRemoteAttemptedRef.current) {
+                      fallbackToRemoteAttemptedRef.current = true;
+                      setCurrentSrc(img.src);
+                      return;
+                    }
+                    // 2. Fallback P2: Attempt auto-repair/download if we have local path & msgId
+                    if (img?.localPath && img?.src && zaloId && img?.msgId && !repairAttemptedRef.current) {
+                      repairAttemptedRef.current = true;
+                      ipc.file?.repairImage({
+                        zaloId,
+                        msgId: img.msgId,
+                        threadId: img.threadId,
+                        localPath: img.localPath,
+                        remoteUrl: img.src,
+                      }).then((res) => {
+                        if (res?.success && res.newLocalPath) {
+                          const newDisplaySrc = toLocalMediaUrl(res.newLocalPath);
+                          setCurrentSrc(newDisplaySrc);
+                          setMainImageError(false);
+                        } else {
+                          setMainImageError(true);
+                        }
+                      }).catch(() => setMainImageError(true));
+                    } else {
+                      setMainImageError(true);
+                    }
+                  }}
+                />
+              )}
             </TransformComponent>
           </TransformWrapper>
 

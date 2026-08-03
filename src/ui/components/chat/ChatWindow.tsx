@@ -1312,7 +1312,7 @@ export default function ChatWindow() {
     try {
       const p = JSON.parse(msg.content || '{}');
       const params = typeof p.params === 'string' ? JSON.parse(p.params || '{}') : (p.params || {});
-      remoteUrl = params.hd || params.rawUrl || p.href || p.thumb || '';
+      remoteUrl = params.hd || params.rawUrl || params.url || p.href || p.hd || p.rawUrl || p.url || p.thumb || params.thumbUrl || '';
     } catch {}
     if (!remoteUrl && !localUrl) return null;
     const defaultName = localPath
