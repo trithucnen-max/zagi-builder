@@ -158,6 +158,14 @@ export default function BrandLogo({ type, className = 'w-6 h-6' }: BrandLogoProp
           <line x1="16" y1="16" x2="16" y2="16"/>
         </svg>
       );
+    case 'zagi':
+    case 'zagilogo':
+      return (
+        <div className={`inline-flex items-baseline font-black tracking-tighter select-none ${className}`}>
+          <span className="text-[#0B1A3A] dark:text-white transition-colors">zag</span>
+          <span className="text-[#0068FF]">i</span>
+        </div>
+      );
     default:
       return (
         <span className={className}>🔌</span>
