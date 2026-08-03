@@ -163,7 +163,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
-          make_latest: false
+          make_latest: true
           fail_on_unmatched_files: false
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -230,7 +230,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
-          make_latest: false
+          make_latest: true
           fail_on_unmatched_files: false
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -309,5 +309,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
-          make_latest: false
+          make_latest: true
           fail_on_unmatched_files: false
