@@ -1423,19 +1423,21 @@ export default function CRMPage() {
         <QueueStatusBar status={queueStatus} />
       </div>
 
-      <BulkActionBar
-        channel={activeAccount?.channel || 'zalo'}
-        selectedCount={store.selectedContactIds.size}
-        hasGroupSelected={store.contacts.some(c => store.selectedContactIds.has(c.contact_id) && c.contact_type === 'group')}
-        onClearSelection={store.clearSelection}
-        onAddToCampaign={handleBulkAddToCampaign}
-        onBulkTagLocal={handleBulkTagLocal}
-        onBulkTagZalo={handleBulkTagZalo}
-        onManageGroups={handleManageGroups}
-        onBulkManageGroups={(mode) => setShowBulkGroupModal(mode)}
-        onReassignOwner={() => setShowReassignModal(true)}
-        onDeleteSelected={handleDeleteSelected}
-      />
+      {store.tab === 'contacts' && (
+        <BulkActionBar
+          channel={activeAccount?.channel || 'zalo'}
+          selectedCount={store.selectedContactIds.size}
+          hasGroupSelected={store.contacts.some(c => store.selectedContactIds.has(c.contact_id) && c.contact_type === 'group')}
+          onClearSelection={store.clearSelection}
+          onAddToCampaign={handleBulkAddToCampaign}
+          onBulkTagLocal={handleBulkTagLocal}
+          onBulkTagZalo={handleBulkTagZalo}
+          onManageGroups={handleManageGroups}
+          onBulkManageGroups={(mode) => setShowBulkGroupModal(mode)}
+          onReassignOwner={() => setShowReassignModal(true)}
+          onDeleteSelected={handleDeleteSelected}
+        />
+      )}
 
       {/* ── Modals ── */}
       {showReassignModal && (

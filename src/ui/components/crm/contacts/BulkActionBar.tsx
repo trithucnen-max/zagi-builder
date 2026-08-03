@@ -91,19 +91,6 @@ export default function BulkActionBar({
 
         {showMore && (
           <div className="absolute bottom-full mb-2 right-0 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl py-1 w-48 z-50">
-            {/* Nhãn Zalo */}
-            {channelCap.supportsLabel && (
-              <button
-                onClick={() => { setShowMore(false); onBulkTagZalo(); }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-gray-300 hover:bg-gray-700 hover:text-white transition-colors text-left">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                  <line x1="7" y1="7" x2="7.01" y2="7"/>
-                </svg>
-                Nhãn Zalo
-              </button>
-            )}
-
             {/* Quản lý nhóm Zalo */}
             {!hasGroupSelected && onBulkManageGroups && (
               <>

@@ -442,7 +442,10 @@ export default function CampaignDetail({
               onClick={() => setShowTargetSelector(true)}
               className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md flex-shrink-0 active:scale-95 cursor-pointer"
             >
-              <span>➕</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white flex-shrink-0">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
               <span>Thêm đối tượng gửi</span>
             </button>
           </div>
