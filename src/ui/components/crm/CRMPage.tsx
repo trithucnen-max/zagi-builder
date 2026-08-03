@@ -232,6 +232,8 @@ export default function CRMPage() {
   const [cloneCampaignId, setCloneCampaignId] = useState<number | null>(null);
   const [copyToAccountsCampaign, setCopyToAccountsCampaign] = useState<CRMCampaign | null>(null);
   const [showBulkLocalModal, setShowBulkLocalModal] = useState(false);
+  const [selectedUnifiedLabelValues, setSelectedUnifiedLabelValues] = useState<string[]>([]);
+  const [indeterminateUnifiedLabelValues, setIndeterminateUnifiedLabelValues] = useState<string[]>([]);
   const [showBulkZaloModal, setShowBulkZaloModal] = useState(false);
   const [showBulkGroupModal, setShowBulkGroupModal] = useState<'add' | 'remove' | null>(null);
   const [bulkLabelIds, setBulkLabelIds] = useState<number[]>([]);
@@ -690,8 +692,6 @@ export default function CRMPage() {
     }
   };
 
-  const [selectedUnifiedLabelValues, setSelectedUnifiedLabelValues] = useState<string[]>([]);
-
   const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
     const localOpts: LoadedLabelOption[] = localLabels.map((l: any) => ({
       value: `local:${l.id}`,
@@ -720,22 +720,54 @@ export default function CRMPage() {
 
   const handleBulkTagLocal = () => {
     const selectedIds = Array.from(store.selectedContactIds);
-    const existingSet = new Set<string>();
+    if (selectedIds.length === 0) return;
+    const totalContacts = selectedIds.length;
 
+    // Đếm tần suất xuất hiện của từng nhãn Local trên tập liên hệ được chọn
+    const localLabelCounts: Record<number, number> = {};
     for (const contactId of selectedIds) {
       const labelIds = localLabelThreadMap[contactId] || [];
-      labelIds.forEach(id => existingSet.add(`local:${id}`));
+      const uniqueIds = new Set(labelIds);
+      uniqueIds.forEach(id => {
+        localLabelCounts[id] = (localLabelCounts[id] || 0) + 1;
+      });
     }
 
+    // Đếm tần suất xuất hiện của từng nhãn Zalo trên tập liên hệ được chọn
+    const zaloLabelCounts: Record<string, number> = {};
     for (const contactId of selectedIds) {
       zaloLabels.forEach(zl => {
         if (zl.conversations && zl.conversations.includes(contactId)) {
-          existingSet.add(`zalo:${(zl as any).zalo_id || (zl as any).pageId || activeAccountId || ''}:${zl.id}`);
+          const key = `zalo:${(zl as any).zalo_id || (zl as any).pageId || activeAccountId || ''}:${zl.id}`;
+          zaloLabelCounts[key] = (zaloLabelCounts[key] || 0) + 1;
         }
       });
     }
 
-    setSelectedUnifiedLabelValues(Array.from(existingSet));
+    const checkedSet = new Set<string>();
+    const indeterminateSet = new Set<string>();
+
+    // Phân loại nhãn Local: 100% người có -> Checked [✓] | 1..N-1 người có -> Indeterminate [-]
+    Object.entries(localLabelCounts).forEach(([idStr, count]) => {
+      const val = `local:${idStr}`;
+      if (count === totalContacts) {
+        checkedSet.add(val);
+      } else if (count > 0) {
+        indeterminateSet.add(val);
+      }
+    });
+
+    // Phân loại nhãn Zalo
+    Object.entries(zaloLabelCounts).forEach(([val, count]) => {
+      if (count === totalContacts) {
+        checkedSet.add(val);
+      } else if (count > 0) {
+        indeterminateSet.add(val);
+      }
+    });
+
+    setSelectedUnifiedLabelValues(Array.from(checkedSet));
+    setIndeterminateUnifiedLabelValues(Array.from(indeterminateSet));
     setShowBulkLocalModal(true);
   };
 
@@ -799,41 +831,58 @@ export default function CRMPage() {
     setApplyingBulkLabel(false);
   };
 
-  /** Bulk-sync both local and Zalo labels for all selected contacts (empty = clear all) */
-  const handleApplyUnifiedLabels = async (selectedValues: string[]) => {
+  /** Bulk-sync both local and Zalo labels for all selected contacts (3-state aware: empty = clear all) */
+  const handleApplyUnifiedLabels = async (selectedValues: string[], indeterminateValues: string[] = []) => {
     if (!activeAccountId) return;
     setApplyingBulkLabel(true);
     try {
       const selectedContactIds = [...store.selectedContactIds];
-      const targetLocalLabelIds = new Set<number>();
-      const targetZaloLabelIds = new Set<number>();
+      const addLocalLabelIds = new Set<number>();
+      const addZaloLabelIds = new Set<number>();
+
+      const keepLocalLabelIds = new Set<number>();
+      const keepZaloLabelIds = new Set<number>();
 
       selectedValues.forEach(val => {
         if (val.startsWith('local:')) {
           const id = parseInt(val.replace('local:', ''), 10);
-          if (!isNaN(id)) targetLocalLabelIds.add(id);
+          if (!isNaN(id)) addLocalLabelIds.add(id);
         } else if (val.startsWith('zalo:')) {
           const parts = val.split(':');
           const id = parseInt(parts[parts.length - 1], 10);
-          if (!isNaN(id)) targetZaloLabelIds.add(id);
+          if (!isNaN(id)) addZaloLabelIds.add(id);
         }
       });
 
-      // 1. Process Local Labels
+      indeterminateValues.forEach(val => {
+        if (val.startsWith('local:')) {
+          const id = parseInt(val.replace('local:', ''), 10);
+          if (!isNaN(id)) keepLocalLabelIds.add(id);
+        } else if (val.startsWith('zalo:')) {
+          const parts = val.split(':');
+          const id = parseInt(parts[parts.length - 1], 10);
+          if (!isNaN(id)) keepZaloLabelIds.add(id);
+        }
+      });
+
+      // 1. Process Local Labels for each selected contact
       for (const contactId of selectedContactIds) {
         const currentLabelIds = new Set(localLabelThreadMap[contactId] || []);
 
+        // A) Xóa nhãn bị gỡ (Không có trong addLocalLabelIds VÀ không có trong keepLocalLabelIds)
         for (const oldId of currentLabelIds) {
-          if (!targetLocalLabelIds.has(oldId)) {
+          if (!addLocalLabelIds.has(oldId) && !keepLocalLabelIds.has(oldId)) {
             await ipc.db?.removeLocalLabelFromThread({ zaloId: activeAccountId, labelId: oldId, threadId: contactId });
           }
         }
 
-        for (const newId of targetLocalLabelIds) {
+        // B) Gán nhãn được chọn gán cho tất cả ([✓]) nếu liên hệ chưa có
+        for (const newId of addLocalLabelIds) {
           if (!currentLabelIds.has(newId)) {
             await ipc.db?.assignLocalLabelToThread({ zaloId: activeAccountId, labelId: newId, threadId: contactId });
           }
         }
+        // Các nhãn thuộc keepLocalLabelIds ([-] Indeterminate) sẽ GIỮ NGUYÊN trên liên hệ đó
       }
 
       // 2. Process Zalo Labels (if present)
@@ -847,11 +896,13 @@ export default function CRMPage() {
 
           const updated = freshLabels.map(label => {
             let conversations = label.conversations || [];
-            if (targetZaloLabelIds.has(label.id)) {
+            if (addZaloLabelIds.has(label.id)) {
+              // Gán cho tất cả liên hệ được chọn
               selectedContactIds.forEach(cid => {
                 if (!conversations.includes(cid)) conversations = [...conversations, cid];
               });
-            } else {
+            } else if (!keepZaloLabelIds.has(label.id)) {
+              // Bị gỡ bỏ: xóa tất cả liên hệ được chọn khỏi nhãn Zalo này
               conversations = conversations.filter(cid => !selectedContactIds.includes(cid));
             }
             return { ...label, conversations };
@@ -864,7 +915,7 @@ export default function CRMPage() {
         }
       }
 
-      const isClearing = selectedValues.length === 0;
+      const isClearing = selectedValues.length === 0 && indeterminateValues.length === 0;
       showNotification(
         isClearing
           ? `Đã xóa toàn bộ nhãn cho ${selectedContactIds.length} liên hệ`
@@ -873,6 +924,7 @@ export default function CRMPage() {
       );
       setShowBulkLocalModal(false);
       setSelectedUnifiedLabelValues([]);
+      setIndeterminateUnifiedLabelValues([]);
       store.clearSelection();
       window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId: activeAccountId } }));
       loadLocalLabels();
@@ -1441,14 +1493,16 @@ export default function CRMPage() {
         />
       )}
 
-      {/* Unified Label Picker modal (multi-select, supports empty = clear all, local & zalo) */}
+      {/* Unified Label Picker modal (multi-select 3-state, supports empty = clear all, local & zalo) */}
       {showBulkLocalModal && (
         <UnifiedLabelPickerModal
           open={showBulkLocalModal}
           onClose={() => setShowBulkLocalModal(false)}
           options={unifiedLabelOptions}
           selected={selectedUnifiedLabelValues}
+          indeterminate={indeterminateUnifiedLabelValues}
           onChange={setSelectedUnifiedLabelValues}
+          onIndeterminateChange={setIndeterminateUnifiedLabelValues}
           onConfirm={handleApplyUnifiedLabels}
           accounts={accounts}
           selectedCount={store.selectedContactIds.size}

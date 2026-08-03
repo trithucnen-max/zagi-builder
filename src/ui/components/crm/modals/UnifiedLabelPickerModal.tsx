@@ -49,8 +49,10 @@ export interface UnifiedLabelPickerModalProps {
   onClose: () => void;
   options: LoadedLabelOption[];
   selected: string[];
+  indeterminate?: string[];
   onChange: (selectedValues: string[]) => void;
-  onConfirm?: (selectedValues: string[]) => void;
+  onIndeterminateChange?: (indeterminateValues: string[]) => void;
+  onConfirm?: (selectedValues: string[], indeterminateValues?: string[]) => void;
   mode?: 'single' | 'multi';
   accounts: { zalo_id: string; full_name: string; display_name?: string; phone?: string; avatar_url?: string }[];
   selectedCount?: number;
@@ -101,7 +103,9 @@ export default function UnifiedLabelPickerModal({
   onClose,
   options,
   selected,
+  indeterminate = [],
   onChange,
+  onIndeterminateChange,
   onConfirm,
   mode = 'multi',
   accounts,
@@ -116,6 +120,10 @@ export default function UnifiedLabelPickerModal({
   const [newLocalLabelEmoji, setNewLocalLabelEmoji] = useState('🏷️');
   const [targetScopeAccountId, setTargetScopeAccountId] = useState<string>('all');
   const [creating, setCreating] = useState(false);
+  const [showConfirmClearAll, setShowConfirmClearAll] = useState(false);
+
+  // Ghi nhớ danh sách ban đầu nằm ở trạng thái Indeterminate khi mở modal
+  const [initialIndeterminateSet] = useState<Set<string>>(() => new Set(indeterminate));
 
   const localOpts = useMemo(() => {
     return options.filter(o => o.source === 'local');
@@ -206,6 +214,9 @@ export default function UnifiedLabelPickerModal({
       } else {
         if (!selected.includes(existing.value)) {
           onChange([...selected, existing.value]);
+          if (indeterminate.includes(existing.value)) {
+            onIndeterminateChange?.(indeterminate.filter(x => x !== existing.value));
+          }
         }
       }
       setNewLocalLabelName('');
@@ -242,6 +253,9 @@ export default function UnifiedLabelPickerModal({
           onChange([newLabel.value]);
         } else {
           onChange([...selected, newLabel.value]);
+          if (indeterminate.includes(newLabel.value)) {
+            onIndeterminateChange?.(indeterminate.filter(x => x !== newLabel.value));
+          }
         }
         setNewLocalLabelName('');
       }
@@ -252,21 +266,58 @@ export default function UnifiedLabelPickerModal({
     }
   };
 
+  /**
+   * 3-State Checkbox Toggle Cycle:
+   * - Nếu ban đầu nằm ở Indeterminate [-]:
+   *   Click 1: [-] (Giữ nguyên) -> [✓] (Gán cho tất cả)
+   *   Click 2: [✓] (Gán tất cả) -> [ ] (Gỡ khỏi tất cả)
+   *   Click 3: [ ] (Gỡ tất cả)  -> [-] (Giữ nguyên nhãn cũ)
+   *
+   * - Nếu ban đầu Unchecked [ ]:
+   *   Click 1: [ ] -> [✓] (Gán tất cả)
+   *   Click 2: [✓] -> [ ] (Gỡ tất cả)
+   */
   const toggle = (v: string) => {
     if (mode === 'single') {
       onChange(selected.includes(v) ? [] : [v]);
     } else {
-      if (selected.includes(v)) onChange(selected.filter(x => x !== v));
-      else onChange([...selected, v]);
+      const isChecked = selected.includes(v);
+      const isIndet = indeterminate.includes(v);
+      const wasOriginallyIndet = initialIndeterminateSet.has(v);
+
+      if (isIndet) {
+        // [-] -> [✓] (Gán cho tất cả)
+        onIndeterminateChange?.(indeterminate.filter(x => x !== v));
+        onChange([...selected, v]);
+      } else if (isChecked) {
+        // [✓] -> [ ] (Gỡ khỏi tất cả)
+        onChange(selected.filter(x => x !== v));
+        onIndeterminateChange?.(indeterminate.filter(x => x !== v));
+      } else {
+        // [ ] -> Nếu ban đầu là Indet -> [-] (Giữ nguyên) | Nếu không -> [✓] (Gán tất cả)
+        if (wasOriginallyIndet && !indeterminate.includes(v)) {
+          onIndeterminateChange?.([...indeterminate, v]);
+          onChange(selected.filter(x => x !== v));
+        } else {
+          onChange([...selected, v]);
+          onIndeterminateChange?.(indeterminate.filter(x => x !== v));
+        }
+      }
     }
   };
 
   const handleConfirmAction = () => {
     if (onConfirm) {
-      onConfirm(selected);
+      onConfirm(selected, indeterminate);
     } else {
       onClose();
     }
+  };
+
+  const handleExecuteClearAll = () => {
+    onChange([]);
+    onIndeterminateChange?.([]);
+    setShowConfirmClearAll(false);
   };
 
   if (!open) return null;
@@ -277,7 +328,7 @@ export default function UnifiedLabelPickerModal({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-[680px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-[720px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 bg-gray-800/50">
           <div className="flex items-center gap-3">
@@ -287,11 +338,11 @@ export default function UnifiedLabelPickerModal({
             <div>
               <h2 className="text-base font-semibold text-white">Chọn nhãn</h2>
               <p className="text-xs text-gray-400">
-                {mode === 'single' ? 'Chọn 1 nhãn' : 'Có thể chọn nhiều nhãn'}
+                {mode === 'single' ? 'Chọn 1 nhãn' : 'Có thể chọn nhiều nhãn (Hỗ trợ 3 trạng thái)'}
                 {selectedCount !== undefined && selectedCount > 0 && (
                   <span> • Áp dụng cho <span className="text-blue-400 font-semibold">{selectedCount}</span> liên hệ</span>
                 )}
-                {selected.length > 0 && ` • Đã chọn: ${selected.length}`}
+                {selected.length > 0 && ` • Đã chọn gán thêm: ${selected.length}`}
               </p>
             </div>
           </div>
@@ -420,7 +471,7 @@ export default function UnifiedLabelPickerModal({
               </button>
             </div>
 
-            {/* Quick create local label (only visible when activeTab === 'local') */}
+            {/* Quick create local label */}
             {activeTab === 'local' && (
               <div className="px-3.5 py-2.5 border-b border-gray-700 bg-gray-800/40 flex flex-wrap sm:flex-nowrap items-center gap-1.5 flex-shrink-0">
                 <input
@@ -487,6 +538,7 @@ export default function UnifiedLabelPickerModal({
                 <div className="space-y-1.5">
                   {filteredLabels.map(opt => {
                     const isSelected = selected.includes(opt.value);
+                    const isIndet = indeterminate.includes(opt.value);
                     const bgColor = opt.color || '#6b7280';
                     const textColor = opt.textColor || getContrastColor(bgColor);
                     const isGlobalLocal = opt.source === 'local' && (!opt.pageIds || opt.pageIds.length === 0);
@@ -502,9 +554,16 @@ export default function UnifiedLabelPickerModal({
                         key={opt.value}
                         type="button"
                         onClick={() => toggle(opt.value)}
+                        title={
+                          isSelected ? 'Bấm để GỠ NHÃN KHỎI TẤT CẢ liên hệ' :
+                          isIndet ? 'Bấm để GÁN NHÃN CHO TẤT CẢ liên hệ' :
+                          'Bấm để GÁN NHÃN CHO TẤT CẢ liên hệ'
+                        }
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
                           isSelected
                             ? 'ring-2 ring-offset-1 ring-offset-gray-900'
+                            : isIndet
+                            ? 'bg-gray-800/80 border-amber-500/40'
                             : 'bg-gray-800/40 border-gray-700/40 hover:border-gray-600 hover:bg-gray-800/60'
                         }`}
                         style={isSelected ? {
@@ -513,16 +572,22 @@ export default function UnifiedLabelPickerModal({
                           '--tw-ring-color': bgColor,
                         } as React.CSSProperties : undefined}
                       >
-                        {/* Checkbox */}
+                        {/* 3-State Checkbox */}
                         <span
                           className={`w-5 h-5 ${mode === 'single' ? 'rounded-full' : 'rounded-md'} border-2 flex items-center justify-center flex-shrink-0 transition-all`}
-                          style={isSelected ? {
-                            backgroundColor: bgColor,
-                            borderColor: bgColor,
-                            color: textColor,
-                          } : { borderColor: '#4b5563' }}
+                          style={
+                            isSelected ? {
+                              backgroundColor: bgColor,
+                              borderColor: bgColor,
+                              color: textColor,
+                            } : isIndet ? {
+                              backgroundColor: `${bgColor}30`,
+                              borderColor: bgColor,
+                              color: bgColor,
+                            } : { borderColor: '#4b5563' }
+                          }
                         >
-                          {isSelected && (
+                          {isSelected ? (
                             mode === 'single' ? (
                               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: textColor }} />
                             ) : (
@@ -530,16 +595,33 @@ export default function UnifiedLabelPickerModal({
                                 <polyline points="20 6 9 17 4 12"/>
                               </svg>
                             )
-                          )}
+                          ) : isIndet ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                          ) : null}
                         </span>
 
                         {/* Label badge */}
                         <span
-                          className="text-xs px-2.5 py-1 rounded-md font-medium shadow-sm"
+                          className="text-xs px-2.5 py-1 rounded-md font-medium shadow-sm flex items-center gap-1"
                           style={{ backgroundColor: bgColor, color: textColor }}
                         >
-                          {opt.emoji || '🏷️'} {opt.name}
+                          <span>{opt.emoji || '🏷️'}</span>
+                          <span>{opt.name}</span>
                         </span>
+
+                        {/* State Status Tag */}
+                        {isIndet && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 font-medium flex-shrink-0">
+                            [-] Giữ nguyên nhãn cũ
+                          </span>
+                        )}
+                        {isSelected && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/30 text-blue-400 font-medium flex-shrink-0">
+                            [✓] Gán cho tất cả
+                          </span>
+                        )}
 
                         {/* Account info or Global Badge on the right-hand side */}
                         {selectedAccountId === 'all' && (
@@ -556,13 +638,6 @@ export default function UnifiedLabelPickerModal({
                             </div>
                           ) : null
                         )}
-
-                        {/* Selected indicator */}
-                        {isSelected && !acc && (
-                          <svg className="w-5 h-5 flex-shrink-0 ml-auto" style={{ color: bgColor }} fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        )}
                       </button>
                     );
                   })}
@@ -573,51 +648,99 @@ export default function UnifiedLabelPickerModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-gray-700 bg-gray-800/50">
-          <div className="text-xs">
-            {selected.length > 0 ? (
-              <span className="text-gray-300">
-                Đã chọn <span className="text-teal-400 font-semibold">{selected.length}</span> nhãn để áp dụng
+        <div className="flex flex-col gap-2.5 px-5 py-3.5 border-t border-gray-700 bg-gray-800/60">
+          {/* 3-State Legend Banner */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-gray-900/80 rounded-xl border border-gray-700/50 text-[11px] text-gray-300">
+            <span className="font-semibold text-gray-400">Chú thích trạng thái:</span>
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <span className="w-3.5 h-3.5 rounded bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-[9px] text-amber-400 font-bold">➖</span>
+                <span className="text-amber-300 font-medium font-mono">[-]</span> Giữ nguyên nhãn cũ
               </span>
-            ) : (
-              <span className="text-orange-400 font-medium">
-                ⚠️ Để trống sẽ <strong>xóa toàn bộ nhãn</strong> (Local & Zalo) của các liên hệ đã chọn
+              <span className="flex items-center gap-1">
+                <span className="w-3.5 h-3.5 rounded bg-blue-600 flex items-center justify-center text-[9px] text-white font-bold">✓</span>
+                <span className="text-blue-400 font-medium font-mono">[✓]</span> Gán cho tất cả
               </span>
-            )}
+              <span className="flex items-center gap-1">
+                <span className="w-3.5 h-3.5 rounded border border-gray-600 flex items-center justify-center text-[9px]"></span>
+                <span className="text-gray-400 font-medium font-mono">[ ]</span> Gỡ khỏi tất cả
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {selected.length > 0 && (
+
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-gray-400">
+              {selectedCount !== undefined && selectedCount > 0 ? (
+                <span>Số liên hệ xử lý: <strong className="text-blue-400">{selectedCount}</strong></span>
+              ) : null}
+            </div>
+
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => onChange([])}
-                className="px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                onClick={() => setShowConfirmClearAll(true)}
+                className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20"
               >
-                Xóa tất cả
+                🗑️ Xóa tất cả nhãn
               </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              disabled={applying}
-              onClick={handleConfirmAction}
-              className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg transition-colors shadow-lg flex items-center gap-1.5"
-            >
-              {applying && (
-                <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="10"/>
-                </svg>
-              )}
-              {applying ? 'Đang áp dụng...' : 'Xác nhận'}
-            </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={applying}
+                onClick={handleConfirmAction}
+                className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg transition-colors shadow-lg flex items-center gap-1.5"
+              >
+                {applying && (
+                  <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="10"/>
+                  </svg>
+                )}
+                {applying ? 'Đang áp dụng...' : 'Xác nhận'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog for Clear All */}
+      {showConfirmClearAll && (
+        <div className="fixed inset-0 z-[10000] bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-gray-800 border border-red-500/40 rounded-2xl p-5 max-w-md w-full shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 flex items-center justify-center mx-auto text-2xl">
+              ⚠️
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Xác nhận XÓA TẤT CẢ NHÃN?</h3>
+              <p className="text-xs text-gray-300 mt-2 leading-relaxed">
+                Hành động này sẽ <strong>XÓA TOÀN BỘ NHÃN</strong> (cả Local & Zalo) khỏi{' '}
+                <strong className="text-red-400">{selectedCount || 'các'} liên hệ</strong> đã chọn. Bạn có chắc chắn muốn tiếp tục?
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmClearAll(false)}
+                className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-xl transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteClearAll}
+                className="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-500 rounded-xl shadow-lg transition-colors"
+              >
+                Đồng ý xóa hết
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
