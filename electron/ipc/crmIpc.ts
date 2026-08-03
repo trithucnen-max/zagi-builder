@@ -358,14 +358,14 @@ export function registerCRMIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
-    ipcHandle('crm:retryFailedContacts', async (_e, { zaloId, campaignId }: { zaloId: string; campaignId: number }) => {
+    ipcHandle('crm:retryFailedContacts', async (_e, { zaloId, campaignId, autoTagBlocked }: { zaloId: string; campaignId: number; autoTagBlocked?: boolean }) => {
         try {
             const db = DatabaseService.getInstance();
-            db.retryFailedCampaignContacts(campaignId);
+            const res = db.retryFailedCampaignContacts(campaignId, autoTagBlocked ?? true);
             CRMQueueService.getInstance().startForAccount(zaloId);
             EventBroadcaster.emit('crm:campaignChanged', { action: 'status', ownerZaloId: zaloId, campaignId, status: 'active' });
-            proxyToBoss('crm:retryFailedContacts', { zaloId, campaignId });
-            return { success: true };
+            proxyToBoss('crm:retryFailedContacts', { zaloId, campaignId, autoTagBlocked });
+            return { success: true, ...res };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 

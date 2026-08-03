@@ -5,6 +5,7 @@ import { showConfirm } from '@/components/common/ConfirmDialog';
 import ipc from '@/lib/ipc';
 import TargetSelector from './TargetSelector';
 import CampaignCreateModal from './CampaignCreateModal';
+import { RestartCampaignModal } from './RestartCampaignModal';
 import AppIcon from '@/components/common/AppIcon';
 
 function fmtDelayRange(min: number, max: number): string {
@@ -69,6 +70,7 @@ export default function CampaignDetail({
   const [loading, setLoading] = useState(false);
   const [showTargetSelector, setShowTargetSelector] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showRestartModal, setShowRestartModal] = useState(false);
 
   // Pagination states for contacts table
   const [pageSize, setPageSize] = useState<number>(20);
@@ -354,7 +356,7 @@ export default function CampaignDetail({
             </button>
           ) : campaign.status === 'done' ? (
             <button
-              onClick={() => onStatusChange(campaign.id, 'active')}
+              onClick={() => setShowRestartModal(true)}
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
             >
               <span>🔄</span>
@@ -716,6 +718,18 @@ export default function CampaignDetail({
           }}
         />
       )}
+
+      {/* Restart Campaign Modal */}
+      <RestartCampaignModal
+        isOpen={showRestartModal}
+        onClose={() => setShowRestartModal(false)}
+        campaign={campaign}
+        zaloId={zaloId}
+        onSuccess={() => {
+          onStatusChange(campaign.id, 'active');
+          loadContacts();
+        }}
+      />
     </div>
   );
 }

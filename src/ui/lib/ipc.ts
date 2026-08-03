@@ -263,7 +263,7 @@ declare global {
         deleteCampaign: (params: { zaloId: string; campaignId: number }) => Promise<{ success: boolean }>;
         cloneCampaign: (params: { zaloId: string; campaignId: number; includeContacts: boolean; newName?: string }) => Promise<{ success: boolean; id: number; error?: string }>;
         restartCampaign: (params: { zaloId: string; campaignId: number }) => Promise<{ success: boolean; error?: string }>;
-        retryFailedContacts: (params: { zaloId: string; campaignId: number }) => Promise<{ success: boolean; error?: string }>;
+        retryFailedContacts: (params: { zaloId: string; campaignId: number; autoTagBlocked?: boolean }) => Promise<{ success: boolean; resetCount?: number; blockedCount?: number; error?: string }>;
         updateCampaignStatus: (params: { campaignId: number; status: string }) => Promise<{ success: boolean }>;
         addCampaignContacts: (params: { zaloId: string; campaignId: number; contacts: any[] }) => Promise<{ success: boolean; addedCount?: number; discardedCount?: number; limitExceeded?: boolean; error?: string }>;
         removeCampaignContacts: (params: { zaloId: string; campaignId: number; contactIds: string[] }) => Promise<{ success: boolean }>;

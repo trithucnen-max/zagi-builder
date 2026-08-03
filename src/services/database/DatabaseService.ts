@@ -6221,19 +6221,87 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] restartCRMCampaign: ${err.message}`); }
     }
 
-    public retryFailedCampaignContacts(campaignId: number): void {
-        if (!this.initialized) return;
+    public retryFailedCampaignContacts(campaignId: number, autoTagBlocked = true): { resetCount: number; blockedCount: number } {
+        if (!this.initialized) return { resetCount: 0, blockedCount: 0 };
         try {
-            this.run(
-                `UPDATE crm_campaign_contacts SET status='pending', sent_at=0, retry_count=0, error='' WHERE campaign_id=? AND status='failed'`,
+            const failedContacts = this.query<any>(
+                `SELECT * FROM crm_campaign_contacts WHERE campaign_id=? AND status='failed'`,
                 [campaignId]
             );
+
+            const nonRetryableKeywords = [
+                'không nhận tin nhắn',
+                'không nhận lời mời',
+                'chặn tin nhắn',
+                'chặn lời mời',
+                'người lạ',
+                'privacy',
+                'stranger',
+                'not_found',
+                'invalid',
+                'blocked',
+                'chưa đăng ký zalo',
+            ];
+
+            let resetCount = 0;
+            let blockedCount = 0;
+
+            for (const c of failedContacts) {
+                const errLower = String(c.error || '').toLowerCase();
+                const isNonRetryable = nonRetryableKeywords.some(k => errLower.includes(k));
+
+                if (isNonRetryable) {
+                    blockedCount++;
+                    this.run(
+                        `UPDATE crm_campaign_contacts SET status='failed', error=COALESCE(NULLIF(error, ''), 'Không nhận tin/kết bạn từ người lạ') WHERE id=?`,
+                        [c.id]
+                    );
+
+                    if (autoTagBlocked && c.contact_id && c.owner_zalo_id) {
+                        try {
+                            const labelName = '🚫 Chặn người lạ';
+                            const existingLabel = this.queryOne<any>(
+                                `SELECT id FROM crm_labels WHERE owner_zalo_id=? AND name=?`,
+                                [c.owner_zalo_id, labelName]
+                            );
+                            let labelId = existingLabel?.id;
+                            if (!labelId) {
+                                const ins = this.run(
+                                    `INSERT INTO crm_labels (owner_zalo_id, name, color, created_at) VALUES (?, ?, ?, ?)`,
+                                    [c.owner_zalo_id, labelName, '#ef4444', Date.now()]
+                                );
+                                labelId = (ins as any)?.lastInsertRowid;
+                            }
+                            if (labelId) {
+                                this.run(
+                                    `INSERT OR IGNORE INTO crm_contact_labels (owner_zalo_id, contact_id, label_id, created_at) VALUES (?, ?, ?, ?)`,
+                                    [c.owner_zalo_id, c.contact_id, labelId, Date.now()]
+                                );
+                            }
+                        } catch (tagErr: any) {
+                            Logger.warn(`[DB] Auto tag blocked contact failed: ${tagErr.message}`);
+                        }
+                    }
+                } else {
+                    resetCount++;
+                    this.run(
+                        `UPDATE crm_campaign_contacts SET status='pending', sent_at=0, retry_count=0, error='' WHERE id=?`,
+                        [c.id]
+                    );
+                }
+            }
+
             this.run(
                 `UPDATE crm_campaigns SET status='active', updated_at=? WHERE id=?`,
                 [Date.now(), campaignId]
             );
             this.save();
-        } catch (err: any) { Logger.error(`[DB] retryFailedCampaignContacts: ${err.message}`); }
+
+            return { resetCount, blockedCount };
+        } catch (err: any) {
+            Logger.error(`[DB] retryFailedCampaignContacts: ${err.message}`);
+            return { resetCount: 0, blockedCount: 0 };
+        }
     }
 
     private static readonly MAX_CAMPAIGN_CONTACTS = 1000;
