@@ -117,14 +117,57 @@ export default function CampaignDetail({
     await loadContacts();
   };
 
+  // Error Detail Modal & Status Filter states
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [selectedErrorContact, setSelectedErrorContact] = useState<any | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
+
+  const parseContactError = useCallback((c: any) => {
+    const err = String(c?.error || '').toLowerCase();
+    const isMsgFailed = err.includes('lỗi gửi tin') || (c?.status === 'failed' && !err.includes('kết bạn') && !err.includes('nhóm'));
+    const isFriendFailed = err.includes('lỗi kết bạn') || err.includes('kết bạn');
+    const isInviteFailed = err.includes('lỗi mời nhóm') || err.includes('nhóm');
+    const isBlocked = [
+      'chặn', 'không nhận tin nhắn', 'không nhận lời mời', 'người lạ', 'privacy', 'stranger', 'blocked'
+    ].some(k => err.includes(k));
+
+    return { isMsgFailed, isFriendFailed, isInviteFailed, isBlocked, rawError: c?.error || '' };
+  }, []);
+
   const stats = useMemo(() => {
     const total = contacts.length;
     const sentCount = contacts.filter(c => c.status === 'sent').length;
     const failedCount = contacts.filter(c => c.status === 'failed').length;
     const pendingCount = contacts.filter(c => c.status === 'pending' || c.status === 'sending').length;
 
-    return { total, sentCount, failedCount, pendingCount };
-  }, [contacts]);
+    let msgFailedCount = 0;
+    let friendFailedCount = 0;
+    let inviteFailedCount = 0;
+    let blockedCount = 0;
+
+    contacts.forEach(c => {
+      if (c.status === 'failed') {
+        const info = parseContactError(c);
+        if (info.isMsgFailed) msgFailedCount++;
+        if (info.isFriendFailed) friendFailedCount++;
+        if (info.isInviteFailed) inviteFailedCount++;
+        if (info.isBlocked) blockedCount++;
+      }
+    });
+
+    return { total, sentCount, failedCount, pendingCount, msgFailedCount, friendFailedCount, inviteFailedCount, blockedCount };
+  }, [contacts, parseContactError]);
+
+  const filteredContacts = useMemo(() => {
+    if (filterStatus === 'sent') return contacts.filter(c => c.status === 'sent');
+    if (filterStatus === 'failed') return contacts.filter(c => c.status === 'failed');
+    if (filterStatus === 'pending') return contacts.filter(c => c.status === 'pending' || c.status === 'sending');
+    if (filterStatus === 'msg_failed') return contacts.filter(c => c.status === 'failed' && parseContactError(c).isMsgFailed);
+    if (filterStatus === 'friend_failed') return contacts.filter(c => c.status === 'failed' && parseContactError(c).isFriendFailed);
+    if (filterStatus === 'invite_failed') return contacts.filter(c => c.status === 'failed' && parseContactError(c).isInviteFailed);
+    if (filterStatus === 'blocked') return contacts.filter(c => c.status === 'failed' && parseContactError(c).isBlocked);
+    return contacts;
+  }, [contacts, filterStatus, parseContactError]);
 
   // Render template preview
   const templateInfo = useMemo(() => {
@@ -163,8 +206,8 @@ export default function CampaignDetail({
     });
   };
 
-  const totalPages = Math.max(1, Math.ceil(contacts.length / pageSize));
-  const pagedContacts = contacts.slice(page * pageSize, (page + 1) * pageSize);
+  const totalPages = Math.max(1, Math.ceil(filteredContacts.length / pageSize));
+  const pagedContacts = filteredContacts.slice(page * pageSize, (page + 1) * pageSize);
 
   const handleEditAttempt = async () => {
     if (campaign.status === 'active') {
@@ -502,31 +545,65 @@ export default function CampaignDetail({
 
         {/* ── Bảng Dữ Liệu Liên Hệ Trong Chiến Dịch ── */}
         <div className="bg-white dark:bg-gray-850 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xs flex flex-col flex-1 min-h-[340px] justify-between overflow-hidden">
-          {/* Header Bar */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3 flex-wrap">
-            <h3 className="text-sm font-extrabold text-gray-900 dark:text-white">
-              {contacts.length} liên hệ
-            </h3>
-
-            <div className="flex items-center gap-2">
-              {selectedIds.size > 0 && (
+          {/* Status Quick Filter Tabs */}
+          <div className="px-4 py-2 bg-gray-50/70 dark:bg-gray-800/30 border-b border-gray-200 dark:border-gray-800 flex items-center gap-1.5 overflow-x-auto text-[11px] flex-wrap">
+            <span className="text-gray-400 font-bold uppercase text-[10px] mr-1">Lọc:</span>
+            <button
+              onClick={() => { setFilterStatus('all'); setPage(0); }}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'all' ? 'bg-blue-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+            >
+              Tất cả ({contacts.length})
+            </button>
+            <button
+              onClick={() => { setFilterStatus('sent'); setPage(0); }}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'sent' ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-emerald-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+            >
+              ✓ Thành công ({stats.sentCount})
+            </button>
+            <button
+              onClick={() => { setFilterStatus('failed'); setPage(0); }}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'failed' ? 'bg-rose-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-rose-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+            >
+              ✕ Thất bại ({stats.failedCount})
+            </button>
+            {campaign.campaign_type === 'mixed' && (
+              <>
                 <button
-                  onClick={handleRemoveSelected}
-                  disabled={removing}
-                  className="px-3.5 py-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/80 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                  onClick={() => { setFilterStatus('msg_failed'); setPage(0); }}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'msg_failed' ? 'bg-rose-700 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-rose-700 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
                 >
-                  <span>🗑️</span>
-                  <span>Xóa {selectedIds.size} liên hệ đã chọn</span>
+                  📩 Lỗi gửi tin ({stats.msgFailedCount})
                 </button>
-              )}
+                <button
+                  onClick={() => { setFilterStatus('friend_failed'); setPage(0); }}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'friend_failed' ? 'bg-amber-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-amber-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+                >
+                  🤝 Lỗi kết bạn ({stats.friendFailedCount})
+                </button>
+                {stats.inviteFailedCount > 0 && (
+                  <button
+                    onClick={() => { setFilterStatus('invite_failed'); setPage(0); }}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'invite_failed' ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-indigo-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+                  >
+                    👥 Lỗi mời nhóm ({stats.inviteFailedCount})
+                  </button>
+                )}
+              </>
+            )}
+            {stats.blockedCount > 0 && (
               <button
-                onClick={handleAddContactsClick}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+                onClick={() => { setFilterStatus('blocked'); setPage(0); }}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'blocked' ? 'bg-red-700 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-red-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
               >
-                <span className="text-sm font-bold">+</span>
-                <span>Thêm liên hệ</span>
+                🚫 Chặn người lạ ({stats.blockedCount})
               </button>
-            </div>
+            )}
+            <button
+              onClick={() => { setFilterStatus('pending'); setPage(0); }}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'pending' ? 'bg-gray-700 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+            >
+              ⏳ Chờ gửi ({stats.pendingCount})
+            </button>
           </div>
 
           {/* Data Table */}
@@ -557,10 +634,10 @@ export default function CampaignDetail({
                       Đang tải danh sách liên hệ...
                     </td>
                   </tr>
-                ) : contacts.length === 0 ? (
+                ) : filteredContacts.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-gray-400">
-                      Chưa có liên hệ nào trong chiến dịch này
+                      {filterStatus !== 'all' ? 'Không có liên hệ nào trùng khớp với bộ lọc' : 'Chưa có liên hệ nào trong chiến dịch này'}
                     </td>
                   </tr>
                 ) : (
@@ -568,6 +645,7 @@ export default function CampaignDetail({
                     const stt = page * pageSize + idx + 1;
                     const isPending = c.status === 'pending';
                     const isChecked = selectedIds.has(c.contact_id);
+                    const errInfo = parseContactError(c);
 
                     return (
                       <tr key={c.id || c.contact_id} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors">
@@ -606,9 +684,58 @@ export default function CampaignDetail({
                               <span>✓</span> Sent
                             </span>
                           ) : c.status === 'failed' ? (
-                            <span className="px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/40 text-[11px] font-bold inline-flex items-center gap-1" title={c.error}>
-                              <span>✕</span> Failed
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {campaign.campaign_type === 'mixed' ? (
+                                <>
+                                  {errInfo.isMsgFailed ? (
+                                    <span
+                                      onClick={() => { setSelectedErrorContact(c); setShowErrorModal(true); }}
+                                      className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer hover:scale-105 transition-transform"
+                                      title="Click để xem chi tiết lỗi gửi tin"
+                                    >
+                                      <span>✕</span> Lỗi gửi tin
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-[11px] font-bold inline-flex items-center gap-1">
+                                      <span>✓</span> Tin nhắn OK
+                                    </span>
+                                  )}
+
+                                  {errInfo.isFriendFailed ? (
+                                    <span
+                                      onClick={() => { setSelectedErrorContact(c); setShowErrorModal(true); }}
+                                      className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer hover:scale-105 transition-transform"
+                                      title="Click để xem chi tiết lỗi kết bạn"
+                                    >
+                                      <span>✕</span> Lỗi kết bạn
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-[11px] font-bold inline-flex items-center gap-1">
+                                      <span>✓</span> Kết bạn OK
+                                    </span>
+                                  )}
+
+                                  {errInfo.isInviteFailed && (
+                                    <span
+                                      onClick={() => { setSelectedErrorContact(c); setShowErrorModal(true); }}
+                                      className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer hover:scale-105 transition-transform"
+                                      title="Click để xem chi tiết lỗi mời nhóm"
+                                    >
+                                      <span>✕</span> Lỗi mời nhóm
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span
+                                  onClick={() => { setSelectedErrorContact(c); setShowErrorModal(true); }}
+                                  className="px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/40 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer hover:scale-105 transition-transform"
+                                  title="Click để xem chi tiết lỗi"
+                                >
+                                  <span>✕</span> Failed
+                                  <span className="text-[10px] ml-0.5 opacity-80">ℹ️</span>
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700 text-[11px] font-semibold inline-flex items-center gap-1">
                               <span>⏳</span> Pending
@@ -730,6 +857,120 @@ export default function CampaignDetail({
           loadContacts();
         }}
       />
+
+      {/* Error Detail Modal */}
+      <ErrorDetailModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        contact={selectedErrorContact}
+        parseContactError={parseContactError}
+      />
     </div>
   );
 }
+
+interface ErrorDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  contact: any;
+  parseContactError: (c: any) => { isMsgFailed: boolean; isFriendFailed: boolean; isInviteFailed: boolean; isBlocked: boolean; rawError: string };
+}
+
+const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({
+  isOpen,
+  onClose,
+  contact,
+  parseContactError,
+}) => {
+  if (!isOpen || !contact) return null;
+
+  const errStr = contact.error || 'Lỗi không xác định khi gửi';
+  const { isMsgFailed, isFriendFailed, isInviteFailed, isBlocked } = parseContactError(contact);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-md w-full border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-rose-50/50 dark:bg-rose-950/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-rose-600/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl font-bold">
+              ⚠️
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                Chi tiết lỗi gửi liên hệ
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold truncate max-w-[240px]">
+                {contact.display_name || contact.contact_id} ({contact.phone || 'SĐT --'})
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4 text-xs">
+          {/* Action failure badges */}
+          <div className="flex flex-wrap gap-2">
+            {isMsgFailed && (
+              <span className="px-2.5 py-1 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800">
+                ✕ Lỗi gửi tin nhắn
+              </span>
+            )}
+            {isFriendFailed && (
+              <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold border border-amber-300 dark:border-amber-800">
+                ✕ Lỗi kết bạn
+              </span>
+            )}
+            {isInviteFailed && (
+              <span className="px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-300 dark:border-indigo-800">
+                ✕ Lỗi mời vào nhóm
+              </span>
+            )}
+            {isBlocked && (
+              <span className="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 font-bold border border-red-500/20">
+                🚫 Cài đặt Chặn người lạ
+              </span>
+            )}
+          </div>
+
+          {/* Full error details box */}
+          <div className="space-y-1.5">
+            <label className="font-bold text-gray-700 dark:text-gray-300">Thông điệp lỗi chi tiết từ Zalo:</label>
+            <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 font-mono text-[11px] text-rose-600 dark:text-rose-400 break-words leading-relaxed select-text max-h-40 overflow-y-auto">
+              {errStr}
+            </div>
+          </div>
+
+          {/* Suggested Resolution */}
+          <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800/40 space-y-1">
+            <div className="font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+              <span>💡</span>
+              <span>Gợi ý hướng xử lý:</span>
+            </div>
+            <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-normal">
+              {isBlocked
+                ? 'Khách hàng cài đặt không nhận tin/lời mời từ người lạ. Nên liên hệ qua Cuộc gọi điện thoại hoặc SMS.'
+                : 'Lỗi tạm thời (do hạn mức Zalo ngày hoặc gián đoạn mạng). Bạn có thể bấm "Chạy lại chiến dịch" sau 00:00 hoặc chuyển sang tài khoản Zalo khác.'}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs active:scale-95"
+          >
+            Đã hiểu
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

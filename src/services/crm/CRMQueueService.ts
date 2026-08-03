@@ -837,7 +837,7 @@ class CRMQueueService {
 
             } else if (campaignType === 'mixed' && mixedActions.length > 0) {
                 // ── Hỗn hợp (mới) ────────────────────────────────────────────────
-                let anyFailed = false;
+                let actionErrors: string[] = [];
                 for (const action of mixedActions) {
                     try {
                         if (action === 'message') {
@@ -850,8 +850,10 @@ class CRMQueueService {
                                 error: result.errors.join('; ') || '', send_type: 'message',
                                 data_request: JSON.stringify({ type: 'sendMessage', threadId: effectiveContactId, threadType, blocks: blocksToSend.length, sent: result.sent }),
                                 data_response: result.responses.length > 0 ? JSON.stringify(result.responses.length === 1 ? result.responses[0] : result.responses) : '' });
-                            if (result.errors.length > 0) anyFailed = true;
-                            Logger.log(`[CRMQueue] Mixed/message ✅ → ${effectiveContactId} (${result.sent}/${blocksToSend.length} blocks)`);
+                            if (result.errors.length > 0) {
+                                actionErrors.push(`[Lỗi gửi tin] ${result.errors.join('; ')}`);
+                            }
+                            Logger.log(`[CRMQueue] Mixed/message ${result.errors.length > 0 ? '❌' : '✅'} → ${effectiveContactId} (${result.sent}/${blocksToSend.length} blocks)`);
 
                         } else if (action === 'friend_request') {
                             const contactPhone = (item as any).contact_phone || (item as any).phone || '';
@@ -887,7 +889,9 @@ class CRMQueueService {
                                 }
                             }
                             const finalStatus = errorMsg ? 'failed' : 'sent';
-                            if (errorMsg) anyFailed = true;
+                            if (errorMsg) {
+                                actionErrors.push(`[Lỗi mời nhóm] ${errorMsg}`);
+                            }
                             db.saveSendLog({ ...logBase,
                                 message: `[Hỗn hợp/Mời nhóm] Mời vào ${mixedGroupIds.length} nhóm: ${mixedGroupIds.join(', ')}`,
                                 status: finalStatus, send_type: 'invite_to_group',
@@ -909,10 +913,16 @@ class CRMQueueService {
                             send_type: action === 'friend_request' ? 'friend_request' : action === 'invite_to_groups' ? 'invite_to_group' : 'message',
                             data_request: JSON.stringify(req), data_response: JSON.stringify(errResponse) });
                         Logger.warn(`[CRMQueue] Mixed/${action} ❌ → ${effectiveContactId}: ${actionErr.message}`);
-                        anyFailed = true;
+
+                        const actionNameTag = action === 'friend_request' ? 'Lỗi kết bạn' : action === 'invite_to_groups' ? 'Lỗi mời nhóm' : 'Lỗi gửi tin';
+                        actionErrors.push(`[${actionNameTag}] ${actionErr.message}`);
                     }
                 }
-                db.updateCampaignContactStatus(item.id!, anyFailed && mixedActions.length === 1 ? 'failed' : 'sent');
+                if (actionErrors.length > 0) {
+                    db.updateCampaignContactStatus(item.id!, 'failed', actionErrors.join(' | '));
+                } else {
+                    db.updateCampaignContactStatus(item.id!, 'sent');
+                }
 
             } else if (campaignType === 'mixed') {
                 // ── Hỗn hợp (cũ / fallback) ──────────────────────────────────────
