@@ -1,6 +1,6 @@
 // ─── CRM Types ────────────────────────────────────────────────────────────────
 
-export type CRMCampaignStatus = 'draft' | 'active' | 'paused' | 'done';
+export type CRMCampaignStatus = 'draft' | 'active' | 'queued' | 'paused' | 'paused_quota' | 'paused_quiet' | 'done';
 export type CRMContactStatus = 'pending' | 'sending' | 'sent' | 'failed';
 export type CRMCampaignType = 'message' | 'friend_request' | 'mixed' | 'invite_to_group';
 
@@ -24,6 +24,10 @@ export interface CRMCampaign {
     campaign_type: CRMCampaignType;
     mixed_config?: string;
     status: CRMCampaignStatus;
+    priority?: 'high' | 'normal';
+    queued_at?: number;
+    pause_reason?: 'user_manual' | 'daily_quota' | 'quiet_hours' | null;
+    queue_position?: number;
     delay_seconds: number;
     delay_min_seconds?: number;
     delay_max_seconds?: number;

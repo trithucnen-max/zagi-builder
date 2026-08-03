@@ -261,28 +261,43 @@ export default function CampaignDetail({
       <div className="px-6 py-4 bg-white dark:bg-gray-850 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2.5 mb-1.5">
-            <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">{campaign.name}</h2>
-            {/* Status Badge — phân biệt 3 trạng thái: Đang chạy / Đạt giới hạn·Chờ tiếp / Tạm dừng / Hoàn thành */}
-            {campaign.status === 'active' && queueStatus?.running && (queueStatus.dailyPaused || queueStatus.type === 'daily_limit_reached' || queueStatus.type === 'msg_daily_limit_reached' || queueStatus.type === 'friend_req_limit_reached' || queueStatus.type === 'all_limits_reached') ? (
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                title="Đã đạt định mức gửi hôm nay — Tự động tiếp tục vào ngày mai hoặc khi hết giờ nghỉ">
-                ⏳ Đạt giới hạn · Chờ tiếp
-              </span>
-            ) : campaign.status === 'active' ? (
+            <h2 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+              <span>{campaign.name}</span>
+              {campaign.priority === 'high' && (
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30">
+                  🔴 Ưu tiên Cao
+                </span>
+              )}
+            </h2>
+            {/* Status Badge — phân biệt 5 trạng thái thực thi */}
+            {campaign.status === 'active' ? (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 animate-pulse">
-                ▶ Đang chạy
+                🟢 Đang chạy
+              </span>
+            ) : campaign.status === 'queued' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                📦 Đang chờ ({campaign.queue_position ? `#${campaign.queue_position} trong hàng đợi` : 'Hàng đợi'})
+              </span>
+            ) : campaign.status === 'paused_quota' || campaign.pause_reason === 'daily_quota' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                title="Đã đạt định mức an toàn gửi tin nhắn/kết bạn trong ngày. Tự động tiếp tục vào 00:00 ngày mới">
+                🛑 Tạm dừng (Hết quota ngày - Tự động resume 00:00)
+              </span>
+            ) : campaign.status === 'paused_quiet' || campaign.pause_reason === 'quiet_hours' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
+                🌙 Tạm dừng (Giờ nghỉ đêm)
               </span>
             ) : campaign.status === 'paused' ? (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                ⏸ Tạm dừng
+                ⏸️ Tạm dừng (Thủ công)
               </span>
             ) : campaign.status === 'done' ? (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
-                ✓ Hoàn thành
+                ✅ Hoàn thành
               </span>
             ) : (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                Nháp
+                📝 Nháp
               </span>
             )}
           </div>

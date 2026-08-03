@@ -292,16 +292,37 @@ export default function CampaignList({
                     <div className="flex items-center gap-2 flex-1 min-w-0 pr-1">
                       {/* Status Indicator Icon (Visual status display on the far left) */}
                       {(() => {
-                        const isQuotaPaused = c.status === 'active' && queueStatus?.running && (queueStatus.dailyPaused || queueStatus.type === 'daily_limit_reached' || queueStatus.type === 'msg_daily_limit_reached' || queueStatus.type === 'friend_req_limit_reached' || queueStatus.type === 'all_limits_reached');
+                        const isQuotaPaused = c.status === 'paused_quota' || c.pause_reason === 'daily_quota';
+                        const isQuietPaused = c.status === 'paused_quiet' || c.pause_reason === 'quiet_hours';
+                        const isQueued = c.status === 'queued';
+                        const isManualPaused = c.status === 'paused' && (c.pause_reason === 'user_manual' || !c.pause_reason);
+                        const statusTitle = isQuotaPaused
+                          ? '🛑 Tạm dừng (Hết quota ngày Zalo - Tự động 00:00)'
+                          : isQuietPaused
+                          ? '🌙 Tạm dừng (Giờ nghỉ đêm)'
+                          : isQueued
+                          ? `📦 Đang chờ (${c.queue_position ? `#${c.queue_position}` : 'Hàng đợi'})`
+                          : c.status === 'active'
+                          ? '🟢 Đang chạy'
+                          : isManualPaused
+                          ? '⏸️ Tạm dừng (Thủ công)'
+                          : c.status === 'done'
+                          ? '✅ Hoàn thành'
+                          : '📝 Nháp';
+
                         return (
                           <div
-                            title={`Trạng thái: ${isQuotaPaused ? 'Đạt giới hạn · Chờ tiếp' : c.status === 'active' ? 'Đang chạy' : c.status === 'paused' ? 'Tạm dừng' : c.status === 'done' ? 'Hoàn thành' : 'Nháp'}`}
+                            title={`Trạng thái: ${statusTitle}`}
                             className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ${
                               isQuotaPaused
                                 ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400'
+                                : isQuietPaused
+                                ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400'
+                                : isQueued
+                                ? 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'
                                 : c.status === 'active'
                                 ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
-                                : c.status === 'paused'
+                                : isManualPaused
                                 ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400'
                                 : c.status === 'done'
                                 ? 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'
@@ -309,10 +330,14 @@ export default function CampaignList({
                             }`}
                           >
                             {isQuotaPaused ? (
-                              <span className="text-[11px] font-black leading-none">⏳</span>
+                              <span className="text-[11px] font-black leading-none">🛑</span>
+                            ) : isQuietPaused ? (
+                              <span className="text-[11px] font-black leading-none">🌙</span>
+                            ) : isQueued ? (
+                              <span className="text-[11px] font-black leading-none">📦</span>
                             ) : c.status === 'active' ? (
                               <AppIcon name="play" size={11} className="fill-current" />
-                            ) : c.status === 'paused' ? (
+                            ) : isManualPaused ? (
                               <AppIcon name="pause" size={11} className="fill-current" />
                             ) : c.status === 'done' ? (
                               <span className="text-[11px] font-black leading-none">✓</span>
@@ -323,8 +348,18 @@ export default function CampaignList({
                         );
                       })()}
 
-                      <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate flex-1" title={c.name}>
-                        {c.name}
+                      <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate flex-1 flex items-center gap-1.5" title={c.name}>
+                        <span className="truncate">{c.name}</span>
+                        {c.priority === 'high' && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 flex-shrink-0">
+                            Cao
+                          </span>
+                        )}
+                        {c.status === 'queued' && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 flex-shrink-0">
+                            {c.queue_position ? `#${c.queue_position}` : 'Chờ'}
+                          </span>
+                        )}
                       </h4>
                     </div>
 

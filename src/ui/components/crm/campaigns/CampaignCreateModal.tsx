@@ -734,6 +734,7 @@ export default function CampaignCreateModal({
 }: CampaignCreateModalProps) {
   const [name,          setName]         = useState(initialData?.name ?? '');
   const [type,          setType]         = useState<CampaignType>(initialData?.campaign_type ?? 'message');
+  const [priority,      setPriority]     = useState<'high' | 'normal'>((initialData as any)?.priority || 'normal');
 
   // ── Delay range between contacts ──
   const getInitMinMax = (): [number, number] => {
@@ -1101,6 +1102,7 @@ Yêu cầu quan trọng:
         template_message: hasMsg ? JSON.stringify(contentConfig) : '',
         friend_request_message: friendReqMsg.trim(),
         campaign_type: type,
+        priority: priority,
         mixed_config: buildMixedConfig(),
         delay_seconds: Math.round((delayMin + delayMax) / 2),
         delay_min_seconds: delayMin,
@@ -1800,6 +1802,39 @@ Yêu cầu quan trọng:
 
           {/* ── RIGHT: Preview ── */}
           <div className="w-64 flex-shrink-0 p-4 overflow-hidden flex flex-col bg-gray-50/50 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700">
+            {/* Priority Selector */}
+            <div className="mb-4 pb-3 border-b border-gray-200 dark:border-gray-700/60 flex-shrink-0">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                  ⚡ MỨC ƯU TIÊN HÀNG ĐỢI
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setPriority('normal')}
+                  className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
+                    priority === 'normal'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs'
+                      : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <span>🔵 Bình thường</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPriority('high')}
+                  className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
+                    priority === 'high'
+                      ? 'bg-red-50 dark:bg-red-950/80 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 shadow-xs'
+                      : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <span>🔴 Ưu tiên Cao</span>
+                </button>
+              </div>
+            </div>
+
             {/* Auto label on success */}
             <div className="mb-4 pb-3 border-b border-gray-200 dark:border-gray-700/60 flex-shrink-0">
               <div className="flex items-center justify-between">

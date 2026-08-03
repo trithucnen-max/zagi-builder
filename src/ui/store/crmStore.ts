@@ -23,7 +23,11 @@ export interface CRMCampaign {
   friend_request_message: string;
   campaign_type: CRMCampaignType;
   mixed_config: string;
-  status: 'draft' | 'active' | 'paused' | 'done';
+  status: 'draft' | 'active' | 'queued' | 'paused' | 'paused_quota' | 'paused_quiet' | 'done';
+  priority?: 'high' | 'normal';
+  queued_at?: number;
+  pause_reason?: 'user_manual' | 'daily_quota' | 'quiet_hours' | null;
+  queue_position?: number;
   delay_seconds: number;
   delay_min_seconds: number;
   delay_max_seconds: number;

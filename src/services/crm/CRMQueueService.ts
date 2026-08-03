@@ -121,32 +121,44 @@ class CRMQueueService {
     }
 
     /** Bắt đầu dispatcher cho account */
-    public startForAccount(zaloId: string, campaignId?: number): { ok: boolean; blockedByCampaignId?: number; blockedByCampaignName?: string } {
-        // ── Luôn kiểm tra 1 chiến dịch / 1 tài khoản ─────────────────────────────────────
-        // Quy tắc: 1 tài khoản Zalo tại một thời điểm CHỈ ĐƯỢC CÓ TỐI ĐA 1 chiến dịch ở trạng thái active.
-        // Loại bỏ điều kiện `EXISTS pending contacts` để tránh trường hợp chiến dịch mới/rỗng vẫn làm bùng nổ 2 active.
+    public startForAccount(zaloId: string, campaignId?: number): { ok: boolean; isQueued?: boolean; queuedBehindName?: string; blockedByCampaignId?: number; blockedByCampaignName?: string } {
+        // ── Kiểm tra 1 chiến dịch active / 1 tài khoản (Sử dụng Hàng đợi FIFO + Priority) ────
         const targetCampaignId = campaignId || 0;
         const db = DatabaseService.getInstance();
-        const runningCampaigns = db.query<any>(
-            `SELECT id, name FROM crm_campaigns
-             WHERE owner_zalo_id=? AND status='active' AND (is_deleted IS NULL OR is_deleted = 0)
-               AND id != ?
-             LIMIT 1`,
-            [zaloId, targetCampaignId]
-        );
-        if (runningCampaigns.length > 0) {
-            const blocker = runningCampaigns[0];
-            Logger.warn(`[CRMQueue] ⛔ BLOCKED: Account ${zaloId} already has campaign "${blocker.name}" (id=${blocker.id}) active. Cannot start campaign ${targetCampaignId} simultaneously.`);
-            EventBroadcaster.emit('crm:queueStatus', {
-                zaloId, type: 'blocked_by_running_campaign',
-                blockedByCampaignId: blocker.id,
-                blockedByCampaignName: blocker.name,
-                tokens: this.tokens.get(zaloId) ?? 0,
-                maxTokens: this.MAX_TOKENS,
-                lastSentAt: this.lastSentAt.get(zaloId) ?? 0,
-                dailyPaused: false,
-            });
-            return { ok: false, blockedByCampaignId: blocker.id, blockedByCampaignName: blocker.name };
+
+        if (targetCampaignId > 0) {
+            const runningCampaigns = db.query<any>(
+                `SELECT id, name FROM crm_campaigns
+                 WHERE owner_zalo_id=? AND status='active' AND (is_deleted IS NULL OR is_deleted = 0)
+                   AND id != ?
+                 LIMIT 1`,
+                [zaloId, targetCampaignId]
+            );
+
+            if (runningCampaigns.length > 0) {
+                const blocker = runningCampaigns[0];
+                // Tự động chuyển chiến dịch mới vào HÀNG ĐỢI (queued) thay vì từ chối
+                db.updateCRMCampaignStatusWithReason(targetCampaignId, 'queued', null);
+                const pos = db.getQueuedCampaignPosition(targetCampaignId, zaloId);
+                Logger.log(`[CRMQueue] 📦 Campaign ${targetCampaignId} queued behind active campaign "${blocker.name}" (Queue Position #${pos})`);
+
+                EventBroadcaster.emit('crm:queueStatus', {
+                    zaloId,
+                    type: 'campaign_queued',
+                    queuedCampaignId: targetCampaignId,
+                    blockedByCampaignId: blocker.id,
+                    blockedByCampaignName: blocker.name,
+                    queuePosition: pos,
+                    tokens: this.tokens.get(zaloId) ?? 0,
+                    maxTokens: this.MAX_TOKENS,
+                    lastSentAt: this.lastSentAt.get(zaloId) ?? 0,
+                    dailyPaused: false,
+                });
+                return { ok: true, isQueued: true, queuedBehindName: blocker.name };
+            } else {
+                // Chưa có chiến dịch active -> Đặt chiến dịch này thành ACTIVE
+                db.updateCRMCampaignStatusWithReason(targetCampaignId, 'active', null);
+            }
         }
 
         if (this.timers.has(zaloId)) {
@@ -163,6 +175,25 @@ class CRMQueueService {
         const timer = setInterval(() => this.process(zaloId), this.CHECK_INTERVAL_MS);
         this.timers.set(zaloId, timer);
         return { ok: true };
+    }
+
+    /** Tự động kiểm tra và đôn chiến dịch tiếp theo trong Hàng đợi lên ACTIVE */
+    public promoteNextQueuedCampaign(zaloId: string): boolean {
+        const db = DatabaseService.getInstance();
+        const activeCamps = db.query<any>(
+            `SELECT id FROM crm_campaigns WHERE owner_zalo_id=? AND status='active' AND (is_deleted IS NULL OR is_deleted = 0) LIMIT 1`,
+            [zaloId]
+        );
+        if (activeCamps.length > 0) return false; // Đã có chiến dịch active đang thực thi
+
+        const nextCamp = db.getNextQueuedCampaign(zaloId);
+        if (nextCamp) {
+            db.updateCRMCampaignStatusWithReason(nextCamp.id, 'active', null);
+            Logger.log(`[CRMQueue] 🚀 Promoted queued campaign "${nextCamp.name}" (id=${nextCamp.id}, priority=${nextCamp.priority}) to ACTIVE for ${zaloId}`);
+            this.startForAccount(zaloId, nextCamp.id);
+            return true;
+        }
+        return false;
     }
 
     /** Dừng dispatcher cho account */
@@ -187,10 +218,13 @@ class CRMQueueService {
         });
     }
 
-    /** Dừng nếu không còn campaign active */
+    /** Dừng nếu không còn campaign active & không còn campaign queued */
     public checkAndStopIfIdle(zaloId: string): void {
-        const hasActive = DatabaseService.getInstance().hasActiveCampaigns(zaloId);
-        if (!hasActive) this.stopForAccount(zaloId);
+        const promoted = this.promoteNextQueuedCampaign(zaloId);
+        if (!promoted) {
+            const hasActive = DatabaseService.getInstance().hasActiveCampaigns(zaloId);
+            if (!hasActive) this.stopForAccount(zaloId);
+        }
     }
 
     public getStatus(zaloId: string): { running: boolean; tokens: number; maxTokens: number; lastSentAt: number; dailyPaused: boolean } {
@@ -375,7 +409,9 @@ class CRMQueueService {
 
             if (limitReached) {
                 this.dailyPausedCampaigns.set(item.campaign_id, true);
+                db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused_quota', 'daily_quota');
                 this.broadcastStatus(zaloId, limitType);
+                this.promoteNextQueuedCampaign(zaloId);
                 return;
             }
             this.dailyPausedCampaigns.delete(item.campaign_id);
