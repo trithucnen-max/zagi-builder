@@ -27,7 +27,7 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
   - Giới hạn thanh trượt cài đặt định mức tối đa **100**.
   - Hiển thị hộp cảnh báo màu đỏ linh hoạt khi định mức vượt quá **50/ngày**: Cảnh báo rủi ro vi phạm chính sách Zalo và người dùng tự chịu trách nhiệm nếu tài khoản bị Zalo khóa/hạn chế tính năng.
 
-## [v3.1.1] - 2026-08-03
+## [v3.1.2] - 2026-08-03
 
 ### 🚀 Hệ Thống Hàng Đợi Thực Thi Chiến Dịch CRM (FIFO + Priority Queue) & Phân Loại Lý Do Tạm Dừng
 - **Quy Tắc 1 Thời Điểm Chỉ Chạy 1 Chiến Dịch / 1 Tài Khoản Zalo (`CRMQueueService.ts`, `DatabaseService.ts`):**
