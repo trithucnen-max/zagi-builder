@@ -425,22 +425,22 @@ export default function CampaignDetail({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-5 flex flex-col justify-between min-h-0">
+      <div className="flex-1 overflow-hidden p-5 flex flex-col min-h-0">
         {/* Banner khi chiến dịch chưa có đối tượng gửi */}
         {stats.total === 0 && (
-          <div className="bg-gradient-to-r from-blue-500/10 via-blue-600/10 to-indigo-500/10 border border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xs">
+          <div className="mb-4 bg-gradient-to-r from-blue-500/10 via-blue-600/10 to-indigo-500/10 border border-blue-500/30 rounded-2xl p-3.5 flex items-center justify-between gap-4 shadow-xs flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-md">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg flex-shrink-0 shadow-md">
                 🎯
               </div>
               <div>
-                <h4 className="text-sm font-bold text-gray-900 dark:text-white">Chiến dịch chưa có danh sách đối tượng nhận tin</h4>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Thêm bạn bè Zalo, danh sách nhóm hoặc file SĐT để khởi chạy chiến dịch này.</p>
+                <h4 className="text-xs font-bold text-gray-900 dark:text-white">Chiến dịch chưa có danh sách đối tượng nhận tin</h4>
+                <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">Thêm bạn bè Zalo, danh sách nhóm hoặc file SĐT để khởi chạy chiến dịch này.</p>
               </div>
             </div>
             <button
               onClick={() => setShowTargetSelector(true)}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-md flex-shrink-0 active:scale-95 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md flex-shrink-0 active:scale-95 cursor-pointer"
             >
               <span>➕</span>
               <span>Thêm đối tượng gửi</span>
@@ -448,107 +448,105 @@ export default function CampaignDetail({
           </div>
         )}
 
-        {/* ── Grid 4 Summary KPI Cards (Matching Mockup Image) ── */}
-        <div className="grid grid-cols-4 gap-4">
-          {/* Card 1: Tổng số */}
-          <div className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 flex items-center gap-3.5 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl flex-shrink-0">
-              👤
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Tổng số</p>
-              <p className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.total}</p>
-            </div>
-          </div>
+        {/* ── UNIFIED SINGLE SECTION CONTAINER (Gộp 3 phần thành 1 Section duy nhất) ── */}
+        <div className="bg-white dark:bg-gray-850 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
 
-          {/* Card 2: Thành công */}
-          <div className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 flex items-center gap-3.5 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl flex-shrink-0">
-              ✅
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Thành công</p>
-              <p className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.sentCount}</p>
-            </div>
-          </div>
-
-          {/* Card 3: Thất bại */}
-          <div className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 flex items-center gap-3.5 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl flex-shrink-0">
-              ❌
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Thất bại</p>
-              <p className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.failedCount}</p>
-            </div>
-          </div>
-
-          {/* Card 4: Đang chờ */}
-          <div className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 flex items-center gap-3.5 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl flex-shrink-0">
-              🟧
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Đang chờ</p>
-              <p className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.pendingCount}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Template Tin Nhắn Section Card (Clickable to Edit) ── */}
-        <div
-          onClick={handleEditAttempt}
-          className="bg-white dark:bg-gray-850 rounded-2xl p-4 border border-gray-200 dark:border-gray-800 shadow-xs space-y-3 cursor-pointer hover:border-blue-400 dark:hover:border-blue-600 transition-all hover:shadow-sm group relative"
-          title="Bấm bất kỳ đâu trong phần preview này để chỉnh sửa chiến dịch"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-extrabold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                Template tin nhắn
-              </h3>
-            </div>
-            {onUpdate && (
-              <button
-                onClick={(e) => { e.stopPropagation(); handleEditAttempt(); }}
-                className="px-3 py-1.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 flex items-center gap-1.5 transition-all shadow-2xs group-hover:border-blue-400 group-hover:text-blue-600"
-              >
-                <span>✏️</span>
-                <span>Sửa nội dung</span>
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5">
-              <span>🔄</span>
-              <span>Chế độ: {templateInfo.modeText}</span>
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            {templateInfo.blocks.map((b: any, idx: number) => (
-              <div key={idx} className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-xl p-3 text-xs flex items-center justify-between gap-3 group-hover:border-blue-200 dark:group-hover:border-blue-900/40 transition-colors">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">Mẫu {idx + 1}:</span>
-                  <span className="text-gray-800 dark:text-gray-200 truncate">{b.text || '(Chưa có nội dung văn bản)'}</span>
-                </div>
-                {b.images && b.images.length > 0 && (
-                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md flex-shrink-0 flex items-center gap-1 border border-emerald-200 dark:border-emerald-800/40">
-                    <span>🖼️</span>
-                    <span>+{b.images.length} ảnh</span>
-                  </span>
-                )}
+          {/* 1. Integrated KPI Summary Row (Thống Kê Tổng Quan) */}
+          <div className="px-5 py-3 bg-gray-50/60 dark:bg-gray-800/40 border-b border-gray-200 dark:border-gray-800 grid grid-cols-4 gap-4 flex-shrink-0">
+            {/* Item 1: Tổng số */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-base flex-shrink-0">
+                👤
               </div>
-            ))}
-          </div>
-        </div>
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Tổng số</p>
+                <p className="text-lg font-black text-gray-900 dark:text-white leading-none mt-0.5">{stats.total}</p>
+              </div>
+            </div>
 
-        {/* ── Bảng Dữ Liệu Liên Hệ Trong Chiến Dịch ── */}
-        <div className="bg-white dark:bg-gray-850 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xs flex flex-col flex-1 min-h-[340px] justify-between overflow-hidden">
-          {/* Status Quick Filter Tabs & Action Buttons Bar */}
-          <div className="px-4 py-2 bg-gray-50/70 dark:bg-gray-800/30 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3 overflow-x-auto text-[11px] flex-wrap">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-gray-400 font-bold uppercase text-[10px] mr-1">Lọc:</span>
+            {/* Item 2: Thành công */}
+            <div className="flex items-center gap-3 border-l border-gray-200 dark:border-gray-700/60 pl-4">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-base flex-shrink-0">
+                ✅
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Thành công</p>
+                <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 leading-none mt-0.5">{stats.sentCount}</p>
+              </div>
+            </div>
+
+            {/* Item 3: Thất bại */}
+            <div className="flex items-center gap-3 border-l border-gray-200 dark:border-gray-700/60 pl-4">
+              <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-base flex-shrink-0">
+                ❌
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Thất bại</p>
+                <p className="text-lg font-black text-rose-600 dark:text-rose-400 leading-none mt-0.5">{stats.failedCount}</p>
+              </div>
+            </div>
+
+            {/* Item 4: Đang chờ */}
+            <div className="flex items-center gap-3 border-l border-gray-200 dark:border-gray-700/60 pl-4">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-base flex-shrink-0">
+                🟧
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Đang chờ</p>
+                <p className="text-lg font-black text-amber-600 dark:text-amber-400 leading-none mt-0.5">{stats.pendingCount}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Integrated Template Preview Row (Xem Trước Kịch Bản) */}
+          <div
+            onClick={handleEditAttempt}
+            className="px-5 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-850 hover:bg-gray-50/50 dark:hover:bg-gray-800/20 cursor-pointer transition-colors group flex-shrink-0 space-y-1.5"
+            title="Bấm bất kỳ đâu trong phần preview này để chỉnh sửa chiến dịch"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  Template tin nhắn
+                </span>
+                <span className="text-[10px] bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 px-2 py-0.5 rounded-md font-semibold inline-flex items-center gap-1">
+                  <span>🔄</span>
+                  <span>Chế độ: {templateInfo.modeText}</span>
+                </span>
+              </div>
+              {onUpdate && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleEditAttempt(); }}
+                  className="px-2.5 py-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-[11px] font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 flex items-center gap-1 transition-all shadow-2xs group-hover:border-blue-400 group-hover:text-blue-600"
+                >
+                  <span>✏️</span>
+                  <span>Sửa nội dung</span>
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              {templateInfo.blocks.map((b: any, idx: number) => (
+                <div key={idx} className="bg-gray-50/80 dark:bg-gray-800/50 border border-gray-200/80 dark:border-gray-700/50 rounded-lg px-2.5 py-1 text-xs flex items-center justify-between gap-3 group-hover:border-blue-200 dark:group-hover:border-blue-900/40 transition-colors">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="font-bold text-blue-600 dark:text-blue-400 text-[11px] flex-shrink-0">Mẫu {idx + 1}:</span>
+                    <span className="text-gray-800 dark:text-gray-200 truncate text-[11px]">{b.text || '(Chưa có nội dung văn bản)'}</span>
+                  </div>
+                  {b.images && b.images.length > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded flex-shrink-0 flex items-center gap-1 border border-emerald-200 dark:border-emerald-800/40">
+                      <span>🖼️</span>
+                      <span>+{b.images.length} ảnh</span>
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. Integrated Filter & Action Bar (Sửa triệt để lỗi cắt giao diện) */}
+          <div className="px-4 py-2.5 bg-gray-50/40 dark:bg-gray-800/30 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3 text-[11px] flex-shrink-0">
+            <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
+              <span className="text-gray-400 font-bold uppercase text-[10px] mr-1 flex-shrink-0">Lọc:</span>
               <button
                 onClick={() => { setFilterStatus('all'); setPage(0); }}
                 className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'all' ? 'bg-blue-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
@@ -607,11 +605,11 @@ export default function CampaignDetail({
               </button>
             </div>
 
-            {/* Action Buttons: Thêm liên hệ & Xóa liên hệ */}
-            <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+            {/* Action Buttons: Thêm liên hệ & Xóa liên hệ (Giao diện phẳng không bị cắt) */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={handleAddContactsClick}
-                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer flex-shrink-0"
                 title="Thêm thêm liên hệ / đối tượng mới vào chiến dịch này"
               >
                 <span>➕</span>
@@ -621,7 +619,7 @@ export default function CampaignDetail({
               <button
                 onClick={handleRemoveSelected}
                 disabled={selectedIds.size === 0 || removing}
-                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all border shadow-xs ${
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all border shadow-xs flex-shrink-0 ${
                   selectedIds.size > 0
                     ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800 cursor-pointer active:scale-95'
                     : 'bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-800 dark:text-gray-600 dark:border-gray-700 cursor-not-allowed opacity-60'
@@ -634,8 +632,8 @@ export default function CampaignDetail({
             </div>
           </div>
 
-          {/* Data Table */}
-          <div className="overflow-x-auto">
+          {/* 4. Integrated Data Table (Scrollable Body) */}
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider text-[10px]">
