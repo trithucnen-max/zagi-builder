@@ -842,18 +842,17 @@ export default function PhoneScanPanel() {
                     <div className="flex items-center gap-2">
                         {/* Account Filter Pill */}
                         <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1 shadow-2xs">
-                            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">👤 Báo cáo tài khoản:</span>
                             <select
                                 value={selectedScanAccount}
                                 onChange={(e) => setSelectedScanAccount(e.target.value)}
                                 className="bg-transparent text-gray-900 dark:text-white font-bold text-xs focus:outline-none cursor-pointer"
                             >
                                 <option value="all" className="bg-white dark:bg-gray-900">
-                                    🌐 Tất cả tài khoản được cấp quyền ({visibleAccounts.length} TK)
+                                    🌐 Tất cả ({visibleAccounts.length} TK)
                                 </option>
                                 {visibleAccounts.map(acc => (
                                     <option key={acc.zalo_id} value={acc.zalo_id} className="bg-white dark:bg-gray-900">
-                                        👤 {acc.display_name || (acc as any).name || acc.zalo_id} ({acc.zalo_id})
+                                        👤 {acc.display_name || (acc as any).name || acc.zalo_id}
                                     </option>
                                 ))}
                             </select>

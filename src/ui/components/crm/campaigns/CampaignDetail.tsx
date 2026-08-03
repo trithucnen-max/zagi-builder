@@ -612,7 +612,9 @@ export default function CampaignDetail({
                 className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer flex-shrink-0"
                 title="Thêm thêm liên hệ / đối tượng mới vào chiến dịch này"
               >
-                <span>➕</span>
+                <svg className="w-3.5 h-3.5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
                 <span>Thêm liên hệ</span>
               </button>
 
@@ -828,10 +830,10 @@ export default function CampaignDetail({
                   <button
                     key={sz}
                     onClick={() => { setPageSize(sz); setPage(0); }}
-                    className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] transition-colors ${
+                    className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] transition-colors cursor-pointer ${
                       pageSize === sz
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
-                        : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        ? 'border-blue-600 bg-blue-600 text-white shadow-2xs'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
                     {sz}

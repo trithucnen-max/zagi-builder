@@ -610,7 +610,7 @@ function SalutationFilterDropdown({ contacts, value, onChange }: {
   );
 }
 
-function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onImportData, onMergeDuplicates }: {
+function ActionsDropdown({ total, exportingCSV, onExportCSV }: {
   total: number;
   exportingCSV: boolean;
   onExportCSV: () => void;
@@ -618,84 +618,27 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV, onImportPhones, onI
   onImportData?: () => void;
   onMergeDuplicates?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-
   return (
-    <div ref={ref} className="relative flex-shrink-0 hidden sm:block">
-      <button onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 px-2.5 py-1.5 rounded-lg transition-colors border border-gray-600 hover:border-gray-500">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
-        </svg>
-        Thao tác
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
+    <div className="flex-shrink-0">
+      <button
+        onClick={onExportCSV}
+        disabled={total === 0 || exportingCSV}
+        className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-1.5 rounded-lg transition-colors border border-gray-300 dark:border-gray-700 font-bold shadow-2xs disabled:opacity-40 cursor-pointer"
+        title="Xuất danh sách liên hệ đang chọn/lọc ra file CSV"
+      >
+        {exportingCSV ? (
+          <svg className="animate-spin flex-shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+        ) : (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-blue-600 dark:text-blue-400">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        )}
+        <span>{exportingCSV ? 'Đang xuất...' : `Xuất CSV (${total})`}</span>
       </button>
-      {open && (
-        <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[220px] overflow-hidden py-1">
-          {/* Export CSV */}
-          <button
-            onClick={() => { onExportCSV(); setOpen(false); }}
-            disabled={total === 0 || exportingCSV}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left disabled:opacity-40">
-            {exportingCSV ? (
-              <svg className="animate-spin flex-shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-              </svg>
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-            )}
-            <span>{exportingCSV ? 'Đang xuất...' : `Xuất CSV (${total})`}</span>
-          </button>
-          {/* Import phones (existing modal) */}
-          {onImportPhones && (
-            <button
-              onClick={() => { onImportPhones(); setOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-green-400">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
-                <line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
-              </svg>
-              <span>Thêm liên hệ theo SĐT</span>
-            </button>
-          )}
-          {/* Import CSV (new modal) */}
-          {onImportData && (
-            <button
-              onClick={() => { onImportData(); setOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-blue-400">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              <span>Import CSV khách hàng</span>
-            </button>
-          )}
-          {/* Merge Duplicate Contacts */}
-          {onMergeDuplicates && (
-            <button
-              onClick={() => { onMergeDuplicates(); setOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-amber-300 hover:bg-gray-700 transition-colors text-left font-semibold border-t border-gray-700">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-amber-400">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
-                <polyline points="17 11 19 13 23 9"/>
-              </svg>
-              <span>🧹 Gộp liên hệ trùng SĐT</span>
-            </button>
-          )}
-
-        </div>
-      )}
     </div>
   );
 }
