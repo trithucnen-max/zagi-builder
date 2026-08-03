@@ -133,8 +133,7 @@ const INVITE_ERROR_LABELS: Record<number, string> = {
 // ── Live Preview Component ─────────────────────────────────────────────────────
 
 function LivePreview({
-  blocks, activeIdx, mode, type, friendMsg, campaignName = '',
-  onTabChange, zaloId,
+  blocks, activeIdx, mode, type, friendMsg, campaignName, sendOrder = 'text_first', onTabChange, zaloId,
 }: {
   blocks: ContentBlock[];
   activeIdx: number;
@@ -142,6 +141,7 @@ function LivePreview({
   type: CampaignType;
   friendMsg: string;
   campaignName?: string;
+  sendOrder?: 'image_first' | 'text_first';
   onTabChange: (i: number) => void;
   zaloId?: string;
 }) {
@@ -153,6 +153,27 @@ function LivePreview({
 
   const hasImages = (block?.images?.length ?? 0) > 0;
   const isFR      = type === 'friend_request';
+
+  const renderTextBubble = () => previewText ? (
+    <div className="bg-blue-600 text-white rounded-2xl rounded-br-sm px-3 py-2 text-xs leading-relaxed break-words whitespace-pre-wrap">
+      {previewText}
+    </div>
+  ) : null;
+
+  const renderImageThumbnails = () => (hasImages && !isFR) ? (
+    <div className={`grid gap-1 rounded-xl overflow-hidden ${
+      block.images.length === 1 ? 'grid-cols-1'
+      : block.images.length <= 4 ? 'grid-cols-2'
+      : 'grid-cols-3'
+    }`} style={{ maxWidth: '11.25rem' }}>
+      {block.images.filter(p => typeof p === 'string').map((p, i) => (
+        <div key={i} className="aspect-square overflow-hidden rounded">
+          <img src={toLocalMediaUrl(p, zaloId)} alt="" className="w-full h-full object-cover"
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        </div>
+      ))}
+    </div>
+  ) : null;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -203,26 +224,16 @@ function LivePreview({
           {(previewText || hasImages) ? (
             <div className="flex justify-end">
               <div className="flex flex-col items-end gap-1.5 max-w-[85%]">
-                {/* Text bubble */}
-                {previewText && (
-                  <div className="bg-blue-600 text-white rounded-2xl rounded-br-sm px-3 py-2 text-xs leading-relaxed break-words whitespace-pre-wrap">
-                    {previewText}
-                  </div>
-                )}
-                {/* Image thumbnails */}
-                {hasImages && !isFR && (
-                  <div className={`grid gap-1 rounded-xl overflow-hidden ${
-                    block.images.length === 1 ? 'grid-cols-1'
-                    : block.images.length <= 4 ? 'grid-cols-2'
-                    : 'grid-cols-3'
-                  }`} style={{ maxWidth: '11.25rem' }}>
-                    {block.images.filter(p => typeof p === 'string').map((p, i) => (
-                      <div key={i} className="aspect-square overflow-hidden rounded">
-                        <img src={toLocalMediaUrl(p, zaloId)} alt="" className="w-full h-full object-cover"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      </div>
-                    ))}
-                  </div>
+                {sendOrder === 'image_first' ? (
+                  <>
+                    {renderImageThumbnails()}
+                    {renderTextBubble()}
+                  </>
+                ) : (
+                  <>
+                    {renderTextBubble()}
+                    {renderImageThumbnails()}
+                  </>
                 )}
                 {/* Status tick */}
                 <span className="text-[9px] text-gray-600 dark:text-gray-500">✓✓ Đã gửi</span>
@@ -387,7 +398,6 @@ function BlockEditor({
     { key: '{name}',             label: 'Tên' },
     { key: '{zalo_name}',        label: 'Tên Zalo' },
     { key: '{real_name}',        label: 'Tên thật' },
-    { key: '{gender_greeting}',  label: 'Anh/Chị' },
     { key: '{salutation}',       label: 'Xưng hô' },
     { key: '{tu_xung}',          label: 'Tự xưng' },
     { key: '{phone}',            label: 'SĐT' },
@@ -1637,7 +1647,7 @@ Yêu cầu quan trọng:
                     <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-400">🤝 Lời nhắn kết bạn</span>
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className="text-[9px] text-gray-500">Chèn:</span>
-                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{real_name}',l:'Tên thật'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'}].map(v => (
+                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{real_name}',l:'Tên thật'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'}].map(v => (
                         <button key={v.k} type="button" onClick={() => insertFRVar(v.k)}
                           className="text-[9px] px-1.5 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 transition-colors font-medium"
                           title={v.k}>{v.l}</button>
@@ -1702,7 +1712,7 @@ Yêu cầu quan trọng:
                   <div className="flex items-center justify-between flex-wrap gap-1.5 flex-shrink-0">
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className="text-[10px] text-gray-500">Chèn:</span>
-                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{real_name}',l:'Tên thật'},{k:'{gender_greeting}',l:'Anh/Chị'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'},{k:'{phone}',l:'SĐT'}].map(v => (
+                      {[{k:'{name}',l:'Tên'},{k:'{zalo_name}',l:'Tên Zalo'},{k:'{real_name}',l:'Tên thật'},{k:'{salutation}',l:'Xưng hô'},{k:'{tu_xung}',l:'Tự xưng'},{k:'{phone}',l:'SĐT'}].map(v => (
                         <button key={v.k} type="button" onClick={() => insertFRVar(v.k)}
                           className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 transition-colors font-medium"
                           title={v.k}>{v.l}</button>
@@ -1917,6 +1927,7 @@ Yêu cầu quan trọng:
                 type={type}
                 friendMsg={friendReqMsg}
                 campaignName={name}
+                sendOrder={sendOrder}
                 onTabChange={setActiveBlock}
                 zaloId={zaloId}
               />

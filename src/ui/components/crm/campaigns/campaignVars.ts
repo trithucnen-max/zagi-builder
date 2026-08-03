@@ -213,6 +213,7 @@ export function substitutePreviewCampaign(
     .replace(/\{userId\}/g,           '0987654321')
     .replace(/\{gender_greeting\}/g,  'Anh')
     .replace(/\{salutation\}/g,       'Anh')
+    .replace(/\{tu_xung\}/gi,         'Em')
     .replace(/\{alias\}/g,            'Khách VIP')
     .replace(/\{phone\}/g,            '0901234567')
     .replace(/\{birthday\}/g,         '15/08/1995')
