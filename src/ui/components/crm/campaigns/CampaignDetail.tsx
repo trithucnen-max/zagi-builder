@@ -545,65 +545,93 @@ export default function CampaignDetail({
 
         {/* ── Bảng Dữ Liệu Liên Hệ Trong Chiến Dịch ── */}
         <div className="bg-white dark:bg-gray-850 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xs flex flex-col flex-1 min-h-[340px] justify-between overflow-hidden">
-          {/* Status Quick Filter Tabs */}
-          <div className="px-4 py-2 bg-gray-50/70 dark:bg-gray-800/30 border-b border-gray-200 dark:border-gray-800 flex items-center gap-1.5 overflow-x-auto text-[11px] flex-wrap">
-            <span className="text-gray-400 font-bold uppercase text-[10px] mr-1">Lọc:</span>
-            <button
-              onClick={() => { setFilterStatus('all'); setPage(0); }}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'all' ? 'bg-blue-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
-            >
-              Tất cả ({contacts.length})
-            </button>
-            <button
-              onClick={() => { setFilterStatus('sent'); setPage(0); }}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'sent' ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-emerald-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
-            >
-              ✓ Thành công ({stats.sentCount})
-            </button>
-            <button
-              onClick={() => { setFilterStatus('failed'); setPage(0); }}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'failed' ? 'bg-rose-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-rose-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
-            >
-              ✕ Thất bại ({stats.failedCount})
-            </button>
-            {campaign.campaign_type === 'mixed' && (
-              <>
-                <button
-                  onClick={() => { setFilterStatus('msg_failed'); setPage(0); }}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'msg_failed' ? 'bg-rose-700 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-rose-700 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
-                >
-                  📩 Lỗi gửi tin ({stats.msgFailedCount})
-                </button>
-                <button
-                  onClick={() => { setFilterStatus('friend_failed'); setPage(0); }}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'friend_failed' ? 'bg-amber-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-amber-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
-                >
-                  🤝 Lỗi kết bạn ({stats.friendFailedCount})
-                </button>
-                {stats.inviteFailedCount > 0 && (
-                  <button
-                    onClick={() => { setFilterStatus('invite_failed'); setPage(0); }}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'invite_failed' ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-indigo-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
-                  >
-                    👥 Lỗi mời nhóm ({stats.inviteFailedCount})
-                  </button>
-                )}
-              </>
-            )}
-            {stats.blockedCount > 0 && (
+          {/* Status Quick Filter Tabs & Action Buttons Bar */}
+          <div className="px-4 py-2 bg-gray-50/70 dark:bg-gray-800/30 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3 overflow-x-auto text-[11px] flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-gray-400 font-bold uppercase text-[10px] mr-1">Lọc:</span>
               <button
-                onClick={() => { setFilterStatus('blocked'); setPage(0); }}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'blocked' ? 'bg-red-700 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-red-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+                onClick={() => { setFilterStatus('all'); setPage(0); }}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'all' ? 'bg-blue-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
               >
-                🚫 Chặn người lạ ({stats.blockedCount})
+                Tất cả ({contacts.length})
               </button>
-            )}
-            <button
-              onClick={() => { setFilterStatus('pending'); setPage(0); }}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'pending' ? 'bg-gray-700 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
-            >
-              ⏳ Chờ gửi ({stats.pendingCount})
-            </button>
+              <button
+                onClick={() => { setFilterStatus('sent'); setPage(0); }}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'sent' ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-emerald-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+              >
+                ✓ Thành công ({stats.sentCount})
+              </button>
+              <button
+                onClick={() => { setFilterStatus('failed'); setPage(0); }}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'failed' ? 'bg-rose-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-rose-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+              >
+                ✕ Thất bại ({stats.failedCount})
+              </button>
+              {campaign.campaign_type === 'mixed' && (
+                <>
+                  <button
+                    onClick={() => { setFilterStatus('msg_failed'); setPage(0); }}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'msg_failed' ? 'bg-rose-700 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-rose-700 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+                  >
+                    📩 Lỗi gửi tin ({stats.msgFailedCount})
+                  </button>
+                  <button
+                    onClick={() => { setFilterStatus('friend_failed'); setPage(0); }}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'friend_failed' ? 'bg-amber-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-amber-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+                  >
+                    🤝 Lỗi kết bạn ({stats.friendFailedCount})
+                  </button>
+                  {stats.inviteFailedCount > 0 && (
+                    <button
+                      onClick={() => { setFilterStatus('invite_failed'); setPage(0); }}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'invite_failed' ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-indigo-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+                    >
+                      👥 Lỗi mời nhóm ({stats.inviteFailedCount})
+                    </button>
+                  )}
+                </>
+              )}
+              {stats.blockedCount > 0 && (
+                <button
+                  onClick={() => { setFilterStatus('blocked'); setPage(0); }}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'blocked' ? 'bg-red-700 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-red-600 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+                >
+                  🚫 Chặn người lạ ({stats.blockedCount})
+                </button>
+              )}
+              <button
+                onClick={() => { setFilterStatus('pending'); setPage(0); }}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${filterStatus === 'pending' ? 'bg-gray-700 text-white shadow-2xs' : 'bg-white dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+              >
+                ⏳ Chờ gửi ({stats.pendingCount})
+              </button>
+            </div>
+
+            {/* Action Buttons: Thêm liên hệ & Xóa liên hệ */}
+            <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+              <button
+                onClick={handleAddContactsClick}
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer"
+                title="Thêm thêm liên hệ / đối tượng mới vào chiến dịch này"
+              >
+                <span>➕</span>
+                <span>Thêm liên hệ</span>
+              </button>
+
+              <button
+                onClick={handleRemoveSelected}
+                disabled={selectedIds.size === 0 || removing}
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all border shadow-xs ${
+                  selectedIds.size > 0
+                    ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800 cursor-pointer active:scale-95'
+                    : 'bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-800 dark:text-gray-600 dark:border-gray-700 cursor-not-allowed opacity-60'
+                }`}
+                title={selectedIds.size > 0 ? `Xóa ${selectedIds.size} liên hệ đã chọn khỏi chiến dịch` : 'Chọn ít nhất 1 liên hệ trạng thái Chờ gửi để xóa'}
+              >
+                <span>🗑️</span>
+                <span>{selectedIds.size > 0 ? `Xóa (${selectedIds.size})` : 'Xóa liên hệ'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Data Table */}
