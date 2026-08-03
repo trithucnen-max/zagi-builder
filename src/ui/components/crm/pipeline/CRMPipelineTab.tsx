@@ -206,21 +206,84 @@ export default function CRMPipelineTab() {
   }, {});
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 overflow-hidden">
-      {/* Tab Header with Actions */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900 flex-shrink-0">
-        <div>
-          <h2 className="text-base font-semibold text-white">Pipeline Kanban CRM</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Quản lý cơ hội bán hàng và phân loại liên hệ theo phễu khách hàng</p>
+    <div className="flex flex-col h-full bg-gray-50/50 dark:bg-gray-900 text-gray-900 dark:text-white overflow-hidden">
+      {/* Integrated Single-Row Header with Title, Search, Filter & Action */}
+      <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-850 flex items-center justify-between gap-4 flex-wrap flex-shrink-0 min-h-[60px]">
+        {/* Left: Title & Subtitle */}
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-base font-extrabold text-gray-900 dark:text-white leading-tight">Pipeline Kanban CRM</h2>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 hidden sm:block">Quản lý cơ hội bán hàng và phân loại liên hệ theo phễu khách hàng</p>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative w-52 sm:w-60">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-gray-400 pointer-events-none">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              placeholder="Tìm theo tên, sđt..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl pl-8 pr-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-all font-medium"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-white cursor-pointer"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Nhãn Local Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 hidden md:inline">Nhãn Local:</span>
+            <select
+              value={selectedLabelId}
+              onChange={(e) => setSelectedLabelId(e.target.value === '' ? '' : Number(e.target.value))}
+              className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-2.5 py-1.5 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 transition-all cursor-pointer font-medium"
+            >
+              <option value="">Tất cả nhãn</option>
+              {localLabels.map((lbl) => (
+                <option key={lbl.id} value={lbl.id}>
+                  {lbl.emoji || '🏷️'} {lbl.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reset Button */}
+          {(searchQuery || selectedLabelId !== '') && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedLabelId('');
+              }}
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+            >
+              Đặt lại
+            </button>
+          )}
         </div>
+
+        {/* Right Action: Thêm cột trạng thái */}
         <button
           onClick={() => {
             setEditingStage({ name: '', color: '#3B82F6', position: pipelineStages.length });
             setShowEditModal(true);
           }}
-          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-all shadow-md shadow-blue-500/10"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex-shrink-0"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
@@ -228,70 +291,9 @@ export default function CRMPipelineTab() {
         </button>
       </div>
 
-      {/* Thanh bộ lọc & Tìm kiếm */}
-      <div className="flex flex-wrap items-center gap-4 px-6 py-3.5 border-b border-gray-800 bg-gray-900/40 flex-shrink-0">
-        {/* Tìm kiếm */}
-        <div className="relative w-64">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </span>
-          <input
-            type="text"
-            placeholder="Tìm theo tên, sđt..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700/80 rounded-xl pl-9 pr-8 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:bg-gray-800/80 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-500 hover:text-white"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          )}
-        </div>
-
-        {/* Bộ lọc Nhãn Local */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-400">Nhãn Local:</span>
-          <select
-            value={selectedLabelId}
-            onChange={(e) => setSelectedLabelId(e.target.value === '' ? '' : Number(e.target.value))}
-            className="bg-gray-800 border border-gray-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
-          >
-            <option value="">Tất cả nhãn</option>
-            {localLabels.map((lbl) => (
-              <option key={lbl.id} value={lbl.id}>
-                {lbl.emoji || '🏷️'} {lbl.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Đặt lại bộ lọc */}
-        {(searchQuery || selectedLabelId !== '') && (
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedLabelId('');
-            }}
-            className="text-xs font-semibold text-blue-500 hover:text-blue-400 transition-colors"
-          >
-            Đặt lại bộ lọc
-          </button>
-        )}
-      </div>
-
       {/* Kanban Board Container */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 flex gap-5 items-start">
-        {/* Unclassified / Mới tiếp cận (if empty, we show it) */}
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-5 flex gap-4 items-start">
+        {/* Unclassified / Mới tiếp cận */}
         <PipelineColumn
           title="Chưa phân loại"
           color="#6B7280"
@@ -319,36 +321,36 @@ export default function CRMPipelineTab() {
         ))}
 
         {pipelineStages.length === 0 && !pipelineStagesLoading && (
-          <div className="flex-1 self-center text-center py-12 text-gray-500">
-            <p className="text-sm">Chưa có cột tùy biến nào được tạo</p>
-            <p className="text-xs text-gray-600 mt-1">Sử dụng nút ở góc phải trên để thêm các giai đoạn mới vào phễu.</p>
+          <div className="flex-1 self-center text-center py-12 text-gray-400 dark:text-gray-500">
+            <p className="text-sm font-semibold">Chưa có cột tùy biến nào được tạo</p>
+            <p className="text-xs mt-1">Sử dụng nút ở góc phải trên để thêm các giai đoạn mới vào phễu.</p>
           </div>
         )}
       </div>
 
       {/* Edit/Create Stage Modal */}
       {showEditModal && editingStage && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <form onSubmit={handleSaveStage} className="bg-gray-800 border border-gray-700 rounded-2xl w-96 p-6 shadow-2xl animate-in fade-in zoom-in duration-150">
-            <h3 className="text-base font-bold text-white mb-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <form onSubmit={handleSaveStage} className="bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in duration-150 text-gray-900 dark:text-white">
+            <h3 className="text-base font-bold mb-4">
               {editingStage.id ? '✏️ Chỉnh sửa trạng thái' : '➕ Thêm trạng thái mới'}
             </h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase">Tên trạng thái</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase">Tên trạng thái</label>
                 <input
                   type="text"
                   required
                   value={editingStage.name || ''}
                   onChange={(e) => setEditingStage({ ...editingStage, name: e.target.value })}
                   placeholder="Ví dụ: Đang đàm phán, Khách VIP..."
-                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase">Màu sắc cột</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase">Màu sắc cột</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -362,8 +364,8 @@ export default function CRMPipelineTab() {
                         type="button"
                         key={c}
                         onClick={() => setEditingStage({ ...editingStage, color: c })}
-                        className={`w-6 h-6 rounded-full border-2 transition-all ${
-                          editingStage.color === c ? 'border-white scale-110' : 'border-transparent hover:scale-105'
+                        className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
+                          editingStage.color === c ? 'border-gray-900 dark:border-white scale-110' : 'border-transparent hover:scale-105'
                         }`}
                         style={{ backgroundColor: c }}
                       />
@@ -380,13 +382,13 @@ export default function CRMPipelineTab() {
                   setShowEditModal(false);
                   setEditingStage(null);
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-gray-700 text-gray-300 text-sm hover:bg-gray-600 transition-colors"
+                className="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors font-semibold cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors font-semibold"
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm transition-colors font-bold cursor-pointer"
               >
                 Lưu lại
               </button>
@@ -438,23 +440,23 @@ function PipelineColumn({
     <div
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className="w-80 max-h-full flex flex-col bg-gray-850 rounded-2xl border border-gray-800 shadow-xl overflow-hidden flex-shrink-0"
+      className="w-76 sm:w-80 max-h-full flex flex-col bg-gray-100/70 dark:bg-gray-850 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-xs overflow-hidden flex-shrink-0"
     >
       {/* Column Header */}
-      <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-850/60">
-        <div className="flex items-center gap-2">
+      <div className="p-3 px-3.5 border-b border-gray-200/80 dark:border-gray-800 flex items-center justify-between bg-white/80 dark:bg-gray-850">
+        <div className="flex items-center gap-2 min-w-0">
           <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-          <span className="font-semibold text-sm text-white truncate max-w-[150px]">{title}</span>
-          <span className="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded-full font-medium">
+          <span className="font-extrabold text-xs text-gray-900 dark:text-white truncate max-w-[140px]">{title}</span>
+          <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-[11px] px-2 py-0.5 rounded-full font-bold">
             {contacts.length}
           </span>
         </div>
 
         {!isUnclassified && stage && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => onEdit?.(stage)}
-              className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors"
+              className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               title="Sửa tên/màu"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -464,7 +466,7 @@ function PipelineColumn({
             </button>
             <button
               onClick={() => onDelete?.(stage.id)}
-              className="p-1 text-gray-400 hover:text-red-400 rounded-lg hover:bg-gray-800 transition-colors"
+              className="p-1 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               title="Xóa cột"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -476,14 +478,14 @@ function PipelineColumn({
         )}
       </div>
 
-      {/* Cards List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 max-h-[calc(100vh-250px)]">
+      {/* Cards List — Tighter spacing & borderless cards */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5 max-h-[calc(100vh-200px)]">
         {contacts.map((contact) => (
           <ContactCard key={contact.contact_id} contact={contact} stages={stages} onMove={onMove} />
         ))}
 
         {contacts.length === 0 && (
-          <div className="py-8 text-center text-xs text-gray-600 border border-dashed border-gray-800 rounded-xl">
+          <div className="py-8 text-center text-xs text-gray-400 dark:text-gray-500 border border-dashed border-gray-300 dark:border-gray-700/60 rounded-xl bg-white/40 dark:bg-gray-800/20 font-medium">
             Kéo thả hoặc chuyển liên hệ vào đây
           </div>
         )}
@@ -512,54 +514,59 @@ function ContactCard({
     <div
       draggable
       onDragStart={handleDragStart}
-      className="p-3.5 bg-gray-800 border border-gray-700/80 rounded-xl hover:border-gray-600 hover:shadow-lg transition-all cursor-grab active:cursor-grabbing group relative"
+      className="p-2.5 bg-white dark:bg-gray-800 rounded-xl shadow-2xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing group relative"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         {contact.avatar ? (
           <img
             src={contact.avatar}
             alt={contact.display_name}
-            className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+            className="w-9 h-9 rounded-full object-cover flex-shrink-0"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0 text-sm">
+          <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0 text-xs">
             {(contact.alias || contact.display_name || 'U').charAt(0).toUpperCase()}
           </div>
         )}
-        <div className="flex-1 overflow-hidden">
-          <h4 className="font-semibold text-sm text-gray-100 truncate">
+        <div className="flex-1 min-w-0">
+          <h4 className="font-bold text-xs text-gray-900 dark:text-gray-100 truncate leading-tight">
             {contact.alias || contact.display_name}
           </h4>
           {contact.alias && contact.display_name && contact.alias !== contact.display_name && (
-            <p className="text-xs text-gray-500 truncate mt-0.5">({contact.display_name})</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">({contact.display_name})</p>
           )}
           {contact.phone && (
-            <p className="text-xs text-gray-400 mt-0.5 truncate">📞 {contact.phone}</p>
+            <p className="text-[11px] font-medium text-gray-600 dark:text-gray-400 mt-0.5 truncate flex items-center gap-1">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-400 flex-shrink-0">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+              <span>{contact.phone}</span>
+            </p>
           )}
         </div>
 
         {/* Dropdown Menu to move stages */}
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+            className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors cursor-pointer"
           >
             ⋮
           </button>
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 mt-1 w-48 bg-gray-750 border border-gray-700 rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-100">
-                <p className="text-[10px] font-semibold text-gray-400 px-3 py-1 uppercase tracking-wider">Chuyển trạng thái</p>
+              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-100 text-gray-900 dark:text-white">
+                <p className="text-[10px] font-bold text-gray-400 px-3 py-1 uppercase tracking-wider">Chuyển trạng thái</p>
                 {contact.pipeline_stage_id !== null && (
                   <button
                     onClick={() => {
                       onMove(contact.contact_id, null);
                       setMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-1.5"
+                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span className="w-2 h-2 rounded-full bg-gray-500" />
+                    <span className="w-2 h-2 rounded-full bg-gray-400" />
                     Chưa phân loại
                   </button>
                 )}
@@ -572,10 +579,10 @@ function ContactCard({
                         onMove(contact.contact_id, st.id);
                         setMenuOpen(false);
                       }}
-                      className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-1.5"
+                      className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: st.color }} />
-                      {st.name}
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: st.color }} />
+                      <span className="truncate">{st.name}</span>
                     </button>
                   );
                 })}
@@ -587,22 +594,22 @@ function ContactCard({
 
       {/* AI Sentiment & Intent Badges */}
       {(contact.ai_sentiment || contact.ai_intent) && (
-        <div className="flex flex-wrap gap-1.5 mt-3 pt-2.5 border-t border-gray-700/60">
+        <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700/60">
           {contact.ai_sentiment && (
             <span
-              className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+              className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
                 contact.ai_sentiment === 'Tích cực'
-                  ? 'bg-green-950/40 text-green-300 border border-green-800/40'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40'
                   : contact.ai_sentiment === 'Tiêu cực'
-                  ? 'bg-red-950/40 text-red-300 border border-red-800/40'
-                  : 'bg-gray-700/50 text-gray-300 border border-gray-600/40'
+                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40'
+                  : 'bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600/40'
               }`}
             >
               {contact.ai_sentiment}
             </span>
           )}
           {contact.ai_intent && (
-            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-950/40 text-blue-300 border border-blue-800/40">
+            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
               {contact.ai_intent}
             </span>
           )}
