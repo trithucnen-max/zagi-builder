@@ -25,8 +25,16 @@ const Navbar: React.FC = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-slate-200/80 bg-white/88 backdrop-blur-2xl shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
       <div className="max-w-7xl mx-auto px-6 h-[72px] flex items-center justify-between">
         {/* Logo */}
-        <button onClick={() => scrollToSection('hero')} className="flex items-center no-underline group bg-transparent border-none cursor-pointer p-0">
-          <img src={logo} alt="Zagi" className="h-14 w-auto object-contain group-hover:scale-105 transition-transform" />
+        <button onClick={() => scrollToSection('hero')} className="flex items-center no-underline group bg-transparent border-none cursor-pointer p-0" title="Zagi">
+          <svg viewBox="0 0 160 50" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-9 w-auto group-hover:scale-105 transition-transform">
+            <path d="M 12 14 L 38 14 L 16 36 L 40 36" stroke="#0B1A3A" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="62" cy="27" r="9" stroke="#0B1A3A" strokeWidth="6.5"/>
+            <path d="M 71 18 L 71 36" stroke="#0B1A3A" strokeWidth="6.5" strokeLinecap="round"/>
+            <circle cx="95" cy="27" r="9" stroke="#0B1A3A" strokeWidth="6.5"/>
+            <path d="M 104 18 L 104 36 C 104 43 97 45 90 44" stroke="#0B1A3A" strokeWidth="6.5" strokeLinecap="round"/>
+            <path d="M 122 20 L 122 36" stroke="#0068FF" strokeWidth="7" strokeLinecap="round"/>
+            <circle cx="122" cy="10" r="4.5" fill="#0068FF"/>
+          </svg>
         </button>
 
         {/* Desktop nav */}
