@@ -304,6 +304,9 @@ export function registerCRMIpc(): void {
             }
 
             const id = DatabaseService.getInstance().saveCRMCampaign({ ...campaign, owner_zalo_id: zaloId });
+            if (!id || id <= 0) {
+                return { success: false, error: 'Không thể tạo hoặc lưu chiến dịch vào cơ sở dữ liệu' };
+            }
             DatabaseService.getInstance().save();
             if (campaign?.status === 'active') {
                 CRMQueueService.getInstance().startForAccount(zaloId, id);

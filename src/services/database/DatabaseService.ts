@@ -6058,20 +6058,20 @@ class DatabaseService {
                 const rows = this.query<any>(`SELECT id FROM crm_campaigns WHERE id=? AND owner_zalo_id=?`, [campaign.id, campaign.owner_zalo_id]);
                 if (rows.length > 0) {
                     this.run(
-                        `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, priority=?, queued_at=?, pause_reason=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, scheduled_time_of_day=?, quiet_hours_enabled=?, quiet_hours_start=?, quiet_hours_end=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        `UPDATE crm_campaigns SET name=?, template_message=?, friend_request_message=?, campaign_type=?, mixed_config=?, status=?, priority=?, queued_at=?, pause_reason=?, delay_seconds=?, delay_min_seconds=?, delay_max_seconds=?, per_contact_delay_min_seconds=?, per_contact_delay_max_seconds=?, daily_send_limit=?, daily_start_time=?, scheduled_start_at=?, scheduled_time_of_day=?, quiet_hours_enabled=?, quiet_hours_start=?, quiet_hours_end=?, is_deleted=0, deleted_at=NULL, updated_at=? WHERE id=? AND owner_zalo_id=?`,
                         [campaign.name, campaign.template_message || '', frMsg, type, mixedCfg, status, priority, queuedAt, pauseReason, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, scheduledTimeOfDay, quietEnabled, quietStart, quietEnd, now, campaign.id, campaign.owner_zalo_id]
                     );
                 } else {
                     this.run(
-                        `INSERT INTO crm_campaigns (id, owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, priority, queued_at, pause_reason, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, scheduled_time_of_day, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                        [campaign.id, campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, status, priority, queuedAt, pauseReason, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, scheduledTimeOfDay, quietEnabled, quietStart, quietEnd, now, now]
+                        `INSERT INTO crm_campaigns (id, owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, priority, queued_at, pause_reason, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, scheduled_time_of_day, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, is_deleted, deleted_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        [campaign.id, campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, status, priority, queuedAt, pauseReason, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, scheduledTimeOfDay, quietEnabled, quietStart, quietEnd, 0, null, now, now]
                     );
                 }
                 return campaign.id;
             } else {
-                // Check duplicate campaign within 1.5 seconds (same owner, name, type)
+                // Check duplicate campaign within 1.5 seconds (same owner, name, type, and not soft-deleted)
                 const checkRows = this.query<any>(
-                    `SELECT id FROM crm_campaigns WHERE owner_zalo_id=? AND name=? AND campaign_type=? AND created_at > ?`,
+                    `SELECT id FROM crm_campaigns WHERE owner_zalo_id=? AND name=? AND campaign_type=? AND created_at > ? AND (is_deleted IS NULL OR is_deleted = 0)`,
                     [campaign.owner_zalo_id, campaign.name, type, now - 1500]
                 );
                 if (checkRows.length > 0) {
@@ -6080,8 +6080,8 @@ class DatabaseService {
                 }
 
                 return this.runInsert(
-                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, priority, queued_at, pause_reason, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, scheduled_time_of_day, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', priority, queuedAt, pauseReason, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, scheduledTimeOfDay, quietEnabled, quietStart, quietEnd, now, now]
+                    `INSERT INTO crm_campaigns (owner_zalo_id, name, template_message, friend_request_message, campaign_type, mixed_config, status, priority, queued_at, pause_reason, delay_seconds, delay_min_seconds, delay_max_seconds, per_contact_delay_min_seconds, per_contact_delay_max_seconds, daily_send_limit, daily_start_time, scheduled_start_at, scheduled_time_of_day, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, is_deleted, deleted_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    [campaign.owner_zalo_id, campaign.name, campaign.template_message, frMsg, type, mixedCfg, campaign.status || 'draft', priority, queuedAt, pauseReason, compatDelaySeconds, delayMin, delayMax, perContactMin, perContactMax, dailyLimit, dailyStartTime, scheduledStartAt, scheduledTimeOfDay, quietEnabled, quietStart, quietEnd, 0, null, now, now]
                 );
             }
         } catch (err: any) { Logger.error(`[DB] saveCRMCampaign: ${err.message}`); return 0; }
