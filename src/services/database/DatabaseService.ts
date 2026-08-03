@@ -3364,7 +3364,7 @@ class DatabaseService {
         if (!this.initialized) return [];
         if (before && before > 0) {
             const msgs = this.query<Message>(
-                'SELECT * FROM messages WHERE owner_zalo_id = ? AND thread_id = ? AND timestamp < ? ORDER BY timestamp DESC LIMIT ?',
+                'SELECT * FROM messages WHERE owner_zalo_id = ? AND thread_id = ? AND timestamp < ? ORDER BY timestamp DESC, id DESC LIMIT ?',
                 [ownerZaloId, threadId, before, limit]
             );
             Logger.log(`[DB:getMessages] owner=${ownerZaloId} thread=${threadId} before=${before} → ${msgs.length} msgs`);

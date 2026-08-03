@@ -157,6 +157,27 @@ function extractDedupText(c?: string): string {
 
 const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
 
+export function compareMessagesAsc(a: MessageItem, b: MessageItem): number {
+  const tsA = normTs(a.timestamp);
+  const tsB = normTs(b.timestamp);
+  if (tsA !== tsB) return tsA - tsB;
+
+  // Secondary sort 1: DB row id (if available)
+  const idA = Number(a.id || 0);
+  const idB = Number(b.id || 0);
+  if (idA > 0 && idB > 0 && idA !== idB) return idA - idB;
+
+  // Secondary sort 2: cli_msg_id or msg_id numeric comparison
+  const numA = Number(a.cli_msg_id || a.msg_id || 0);
+  const numB = Number(b.cli_msg_id || b.msg_id || 0);
+  if (!isNaN(numA) && !isNaN(numB) && numA > 0 && numB > 0 && numA !== numB) {
+    return numA - numB;
+  }
+
+  // Secondary sort 3: String localeCompare fallback
+  return String(a.msg_id || '').localeCompare(String(b.msg_id || ''));
+}
+
 export function filterTempDuplicates(msgs: MessageItem[]): MessageItem[] {
   if (!msgs || msgs.length === 0) return msgs;
   const realMsgs = msgs.filter((m) => !String(m.msg_id).startsWith('temp_'));
@@ -195,7 +216,7 @@ export function filterTempDuplicates(msgs: MessageItem[]): MessageItem[] {
   });
 
   const merged = [...realMsgs, ...validTempMsgs];
-  merged.sort((a, b) => normTs(a.timestamp) - normTs(b.timestamp));
+  merged.sort(compareMessagesAsc);
   return merged;
 }
 
@@ -261,6 +282,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         : messages;
 
       const deduplicated = filterTempDuplicates([...merged, ...existing.filter(m => String(m.msg_id).startsWith('temp_'))]);
+      deduplicated.sort(compareMessagesAsc);
 
       // Evict old cached threads to cap memory — keep active thread + 20 most recent
       const MAX_CACHED_THREADS = 20;
@@ -300,6 +322,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       const updated = filterTempDuplicates([...existing, message]);
+      updated.sort(compareMessagesAsc);
       return { messages: { ...state.messages, [key]: updated } };
     });
   },
@@ -312,6 +335,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const newMessages = messages.filter(m => !existingIds.has(m.msg_id));
       if (newMessages.length === 0) return state;
       const updated = filterTempDuplicates([...newMessages, ...existing]);
+      updated.sort(compareMessagesAsc);
       return { messages: { ...state.messages, [key]: updated } };
     });
   },
