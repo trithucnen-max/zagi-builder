@@ -529,7 +529,7 @@ function ContactCard({
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h4 className="font-bold text-xs text-gray-900 dark:text-gray-100 truncate leading-tight">
+          <h4 className="font-medium text-xs text-gray-900 dark:text-gray-100 truncate leading-tight">
             {contact.alias || contact.display_name}
           </h4>
           {contact.alias && contact.display_name && contact.alias !== contact.display_name && (
