@@ -527,7 +527,7 @@ export default function CRMPage() {
         if (res.id) {
           store.setActiveCampaign(res.id);
         }
-        showNotification('Đã tạo chiến dịch thành công', 'success');
+        showNotification('🎉 Đã tạo chiến dịch thành công!', 'success');
         setShowCreateCampaign(false);
         if (wizardActive && res.id) {
           setWizardCampaignId(res.id);

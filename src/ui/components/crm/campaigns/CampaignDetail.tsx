@@ -381,6 +381,28 @@ export default function CampaignDetail({
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-5 flex flex-col justify-between min-h-0">
+        {/* Banner khi chiến dịch chưa có đối tượng gửi */}
+        {stats.total === 0 && (
+          <div className="bg-gradient-to-r from-blue-500/10 via-blue-600/10 to-indigo-500/10 border border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xl flex-shrink-0 shadow-md">
+                🎯
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white">Chiến dịch chưa có danh sách đối tượng nhận tin</h4>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Thêm bạn bè Zalo, danh sách nhóm hoặc file SĐT để khởi chạy chiến dịch này.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowTargetSelector(true)}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-md flex-shrink-0 active:scale-95 cursor-pointer"
+            >
+              <span>➕</span>
+              <span>Thêm đối tượng gửi</span>
+            </button>
+          </div>
+        )}
+
         {/* ── Grid 4 Summary KPI Cards (Matching Mockup Image) ── */}
         <div className="grid grid-cols-4 gap-4">
           {/* Card 1: Tổng số */}

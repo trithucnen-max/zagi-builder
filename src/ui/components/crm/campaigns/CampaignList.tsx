@@ -91,10 +91,11 @@ export default function CampaignList({
 
   // Counts by status
   const counts = useMemo(() => {
-    const res = { all: campaigns.length, active: 0, paused: 0, draft: 0, done: 0 };
+    const res = { all: campaigns.length, active: 0, queued: 0, paused: 0, draft: 0, done: 0 };
     campaigns.forEach(c => {
       if (c.status === 'active') res.active++;
-      else if (c.status === 'paused') res.paused++;
+      else if (c.status === 'queued') res.queued++;
+      else if (c.status === 'paused' || c.status === 'paused_quota' || c.status === 'paused_quiet') res.paused++;
       else if (c.status === 'draft') res.draft++;
       else if (c.status === 'done') res.done++;
     });
@@ -103,7 +104,12 @@ export default function CampaignList({
 
   const filtered = useMemo(() => {
     let list = campaigns;
-    if (filterStatus !== 'all') list = list.filter(c => c.status === filterStatus);
+    if (filterStatus === 'active') list = list.filter(c => c.status === 'active');
+    else if (filterStatus === 'queued') list = list.filter(c => c.status === 'queued');
+    else if (filterStatus === 'paused') list = list.filter(c => c.status === 'paused' || c.status === 'paused_quota' || c.status === 'paused_quiet');
+    else if (filterStatus === 'draft') list = list.filter(c => c.status === 'draft');
+    else if (filterStatus === 'done') list = list.filter(c => c.status === 'done');
+
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(c => c.name.toLowerCase().includes(q));
@@ -238,6 +244,7 @@ export default function CampaignList({
           {[
             { key: 'all', label: 'Tất cả', count: counts.all },
             { key: 'active', label: 'Đang chạy', count: counts.active },
+            { key: 'queued', label: 'Đang chờ', count: counts.queued },
             { key: 'paused', label: 'Tạm dừng', count: counts.paused },
             { key: 'draft', label: 'Nháp', count: counts.draft },
             { key: 'done', label: 'Hoàn thành', count: counts.done },
