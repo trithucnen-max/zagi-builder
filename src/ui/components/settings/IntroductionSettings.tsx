@@ -2142,6 +2142,7 @@ const ENRICHED_TOOLS_GUIDE = [
         title: '👥 Quản lý liên hệ & Nhóm',
         items: [
           'Xem tất cả liên hệ theo tài khoản Zalo: bạn bè, nhóm, stranger (người lạ)',
+          '🔄 Làm mới danh bạ: Cập nhật ngay danh sách bạn bè mới vừa kết bạn trên ứng dụng Zalo di động về CRM Zagi',
           'Đồng bộ thông tin nhóm Zalo: Tự động cập nhật tên thật và composite avatar nhóm khi quét bằng link hoặc đồng bộ thủ công vào danh sách CRM và Chiến dịch.',
           'Bộ lọc nâng cao: theo nhãn, trạng thái (đã nhắn / chưa nhắn), loại liên hệ, thời gian',
           'Xem thông tin chi tiết: avatar, tên, SĐT, nhãn, ghi chú, lịch sử tương tác',

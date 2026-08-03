@@ -83,7 +83,7 @@ Triggers gồm: tin nhắn mới, lời mời kết bạn, sự kiện nhóm, re
 Lưu ý: workflow chạy cục bộ nên app phải đang chạy (hoặc mở lại sau khi tắt) để các kịch bản tự động hóa và các bước chờ hoạt động.
 ###
 3.6. Trợ lý AI
-Tạo nhiều chatbot AI với tính cách/prompt/mục đích khác nhau, gán cho hội thoại cụ thể hoặc dùng trong Workflow. Hỗ trợ nhiều model: GPT, Gemini, Claude, DeepSeek. Hướng dẫn: Cài đặt → AI Assistant → nhập API Key → tạo trợ lý → viết prompt → chọn model → gán vào hội thoại hoặc dùng trong node Workflow.
+Tạo nhiều chatbot AI với tính cách/prompt/mục đích khác nhau, gán cho hội thoại cụ thể hoặc dùng trong Workflow. Hướng dẫn: Cài đặt → AI Assistant → nhập API Key → tạo trợ lý → viết prompt → chọn model → gán vào hội thoại hoặc dùng trong node Workflow.
 🌟 Tích hợp Trợ lý AI thông minh trong soạn thảo tin nhắn:
 - Nạp biến động & Định dạng tiền tệ: Khi soạn tin nhắn nháp qua nút "Trợ lý AI", hệ thống tự động tiêm toàn bộ danh sách biến động của hệ thống (Zalo, POS, giao hàng, thanh toán) giúp AI hiểu ngữ cảnh để chèn đúng chỗ. Hỗ trợ bộ lọc `| formatNumber` (ví dụ: `{{ $trigger.amount | formatNumber }}`) tự động thêm dấu phẩy phân tách hàng nghìn cho số tiền.
 - Tránh ký tự rác: AI soạn tin được hướng dẫn dùng chữ thường kèm emoji thay vì định dạng markdown `**` để đảm bảo văn bản hiển thị đẹp mắt, sạch sẽ trên ứng dụng Zalo PC của khách hàng.
@@ -124,6 +124,22 @@ Trang chủ khi mở app: thẻ trạng thái từng tài khoản (online/offlin
   - Tự động quét dọn liên hệ rác (Ghost contacts `tmp_%` chưa từng chát) khi mở trang CRM.
 - **🤖 Trợ lý AI Chatbot nổi (`GlobalSupportChat.tsx`):**
   - Nút AI Chatbot được điều chỉnh vị trí nổi cao hơn hẳn cách đáy màn hình (`bottom-32` ~ 128px), tránh tình trạng đè lên các thanh công cụ, ô nhập liệu hay biểu tượng bên dưới.
+### 3.13. Cập nhật mới phiên bản v3.1.3
+- **🔄 Nút "Làm mới danh bạ" (Zalo Sync Button):**
+  - Đổi tên nút đồng bộ từ "Đồng bộ Zalo" thành **"🔄 Làm mới danh bạ"** kèm Tooltip giải thích: *"Cập nhật ngay bạn bè mới kết bạn trên ứng dụng Zalo"*.
+  - Giúp người dùng hiểu rõ mục đích ngay lập tức: làm mới và kéo danh sách bạn bè mới vừa kết bạn trên di động vào CRM Zagi.
+- **📌 Phạm vi Thanh thao tác hàng loạt (BulkActionBar):**
+  - Giới hạn thanh thao tác hàng loạt chỉ xuất hiện riêng tại sub-tab **Liên hệ** trong CRM, loại bỏ hoàn toàn việc hiển thị tràn sang các tab khác.
+  - Tối ưu hóa menu mở rộng `...Khác`: Loại bỏ mục Nhãn Zalo trùng lặp, giữ giao diện gọn gàng.
+- **🎨 Logo & Favicon nhận diện thương hiệu Zagi:**
+  - Cập nhật logo nhận diện chính thức: Chữ `zag` xanh đen sang trọng (`#0B1A3A`) + Chữ `i` chấm xanh sáng (`#0068FF`) trên nền trong suốt.
+  - Tạo mới biểu tượng Favicon `Z` xanh dương tươi sáng (`favicon.svg`) cho Landing Page và WebApp.
+- **🤖 Trợ lý AI Support Chatbot Native (Dify Engine v3.1.3):**
+  - Đồng bộ Trợ lý AI trên Landing Page & App theo giao diện Native App Zagi (`Hỗ trợ ZaGi (AI)`).
+  - Tích hợp trực tiếp Dify AI Engine (`app-Shoio3nzmEVuoJJOBUsycsp9`) hỗ trợ trả lời thắc mắc, tư vấn báo giá, hỗ trợ kỹ thuật 24/7.
+  - Hỗ trợ đầy đủ các chế độ: Mở rộng đầy đủ, Thu nhỏ dạng thanh thông báo (`Minimized Bar`) và Đóng `x`.
+- **💻 Tương phản biểu tượng sơ đồ Landing Page trên Desktop:**
+  - Chuẩn hóa toàn bộ biểu tượng minh họa trên Landing Page màu **Trắng Tinh (`#ffffff !important`)** hiển thị sắc nét tương phản cao trên màn hình Desktop lẫn Mobile.
 ##
 PHẦN 4: BẢO MẬT & QUYỀN RIÊNG TƯ 
 Dữ liệu lưu cục bộ 100% trên máy khách của khách hàng (tin nhắn, danh bạ, CRM, cài đặt). Không có server trung gian — app kết nối trực tiếp Zalo ↔ máy khách. Phiên đăng nhập được mã hóa AES, lưu cục bộ. App không lưu mật khẩu Zalo (đăng nhập qua QR). Không tích hợp SDK thu thập dữ liệu/analytics/quảng cáo bên thứ ba.
