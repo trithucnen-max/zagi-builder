@@ -124,19 +124,19 @@ NSIS Installer ARM64 · ~166 MB · Tối ưu native cho Surface ARM
 Máy tính của bạn là loại gì?
 │
 ├─ 🖥️ PC desktop / Laptop thông thường (Dell, HP, Lenovo, Asus, Acer...)
-│   └─ → Tải: Zagi v3.1.5 Window.exe  ✅
+│   └─ → Tải: Zagi v3.1.6 Window.exe  ✅
 │
 ├─ 💻 Surface Pro 7, Surface Laptop 1-4, Surface Go 1-2, Surface Book
-│   └─ → Tải: Zagi v3.1.5 Window.exe  ✅  (chip Intel, chạy ok)
+│   └─ → Tải: Zagi v3.1.6 Window.exe  ✅  (chip Intel, chạy ok)
 │
 └─ 💻 Surface Pro X, Surface Pro 9 (5G), Surface Pro 10, Surface Pro 11,
        Surface Laptop 7 (chip Snapdragon / ARM64)
-    └─ → Tải: Zagi v3.1.5 Surface.exe  ✅ (bản native ARM64)
+    └─ → Tải: Zagi v3.1.6 Surface.exe  ✅ (bản native ARM64)
 ```
 
 > 💡 **Cách kiểm tra chip máy Surface:** Vào `Settings → System → About`, xem mục **Processor**:
-> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v3.1.5 Window.exe`
-> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v3.1.5 Surface.exe`
+> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v3.1.6 Window.exe`
+> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v3.1.6 Surface.exe`
 
 ---
 
@@ -146,15 +146,15 @@ Máy tính của bạn là loại gì?
 Mac của bạn là loại gì?
 │
 ├─ 🍎 MacBook Air/Pro M1, M2, M3, M4 / Mac Neo chip A18 (2020 trở về sau)
-│   └─ → Tải: Zagi v3.1.5 MacOS M1+ arm64.dmg  ✅
+│   └─ → Tải: Zagi v3.1.6 MacOS M1+ arm64.dmg  ✅
 │
 └─ 🍎 MacBook, iMac, Mac mini chip Intel (2019 trở về trước)
-    └─ → Tải: Zagi v3.1.5 MacOS Intel.dmg  ✅
+    └─ → Tải: Zagi v3.1.6 MacOS Intel.dmg  ✅
 ```
 
 > 💡 **Cách kiểm tra:** Click logo Apple → **About This Mac** → xem mục **Chip** hoặc **Processor**:
-> - Có chữ `Apple M1/M2/M3/M4/A18` → bản `Zagi v3.1.5 MacOS M1+ arm64.dmg`
-> - Có chữ `Intel` → bản `Zagi v3.1.5 MacOS Intel.dmg`
+> - Có chữ `Apple M1/M2/M3/M4/A18` → bản `Zagi v3.1.6 MacOS M1+ arm64.dmg`
+> - Có chữ `Intel` → bản `Zagi v3.1.6 MacOS Intel.dmg`
 
 ---
 
@@ -164,11 +164,11 @@ Mac của bạn là loại gì?
 Bạn dùng distro nào?
 │
 ├─ Ubuntu, Mint, PopOS, Zorin, ElementaryOS... → Tải .deb  ✅
-│   sudo dpkg -i "Zagi v3.1.5 Linux Debian.deb"
+│   sudo dpkg -i "Zagi v3.1.6 Linux Debian.deb"
 │
 └─ Fedora, Arch, openSUSE hoặc bất kỳ distro nào
     → Tải .AppImage  ✅
-    chmod +x "Zagi v3.1.5 Linux.AppImage" && ./"Zagi v3.1.5 Linux.AppImage"
+    chmod +x "Zagi v3.1.6 Linux.AppImage" && ./"Zagi v3.1.6 Linux.AppImage"
 ```
 
 ---
@@ -177,13 +177,13 @@ Bạn dùng distro nào?
 
 | Thiết bị | File cần tải | Ghi chú |
 |---|---|---|
-| PC/Laptop Windows (Intel/AMD) | `Zagi v3.1.5 Window.exe` | Phổ biến nhất |
-| Surface Pro 7 trở xuống | `Zagi v3.1.5 Window.exe` | Chip Intel |
-| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi v3.1.5 Surface.exe` | 🆕 Chip ARM64 |
-| MacBook M1/M2/M3/M4 / Mac Neo A18 | `Zagi v3.1.5 MacOS M1+ arm64.dmg` | Apple Silicon (Signed & Notarized) |
-| MacBook/iMac Intel | `Zagi v3.1.5 MacOS Intel.dmg` | Intel x64 (Signed & Notarized) |
-| Ubuntu/Debian Linux | `Zagi v3.1.5 Linux Debian.deb` | Cài như package |
-| Fedora/Arch/Linux khác | `Zagi v3.1.5 Linux.AppImage` | Chạy mọi distro |
+| PC/Laptop Windows (Intel/AMD) | `Zagi v3.1.6 Window.exe` | Phổ biến nhất |
+| Surface Pro 7 trở xuống | `Zagi v3.1.6 Window.exe` | Chip Intel |
+| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi v3.1.6 Surface.exe` | 🆕 Chip ARM64 |
+| MacBook M1/M2/M3/M4 / Mac Neo A18 | `Zagi v3.1.6 MacOS M1+ arm64.dmg` | Apple Silicon (Signed & Notarized) |
+| MacBook/iMac Intel | `Zagi v3.1.6 MacOS Intel.dmg` | Intel x64 (Signed & Notarized) |
+| Ubuntu/Debian Linux | `Zagi v3.1.6 Linux Debian.deb` | Cài như package |
+| Fedora/Arch/Linux khác | `Zagi v3.1.6 Linux.AppImage` | Chạy mọi distro |
 
 ---
 
@@ -198,7 +198,7 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 2. Nhấn **Run anyway** (Vẫn chạy)
 
 ### 🍎 macOS
-* ⚠️ **Lưu ý:** Kể từ phiên bản v3.1.5, để phát hành nhanh chóng, bước ký số (Code Signing) tạm thời được bỏ qua. Khi chạy ứng dụng lần đầu, bạn sẽ gặp cảnh báo bảo mật từ Gatekeeper (*"Zagi is damaged and can't be opened"* hoặc *"unidentified developer"*).
+* ⚠️ **Lưu ý:** Kể từ phiên bản v3.1.6, để phát hành nhanh chóng, bước ký số (Code Signing) tạm thời được bỏ qua. Khi chạy ứng dụng lần đầu, bạn sẽ gặp cảnh báo bảo mật từ Gatekeeper (*"Zagi is damaged and can't be opened"* hoặc *"unidentified developer"*).
 * **Cách mở ứng dụng (Vượt qua Gatekeeper):**
   1. Giải nén file `.zip` đã tải về để có ứng dụng `Zagi.app` và kéo nó vào thư mục `/Applications`.
   2. Click chuột phải (hoặc nhấn giữ phím `Control` và click) vào icon `Zagi` trong thư mục `Applications` -> chọn **Open** (Mở) -> chọn tiếp **Open** ở hộp thoại xác nhận.
@@ -210,8 +210,8 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x "Zagi v3.1.5 Linux.AppImage"
-./"Zagi v3.1.5 Linux.AppImage"
+chmod +x "Zagi v3.1.6 Linux.AppImage"
+./"Zagi v3.1.6 Linux.AppImage"
 ```
 
 Nếu lỗi "FUSE not available":
@@ -221,7 +221,7 @@ sudo apt install libfuse2
 
 Hoặc dùng `.deb`:
 ```bash
-sudo dpkg -i "Zagi v3.1.5 Linux Debian.deb"
+sudo dpkg -i "Zagi v3.1.6 Linux Debian.deb"
 ```
 
 </details>
@@ -472,12 +472,12 @@ npm run production
   - Loại bỏ hoàn toàn Hẹn giờ (Scheduled scan). Bổ sung 3 mức độ thực thi: **Lưu nháp (`draft`)**, **Chạy ngay (`active`)** và **Ưu tiên chạy (`priority_high`)**.
   - Khóa chặt điều kiện khởi tạo (bắt buộc đầy đủ Tên lô, Nhãn tự động, Danh sách SĐT). Banner cảnh báo nổi màu vàng/cam hiển thị trực quan **ngay phía trên nút Khởi tạo lô quét**.
 - 🛠️ **Tự Động Migrations SQLite Schema & Vá Lỗi Windows Upgrade**:
-  - Tự động kiểm tra `PRAGMA table_info` để bổ sung cột `is_deleted` và `deleted_at` cho các cơ sở dữ liệu nâng cấp từ bản v3.1.2 lên v3.1.6, giải quyết triệt để sự cố không tạo/lưu được chiến dịch trên Windows.
+  - Tự động kiểm tra `PRAGMA table_info` để bổ sung cột `is_deleted` và `deleted_at` cho các cơ sở dữ liệu nâng cấp từ bản v3.1.6 lên v3.1.6, giải quyết triệt để sự cố không tạo/lưu được chiến dịch trên Windows.
 
 </details>
 
 <details>
-<summary><strong>v3.1.5</strong> — 2026-07-24</summary>
+<summary><strong>v3.1.6</strong> — 2026-07-24</summary>
 
 ### 🚀 Nâng cấp nổi bật & Sửa lỗi hệ thống
 
@@ -505,7 +505,7 @@ npm run production
 </details>
 
 <details>
-<summary><strong>v3.1.5</strong> — 2026-07-22</summary>
+<summary><strong>v3.1.6</strong> — 2026-07-22</summary>
 
 ### 🚀 Nâng cấp nổi bật & Sửa lỗi hệ thống
 
@@ -529,29 +529,29 @@ npm run production
 - 🔀 **Chuyển Liên Hệ Sang Zalo Khác Chăm Sóc (`BulkActionBar.tsx`)**:
   - Thêm tùy chọn chuyển nhượng tệp liên hệ sang tài khoản Zalo kết nối khác để tiếp tục chăm sóc từ đầu.
 - 🍏 **Ký Số & Notarize macOS Chính Thức**:
-  - Toàn bộ bản cài đặt macOS (`Zagi v3.1.5 MacOS M1+ arm64.dmg` và `Intel.dmg`) được ký số bằng chứng thư Apple Developer ID chính thức của **BASAN CORPORATION** và notarized với Apple.
+  - Toàn bộ bản cài đặt macOS (`Zagi v3.1.6 MacOS M1+ arm64.dmg` và `Intel.dmg`) được ký số bằng chứng thư Apple Developer ID chính thức của **BASAN CORPORATION** và notarized với Apple.
 
 </details>
 
 
 <details>
-<summary><strong>v3.1.5</strong> — 2026-07-18</summary>
+<summary><strong>v3.1.6</strong> — 2026-07-18</summary>
 
 ### 🐛 Sửa lỗi & Cải thiện ổn định
 
 - 🔧 **Sửa lỗi contextBridge Proxy & require is not defined**: Khắc phục crash runtime `TypeError: 'get' on proxy...` bằng `wrapZaloApi` plain object. Đồng thời sửa triệt để lỗi `ReferenceError: require is not defined` trong Renderer bằng cách đổi dynamic require store sang static import.
-- 🌐 **Sửa lỗi link tải thủ công (404 Error)**: Thay đổi các đường dẫn tải macOS/Linux thủ công ở giao diện trỏ trực tiếp về GitHub Releases với quy định đặt tên tệp thống nhất (`Zagi v3.1.5 MacOS M1+ arm64.dmg`, `Zagi v3.1.5 MacOS Intel.dmg`, `Zagi v3.1.5 Linux Debian.deb`).
+- 🌐 **Sửa lỗi link tải thủ công (404 Error)**: Thay đổi các đường dẫn tải macOS/Linux thủ công ở giao diện trỏ trực tiếp về GitHub Releases với quy định đặt tên tệp thống nhất (`Zagi v3.1.6 MacOS M1+ arm64.dmg`, `Zagi v3.1.6 MacOS Intel.dmg`, `Zagi v3.1.6 Linux Debian.deb`).
 - 🕵️ **Chẩn đoán lỗi Facebook Scraper**: Xác định nguyên nhân lỗi `Không thể tìm docId cho search` do Facebook thay đổi Relay Query name. Cải thiện xử lý và thông báo lỗi cho người dùng.
 - 📋 **Ghi nhận kịch bản lỗi CRM Campaign**: Phân tích và tài liệu hoá 4 tình huống khiến nhân viên không thêm được người vào chiến dịch (mất kết nối LAN, nhóm chưa sync, định dạng SĐT sai, SQLite lock).
 - 🔨 **Sửa lỗi TypeScript TS2305**: Bổ sung `hasUnseenChangelog()` và `markChangelogSeen()` vào `settingsSeenTabs.ts` — Settings.tsx đã import nhưng module chưa export.
-- 🧹 **Dọn dẹp dead code (−116 dòng)**: Xóa `autoImportFromChat()` (bị vô hiệu hoá từ v3.1.5), `scheduleSave()` (no-op), `TEMPLATE_VARS` local copy; thêm hằng số `MAX_CAMPAIGN_CONTACTS` thay magic number.
+- 🧹 **Dọn dẹp dead code (−116 dòng)**: Xóa `autoImportFromChat()` (bị vô hiệu hoá từ v3.1.6), `scheduleSave()` (no-op), `TEMPLATE_VARS` local copy; thêm hằng số `MAX_CAMPAIGN_CONTACTS` thay magic number.
 - 🛡️ **Tối ưu Bảo mật & Hiệu năng (Code Review)**: Hạn chế CORS origin allowlist trên LAN HTTP server chặn CSRF chéo LAN; bọc SQLite transaction cho thêm liên hệ chiến dịch CRM tăng tốc độ ghi gấp 50 lần; đồng bộ CRM contacts sang `proxyToBossAsync` có báo lỗi mạng LAN; dọn dẹp các biến unused và xóa bypass License code; bổ sung unit tests `crmCampaignContacts.test.ts`.
 
 </details>
 
 
 <details>
-<summary><strong>v3.1.5</strong> — 2026-07-17</summary>
+<summary><strong>v3.1.6</strong> — 2026-07-17</summary>
 
 ### 🚀 Nâng cấp nổi bật
 

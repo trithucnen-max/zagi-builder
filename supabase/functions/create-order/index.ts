@@ -193,10 +193,10 @@ serve(async (req) => {
   }
 
   const DOWNLOAD_LINKS = {
-    windows:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.Window.exe",
-    mac_arm:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.MacOS.M1%2B.arm64.dmg",
-    mac_intel: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.MacOS.Intel.dmg",
-    linux:     "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.Linux.AppImage"
+    windows:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.Window.exe",
+    mac_arm:   "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.MacOS.M1%2B.arm64.dmg",
+    mac_intel: "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.MacOS.Intel.dmg",
+    linux:     "https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.Linux.AppImage"
   };
 
   // ── Trial → kích hoạt ngay ───────────────────────────────────────────────
