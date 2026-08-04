@@ -34,6 +34,8 @@ interface Batch {
     auto_workflow_id?: number | string | null;
     priority: number;
     status: 'active' | 'queued' | 'draft' | 'paused' | 'completed';
+    pause_reason?: string | null;
+    paused_until?: number | null;
     total_count: number;
     scanned_count: number;
     found_count: number;
@@ -42,6 +44,36 @@ interface Batch {
     duplicate_count: number;
     completed_at: number | null;
     created_at: number;
+}
+
+function QuotaCountdownBadge({ pausedUntil }: { pausedUntil?: number | null }) {
+    const [timeLeftMs, setTimeLeftMs] = useState<number>(() => {
+        if (!pausedUntil) return 0;
+        return Math.max(0, pausedUntil - Date.now());
+    });
+
+    useEffect(() => {
+        if (!pausedUntil) return;
+        const interval = setInterval(() => {
+            const diff = pausedUntil - Date.now();
+            setTimeLeftMs(Math.max(0, diff));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [pausedUntil]);
+
+    if (!pausedUntil || timeLeftMs <= 0) {
+        return <span className="font-mono text-[9px] font-bold text-amber-600 dark:text-amber-400">⏳ Chờ khôi phục...</span>;
+    }
+
+    const totalSeconds = Math.floor(timeLeftMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return (
+        <span className="font-mono text-[9px] font-bold text-orange-600 dark:text-orange-400 animate-pulse">
+            ⏳ Chờ {minutes}p {seconds < 10 ? `0${seconds}` : seconds}s
+        </span>
+    );
 }
 
 interface ScanItem {
@@ -1148,17 +1180,25 @@ export default function PhoneScanPanel() {
                                                                     🟢 Đang quét
                                                                 </span>
                                                             ) : batch.status === 'queued' ? (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full" title={batch.pause_reason === 'priority_preempted' ? 'Đang nhường lượt cho Lô ưu tiên khác' : batch.pause_reason === 'auto_resumed_daily' ? 'Đã tự động khôi phục chạy tiếp khi sang ngày mới' : 'Đang chờ hàng đợi'}>
-                                                                    {batch.pause_reason === 'priority_preempted' ? '⏳ Nhường Lô Ưu Tiên' : batch.pause_reason === 'auto_resumed_daily' ? '🌅 Tự khôi phục ngày mới' : `🟡 Chờ hàng đợi (#${queuedIndex >= 0 ? queuedIndex + 1 : 1})`}
+                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full" title={batch.pause_reason === 'priority_preempted' ? 'Đang nhường lượt cho Lô ưu tiên khác' : batch.pause_reason === 'auto_resumed_hourly' ? 'Đã tự động khôi phục chạy tiếp khi sang giờ mới' : batch.pause_reason === 'auto_resumed_daily' ? 'Đã tự động khôi phục chạy tiếp khi sang ngày mới' : 'Đang chờ hàng đợi'}>
+                                                                    {batch.pause_reason === 'priority_preempted' ? '⏳ Nhường Lô Ưu Tiên' : batch.pause_reason === 'auto_resumed_hourly' ? '⏱️ Tự khôi phục giờ mới' : batch.pause_reason === 'auto_resumed_daily' ? '🌅 Tự khôi phục ngày mới' : `🟡 Chờ hàng đợi (#${queuedIndex >= 0 ? queuedIndex + 1 : 1})`}
                                                                 </span>
                                                             ) : batch.status === 'draft' ? (
                                                                 <span className="px-2 py-0.5 text-[9px] font-bold bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
                                                                     📝 Nháp
                                                                 </span>
                                                             ) : batch.status === 'paused' ? (
-                                                                batch.pause_reason === 'daily_quota' ? (
-                                                                    <span className="px-2 py-0.5 text-[9px] font-bold bg-red-100 dark:bg-red-950/80 border border-red-300 dark:border-red-800/60 text-red-700 dark:text-red-300 rounded-full" title="Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng đổi nick hoặc chờ 24h">
-                                                                        🛑 Tạm dừng (Hạn ngạch -216)
+                                                                batch.pause_reason === 'hourly_quota' ? (
+                                                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold bg-orange-100 dark:bg-orange-950/80 border border-orange-300 dark:border-orange-800/60 text-orange-800 dark:text-orange-300 rounded-full" title="Tài khoản Zalo đã đạt giới hạn quét SĐT theo GIỜ (Mã -216). Hệ thống sẽ tự động quét tiếp khi sang giờ mới.">
+                                                                        <span>🛑 Tạm dừng (Hạn ngạch GIỜ -216)</span>
+                                                                        <span>•</span>
+                                                                        <QuotaCountdownBadge pausedUntil={batch.paused_until} />
+                                                                    </span>
+                                                                ) : batch.pause_reason === 'daily_quota' ? (
+                                                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold bg-red-100 dark:bg-red-950/80 border border-red-300 dark:border-red-800/60 text-red-700 dark:text-red-300 rounded-full" title="Tài khoản Zalo đã đạt giới hạn quét SĐT trong NGÀY (Mã -216). Hệ thống sẽ tự khôi phục lúc 00:00.">
+                                                                        <span>🛑 Tạm dừng (Hạn ngạch NGÀY -216)</span>
+                                                                        <span>•</span>
+                                                                        <span className="font-mono text-[9px] text-red-600 dark:text-red-400">🌅 Chờ 00:00</span>
                                                                     </span>
                                                                 ) : (
                                                                     <span className="px-2 py-0.5 text-[9px] font-bold bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800/60 text-amber-700 dark:text-amber-300 rounded-full" title="Tạm dừng thủ công bởi người dùng">
@@ -1284,6 +1324,61 @@ export default function PhoneScanPanel() {
                                 <AppIcon name="x" size={14} />
                             </button>
                         </div>
+
+                        {/* Rate Limit Alert Banner */}
+                        {selectedBatch.status === 'paused' && (selectedBatch.pause_reason === 'hourly_quota' || selectedBatch.pause_reason === 'daily_quota') && (
+                            <div className={`mx-5 mt-4 p-4 rounded-xl border flex items-start gap-3 shadow-2xs ${
+                                selectedBatch.pause_reason === 'hourly_quota' 
+                                    ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800/60 text-orange-900 dark:text-orange-200'
+                                    : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60 text-red-900 dark:text-red-200'
+                            }`}>
+                                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/60 text-orange-600 dark:text-orange-300 flex-shrink-0 mt-0.5">
+                                    <AppIcon name="alert-triangle" size={18} />
+                                </div>
+                                <div className="flex-1 min-w-0 text-xs space-y-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <h4 className="font-bold text-xs flex items-center gap-1.5">
+                                            <span>🛑 Lô quét tạm dừng do chạm Hạn ngạch Zalo (Mã -216)</span>
+                                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-white dark:bg-gray-800 border shadow-2xs">
+                                                {selectedBatch.pause_reason === 'hourly_quota' ? 'Hạn ngạch GIỜ' : 'Hạn ngạch NGÀY'}
+                                            </span>
+                                        </h4>
+                                    </div>
+                                    <p className="text-[11px] leading-relaxed text-gray-700 dark:text-gray-300">
+                                        {selectedBatch.pause_reason === 'hourly_quota' ? (
+                                            <>
+                                                Tài khoản Zalo quét đã đạt giới hạn tìm kiếm SĐT trong 60 phút vừa qua. 
+                                                Hệ thống <strong>Smart Adaptive Quota</strong> đã tự động điều chỉnh hạ định mức an toàn và sẽ <strong className="text-orange-600 dark:text-orange-400">tự động khôi phục quét tiếp sau 60 phút</strong>.
+                                            </>
+                                        ) : (
+                                            <>
+                                                Tài khoản Zalo quét đã đạt giới hạn tìm kiếm SĐT trong ngày hôm nay. 
+                                                Hệ thống sẽ <strong className="text-red-600 dark:text-red-400">tự động khôi phục quét tiếp khi sang ngày mới (lúc 00:00)</strong>.
+                                            </>
+                                        )}
+                                    </p>
+                                    <div className="pt-1.5 flex flex-wrap items-center gap-4 text-[11px]">
+                                        <div className="flex items-center gap-1.5 font-bold">
+                                            <span>⏳ Thời gian dự kiến tự khôi phục:</span>
+                                            {selectedBatch.pause_reason === 'hourly_quota' ? (
+                                                <div className="inline-flex items-center gap-1 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg border shadow-2xs">
+                                                    <QuotaCountdownBadge pausedUntil={selectedBatch.paused_until} />
+                                                    {selectedBatch.paused_until && (
+                                                        <span className="text-gray-400 text-[10px]">
+                                                            ({new Date(selectedBatch.paused_until).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="bg-white dark:bg-gray-800 px-2 py-0.5 rounded border font-mono font-bold text-red-600 dark:text-red-400">
+                                                    00:00 (Đầu ngày mới)
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Option C Banner: Cấu hình Setup ban đầu & Báo cáo Nhãn đã gán */}
                         <div className="mx-5 mt-4 p-3.5 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/80 rounded-xl space-y-2 text-xs flex-shrink-0">

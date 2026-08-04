@@ -1322,6 +1322,12 @@ class DatabaseService {
                 Logger.log('[DatabaseService] ✅ Migration: added pause_reason column to phone_scan_batches');
             }
 
+            const hasPausedUntil = cols.some((c: any) => c.name === 'paused_until');
+            if (!hasPausedUntil) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN paused_until INTEGER`);
+                Logger.log('[DatabaseService] ✅ Migration: added paused_until column to phone_scan_batches');
+            }
+
             const contactCols = this.query<any>('PRAGMA table_info(contacts)');
             const hasIsBlocked = contactCols.some((c: any) => c.name === 'is_blocked');
             if (!hasIsBlocked) {
@@ -10336,10 +10342,12 @@ class DatabaseService {
         }
     }
 
-    public updatePhoneScanBatchStatus(batchId: number, status: string, pauseReason?: string | null): void {
+    public updatePhoneScanBatchStatus(batchId: number, status: string, pauseReason?: string | null, pausedUntil?: number | null): void {
         if (!this.initialized) return;
         try {
-            if (pauseReason !== undefined) {
+            if (pauseReason !== undefined && pausedUntil !== undefined) {
+                this.run(`UPDATE phone_scan_batches SET status = ?, pause_reason = ?, paused_until = ? WHERE id = ?`, [status, pauseReason, pausedUntil, batchId]);
+            } else if (pauseReason !== undefined) {
                 this.run(`UPDATE phone_scan_batches SET status = ?, pause_reason = ? WHERE id = ?`, [status, pauseReason, batchId]);
             } else {
                 this.run(`UPDATE phone_scan_batches SET status = ? WHERE id = ?`, [status, batchId]);

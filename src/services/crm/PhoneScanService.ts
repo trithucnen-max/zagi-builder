@@ -71,11 +71,34 @@ class PhoneScanService {
 
     private lastAutoResumeCheckDate: string = '';
 
-    private checkAutoResumeDailyQuota(): void {
+    private checkAutoResumeQuotas(): void {
         try {
             const db = DatabaseService.getInstance();
             if (!db || !db.getIsInitialized()) return;
 
+            const now = Date.now();
+
+            // 1. Check auto-resume HOURLY quota (after 60 minutes)
+            const pausedHourlyBatches = db.query<any>(
+                `SELECT id, name FROM phone_scan_batches 
+                 WHERE status = 'paused' AND pause_reason = 'hourly_quota' 
+                   AND (paused_until IS NULL OR paused_until <= ?)`
+            , [now]);
+
+            if (pausedHourlyBatches && pausedHourlyBatches.length > 0) {
+                db.run(
+                    `UPDATE phone_scan_batches 
+                     SET status = 'queued', pause_reason = 'auto_resumed_hourly', queued_at = ?, paused_until = NULL 
+                     WHERE status = 'paused' AND pause_reason = 'hourly_quota' 
+                       AND (paused_until IS NULL OR paused_until <= ?)`,
+                    [now, now]
+                );
+                db.save();
+                Logger.log(`[PhoneScanService] ⏱️ Auto-resumed ${pausedHourlyBatches.length} batches paused by hourly_quota (60 min elapsed)`);
+                EventBroadcaster.emit('crm:phoneScanUpdate', {});
+            }
+
+            // 2. Check auto-resume DAILY quota when date changes (after 00:00)
             const todayStr = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD'
             if (!this.lastAutoResumeCheckDate) {
                 this.lastAutoResumeCheckDate = todayStr;
@@ -84,25 +107,24 @@ class PhoneScanService {
 
             if (this.lastAutoResumeCheckDate !== todayStr) {
                 const pausedQuotaBatches = db.query<any>(
-                    `SELECT id, name FROM phone_scan_batches WHERE status = 'paused' AND pause_reason = 'daily_quota'`
+                    `SELECT id, name FROM phone_scan_batches WHERE status = 'paused' AND (pause_reason = 'daily_quota' OR pause_reason = 'hourly_quota')`
                 );
 
                 if (pausedQuotaBatches && pausedQuotaBatches.length > 0) {
-                    const now = Date.now();
                     db.run(
                         `UPDATE phone_scan_batches 
-                         SET status = 'queued', pause_reason = 'auto_resumed_daily', queued_at = ? 
-                         WHERE status = 'paused' AND pause_reason = 'daily_quota'`,
+                         SET status = 'queued', pause_reason = 'auto_resumed_daily', queued_at = ?, paused_until = NULL 
+                         WHERE status = 'paused' AND (pause_reason = 'daily_quota' OR pause_reason = 'hourly_quota')`,
                         [now]
                     );
                     db.save();
-                    Logger.log(`[PhoneScanService] 🌅 Auto-resumed ${pausedQuotaBatches.length} batches paused by daily_quota for new day (${todayStr})`);
+                    Logger.log(`[PhoneScanService] 🌅 Auto-resumed ${pausedQuotaBatches.length} batches paused by quota for new day (${todayStr})`);
                     EventBroadcaster.emit('crm:phoneScanUpdate', {});
                 }
                 this.lastAutoResumeCheckDate = todayStr;
             }
         } catch (err: any) {
-            Logger.error(`[PhoneScanService] checkAutoResumeDailyQuota error: ${err.message}`);
+            Logger.error(`[PhoneScanService] checkAutoResumeQuotas error: ${err.message}`);
         }
     }
 
@@ -117,8 +139,8 @@ class PhoneScanService {
                 return;
             }
 
-            // Check & auto-resume batches paused by daily quota when date changes (after 00:00)
-            this.checkAutoResumeDailyQuota();
+            // Check & auto-resume batches paused by quota when hourly/daily limit resets
+            this.checkAutoResumeQuotas();
 
             // 1. Find the single active batch (Strict Single Active Batch Queue)
             let activeBatch = db.queryOne<any>(`
@@ -343,11 +365,7 @@ class PhoneScanService {
                 });
             }
 
-            // 3. Pause the batch
-            Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 for account ${zaloId}. Pausing batch ${batchId}, rolling back scanning items.`);
-            db.updatePhoneScanBatchStatus(batchId, 'paused', 'daily_quota');
-
-            // 4. Smart Adaptive Quota: classify and reduce limits
+            // 3. Smart Adaptive Quota: classify and reduce limits
             const currentLimits = db.getAccountScanLimits(zaloId);
             const dailyCompleted = db.getTodayScannedCountForAccount(zaloId);       // counts 'found' since 00:00
             const hourlyCompleted = db.getHourlyScannedFoundCountForAccount(zaloId); // counts completed in last hour
@@ -358,20 +376,33 @@ class PhoneScanService {
             let newDailyLimit = currentLimits.scanDailyLimit;
             let newHourlyLimit = currentLimits.scanHourlyLimit;
 
+            let pauseReason: 'hourly_quota' | 'daily_quota' = 'daily_quota';
+            let pausedUntil: number = new Date().setHours(23, 59, 59, 999) + 1; // Default midnight tonight
+
             if (isHourlyExceeded && !isDailyExceeded) {
                 // Clearly hourly limit: only reduce hourly, preserve daily
                 newHourlyLimit = Math.max(3, hourlyCompleted);
-                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [HOURLY]: ${zaloId} hourly ${currentLimits.scanHourlyLimit}→${newHourlyLimit} (daily unchanged)`);
+                pauseReason = 'hourly_quota';
+                pausedUntil = Date.now() + 60 * 60 * 1000; // 60 minutes from now
+                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [HOURLY]: ${zaloId} hourly ${currentLimits.scanHourlyLimit}→${newHourlyLimit} (daily unchanged). Paused until ${new Date(pausedUntil).toLocaleTimeString()}`);
             } else if (isDailyExceeded && !isHourlyExceeded) {
                 // Clearly daily limit: only reduce daily, preserve hourly
                 newDailyLimit = Math.max(5, dailyCompleted);
-                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [DAILY]: ${zaloId} daily ${currentLimits.scanDailyLimit}→${newDailyLimit} (hourly unchanged)`);
+                pauseReason = 'daily_quota';
+                pausedUntil = new Date().setHours(23, 59, 59, 999) + 1;
+                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [DAILY]: ${zaloId} daily ${currentLimits.scanDailyLimit}→${newDailyLimit} (hourly unchanged). Paused until 00:00`);
             } else {
                 // Both exceeded or unknown: Zalo's real limit is lower than configured — reduce both
                 newDailyLimit = Math.max(5, dailyCompleted);
                 newHourlyLimit = Math.max(3, hourlyCompleted);
+                pauseReason = 'daily_quota';
+                pausedUntil = new Date().setHours(23, 59, 59, 999) + 1;
                 Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [BOTH]: ${zaloId} daily ${currentLimits.scanDailyLimit}→${newDailyLimit}, hourly ${currentLimits.scanHourlyLimit}→${newHourlyLimit}`);
             }
+
+            // Pause the batch with classified pause_reason and paused_until timestamp
+            Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 for account ${zaloId}. Pausing batch ${batchId} (Reason: ${pauseReason}), rolling back scanning items.`);
+            db.updatePhoneScanBatchStatus(batchId, 'paused', pauseReason, pausedUntil);
 
             const dailyChanged = newDailyLimit < currentLimits.scanDailyLimit;
             const hourlyChanged = newHourlyLimit < currentLimits.scanHourlyLimit;
