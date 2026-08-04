@@ -298,8 +298,12 @@ class CRMQueueService {
                     }
                     db.save();
                 }
-                Logger.log(`[CRMQueue] Resuming queue for ${zaloId}`);
-                this.startForAccount(zaloId);
+                if (activeCamps.length === 0) {
+                    this.promoteNextQueuedCampaign(zaloId);
+                } else {
+                    Logger.log(`[CRMQueue] Resuming queue for ${zaloId}`);
+                    this.startForAccount(zaloId, activeCamps[0].id);
+                }
             }
         } catch (err: any) {
             Logger.warn(`[CRMQueue] resumeActiveCampaigns: ${err.message}`);

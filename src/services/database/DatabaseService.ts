@@ -6716,12 +6716,12 @@ class DatabaseService {
         } catch { return false; }
     }
 
-    /** Lấy danh sách distinct owner_zalo_id có campaign đang active (dùng khi resume sau restart) */
+    /** Lấy danh sách distinct owner_zalo_id có campaign đang active, queued hoặc paused_quota (dùng khi resume sau restart) */
     public getActiveCampaignOwners(): string[] {
         if (!this.initialized) return [];
         try {
             return this.query<any>(
-                `SELECT DISTINCT owner_zalo_id FROM crm_campaigns WHERE status='active' AND (is_deleted IS NULL OR is_deleted = 0)`, []
+                `SELECT DISTINCT owner_zalo_id FROM crm_campaigns WHERE (status='active' OR status='queued' OR status='paused_quota') AND (is_deleted IS NULL OR is_deleted = 0)`, []
             ).map((r: any) => r.owner_zalo_id);
         } catch (err: any) { Logger.error(`[DB] getActiveCampaignOwners: ${err.message}`); return []; }
     }
