@@ -7,6 +7,7 @@ import TargetSelector from './TargetSelector';
 import CampaignCreateModal from './CampaignCreateModal';
 import { RestartCampaignModal } from './RestartCampaignModal';
 import AppIcon from '@/components/common/AppIcon';
+import { parseZaloError } from '../../../../services/crm/ZaloErrorDictionary';
 
 function fmtDelayRange(min: number, max: number): string {
   const fmt = (s: number) => {
@@ -980,24 +981,43 @@ const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({
 
           {/* Full error details box */}
           <div className="space-y-1.5">
-            <label className="font-bold text-gray-700 dark:text-gray-300">Thông điệp lỗi chi tiết từ Zalo:</label>
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-gray-700 dark:text-gray-300">Thông điệp lỗi chi tiết từ Zalo:</label>
+              {contact.error && (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 font-bold">
+                  {parseZaloError(contact.error).title}
+                </span>
+              )}
+            </div>
             <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 font-mono text-[11px] text-rose-600 dark:text-rose-400 break-words leading-relaxed select-text max-h-40 overflow-y-auto">
               {errStr}
             </div>
           </div>
 
-          {/* Suggested Resolution */}
-          <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800/40 space-y-1">
-            <div className="font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
-              <span>💡</span>
-              <span>Gợi ý hướng xử lý:</span>
-            </div>
-            <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-normal">
-              {isBlocked
-                ? 'Khách hàng cài đặt không nhận tin/lời mời từ người lạ. Nên liên hệ qua Cuộc gọi điện thoại hoặc SMS.'
-                : 'Lỗi tạm thời (do hạn mức Zalo ngày hoặc gián đoạn mạng). Bạn có thể bấm "Chạy lại chiến dịch" sau 00:00 hoặc chuyển sang tài khoản Zalo khác.'}
-            </p>
-          </div>
+          {/* Suggested Resolution via ZaloErrorDictionary */}
+          {(() => {
+            const detail = parseZaloError(contact.error);
+            const isAccountLimit = detail.category === 'ACCOUNT_LIMIT';
+            return (
+              <div className={`p-3.5 rounded-2xl border space-y-1.5 ${
+                isAccountLimit
+                  ? 'bg-amber-500/10 border-amber-500/30 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200'
+                  : 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/40 text-gray-800 dark:text-gray-200'
+              }`}>
+                <div className={`font-bold flex items-center gap-1.5 text-xs ${
+                  isAccountLimit ? 'text-amber-700 dark:text-amber-400' : 'text-blue-700 dark:text-blue-400'
+                }`}>
+                  <span>{isAccountLimit ? '🛑' : '💡'}</span>
+                  <span>{isAccountLimit ? `Lỗi Hạn Ngạch Nick Bạn: ${detail.title}` : 'Gợi ý hướng xử lý:'}</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  {detail.actionableAdvice || (isBlocked
+                    ? 'Khách hàng cài đặt không nhận tin/lời mời từ người lạ. Nên liên hệ qua Cuộc gọi điện thoại hoặc SMS.'
+                    : 'Lỗi tạm thời (do hạn mức Zalo ngày hoặc gián đoạn mạng). Bạn có thể bấm "Chạy lại chiến dịch" sau 00:00 hoặc chuyển sang tài khoản Zalo khác.')}
+                </p>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Footer */}

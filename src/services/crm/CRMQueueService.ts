@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import imageSize from 'image-size';
 import { applySmartSalutation, getSelfRef } from '../../utils/salutationUtils';
+import { parseZaloError } from './ZaloErrorDictionary';
 
 /**
  * CRMQueueService — chạy trong main process
@@ -1152,18 +1153,15 @@ class CRMQueueService {
                 } catch {}
             }
 
-            // Auto-detect rate limit -216 error
-            const errCode = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
-            const isRateLimit216 = errCode === -216 || errCode === 216 || errCode === 50004 || errMsg.includes('-216') || errMsg.includes('216') || errMsg.toLowerCase().includes('search limit') || errMsg.toLowerCase().includes('find user limit');
-            const finalErrMsg = isRateLimit216
-                ? 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng đổi nick hoặc chờ 24h'
-                : errMsg;
+            // Parse error via ZaloErrorDictionary
+            const errorDetail = parseZaloError(err);
+            const finalErrMsg = errorDetail.userMessage || errMsg;
 
-            if (isRateLimit216) {
-                Logger.warn(`[CRMQueue] 🛑 Rate limit -216 detected! Immediately pausing campaign ${item.campaign_id}...`);
+            if (errorDetail.shouldAutoPauseCampaign) {
+                Logger.warn(`[CRMQueue] 🛑 Account limit / policy error (${errorDetail.code}: ${errorDetail.title}) detected! Pausing campaign ${item.campaign_id}...`);
                 try {
                     db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused', finalErrMsg);
-                    EventBroadcaster.emit('crm:campaignChanged', { action: 'pause', ownerZaloId: zaloId, campaignId: item.campaign_id, reason: 'rate_limit' });
+                    EventBroadcaster.emit('crm:campaignChanged', { action: 'pause', ownerZaloId: zaloId, campaignId: item.campaign_id, reason: String(errorDetail.code) });
                 } catch {}
             }
 
