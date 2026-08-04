@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ipc from '@/lib/ipc';
+import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
 
 interface AccountQuotaModalProps {
   zaloId: string;
@@ -8,18 +9,26 @@ interface AccountQuotaModalProps {
 }
 
 export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQuotaModalProps) {
+  const visibleAccounts = useVisibleAccounts();
+  const zaloAccounts = visibleAccounts.filter(a => (a.channel || 'zalo') === 'zalo');
+
+  const [selectedZaloId, setSelectedZaloId] = useState<string>(zaloId || (zaloAccounts[0]?.zalo_id ?? ''));
   const [msgLimit, setMsgLimit] = useState(50);
   const [inviteLimit, setInviteLimit] = useState(50);
   const [scanDailyLimit, setScanDailyLimit] = useState(100);
   const [scanHourlyLimit, setScanHourlyLimit] = useState(30);
+  const [applyToAll, setApplyToAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const selectedAccount = zaloAccounts.find(a => a.zalo_id === selectedZaloId);
+
   useEffect(() => {
+    if (!selectedZaloId) return;
     setLoading(true);
     Promise.all([
-      ipc.crm.getAccountQuota({ zaloId }),
+      ipc.crm.getAccountQuota({ zaloId: selectedZaloId }),
       ipc.crm.getScanQuotaSummary()
     ]).then(([quotaRes, scanRes]) => {
       if (quotaRes.success) {
@@ -27,14 +36,14 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
         setInviteLimit(quotaRes.inviteLimit ?? 50);
       }
       if (scanRes?.success && scanRes.data) {
-        const item = scanRes.data.find(a => a.zaloId === zaloId);
+        const item = scanRes.data.find(a => a.zaloId === selectedZaloId);
         if (item) {
           setScanDailyLimit(item.scanDailyLimit || 100);
           setScanHourlyLimit(item.scanHourlyLimit || 30);
         }
       }
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [zaloId]);
+  }, [selectedZaloId]);
 
   const handleSave = async () => {
     if (msgLimit < 1 || inviteLimit < 1 || scanDailyLimit < 1 || scanHourlyLimit < 1) {
@@ -44,16 +53,25 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
     setSaving(true);
     setError('');
     try {
-      const [res1, res2] = await Promise.all([
-        ipc.crm.setAccountQuota({ zaloId, msgLimit, inviteLimit }),
-        ipc.crm.setAccountScanLimits({ zaloId, scanDailyLimit, scanHourlyLimit })
-      ]);
-      if (res1.success && res2.success) {
-        onSaved();
-        onClose();
+      if (applyToAll && zaloAccounts.length > 0) {
+        const promises = zaloAccounts.flatMap(acc => [
+          ipc.crm.setAccountQuota({ zaloId: acc.zalo_id, msgLimit, inviteLimit }),
+          ipc.crm.setAccountScanLimits({ zaloId: acc.zalo_id, scanDailyLimit, scanHourlyLimit })
+        ]);
+        await Promise.all(promises);
       } else {
-        setError(res1.error || res2.error || 'Lưu thất bại');
+        const [res1, res2] = await Promise.all([
+          ipc.crm.setAccountQuota({ zaloId: selectedZaloId, msgLimit, inviteLimit }),
+          ipc.crm.setAccountScanLimits({ zaloId: selectedZaloId, scanDailyLimit, scanHourlyLimit })
+        ]);
+        if (!res1.success || !res2.success) {
+          setError(res1.error || res2.error || 'Lưu thất bại');
+          setSaving(false);
+          return;
+        }
       }
+      onSaved();
+      onClose();
     } catch (e: any) {
       setError(e.message || 'Lỗi không xác định');
     } finally {
@@ -67,20 +85,53 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+        {/* Header với Avatar, Tên Nick Zalo thực tế & Dropdown chuyển nick */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">⚙️</span>
-            <div>
-              <h3 className="font-bold text-sm text-gray-900 dark:text-white">Định mức An toàn Zalo</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">ID: <span className="font-mono text-blue-500">{zaloId}</span></p>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {selectedAccount?.avatar ? (
+              <img
+                src={selectedAccount.avatar}
+                alt=""
+                className="w-9 h-9 rounded-full object-cover border border-gray-200 dark:border-gray-700 shrink-0"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-sm shrink-0">
+                {(selectedAccount?.name || selectedAccount?.display_name || 'Z').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-sm text-gray-900 dark:text-white truncate">
+                Định mức An toàn Zalo
+              </h3>
+              {zaloAccounts.length > 1 ? (
+                <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-semibold mt-0.5">
+                  <span>👤</span>
+                  <select
+                    value={selectedZaloId}
+                    onChange={e => setSelectedZaloId(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline focus:outline-none cursor-pointer p-0 border-none truncate max-w-[200px]"
+                  >
+                    {zaloAccounts.map(acc => (
+                      <option key={acc.zalo_id} value={acc.zalo_id} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                        {acc.name || acc.display_name || acc.zalo_id} {acc.phone ? `(${acc.phone})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium truncate">
+                  👤 <span className="font-bold text-gray-800 dark:text-gray-200">{selectedAccount?.name || selectedAccount?.display_name || selectedZaloId}</span>
+                  {selectedAccount?.phone ? ` (${selectedAccount.phone})` : ''}
+                </p>
+              )}
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors text-xl leading-none ml-2">×</button>
         </div>
 
         <div className="px-5 py-5 space-y-5 overflow-y-auto">
           {loading ? (
-            <div className="text-center py-6 text-gray-400 text-sm">Đang tải...</div>
+            <div className="text-center py-6 text-gray-400 text-sm">Đang tải định mức...</div>
           ) : (
             <>
               <div className="space-y-2">
@@ -189,6 +240,21 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                 </div>
               </div>
 
+              {/* Tùy chọn Áp dụng cho TẤT CẢ Tài khoản Zalo (Option C feature) */}
+              {zaloAccounts.length > 1 && (
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700 dark:text-gray-300 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={applyToAll}
+                      onChange={e => setApplyToAll(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span>🌐 Áp dụng mẫu định mức này cho <strong>tất cả ({zaloAccounts.length}) tài khoản Zalo</strong></span>
+                  </label>
+                </div>
+              )}
+
               {/* Recommendation Disclaimer Note & Risk Warning */}
               {(msgLimit > 50 || inviteLimit > 50) ? (
                 <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2 text-[11px] text-red-600 dark:text-red-400 leading-relaxed">
@@ -216,14 +282,14 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
           )}
         </div>
 
-        <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-3">
+        <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-3 shrink-0">
           <button onClick={onClose}
             className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800">
             Hủy
           </button>
           <button onClick={handleSave} disabled={saving || loading}
             className="px-5 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md active:scale-95">
-            {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
+            {saving ? 'Đang lưu...' : (applyToAll ? `Lưu cho tất cả (${zaloAccounts.length}) nick` : 'Lưu cài đặt')}
           </button>
         </div>
       </div>
