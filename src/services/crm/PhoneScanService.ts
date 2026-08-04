@@ -339,7 +339,7 @@ class PhoneScanService {
                     if (isRateLimit) {
                         Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 detected! Auto-pausing batch ${batchId}...`);
                         try {
-                            db.updatePhoneScanBatchStatus(batchId, 'paused');
+                            db.updatePhoneScanBatchStatus(batchId, 'paused', 'daily_quota');
                         } catch {}
                     }
                     EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });

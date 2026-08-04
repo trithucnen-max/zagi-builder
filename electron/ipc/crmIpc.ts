@@ -864,7 +864,7 @@ export function registerCRMIpc(): void {
         }
     });
 
-    ipcHandle('crm:updatePhoneScanBatchStatus', async (_e, { batchId, status }: any) => {
+    ipcHandle('crm:updatePhoneScanBatchStatus', async (_e, { batchId, status, pauseReason }: any) => {
         try {
             const db = DatabaseService.getInstance();
             const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
@@ -872,17 +872,18 @@ export function registerCRMIpc(): void {
             if (status === 'active') {
                 const activeBatch = db.queryOne<any>('SELECT id FROM phone_scan_batches WHERE status = "active" AND id != ? LIMIT 1', [batchId]);
                 if (activeBatch) {
-                    db.updatePhoneScanBatchStatus(batchId, 'queued');
+                    db.updatePhoneScanBatchStatus(batchId, 'queued', 'priority_preempted');
                     db.run('UPDATE phone_scan_batches SET queued_at = ? WHERE id = ?', [Date.now(), batchId]);
                     db.save();
                 } else {
-                    db.updatePhoneScanBatchStatus(batchId, 'active');
+                    db.updatePhoneScanBatchStatus(batchId, 'active', null);
                     db.run('UPDATE phone_scan_batches SET queued_at = NULL WHERE id = ?', [batchId]);
                     db.save();
                     PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
                 }
             } else {
-                db.updatePhoneScanBatchStatus(batchId, status);
+                const reason = pauseReason ?? (status === 'paused' ? 'user_manual' : null);
+                db.updatePhoneScanBatchStatus(batchId, status, reason);
                 if (status === 'paused' || status === 'draft') {
                     PhoneScanService.getInstance().promoteNextQueuedBatch();
                 }
@@ -902,11 +903,11 @@ export function registerCRMIpc(): void {
                 // High/Urgent priority -> Preempt active batch
                 const activeBatch = db.queryOne<any>('SELECT id FROM phone_scan_batches WHERE status = "active" AND id != ? LIMIT 1', [batchId]);
                 if (activeBatch) {
-                    db.updatePhoneScanBatchStatus(activeBatch.id, 'queued');
+                    db.updatePhoneScanBatchStatus(activeBatch.id, 'queued', 'priority_preempted');
                     db.run('UPDATE phone_scan_batches SET queued_at = ? WHERE id = ?', [Date.now(), activeBatch.id]);
                 }
                 db.updatePhoneScanBatchPriority(batchId, priority);
-                db.updatePhoneScanBatchStatus(batchId, 'active');
+                db.updatePhoneScanBatchStatus(batchId, 'active', null);
                 db.run('UPDATE phone_scan_batches SET queued_at = NULL WHERE id = ?', [batchId]);
                 db.save();
                 PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});

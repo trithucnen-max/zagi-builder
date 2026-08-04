@@ -1316,6 +1316,12 @@ class DatabaseService {
                 Logger.log('[DatabaseService] ✅ Migration: added queued_at column to phone_scan_batches');
             }
 
+            const hasPauseReason = cols.some((c: any) => c.name === 'pause_reason');
+            if (!hasPauseReason) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN pause_reason TEXT`);
+                Logger.log('[DatabaseService] ✅ Migration: added pause_reason column to phone_scan_batches');
+            }
+
             const contactCols = this.query<any>('PRAGMA table_info(contacts)');
             const hasIsBlocked = contactCols.some((c: any) => c.name === 'is_blocked');
             if (!hasIsBlocked) {
@@ -10330,10 +10336,14 @@ class DatabaseService {
         }
     }
 
-    public updatePhoneScanBatchStatus(batchId: number, status: string): void {
+    public updatePhoneScanBatchStatus(batchId: number, status: string, pauseReason?: string | null): void {
         if (!this.initialized) return;
         try {
-            this.run(`UPDATE phone_scan_batches SET status = ? WHERE id = ?`, [status, batchId]);
+            if (pauseReason !== undefined) {
+                this.run(`UPDATE phone_scan_batches SET status = ?, pause_reason = ? WHERE id = ?`, [status, pauseReason, batchId]);
+            } else {
+                this.run(`UPDATE phone_scan_batches SET status = ? WHERE id = ?`, [status, batchId]);
+            }
             this.save();
         } catch (err: any) {
             Logger.error(`[DB] updatePhoneScanBatchStatus error: ${err.message}`);

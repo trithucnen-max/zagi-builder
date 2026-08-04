@@ -1148,19 +1148,25 @@ export default function PhoneScanPanel() {
                                                                     🟢 Đang quét
                                                                 </span>
                                                             ) : batch.status === 'queued' ? (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800/60 text-amber-700 dark:text-amber-300 rounded-full">
-                                                                    🟡 Chờ hàng đợi (#{queuedIndex >= 0 ? queuedIndex + 1 : 1})
+                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full" title={batch.pause_reason === 'priority_preempted' ? 'Đang nhường lượt cho Lô ưu tiên khác' : 'Đang chờ hàng đợi'}>
+                                                                    {batch.pause_reason === 'priority_preempted' ? '⏳ Nhường Lô Ưu Tiên' : `🟡 Chờ hàng đợi (#${queuedIndex >= 0 ? queuedIndex + 1 : 1})`}
                                                                 </span>
                                                             ) : batch.status === 'draft' ? (
                                                                 <span className="px-2 py-0.5 text-[9px] font-bold bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
                                                                     📝 Nháp
                                                                 </span>
                                                             ) : batch.status === 'paused' ? (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 rounded-full">
-                                                                    ⏸️ Tạm dừng
-                                                                </span>
+                                                                batch.pause_reason === 'daily_quota' ? (
+                                                                    <span className="px-2 py-0.5 text-[9px] font-bold bg-red-100 dark:bg-red-950/80 border border-red-300 dark:border-red-800/60 text-red-700 dark:text-red-300 rounded-full" title="Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng đổi nick hoặc chờ 24h">
+                                                                        🛑 Tạm dừng (Hạn ngạch -216)
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="px-2 py-0.5 text-[9px] font-bold bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800/60 text-amber-700 dark:text-amber-300 rounded-full" title="Tạm dừng thủ công bởi người dùng">
+                                                                        ⏸️ Tạm dừng (Thủ công)
+                                                                    </span>
+                                                                )
                                                             ) : (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full">
+                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 rounded-full">
                                                                     ✓ Hoàn thành
                                                                 </span>
                                                             )}
