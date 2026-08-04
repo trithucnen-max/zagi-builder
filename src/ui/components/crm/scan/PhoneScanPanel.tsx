@@ -2075,23 +2075,16 @@ export default function PhoneScanPanel() {
                                 const isValid = !isMissingName && !isMissingTag && !isMissingPhone;
 
                                 return (
-                                    <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-[#f4f5f8] dark:bg-gray-900 p-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                                                {!isValid && (
-                                                    <span>
-                                                        ⚠️ {isMissingName ? 'Vui lòng nhập Tên lô quét' : isMissingTag ? 'Vui lòng chọn ít nhất 1 Nhãn tự động' : 'Vui lòng nhập danh sách SĐT (hoặc tải file CSV/Excel)'}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowCreateForm(false)}
-                                                    className="px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800 transition-colors"
-                                                >
-                                                    Hủy bỏ
-                                                </button>
+                                    <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-[#f4f5f8] dark:bg-gray-900 p-4 relative">
+                                        <div className="flex items-center justify-end gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCreateForm(false)}
+                                                className="px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800 transition-colors"
+                                            >
+                                                Hủy bỏ
+                                            </button>
+                                            <div className="relative group">
                                                 <button
                                                     type="submit"
                                                     disabled={!isValid}
@@ -2103,6 +2096,16 @@ export default function PhoneScanPanel() {
                                                 >
                                                     {formStatus === 'draft' ? '📝 Lưu lô nháp' : formStatus === 'priority_high' ? '⚡ Ưu tiên & Quét ngay' : '▶️ Khởi tạo lô quét'}
                                                 </button>
+
+                                                {/* Floating warning banner directly above button matching CampaignCreateModal */}
+                                                {!isValid && (
+                                                    <div className="absolute bottom-full right-0 mb-2.5 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/95 text-amber-700 dark:text-amber-300 text-xs font-bold whitespace-nowrap shadow-xl border border-amber-200 dark:border-amber-800/80 z-50 animate-fadeIn pointer-events-none">
+                                                        <span className="text-amber-600 dark:text-amber-400 font-bold">⚠️</span>
+                                                        <span>
+                                                            {isMissingName ? 'Vui lòng nhập Tên lô quét' : isMissingTag ? 'Vui lòng chọn ít nhất 1 Nhãn tự động' : 'Vui lòng nhập danh sách SĐT (hoặc tải file CSV/Excel)'}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
