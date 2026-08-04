@@ -109,6 +109,7 @@ export default function PhoneScanPanel() {
     const [itemsTotal, setItemsTotal] = useState(0);
     const [itemsPage, setItemsPage] = useState(0);
     const [itemsStatusFilter, setItemsStatusFilter] = useState<string>('all');
+    const [itemsAccountFilter, setItemsAccountFilter] = useState<string>('all');
     const [batchFilterTab, setBatchFilterTab] = useState<'all' | 'active_queued' | 'draft' | 'paused' | 'completed'>('active_queued');
     
     // Creation Form
@@ -376,12 +377,12 @@ export default function PhoneScanPanel() {
     }, [activeAccountId]);
 
     // Fetch items details for selected batch
-    const fetchItems = useCallback(async (batchId: number, page: number, status: string) => {
+    const fetchItems = useCallback(async (batchId: number, page: number, status: string, scannedByAccountId: string = 'all') => {
         setLoadingItems(true);
         try {
             const limit = 20;
             const offset = page * limit;
-            const res = await ipc.crm?.getPhoneScanItems({ batchId, limit, offset, status });
+            const res = await ipc.crm?.getPhoneScanItems({ batchId, limit, offset, status, scannedByAccountId });
             if (res?.success && res.items) {
                 setItems(res.items);
                 setItemsTotal(res.total || 0);
@@ -414,7 +415,7 @@ export default function PhoneScanPanel() {
     // Handle batch selection changes (to view details)
     useEffect(() => {
         if (selectedBatch) {
-            fetchItems(selectedBatch.id, itemsPage, itemsStatusFilter);
+            fetchItems(selectedBatch.id, itemsPage, itemsStatusFilter, itemsAccountFilter);
             
             // Refresh detailed items when batch is polled and updated
             const updatedBatch = batches.find(b => b.id === selectedBatch.id);
@@ -422,7 +423,7 @@ export default function PhoneScanPanel() {
                 setSelectedBatch(updatedBatch);
             }
         }
-    }, [selectedBatch, itemsPage, itemsStatusFilter, batches, fetchItems]);
+    }, [selectedBatch?.id, itemsPage, itemsStatusFilter, itemsAccountFilter, fetchItems]);
 
     // Listen to real-time scanning updates
     useEffect(() => {
@@ -1484,31 +1485,53 @@ export default function PhoneScanPanel() {
                             </div>
                         </div>
 
-                        {/* Status Tabs inside detail */}
-                        <div className="px-5 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex gap-2 flex-shrink-0">
-                            {[
-                                { key: 'all', label: 'Tất cả' },
-                                { key: 'pending', label: 'Chờ quét' },
-                                { key: 'scanning', label: 'Đang quét' },
-                                { key: 'found', label: 'Tìm thấy' },
-                                { key: 'not_found', label: 'Không Zalo' },
-                                { key: 'error', label: 'Lỗi' }
-                            ].map(tab => (
-                                <button
-                                    key={tab.key}
-                                    onClick={() => {
-                                        setItemsStatusFilter(tab.key);
+                        {/* Status Tabs & Account Filter inside detail */}
+                        <div className="px-5 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
+                            <div className="flex items-center gap-2">
+                                {[
+                                    { key: 'all', label: 'Tất cả' },
+                                    { key: 'pending', label: 'Chờ quét' },
+                                    { key: 'scanning', label: 'Đang quét' },
+                                    { key: 'found', label: 'Tìm thấy' },
+                                    { key: 'not_found', label: 'Không Zalo' },
+                                    { key: 'error', label: 'Lỗi' }
+                                ].map(tab => (
+                                    <button
+                                        key={tab.key}
+                                        onClick={() => {
+                                            setItemsStatusFilter(tab.key);
+                                            setItemsPage(0);
+                                        }}
+                                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                                            itemsStatusFilter === tab.key
+                                                ? 'bg-blue-600 text-white'
+                                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-850 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Dropdown Lọc Nick Zalo quét */}
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <span className="text-gray-500 dark:text-gray-400 font-medium">Zalo quét:</span>
+                                <select
+                                    value={itemsAccountFilter}
+                                    onChange={(e) => {
+                                        setItemsAccountFilter(e.target.value);
                                         setItemsPage(0);
                                     }}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                                        itemsStatusFilter === tab.key
-                                            ? 'bg-blue-600 text-white'
-                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-850 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
-                                    }`}
+                                    className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-medium text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                                 >
-                                    {tab.label}
-                                </button>
-                            ))}
+                                    <option value="all">Tất cả Zalo quét</option>
+                                    {visibleAccounts.map(acc => (
+                                        <option key={acc.zalo_id} value={acc.zalo_id}>
+                                            {acc.full_name || acc.zalo_id}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         {/* Items Table list */}
@@ -1538,7 +1561,7 @@ export default function PhoneScanPanel() {
                                                         {showGender && <th className="py-2.5 px-3 font-semibold">Giới tính</th>}
                                                         {showBirthday && <th className="py-2.5 px-3 font-semibold">Ngày sinh</th>}
                                                         <th className="py-2.5 px-3 font-semibold">Trạng thái</th>
-                                                        <th className="py-2.5 px-3 font-semibold">Zalo profile</th>
+                                                        <th className="py-2.5 px-3 font-semibold text-blue-600 dark:text-blue-400">Zalo đã quét</th>
                                                         <th className="py-2.5 px-3 font-semibold">Tài khoản nhận CRM</th>
                                                         <th className="py-2.5 px-3 font-semibold">Nhãn CRM đã gán</th>
                                                         <th className="py-2.5 px-3 font-semibold">Ghi chú lỗi</th>
@@ -1561,22 +1584,46 @@ export default function PhoneScanPanel() {
                                                             )}
                                                             <td className="py-3 px-3">{getStatusBadge(item.status)}</td>
                                                             <td className="py-3 px-3">
-                                                                {item.status === 'found' && item.zalo_uid ? (
-                                                                    <div className="flex items-center gap-2">
-                                                                        {item.zalo_avatar ? (
-                                                                            <img src={item.zalo_avatar} alt="Avatar" className="w-5 h-5 rounded-full object-cover" />
-                                                                        ) : (
-                                                                            <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white">
-                                                                                {item.zalo_name?.charAt(0).toUpperCase()}
-                                                                            </div>
-                                                                        )}
-                                                                        <span className="text-gray-900 dark:text-white font-medium max-w-[150px] truncate" title={item.zalo_name || ''}>
-                                                                            {item.zalo_name}
-                                                                        </span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-gray-400 dark:text-gray-600">-</span>
-                                                                )}
+                                                                {(() => {
+                                                                    const scannerAcc = visibleAccounts.find(a => String(a.zalo_id) === String(item.scanned_by_account_id));
+                                                                    return (
+                                                                        <div className="space-y-1">
+                                                                            {/* Scanner Zalo Account info */}
+                                                                            {item.scanned_by_account_id ? (
+                                                                                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-800 dark:text-gray-200">
+                                                                                    {scannerAcc?.avatar_url ? (
+                                                                                        <img src={scannerAcc.avatar_url} alt="" className="w-4 h-4 rounded-full" />
+                                                                                    ) : (
+                                                                                        <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">
+                                                                                            {(scannerAcc?.full_name || item.scanned_by_account_id).charAt(0).toUpperCase()}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    <span className="truncate max-w-[130px]" title={scannerAcc?.full_name || item.scanned_by_account_id}>
+                                                                                        {scannerAcc?.full_name || item.scanned_by_account_id}
+                                                                                    </span>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-gray-400 text-[10px]">-</span>
+                                                                            )}
+
+                                                                            {/* Found Zalo Profile Info */}
+                                                                            {item.status === 'found' && item.zalo_uid && (
+                                                                                <div className="flex items-center gap-1.5 pt-0.5 border-t border-gray-100 dark:border-gray-800 text-[10px] text-gray-600 dark:text-gray-400">
+                                                                                    {item.zalo_avatar ? (
+                                                                                        <img src={item.zalo_avatar} alt="Avatar" className="w-3.5 h-3.5 rounded-full object-cover" />
+                                                                                    ) : (
+                                                                                        <span className="w-3.5 h-3.5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[8px] font-bold">
+                                                                                            {item.zalo_name?.charAt(0).toUpperCase()}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    <span className="font-medium text-emerald-700 dark:text-emerald-300 truncate max-w-[120px]" title={item.zalo_name || ''}>
+                                                                                        {item.zalo_name}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </td>
                                                             <td className="py-3 px-3">
                                                                 {item.status === 'found' ? (

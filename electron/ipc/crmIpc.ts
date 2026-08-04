@@ -671,10 +671,10 @@ export function registerCRMIpc(): void {
         }
     });
 
-    ipcHandle('crm:getPhoneScanItems', async (_e, { batchId, limit, offset, status }: any) => {
+    ipcHandle('crm:getPhoneScanItems', async (_e, { batchId, limit, offset, status, scannedByAccountId }: any) => {
         try {
             const db = DatabaseService.getInstance();
-            const res = db.getPhoneScanItems(batchId, limit, offset, status);
+            const res = db.getPhoneScanItems(batchId, limit, offset, status, scannedByAccountId);
             return { success: true, ...res };
         } catch (err: any) {
             return { success: false, error: err.message };

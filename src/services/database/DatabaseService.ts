@@ -10016,7 +10016,7 @@ class DatabaseService {
         }
     }
 
-    public getPhoneScanItems(batchId: number, limit: number = 100, offset: number = 0, status?: string): { items: any[]; total: number } {
+    public getPhoneScanItems(batchId: number, limit: number = 100, offset: number = 0, status?: string, scannedByAccountId?: string): { items: any[]; total: number } {
         if (!this.initialized) return { items: [], total: 0 };
         try {
             let queryStr = `
@@ -10041,6 +10041,13 @@ class DatabaseService {
                 countQueryStr += ` AND status = ?`;
                 params.push(status);
                 countParams.push(status);
+            }
+
+            if (scannedByAccountId && scannedByAccountId !== 'all') {
+                queryStr += ` AND psi.scanned_by_account_id = ?`;
+                countQueryStr += ` AND scanned_by_account_id = ?`;
+                params.push(scannedByAccountId);
+                countParams.push(scannedByAccountId);
             }
 
             queryStr += ` ORDER BY psi.id ASC LIMIT ? OFFSET ?`;
