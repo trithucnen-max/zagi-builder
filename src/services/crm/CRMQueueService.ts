@@ -1206,8 +1206,9 @@ class CRMQueueService {
             if (errorDetail.shouldAutoPauseCampaign) {
                 Logger.warn(`[CRMQueue] 🛑 Account limit / policy error (${errorDetail.code}: ${errorDetail.title}) detected! Pausing campaign ${item.campaign_id}...`);
                 try {
-                    db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused', finalErrMsg);
+                    db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused_quota', 'daily_quota');
                     EventBroadcaster.emit('crm:campaignChanged', { action: 'pause', ownerZaloId: zaloId, campaignId: item.campaign_id, reason: String(errorDetail.code) });
+                    this.promoteNextQueuedCampaign(zaloId);
                 } catch {}
             }
 
