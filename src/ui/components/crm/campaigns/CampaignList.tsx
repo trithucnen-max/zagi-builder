@@ -128,30 +128,23 @@ export default function CampaignList({
       <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
         {/* ── Top Card: Gửi Hôm Nay (Định Mức 50) ── */}
         <div className="bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-750 rounded-2xl p-3.5 shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5 font-bold text-xs text-gray-800 dark:text-gray-200">
-              <span className="text-amber-500 text-sm">🛡️</span>
-              <span>Gửi hôm nay <span className="text-gray-400 font-medium text-[11px]">(Định mức an toàn)</span></span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {zaloId && (
-                <button
-                  title="Cài đặt định mức an toàn riêng cho nick Zalo này"
-                  onClick={() => setShowQuotaModal(true)}
-                  className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-amber-500/15 to-orange-500/15 hover:from-amber-500/25 hover:to-orange-500/25 border border-amber-500/30 dark:border-amber-500/40 rounded-xl text-[11px] font-bold text-amber-800 dark:text-amber-300 transition-all hover:scale-105 active:scale-95 shadow-xs"
-                >
-                  <span className="text-xs">⚙️</span>
-                  <span>Cài định mức</span>
-                </button>
-              )}
-              <button
-                title="Hướng dẫn & Chính sách an toàn Zalo"
-                onClick={() => setShowPolicyGuide(true)}
-                className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 text-xs font-bold transition-colors"
-              >
-                ⓘ
-              </button>
-            </div>
+          {/* Header Banner - Nút Định Mức Hôm Nay & (i) */}
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              title="Bấm để cài đặt định mức an toàn Zalo"
+              onClick={() => setShowQuotaModal(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-amber-500/10 hover:bg-amber-500/15 dark:bg-amber-500/15 dark:hover:bg-amber-500/25 border border-amber-500/30 dark:border-amber-500/40 rounded-2xl text-xs font-bold text-amber-900 dark:text-amber-200 tracking-wide transition-all shadow-xs active:scale-[0.99] cursor-pointer"
+            >
+              <span className="text-sm">⚙️</span>
+              <span>ĐỊNH MỨC HÔM NAY</span>
+            </button>
+            <button
+              title="Hướng dẫn & Chính sách an toàn Zalo"
+              onClick={() => setShowPolicyGuide(true)}
+              className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 text-xs font-bold border border-gray-200 dark:border-gray-700 transition-colors shrink-0 cursor-pointer"
+            >
+              ⓘ
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
