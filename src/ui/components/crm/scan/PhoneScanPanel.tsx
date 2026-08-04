@@ -1148,8 +1148,8 @@ export default function PhoneScanPanel() {
                                                                     🟢 Đang quét
                                                                 </span>
                                                             ) : batch.status === 'queued' ? (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full" title={batch.pause_reason === 'priority_preempted' ? 'Đang nhường lượt cho Lô ưu tiên khác' : 'Đang chờ hàng đợi'}>
-                                                                    {batch.pause_reason === 'priority_preempted' ? '⏳ Nhường Lô Ưu Tiên' : `🟡 Chờ hàng đợi (#${queuedIndex >= 0 ? queuedIndex + 1 : 1})`}
+                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full" title={batch.pause_reason === 'priority_preempted' ? 'Đang nhường lượt cho Lô ưu tiên khác' : batch.pause_reason === 'auto_resumed_daily' ? 'Đã tự động khôi phục chạy tiếp khi sang ngày mới' : 'Đang chờ hàng đợi'}>
+                                                                    {batch.pause_reason === 'priority_preempted' ? '⏳ Nhường Lô Ưu Tiên' : batch.pause_reason === 'auto_resumed_daily' ? '🌅 Tự khôi phục ngày mới' : `🟡 Chờ hàng đợi (#${queuedIndex >= 0 ? queuedIndex + 1 : 1})`}
                                                                 </span>
                                                             ) : batch.status === 'draft' ? (
                                                                 <span className="px-2 py-0.5 text-[9px] font-bold bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-full">

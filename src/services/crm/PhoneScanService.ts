@@ -61,6 +61,43 @@ class PhoneScanService {
         await this.tick(true);
     }
 
+    private lastAutoResumeCheckDate: string = '';
+
+    private checkAutoResumeDailyQuota(): void {
+        try {
+            const db = DatabaseService.getInstance();
+            if (!db || !db.getIsInitialized()) return;
+
+            const todayStr = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD'
+            if (!this.lastAutoResumeCheckDate) {
+                this.lastAutoResumeCheckDate = todayStr;
+                return;
+            }
+
+            if (this.lastAutoResumeCheckDate !== todayStr) {
+                const pausedQuotaBatches = db.query<any>(
+                    `SELECT id, name FROM phone_scan_batches WHERE status = 'paused' AND pause_reason = 'daily_quota'`
+                );
+
+                if (pausedQuotaBatches && pausedQuotaBatches.length > 0) {
+                    const now = Date.now();
+                    db.run(
+                        `UPDATE phone_scan_batches 
+                         SET status = 'queued', pause_reason = 'auto_resumed_daily', queued_at = ? 
+                         WHERE status = 'paused' AND pause_reason = 'daily_quota'`,
+                        [now]
+                    );
+                    db.save();
+                    Logger.log(`[PhoneScanService] 🌅 Auto-resumed ${pausedQuotaBatches.length} batches paused by daily_quota for new day (${todayStr})`);
+                    EventBroadcaster.emit('crm:phoneScanUpdate', {});
+                }
+                this.lastAutoResumeCheckDate = todayStr;
+            }
+        } catch (err: any) {
+            Logger.error(`[PhoneScanService] checkAutoResumeDailyQuota error: ${err.message}`);
+        }
+    }
+
     private async tick(isManual: boolean = false): Promise<void> {
         if (this.isProcessing) return;
         this.isProcessing = true;
@@ -71,6 +108,9 @@ class PhoneScanService {
                 this.isProcessing = false;
                 return;
             }
+
+            // Check & auto-resume batches paused by daily quota when date changes (after 00:00)
+            this.checkAutoResumeDailyQuota();
 
             // 1. Find the single active batch (Strict Single Active Batch Queue)
             let activeBatch = db.queryOne<any>(`
