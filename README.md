@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v3.1.5** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v3.1.6** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.1.5-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.Window.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.1.6-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.Window.exe)
 
-**[Zagi.v3.1.5.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.Window.exe)**
+**[Zagi.v3.1.6.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.Window.exe)**
 
 NSIS Installer · ~164 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~164 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.1.5-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.MacOS.M1%2B.arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.1.6-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.MacOS.M1%2B.arm64.dmg)
 
-**[Zagi.v3.1.5.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.1.6.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.MacOS.M1%2B.arm64.dmg)**
 
 Apple Silicon DMG · Signed & Notarized · ~231 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · Signed & Notarized · ~231 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.1.5-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.MacOS.Intel.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.1.6-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.MacOS.Intel.dmg)
 
-**[Zagi.v3.1.5.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.MacOS.Intel.dmg)**
+**[Zagi.v3.1.6.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.MacOS.Intel.dmg)**
 
 Intel x64 DMG · Signed & Notarized · ~239 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · Signed & Notarized · ~239 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.1.5-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.Linux.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.1.6-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.Linux.AppImage)
 
-**[Zagi.v3.1.5.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.Linux.AppImage)**  
-**[Zagi.v3.1.5.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.Linux.Debian.deb)**
+**[Zagi.v3.1.6.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.Linux.AppImage)**  
+**[Zagi.v3.1.6.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.Linux.Debian.deb)**
 
 AppImage + Debian .deb
 
@@ -98,9 +98,9 @@ AppImage + Debian .deb
 > 
 > Surface Pro 7 trở xuống (Intel) → dùng bản Windows x64 phía trên.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.1.5-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.Surface.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.1.6-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.Surface.exe)
 
-**[Zagi.v3.1.5.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.5/Zagi.v3.1.5.Surface.exe)**
+**[Zagi.v3.1.6.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.Surface.exe)**
 
 NSIS Installer ARM64 · ~166 MB · Tối ưu native cho Surface ARM
 
@@ -459,7 +459,25 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v3.1.5</strong> — 2026-07-24 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v3.1.6</strong> — 2026-08-04 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật & Chuẩn hóa Hệ thống Mã Lỗi Zalo
+
+- 🛑 **Bộ Phân Loại Mã Lỗi Zalo Tập Trung (`ZaloErrorDictionary.ts`) & Tự Động Dừng An Toàn**:
+  - Tích hợp bộ từ điển phân loại lỗi Zalo API tập trung cho hơn 15 mã lỗi (`-216`, `108`, `127`, `300`, `301`, `50012`, `-201`, `5001`,...).
+  - **Tự động tạm dừng chiến dịch (`paused`)** ngay lập tức khi phát hiện lỗi do hạn ngạch/khóa tính năng tài khoản gửi (Mã `-216`, `108`, `300`), giúp bảo vệ nick Zalo an toàn tuyệt đối.
+  - Tự động bỏ qua và tiếp tục gửi các số tiếp theo khi dính lỗi từ phía người nhận (Chặn người lạ `-201`, `-202`).
+  - Giao diện **Chi tiết lỗi gửi liên hệ** hiển thị khung cảnh báo màu cam trực quan + Gợi ý hướng xử lý cụ thể cho người dùng.
+- 🎯 **Nâng Cấp Hàng Đợi Quét Số Hàng Loạt (Single-Execution Batch Queue)**:
+  - Loại bỏ hoàn toàn Hẹn giờ (Scheduled scan). Bổ sung 3 mức độ thực thi: **Lưu nháp (`draft`)**, **Chạy ngay (`active`)** và **Ưu tiên chạy (`priority_high`)**.
+  - Khóa chặt điều kiện khởi tạo (bắt buộc đầy đủ Tên lô, Nhãn tự động, Danh sách SĐT). Banner cảnh báo nổi màu vàng/cam hiển thị trực quan **ngay phía trên nút Khởi tạo lô quét**.
+- 🛠️ **Tự Động Migrations SQLite Schema & Vá Lỗi Windows Upgrade**:
+  - Tự động kiểm tra `PRAGMA table_info` để bổ sung cột `is_deleted` và `deleted_at` cho các cơ sở dữ liệu nâng cấp từ bản v3.1.2 lên v3.1.6, giải quyết triệt để sự cố không tạo/lưu được chiến dịch trên Windows.
+
+</details>
+
+<details>
+<summary><strong>v3.1.5</strong> — 2026-07-24</summary>
 
 ### 🚀 Nâng cấp nổi bật & Sửa lỗi hệ thống
 
