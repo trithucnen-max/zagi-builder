@@ -239,10 +239,50 @@ class CRMQueueService {
         };
     }
 
+    private lastAutoResumeCheckDate: string = '';
+
+    private checkAutoResumeDailyQuota(): void {
+        try {
+            const db = DatabaseService.getInstance();
+            if (!db || !db.getIsInitialized()) return;
+
+            const todayStr = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD'
+            if (!this.lastAutoResumeCheckDate) {
+                this.lastAutoResumeCheckDate = todayStr;
+                return;
+            }
+
+            if (this.lastAutoResumeCheckDate !== todayStr) {
+                db.run(
+                    `UPDATE crm_campaigns 
+                     SET status = 'queued', pause_reason = 'auto_resumed_daily' 
+                     WHERE (status = 'paused_quota' OR pause_reason = 'daily_quota') AND (is_deleted IS NULL OR is_deleted = 0)`
+                );
+                db.save();
+                Logger.log(`[CRMQueue] 🌅 Auto-resumed campaigns paused by daily quota for new day (${todayStr})`);
+                this.lastAutoResumeCheckDate = todayStr;
+                // Auto promote next queued campaign for all accounts
+                const accounts = db.getAccounts() || [];
+                for (const acc of accounts) {
+                    if (acc.zalo_id) {
+                        this.promoteNextQueuedCampaign(acc.zalo_id);
+                    }
+                }
+            }
+        } catch (err: any) {
+            Logger.error(`[CRMQueue] checkAutoResumeDailyQuota error: ${err.message}`);
+        }
+    }
+
     /** Khởi động lại tất cả campaigns đang active (sau khi app restart) */
     public resumeActiveCampaigns(): void {
         try {
             const db = DatabaseService.getInstance();
+
+            // Auto-resume any quota-paused campaigns if app restarted on a new day
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            this.lastAutoResumeCheckDate = todayStr;
+
             const owners = db.getActiveCampaignOwners();
             for (const zaloId of owners) {
                 // Tự động dọn dẹp nếu DB lỡ chứa nhiều hơn 1 chiến dịch active cho cùng 1 tài khoản
@@ -290,6 +330,8 @@ class CRMQueueService {
     private async process(zaloId: string): Promise<void> {
         if (this.isProcessing.get(zaloId)) return;
 
+        // Check & auto-resume campaigns paused by daily quota when date changes (after 00:00)
+        this.checkAutoResumeDailyQuota();
 
         // Refill tokens
         this.refillTokens(zaloId);
