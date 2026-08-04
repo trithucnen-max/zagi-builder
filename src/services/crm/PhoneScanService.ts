@@ -301,6 +301,91 @@ class PhoneScanService {
         }
     }
 
+    /**
+     * Detect whether a Zalo API error is a -216 phone search rate limit.
+     * Works for both getMultiUsersByPhones and findUser error shapes.
+     */
+    private isRateLimitError(err: any): boolean {
+        const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
+        const msg = String(err?.message || '').toLowerCase();
+        return (
+            code === -216 || code === 216 || code === 50004 ||
+            msg.includes('-216') || msg.includes('search limit') ||
+            msg.includes('find user limit') || msg.includes('quá nhiều lần') ||
+            msg.includes('quá nhiều') || msg.includes('quá hạn') ||
+            msg.includes('hạn ngạch')
+        );
+    }
+
+    /**
+     * Handle a -216 rate limit event:
+     * 1. Rollback all 'scanning' items for this account → 'pending' (prevent stuck items)
+     * 2. Pause the batch
+     * 3. Smart Adaptive Quota: classify hourly vs daily vs unknown, reduce only what's needed
+     */
+    private async handleRateLimit(zaloId: string, batchId: number, triggerItemId: number | null): Promise<void> {
+        const db = DatabaseService.getInstance();
+        try {
+            // 1. Rollback all in-flight 'scanning' items → 'pending' so other accounts can pick them up
+            db.run(`
+                UPDATE phone_scan_items
+                SET status = 'pending', scanned_by_account_id = NULL, scanned_at = NULL
+                WHERE scanned_by_account_id = ? AND status = 'scanning'
+            `, [zaloId]);
+
+            // 2. Mark trigger item as error if not already marked by caller
+            if (triggerItemId !== null) {
+                db.updatePhoneScanItemStatus({
+                    itemId: triggerItemId,
+                    status: 'error',
+                    scannedByAccountId: zaloId,
+                    errorMsg: 'Tài khoản Zalo đã đạt giới hạn quét SĐT (Mã -216). Vui lòng chờ reset giờ/ngày hoặc đổi nick'
+                });
+            }
+
+            // 3. Pause the batch
+            Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 for account ${zaloId}. Pausing batch ${batchId}, rolling back scanning items.`);
+            db.updatePhoneScanBatchStatus(batchId, 'paused', 'daily_quota');
+
+            // 4. Smart Adaptive Quota: classify and reduce limits
+            const currentLimits = db.getAccountScanLimits(zaloId);
+            const dailyCompleted = db.getTodayScannedCountForAccount(zaloId);       // counts 'found' since 00:00
+            const hourlyCompleted = db.getHourlyScannedFoundCountForAccount(zaloId); // counts completed in last hour
+
+            const isHourlyExceeded = hourlyCompleted >= currentLimits.scanHourlyLimit;
+            const isDailyExceeded = dailyCompleted >= currentLimits.scanDailyLimit;
+
+            let newDailyLimit = currentLimits.scanDailyLimit;
+            let newHourlyLimit = currentLimits.scanHourlyLimit;
+
+            if (isHourlyExceeded && !isDailyExceeded) {
+                // Clearly hourly limit: only reduce hourly, preserve daily
+                newHourlyLimit = Math.max(3, hourlyCompleted);
+                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [HOURLY]: ${zaloId} hourly ${currentLimits.scanHourlyLimit}→${newHourlyLimit} (daily unchanged)`);
+            } else if (isDailyExceeded && !isHourlyExceeded) {
+                // Clearly daily limit: only reduce daily, preserve hourly
+                newDailyLimit = Math.max(5, dailyCompleted);
+                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [DAILY]: ${zaloId} daily ${currentLimits.scanDailyLimit}→${newDailyLimit} (hourly unchanged)`);
+            } else {
+                // Both exceeded or unknown: Zalo's real limit is lower than configured — reduce both
+                newDailyLimit = Math.max(5, dailyCompleted);
+                newHourlyLimit = Math.max(3, hourlyCompleted);
+                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [BOTH]: ${zaloId} daily ${currentLimits.scanDailyLimit}→${newDailyLimit}, hourly ${currentLimits.scanHourlyLimit}→${newHourlyLimit}`);
+            }
+
+            const dailyChanged = newDailyLimit < currentLimits.scanDailyLimit;
+            const hourlyChanged = newHourlyLimit < currentLimits.scanHourlyLimit;
+            if (dailyChanged || hourlyChanged) {
+                db.setAccountScanLimits(zaloId, newDailyLimit, newHourlyLimit);
+                EventBroadcaster.emit('crm:accountQuotaUpdate', { zaloId, newDailyLimit, newHourlyLimit });
+            }
+
+            db.save();
+        } catch (err: any) {
+            Logger.error(`[PhoneScanService] handleRateLimit error: ${err.message}`);
+        }
+    }
+
     private async executeScan(
         itemId: number,
         phone: string,
@@ -357,6 +442,13 @@ class PhoneScanService {
                     }
                 }
             } catch (err: any) {
+                // Detect -216 early — don't waste a second findUser call when account is already blocked
+                if (this.isRateLimitError(err)) {
+                    Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 on getMultiUsersByPhones for ${phoneNormalized}. Stopping early.`);
+                    await this.handleRateLimit(zaloId, batchId, itemId);
+                    EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
+                    return;
+                }
                 Logger.warn(`[PhoneScanService] getMultiUsersByPhones failed for ${phoneNormalized}: ${err.message}. Trying findUser fallback...`);
             }
 
@@ -366,15 +458,9 @@ class PhoneScanService {
                     const findRes: any = await zaloService.findUser(phoneNormalized);
                     zaloUser = extractZaloUser(findRes);
                 } catch (err: any) {
-                    const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
-                    const errMsg = String(err?.message || '').toLowerCase();
-                    const isRateLimit = code === -216 || code === 216 || code === 50004 ||
-                        errMsg.includes('-216') || errMsg.includes('216') ||
-                        errMsg.includes('search limit') || errMsg.includes('find user limit') ||
-                        errMsg.includes('quá nhiều lần') || errMsg.includes('quá nhiều') ||
-                        errMsg.includes('quá hạn') || errMsg.includes('hạn ngạch');
+                    const isRateLimit = this.isRateLimitError(err);
                     const errorMsg = isRateLimit
-                        ? 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng đổi nick hoặc chờ 24h'
+                        ? 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT (Mã -216). Vui lòng chờ reset giờ/ngày hoặc đổi nick'
                         : (err.message || 'Lookup failed');
 
                     Logger.error(`[PhoneScanService] findUser failed for ${phoneNormalized}: ${errorMsg}`);
@@ -385,22 +471,8 @@ class PhoneScanService {
                         errorMsg
                     });
                     if (isRateLimit) {
-                        Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 detected! Auto-pausing batch ${batchId}...`);
-                        try {
-                            db.updatePhoneScanBatchStatus(batchId, 'paused', 'daily_quota');
-
-                            // Smart Adaptive Quota Auto-Tuning: Auto-reduce daily scan limit for account to today's succeeded count
-                            if (zaloId) {
-                                const currentLimits = db.getAccountScanLimits(zaloId);
-                                const todayScanned = db.getTodayScannedCountForAccount(zaloId);
-                                const newDailyLimit = Math.max(5, todayScanned);
-                                if (newDailyLimit < currentLimits.scanDailyLimit) {
-                                    db.setAccountScanLimits(zaloId, newDailyLimit, currentLimits.scanHourlyLimit);
-                                    Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota: Auto-adjusted daily scan limit for account ${zaloId} down to ${newDailyLimit} (was ${currentLimits.scanDailyLimit})`);
-                                    EventBroadcaster.emit('crm:accountQuotaUpdate', { zaloId, newDailyLimit });
-                                }
-                            }
-                        } catch {}
+                        // triggerItemId=null: item already marked as error above
+                        await this.handleRateLimit(zaloId, batchId, null);
                     }
                     EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
                     return;

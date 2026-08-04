@@ -10488,10 +10488,16 @@ class DatabaseService {
     public getDailyScanCountForAccount(zaloId: string, sinceTimestamp: number): number {
         if (!this.initialized) return 0;
         try {
+            // Count both completed items (scanned_at >= today) AND in-flight items (status='scanning')
+            // Without counting scanning items, the quota check sees stale data and over-dispatches
             const row = this.queryOne<any>(`
-                SELECT COUNT(*) as count 
-                FROM phone_scan_items 
-                WHERE scanned_by_account_id = ? AND scanned_at >= ?
+                SELECT COUNT(*) as count
+                FROM phone_scan_items
+                WHERE scanned_by_account_id = ?
+                  AND (
+                    scanned_at >= ?
+                    OR status = 'scanning'
+                  )
             `, [zaloId, sinceTimestamp]);
             return row?.count ?? 0;
         } catch (err: any) {
@@ -10503,14 +10509,42 @@ class DatabaseService {
     public getHourlyScanCountForAccount(zaloId: string, sinceTimestamp: number): number {
         if (!this.initialized) return 0;
         try {
+            // Count both completed items (scanned_at >= 1h ago) AND in-flight items (status='scanning')
+            // Without counting scanning items, the quota check sees stale data and over-dispatches
             const row = this.queryOne<any>(`
-                SELECT COUNT(*) as count 
-                FROM phone_scan_items 
-                WHERE scanned_by_account_id = ? AND scanned_at >= ?
+                SELECT COUNT(*) as count
+                FROM phone_scan_items
+                WHERE scanned_by_account_id = ?
+                  AND (
+                    scanned_at >= ?
+                    OR status = 'scanning'
+                  )
             `, [zaloId, sinceTimestamp]);
             return row?.count ?? 0;
         } catch (err: any) {
             Logger.error(`[DB] getHourlyScanCountForAccount: ${err.message}`);
+            return 0;
+        }
+    }
+
+    /**
+     * Count successfully found phone numbers (status='found') in the last hour for a given account.
+     * Used by Smart Adaptive Quota to learn the real hourly capacity before -216 hit.
+     */
+    public getHourlyScannedFoundCountForAccount(zaloId: string): number {
+        if (!this.initialized) return 0;
+        try {
+            const oneHourAgo = Date.now() - 60 * 60 * 1000;
+            const row = this.queryOne<any>(`
+                SELECT COUNT(*) as count
+                FROM phone_scan_items
+                WHERE scanned_by_account_id = ?
+                  AND status IN ('found', 'not_found', 'error')
+                  AND scanned_at >= ?
+            `, [zaloId, oneHourAgo]);
+            return row?.count ?? 0;
+        } catch (err: any) {
+            Logger.error(`[DB] getHourlyScannedFoundCountForAccount: ${err.message}`);
             return 0;
         }
     }
