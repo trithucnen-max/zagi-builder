@@ -318,13 +318,26 @@ class PhoneScanService {
                     const findRes: any = await zaloService.findUser(phoneNormalized);
                     zaloUser = extractZaloUser(findRes);
                 } catch (err: any) {
-                    Logger.error(`[PhoneScanService] findUser failed for ${phoneNormalized}: ${err.message}`);
+                    const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
+                    const errMsg = String(err?.message || '').toLowerCase();
+                    const isRateLimit = code === -216 || code === 216 || code === 50004 || errMsg.includes('-216') || errMsg.includes('216') || errMsg.includes('search limit') || errMsg.includes('find user limit');
+                    const errorMsg = isRateLimit
+                        ? 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng đổi nick hoặc chờ 24h'
+                        : (err.message || 'Lookup failed');
+
+                    Logger.error(`[PhoneScanService] findUser failed for ${phoneNormalized}: ${errorMsg}`);
                     db.updatePhoneScanItemStatus({
                         itemId,
                         status: 'error',
                         scannedByAccountId: zaloId,
-                        errorMsg: err.message || 'Lookup failed'
+                        errorMsg
                     });
+                    if (isRateLimit) {
+                        Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 detected! Auto-pausing batch ${batchId}...`);
+                        try {
+                            db.updatePhoneScanBatchStatus(batchId, 'paused');
+                        } catch {}
+                    }
                     EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
                     return;
                 }

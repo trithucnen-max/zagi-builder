@@ -498,18 +498,28 @@ class CRMQueueService {
                 const phone = rawContactId.startsWith('phone:') ? rawContactId.slice(6) : (rawPhone || rawContactId);
                 Logger.log(`[CRMQueue] Resolving phone ${phone} at send time...`);
                 const resolved = await this.resolvePhoneContact(phone, conn.api);
-                if (!resolved) {
-                    Logger.warn(`[CRMQueue] Phone ${phone} not found on Zalo or privacy blocked, marking failed`);
-                    db.updateCampaignContactStatus(item.id!, 'failed', 'SĐT chưa đăng ký Zalo hoặc bị chặn tìm kiếm');
+                if (!resolved || !resolved.success || !resolved.uid) {
+                    const failMsg = resolved?.error || 'SĐT chưa đăng ký Zalo hoặc bị chặn tìm kiếm';
+                    Logger.warn(`[CRMQueue] Phone ${phone} resolve failed: ${failMsg}`);
+                    db.updateCampaignContactStatus(item.id!, 'failed', failMsg);
                     db.save();
-                    this.broadcastProgress(zaloId, item.campaign_id, item.contact_id, 'failed', 'SĐT chưa đăng ký Zalo hoặc bị chặn tìm kiếm');
+                    this.broadcastProgress(zaloId, item.campaign_id, item.contact_id, 'failed', failMsg);
+
+                    // 🛑 USER DIRECTIVE: Immediately pause campaign if rate limit -216 is detected
+                    if (resolved?.isRateLimit) {
+                        Logger.warn(`[CRMQueue] 🛑 Rate limit -216 hit on Zalo ${zaloId}. Immediately pausing campaign ${item.campaign_id}...`);
+                        db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused', failMsg);
+                        db.save();
+                        EventBroadcaster.emit('crm:campaignChanged', { action: 'pause', ownerZaloId: zaloId, campaignId: item.campaign_id, reason: 'rate_limit' });
+                    }
+
                     this.isProcessing.set(zaloId, false);
                     return;
                 }
                 effectiveContactId = resolved.uid;
-                effectiveDisplayName = resolved.name;
-                try { db.updateCampaignContactId(item.id!, resolved.uid, resolved.name); } catch { /* non-critical */ }
-                Logger.log(`[CRMQueue] Phone ${phone} → UID ${resolved.uid} (${resolved.name})`);
+                effectiveDisplayName = resolved.name || phone;
+                try { db.updateCampaignContactId(item.id!, resolved.uid, effectiveDisplayName); } catch { /* non-critical */ }
+                Logger.log(`[CRMQueue] Phone ${phone} → UID ${resolved.uid} (${effectiveDisplayName})`);
             }
 
             // ── UID resolution at send time ────────────────────────────────
@@ -1142,21 +1152,36 @@ class CRMQueueService {
                 } catch {}
             }
 
+            // Auto-detect rate limit -216 error
+            const errCode = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
+            const isRateLimit216 = errCode === -216 || errCode === 216 || errCode === 50004 || errMsg.includes('-216') || errMsg.includes('216') || errMsg.toLowerCase().includes('search limit') || errMsg.toLowerCase().includes('find user limit');
+            const finalErrMsg = isRateLimit216
+                ? 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng đổi nick hoặc chờ 24h'
+                : errMsg;
+
+            if (isRateLimit216) {
+                Logger.warn(`[CRMQueue] 🛑 Rate limit -216 detected! Immediately pausing campaign ${item.campaign_id}...`);
+                try {
+                    db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused', finalErrMsg);
+                    EventBroadcaster.emit('crm:campaignChanged', { action: 'pause', ownerZaloId: zaloId, campaignId: item.campaign_id, reason: 'rate_limit' });
+                } catch {}
+            }
+
             // Always save log on failure — use describeBlock for human-readable message
             const fallbackLogMsg = blocksToSend.length > 0
                 ? blocksToSend.map(describeBlock).join(' | ')
                 : (item.template_message || '(unknown)');
             try {
-                db.updateCampaignContactStatus(item.id!, 'failed', errMsg);
+                db.updateCampaignContactStatus(item.id!, 'failed', finalErrMsg);
                 // Capture error response details if available
                 const errResponse: any = {
                     error: true,
-                    message: errMsg,
+                    message: finalErrMsg,
                     errorCode: err?.errorCode ?? err?.code ?? err?.error_code ?? undefined,
                 };
                 db.saveSendLog({ ...logBase,
-                    message: `[Lỗi] ${errMsg} — ${fallbackLogMsg}`,
-                    status: 'failed', error: errMsg,
+                    message: `[Lỗi] ${finalErrMsg} — ${fallbackLogMsg}`,
+                    status: 'failed', error: finalErrMsg,
                     send_type: campaignType === 'friend_request' ? 'friend_request' : campaignType === 'mixed' ? 'mixed' : 'message',
                     data_request: JSON.stringify({ type: campaignType, contact_id: effectiveContactId }),
                     data_response: JSON.stringify(errResponse) });
@@ -1164,7 +1189,7 @@ class CRMQueueService {
             } catch (logErr: any) {
                 Logger.error(`[CRMQueue] ❌ Failed to save error log: ${logErr.message}`);
             }
-            this.broadcastProgress(zaloId, item.campaign_id, effectiveContactId, 'failed', errMsg);
+            this.broadcastProgress(zaloId, item.campaign_id, effectiveContactId, 'failed', finalErrMsg);
             this.checkCampaignCompletion(item.campaign_id, zaloId);
         } finally {
             this.isProcessing.set(zaloId, false);
@@ -1222,7 +1247,7 @@ class CRMQueueService {
      * Called at send time to avoid rate limiting when importing phones.
      * Returns { uid, name } or null if not found.
      */
-    private async resolvePhoneContact(phone: string, api: any): Promise<{ uid: string; name: string } | null> {
+    private async resolvePhoneContact(phone: string, api: any): Promise<{ success: boolean; uid?: string; name?: string; error?: string; isRateLimit?: boolean }> {
         // Timeout để tránh API treo vô hạn → queue tê liệt
         /** Helper tạo promise với timeout */
         const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
@@ -1233,7 +1258,24 @@ class CRMQueueService {
         try {
             const res: any = await withTimeout(api.findUser(phone), this.PHONE_RESOLVE_TIMEOUT_MS);
             const u: any = res?.response ?? res;
-            if (!u?.uid) return null;
+
+            // Check for explicit rate limit -216 / 216 / 50004 in Zalo response
+            const code = Number(res?.errorCode ?? res?.code ?? res?.error_code ?? u?.errorCode ?? u?.code ?? u?.error_code ?? 0);
+            const resMsg = String(res?.error || res?.message || u?.error || u?.message || '').toLowerCase();
+            if (code === -216 || code === 216 || code === 50004 || resMsg.includes('-216') || resMsg.includes('216') || resMsg.includes('search limit') || resMsg.includes('find user limit') || resMsg.includes('giới hạn tìm kiếm')) {
+                return {
+                    success: false,
+                    error: 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng đổi nick hoặc chờ 24h',
+                    isRateLimit: true
+                };
+            }
+
+            if (!u?.uid) {
+                return {
+                    success: false,
+                    error: 'SĐT chưa đăng ký Zalo hoặc bị chặn tìm kiếm'
+                };
+            }
             let name = u.display_name || u.zalo_name || phone;
             try {
                 const infoRes: any = await withTimeout(api.getUserInfo(u.uid), this.PHONE_RESOLVE_TIMEOUT_MS);
@@ -1242,9 +1284,21 @@ class CRMQueueService {
                     name = profile.displayName || profile.zaloName || profile.name || name;
                 }
             } catch { /* getUserInfo failure is non-fatal */ }
-            return { uid: String(u.uid), name };
-        } catch {
-            return null;
+            return { success: true, uid: String(u.uid), name };
+        } catch (err: any) {
+            const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
+            const errStr = String(err?.message || err || '').toLowerCase();
+            if (code === -216 || code === 216 || code === 50004 || errStr.includes('-216') || errStr.includes('216') || errStr.includes('search limit') || errStr.includes('find user limit') || errStr.includes('giới hạn tìm kiếm')) {
+                return {
+                    success: false,
+                    error: 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng đổi nick hoặc chờ 24h',
+                    isRateLimit: true
+                };
+            }
+            return {
+                success: false,
+                error: 'SĐT chưa đăng ký Zalo hoặc bị chặn tìm kiếm'
+            };
         }
     }
 
