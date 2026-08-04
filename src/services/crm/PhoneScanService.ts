@@ -23,6 +23,14 @@ class PhoneScanService {
     public start(): void {
         if (this.timer) return;
         Logger.log('[PhoneScanService] Starting background phone scan scheduler...');
+        try {
+            const db = DatabaseService.getInstance();
+            if (db && db.getIsInitialized()) {
+                // Reset any items interrupted mid-scan back to pending for power-cut/restart recovery
+                db.run("UPDATE phone_scan_items SET status = 'pending' WHERE status = 'scanning'");
+                db.save();
+            }
+        } catch {}
         this.timer = setInterval(() => {
             this.tick(false).catch(err => {
                 Logger.error(`[PhoneScanService] Tick error: ${err.message}`);
