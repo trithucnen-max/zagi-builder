@@ -10541,6 +10541,26 @@ class DatabaseService {
         }
     }
 
+    public getTodayScannedCountForAccount(zaloId: string): number {
+        if (!this.initialized) return 0;
+        try {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const startMs = todayStart.getTime();
+
+            const row = this.queryOne<any>(`
+                SELECT COUNT(*) as cnt
+                FROM phone_scan_items
+                WHERE scanned_by_account_id = ?
+                  AND status = 'found'
+                  AND scanned_at >= ?
+            `, [zaloId, startMs]);
+            return row ? (row.cnt || 0) : 0;
+        } catch {
+            return 0;
+        }
+    }
+
     public getScanQuotaSummaryForAccounts(): Array<{
         zaloId: string;
         name: string;

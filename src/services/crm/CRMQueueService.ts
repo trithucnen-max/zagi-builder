@@ -1207,6 +1207,31 @@ class CRMQueueService {
                 Logger.warn(`[CRMQueue] 🛑 Account limit / policy error (${errorDetail.code}: ${errorDetail.title}) detected! Pausing campaign ${item.campaign_id}...`);
                 try {
                     db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused_quota', 'daily_quota');
+
+                    // Smart Adaptive Quota Auto-Tuning for Stranger Messages & Friend Requests
+                    if (zaloId) {
+                        const todayCount = db.getTodayStrangerSentCount(zaloId);
+                        const isFriendReq = campaignType === 'friend_request';
+
+                        if (isFriendReq) {
+                            const currentLimit = db.getFriendReqLimit(zaloId);
+                            const newLimit = Math.max(5, todayCount.invites);
+                            if (newLimit < currentLimit) {
+                                db.setFriendReqLimit(zaloId, newLimit);
+                                Logger.warn(`[CRMQueue] 📉 Smart Adaptive Quota: Auto-adjusted Friend Request daily limit for account ${zaloId} down to ${newLimit} (was ${currentLimit})`);
+                                EventBroadcaster.emit('crm:accountQuotaUpdate', { zaloId, newLimit, type: 'friend_request' });
+                            }
+                        } else {
+                            const currentLimit = db.getStrangerMsgLimit(zaloId);
+                            const newLimit = Math.max(5, todayCount.messages);
+                            if (newLimit < currentLimit) {
+                                db.setStrangerMsgLimit(zaloId, newLimit);
+                                Logger.warn(`[CRMQueue] 📉 Smart Adaptive Quota: Auto-adjusted Stranger Message daily limit for account ${zaloId} down to ${newLimit} (was ${currentLimit})`);
+                                EventBroadcaster.emit('crm:accountQuotaUpdate', { zaloId, newLimit, type: 'stranger_message' });
+                            }
+                        }
+                    }
+
                     EventBroadcaster.emit('crm:campaignChanged', { action: 'pause', ownerZaloId: zaloId, campaignId: item.campaign_id, reason: String(errorDetail.code) });
                     this.promoteNextQueuedCampaign(zaloId);
                 } catch {}

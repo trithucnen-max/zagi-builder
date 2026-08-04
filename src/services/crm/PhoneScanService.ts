@@ -388,6 +388,18 @@ class PhoneScanService {
                         Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 detected! Auto-pausing batch ${batchId}...`);
                         try {
                             db.updatePhoneScanBatchStatus(batchId, 'paused', 'daily_quota');
+
+                            // Smart Adaptive Quota Auto-Tuning: Auto-reduce daily scan limit for account to today's succeeded count
+                            if (zaloId) {
+                                const currentLimits = db.getAccountScanLimits(zaloId);
+                                const todayScanned = db.getTodayScannedCountForAccount(zaloId);
+                                const newDailyLimit = Math.max(5, todayScanned);
+                                if (newDailyLimit < currentLimits.scanDailyLimit) {
+                                    db.setAccountScanLimits(zaloId, newDailyLimit, currentLimits.scanHourlyLimit);
+                                    Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota: Auto-adjusted daily scan limit for account ${zaloId} down to ${newDailyLimit} (was ${currentLimits.scanDailyLimit})`);
+                                    EventBroadcaster.emit('crm:accountQuotaUpdate', { zaloId, newDailyLimit });
+                                }
+                            }
                         } catch {}
                     }
                     EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
