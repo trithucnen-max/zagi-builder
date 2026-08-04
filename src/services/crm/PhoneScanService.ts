@@ -38,6 +38,24 @@ class PhoneScanService {
         }
     }
 
+    public promoteNextQueuedBatch(): boolean {
+        const db = DatabaseService.getInstance();
+        if (!db || !db.getIsInitialized()) return false;
+
+        const activeBatch = db.queryOne<any>('SELECT id FROM phone_scan_batches WHERE status = "active" LIMIT 1');
+        if (activeBatch) return false;
+
+        const nextBatch = db.getNextQueuedPhoneScanBatch();
+        if (nextBatch) {
+            db.run('UPDATE phone_scan_batches SET status = "active", queued_at = NULL WHERE id = ?', [nextBatch.id]);
+            db.save();
+            Logger.log(`[PhoneScanService] 🚀 Promoted queued batch "${nextBatch.name}" (id=${nextBatch.id}) to ACTIVE`);
+            EventBroadcaster.emit('crm:phoneScanUpdate', { batchId: nextBatch.id });
+            return true;
+        }
+        return false;
+    }
+
     public async triggerImmediateScan(): Promise<void> {
         Logger.log('[PhoneScanService] Immediate scan triggered manually.');
         await this.tick(true);
@@ -54,41 +72,23 @@ class PhoneScanService {
                 return;
             }
 
-            // 1. Find the single active batch to process (highest priority first)
-            const activeBatches = db.query<any>(`
-                SELECT DISTINCT psb.id, psb.scheduled_time
-                FROM phone_scan_batches psb
-                INNER JOIN phone_scan_items psi ON psi.batch_id = psb.id
-                WHERE psb.status = 'active' AND psi.status = 'pending'
-                ORDER BY psb.priority DESC, psb.sort_order ASC, psb.id ASC
-                LIMIT 5
+            // 1. Find the single active batch (Strict Single Active Batch Queue)
+            let activeBatch = db.queryOne<any>(`
+                SELECT id, name FROM phone_scan_batches
+                WHERE status = 'active'
+                LIMIT 1
             `);
 
-            if (!activeBatches || activeBatches.length === 0) {
-                this.isProcessing = false;
-                return;
-            }
-
-            // Find first batch whose scheduled_time is eligible for today
-            let activeBatch: any = null;
-            const nowTime = new Date();
-            const currentTotalMin = nowTime.getHours() * 60 + nowTime.getMinutes();
-
-            for (const b of activeBatches) {
-                if (!isManual && b.scheduled_time && typeof b.scheduled_time === 'string' && b.scheduled_time.includes(':')) {
-                    const [hStr, mStr] = b.scheduled_time.split(':');
-                    const targetHour = parseInt(hStr, 10);
-                    const targetMin = parseInt(mStr, 10);
-                    if (!isNaN(targetHour) && !isNaN(targetMin)) {
-                        const targetTotalMin = targetHour * 60 + targetMin;
-                        if (currentTotalMin < targetTotalMin) {
-                            // Target scheduled time for today has not arrived yet
-                            continue;
-                        }
-                    }
+            if (!activeBatch) {
+                // Try promoting next queued batch if no active batch currently running
+                const promoted = this.promoteNextQueuedBatch();
+                if (promoted) {
+                    activeBatch = db.queryOne<any>(`
+                        SELECT id, name FROM phone_scan_batches
+                        WHERE status = 'active'
+                        LIMIT 1
+                    `);
                 }
-                activeBatch = b;
-                break;
             }
 
             if (!activeBatch) {
@@ -96,7 +96,7 @@ class PhoneScanService {
                 return;
             }
 
-            // Fetch pending items ONLY for this batch
+            // Fetch pending items ONLY for this active batch
             const pendingItems = db.query<any>(`
                 SELECT psi.*, psb.assigned_account_id, psb.auto_tag_ids, psb.daily_limit, psb.hourly_limit
                 FROM phone_scan_items psi
@@ -106,7 +106,21 @@ class PhoneScanService {
                 LIMIT 10
             `, [activeBatch.id]);
 
-            if (pendingItems.length === 0) {
+            if (!pendingItems || pendingItems.length === 0) {
+                // Check if active batch has any items currently in 'scanning'
+                const scanningCount = db.queryOne<any>(`
+                    SELECT COUNT(*) as sc FROM phone_scan_items
+                    WHERE batch_id = ? AND status = 'scanning'
+                `, [activeBatch.id])?.sc ?? 0;
+
+                if (scanningCount === 0) {
+                    // No pending and no scanning items -> mark batch completed and promote next
+                    db.run('UPDATE phone_scan_batches SET status = "completed", completed_at = ? WHERE id = ?', [Date.now(), activeBatch.id]);
+                    db.save();
+                    EventBroadcaster.emit('crm:phoneScanUpdate', { batchId: activeBatch.id });
+                    this.promoteNextQueuedBatch();
+                }
+
                 this.isProcessing = false;
                 return;
             }

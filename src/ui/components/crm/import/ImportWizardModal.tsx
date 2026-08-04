@@ -66,8 +66,8 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
   const [createNewBatch, setCreateNewBatch] = useState(true);
   const [existingBatches, setExistingBatches] = useState<any[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState('');
-  const [step2Status, setStep2Status] = useState<'active' | 'paused'>(
-    batchConfig?.status || 'paused'
+  const [step2Status, setStep2Status] = useState<'active' | 'draft' | 'priority_high'>(
+    (batchConfig?.status as any) || 'active'
   );
   const [step2ScheduledTime, setStep2ScheduledTime] = useState<string>(
     batchConfig?.scheduledTime || ''
@@ -324,6 +324,10 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
 
   const handleCommit = async () => {
     if (!sessionId) return;
+    if (createNewBatch && (!step2AutoTagIds || step2AutoTagIds.length === 0)) {
+      showNotification('Vui lòng chọn ít nhất 1 nhãn tự động gán ở Bước 2', 'error');
+      return;
+    }
     setIsCommitting(true);
     try {
       const res = await ipc.crm.import.commit({
@@ -917,19 +921,19 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => setStep2Status('paused')}
-                            className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                              step2Status === 'paused'
+                            onClick={() => setStep2Status('draft')}
+                            className={`flex-1 py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                              step2Status === 'draft'
                                 ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 shadow-2xs ring-1 ring-amber-500/30'
                                 : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
                             }`}
                           >
-                            <span>⏸️ Tạm dừng</span>
+                            <span>📝 Lưu nháp</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setStep2Status('active')}
-                            className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                            className={`flex-1 py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                               step2Status === 'active'
                                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 shadow-2xs ring-1 ring-blue-500/30'
                                 : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
@@ -937,19 +941,18 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
                           >
                             <span>▶️ Chạy ngay</span>
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => setStep2Status('priority_high')}
+                            className={`flex-1 py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                              step2Status === 'priority_high'
+                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 shadow-2xs ring-1 ring-emerald-500/30'
+                                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
+                            }`}
+                          >
+                            <span>⚡ Ưu tiên chạy</span>
+                          </button>
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider">
-                          HẸN GIỜ KHỞI ĐỘNG (TÙY CHỌN)
-                        </label>
-                        <input
-                          type="time"
-                          value={step2ScheduledTime}
-                          onChange={e => setStep2ScheduledTime(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
-                        />
                       </div>
                     </div>
 
@@ -1090,10 +1093,10 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
               >
                 {isCommitting
                   ? 'Đang ghi CRM...'
-                  : step2Status === 'paused'
-                  ? '💾 Tạo Lô & Ghi CRM (Tạm dừng)'
-                  : step2ScheduledTime
-                  ? `⏱️ Tạo Lô & Hẹn giờ (${step2ScheduledTime})`
+                  : step2Status === 'draft'
+                  ? '📝 Lưu Lô Nháp & Ghi CRM'
+                  : step2Status === 'priority_high'
+                  ? '⚡ Ưu tiên & Quét ngay'
                   : '🚀 Bắt đầu Quét & Ghi CRM (Chạy ngay)'}
               </button>
             ) : null}

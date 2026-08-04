@@ -1306,6 +1306,11 @@ class DatabaseService {
                 this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN contact_assignment_mode TEXT NOT NULL DEFAULT 'distributed'`);
                 Logger.log('[DatabaseService] ✅ Migration: added contact_assignment_mode column to phone_scan_batches');
             }
+            const hasQueuedAt = cols.some((c: any) => c.name === 'queued_at');
+            if (!hasQueuedAt) {
+                this.exec(`ALTER TABLE phone_scan_batches ADD COLUMN queued_at INTEGER`);
+                Logger.log('[DatabaseService] ✅ Migration: added queued_at column to phone_scan_batches');
+            }
 
             const contactCols = this.query<any>('PRAGMA table_info(contacts)');
             const hasIsBlocked = contactCols.some((c: any) => c.name === 'is_blocked');
@@ -10005,6 +10010,48 @@ class DatabaseService {
         }
     }
 
+    public getNextQueuedPhoneScanBatch(): any | null {
+        if (!this.initialized) return null;
+        try {
+            const rows = this.query<any>(
+                `SELECT DISTINCT psb.* FROM phone_scan_batches psb
+                 INNER JOIN phone_scan_items psi ON psi.batch_id = psb.id
+                 WHERE psb.status = 'queued' AND psi.status = 'pending'
+                 ORDER BY psb.priority DESC, psb.sort_order ASC, psb.queued_at ASC, psb.id ASC
+                 LIMIT 1`
+            );
+            return rows.length > 0 ? rows[0] : null;
+        } catch (err: any) {
+            Logger.error(`[DB] getNextQueuedPhoneScanBatch error: ${err.message}`);
+            return null;
+        }
+    }
+
+    public getQueuedPhoneScanBatchPosition(batchId: number): number {
+        if (!this.initialized) return 0;
+        try {
+            const batch = this.queryOne<any>('SELECT * FROM phone_scan_batches WHERE id = ?', [batchId]);
+            if (!batch || batch.status !== 'queued') return 0;
+            const priorityVal = Number(batch.priority || 0);
+            const sortOrderVal = Number(batch.sort_order || 0);
+            const queuedAtVal = Number(batch.queued_at || 0);
+
+            const row = this.queryOne<any>(
+                `SELECT COUNT(*) as count FROM phone_scan_batches
+                 WHERE status = 'queued'
+                   AND (
+                     (priority > ?)
+                     OR (priority = ? AND sort_order < ?)
+                     OR (priority = ? AND sort_order = ? AND (queued_at < ? OR (queued_at = ? AND id <= ?)))
+                   )`,
+                [priorityVal, priorityVal, sortOrderVal, priorityVal, sortOrderVal, queuedAtVal, queuedAtVal, batchId]
+            );
+            return row ? (row.count || 1) : 1;
+        } catch {
+            return 0;
+        }
+    }
+
     public createPhoneScanBatch(params: {
         name: string;
         assignedAccountId: string | null;
@@ -10025,7 +10072,7 @@ class DatabaseService {
         try {
             const now = Date.now();
             const autoTagIdsStr = JSON.stringify(params.autoTagIds);
-            const initialStatus = params.status || 'paused';
+            const requestedStatus = params.status || 'active';
             const scheduledTime = params.scheduledTime || '';
             const skipCrmExisting = params.skipCrmExisting ? 1 : 0;
             const autoWorkflowId = params.autoWorkflowId ? Number(params.autoWorkflowId) : null;
@@ -10033,19 +10080,47 @@ class DatabaseService {
             const contactAssignmentMode = params.contactAssignmentMode || (params.assignedAccountId ? 'single' : 'distributed');
             const targetAccountId = params.targetAccountId || null;
 
+            let finalStatus = requestedStatus;
+            let finalPriority = params.priority || 0;
+            let queuedAt: number | null = null;
+
+            // Start transaction
+            this.run('BEGIN TRANSACTION');
+
+            if (requestedStatus === 'priority_high') {
+                finalPriority = 100; // Urgent priority
+                const activeBatch = this.queryOne<any>('SELECT id FROM phone_scan_batches WHERE status = "active" LIMIT 1');
+                if (activeBatch) {
+                    // Preempt current active batch -> move to queued
+                    this.run('UPDATE phone_scan_batches SET status = "queued", queued_at = ? WHERE id = ?', [now, activeBatch.id]);
+                }
+                finalStatus = 'active';
+                queuedAt = null;
+            } else if (requestedStatus === 'draft') {
+                finalStatus = 'draft';
+                queuedAt = null;
+            } else {
+                // Default or 'active' / 'queued'
+                const activeBatch = this.queryOne<any>('SELECT id FROM phone_scan_batches WHERE status = "active" LIMIT 1');
+                if (activeBatch) {
+                    finalStatus = 'queued';
+                    queuedAt = now;
+                } else {
+                    finalStatus = 'active';
+                    queuedAt = null;
+                }
+            }
+
             // Get max sort_order
             const maxSort = this.queryOne<any>('SELECT MAX(sort_order) as m FROM phone_scan_batches')?.m ?? 0;
             const nextSortOrder = Number(maxSort) + 1;
 
-            // Start a manual transaction for safety
-            this.run('BEGIN TRANSACTION');
-
             // 1. Insert batch
             this.run(`
                 INSERT INTO phone_scan_batches 
-                (name, assigned_account_id, target_account_id, contact_assignment_mode, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, sort_order, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [params.name, params.assignedAccountId, targetAccountId, contactAssignmentMode, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, params.priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, nextSortOrder, now]);
+                (name, assigned_account_id, target_account_id, contact_assignment_mode, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, sort_order, queued_at, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [params.name, params.assignedAccountId, targetAccountId, contactAssignmentMode, autoTagIdsStr, params.dailyLimit, params.hourlyLimit, finalPriority, finalStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, nextSortOrder, queuedAt, now]);
 
             const batchId = this.queryOne<any>(`SELECT last_insert_rowid() as id`)?.id;
             if (!batchId) {
@@ -10339,18 +10414,22 @@ class DatabaseService {
                     WHERE id = ?
                 `, [isScannedInc, foundInc, notFoundInc, errorInc, duplicateInc, batchId]);
 
-                // Check if the batch is completely finished (no more pending items)
-                const pendingCount = this.queryOne<any>(`
-                    SELECT COUNT(*) as pending FROM phone_scan_items 
-                    WHERE batch_id = ? AND status = 'pending'
-                `, [batchId])?.pending ?? 0;
+                // Check if the batch is completely finished (no more pending or scanning items)
+                const unfinishedCount = this.queryOne<any>(`
+                    SELECT COUNT(*) as unfinished FROM phone_scan_items 
+                    WHERE batch_id = ? AND status IN ('pending', 'scanning')
+                `, [batchId])?.unfinished ?? 0;
 
-                if (pendingCount === 0) {
+                if (unfinishedCount === 0) {
                     this.run(`
                         UPDATE phone_scan_batches
                         SET status = 'completed', completed_at = ?
                         WHERE id = ?
                     `, [now, batchId]);
+                    try {
+                        const PhoneScanService = require('../crm/PhoneScanService').default;
+                        PhoneScanService.getInstance().promoteNextQueuedBatch();
+                    } catch {}
                 }
             }
 

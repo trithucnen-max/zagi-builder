@@ -33,7 +33,7 @@ interface Batch {
     skip_crm_existing?: number | boolean;
     auto_workflow_id?: number | string | null;
     priority: number;
-    status: 'active' | 'paused' | 'completed';
+    status: 'active' | 'queued' | 'draft' | 'paused' | 'completed';
     total_count: number;
     scanned_count: number;
     found_count: number;
@@ -77,7 +77,7 @@ export default function PhoneScanPanel() {
     const [itemsTotal, setItemsTotal] = useState(0);
     const [itemsPage, setItemsPage] = useState(0);
     const [itemsStatusFilter, setItemsStatusFilter] = useState<string>('all');
-    const [batchFilterTab, setBatchFilterTab] = useState<'all' | 'active' | 'paused' | 'completed'>('active');
+    const [batchFilterTab, setBatchFilterTab] = useState<'all' | 'active_queued' | 'draft' | 'paused' | 'completed'>('active_queued');
     
     // Creation Form
     const [showCreateForm, setShowCreateForm] = useState(false);
@@ -95,7 +95,7 @@ export default function PhoneScanPanel() {
     const [formDailyLimit, setFormDailyLimit] = useState<number>(100);
     const [formHourlyLimit, setFormHourlyLimit] = useState<number>(30);
     const [formPriority, setFormPriority] = useState<number>(0);
-    const [formStatus, setFormStatus] = useState<'paused' | 'active'>('paused');
+    const [formStatus, setFormStatus] = useState<'active' | 'draft' | 'priority_high'>('active');
     const [formScheduledTime, setFormScheduledTime] = useState<string>('');
     const [formSkipCrmExisting, setFormSkipCrmExisting] = useState<boolean>(true);
     const [formUpdateZaloAlias, setFormUpdateZaloAlias] = useState<boolean>(true);
@@ -511,10 +511,8 @@ export default function PhoneScanPanel() {
 
     // CSV & Excel Multi-Format File Reader
     const processUploadedFile = (file: File) => {
-        if (!formName.trim()) {
-            showNotification('Vui lòng nhập Tên lô quét ở cột bên trái trước khi tải file!', 'error');
-            const nameInput = document.querySelector('input[placeholder*="VD: Lô khách hàng"]') as HTMLInputElement;
-            if (nameInput) nameInput.focus();
+        if (!formName.trim() || formAutoTagIds.length === 0) {
+            showNotification('Vui lòng nhập Tên lô quét và chọn ít nhất 1 Nhãn ở cột bên trái trước khi tải file!', 'error');
             return;
         }
         if (hasMultipleZaloAccounts && formContactAssignmentMode === 'single' && !formTargetAccountId) {
@@ -544,11 +542,15 @@ export default function PhoneScanPanel() {
         
         const phones = getParsedPhones();
         if (!formName.trim()) {
-            showNotification('Vui lòng nhập tên lô quét', 'error');
+            showNotification('Vui lòng nhập Tên lô quét', 'error');
+            return;
+        }
+        if (formAutoTagIds.length === 0) {
+            showNotification('Vui lòng chọn ít nhất 1 Nhãn tự động gán', 'error');
             return;
         }
         if (phones.length === 0) {
-            showNotification('Vui lòng nhập ít nhất 1 số điện thoại hợp lệ', 'error');
+            showNotification('Vui lòng nhập danh sách SĐT hoặc tải file CSV/Excel', 'error');
             return;
         }
 
@@ -568,7 +570,7 @@ export default function PhoneScanPanel() {
                 hourlyLimit: formHourlyLimit,
                 priority: formPriority,
                 status: formStatus,
-                scheduledTime: formScheduledTime,
+                scheduledTime: '',
                 skipCrmExisting: formSkipCrmExisting,
                 autoWorkflowId: formAutoWorkflowId ? Number(formAutoWorkflowId) : null,
                 updateZaloAlias: formUpdateZaloAlias,
@@ -576,7 +578,13 @@ export default function PhoneScanPanel() {
             });
 
             if (res?.success) {
-                showNotification(formStatus === 'paused' ? 'Đã tạo lô nháp (Tạm dừng) thành công! Bấm nút Bật để bắt đầu quét.' : 'Đã khởi tạo lô quét thành công!', 'success');
+                if (res.isQueued) {
+                    showNotification(`Lô "${formName.trim()}" đã được thêm vào Hàng đợi quét (Vị trí #${res.queuePosition}).`, 'info');
+                } else if (formStatus === 'draft') {
+                    showNotification(`Đã lưu lô nháp "${formName.trim()}"!`, 'success');
+                } else {
+                    showNotification(`Đã khởi tạo và bắt đầu quét lô "${formName.trim()}"!`, 'success');
+                }
                 // Reset form
                 setFormName('');
                 setFormAssignedAccount('');
@@ -584,7 +592,7 @@ export default function PhoneScanPanel() {
                 setFormDailyLimit(100);
                 setFormHourlyLimit(30);
                 setFormPriority(0);
-                setFormStatus('paused');
+                setFormStatus('active');
                 setFormScheduledTime('');
                 setFormSkipCrmExisting(true);
                 setFormUpdateZaloAlias(true);
@@ -599,7 +607,7 @@ export default function PhoneScanPanel() {
                 showNotification('Khởi tạo thất bại: ' + (res?.error || 'Lỗi không rõ'), 'error');
             }
         } catch (err: any) {
-            showNotification('Lỗi: ' + err.message, 'error');
+            showNotification('Khởi tạo thất bại: ' + err.message, 'error');
         }
     };
 
@@ -1040,7 +1048,8 @@ export default function PhoneScanPanel() {
                         <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg border border-gray-200 dark:border-gray-700">
                             {[
                                 { key: 'all', label: 'Tất cả' },
-                                { key: 'active', label: '▶️ Đang chạy' },
+                                { key: 'active_queued', label: '⚡ Đang quét / Chờ' },
+                                { key: 'draft', label: '📝 Nháp' },
                                 { key: 'paused', label: '⏸️ Tạm dừng' },
                                 { key: 'completed', label: '✓ Hoàn thành' }
                             ].map(tab => (
@@ -1064,7 +1073,11 @@ export default function PhoneScanPanel() {
                             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
                             <span>Đang tải thông tin...</span>
                         </div>
-                    ) : timeFilteredBatches.filter(b => batchFilterTab === 'all' ? true : b.status === batchFilterTab).length === 0 ? (
+                    ) : timeFilteredBatches.filter(b => {
+                        if (batchFilterTab === 'all') return true;
+                        if (batchFilterTab === 'active_queued') return b.status === 'active' || b.status === 'queued';
+                        return b.status === batchFilterTab;
+                    }).length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-900/30">
                             <span className="text-gray-400 dark:text-gray-500 text-xs">Không có lô quét nào phù hợp bộ lọc.</span>
                             <button
@@ -1077,15 +1090,19 @@ export default function PhoneScanPanel() {
                     ) : (
                         <div className="flex flex-col gap-3">
                             {(() => {
-                                const displayedBatches = timeFilteredBatches.filter(b => batchFilterTab === 'all' ? true : b.status === batchFilterTab);
-                                const activeBatchesList = displayedBatches.filter(b => b.status === 'active');
+                                const displayedBatches = timeFilteredBatches.filter(b => {
+                                    if (batchFilterTab === 'all') return true;
+                                    if (batchFilterTab === 'active_queued') return b.status === 'active' || b.status === 'queued';
+                                    return b.status === batchFilterTab;
+                                });
+                                const queuedBatchesList = displayedBatches.filter(b => b.status === 'queued');
 
                                 return displayedBatches.map((batch, index) => {
                                     const progress = batch.total_count > 0 ? Math.round((batch.scanned_count / batch.total_count) * 100) : 0;
                                     const conversionRate = batch.scanned_count > 0 ? Math.round((batch.found_count / batch.scanned_count) * 100) : 0;
                                     const isSelected = selectedBatch?.id === batch.id;
 
-                                    const activeIndex = activeBatchesList.findIndex(b => b.id === batch.id);
+                                    const queuedIndex = queuedBatchesList.findIndex(b => b.id === batch.id);
                                     const isDraggingThis = draggedIndex === index;
                                     const isDragOverThis = dragOverIndex === index;
 
@@ -1127,22 +1144,24 @@ export default function PhoneScanPanel() {
                                                         <div className="flex flex-wrap items-center gap-2">
                                                             <span className="font-bold text-gray-900 dark:text-white text-xs truncate max-w-[200px]">{batch.name}</span>
                                                             {batch.status === 'active' ? (
-                                                                activeIndex === 0 ? (
-                                                                    <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 rounded-full animate-pulse shadow-2xs">
-                                                                        ▶️ Đang chạy (#1)
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full">
-                                                                        ⏳ Đang chờ (#{activeIndex + 1})
-                                                                    </span>
-                                                                )
-                                                            ) : batch.status === 'completed' ? (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full">
-                                                                    ✓ Hoàn thành
+                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 rounded-full animate-pulse shadow-2xs">
+                                                                    🟢 Đang quét
+                                                                </span>
+                                                            ) : batch.status === 'queued' ? (
+                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800/60 text-amber-700 dark:text-amber-300 rounded-full">
+                                                                    🟡 Chờ hàng đợi (#{queuedIndex >= 0 ? queuedIndex + 1 : 1})
+                                                                </span>
+                                                            ) : batch.status === 'draft' ? (
+                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+                                                                    📝 Nháp
+                                                                </span>
+                                                            ) : batch.status === 'paused' ? (
+                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 rounded-full">
+                                                                    ⏸️ Tạm dừng
                                                                 </span>
                                                             ) : (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800/60 text-amber-700 dark:text-amber-300 rounded-full">
-                                                                    ⏸️ Tạm dừng (Nháp)
+                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full">
+                                                                    ✓ Hoàn thành
                                                                 </span>
                                                             )}
                                                             {batch.priority === 1 && (
@@ -1697,210 +1716,205 @@ export default function PhoneScanPanel() {
                                                  </label>
 
                                                  <label
-                                                     onClick={() => setFormContactAssignmentMode('all_accounts')}
-                                                     className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                                                         formContactAssignmentMode === 'all_accounts'
-                                                             ? 'bg-purple-50/50 dark:bg-purple-950/30 border-purple-500/80 ring-1 ring-purple-500/20'
-                                                             : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                                     }`}
-                                                 >
-                                                     <input
-                                                         type="radio"
-                                                         name="contact_assignment_mode"
-                                                         checked={formContactAssignmentMode === 'all_accounts'}
-                                                         onChange={() => setFormContactAssignmentMode('all_accounts')}
-                                                         className="mt-0.5"
-                                                     />
-                                                     <div>
-                                                         <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                                             <span>🟣 Đồng bộ có mặt ở TẤT CẢ các tài khoản Zalo</span>
-                                                         </div>
-                                                         <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                                             Tự động tạo profile liên hệ và gán nhãn CRM cho toàn bộ danh sách tài khoản Zalo active trong ứng dụng.
-                                                         </div>
-                                                     </div>
-                                                 </label>
-                                             </div>
+                                                      onClick={() => setFormContactAssignmentMode('all_accounts')}
+                                                      className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                                          formContactAssignmentMode === 'all_accounts'
+                                                              ? 'bg-purple-50/50 dark:bg-purple-950/30 border-purple-500/80 ring-1 ring-purple-500/20'
+                                                              : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                      }`}
+                                                  >
+                                                      <input
+                                                          type="radio"
+                                                          name="contact_assignment_mode"
+                                                          checked={formContactAssignmentMode === 'all_accounts'}
+                                                          onChange={() => setFormContactAssignmentMode('all_accounts')}
+                                                          className="mt-0.5"
+                                                      />
+                                                      <div>
+                                                          <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                                              <span>🟣 Đồng bộ có mặt ở TẤT CẢ các tài khoản Zalo</span>
+                                                          </div>
+                                                          <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                              Tự động tạo profile liên hệ và gán nhãn CRM cho toàn bộ danh sách tài khoản Zalo active trong ứng dụng.
+                                                          </div>
+                                                      </div>
+                                                  </label>
+                                              </div>
+                                          </div>
+                                      )}
+
+                                     {/* Initial Status Selection */}
+                                     <div>
+                                         <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Trạng thái khởi tạo</label>
+                                         <div className="flex gap-2">
+                                             <button
+                                                 type="button"
+                                                 onClick={() => setFormStatus('draft')}
+                                                 className={`flex-1 py-2 px-2.5 border rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
+                                                     formStatus === 'draft'
+                                                         ? 'bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-500 text-amber-700 dark:text-amber-300 shadow-xs font-bold'
+                                                         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                 }`}
+                                             >
+                                                 📝 Lưu nháp
+                                             </button>
+                                             <button
+                                                 type="button"
+                                                 onClick={() => setFormStatus('active')}
+                                                 className={`flex-1 py-2 px-2.5 border rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
+                                                     formStatus === 'active'
+                                                         ? 'bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-500 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                                                         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                 }`}
+                                             >
+                                                 ▶️ Chạy ngay
+                                             </button>
+                                             <button
+                                                 type="button"
+                                                 onClick={() => setFormStatus('priority_high')}
+                                                 className={`flex-1 py-2 px-2.5 border rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1 ${
+                                                     formStatus === 'priority_high'
+                                                         ? 'bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-xs font-bold'
+                                                         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                                 }`}
+                                             >
+                                                 ⚡ Ưu tiên chạy
+                                             </button>
                                          </div>
-                                     )}
+                                     </div>
 
-                                    {/* Assigned Account & Limits — không hiển thị vì hệ thống quản lý quota tự động theo từng tài khoản */}
-                                    {/* Giá trị mặc định được dùng khi tạo: formAssignedAccount='', formDailyLimit=100, formHourlyLimit=30 */}
+                                     {/* Skip CRM Existing Option */}
+                                     <div className="flex items-center gap-3 p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-2xl shadow-2xs hover:border-gray-300 transition-all">
+                                         <input
+                                             type="checkbox"
+                                             id="skipCrmExisting"
+                                             checked={formSkipCrmExisting}
+                                             onChange={e => setFormSkipCrmExisting(e.target.checked)}
+                                             className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 cursor-pointer"
+                                         />
+                                         <label htmlFor="skipCrmExisting" className="text-xs font-semibold text-gray-800 dark:text-gray-200 cursor-pointer select-none">
+                                             Bỏ qua các SĐT đã tồn tại trong danh bạ CRM (Tiết kiệm hạn ngạch quét)
+                                         </label>
+                                     </div>
 
-                                    {/* Initial Status & Scheduled Start Time */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Trạng thái khởi tạo</label>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormStatus('paused')}
-                                                    className={`flex-1 py-2 px-3 border rounded-xl text-xs font-semibold transition-all ${
-                                                        formStatus === 'paused'
-                                                            ? 'bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-500 text-amber-700 dark:text-amber-300 shadow-xs font-bold'
-                                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                                    }`}
-                                                >
-                                                    ⏸️ Tạm dừng
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormStatus('active')}
-                                                    className={`flex-1 py-2 px-3 border rounded-xl text-xs font-semibold transition-all ${
-                                                        formStatus === 'active'
-                                                            ? 'bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-500 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
-                                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                                    }`}
-                                                >
-                                                    ▶️ Chạy ngay
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Hẹn giờ khởi động (Tùy chọn)</label>
-                                            <input
-                                                type="time"
-                                                value={formScheduledTime}
-                                                onChange={e => setFormScheduledTime(e.target.value)}
-                                                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 transition-all font-medium shadow-2xs"
-                                            />
-                                        </div>
-                                    </div>
+                                     {/* Campaign Alias Option */}
+                                     <div className="flex items-start gap-3 p-3.5 bg-white dark:bg-gray-800 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl shadow-2xs hover:border-blue-300 transition-all">
+                                         <input
+                                             type="checkbox"
+                                             id="updateZaloAlias"
+                                             checked={formUpdateZaloAlias}
+                                             onChange={e => setFormUpdateZaloAlias(e.target.checked)}
+                                             className="mt-0.5 w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 cursor-pointer"
+                                         />
+                                         <label htmlFor="updateZaloAlias" className="text-xs cursor-pointer select-none">
+                                             <span className="font-bold text-gray-900 dark:text-gray-100 block">
+                                                 Cập nhật tên gợi nhớ Zalo & CRM theo quy tắc chiến dịch
+                                             </span>
+                                             <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-1 leading-snug">
+                                                 Định dạng: <code className="text-blue-600 dark:text-blue-400 font-mono font-bold bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/60 text-[11px]">[Tên lô] - [Tên Zalo] - [SĐT]</code> (Đổi biệt danh hiển thị trực tiếp trên App Zalo điện thoại kể cả với Người Lạ)
+                                             </span>
+                                         </label>
+                                     </div>
 
-                                    {/* Skip CRM Existing Option */}
-                                    <div className="flex items-center gap-3 p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-2xl shadow-2xs hover:border-gray-300 transition-all">
-                                        <input
-                                            type="checkbox"
-                                            id="skipCrmExisting"
-                                            checked={formSkipCrmExisting}
-                                            onChange={e => setFormSkipCrmExisting(e.target.checked)}
-                                            className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 cursor-pointer"
-                                        />
-                                        <label htmlFor="skipCrmExisting" className="text-xs font-semibold text-gray-800 dark:text-gray-200 cursor-pointer select-none">
-                                            Bỏ qua các SĐT đã tồn tại trong danh bạ CRM (Tiết kiệm hạn ngạch quét)
-                                        </label>
-                                    </div>
+                                     {/* Tag Selection (Standardized Unified Label Picker) */}
+                                     <div>
+                                         <div className="flex items-center justify-between mb-1.5">
+                                             <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
+                                                 Nhãn tự động gán (khi tìm thấy Zalo) *
+                                             </label>
+                                             {formAutoTagIds.length > 0 && (
+                                                 <button
+                                                     type="button"
+                                                     onClick={() => setFormAutoTagIds([])}
+                                                     className="text-[11px] font-semibold text-gray-400 hover:text-red-500 transition-colors"
+                                                 >
+                                                     Bỏ chọn tất cả ({formAutoTagIds.length})
+                                                 </button>
+                                             )}
+                                         </div>
 
-                                    {/* Campaign Alias Option */}
-                                    <div className="flex items-start gap-3 p-3.5 bg-white dark:bg-gray-800 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl shadow-2xs hover:border-blue-300 transition-all">
-                                        <input
-                                            type="checkbox"
-                                            id="updateZaloAlias"
-                                            checked={formUpdateZaloAlias}
-                                            onChange={e => setFormUpdateZaloAlias(e.target.checked)}
-                                            className="mt-0.5 w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 cursor-pointer"
-                                        />
-                                        <label htmlFor="updateZaloAlias" className="text-xs cursor-pointer select-none">
-                                            <span className="font-bold text-gray-900 dark:text-gray-100 block">
-                                                Cập nhật tên gợi nhớ Zalo & CRM theo quy tắc chiến dịch
-                                            </span>
-                                            <span className="text-[11px] text-gray-500 dark:text-gray-400 block mt-1 leading-snug">
-                                                Định dạng: <code className="text-blue-600 dark:text-blue-400 font-mono font-bold bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/60 text-[11px]">[Tên lô] - [Tên Zalo] - [SĐT]</code> (Đổi biệt danh hiển thị trực tiếp trên App Zalo điện thoại kể cả với Người Lạ)
-                                            </span>
-                                        </label>
-                                    </div>
+                                         <div className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-2xl shadow-2xs space-y-2.5">
+                                             {formAutoTagIds.length > 0 ? (
+                                                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                                                     {formAutoTagIds.map(tagId => {
+                                                         const label = localLabels.find(l => l.id === tagId);
+                                                         if (!label) return null;
+                                                         const bgColor = label.color || '#14b8a6';
+                                                         const textColor = getContrastColor(bgColor);
+                                                         return (
+                                                             <span
+                                                                 key={label.id}
+                                                                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-2xs border border-black/10 transition-all"
+                                                                 style={{ backgroundColor: bgColor, color: textColor }}
+                                                             >
+                                                                 <span>{label.emoji || '🏷️'}</span>
+                                                                 <span>{label.name}</span>
+                                                                 <button
+                                                                     type="button"
+                                                                     onClick={() => setFormAutoTagIds(formAutoTagIds.filter(id => id !== label.id))}
+                                                                     className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/20 text-current transition-colors ml-0.5"
+                                                                     title="Bỏ chọn nhãn"
+                                                                 >
+                                                                     ✕
+                                                                 </button>
+                                                             </span>
+                                                         );
+                                                     })}
+                                                 </div>
+                                             ) : (
+                                                 <p className="text-xs text-amber-600 dark:text-amber-400 italic py-1 font-medium">
+                                                     ⚠️ Chưa chọn nhãn. Nhấn nút bên dưới để chọn nhãn tự động gán (Bắt buộc).
+                                                 </p>
+                                             )}
 
-                                    {/* Tag Selection (Standardized Unified Label Picker) */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-1.5">
-                                            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
-                                                Nhãn tự động gán (khi tìm thấy Zalo)
-                                            </label>
-                                            {formAutoTagIds.length > 0 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormAutoTagIds([])}
-                                                    className="text-[11px] font-semibold text-gray-400 hover:text-red-500 transition-colors"
-                                                >
-                                                    Bỏ chọn tất cả ({formAutoTagIds.length})
-                                                </button>
-                                            )}
-                                        </div>
+                                             <button
+                                                 type="button"
+                                                 onClick={() => setShowLabelPickerModal(true)}
+                                                 className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition-all border border-blue-200 dark:border-blue-800/60 cursor-pointer shadow-2xs"
+                                             >
+                                                 <AppIcon name="settings" size={13} className="text-blue-500" />
+                                                 <span>{formAutoTagIds.length > 0 ? '🏷️ Thay đổi / Thêm nhãn mới' : '🏷️ Chọn nhãn tự động gán (Bắt buộc)'}</span>
+                                             </button>
+                                         </div>
+                                     </div>
+                                 </div>
 
-                                        <div className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-2xl shadow-2xs space-y-2.5">
-                                            {formAutoTagIds.length > 0 ? (
-                                                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                                                    {formAutoTagIds.map(tagId => {
-                                                        const label = localLabels.find(l => l.id === tagId);
-                                                        if (!label) return null;
-                                                        const bgColor = label.color || '#14b8a6';
-                                                        const textColor = getContrastColor(bgColor);
-                                                        return (
-                                                            <span
-                                                                key={label.id}
-                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-2xs border border-black/10 transition-all"
-                                                                style={{ backgroundColor: bgColor, color: textColor }}
-                                                            >
-                                                                <span>{label.emoji || '🏷️'}</span>
-                                                                <span>{label.name}</span>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setFormAutoTagIds(formAutoTagIds.filter(id => id !== label.id))}
-                                                                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/20 text-current transition-colors ml-0.5"
-                                                                    title="Bỏ chọn nhãn"
-                                                                >
-                                                                    ✕
-                                                                </button>
-                                                            </span>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <p className="text-xs text-gray-400 dark:text-gray-500 italic py-1">
-                                                    Chưa chọn nhãn nào. Nhấn nút bên dưới để chọn nhãn tự động gán.
-                                                </p>
-                                            )}
+                                 {/* RIGHT COLUMN: CSV/Excel Dropzone + Download Template + Paste text area */}
+                                 <div className="w-1/2 flex-shrink-0 p-5 overflow-hidden flex flex-col gap-4 bg-[#f4f5f8] dark:bg-gray-900">
+                                     {/* File CSV/Excel Dropzone */}
+                                     <div>
+                                         <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">
+                                             Tải lên tệp CSV / Excel số điện thoại
+                                         </label>
+                                         
+                                         <input
+                                             type="file"
+                                             ref={fileInputRef}
+                                             accept=".csv, .xlsx, .xls"
+                                             onChange={handleCsvUpload}
+                                             className="hidden"
+                                         />
 
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowLabelPickerModal(true)}
-                                                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition-all border border-blue-200 dark:border-blue-800/60 cursor-pointer shadow-2xs"
-                                            >
-                                                <AppIcon name="settings" size={13} className="text-blue-500" />
-                                                <span>{formAutoTagIds.length > 0 ? '🏷️ Thay đổi / Thêm nhãn mới' : '🏷️ Chọn nhãn tự động gán'}</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* RIGHT COLUMN: CSV/Excel Dropzone + Download Template + Paste text area */}
-                                <div className="w-1/2 flex-shrink-0 p-5 overflow-hidden flex flex-col gap-4 bg-[#f4f5f8] dark:bg-gray-900">
-                                    {/* File CSV/Excel Dropzone */}
-                                    <div>
-                                        <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">
-                                            Tải lên tệp CSV / Excel số điện thoại
-                                        </label>
-                                        
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            accept=".csv, .xlsx, .xls"
-                                            onChange={handleCsvUpload}
-                                            className="hidden"
-                                        />
-
-                                        <div
-                                            onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
-                                            onDragLeave={() => setIsDraggingFile(false)}
-                                            onDrop={handleFileDrop}
-                                            onClick={() => {
-                                                if (!formName.trim()) {
-                                                    showNotification('Vui lòng nhập Tên lô quét bên trái trước khi tải file!', 'error');
-                                                    const nameInput = document.querySelector('input[placeholder*="VD: Lô khách hàng"]') as HTMLInputElement;
-                                                    if (nameInput) nameInput.focus();
-                                                    return;
-                                                }
-                                                fileInputRef.current?.click();
-                                            }}
-                                            className={`relative border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-                                                !formName.trim()
-                                                    ? 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800/60'
-                                                    : isDraggingFile
-                                                    ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/50 scale-[1.01]'
-                                                    : 'border-blue-300/80 dark:border-blue-800/80 bg-blue-50/20 dark:bg-blue-950/20 hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-blue-950/30'
-                                            }`}
-                                        >
-                                            {!formName.trim() ? (
+                                         <div
+                                             onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
+                                             onDragLeave={() => setIsDraggingFile(false)}
+                                             onDrop={handleFileDrop}
+                                             onClick={() => {
+                                                 if (!formName.trim() || formAutoTagIds.length === 0) {
+                                                     showNotification('Vui lòng nhập Tên lô quét và chọn ít nhất 1 Nhãn ở cột bên trái trước!', 'error');
+                                                     return;
+                                                 }
+                                                 fileInputRef.current?.click();
+                                             }}
+                                             className={`relative border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                                                 (!formName.trim() || formAutoTagIds.length === 0)
+                                                     ? 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800/60'
+                                                     : isDraggingFile
+                                                     ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/50 scale-[1.01]'
+                                                     : 'border-blue-300/80 dark:border-blue-800/80 bg-blue-50/20 dark:bg-blue-950/20 hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-blue-950/30'
+                                             }`}
+                                         >
+                                             {!formName.trim() ? (
                                                 <div className="py-2 flex flex-col items-center gap-1.5 text-amber-700 dark:text-amber-300">
                                                     <span className="text-xs font-bold flex items-center gap-1">
                                                         <span>⚠️</span> Vui lòng điền Tên lô quét ở cột bên trái trước
@@ -2053,23 +2067,47 @@ export default function PhoneScanPanel() {
                             </div>
 
                             {/* Modal Footer actions */}
-                            <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-[#f4f5f8] dark:bg-gray-900 p-4">
-                                <div className="flex justify-end gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowCreateForm(false)}
-                                        className="px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800 transition-colors"
-                                    >
-                                        Hủy bỏ
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="px-6 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 active:scale-95 transition-all"
-                                    >
-                                        Khởi tạo lô quét
-                                    </button>
-                                </div>
-                            </div>
+                            {(() => {
+                                const phones = getParsedPhones();
+                                const isMissingName = !formName.trim();
+                                const isMissingTag = formAutoTagIds.length === 0;
+                                const isMissingPhone = phones.length === 0;
+                                const isValid = !isMissingName && !isMissingTag && !isMissingPhone;
+
+                                return (
+                                    <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-[#f4f5f8] dark:bg-gray-900 p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                                {!isValid && (
+                                                    <span>
+                                                        ⚠️ {isMissingName ? 'Vui lòng nhập Tên lô quét' : isMissingTag ? 'Vui lòng chọn ít nhất 1 Nhãn tự động' : 'Vui lòng nhập danh sách SĐT (hoặc tải file CSV/Excel)'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCreateForm(false)}
+                                                    className="px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800 transition-colors"
+                                                >
+                                                    Hủy bỏ
+                                                </button>
+                                                <button
+                                                    type="submit"
+                                                    disabled={!isValid}
+                                                    className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                                        isValid
+                                                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer'
+                                                            : 'bg-gray-300 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-700'
+                                                    }`}
+                                                >
+                                                    {formStatus === 'draft' ? '📝 Lưu lô nháp' : formStatus === 'priority_high' ? '⚡ Ưu tiên & Quét ngay' : '▶️ Khởi tạo lô quét'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </form>
                     </div>
                 </div>

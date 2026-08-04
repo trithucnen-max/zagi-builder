@@ -1,6 +1,7 @@
 // ─── CRM Types ────────────────────────────────────────────────────────────────
 
 export type CRMCampaignStatus = 'draft' | 'active' | 'queued' | 'paused' | 'paused_quota' | 'paused_quiet' | 'done';
+export type PhoneScanBatchStatus = 'draft' | 'active' | 'queued' | 'paused' | 'completed';
 export type CRMContactStatus = 'pending' | 'sending' | 'sent' | 'failed';
 export type CRMCampaignType = 'message' | 'friend_request' | 'mixed' | 'invite_to_group';
 

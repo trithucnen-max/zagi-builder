@@ -701,12 +701,16 @@ export function registerCRMIpc(): void {
                 phones
             });
             if (batchId !== -1) {
+                const batch = db.queryOne<any>('SELECT status, name FROM phone_scan_batches WHERE id = ?', [batchId]);
+                const isQueued = batch?.status === 'queued';
+                const pos = isQueued ? db.getQueuedPhoneScanBatchPosition(batchId) : 0;
+
                 // Trigger background scheduler immediately to start scanning
                 try {
                     const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
                     PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
                 } catch {}
-                return { success: true, batchId };
+                return { success: true, batchId, isQueued, queuePosition: pos, status: batch?.status };
             }
             return { success: false, error: 'Could not create batch' };
         } catch (err: any) {
@@ -820,6 +824,10 @@ export function registerCRMIpc(): void {
         try {
             const db = DatabaseService.getInstance();
             db.deletePhoneScanBatch(batchId);
+            try {
+                const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                PhoneScanService.getInstance().promoteNextQueuedBatch();
+            } catch {}
             return { success: true };
         } catch (err: any) {
             return { success: false, error: err.message };
@@ -859,13 +867,25 @@ export function registerCRMIpc(): void {
     ipcHandle('crm:updatePhoneScanBatchStatus', async (_e, { batchId, status }: any) => {
         try {
             const db = DatabaseService.getInstance();
-            db.updatePhoneScanBatchStatus(batchId, status);
-            // Trigger scanner immediately if resumed
+            const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+
             if (status === 'active') {
-                try {
-                    const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+                const activeBatch = db.queryOne<any>('SELECT id FROM phone_scan_batches WHERE status = "active" AND id != ? LIMIT 1', [batchId]);
+                if (activeBatch) {
+                    db.updatePhoneScanBatchStatus(batchId, 'queued');
+                    db.run('UPDATE phone_scan_batches SET queued_at = ? WHERE id = ?', [Date.now(), batchId]);
+                    db.save();
+                } else {
+                    db.updatePhoneScanBatchStatus(batchId, 'active');
+                    db.run('UPDATE phone_scan_batches SET queued_at = NULL WHERE id = ?', [batchId]);
+                    db.save();
                     PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
-                } catch {}
+                }
+            } else {
+                db.updatePhoneScanBatchStatus(batchId, status);
+                if (status === 'paused' || status === 'draft') {
+                    PhoneScanService.getInstance().promoteNextQueuedBatch();
+                }
             }
             return { success: true };
         } catch (err: any) {
@@ -876,13 +896,23 @@ export function registerCRMIpc(): void {
     ipcHandle('crm:updatePhoneScanBatchPriority', async (_e, { batchId, priority }: any) => {
         try {
             const db = DatabaseService.getInstance();
-            db.updatePhoneScanBatchPriority(batchId, priority);
-            // Trigger scanner immediately if prioritized
-            if (priority > 0) {
-                try {
-                    const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
-                    PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
-                } catch {}
+            const PhoneScanService = require('../../src/services/crm/PhoneScanService').default;
+
+            if (priority >= 100) {
+                // High/Urgent priority -> Preempt active batch
+                const activeBatch = db.queryOne<any>('SELECT id FROM phone_scan_batches WHERE status = "active" AND id != ? LIMIT 1', [batchId]);
+                if (activeBatch) {
+                    db.updatePhoneScanBatchStatus(activeBatch.id, 'queued');
+                    db.run('UPDATE phone_scan_batches SET queued_at = ? WHERE id = ?', [Date.now(), activeBatch.id]);
+                }
+                db.updatePhoneScanBatchPriority(batchId, priority);
+                db.updatePhoneScanBatchStatus(batchId, 'active');
+                db.run('UPDATE phone_scan_batches SET queued_at = NULL WHERE id = ?', [batchId]);
+                db.save();
+                PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
+            } else {
+                db.updatePhoneScanBatchPriority(batchId, priority);
+                PhoneScanService.getInstance().triggerImmediateScan().catch(() => {});
             }
             return { success: true };
         } catch (err: any) {
