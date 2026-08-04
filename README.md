@@ -505,31 +505,32 @@ npm run production
 </details>
 
 <details>
-<summary><strong>v3.1.6</strong> — 2026-07-22</summary>
+<summary><strong>v3.1.6</strong> — 2026-08-04</summary>
 
 ### 🚀 Nâng cấp nổi bật & Sửa lỗi hệ thống
 
-- 🏷️ **Cửa Sổ Chọn Nhãn Nâng Cao (`UnifiedLabelPickerModal.tsx`) & Nút "🏷️ Gán nhãn" Hàng Loạt**:
-  - Đổi tên nút từ `🏷️ Nhãn Local` thành **`🏷️ Gán nhãn`** trên thanh thao tác hàng loạt CRM (`BulkActionBar.tsx`).
-  - Modal chọn nhãn phong cách 2 cột cao cấp: lọc nhãn theo tài khoản Zalo/Facebook, quản lý đồng thời cả **💾 Nhãn Local** và **☁️ Nhãn Zalo**.
-  - Tích hợp ô nhập tên nhãn local + emoji + màu sắc để tạo mới nhãn local cực nhanh.
-  - Hỗ trợ gán/gỡ nhiều nhãn cùng lúc. Nếu bỏ chọn tất cả (để trống) và bấm Xác nhận ➔ Tự động gỡ sạch mọi nhãn của các liên hệ đã chọn.
-- 📱 **Chuẩn Hóa & Tự Động Bổ Sung Số 0 Cho SĐT Việt Nam (`phoneUtils.ts`)**:
-  - Tự động phát hiện và sửa số 9 chữ số bị thiếu `0` ở đầu (`904665731` ➔ `0904665731`).
-  - Chuẩn hóa các tiền tố `+84`, `84`, tự động lọc bỏ khoảng trắng, dấu chấm, gạch ngang trên toàn bộ hệ thống (CRM Search, Thêm liên hệ, Quét SĐT hàng loạt, Nhắn tin).
-- ⚡ **Tra Cứu SĐT Theo Lô CRM Nâng Cao (`AddToContactsModal.tsx`)**:
-  - Chuyển đổi từ tra cứu tuần tự sang Batch API (`getMultiUsersByPhones`) gộp 100 SĐT/lần.
-  - Bypass cài đặt quyền riêng tư cá nhân Zalo (chặn tìm kiếm từ người lạ) và tăng tốc độ tra cứu danh sách SĐT trong CRM lên **~20 lần**.
-- ✏️ **Chế Độ Sửa Mã Thô Trong Workflow Editor (`SmartInput.tsx`)**:
-  - Thêm nút bấm **`✏️ Sửa mã thô`** / **`🏷️ Thẻ Chip`** cho phép chỉnh sửa trực tiếp chuỗi văn bản thô `{{ ... }}` và tùy ý thêm `.contacts`, `.salutation`, `.output` mà không bị thẻ HTML cản trở.
-  - Tự động dãn chiều cao ô nhập và định vị chính xác ô nhập focus gần nhất khi chèn biến.
-- 🚫 **Tự Động Nhận Diện Liên Hệ Đã Chặn Tin Nhắn & Bộ Lọc Đã Chặn**:
-  - Tự động gắn cờ `is_blocked = 1` và gán nhãn `🚫 Đã chặn` cho các tài khoản chặn tin nhắn người lạ hoặc chặn cá nhân.
-  - Thêm bộ lọc `🚫 Đã chặn mình` và hỗ trợ xuất file Excel danh sách đã chặn trong CRM.
-- 🔀 **Chuyển Liên Hệ Sang Zalo Khác Chăm Sóc (`BulkActionBar.tsx`)**:
-  - Thêm tùy chọn chuyển nhượng tệp liên hệ sang tài khoản Zalo kết nối khác để tiếp tục chăm sóc từ đầu.
-- 🍏 **Ký Số & Notarize macOS Chính Thức**:
-  - Toàn bộ bản cài đặt macOS (`Zagi v3.1.6 MacOS M1+ arm64.dmg` và `Intel.dmg`) được ký số bằng chứng thư Apple Developer ID chính thức của **BASAN CORPORATION** và notarized với Apple.
+- 🎂 **Bộ Lọc Dải Năm Sinh CRM (`1985 - 2000`) & Phím Tắt Thế Hệ**:
+  - Hỗ trợ ô nhập dải năm sinh tùy chỉnh `[Từ năm: 1985]` - `[Đến năm: 2000]` + Nút `Lọc`.
+  - Phím tắt 1-click thế hệ: `🌱 Gen Z (1997-2012)`, `🌿 9x (1990-1999)`, `🌳 8x (1980-1989)`, `👴 7x trở trước (< 1979)`.
+  - Đồng bộ từ UI ➔ IPC ➔ CSDL SQLite filter (`yearrange_START_END`).
+- ⚙️ **Phân loại Trạng Thái Lô Quét & Badge Lý Do Tạm Dừng (`pause_reason`)**:
+  - Phân loại 10 tình huống Lô quét SĐT minh bạch với Badge màu sắc & Tooltip chi tiết:
+    - 🛑 **Tạm dừng (Hạn ngạch -216)**: Zalo khóa tìm kiếm (100 số/ngày hoặc 30 số/giờ).
+    - ⏸️ **Tạm dừng (Thủ công)**: Người dùng tự bấm Tắt.
+    - ⏳ **Nhường Lô Ưu Tiên**: Tạm hoãn xuống hàng đợi nhường lượt cho Lô bấm `Priority High`.
+    - 🌅 **Tự khôi phục ngày mới**: Tự động khôi phục chạy tiếp khi sang ngày mới (sau 00:00 đêm).
+- 🌅 **Tự Động Khôi Phục Chạy Tiếp Sang Ngày Mới (Auto-Resume Next Day)**:
+  - Tự động nhận diện mốc thời gian sang ngày mới (sau 00:00 đêm) cho cả Quét số hàng loạt (`PhoneScanService`) lẫn Chiến dịch CRM (`CRMQueueService`).
+  - Các Lô quét / Chiến dịch bị dừng do `daily_quota` tự động chuyển về `queued` / `active` và chạy tiếp nối tiếp.
+- 📉 **Smart Adaptive Quota Auto-Tuning (Tự Động Thích Ứng & Hạ Định Mức An Toàn)**:
+  - Khi gặp lỗi Zalo rate limit `-216` ở tin/SĐT thứ N (ví dụ: tin #31), Zagi tự động học số lượng thành công thực tế hôm nay (ví dụ: 30) và **tự động hạ Định mức an toàn của nick Zalo đó xuống 30**.
+  - Tự động áp dụng đồng bộ cho: (1) Tin nhắn người lạ; (2) Lời mời kết bạn; (3) Quét số điện thoại.
+- ⚙️ **Header Định Mức Hôm Nay & Modal Cấu Hình Định Mức Nâng Cấp (`AccountQuotaModal.tsx`)**:
+  - Banner `⚙️ ĐỊNH MỨC HÔM NAY` tại danh sách chiến dịch CRM.
+  - Cửa sổ định mức nâng cấp với **Avatar + Tên Nick Zalo thực tế + SĐT**, dropdown chọn nick linh hoạt và tùy chọn **"Áp dụng mẫu định mức này cho tất cả tài khoản"**.
+- 🖼️ **Logo Thương Hiệu Zagi PNG & Phục Hồi Sau Tắt Máy**:
+  - Đồng bộ logo PNG chính thức `zagi-logo.png` toàn bộ giao diện app & landing page.
+  - Tự động phục hồi trạng thái tin/SĐT dở dang (`scanning` ➔ `pending`) sau khi bật lại máy / khởi động lại app.
 
 </details>
 

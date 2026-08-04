@@ -140,6 +140,30 @@ Trang chủ khi mở app: thẻ trạng thái từng tài khoản (online/offlin
   - Hỗ trợ đầy đủ các chế độ: Mở rộng đầy đủ, Thu nhỏ dạng thanh thông báo (`Minimized Bar`) và Đóng `x`.
 - **💻 Tương phản biểu tượng sơ đồ Landing Page trên Desktop:**
   - Chuẩn hóa toàn bộ biểu tượng minh họa trên Landing Page màu **Trắng Tinh (`#ffffff !important`)** hiển thị sắc nét tương phản cao trên màn hình Desktop lẫn Mobile.
+### 3.14. Cập nhật mới phiên bản v3.1.6
+- **🎂 Nâng cấp Bộ Lọc Dải Năm Sinh CRM (`1985 - 2000`) & Phím Tắt Thế Hệ:**
+  - Hỗ trợ ô nhập khoảng năm sinh tùy chỉnh `[Từ năm]` - `[Đến năm]` kèm nút `Lọc`.
+  - Phím tắt 1-click thế hệ: `🌱 Gen Z (1997-2012)`, `🌿 9x (1990-1999)`, `🌳 8x (1980-1989)`, `👴 7x trở trước (< 1979)`.
+  - Kết nối liền mạch từ UI ➔ IPC ➔ CSDL SQLite filter (`yearrange_START_END`).
+- **⚙️ Phân loại Trạng Thái Lô Quét & Badge Lý Do Tạm Dừng (`pause_reason`):**
+  - Chuẩn hóa 10 tình huống quản lý Lô quét SĐT.
+  - Phân biệt minh bạch các trạng thái dừng/chờ:
+    - 🛑 **Tạm dừng (Hạn ngạch -216)**: Zalo khóa tìm kiếm (100 số/ngày hoặc 30 số/giờ).
+    - ⏸️ **Tạm dừng (Thủ công)**: Người dùng tự bấm Tắt.
+    - ⏳ **Nhường Lô Ưu Tiên**: Tạm hoãn xuống queue nhường lượt cho Lô bấm `Priority High`.
+    - 🌅 **Tự khôi phục ngày mới**: Tự động khôi phục chạy tiếp khi bước sang ngày mới (sau 00:00 đêm).
+- **🌅 Tự Động Khôi Phục Chạy Tiếp Sang Ngày Mới (Auto-Resume Next Day):**
+  - Áp dụng cho cả Quét số hàng loạt (`PhoneScanService`) lẫn Chiến dịch CRM (`CRMQueueService`).
+  - Khi sang ngày mới (qua 00:00), các Lô quét / Chiến dịch bị dừng do `daily_quota` tự động chuyển về `queued` / `active` và chạy tiếp nối tiếp.
+- **📉 Smart Adaptive Quota Auto-Tuning (Tự Động Thích Ứng & Hạ Định Mức An Toàn):**
+  - Khi gặp lỗi Zalo rate limit `-216` ở tin/SĐT thứ N (ví dụ: tin #31), Zagi tự động học số lượng thành công thực tế hôm nay (ví dụ: 30) và **tự động hạ Định mức an toàn của nick Zalo đó xuống 30**.
+  - Tự động áp dụng đồng bộ cho: (1) Tin nhắn người lạ; (2) Lời mời kết bạn; (3) Quét số điện thoại.
+- **⚙️ Banner Định Mức Hôm Nay & Modal Cấu Hình Định Mức Nâng Cấp (`AccountQuotaModal.tsx`):**
+  - Banner `⚙️ ĐỊNH MỨC HÔM NAY` tại danh sách chiến dịch CRM.
+  - Cửa sổ định mức nâng cấp với **Avatar + Tên Nick Zalo thực tế + SĐT**, dropdown chọn nick linh hoạt và tùy chọn **"Áp dụng mẫu định mức này cho tất cả tài khoản"**.
+- **🖼️ Logo Thương Hiệu Zagi PNG & Phục Hồi Sau Tắt Máy:**
+  - Đồng bộ logo PNG chính thức `zagi-logo.png` toàn bộ giao diện app & landing page.
+  - Tự động phục hồi trạng thái tin/SĐT dở dang (`scanning` ➔ `pending`) sau khi bật lại máy / khởi động lại app.
 ##
 PHẦN 4: BẢO MẬT & QUYỀN RIÊNG TƯ 
 Dữ liệu lưu cục bộ 100% trên máy khách của khách hàng (tin nhắn, danh bạ, CRM, cài đặt). Không có server trung gian — app kết nối trực tiếp Zalo ↔ máy khách. Phiên đăng nhập được mã hóa AES, lưu cục bộ. App không lưu mật khẩu Zalo (đăng nhập qua QR). Không tích hợp SDK thu thập dữ liệu/analytics/quảng cáo bên thứ ba.
