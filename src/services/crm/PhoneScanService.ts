@@ -320,7 +320,11 @@ class PhoneScanService {
                 } catch (err: any) {
                     const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
                     const errMsg = String(err?.message || '').toLowerCase();
-                    const isRateLimit = code === -216 || code === 216 || code === 50004 || errMsg.includes('-216') || errMsg.includes('216') || errMsg.includes('search limit') || errMsg.includes('find user limit');
+                    const isRateLimit = code === -216 || code === 216 || code === 50004 ||
+                        errMsg.includes('-216') || errMsg.includes('216') ||
+                        errMsg.includes('search limit') || errMsg.includes('find user limit') ||
+                        errMsg.includes('quá nhiều lần') || errMsg.includes('quá nhiều') ||
+                        errMsg.includes('quá hạn') || errMsg.includes('hạn ngạch');
                     const errorMsg = isRateLimit
                         ? 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng đổi nick hoặc chờ 24h'
                         : (err.message || 'Lookup failed');

@@ -7192,6 +7192,23 @@ class DatabaseService {
                                 return parseInt(parts[1], 10) === targetMonth;
                             });
                         }
+                    } else if (filter.startsWith('yearrange_') || filter.startsWith('years_')) {
+                        const rawRange = filter.replace(/^(yearrange_|years_)/, '');
+                        const [sStr, eStr] = rawRange.split('_');
+                        const startY = parseInt(sStr, 10);
+                        const endY = parseInt(eStr, 10);
+                        if (!isNaN(startY) && !isNaN(endY)) {
+                            const minY = Math.min(startY, endY);
+                            const maxY = Math.max(startY, endY);
+                            all = all.filter(c => {
+                                if (!c.birthday) return false;
+                                const cleanBday = c.birthday.replace(/[\.-]/g, '/');
+                                const parts = cleanBday.split('/');
+                                if (parts.length < 3) return false;
+                                const y = parseInt(parts[2], 10);
+                                return !isNaN(y) && y >= minY && y <= maxY;
+                            });
+                        }
                     } else if (filter.startsWith('year_')) {
                         const targetYear = parseInt(filter.replace('year_', ''), 10);
                         if (!isNaN(targetYear)) {

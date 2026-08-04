@@ -93,7 +93,7 @@ export function registerCRMIpc(): void {
             else if (b === 'this_week' || b === 'tuần này') sanitized.birthdayFilter = 'this_week';
             else if (b === 'this_month' || b === 'tháng này') sanitized.birthdayFilter = 'this_month';
             else if (b === 'has_birthday' || b === 'có sinh nhật') sanitized.birthdayFilter = 'has_birthday';
-            else if (b === 'no_birthday' || b === 'chưa có sinh nhật') sanitized.birthdayFilter = 'no_birthday';
+            else if (b.startsWith('yearrange_') || b.startsWith('years_') || b.startsWith('year_') || b.startsWith('month_')) sanitized.birthdayFilter = b;
             else if (b === 'all' || b === 'tất cả') sanitized.birthdayFilter = 'all';
         }
 

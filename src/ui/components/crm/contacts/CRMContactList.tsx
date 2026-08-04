@@ -392,7 +392,10 @@ function BirthdayFilterDropdown({ value, onChange }: {
   onChange: (v: BirthdayFilter) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [yearFrom, setYearFrom] = useState('');
+  const [yearTo, setYearTo] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', h);
@@ -409,6 +412,10 @@ function BirthdayFilterDropdown({ value, onChange }: {
   ];
 
   const getLabel = () => {
+    if (value.startsWith('yearrange_') || value.startsWith('years_')) {
+      const parts = value.replace(/^(yearrange_|years_)/, '').split('_');
+      if (parts.length >= 2) return `🎂 ${parts[0]} - ${parts[1]}`;
+    }
     if (value.startsWith('month_')) {
       const m = value.replace('month_', '');
       return `🎂 Tháng ${m}`;
@@ -419,6 +426,23 @@ function BirthdayFilterDropdown({ value, onChange }: {
     }
     const found = OPTIONS.find(o => o.key === value);
     return found ? `${found.icon} ${found.label}` : '🎂 Sinh nhật';
+  };
+
+  const handleApplyYearRange = () => {
+    const fromY = parseInt(yearFrom, 10);
+    const toY = parseInt(yearTo, 10);
+    if (!isNaN(fromY) && !isNaN(toY)) {
+      const minY = Math.min(fromY, toY);
+      const maxY = Math.max(fromY, toY);
+      onChange(`yearrange_${minY}_${maxY}` as BirthdayFilter);
+      setOpen(false);
+    } else if (!isNaN(fromY)) {
+      onChange(`year_${fromY}` as BirthdayFilter);
+      setOpen(false);
+    } else if (!isNaN(toY)) {
+      onChange(`year_${toY}` as BirthdayFilter);
+      setOpen(false);
+    }
   };
 
   const isActive = value !== 'all';
@@ -437,9 +461,9 @@ function BirthdayFilterDropdown({ value, onChange }: {
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[240px] p-2.5 space-y-2 text-xs">
+        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-50 min-w-[270px] max-w-[310px] p-3 space-y-2.5 text-xs">
           {/* Lọc Nhanh */}
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Lọc nhanh</div>
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-0.5">Lọc nhanh</div>
           <div className="grid grid-cols-2 gap-1">
             {OPTIONS.map(opt => (
               <button key={opt.key} onClick={() => { onChange(opt.key); setOpen(false); }}
@@ -454,8 +478,71 @@ function BirthdayFilterDropdown({ value, onChange }: {
 
           <div className="border-t border-gray-700 my-1" />
 
+          {/* Dải Năm Sinh & Phím Tắt Thế Hệ */}
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-0.5">Khoảng Năm Sinh (VD: 1985 - 2000)</div>
+          
+          {/* Presets */}
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              onClick={() => { onChange('yearrange_1997_2012' as BirthdayFilter); setOpen(false); }}
+              className="px-2 py-1 bg-gray-700/70 hover:bg-gray-700 rounded-md text-[11px] text-gray-200 text-left truncate transition-colors"
+            >
+              🌱 Gen Z (1997 - 2012)
+            </button>
+            <button
+              onClick={() => { onChange('yearrange_1990_1999' as BirthdayFilter); setOpen(false); }}
+              className="px-2 py-1 bg-gray-700/70 hover:bg-gray-700 rounded-md text-[11px] text-gray-200 text-left truncate transition-colors"
+            >
+              🌿 9x (1990 - 1999)
+            </button>
+            <button
+              onClick={() => { onChange('yearrange_1980_1989' as BirthdayFilter); setOpen(false); }}
+              className="px-2 py-1 bg-gray-700/70 hover:bg-gray-700 rounded-md text-[11px] text-gray-200 text-left truncate transition-colors"
+            >
+              🌳 8x (1980 - 1989)
+            </button>
+            <button
+              onClick={() => { onChange('yearrange_1950_1979' as BirthdayFilter); setOpen(false); }}
+              className="px-2 py-1 bg-gray-700/70 hover:bg-gray-700 rounded-md text-[11px] text-gray-200 text-left truncate transition-colors"
+            >
+              👴 7x trở trước (&lt; 1979)
+            </button>
+          </div>
+
+          {/* Custom Year Range Inputs */}
+          <div className="flex items-center gap-1.5 pt-1">
+            <input
+              type="number"
+              placeholder="Từ năm"
+              min={1950}
+              max={2050}
+              value={yearFrom}
+              onChange={e => setYearFrom(e.target.value)}
+              className="w-1/2 bg-gray-900 text-gray-100 border border-gray-700 rounded-lg px-2 py-1 text-center focus:outline-none focus:border-blue-500"
+            />
+            <span className="text-gray-400 font-bold">-</span>
+            <input
+              type="number"
+              placeholder="Đến năm"
+              min={1950}
+              max={2050}
+              value={yearTo}
+              onChange={e => setYearTo(e.target.value)}
+              className="w-1/2 bg-gray-900 text-gray-100 border border-gray-700 rounded-lg px-2 py-1 text-center focus:outline-none focus:border-blue-500"
+            />
+            <button
+              type="button"
+              onClick={handleApplyYearRange}
+              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shrink-0 transition-colors"
+            >
+              Lọc
+            </button>
+          </div>
+
+          <div className="border-t border-gray-700 my-1" />
+
           {/* Lọc Theo Tháng (1 - 12) */}
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Theo Tháng sinh (1 - 12)</div>
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-0.5">Theo Tháng sinh (1 - 12)</div>
           <div className="grid grid-cols-4 gap-1">
             {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
               const key = `month_${m}` as BirthdayFilter;
@@ -473,8 +560,8 @@ function BirthdayFilterDropdown({ value, onChange }: {
 
           <div className="border-t border-gray-700 my-1" />
 
-          {/* Lọc Theo Năm Sinh (1950 - 2050) */}
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Theo Năm sinh (1950 - 2050)</div>
+          {/* Lọc Theo 1 Năm Sinh Đơn Lẻ */}
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-0.5">Hoặc chọn 1 năm đơn lẻ</div>
           <select
             value={value.startsWith('year_') ? value.replace('year_', '') : ''}
             onChange={(e) => {
@@ -485,7 +572,7 @@ function BirthdayFilterDropdown({ value, onChange }: {
             }}
             className="w-full bg-gray-900 text-gray-100 border border-gray-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
           >
-            <option value="">-- Chọn năm sinh --</option>
+            <option value="">-- Chọn 1 năm sinh --</option>
             {YEARS.map(y => (
               <option key={y} value={y}>Năm {y}</option>
             ))}
