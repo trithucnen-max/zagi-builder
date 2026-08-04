@@ -886,6 +886,8 @@ class DatabaseService {
                 status TEXT NOT NULL DEFAULT 'draft',
                 delay_seconds INTEGER NOT NULL DEFAULT 60,
                 scheduled_start_at INTEGER DEFAULT 0,
+                is_deleted INTEGER DEFAULT 0,
+                deleted_at INTEGER DEFAULT NULL,
                 created_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT 0
             );
@@ -896,6 +898,8 @@ class DatabaseService {
         try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN campaign_type TEXT NOT NULL DEFAULT 'message'`); } catch {}
         try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN mixed_config TEXT NOT NULL DEFAULT '{}'`); } catch {}
         try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN scheduled_start_at INTEGER DEFAULT 0`); } catch {}
+        try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN is_deleted INTEGER DEFAULT 0`); } catch {}
+        try { this.exec(`ALTER TABLE crm_campaigns ADD COLUMN deleted_at INTEGER DEFAULT NULL`); } catch {}
         try { this.exec(`ALTER TABLE crm_campaign_contacts ADD COLUMN phone TEXT NOT NULL DEFAULT ''`); } catch {}
 
         this.exec(`
@@ -2717,6 +2721,19 @@ class DatabaseService {
             }
         } catch (err: any) {
             Logger.warn(`[DatabaseService] Priority queue migration: ${err.message}`);
+        }
+
+        // Migration: add is_deleted + deleted_at to crm_campaigns
+        try {
+            const campColsDelete = this.query<any>(`PRAGMA table_info(crm_campaigns)`);
+            if (campColsDelete.length > 0 && !campColsDelete.some((c: any) => c.name === 'is_deleted')) {
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN is_deleted INTEGER DEFAULT 0`);
+                db!.exec(`ALTER TABLE crm_campaigns ADD COLUMN deleted_at INTEGER DEFAULT NULL`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added is_deleted + deleted_at to crm_campaigns');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] is_deleted migration: ${err.message}`);
         }
 
         // ── fb_threads.is_e2ee ──────────────────────────────────────────────
