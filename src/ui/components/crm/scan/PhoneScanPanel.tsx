@@ -9,6 +9,7 @@ import AppIcon from '../../common/AppIcon';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 import ImportWizardModal, { BatchConfig } from '../import/ImportWizardModal';
 import AccountQuotaModal from '../campaigns/AccountQuotaModal';
+import { ExportExcelColumnModal } from './ExportExcelColumnModal';
 
 function getContrastColor(hexColor: string): string {
   if (!hexColor) return '#ffffff';
@@ -193,8 +194,9 @@ export default function PhoneScanPanel() {
     const accounts = useAccountStore(s => s.accounts);
     const [quotaModalZaloId, setQuotaModalZaloId] = useState<string | null>(null);
     const [fullscreenReportBatch, setFullscreenReportBatch] = useState<Batch | null>(null);
+    const [exportModalBatch, setExportModalBatch] = useState<Batch | null>(null);
 
-    const handleExportBatchExcel = useCallback(async (batch: Batch) => {
+    const handleExportBatchExcel = useCallback(async (batch: Batch, selectedKeys?: string[]) => {
         if (!batch) return;
         try {
             const res = await ipc.crm.getPhoneScanItems({ batchId: batch.id, limit: 100000, offset: 0, status: 'all' });
@@ -208,18 +210,51 @@ export default function PhoneScanPanel() {
             const notFoundItems = allItems.filter((i: any) => i.status === 'not_found');
             const errorItems = allItems.filter((i: any) => i.status === 'error' || i.status === 'failed');
 
-            const formatRows = (itemsArr: any[]) => itemsArr.map((item: any, idx: number) => ({
-                'STT': idx + 1,
-                'Số điện thoại': item.phone || '',
-                'Họ tên gốc (CSV/CRM)': item.full_name_raw || item.real_name || '',
-                'Trạng thái Zalo': item.status === 'found' ? '✓ Có Zalo' : (item.status === 'not_found' ? 'Không Zalo' : 'Lỗi quét'),
-                'Tên Zalo': item.zalo_name || '',
-                'Zalo UID': item.zalo_uid || '',
-                'Tài khoản quét': item.scanned_by_account_id ? (accounts.find(a => a.zalo_id === item.scanned_by_account_id)?.full_name || item.scanned_by_account_id) : '',
-                'Tài khoản nhận CRM': item.target_account_id ? (accounts.find(a => a.zalo_id === item.target_account_id)?.full_name || item.target_account_id) : '',
-                'Ghi chú lỗi': item.error_msg || '',
-                'Thời gian quét': item.scanned_at ? new Date(item.scanned_at).toLocaleString('vi-VN') : ''
-            }));
+            const keysToExport = selectedKeys && selectedKeys.length > 0
+                ? selectedKeys
+                : ['stt', 'phone', 'full_name_raw', 'status', 'zalo_name', 'zalo_uid', 'scanned_by', 'target_account', 'error_msg', 'scanned_at'];
+
+            const KEY_LABELS: Record<string, string> = {
+                stt: 'STT',
+                phone: 'Số điện thoại',
+                full_name_raw: 'Họ tên gốc (CSV/CRM)',
+                status: 'Trạng thái Zalo',
+                zalo_name: 'Tên Zalo',
+                zalo_uid: 'Zalo UID',
+                gender: 'Giới tính',
+                dob: 'Ngày sinh',
+                scanned_by: 'Tài khoản quét Zalo',
+                target_account: 'Tài khoản nhận CRM',
+                error_msg: 'Ghi chú lỗi',
+                scanned_at: 'Thời gian quét'
+            };
+
+            const getValueForKey = (key: string, item: any, idx: number) => {
+                switch (key) {
+                    case 'stt': return idx + 1;
+                    case 'phone': return item.phone || '';
+                    case 'full_name_raw': return item.full_name_raw || item.real_name || '';
+                    case 'status': return item.status === 'found' ? '✓ Có Zalo' : (item.status === 'not_found' ? 'Không Zalo' : (item.status === 'error' || item.status === 'failed' ? 'Lỗi quét' : 'Chờ quét'));
+                    case 'zalo_name': return item.zalo_name || '';
+                    case 'zalo_uid': return item.zalo_uid || '';
+                    case 'gender': return item.gender || '';
+                    case 'dob': return item.dob || item.birth_date || '';
+                    case 'scanned_by': return item.scanned_by_account_id ? (accounts.find(a => a.zalo_id === item.scanned_by_account_id)?.full_name || item.scanned_by_account_id) : '';
+                    case 'target_account': return item.target_account_id ? (accounts.find(a => a.zalo_id === item.target_account_id)?.full_name || item.target_account_id) : '';
+                    case 'error_msg': return item.error_msg || '';
+                    case 'scanned_at': return item.scanned_at ? new Date(item.scanned_at).toLocaleString('vi-VN') : '';
+                    default: return '';
+                }
+            };
+
+            const formatRows = (itemsArr: any[]) => itemsArr.map((item: any, idx: number) => {
+                const rowObj: Record<string, any> = {};
+                keysToExport.forEach(k => {
+                    const colName = KEY_LABELS[k] || k;
+                    rowObj[colName] = getValueForKey(k, item, idx);
+                });
+                return rowObj;
+            });
 
             const wb = XLSX.utils.book_new();
 
@@ -1387,9 +1422,9 @@ export default function PhoneScanPanel() {
 
                                 <button
                                     type="button"
-                                    onClick={() => handleExportBatchExcel(selectedBatch)}
+                                    onClick={() => setExportModalBatch(selectedBatch)}
                                     className="p-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
-                                    title="Xuất file Excel báo cáo phân loại"
+                                    title="Lựa chọn các trường và xuất file Excel"
                                 >
                                     <AppIcon name="download" size={14} />
                                     <span className="hidden sm:inline">Xuất Excel</span>
@@ -2530,9 +2565,9 @@ export default function PhoneScanPanel() {
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
-                                onClick={() => handleExportBatchExcel(fullscreenReportBatch)}
+                                onClick={() => setExportModalBatch(fullscreenReportBatch)}
                                 className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-                                title="Xuất toàn bộ báo cáo phân loại ra file Excel"
+                                title="Lựa chọn các trường dữ liệu và xuất file Excel"
                             >
                                 <span>📥</span>
                                 <span>Xuất Excel Báo Cáo</span>
@@ -2842,6 +2877,15 @@ export default function PhoneScanPanel() {
                         </div>
                     </div>
                 </div>
+            {exportModalBatch && (
+                <ExportExcelColumnModal
+                    isOpen={!!exportModalBatch}
+                    batchName={exportModalBatch.name}
+                    onClose={() => setExportModalBatch(null)}
+                    onConfirmExport={(selectedKeys) => {
+                        handleExportBatchExcel(exportModalBatch, selectedKeys);
+                    }}
+                />
             )}
         </div>
     );
