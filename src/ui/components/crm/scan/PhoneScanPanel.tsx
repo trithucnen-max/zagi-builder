@@ -181,6 +181,7 @@ export default function PhoneScanPanel() {
     const [newLabelEmoji, setNewLabelEmoji] = useState('🏷️');
     
     // Local Labels (Tags)
+    const [showLabelPickerModal, setShowLabelPickerModal] = useState<boolean>(false);
     const [localLabels, setLocalLabels] = useState<any[]>([]);
     const [limitStatusList, setLimitStatusList] = useState<any[]>([]);
     const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
