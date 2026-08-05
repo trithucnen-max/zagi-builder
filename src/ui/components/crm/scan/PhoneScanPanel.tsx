@@ -2904,6 +2904,8 @@ export default function PhoneScanPanel() {
                         </div>
                     </div>
                 </div>
+            )}
+
             {showConvertModal && convertBatch && (
                 <ConvertScanToCampaignModal
                     isOpen={showConvertModal}
