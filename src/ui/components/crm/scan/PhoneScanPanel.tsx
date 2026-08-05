@@ -1373,21 +1373,59 @@ export default function PhoneScanPanel() {
                 {/* Right panel: Details of selected batch */}
                 {selectedBatch && (
                     <div className="flex-1 flex flex-col bg-white dark:bg-gray-900 overflow-hidden">
-                        <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-855/40 flex-shrink-0">
+                        <div className="p-4 px-5 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-850 flex-shrink-0">
                             <div>
-                                <h3 className="font-bold text-gray-900 dark:text-white text-xs">
+                                <h3 className="font-bold text-gray-900 dark:text-white text-sm">
                                     Chi tiết Lô quét: {selectedBatch.name}
                                 </h3>
-                                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                                     Mã số: #{selectedBatch.id} | Giới hạn quét ngày: {selectedBatch.daily_limit} số
                                 </p>
                             </div>
-                            <button
-                                onClick={() => setSelectedBatch(null)}
-                                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-                            >
-                                <AppIcon name="x" size={14} />
-                            </button>
+
+                            {/* Header Buttons (Yêu cầu 2) */}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setConvertBatch(selectedBatch);
+                                        setShowConvertModal(true);
+                                    }}
+                                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
+                                    title="Chuyển SĐT có Zalo vào Chiến dịch CRM"
+                                >
+                                    <AppIcon name="zap" size={13} />
+                                    <span>Chuyển vào chiến dịch</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => handleExportBatchExcel(selectedBatch)}
+                                    className="p-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
+                                    title="Xuất file Excel báo cáo phân loại"
+                                >
+                                    <AppIcon name="download" size={14} />
+                                    <span className="hidden sm:inline">Xuất Excel</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setFullscreenReportBatch(selectedBatch)}
+                                    className="p-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
+                                    title="Phóng to xem báo cáo toàn màn hình"
+                                >
+                                    <AppIcon name="maximize-2" size={14} />
+                                    <span className="hidden sm:inline">Phóng to</span>
+                                </button>
+
+                                <button
+                                    onClick={() => setSelectedBatch(null)}
+                                    className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                                    title="Đóng chi tiết lô"
+                                >
+                                    <AppIcon name="x" size={16} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Rate Limit Alert Banner */}
@@ -1467,93 +1505,6 @@ export default function PhoneScanPanel() {
                             </div>
                         )}
 
-                        {/* Option C Banner: Cấu hình Setup ban đầu & Báo cáo Nhãn đã gán */}
-                        <div className="mx-5 mt-4 p-3.5 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/80 rounded-xl space-y-2 text-xs flex-shrink-0">
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-700/60 pb-2">
-                                <div className="flex items-center gap-1.5 font-bold text-gray-800 dark:text-gray-200 text-xs">
-                                    <AppIcon name="settings" size={14} className="text-blue-500" />
-                                    <span>Cấu hình Setup ban đầu & Báo cáo Lô #{selectedBatch.id}</span>
-                                </div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setConvertBatch(selectedBatch);
-                                            setShowConvertModal(true);
-                                        }}
-                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-2xs active:scale-95"
-                                        title="Chuyển SĐT có Zalo vào Chiến dịch CRM Mới hoặc Có sẵn"
-                                    >
-                                        <span>🚀</span>
-                                        <span>Chuyển vào Chiến dịch</span>
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => handleExportBatchExcel(selectedBatch)}
-                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-2xs active:scale-95"
-                                        title="Xuất file Excel phân loại"
-                                    >
-                                        <span>📥</span>
-                                        <span>Xuất Excel</span>
-                                    </button>
-
-                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                                        Tạo lúc: {new Date(selectedBatch.created_at).toLocaleString('vi-VN')}
-                                    </span>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setFullscreenReportBatch(selectedBatch)}
-                                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 rounded-lg transition-all cursor-pointer shadow-2xs hover:shadow-xs"
-                                        title="Phóng to xem toàn màn hình báo cáo & cấu hình Lô"
-                                    >
-                                        <AppIcon name="maximize-2" size={13} />
-                                        <span>Phóng to báo cáo</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-gray-600 dark:text-gray-300 text-[11px]">
-                                {/* Account */}
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-semibold text-gray-400">Tài khoản chạy:</span>
-                                    {selectedBatchAccount ? (
-                                        <div className="flex items-center gap-1 font-medium text-gray-900 dark:text-white">
-                                            {selectedBatchAccount.avatar_url && (
-                                                <img src={selectedBatchAccount.avatar_url} className="w-4 h-4 rounded-full" alt="" />
-                                            )}
-                                            <span>{selectedBatchAccount.full_name || selectedBatchAccount.zalo_id}</span>
-                                        </div>
-                                    ) : (
-                                        <span className="text-blue-600 dark:text-blue-400 font-medium">Tất cả tài khoản</span>
-                                    )}
-                                </div>
-
-                                {/* Limits */}
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-semibold text-gray-400">Giới hạn:</span>
-                                    <span className="font-medium text-gray-900 dark:text-white">
-                                        {selectedBatch.daily_limit} số/ngày {selectedBatch.hourly_limit ? `(${selectedBatch.hourly_limit} số/giờ)` : ''}
-                                    </span>
-                                </div>
-
-                                {/* Skip CRM */}
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-semibold text-gray-400">Lọc CRM:</span>
-                                    <span className="font-medium text-gray-900 dark:text-white">
-                                        {selectedBatch.skip_crm_existing ? '✓ Bỏ qua SĐT đã có trong CRM' : 'Quét toàn bộ'}
-                                    </span>
-                                </div>
-
-                                {/* Contact Assignment Mode Banner */}
-                                <div className="flex items-center gap-1.5 col-span-full justify-between bg-white dark:bg-gray-800/80 p-2 rounded-lg border border-gray-200 dark:border-gray-700/60">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="font-semibold text-gray-400">Quy tắc phân bổ CRM:</span>
-                                        <span className="font-bold text-gray-900 dark:text-white">
-                                            {selectedBatch.contact_assignment_mode === 'single' ? '🔵 Gom về 1 tài khoản chỉ định'
-                                             : selectedBatch.contact_assignment_mode === 'all_accounts' ? '🟣 Có mặt ở tất cả tài khoản Zalo'
-                                             : '🟢 Phân tán theo tài khoản trực tiếp quét'}
                                         </span>
                                     </div>
                                     <button
