@@ -109,6 +109,7 @@ export default function PhoneScanPanel() {
     const [loadingItems, setLoadingItems] = useState(false);
     const [itemsTotal, setItemsTotal] = useState(0);
     const [itemsPage, setItemsPage] = useState(0);
+    const itemsLimit = 20;
     const [itemsStatusFilter, setItemsStatusFilter] = useState<string>('all');
     const [itemsAccountFilter, setItemsAccountFilter] = useState<string>('all');
     const [itemsSearchQuery, setItemsSearchQuery] = useState<string>('');
