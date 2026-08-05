@@ -125,15 +125,82 @@ export default function CampaignDetail({
 
   const parseContactError = useCallback((c: any) => {
     const err = String(c?.error || '').toLowerCase();
-    const isMsgFailed = err.includes('lỗi gửi tin') || (c?.status === 'failed' && !err.includes('kết bạn') && !err.includes('nhóm'));
+    const rawError = c?.error || '';
+
+    // ── Detect specific Zalo error codes ──────────────────────────────────
+    const hasCode = (code: number | string) => {
+      const s = String(code);
+      return rawError.includes(s) || err.includes(s);
+    };
+
+    const isStrangerPrivacy = hasCode(201) || hasCode(-201) ||  // tắt nhận tin người lạ
+      err.includes('không nhận tin nhắn') || err.includes('người lạ') || err.includes('stranger');
+    const isBlockedByUser  = hasCode(202) || hasCode(-202) ||  // bị chặn
+      err.includes('đã chặn') || err.includes('blocked') || err.includes('block');
+    const isNickLocked127  = hasCode(127);                      // nick bị khóa gửi tin người lạ
+    const isSpamSuspect108 = hasCode(108);                      // zalo nghi spam
+    const isContentBanned  = hasCode(3001);                     // nội dung chứa từ/link cấm
+    const isSessionExpired = hasCode(-5000) || hasCode(1001) || // hết phiên QR
+      err.includes('session') || err.includes('hết phiên') || err.includes('disconnect');
+    const isNoZaloAccount  = hasCode(5001) || hasCode(5004) ||  // không có tài khoản Zalo
+      err.includes('không tồn tại') || err.includes('chưa đăng ký');
+
+    // ── Legacy keyword fallbacks (for backward-compat) ────────────────────
+    const isMsgFailed    = err.includes('lỗi gửi tin') || (c?.status === 'failed' && !err.includes('kết bạn') && !err.includes('nhóm'));
     const isFriendFailed = err.includes('lỗi kết bạn') || err.includes('kết bạn');
     const isInviteFailed = err.includes('lỗi mời nhóm') || err.includes('nhóm');
-    const isBlocked = [
-      'chặn', 'không nhận tin nhắn', 'không nhận lời mời', 'người lạ', 'privacy', 'stranger', 'blocked'
-    ].some(k => err.includes(k));
+    const isBlocked      = isStrangerPrivacy || isBlockedByUser || err.includes('privacy');
 
-    return { isMsgFailed, isFriendFailed, isInviteFailed, isBlocked, rawError: c?.error || '' };
+    return {
+      isMsgFailed, isFriendFailed, isInviteFailed, isBlocked,
+      isStrangerPrivacy, isBlockedByUser, isNickLocked127, isSpamSuspect108,
+      isContentBanned, isSessionExpired, isNoZaloAccount,
+      rawError,
+    };
   }, []);
+
+  /** Returns a compact badge element for a failed contact */
+  const getContactErrorBadge = useCallback((c: any, onClick?: () => void) => {
+    const info = parseContactError(c);
+    const cls = (color: string) =>
+      `px-2 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 border ${
+        onClick ? 'cursor-pointer hover:scale-105 transition-transform' : ''
+      } ${color}`;
+
+    if (info.isNickLocked127) return (
+      <span onClick={onClick} className={cls('bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-300 dark:border-red-800')}
+        title="Nick bị Zalo khóa gửi tin cho người lạ (Mã 127). Đổi sang tài khoản khác.">🛑 Nick bị khóa gửi tin lạ</span>
+    );
+    if (info.isSpamSuspect108) return (
+      <span onClick={onClick} className={cls('bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800')}
+        title="Zalo nghi ngờ spam tài khoản của bạn (Mã 108). Tăng delay và tạm nghỉ.">⚠️ Zalo nghi Spam (108)</span>
+    );
+    if (info.isContentBanned) return (
+      <span onClick={onClick} className={cls('bg-yellow-100 dark:bg-yellow-950/60 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-800')}
+        title="Nội dung tin chứa từ/link cấm (Mã 3001). Kiểm tra lại template.">📝 Nội dung bị chặn (3001)</span>
+    );
+    if (info.isSessionExpired) return (
+      <span onClick={onClick} className={cls('bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800')}
+        title="Phiên QR Zalo hết hạn khi đang gửi. Quét lại QR và chạy tiếp.">🔑 Hết phiên QR</span>
+    );
+    if (info.isBlockedByUser) return (
+      <span onClick={onClick} className={cls('bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700')}
+        title="Người nhận đã chặn (Block) tài khoản Zalo của bạn (Mã 202).">🚫 Đã chặn bạn</span>
+    );
+    if (info.isStrangerPrivacy) return (
+      <span onClick={onClick} className={cls('bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700')}
+        title="Người nhận tắt nhận tin nhắn từ người lạ (Mã 201). Gửi kết bạn trước.">📵 Tắt nhận tin lạ</span>
+    );
+    if (info.isNoZaloAccount) return (
+      <span onClick={onClick} className={cls('bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700')}
+        title="SĐT chưa có tài khoản Zalo hoặc bật ẩn tìm kiếm (Mã 5001/5004).">❓ Không có Zalo</span>
+    );
+    // fallback
+    return (
+      <span onClick={onClick} className={cls('bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/40')}
+        title={`Lỗi: ${info.rawError || 'Không xác định'}`}>✕ Lỗi gửi tin <span className="text-[10px] opacity-80">ℹ️</span></span>
+    );
+  }, [parseContactError]);
 
   const stats = useMemo(() => {
     const total = contacts.length;
@@ -786,14 +853,8 @@ export default function CampaignDetail({
                                   )}
                                 </>
                               ) : (
-                                <span
-                                  onClick={() => { setSelectedErrorContact(c); setShowErrorModal(true); }}
-                                  className="px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/40 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer hover:scale-105 transition-transform"
-                                  title="Click để xem chi tiết lỗi"
-                                >
-                                  <span>✕</span> Failed
-                                  <span className="text-[10px] ml-0.5 opacity-80">ℹ️</span>
-                                </span>
+                                // Non-mixed: show specific error badge
+                                getContactErrorBadge(c, () => { setSelectedErrorContact(c); setShowErrorModal(true); })
                               )}
                             </div>
                           ) : (
@@ -933,7 +994,12 @@ interface ErrorDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   contact: any;
-  parseContactError: (c: any) => { isMsgFailed: boolean; isFriendFailed: boolean; isInviteFailed: boolean; isBlocked: boolean; rawError: string };
+  parseContactError: (c: any) => {
+    isMsgFailed: boolean; isFriendFailed: boolean; isInviteFailed: boolean; isBlocked: boolean;
+    isStrangerPrivacy?: boolean; isBlockedByUser?: boolean; isNickLocked127?: boolean;
+    isSpamSuspect108?: boolean; isContentBanned?: boolean; isSessionExpired?: boolean;
+    isNoZaloAccount?: boolean; rawError: string;
+  };
 }
 
 const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({
@@ -945,7 +1011,63 @@ const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({
   if (!isOpen || !contact) return null;
 
   const errStr = contact.error || 'Lỗi không xác định khi gửi';
-  const { isMsgFailed, isFriendFailed, isInviteFailed, isBlocked } = parseContactError(contact);
+  const info = parseContactError(contact);
+  const { isMsgFailed, isFriendFailed, isInviteFailed } = info;
+  const isBlocked = info.isBlocked;
+
+  // Map to a single primary badge + advice for clarity
+  const errorType: { icon: string; label: string; color: string; advice: string } = (() => {
+    if (info.isNickLocked127) return {
+      icon: '🛑', label: 'Nick bị Zalo khóa gửi tin cho người lạ (Mã 127)',
+      color: 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-300',
+      advice: 'Tài khoản Zalo của bạn đã bị Zalo hạn chế gửi tin cho người lạ trong 24h–72h. Hãy đổi sang tài khoản Zalo khác để tiếp tục, hoặc chỉ gửi cho danh bạ đã kết bạn.',
+    };
+    if (info.isSpamSuspect108) return {
+      icon: '⚠️', label: 'Zalo nghi ngờ tài khoản Spam (Mã 108)',
+      color: 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border-orange-300',
+      advice: 'Zalo tạm khóa tính năng gửi tin do hành vi giống spam. Tạm dừng 6h–24h, tăng Delay giữa các tin lên 60s–120s, cá nhân hóa nội dung và tránh gửi cùng mẫu hàng loạt.',
+    };
+    if (info.isContentBanned) return {
+      icon: '📝', label: 'Nội dung tin nhắn bị Zalo chặn (Mã 3001)',
+      color: 'bg-yellow-100 dark:bg-yellow-950/60 text-yellow-700 dark:text-yellow-300 border-yellow-300',
+      advice: 'Nội dung mẫu tin chứa đường link hoặc từ khóa vi phạm chính sách Zalo. Kiểm tra lại template, xóa link rút gọn, link lạ hoặc từ ngữ nhạy cảm.',
+    };
+    if (info.isSessionExpired) return {
+      icon: '🔑', label: 'Phiên đăng nhập QR Zalo hết hạn',
+      color: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300',
+      advice: 'Phiên QR của nick Zalo bị ngắt giữa chừng khi gửi tin. Vào Cài đặt → Tài khoản Zalo, quét lại mã QR, rồi bấm "Tiếp tục" chiến dịch.',
+    };
+    if (info.isBlockedByUser) return {
+      icon: '🚫', label: 'Người nhận đã chặn (Block) tài khoản của bạn (Mã 202)',
+      color: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300',
+      advice: 'Người nhận đã chủ động chặn tài khoản Zalo của bạn. Không thể liên hệ qua Zalo bằng bất kỳ phương thức nào. Bỏ qua liên hệ này.',
+    };
+    if (info.isStrangerPrivacy) return {
+      icon: '📵', label: 'Người nhận tắt nhận tin nhắn từ người lạ (Mã 201)',
+      color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300',
+      advice: 'Người nhận đã cài đặt quyền riêng tư không cho người lạ nhắn tin. Hãy gửi lời mời kết bạn trước, khi đối phương chấp nhận mới có thể gửi tin.',
+    };
+    if (info.isNoZaloAccount) return {
+      icon: '❓', label: 'SĐT không có tài khoản Zalo (Mã 5001/5004)',
+      color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300',
+      advice: 'Số điện thoại này chưa đăng ký Zalo hoặc người dùng đã bật "Ẩn tìm kiếm qua SĐT". Liên hệ bằng cuộc gọi thoại hoặc SMS.',
+    };
+    if (isFriendFailed) return {
+      icon: '🤝', label: 'Lỗi kết bạn',
+      color: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300',
+      advice: 'Không thể gửi lời mời kết bạn. Có thể do người nhận tắt nhận lời mời hoặc tài khoản bạn đang bị hạn chế kết bạn người lạ.',
+    };
+    if (isInviteFailed) return {
+      icon: '👥', label: 'Lỗi mời vào nhóm',
+      color: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-300',
+      advice: 'Không thể mời liên hệ này vào nhóm. Có thể do nhóm đã đầy, hoặc người nhận tắt tính năng được mời nhóm từ người lạ.',
+    };
+    return {
+      icon: '✕', label: 'Lỗi gửi tin nhắn',
+      color: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-300',
+      advice: 'Lỗi tạm thời hoặc không xác định từ Zalo. Thử chạy lại chiến dịch sau 00:00 hoặc chuyển sang tài khoản Zalo khác.',
+    };
+  })();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
@@ -954,7 +1076,7 @@ const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({
         <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-rose-50/50 dark:bg-rose-950/20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-rose-600/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl font-bold">
-              ⚠️
+              {errorType.icon}
             </div>
             <div>
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
@@ -975,69 +1097,36 @@ const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({
 
         {/* Content */}
         <div className="p-6 space-y-4 text-xs">
-          {/* Action failure badges */}
-          <div className="flex flex-wrap gap-2">
-            {isMsgFailed && (
-              <span className="px-2.5 py-1 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800">
-                ✕ Lỗi gửi tin nhắn
-              </span>
-            )}
-            {isFriendFailed && (
-              <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold border border-amber-300 dark:border-amber-800">
-                ✕ Lỗi kết bạn
-              </span>
-            )}
-            {isInviteFailed && (
-              <span className="px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-300 dark:border-indigo-800">
-                ✕ Lỗi mời vào nhóm
-              </span>
-            )}
-            {isBlocked && (
-              <span className="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 font-bold border border-red-500/20">
-                🚫 Cài đặt Chặn người lạ
-              </span>
-            )}
+          {/* Primary error type badge */}
+          <div>
+            <span className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border ${errorType.color}`}>
+              <span>{errorType.icon}</span>
+              <span>{errorType.label}</span>
+            </span>
           </div>
 
-          {/* Full error details box */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="font-bold text-gray-700 dark:text-gray-300">Thông điệp lỗi chi tiết từ Zalo:</label>
-              {contact.error && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 font-bold">
-                  {parseZaloError(contact.error).title}
-                </span>
-              )}
+          {/* Actionable advice — most important for user */}
+          <div className="p-3.5 rounded-2xl border bg-blue-50/60 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/40 space-y-1">
+            <div className="font-bold flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-400">
+              <span>💡</span>
+              <span>Hướng xử lý:</span>
             </div>
-            <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 font-mono text-[11px] text-rose-600 dark:text-rose-400 break-words leading-relaxed select-text max-h-40 overflow-y-auto">
-              {errStr}
-            </div>
+            <p className="text-[11px] leading-relaxed text-gray-800 dark:text-gray-200">
+              {errorType.advice}
+            </p>
           </div>
 
-          {/* Suggested Resolution via ZaloErrorDictionary */}
-          {(() => {
-            const detail = parseZaloError(contact.error);
-            const isAccountLimit = detail.category === 'ACCOUNT_LIMIT';
-            return (
-              <div className={`p-3.5 rounded-2xl border space-y-1.5 ${
-                isAccountLimit
-                  ? 'bg-amber-500/10 border-amber-500/30 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200'
-                  : 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/40 text-gray-800 dark:text-gray-200'
-              }`}>
-                <div className={`font-bold flex items-center gap-1.5 text-xs ${
-                  isAccountLimit ? 'text-amber-700 dark:text-amber-400' : 'text-blue-700 dark:text-blue-400'
-                }`}>
-                  <span>{isAccountLimit ? '🛑' : '💡'}</span>
-                  <span>{isAccountLimit ? `Lỗi Hạn Ngạch Nick Bạn: ${detail.title}` : 'Gợi ý hướng xử lý:'}</span>
-                </div>
-                <p className="text-[11px] leading-relaxed">
-                  {detail.actionableAdvice || (isBlocked
-                    ? 'Khách hàng cài đặt không nhận tin/lời mời từ người lạ. Nên liên hệ qua Cuộc gọi điện thoại hoặc SMS.'
-                    : 'Lỗi tạm thời (do hạn mức Zalo ngày hoặc gián đoạn mạng). Bạn có thể bấm "Chạy lại chiến dịch" sau 00:00 hoặc chuyển sang tài khoản Zalo khác.')}
-                </p>
+          {/* Raw error details (collapsed, for debugging) */}
+          {errStr && errStr !== 'Lỗi không xác định khi gửi' && (
+            <div className="space-y-1">
+              <label className="font-bold text-gray-500 dark:text-gray-400 text-[10px] uppercase tracking-wide">
+                Thông điệp kỹ thuật từ Zalo:
+              </label>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 font-mono text-[10px] text-gray-500 dark:text-gray-400 break-words leading-relaxed select-text max-h-28 overflow-y-auto">
+                {errStr}
               </div>
-            );
-          })()}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -1053,3 +1142,4 @@ const ErrorDetailModal: React.FC<ErrorDetailModalProps> = ({
     </div>
   );
 };
+

@@ -1,12 +1,20 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 3.1.1  
-> **Ngày cập nhật:** 02/08/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.1.1 (Official Release)  
+> **Phiên bản tài liệu:** 3.1.6  
+> **Ngày cập nhật:** 05/08/2026  
+> **Trạng thái sản phẩm hiện tại:** v3.1.6 (Official Release)  
 > **Chủ quản:** Product Management Team  
 
 ---
 
-#### 🚀 v3.1.1 — Quản Lý Định Mức Quét SĐT Theo Tài Khoản, Sửa Lỗi Gửi Media Máy Trạm & Phương Án A+ Đồng Bộ Real-time (Official Release)
+#### 🚀 v3.1.6 — Phân Loại Lỗi Chiến Dịch Chi Tiết, Badge Nguyên Nhân Từng Liên Hệ & Giao Diện Quét SĐT Đa Nick (Official Release)
+* **Tính năng mới & Sửa lỗi nổi bật:**
+  * **🛑 Badge Trạng Thái Chiến Dịch Tách Biệt Theo Mã Lỗi**: Tách riêng 4 badge tạm dừng cấp chiến dịch (`Mã 127` - Khóa gửi tin người lạ / `Mã 108` - Nghi ngờ Spam / `Mã 3001` - Nội dung cấm / `Session expired` - Hết phiên QR) thay vì gom chung "Tạm dừng" mơ hồ.
+  * **📋 Badge Nguyên Nhân Lỗi Từng Liên Hệ**: Thêm helper `getContactErrorBadge()` phân tích mã Zalo và hiển thị badge màu riêng: `🛑 Nick bị khóa gửi tin lạ` (127), `⚠️ Zalo nghi Spam` (108), `📝 Nội dung bị chặn` (3001), `🔑 Hết phiên QR`, `🚫 Đã chặn bạn` (202), `📵 Tắt nhận tin lạ` (201), `❓ Không có Zalo` (5001/5004). Áp dụng cho mọi loại chiến dịch.
+  * **💬 Modal Chi Tiết Lỗi Nâng Cấp (`ErrorDetailModal`)**: Hiển thị 1 badge lỗi chính + hướng xử lý cụ thể theo loại lỗi (đổi nick / tăng delay / sửa template / quét lại QR). Thông điệp kỹ thuật Zalo đưa xuống phụ tránh gây rối người dùng.
+  * **🔄 Giao Diện Quét SĐT Đa Nick Failover**: Banner realtime hiển thị từng nick với avatar/tên/trạng thái + countdown timer. Tự động skip nick đã đạt hạn ngạch, chuyển sang nick tiếp theo. Modal xem báo cáo lô quét fullscreen.
+  * **❌ Xóa Tab "Theo SĐT" Khỏi Chiến Dịch**: Loại bỏ tính năng chọn đối tượng theo SĐT do thiếu cơ chế bảo vệ định mức -216.
+
+
 * **Tính năng mới & Sửa lỗi nổi bật:**
   * **🔍 Định Mức Quét SĐT Zalo Theo Tài Khoản (Option A)**: Tách riêng hạn mức Ngày & Giờ độc lập theo từng nick Zalo. Tự động san đều tải danh sách SĐT khi quét.
   * **🚀 Sửa Triệt Để Lỗi Gửi Tệp/Ảnh Máy Trạm & Forward Media**: Khắc phục `isEmployeeMode()` upload tệp máy trạm lên Boss đĩa đệm; Bảo toàn tệp/hình ảnh khi forward tin nhắn gặp sự cố.

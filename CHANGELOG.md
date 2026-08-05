@@ -2,7 +2,53 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
-## [v3.1.2] - 2026-08-02
+## [v3.1.6] - 2026-08-05
+
+### 🛑 Phân Loại Lỗi Chiến Dịch & Cảnh Báo Rõ Ràng Cho Người Dùng
+
+#### Tách Riêng Badge Lỗi Cấp Chiến Dịch (`CampaignList.tsx`, `CampaignDetail.tsx`)
+- Tách riêng 4 badge trạng thái tạm dừng cấp chiến dịch thay vì gom chung "Tạm dừng":
+  - **`🛑 Tạm dừng (Zalo khóa gửi tin người lạ - Mã 127)`**: Nick bị Zalo hạn chế gửi tin cho người lạ trong 24h–72h. Tooltip hướng dẫn đổi nick hoặc dừng gửi người lạ.
+  - **`🛑 Tạm dừng (Zalo nghi ngờ Spam - Mã 108)`**: Zalo tạm khóa do gửi quá nhanh/spam. Tooltip hướng dẫn tăng Delay và tạm nghỉ.
+  - **`🛑 Tạm dừng (Nội dung chứa từ/link cấm - Mã 3001)`**: Template có link rút gọn hoặc từ khóa vi phạm. Tooltip yêu cầu sửa lại mẫu tin.
+  - **`🔑 Tạm dừng (Hết phiên QR Zalo - Cần quét lại QR)`**: Phiên đăng nhập QR hết hạn. Màu amber phân biệt với lỗi tài khoản đỏ.
+
+#### Badge Lỗi Cấp Liên Hệ — Phân Biệt Rõ Nguyên Nhân (`CampaignDetail.tsx`)
+- Thêm helper `getContactErrorBadge()` — phân tích mã lỗi Zalo từ `error` field và trả về badge màu tương ứng:
+  - **`🛑 Nick bị khóa gửi tin lạ`** — mã 127 (đỏ)
+  - **`⚠️ Zalo nghi Spam (108)`** — mã 108 (cam)
+  - **`📝 Nội dung bị chặn (3001)`** — mã 3001 (vàng)
+  - **`🔑 Hết phiên QR`** — mã -5000/1001 (amber)
+  - **`🚫 Đã chặn bạn`** — mã 202 (xám đậm)
+  - **`📵 Tắt nhận tin lạ`** — mã 201 (xám)
+  - **`❓ Không có Zalo`** — mã 5001/5004 (xám nhạt)
+  - **`✕ Lỗi gửi tin ℹ️`** — fallback cho lỗi không xác định (hồng)
+- Áp dụng cho **tất cả loại chiến dịch** (không chỉ `mixed`), thay thế badge `Failed ℹ️` chung chung.
+
+#### Nâng Cấp Modal Chi Tiết Lỗi (ErrorDetailModal)
+- Hiển thị **1 badge lỗi chính** với icon + màu sắc tương ứng theo loại lỗi.
+- Hiển thị **Hướng xử lý cụ thể** theo từng nguyên nhân (thay đổi delay, đổi nick, sửa template...).
+- Thông điệp kỹ thuật từ Zalo đẩy xuống dưới dạng phụ (nhỏ, font mono) — không làm rối người dùng.
+
+### 🔄 Giao Diện Quét SĐT — Hỗ Trợ Đa Nick Failover (`PhoneScanPanel.tsx`, `PhoneScanService.ts`)
+- **Banner đa tài khoản realtime**: Hiển thị danh sách nick với avatar, tên, trạng thái (✅ Đang quét / ⏳ Chờ / ⏸️ Tạm nghỉ HH:MM) thay vì chỉ hiển thị tổng hợp.
+- **Countdown timer tự động resume**: Khi một nick đạt hạn ngạch, hiển thị đếm ngược thời gian tự động resume (định dạng mm:ss).
+- **Multi-account failover logic**: Tự động bỏ qua tài khoản đang trong trạng thái `pausedUntil`, chuyển sang nick tiếp theo còn quota để quét liên tục.
+- **Modal xem báo cáo lô quét fullscreen**: Nút phóng to hiển thị 3 vùng thông tin: Cấu hình ban đầu, Sức khỏe tài khoản, Kết quả quét chi tiết (có filter, pagination).
+
+### ❌ Xóa Tính Năng `Theo SĐT` Khỏi TargetSelector (`TargetSelector.tsx`)
+- Loại bỏ tab "Theo SĐT" khỏi màn hình chọn đối tượng chiến dịch do thiếu cơ chế bảo vệ tài khoản và kiểm tra định mức -216.
+- Chiến dịch chỉ còn 2 nguồn đối tượng an toàn: **Bạn bè Zalo** và **Thành viên nhóm**.
+
+### 🧪 Ổn Định Test Suite
+- Viết lại `crmSyncVars.test.ts` theo chiến lược **pure in-memory logic simulation** — không phụ thuộc vào SQLite thực, `global.db_initialized` hay prototype override.
+- `simulateUpdateContactProfile()` tái hiện 100% logic CASE/WHEN salutation auto-fill từ `DatabaseService.updateContactProfile()`.
+- **27/27 test suites, 240/240 tests xanh** sau thay đổi.
+
+### 🔧 Sửa Cấu Hình Jest
+- Thêm `modulePathIgnorePatterns: ['<rootDir>/dist-electron/']` vào `jest.config.js` — loại bỏ cảnh báo Haste naming collision giữa `dist-electron` và `src`.
+
+
 
 ### 🎯 Tối Ưu Hệ Thống Chiến Dịch CRM, Định Mức An Toàn & Bảo Vệ Tài Khoản Zalo
 - **Quy Tắc Chặn Cứng 1 Chiến Dịch / 1 Tài Khoản Zalo (`DatabaseService.ts`, `CRMQueueService.ts`, `crmIpc.ts`):**
