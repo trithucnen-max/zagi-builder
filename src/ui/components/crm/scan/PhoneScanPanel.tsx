@@ -9,6 +9,7 @@ import AppIcon from '../../common/AppIcon';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 import ImportWizardModal, { BatchConfig } from '../import/ImportWizardModal';
 import AccountQuotaModal from '../campaigns/AccountQuotaModal';
+import { ConvertScanToCampaignModal } from './ConvertScanToCampaignModal';
 
 function getContrastColor(hexColor: string): string {
   if (!hexColor) return '#ffffff';
@@ -190,6 +191,66 @@ export default function PhoneScanPanel() {
     const accounts = useAccountStore(s => s.accounts);
     const [quotaModalZaloId, setQuotaModalZaloId] = useState<string | null>(null);
     const [fullscreenReportBatch, setFullscreenReportBatch] = useState<Batch | null>(null);
+    const [showConvertModal, setShowConvertModal] = useState<boolean>(false);
+    const [convertBatch, setConvertBatch] = useState<Batch | null>(null);
+
+    const handleExportBatchExcel = useCallback(async (batch: Batch) => {
+        if (!batch) return;
+        try {
+            const res = await ipc.crm.getPhoneScanBatchItems({ batchId: batch.id, page: 0, pageSize: 100000 });
+            if (!res.success || !Array.isArray(res.items) || res.items.length === 0) {
+                alert('Không có dữ liệu SĐT nào trong lô này để xuất file Excel');
+                return;
+            }
+
+            const allItems = res.items;
+            const foundItems = allItems.filter((i: any) => i.status === 'found');
+            const notFoundItems = allItems.filter((i: any) => i.status === 'not_found');
+            const errorItems = allItems.filter((i: any) => i.status === 'error' || i.status === 'failed');
+
+            const formatRows = (itemsArr: any[]) => itemsArr.map((item: any, idx: number) => ({
+                'STT': idx + 1,
+                'Số điện thoại': item.phone || '',
+                'Trạng thái Zalo': item.status === 'found' ? 'Có Zalo' : (item.status === 'not_found' ? 'Không có Zalo' : 'Lỗi quét'),
+                'Tên Zalo': item.zalo_name || '',
+                'Zalo UID': item.zalo_uid || '',
+                'Thông báo lỗi / Ghi chú': item.error_msg || '',
+                'Nick Zalo thực hiện quét': item.scanned_by_account_id || '',
+                'Thời gian quét': item.scanned_at ? new Date(item.scanned_at).toLocaleString('vi-VN') : ''
+            }));
+
+            const wb = XLSX.utils.book_new();
+
+            // Tab 1: Tất cả SĐT
+            const wsAll = XLSX.utils.json_to_sheet(formatRows(allItems));
+            XLSX.utils.book_append_sheet(wb, wsAll, 'Tất cả SĐT');
+
+            // Tab 2: Có Zalo
+            if (foundItems.length > 0) {
+                const wsFound = XLSX.utils.json_to_sheet(formatRows(foundItems));
+                XLSX.utils.book_append_sheet(wb, wsFound, `Có Zalo (${foundItems.length})`);
+            }
+
+            // Tab 3: Không Zalo
+            if (notFoundItems.length > 0) {
+                const wsNotFound = XLSX.utils.json_to_sheet(formatRows(notFoundItems));
+                XLSX.utils.book_append_sheet(wb, wsNotFound, `Không Zalo (${notFoundItems.length})`);
+            }
+
+            // Tab 4: Lỗi Quét
+            if (errorItems.length > 0) {
+                const wsError = XLSX.utils.json_to_sheet(formatRows(errorItems));
+                XLSX.utils.book_append_sheet(wb, wsError, `Lỗi Quét (${errorItems.length})`);
+            }
+
+            const cleanName = batch.name ? batch.name.replace(/[^a-zA-Z0-9_]/g, '_') : `Lo_${batch.id}`;
+            const fileName = `Bao_Cao_Quet_SDT_${cleanName}_${Date.now()}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        } catch (err: any) {
+            console.error('Export Excel error:', err);
+            alert('Không thể xuất file Excel: ' + (err.message || err));
+        }
+    }, []);
 
     // Auto-select 1st Zalo account when single assignment mode is selected if empty
     useEffect(() => {
@@ -1410,10 +1471,34 @@ export default function PhoneScanPanel() {
                                     <AppIcon name="settings" size={14} className="text-blue-500" />
                                     <span>Cấu hình Setup ban đầu & Báo cáo Lô #{selectedBatch.id}</span>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setConvertBatch(selectedBatch);
+                                            setShowConvertModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-2xs active:scale-95"
+                                        title="Chuyển SĐT có Zalo vào Chiến dịch CRM Mới hoặc Có sẵn"
+                                    >
+                                        <span>🚀</span>
+                                        <span>Chuyển vào Chiến dịch</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => handleExportBatchExcel(selectedBatch)}
+                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-2xs active:scale-95"
+                                        title="Xuất file Excel phân loại"
+                                    >
+                                        <span>📥</span>
+                                        <span>Xuất Excel</span>
+                                    </button>
+
                                     <span className="text-[11px] text-gray-500 dark:text-gray-400">
                                         Tạo lúc: {new Date(selectedBatch.created_at).toLocaleString('vi-VN')}
                                     </span>
+
                                     <button
                                         type="button"
                                         onClick={() => setFullscreenReportBatch(selectedBatch)}
@@ -2496,11 +2581,34 @@ export default function PhoneScanPanel() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setConvertBatch(fullscreenReportBatch);
+                                    setShowConvertModal(true);
+                                }}
+                                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                                title="Chuyển SĐT có Zalo vào Chiến dịch CRM Mới hoặc Có sẵn"
+                            >
+                                <span>🚀</span>
+                                <span>Chuyển vào Chiến dịch CRM</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleExportBatchExcel(fullscreenReportBatch)}
+                                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                                title="Xuất toàn bộ báo cáo phân loại ra file Excel"
+                            >
+                                <span>📥</span>
+                                <span>Xuất Excel Báo Cáo</span>
+                            </button>
+
                             <button
                                 type="button"
                                 onClick={() => setFullscreenReportBatch(null)}
-                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer ml-1"
                                 title="Đóng toàn màn hình (Esc)"
                             >
                                 <AppIcon name="x" size={18} />
@@ -2796,6 +2904,20 @@ export default function PhoneScanPanel() {
                         </div>
                     </div>
                 </div>
+            {showConvertModal && convertBatch && (
+                <ConvertScanToCampaignModal
+                    isOpen={showConvertModal}
+                    onClose={() => {
+                        setShowConvertModal(false);
+                        setConvertBatch(null);
+                    }}
+                    batchId={convertBatch.id}
+                    batchName={convertBatch.name}
+                    foundCount={convertBatch.found_count || 0}
+                    onSuccess={(campaignId) => {
+                        alert(`🚀 Đã chuyển thành công các SĐT có Zalo vào Chiến dịch CRM #${campaignId}!`);
+                    }}
+                />
             )}
         </div>
     );

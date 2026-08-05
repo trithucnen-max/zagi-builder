@@ -326,6 +326,48 @@ class PhoneScanService {
         }
     }
 
+    private consecutive50004Count: Map<string, number> = new Map();
+
+    /**
+     * Detect whether a Zalo API error is code 50004 (rate limit warning: scan too fast).
+     */
+    private isWarningTooFastError(err: any): boolean {
+        const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
+        const msg = String(err?.message || '').toLowerCase();
+        return code === 50004 || msg.includes('50004') || msg.includes('quá nhanh');
+    }
+
+    /**
+     * Handle a code 50004 rate limit warning:
+     * Put account on a 3-minute cool-down, rollback in-flight item to pending, and failover to other accounts.
+     */
+    private async handleScanWarningRateLimit(zaloId: string, batchId: number, itemId: number | null): Promise<void> {
+        const db = DatabaseService.getInstance();
+        try {
+            const count = (this.consecutive50004Count.get(zaloId) || 0) + 1;
+            this.consecutive50004Count.set(zaloId, count);
+
+            if (count >= 3) {
+                Logger.warn(`[PhoneScanService] ⚠️ 3 consecutive 50004 warnings on account ${zaloId}. Escalating to rate limit pause to protect account.`);
+                this.consecutive50004Count.delete(zaloId);
+                await this.handleRateLimit(zaloId, batchId, itemId);
+                return;
+            }
+
+            const pausedUntil = Date.now() + 3 * 60 * 1000; // 3-minute cool-down
+            Logger.warn(`[PhoneScanService] ⚠️ Code 50004 (quét quá nhanh) on account ${zaloId}. Cooling down for 3 min until ${new Date(pausedUntil).toLocaleTimeString()}. Failover to other active accounts.`);
+
+            if (itemId !== null) {
+                db.run(`UPDATE phone_scan_items SET status = 'pending', scanned_by_account_id = NULL, scanned_at = NULL WHERE id = ?`, [itemId]);
+            }
+            db.setAccountScanPauseState(zaloId, 'hourly_quota', pausedUntil);
+            db.save();
+            EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
+        } catch (err: any) {
+            Logger.error(`[PhoneScanService] handleScanWarningRateLimit error: ${err.message}`);
+        }
+    }
+
     /**
      * Detect whether a Zalo API error is a -216 phone search rate limit.
      * Works for both getMultiUsersByPhones and findUser error shapes.
@@ -508,6 +550,10 @@ class PhoneScanService {
                 }
             } catch (err: any) {
                 // Detect -216 early — don't waste a second findUser call when account is already blocked
+                if (this.isWarningTooFastError(err)) {
+                    await this.handleScanWarningRateLimit(zaloId, batchId, itemId);
+                    return;
+                }
                 if (this.isRateLimitError(err)) {
                     Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 on getMultiUsersByPhones for ${phoneNormalized}. Stopping early.`);
                     await this.handleRateLimit(zaloId, batchId, itemId);
@@ -523,6 +569,11 @@ class PhoneScanService {
                     const findRes: any = await zaloService.findUser(phoneNormalized);
                     zaloUser = extractZaloUser(findRes);
                 } catch (err: any) {
+                    if (this.isWarningTooFastError(err)) {
+                        await this.handleScanWarningRateLimit(zaloId, batchId, itemId);
+                        return;
+                    }
+
                     const isRateLimit = this.isRateLimitError(err);
                     const errorMsg = isRateLimit
                         ? 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT (Mã -216). Vui lòng chờ reset giờ/ngày hoặc đổi nick'
@@ -536,7 +587,6 @@ class PhoneScanService {
                         errorMsg
                     });
                     if (isRateLimit) {
-                        // triggerItemId=null: item already marked as error above
                         await this.handleRateLimit(zaloId, batchId, null);
                     }
                     EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });

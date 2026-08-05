@@ -280,6 +280,7 @@ declare global {
         setAccountQuota: (params: { zaloId: string; msgLimit: number; inviteLimit: number }) => Promise<{ success: boolean; error?: string }>;
         getScanQuotaSummary: () => Promise<{ success: boolean; data?: Array<{ zaloId: string; name: string; todayCount: number; scanDailyLimit: number; hourlyCount: number; scanHourlyLimit: number }>; error?: string }>;
         setAccountScanLimits: (params: { zaloId: string; scanDailyLimit: number; scanHourlyLimit: number }) => Promise<{ success: boolean; error?: string }>;
+        convertScanToCampaign: (params: { batchId: number; zaloId: string; mode: 'new' | 'existing'; existingCampaignId?: number; newCampaign?: any; statusFilter?: string }) => Promise<{ success: boolean; campaignId?: number; addedCount?: number; discardedCount?: number; totalContacts?: number; error?: string }>;
         getActivityStats: (params: { zaloId: string; sinceTs: number; untilTs?: number; }) => Promise<{ success: boolean; conversationCount: number; messageCount: number; sentCount: number; receivedCount: number }>;
         scheduleMessage: (params: { ownerZaloId: string; threadId: string; threadType: string; channel: string; message: string; attachments?: any[]; sendAt: number }) => Promise<{ success: boolean; id?: string; error?: string }>;
         getScheduledMessages: (params: { ownerZaloId: string; threadId: string }) => Promise<{ success: boolean; scheduledMessages: any[]; error?: string }>;
