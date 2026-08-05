@@ -890,6 +890,7 @@ export default class ContactImportService {
             db.run(
               `UPDATE contacts SET
                 real_name = CASE WHEN real_name IS NULL OR real_name = '' THEN ? ELSE real_name END,
+                full_name_raw = CASE WHEN full_name_raw IS NULL OR full_name_raw = '' THEN ? ELSE full_name_raw END,
                 gender = CASE WHEN gender IS NULL THEN ? ELSE gender END,
                 birthday = CASE WHEN birthday IS NULL OR birthday = '' THEN ? ELSE birthday END,
                 salutation = CASE WHEN salutation IS NULL OR salutation = '' THEN ? ELSE salutation END,
@@ -897,6 +898,7 @@ export default class ContactImportService {
                WHERE owner_zalo_id = ? AND phone = ?`,
               [
                 r.real_name,
+                r.full_name_raw,
                 r.gender,
                 r.birthday_value,
                 r.salutation,
@@ -936,9 +938,9 @@ export default class ContactImportService {
         // Push into phone_scan_items for background Zalo scanning
         if (batchId) {
           db.run(
-            `INSERT INTO phone_scan_items (batch_id, phone, phone_normalized, real_name, status, created_at)
-             VALUES (?, ?, ?, ?, 'pending', ?)`,
-            [batchId, r.phone_raw || r.phone_normalized, r.phone_normalized, r.real_name || null, now]
+            `INSERT INTO phone_scan_items (batch_id, phone, phone_normalized, real_name, full_name_raw, status, created_at)
+             VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+            [batchId, r.phone_raw || r.phone_normalized, r.phone_normalized, r.real_name || null, r.full_name_raw || null, now]
           );
         }
       }

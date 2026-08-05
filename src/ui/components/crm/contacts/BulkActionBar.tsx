@@ -9,6 +9,7 @@ interface BulkActionBarProps {
   onAddToCampaign: () => void;
   onBulkTagLocal: () => void;
   onBulkTagZalo: () => void;
+  onBulkSalutation?: () => void;
   onManageGroups?: () => void;
   onBulkManageGroups?: (mode: 'add' | 'remove') => void;
   onReassignOwner?: () => void;
@@ -23,6 +24,7 @@ export default function BulkActionBar({
   onAddToCampaign,
   onBulkTagLocal,
   onBulkTagZalo,
+  onBulkSalutation,
   onManageGroups,
   onBulkManageGroups,
   onReassignOwner,
@@ -90,7 +92,17 @@ export default function BulkActionBar({
         </button>
 
         {showMore && (
-          <div className="absolute bottom-full mb-2 right-0 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl py-1 w-48 z-50">
+          <div className="absolute bottom-full mb-2 right-0 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl py-1 w-52 z-50">
+            {/* Gán xưng hô hàng loạt */}
+            {onBulkSalutation && (
+              <button
+                type="button"
+                onClick={() => { setShowMore(false); onBulkSalutation(); }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-blue-300 hover:bg-gray-700 hover:text-white transition-colors text-left font-medium cursor-pointer">
+                <span className="text-sm">🗣️</span>
+                Gán xưng hô hàng loạt
+              </button>
+            )}
             {/* Quản lý nhóm Zalo */}
             {!hasGroupSelected && onBulkManageGroups && (
               <>

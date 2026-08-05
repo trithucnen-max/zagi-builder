@@ -272,6 +272,9 @@ class PhoneScanService {
                 for (const zaloId of eligibleZaloIds) {
                     if (accountsUsedInTick.has(zaloId)) continue;
 
+                    const pauseState = db.getAccountScanPauseState(zaloId);
+                    if (pauseState.pausedUntil && pauseState.pausedUntil > Date.now()) continue;
+
                     const limits = db.getAccountScanLimits(zaloId);
                     const todayCount = db.getDailyScanCountForAccount(zaloId, startOfToday);
                     const hourlyCount = db.getHourlyScanCountForAccount(zaloId, oneHourAgo);
@@ -400,9 +403,40 @@ class PhoneScanService {
                 Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [BOTH]: ${zaloId} daily ${currentLimits.scanDailyLimit}→${newDailyLimit}, hourly ${currentLimits.scanHourlyLimit}→${newHourlyLimit}`);
             }
 
-            // Pause the batch with classified pause_reason and paused_until timestamp
-            Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 for account ${zaloId}. Pausing batch ${batchId} (Reason: ${pauseReason}), rolling back scanning items.`);
-            db.updatePhoneScanBatchStatus(batchId, 'paused', pauseReason, pausedUntil);
+            // 4. Record pause state for this specific account
+            db.setAccountScanPauseState(zaloId, pauseReason, pausedUntil);
+
+            // Check if there are remaining connected eligible Zalo accounts with available quota
+            const activeAccounts = (db.getAccounts() || []).filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+            const onlineConnections = ConnectionManager.getAllConnections();
+            const nowMs = Date.now();
+            const startOfToday = new Date().setHours(0,0,0,0);
+            const oneHourAgo = nowMs - 3600000;
+
+            const remainingEligibleAccounts = activeAccounts.filter((a: any) => {
+                const id = String(a.zalo_id);
+                if (id === zaloId) return false;
+                const conn = onlineConnections.get(id);
+                if (!conn || !conn.connected) return false;
+
+                const pauseState = db.getAccountScanPauseState(id);
+                if (pauseState.pausedUntil && pauseState.pausedUntil > nowMs) return false;
+
+                const limits = db.getAccountScanLimits(id);
+                const todayCount = db.getDailyScanCountForAccount(id, startOfToday);
+                const hourlyCount = db.getHourlyScanCountForAccount(id, oneHourAgo);
+                return todayCount < limits.scanDailyLimit && hourlyCount < limits.scanHourlyLimit;
+            });
+
+            if (remainingEligibleAccounts.length > 0) {
+                Logger.warn(`[PhoneScanService] ⚡ Rate limit -216 for account ${zaloId}. Paused account ${zaloId} until ${new Date(pausedUntil).toLocaleTimeString()}. Failover: ${remainingEligibleAccounts.length} other accounts available, batch ${batchId} stays ACTIVE.`);
+                // Notify UI of update without pausing batch
+                EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
+            } else {
+                // Pause the batch only when NO active accounts remain
+                Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 for account ${zaloId}. All accounts depleted. Pausing batch ${batchId} (Reason: ${pauseReason}), rolling back scanning items.`);
+                db.updatePhoneScanBatchStatus(batchId, 'paused', pauseReason, pausedUntil);
+            }
 
             const dailyChanged = newDailyLimit < currentLimits.scanDailyLimit;
             const hourlyChanged = newHourlyLimit < currentLimits.scanHourlyLimit;
@@ -541,13 +575,14 @@ class PhoneScanService {
                     targetAccountIds = [zaloId];
                 }
 
-                // Fetch real_name from phone_scan_items if available
-                const itemData = db.queryOne<any>('SELECT real_name FROM phone_scan_items WHERE id = ?', [itemId]);
+                // Fetch real_name & full_name_raw from phone_scan_items if available
+                const itemData = db.queryOne<any>('SELECT real_name, full_name_raw FROM phone_scan_items WHERE id = ?', [itemId]);
                 const realNameFromFile = itemData?.real_name || null;
+                const fullNameRawFromFile = itemData?.full_name_raw || null;
 
                 // Create/update CRM contact across target account(s)
                 for (const accId of targetAccountIds) {
-                    db.updateContactProfile(accId, uid, name, avatar, phoneNormalized, 'user', zaloUser?.gender, null, realNameFromFile);
+                    db.updateContactProfile(accId, uid, name, avatar, phoneNormalized, 'user', zaloUser?.gender, null, realNameFromFile, fullNameRawFromFile);
                 }
 
                 // Update Zalo & CRM Alias based on Campaign/Batch rule if explicitly enabled (update_zalo_alias === 1)

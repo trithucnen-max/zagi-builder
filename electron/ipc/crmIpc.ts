@@ -837,27 +837,19 @@ export function registerCRMIpc(): void {
     ipcHandle('crm:getPhoneScanLimitStatus', async () => {
         try {
             const db = DatabaseService.getInstance();
-            const activeAccounts = db.getAccounts() || [];
-            const zaloAccounts = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
-            
-            const startOfToday = new Date();
-            startOfToday.setHours(0, 0, 0, 0);
-            const startOfTodayTimestamp = startOfToday.getTime();
-            const oneHourAgoTimestamp = Date.now() - 60 * 60 * 1000;
-            
-            const statusList = zaloAccounts.map((a: any) => {
-                const todayCount = db.getDailyScanCountForAccount(a.zalo_id, startOfTodayTimestamp);
-                const hourlyCount = db.getHourlyScanCountForAccount(a.zalo_id, oneHourAgoTimestamp);
-                const limits = db.getAccountScanLimits(a.zalo_id);
-                return {
-                    zaloId: a.zalo_id,
-                    fullName: a.full_name || a.name || a.zalo_id,
-                    todayCount,
-                    hourlyCount,
-                    scanDailyLimit: limits.scanDailyLimit,
-                    scanHourlyLimit: limits.scanHourlyLimit
-                };
-            });
+            const summary = db.getScanQuotaSummaryForAccounts();
+            const statusList = summary.map(item => ({
+                zaloId: item.zaloId,
+                fullName: item.name,
+                avatar: item.avatar,
+                todayCount: item.todayCount,
+                hourlyCount: item.hourlyCount,
+                scanDailyLimit: item.scanDailyLimit,
+                scanHourlyLimit: item.scanHourlyLimit,
+                status: item.status,
+                pausedUntil: item.pausedUntil,
+                pauseReasonMsg: item.pauseReasonMsg,
+            }));
             return { success: true, accountsStatus: statusList };
         } catch (err: any) {
             return { success: false, error: err.message };

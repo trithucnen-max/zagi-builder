@@ -188,8 +188,8 @@ export default function PhoneScanPanel() {
     const [customEndDate, setCustomEndDate] = useState<string>(todayStr);
     const [filteredStats, setFilteredStats] = useState<{ total: number; scanned: number; found: number; notFound: number; error: number; pending: number; startTimestamp?: number; endTimestamp?: number } | null>(null);
     const accounts = useAccountStore(s => s.accounts);
-    const [showLabelPickerModal, setShowLabelPickerModal] = useState(false);
     const [quotaModalZaloId, setQuotaModalZaloId] = useState<string | null>(null);
+    const [fullscreenReportBatch, setFullscreenReportBatch] = useState<Batch | null>(null);
 
     // Auto-select 1st Zalo account when single assignment mode is selected if empty
     useEffect(() => {
@@ -1358,6 +1358,28 @@ export default function PhoneScanPanel() {
                                             </>
                                         )}
                                     </p>
+                                    {/* Account paused list */}
+                                    {limitStatusList.filter((a: any) => a.status !== 'active').length > 0 && (
+                                        <div className="pt-2 border-t border-red-200/60 dark:border-red-900/40 space-y-1">
+                                            <span className="font-bold text-[11px] text-gray-800 dark:text-gray-200">Chi tiết Nick Zalo chạm giới hạn:</span>
+                                            <div className="flex flex-wrap gap-2 pt-0.5">
+                                                {limitStatusList.filter((a: any) => a.status !== 'active').map((acc: any) => (
+                                                    <div key={acc.zaloId} className="inline-flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900/60 shadow-2xs text-[11px]">
+                                                        {acc.avatar ? (
+                                                            <img src={acc.avatar} className="w-4 h-4 rounded-full object-cover" alt="" />
+                                                        ) : (
+                                                            <span className="w-4 h-4 rounded-full bg-red-100 dark:bg-red-950 text-red-600 text-[10px] font-bold flex items-center justify-center">
+                                                                {(acc.fullName || 'Z').charAt(0).toUpperCase()}
+                                                            </span>
+                                                        )}
+                                                        <span className="font-bold text-gray-900 dark:text-white">{acc.fullName}</span>
+                                                        <span className="text-red-600 dark:text-red-400 font-medium">({acc.pauseReasonMsg || 'Tạm dừng -216'})</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="pt-1.5 flex flex-wrap items-center gap-4 text-[11px]">
                                         <div className="flex items-center gap-1.5 font-bold">
                                             <span>⏳ Thời gian dự kiến tự khôi phục:</span>
@@ -1388,9 +1410,20 @@ export default function PhoneScanPanel() {
                                     <AppIcon name="settings" size={14} className="text-blue-500" />
                                     <span>Cấu hình Setup ban đầu & Báo cáo Lô #{selectedBatch.id}</span>
                                 </div>
-                                <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                                    Tạo lúc: {new Date(selectedBatch.created_at).toLocaleString('vi-VN')}
-                                </span>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                                        Tạo lúc: {new Date(selectedBatch.created_at).toLocaleString('vi-VN')}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFullscreenReportBatch(selectedBatch)}
+                                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 rounded-lg transition-all cursor-pointer shadow-2xs hover:shadow-xs"
+                                        title="Phóng to xem toàn màn hình báo cáo & cấu hình Lô"
+                                    >
+                                        <AppIcon name="maximize-2" size={13} />
+                                        <span>Phóng to báo cáo</span>
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-gray-600 dark:text-gray-300 text-[11px]">
@@ -2437,6 +2470,332 @@ export default function PhoneScanPanel() {
                         fetchLimitStatus();
                     }}
                 />
+            )}
+
+            {/* Fullscreen Report Modal */}
+            {fullscreenReportBatch && (
+                <div className="fixed inset-0 z-[9999] flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-white overflow-hidden animate-in fade-in duration-200">
+                    {/* Header */}
+                    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gray-50 dark:bg-gray-850 flex-shrink-0 shadow-2xs">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold">
+                                <AppIcon name="settings" size={20} />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <h2 className="font-bold text-base text-gray-900 dark:text-white flex items-center gap-2">
+                                        <span>Cấu hình Setup ban đầu & Báo cáo Lô #{fullscreenReportBatch.id}: {fullscreenReportBatch.name}</span>
+                                    </h2>
+                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                        Tạo lúc: {new Date(fullscreenReportBatch.created_at).toLocaleString('vi-VN')}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    Mã lô: #{fullscreenReportBatch.id} | Giới hạn cài đặt: {fullscreenReportBatch.daily_limit} số/ngày ({fullscreenReportBatch.hourly_limit || 30} số/giờ)
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setFullscreenReportBatch(null)}
+                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+                                title="Đóng toàn màn hình (Esc)"
+                            >
+                                <AppIcon name="x" size={18} />
+                                <span>Đóng màn hình</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Scrollable Content Container */}
+                    <div className="flex-1 flex flex-col overflow-hidden p-6 space-y-4 bg-gray-100/50 dark:bg-gray-950/40">
+                        {/* Top: Initial Setup Summary Card */}
+                        <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xs space-y-3 flex-shrink-0">
+                            <h3 className="font-bold text-xs text-gray-800 dark:text-gray-200 uppercase tracking-wider flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 pb-2">
+                                <span>⚙️ Thông số Cấu hình Khởi tạo Lô #{fullscreenReportBatch.id}</span>
+                            </h3>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                <div>
+                                    <span className="text-gray-400 font-medium block text-[11px]">Tài khoản Zalo chạy:</span>
+                                    <span className="font-bold text-gray-900 dark:text-white mt-0.5 block">
+                                        {selectedBatchAccount ? (selectedBatchAccount.full_name || selectedBatchAccount.zalo_id) : 'Tất cả tài khoản active'}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span className="text-gray-400 font-medium block text-[11px]">Giới hạn quét:</span>
+                                    <span className="font-bold text-gray-900 dark:text-white mt-0.5 block">
+                                        {fullscreenReportBatch.daily_limit} số/ngày ({fullscreenReportBatch.hourly_limit || 30} số/giờ)
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span className="text-gray-400 font-medium block text-[11px]">Lọc trùng SĐT trong CRM:</span>
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">
+                                        {fullscreenReportBatch.skip_crm_existing ? '✓ Bỏ qua SĐT đã có trong CRM' : 'Quét lại tất cả'}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <span className="text-gray-400 font-medium block text-[11px]">Quy tắc phân bổ liên hệ:</span>
+                                    <span className="font-bold text-blue-600 dark:text-blue-400 mt-0.5 block">
+                                        {fullscreenReportBatch.contact_assignment_mode === 'single' ? 'Gán cho 1 nick cố định' : '🟢 Phân tán theo nick trực tiếp quét'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Tags & Workflow */}
+                            <div className="pt-2 border-t border-gray-100 dark:border-gray-800/60 flex flex-wrap items-center gap-3 text-xs">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-400">🏷️ Nhãn đã gán tự động:</span>
+                                    {selectedBatchTags.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {selectedBatchTags.map(tag => (
+                                                <span
+                                                    key={tag.id}
+                                                    className="px-2.5 py-0.5 text-[11px] font-semibold rounded-full flex items-center gap-1 border shadow-2xs"
+                                                    style={{
+                                                        backgroundColor: `${tag.color || '#3B82F6'}15`,
+                                                        borderColor: `${tag.color || '#3B82F6'}50`,
+                                                        color: tag.color || '#3B82F6'
+                                                    }}
+                                                >
+                                                    <span>{tag.emoji || '🏷️'}</span>
+                                                    <span>{tag.name}</span>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-400 italic">Không có</span>
+                                    )}
+                                </div>
+
+                                {selectedBatchWorkflow && (
+                                    <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
+                                        <span className="font-semibold text-gray-400">⚡ Workflow tự động:</span>
+                                        <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-bold">
+                                            {selectedBatchWorkflow.name}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Middle: Accounts Health & Quota Overview */}
+                        {limitStatusList.length > 0 && (
+                            <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xs flex-shrink-0">
+                                <h4 className="font-bold text-xs text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
+                                    <span>📊 Trạng thái Hạn ngạch sức khỏe của các Nick Zalo quét:</span>
+                                </h4>
+                                <div className="flex flex-wrap gap-2.5">
+                                    {limitStatusList.map((acc: any) => (
+                                        <div
+                                            key={acc.zaloId}
+                                            className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs transition-all ${
+                                                acc.status === 'active'
+                                                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/60'
+                                                    : 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-800/60'
+                                            }`}
+                                        >
+                                            {acc.avatar ? (
+                                                <img src={acc.avatar} className="w-6 h-6 rounded-full object-cover border" alt="" />
+                                            ) : (
+                                                <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 font-bold text-xs flex items-center justify-center">
+                                                    {(acc.fullName || 'Z').charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <div className="font-bold text-gray-900 dark:text-white leading-tight">
+                                                    {acc.fullName}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5">
+                                                    <span>Ngày: {acc.todayCount}/{acc.scanDailyLimit}</span>
+                                                    <span>•</span>
+                                                    <span>Giờ: {acc.hourlyCount}/{acc.scanHourlyLimit}</span>
+                                                </div>
+                                            </div>
+                                            <div className="ml-2">
+                                                {acc.status === 'active' ? (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                                                        🟢 Hoạt động
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300" title={acc.pauseReasonMsg}>
+                                                        🔴 {acc.status === 'hourly_quota' ? 'Dừng 1h (Mã -216)' : 'Dừng Ngày (Mã -216)'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Main Interactive Table View */}
+                        <div className="flex-1 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xs flex flex-col overflow-hidden">
+                            {/* Toolbar: Status Tabs & Account Filter & Search */}
+                            <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-850 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+                                <div className="flex items-center gap-2">
+                                    {[
+                                        { key: 'all', label: 'Tất cả' },
+                                        { key: 'pending', label: 'Chờ quét' },
+                                        { key: 'scanning', label: 'Đang quét' },
+                                        { key: 'found', label: 'Tìm thấy' },
+                                        { key: 'not_found', label: 'Không Zalo' },
+                                        { key: 'error', label: 'Lỗi' }
+                                    ].map(tab => (
+                                        <button
+                                            key={tab.key}
+                                            onClick={() => {
+                                                setItemsStatusFilter(tab.key);
+                                                setItemsPage(0);
+                                            }}
+                                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                                itemsStatusFilter === tab.key
+                                                    ? 'bg-blue-600 text-white shadow-xs'
+                                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800'
+                                            }`}
+                                        >
+                                            {tab.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    {/* Account Filter */}
+                                    <div className="flex items-center gap-1.5 text-xs">
+                                        <span className="text-gray-500 font-medium">Zalo quét:</span>
+                                        <select
+                                            value={itemsAccountFilter}
+                                            onChange={(e) => {
+                                                setItemsAccountFilter(e.target.value);
+                                                setItemsPage(0);
+                                            }}
+                                            className="px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
+                                        >
+                                            <option value="all">Tất cả Zalo quét</option>
+                                            {visibleAccounts.map(acc => (
+                                                <option key={acc.zalo_id} value={acc.zalo_id}>
+                                                    {acc.full_name || acc.zalo_id}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Search Input */}
+                                    <div className="relative w-64">
+                                        <input
+                                            type="text"
+                                            value={itemsSearchQuery}
+                                            onChange={e => setItemsSearchQuery(e.target.value)}
+                                            placeholder="Tìm SĐT hoặc họ tên..."
+                                            className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white shadow-2xs"
+                                        />
+                                        <AppIcon name="search" size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Table */}
+                            <div className="flex-1 overflow-y-auto p-4">
+                                {loadingItems && items.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+                                        <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                        <span className="font-semibold text-xs">Đang tải toàn bộ dữ liệu lô...</span>
+                                    </div>
+                                ) : items.length === 0 ? (
+                                    <div className="text-center py-20 text-gray-400 dark:text-gray-500 text-xs">
+                                        Không tìm thấy số điện thoại nào phù hợp bộ lọc.
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs border-collapse">
+                                            <thead>
+                                                <tr className="border-b border-gray-200 dark:border-gray-800 text-gray-400 text-[11px] font-bold uppercase tracking-wider bg-gray-50/50 dark:bg-gray-850/50">
+                                                    <th className="py-3 px-3">#</th>
+                                                    <th className="py-3 px-3">Số điện thoại</th>
+                                                    <th className="py-3 px-3">Họ tên gốc (CSV/CRM)</th>
+                                                    <th className="py-3 px-3">Trạng thái</th>
+                                                    <th className="py-3 px-3">Zalo đã quét</th>
+                                                    <th className="py-3 px-3">Tài khoản nhận CRM</th>
+                                                    <th className="py-3 px-3">Nhãn đã gán</th>
+                                                    <th className="py-3 px-3">Ghi chú lỗi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium">
+                                                {items.map((item, idx) => (
+                                                    <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                                                        <td className="py-2.5 px-3 text-gray-400">{itemsPage * itemsLimit + idx + 1}</td>
+                                                        <td className="py-2.5 px-3 font-mono font-bold text-gray-900 dark:text-white">
+                                                            {item.phone}
+                                                        </td>
+                                                        <td className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">
+                                                            {item.full_name_raw || item.real_name || '—'}
+                                                        </td>
+                                                        <td className="py-2.5 px-3">
+                                                            {item.status === 'found' ? (
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                                                                    ✓ Tìm thấy
+                                                                </span>
+                                                            ) : item.status === 'not_found' ? (
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                                                    Không Zalo
+                                                                </span>
+                                                            ) : item.status === 'error' ? (
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
+                                                                    Lỗi
+                                                                </span>
+                                                            ) : item.status === 'scanning' ? (
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 animate-pulse">
+                                                                    Đang quét...
+                                                                </span>
+                                                            ) : (
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
+                                                                    Chờ quét
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-2.5 px-3">
+                                                            {item.scanned_by_account_id ? (
+                                                                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                                                    {accounts.find(a => a.zalo_id === item.scanned_by_account_id)?.full_name || item.scanned_by_account_id}
+                                                                </span>
+                                                            ) : '—'}
+                                                        </td>
+                                                        <td className="py-2.5 px-3">
+                                                            {item.target_account_id ? (
+                                                                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                                                    {accounts.find(a => a.zalo_id === item.target_account_id)?.full_name || item.target_account_id}
+                                                                </span>
+                                                            ) : '—'}
+                                                        </td>
+                                                        <td className="py-2.5 px-3">
+                                                            {selectedBatchTags.length > 0 ? (
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {selectedBatchTags.map(tag => (
+                                                                        <span key={tag.id} className="px-2 py-0.5 text-[9px] font-bold rounded" style={{ backgroundColor: `${tag.color || '#3B82F6'}20`, color: tag.color || '#3B82F6' }}>
+                                                                            {tag.name}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : '—'}
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-red-500 text-[11px]">
+                                                            {item.error_msg || '—'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

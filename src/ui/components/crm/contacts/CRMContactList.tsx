@@ -60,6 +60,7 @@ interface CRMContactListProps {
     ai_auto_summary?: number;
     ai_auto_summary_threshold?: number;
     real_name?: string | null;
+    full_name_raw?: string | null;
   }) => Promise<void>;
   /** Danh sách trợ lý AI (để render trong cột AI) */
   assistants?: { id: string; name: string }[];
@@ -858,6 +859,7 @@ function ActionsDropdown({ total, exportingCSV, onExportCSV }: {
 interface ColumnVisibility {
   zalo_name: boolean;
   real_name: boolean;
+  full_name_raw: boolean;
   gender: boolean;
   salutation: boolean;
   birthday: boolean;
@@ -869,6 +871,7 @@ interface ColumnVisibility {
 const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
   zalo_name: false,
   real_name: false,
+  full_name_raw: false,
   gender: true,
   salutation: true,
   birthday: true,
@@ -880,6 +883,7 @@ const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = {
 const MOBILE_COLUMN_VISIBILITY: ColumnVisibility = {
   zalo_name: false,
   real_name: false,
+  full_name_raw: false,
   gender: false,
   salutation: false,
   birthday: false,
@@ -913,6 +917,7 @@ function ColumnSelectorDropdown({
   const columnsList: { key: keyof ColumnVisibility; label: string; defaultHidden?: boolean }[] = [
     { key: 'zalo_name', label: 'Tên Zalo', defaultHidden: true },
     { key: 'real_name', label: 'Tên thật', defaultHidden: true },
+    { key: 'full_name_raw', label: 'Họ tên gốc', defaultHidden: true },
     { key: 'gender', label: 'Giới tính' },
     { key: 'salutation', label: 'Xưng hô' },
     { key: 'birthday', label: 'Sinh nhật' },
@@ -1538,6 +1543,7 @@ export default function CRMContactList({
         <span className="flex-1 ml-2">Biệt danh CRM</span>
         {columnVisibility.zalo_name && <span className="flex-1 ml-2 hidden md:block">Tên Zalo</span>}
         {columnVisibility.real_name && <span className="w-32 flex-shrink-0 hidden md:block">Tên thật</span>}
+        {columnVisibility.full_name_raw && <span className="w-36 flex-shrink-0 hidden md:block">Họ tên gốc</span>}
         {columnVisibility.gender && <span className="w-16 flex-shrink-0 text-center">Giới tính</span>}
         {columnVisibility.salutation && <span className="w-20 flex-shrink-0 text-center">Xưng hô</span>}
         {columnVisibility.birthday && <span className="w-24 flex-shrink-0 text-center">Sinh nhật</span>}
@@ -1763,6 +1769,55 @@ export default function CRMContactList({
                         {pendingEdits[contact.contact_id]?.real_name !== undefined
                           ? (pendingEdits[contact.contact_id].real_name || '—')
                           : (contact.real_name || '—')
+                        }
+                      </span>
+                    )}
+                  </div>
+                )}
+                {/* Họ tên gốc — inline editable */}
+                {columnVisibility.full_name_raw && (
+                  <div
+                    className={`w-36 flex-shrink-0 min-w-0 hidden md:flex items-center text-xs truncate cursor-default ${
+                      isEditMode ? 'cursor-text' : ''
+                    }`}
+                    onClick={e => {
+                      if (isEditMode) {
+                        e.stopPropagation();
+                        if (contact.contact_type === 'group') return;
+                        setEditingCell({ contactId: contact.contact_id, field: 'full_name_raw' });
+                      }
+                    }}
+                    onDoubleClick={e => {
+                      e.stopPropagation();
+                      if (contact.contact_type === 'group') return;
+                      setEditingCell({ contactId: contact.contact_id, field: 'full_name_raw' });
+                    }}
+                    title={isEditMode ? 'Nhấp để sửa Họ tên gốc' : 'Nhấp đôi để sửa Họ tên gốc'}
+                  >
+                    {editingCell?.contactId === contact.contact_id && editingCell.field === 'full_name_raw' ? (
+                      <input
+                        autoFocus
+                        defaultValue={pendingEdits[contact.contact_id]?.full_name_raw ?? (contact.full_name_raw || '')}
+                        onBlur={e => commitEdit(contact.contact_id, 'full_name_raw', e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                          if (e.key === 'Escape') setEditingCell(null);
+                        }}
+                        onClick={e => e.stopPropagation()}
+                        placeholder="Nhập họ tên gốc..."
+                        className="text-xs bg-gray-700 border border-blue-500 rounded px-1.5 py-0.5 outline-none text-white w-full"
+                      />
+                    ) : (
+                      <span className={`truncate ${
+                        pendingEdits[contact.contact_id]?.full_name_raw !== undefined
+                          ? 'text-green-400 font-semibold'
+                          : contact.full_name_raw
+                            ? 'text-cyan-300 font-medium'
+                            : 'text-gray-600 italic text-[11px]'
+                      }`}>
+                        {pendingEdits[contact.contact_id]?.full_name_raw !== undefined
+                          ? (pendingEdits[contact.contact_id].full_name_raw || '—')
+                          : (contact.full_name_raw || '—')
                         }
                       </span>
                     )}

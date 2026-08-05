@@ -292,11 +292,24 @@ export default function CampaignList({
                     <div className="flex items-center gap-2 flex-1 min-w-0 pr-1">
                       {/* Status Indicator Icon (Visual status display on the far left) */}
                       {(() => {
+                        const isCode127 = c.pause_reason === 'code_127';
+                        const isCode108 = c.pause_reason === 'code_108';
+                        const isCode3001 = c.pause_reason === 'code_3001';
+                        const isSessionExpired = c.pause_reason === 'session_expired' || c.pause_reason === 'code_-5000' || c.pause_reason === 'code_1001';
                         const isQuotaPaused = c.status === 'paused_quota' || c.pause_reason === 'daily_quota';
                         const isQuietPaused = c.status === 'paused_quiet' || c.pause_reason === 'quiet_hours';
                         const isQueued = c.status === 'queued';
                         const isManualPaused = c.status === 'paused' && (c.pause_reason === 'user_manual' || !c.pause_reason);
-                        const statusTitle = isQuotaPaused
+
+                        const statusTitle = isCode127
+                          ? '🛑 Tạm dừng (Zalo khóa gửi tin người lạ - Mã 127)'
+                          : isCode108
+                          ? '🛑 Tạm dừng (Zalo nghi ngờ Spam - Mã 108)'
+                          : isCode3001
+                          ? '🛑 Tạm dừng (Nội dung chứa từ/link cấm - Mã 3001)'
+                          : isSessionExpired
+                          ? '🔑 Tạm dừng (Hết phiên QR Zalo - Cần quét lại QR)'
+                          : isQuotaPaused
                           ? '🛑 Tạm dừng (Hết quota ngày Zalo - Tự động 00:00)'
                           : isQuietPaused
                           ? '🌙 Tạm dừng (Giờ nghỉ đêm)'

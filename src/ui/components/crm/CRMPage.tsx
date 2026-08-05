@@ -6,6 +6,7 @@ import ipc from '@/lib/ipc';
 import CRMContactList from './contacts/CRMContactList';
 import CRMContactDetailPanel from './contacts/CRMContactDetailPanel';
 import BulkActionBar from './contacts/BulkActionBar';
+import BulkSalutationModal from './contacts/BulkSalutationModal';
 import CampaignList from './campaigns/CampaignList';
 import CampaignDetail from './campaigns/CampaignDetail';
 import CampaignCreateModal from './campaigns/CampaignCreateModal';
@@ -235,6 +236,7 @@ export default function CRMPage() {
   const [selectedUnifiedLabelValues, setSelectedUnifiedLabelValues] = useState<string[]>([]);
   const [indeterminateUnifiedLabelValues, setIndeterminateUnifiedLabelValues] = useState<string[]>([]);
   const [showBulkZaloModal, setShowBulkZaloModal] = useState(false);
+  const [showBulkSalutationModal, setShowBulkSalutationModal] = useState(false);
   const [showBulkGroupModal, setShowBulkGroupModal] = useState<'add' | 'remove' | null>(null);
   const [bulkLabelIds, setBulkLabelIds] = useState<number[]>([]);
   const [bulkLocalLabelIds, setBulkLocalLabelIds] = useState<number[]>([]);
@@ -690,6 +692,37 @@ export default function CRMPage() {
     if (store.campaigns.filter(c => c.status !== 'done').length === 0) {
       setShowCreateInAddModal(true);
     }
+  };
+
+  const handleConfirmBulkSalutation = async (salutation: string, customSelfRef?: string) => {
+    if (!activeAccountId || store.selectedContactIds.size === 0) return;
+
+    if (customSelfRef) {
+      try {
+        const res = await ipc.crm.getSalutationMap();
+        const currentMap = res?.map || {};
+        const updatedMap = { ...currentMap, [salutation.trim().toLowerCase()]: customSelfRef.trim() };
+        await ipc.crm.saveSalutationMap({ map: updatedMap });
+      } catch (err: any) {
+        console.error('[CRMPage] Error saving custom salutation map:', err);
+      }
+    }
+
+    const selectedIds = Array.from(store.selectedContactIds);
+    let successCount = 0;
+    for (const cid of selectedIds) {
+      try {
+        const res = await ipc.db?.patchContactFields({
+          zaloId: activeAccountId,
+          contactId: cid,
+          fields: { salutation }
+        });
+        if (res?.success !== false) successCount++;
+      } catch (e) { /* ignore single error */ }
+    }
+
+    await loadContacts();
+    showNotification(`🎉 Đã gán xưng hô "${salutation}" cho ${successCount} liên hệ`, 'success');
   };
 
   const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
@@ -1198,10 +1231,11 @@ export default function CRMPage() {
                       gender: fields.gender,
                       birthday: fields.birthday,
                       real_name: fields.real_name,
+                      full_name_raw: fields.full_name_raw,
                     };
 
                     let hasAiUpdate = aiFields.assistantId !== undefined || aiFields.autoSummary !== undefined || aiFields.threshold !== undefined;
-                    let hasNormalUpdate = normalFields.alias !== undefined || normalFields.salutation !== undefined || normalFields.phone !== undefined || normalFields.gender !== undefined || normalFields.birthday !== undefined || normalFields.real_name !== undefined;
+                    let hasNormalUpdate = normalFields.alias !== undefined || normalFields.salutation !== undefined || normalFields.phone !== undefined || normalFields.gender !== undefined || normalFields.birthday !== undefined || normalFields.real_name !== undefined || normalFields.full_name_raw !== undefined;
 
                     try {
                       let success = true;
@@ -1432,6 +1466,7 @@ export default function CRMPage() {
           onAddToCampaign={handleBulkAddToCampaign}
           onBulkTagLocal={handleBulkTagLocal}
           onBulkTagZalo={handleBulkTagZalo}
+          onBulkSalutation={() => setShowBulkSalutationModal(true)}
           onManageGroups={handleManageGroups}
           onBulkManageGroups={(mode) => setShowBulkGroupModal(mode)}
           onReassignOwner={() => setShowReassignModal(true)}
@@ -1440,6 +1475,13 @@ export default function CRMPage() {
       )}
 
       {/* ── Modals ── */}
+      {showBulkSalutationModal && (
+        <BulkSalutationModal
+          selectedCount={store.selectedContactIds.size}
+          onConfirm={handleConfirmBulkSalutation}
+          onClose={() => setShowBulkSalutationModal(false)}
+        />
+      )}
       {showReassignModal && (
         <ReassignOwnerModal
           selectedCount={store.selectedContactIds.size}

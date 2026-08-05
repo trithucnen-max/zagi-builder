@@ -8,5 +8,6 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/ui/$1',
   },
+  modulePathIgnorePatterns: ['<rootDir>/dist-electron/'],
   testMatch: ['<rootDir>/src/__tests__/**/*.test.ts'], // Đường dẫn đến các tệp test
 };

@@ -730,32 +730,6 @@ export default function TargetSelector({
                 )}
               </div>
 
-              {/* ── Theo SĐT ── */}
-              <div className="mb-1">
-                <button
-                  onClick={() => { setMode('by_phone'); setListPage(0); }}
-                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
-                    mode === 'by_phone'
-                      ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <span>📞</span><span className="flex-1 text-left">Theo SĐT</span>
-                  {mode === 'by_phone' && <span className="text-[10px] opacity-60">▲</span>}
-                </button>
-                {mode === 'by_phone' && (
-                  <div className="mt-1.5 ml-1 space-y-2">
-                    <textarea
-                      value={phoneInput}
-                      onChange={e => { setPhoneInput(e.target.value); setListPage(0); }}
-                      placeholder={"Nhập hoặc dán SĐT\n(mỗi số 1 dòng):\n0901234567\n0912345678"}
-                      className="w-full h-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 font-mono resize-none"
-                    />
-                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">{phoneList.length} SĐT hợp lệ</p>
-                  </div>
-                )}
-              </div>
-
               {/* ── Theo UID ── */}
               <div className="mb-1">
                 <button
@@ -1061,24 +1035,6 @@ export default function TargetSelector({
                         <p className="text-xs font-normal text-gray-900 dark:text-white truncate">{c.alias || c.display_name || c.contact_id}</p>
                         <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.phone || c.contact_id}</p>
                       </div>
-                    </div>
-                  ));
-                })()
-              )}
-
-              {/* By Phone preview */}
-              {mode === 'by_phone' && (
-                phoneList.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full py-10 text-center">
-                    <div className="w-14 h-14 rounded-full bg-gray-50 dark:bg-gray-800 text-gray-400 flex items-center justify-center text-3xl mb-3">📞</div>
-                    <p className="text-xs text-gray-400">Nhập SĐT ở bảng trái để xem trước danh sách</p>
-                  </div>
-                ) : (() => {
-                  const pageData = phoneList.slice(listPage * PAGE_SIZE, (listPage + 1) * PAGE_SIZE);
-                  return pageData.map((phone, i) => (
-                    <div key={`phone-${listPage * PAGE_SIZE + i}`} className="p-2.5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">📞</div>
-                      <span className="text-xs font-mono text-gray-900 dark:text-white">{phone}</span>
                     </div>
                   ));
                 })()

@@ -324,6 +324,26 @@ export default function CampaignDetail({
               <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
                 📦 Đang chờ ({campaign.queue_position ? `#${campaign.queue_position} trong hàng đợi` : 'Hàng đợi'})
               </span>
+            ) : campaign.pause_reason === 'code_127' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30"
+                title="Zalo chặn tài khoản gửi tin nhắn cho người lạ (Mã 127). Vui lòng đổi nick hoặc dừng gửi người lạ 24h-72h">
+                🛑 Tạm dừng (Zalo khóa gửi tin người lạ - Mã 127)
+              </span>
+            ) : campaign.pause_reason === 'code_108' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30"
+                title="Zalo tạm khóa gửi tin nhắn do gửi quá nhanh / nghi vấn spam (Mã 108). Tạm nghỉ 6h-24h và tăng delay">
+                🛑 Tạm dừng (Zalo nghi ngờ Spam - Mã 108)
+              </span>
+            ) : campaign.pause_reason === 'code_3001' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30"
+                title="Nội dung tin nhắn chứa link cấm hoặc từ khóa vi phạm (Mã 3001). Vui lòng sửa lại mẫu tin">
+                🛑 Tạm dừng (Nội dung chứa từ/link cấm - Mã 3001)
+              </span>
+            ) : campaign.pause_reason === 'session_expired' || campaign.pause_reason === 'code_-5000' || campaign.pause_reason === 'code_1001' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                title="Phiên đăng nhập QR của Nick Zalo đã hết hạn hoặc bị đứt kết nối. Vui lòng quét lại mã QR">
+                🔑 Tạm dừng (Hết phiên QR Zalo - Cần quét lại QR)
+              </span>
             ) : campaign.status === 'paused_quota' || campaign.pause_reason === 'daily_quota' ? (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                 title="Đã đạt định mức an toàn gửi tin nhắn/kết bạn trong ngày. Tự động tiếp tục vào 00:00 ngày mới">

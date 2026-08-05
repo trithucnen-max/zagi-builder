@@ -22,6 +22,7 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const [scanQuotaInfo, setScanQuotaInfo] = useState<any>(null);
   const selectedAccount = zaloAccounts.find(a => a.zalo_id === selectedZaloId);
 
   useEffect(() => {
@@ -36,10 +37,13 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
         setInviteLimit(quotaRes.inviteLimit ?? 50);
       }
       if (scanRes?.success && scanRes.data) {
-        const item = scanRes.data.find(a => a.zaloId === selectedZaloId);
+        const item = scanRes.data.find((a: any) => a.zaloId === selectedZaloId);
         if (item) {
           setScanDailyLimit(item.scanDailyLimit || 100);
           setScanHourlyLimit(item.scanHourlyLimit || 30);
+          setScanQuotaInfo(item);
+        } else {
+          setScanQuotaInfo(null);
         }
       }
     }).catch(() => {}).finally(() => setLoading(false));
@@ -123,6 +127,23 @@ export default function AccountQuotaModal({ zaloId, onClose, onSaved }: AccountQ
                   👤 <span className="font-bold text-gray-800 dark:text-gray-200">{selectedAccount?.name || selectedAccount?.display_name || selectedZaloId}</span>
                   {selectedAccount?.phone ? ` (${selectedAccount.phone})` : ''}
                 </p>
+              )}
+              {scanQuotaInfo && (
+                <div className="mt-1">
+                  {scanQuotaInfo.status === 'active' ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                      🟢 Bình thường (Đã quét: {scanQuotaInfo.todayCount}/{scanQuotaInfo.scanDailyLimit} số hôm nay)
+                    </span>
+                  ) : scanQuotaInfo.status === 'hourly_quota' ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                      ⏱️ Chạm hạn ngạch GIỜ (Mã -216)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800">
+                      🔴 Chạm hạn ngạch NGÀY (Mã -216) - Reset 00:00
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>

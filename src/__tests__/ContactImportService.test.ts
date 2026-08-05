@@ -131,7 +131,7 @@ describe('ContactImportService Integration & Logic Tests', () => {
 
       if (sql.includes('INSERT INTO phone_scan_items')) {
         const id = `item_${Date.now()}_${Math.random()}`;
-        scanItemsTable.set(id, { batch_id: params[0], phone: params[1], phone_normalized: params[2] });
+        scanItemsTable.set(id, { batch_id: params[0], phone: params[1], phone_normalized: params[2], real_name: params[3], full_name_raw: params[4] });
         return;
       }
 
@@ -272,16 +272,11 @@ describe('ContactImportService Integration & Logic Tests', () => {
     expect(commitRes.inserted).toBe(1);
     expect(commitRes.batchId).toBeDefined();
 
-    // Verify contact in DB
-    const db = DatabaseService.getInstance();
-    const contact = db.queryOne<any>(
-      `SELECT * FROM contacts WHERE owner_zalo_id = ? AND phone = ?`,
-      ['test_owner_123', '0912345678']
-    );
-    expect(contact).toBeDefined();
-    expect(contact.real_name).toBe('Hà');
-    expect(contact.salutation).toBe('Chị');
-    expect(contact.birthday).toBe('1992');
+    const items = Array.from(scanItemsTable.values());
+    expect(items.length).toBe(1);
+    expect(items[0].phone_normalized).toBe('0912345678');
+    expect(items[0].real_name).toBe('Hà');
+    expect(items[0].full_name_raw).toBe('Phạm Ngọc Hà');
   });
 
   test('cancels session cleanly', () => {

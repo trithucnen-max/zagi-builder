@@ -78,6 +78,10 @@ export interface CRMContact {
   ai_auto_summary_threshold?: number;
   /** Bộ đếm số tin nhắn hiện tại kể từ lần tổng hợp gần nhất */
   ai_auto_summary_counter?: number;
+  /** Tên thật sau khi chuẩn hóa/tách tên */
+  real_name?: string | null;
+  /** Họ tên gốc nhập từ CSV/Excel */
+  full_name_raw?: string | null;
 }
 
 export interface PipelineStage {

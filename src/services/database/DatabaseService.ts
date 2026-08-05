@@ -2934,8 +2934,9 @@ class DatabaseService {
             this.ensureColumn('contacts', 'salutation_manual', 'INTEGER DEFAULT 0');
             this.ensureColumn('contacts', 'alias_sync_status', 'TEXT DEFAULT NULL');
 
-            // Add real_name column to phone_scan_items (stores name from Excel at import time)
+            // Add real_name & full_name_raw column to phone_scan_items (stores name from Excel at import time)
             this.ensureColumn('phone_scan_items', 'real_name', 'TEXT DEFAULT NULL');
+            this.ensureColumn('phone_scan_items', 'full_name_raw', 'TEXT DEFAULT NULL');
 
             this.save();
             Logger.log('[DatabaseService] ✅ Migration: CSV import tables & contacts columns initialized');
@@ -3614,7 +3615,7 @@ class DatabaseService {
      * Cập nhật display_name và avatar_url của contact vào DB.
      * Được gọi khi có thông tin tên/ảnh (từ senderInfo trong message event hoặc getUserInfo API).
      */
-    public updateContactProfile(ownerZaloId: string, contactId: string, displayName: string, avatarUrl: string, phone: string = '', contactType: string = '', gender?: number | null, birthday?: string | null, realName?: string | null): void {
+    public updateContactProfile(ownerZaloId: string, contactId: string, displayName: string, avatarUrl: string, phone: string = '', contactType: string = '', gender?: number | null, birthday?: string | null, realName?: string | null, fullNameRaw?: string | null): void {
         if (!this.initialized || !contactId || contactId === 'undefined') return;
         try {
             const normalizedPhone = this.normalizeVietnamPhone(phone || '');
@@ -3662,6 +3663,12 @@ class DatabaseService {
                 this.run(
                     `UPDATE contacts SET real_name = CASE WHEN real_name IS NULL OR real_name = '' THEN ? ELSE real_name END WHERE owner_zalo_id=? AND contact_id=?`,
                     [realName, ownerZaloId, contactId]
+                );
+            }
+            if (fullNameRaw !== undefined && fullNameRaw !== null && fullNameRaw !== '') {
+                this.run(
+                    `UPDATE contacts SET full_name_raw = CASE WHEN full_name_raw IS NULL OR full_name_raw = '' THEN ? ELSE full_name_raw END WHERE owner_zalo_id=? AND contact_id=?`,
+                    [fullNameRaw, ownerZaloId, contactId]
                 );
             }
 
@@ -3844,6 +3851,7 @@ class DatabaseService {
             gender?: number | null;
             birthday?: string | null;
             real_name?: string | null;
+            full_name_raw?: string | null;
         }
     ): void {
         if (!this.initialized || !contactId) return;
@@ -3861,7 +3869,8 @@ class DatabaseService {
             sets.push('birthday=?');
             vals.push(b || null);
         }
-        if (fields.real_name !== undefined)  { sets.push('real_name=?'); vals.push(fields.real_name ?? null); }
+        if (fields.real_name !== undefined)     { sets.push('real_name=?');     vals.push(fields.real_name ?? null); }
+        if (fields.full_name_raw !== undefined) { sets.push('full_name_raw=?'); vals.push(fields.full_name_raw ?? null); }
         if (sets.length === 0) return;
         vals.push(ownerZaloId, contactId);
         try {
@@ -6964,7 +6973,7 @@ class DatabaseService {
                         0 as is_friend, COALESCE(last_message_time,0) as last_message_time, 'group' as contact_type,
                         gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
                         ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter,
-                        COALESCE(is_blocked, 0) as is_blocked, real_name
+                        COALESCE(is_blocked, 0) as is_blocked, real_name, full_name_raw
                      FROM contacts WHERE owner_zalo_id=? AND contact_type='group'
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -6979,7 +6988,7 @@ class DatabaseService {
                         1 as is_friend,
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
                         c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation,
-                        COALESCE(c.is_blocked, 0) as is_blocked, c.real_name
+                        COALESCE(c.is_blocked, 0) as is_blocked, c.real_name, c.full_name_raw
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -6997,7 +7006,7 @@ class DatabaseService {
                         COALESCE(c.last_message_time, 0) as last_message_time, 'user' as contact_type,
                         c.gender, c.birthday, c.pipeline_stage_id, c.ai_profile, c.extra_data, c.fb_linked_id, c.salutation,
                         c.ai_assistant_id, c.ai_auto_summary, c.ai_auto_summary_threshold, c.ai_auto_summary_counter,
-                        COALESCE(c.is_blocked, 0) as is_blocked, c.real_name
+                        COALESCE(c.is_blocked, 0) as is_blocked, c.real_name, c.full_name_raw
                      FROM friends f
                      LEFT JOIN contacts c ON c.owner_zalo_id=f.owner_zalo_id AND c.contact_id=f.user_id
                      WHERE f.owner_zalo_id=?`,
@@ -7011,7 +7020,7 @@ class DatabaseService {
                         COALESCE(contact_type,'user') as contact_type,
                         gender, birthday, pipeline_stage_id, ai_profile, extra_data, fb_linked_id, salutation,
                         ai_assistant_id, ai_auto_summary, ai_auto_summary_threshold, ai_auto_summary_counter,
-                        COALESCE(is_blocked, 0) as is_blocked, real_name
+                        COALESCE(is_blocked, 0) as is_blocked, real_name, full_name_raw
                      FROM contacts WHERE owner_zalo_id=?
                      AND contact_id IS NOT NULL AND contact_id != ''`,
                     [ownerZaloId]
@@ -10610,13 +10619,50 @@ class DatabaseService {
         }
     }
 
+    public setAccountScanPauseState(zaloId: string, pauseReason: 'hourly_quota' | 'daily_quota' | null, pausedUntil: number | null): void {
+        if (!this.initialized) return;
+        try {
+            if (pauseReason && pausedUntil && pausedUntil > Date.now()) {
+                this.setSetting(`scan_pause_reason_${zaloId}`, pauseReason);
+                this.setSetting(`scan_paused_until_${zaloId}`, String(pausedUntil));
+            } else {
+                this.setSetting(`scan_pause_reason_${zaloId}`, '');
+                this.setSetting(`scan_paused_until_${zaloId}`, '');
+            }
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] setAccountScanPauseState: ${err.message}`);
+        }
+    }
+
+    public getAccountScanPauseState(zaloId: string): { pauseReason: string | null; pausedUntil: number | null } {
+        if (!this.initialized) return { pauseReason: null, pausedUntil: null };
+        try {
+            const untilStr = this.getSetting(`scan_paused_until_${zaloId}`);
+            const reasonStr = this.getSetting(`scan_pause_reason_${zaloId}`);
+            if (untilStr && reasonStr) {
+                const pausedUntil = parseInt(untilStr, 10);
+                if (pausedUntil > Date.now()) {
+                    return { pauseReason: reasonStr, pausedUntil };
+                }
+            }
+            return { pauseReason: null, pausedUntil: null };
+        } catch {
+            return { pauseReason: null, pausedUntil: null };
+        }
+    }
+
     public getScanQuotaSummaryForAccounts(): Array<{
         zaloId: string;
         name: string;
+        avatar?: string | null;
         todayCount: number;
         scanDailyLimit: number;
         hourlyCount: number;
         scanHourlyLimit: number;
+        status: 'active' | 'hourly_quota' | 'daily_quota';
+        pausedUntil: number | null;
+        pauseReasonMsg: string | null;
     }> {
         if (!this.initialized) return [];
         try {
@@ -10629,16 +10675,41 @@ class DatabaseService {
             return activeZalo.map((acc: any) => {
                 const zaloId = String(acc.zalo_id);
                 const name = acc.full_name || acc.name || zaloId;
+                const avatar = acc.avatar || null;
                 const todayCount = this.getDailyScanCountForAccount(zaloId, startOfToday);
                 const hourlyCount = this.getHourlyScanCountForAccount(zaloId, oneHourAgo);
                 const limits = this.getAccountScanLimits(zaloId);
+                const pauseState = this.getAccountScanPauseState(zaloId);
+
+                let status: 'active' | 'hourly_quota' | 'daily_quota' = 'active';
+                let pauseReasonMsg: string | null = null;
+
+                if (pauseState.pauseReason && pauseState.pausedUntil && pauseState.pausedUntil > Date.now()) {
+                    status = pauseState.pauseReason as any;
+                    if (pauseState.pauseReason === 'hourly_quota') {
+                        pauseReasonMsg = `Chạm hạn ngạch GIỜ (Mã -216) - Reset sau 60 phút`;
+                    } else {
+                        pauseReasonMsg = `Chạm hạn ngạch NGÀY (Mã -216) - Reset lúc 00:00`;
+                    }
+                } else if (todayCount >= limits.scanDailyLimit) {
+                    status = 'daily_quota';
+                    pauseReasonMsg = `Chạm hạn ngạch NGÀY (${todayCount}/${limits.scanDailyLimit}) - Reset lúc 00:00`;
+                } else if (hourlyCount >= limits.scanHourlyLimit) {
+                    status = 'hourly_quota';
+                    pauseReasonMsg = `Chạm hạn ngạch GIỜ (${hourlyCount}/${limits.scanHourlyLimit}) - Reset sau 60 phút`;
+                }
+
                 return {
                     zaloId,
                     name,
+                    avatar,
                     todayCount,
                     scanDailyLimit: limits.scanDailyLimit,
                     hourlyCount,
                     scanHourlyLimit: limits.scanHourlyLimit,
+                    status,
+                    pausedUntil: pauseState.pausedUntil,
+                    pauseReasonMsg,
                 };
             });
         } catch (err: any) {

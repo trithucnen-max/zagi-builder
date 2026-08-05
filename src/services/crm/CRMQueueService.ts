@@ -1205,8 +1205,10 @@ class CRMQueueService {
 
             if (errorDetail.shouldAutoPauseCampaign) {
                 Logger.warn(`[CRMQueue] 🛑 Account limit / policy error (${errorDetail.code}: ${errorDetail.title}) detected! Pausing campaign ${item.campaign_id}...`);
-                try {
-                    db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused_quota', 'daily_quota');
+                    const pauseReasonKey = errorDetail.category === 'EXPIRED_SESSION' 
+                        ? 'session_expired' 
+                        : (errorDetail.code ? `code_${errorDetail.code}` : 'daily_quota');
+                    db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused_quota', pauseReasonKey);
 
                     // Smart Adaptive Quota Auto-Tuning for Stranger Messages & Friend Requests
                     if (zaloId) {
