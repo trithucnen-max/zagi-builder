@@ -9,7 +9,6 @@ import AppIcon from '../../common/AppIcon';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 import ImportWizardModal, { BatchConfig } from '../import/ImportWizardModal';
 import AccountQuotaModal from '../campaigns/AccountQuotaModal';
-import { ConvertScanToCampaignModal } from './ConvertScanToCampaignModal';
 
 function getContrastColor(hexColor: string): string {
   if (!hexColor) return '#ffffff';
@@ -194,8 +193,6 @@ export default function PhoneScanPanel() {
     const accounts = useAccountStore(s => s.accounts);
     const [quotaModalZaloId, setQuotaModalZaloId] = useState<string | null>(null);
     const [fullscreenReportBatch, setFullscreenReportBatch] = useState<Batch | null>(null);
-    const [showConvertModal, setShowConvertModal] = useState<boolean>(false);
-    const [convertBatch, setConvertBatch] = useState<Batch | null>(null);
 
     const handleExportBatchExcel = useCallback(async (batch: Batch) => {
         if (!batch) return;
@@ -1387,18 +1384,6 @@ export default function PhoneScanPanel() {
 
                             {/* Header Buttons (Yêu cầu 2) */}
                             <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setConvertBatch(selectedBatch);
-                                        setShowConvertModal(true);
-                                    }}
-                                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer"
-                                    title="Chuyển SĐT có Zalo vào Chiến dịch CRM"
-                                >
-                                    <AppIcon name="zap" size={13} />
-                                    <span>Chuyển vào chiến dịch</span>
-                                </button>
 
                                 <button
                                     type="button"
@@ -2545,19 +2530,6 @@ export default function PhoneScanPanel() {
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setConvertBatch(fullscreenReportBatch);
-                                    setShowConvertModal(true);
-                                }}
-                                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
-                                title="Chuyển SĐT có Zalo vào Chiến dịch CRM Mới hoặc Có sẵn"
-                            >
-                                <span>🚀</span>
-                                <span>Chuyển vào Chiến dịch CRM</span>
-                            </button>
-
-                            <button
-                                type="button"
                                 onClick={() => handleExportBatchExcel(fullscreenReportBatch)}
                                 className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
                                 title="Xuất toàn bộ báo cáo phân loại ra file Excel"
@@ -2870,22 +2842,6 @@ export default function PhoneScanPanel() {
                         </div>
                     </div>
                 </div>
-            )}
-
-            {showConvertModal && convertBatch && (
-                <ConvertScanToCampaignModal
-                    isOpen={showConvertModal}
-                    onClose={() => {
-                        setShowConvertModal(false);
-                        setConvertBatch(null);
-                    }}
-                    batchId={convertBatch.id}
-                    batchName={convertBatch.name}
-                    foundCount={convertBatch.found_count || 0}
-                    onSuccess={(campaignId) => {
-                        alert(`🚀 Đã chuyển thành công các SĐT có Zalo vào Chiến dịch CRM #${campaignId}!`);
-                    }}
-                />
             )}
         </div>
     );
