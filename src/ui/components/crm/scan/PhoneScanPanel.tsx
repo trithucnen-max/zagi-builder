@@ -1505,6 +1505,61 @@ export default function PhoneScanPanel() {
                             </div>
                         )}
 
+                        {/* Streamlined Setup & Report Card (Hình 3) */}
+                        <div className="mx-5 mt-3 p-2.5 bg-gray-50/80 dark:bg-gray-800/50 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl text-xs flex-shrink-0">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                                <div className="flex flex-wrap items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
+                                    <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs">
+                                        📱 <b>Tài khoản:</b> {selectedBatchAccount ? (selectedBatchAccount.full_name || selectedBatchAccount.zalo_id) : 'Tất cả'}
+                                    </span>
+
+                                    <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs">
+                                        ⏱️ <b>Giới hạn:</b> {selectedBatch.daily_limit} số/ngày {selectedBatch.hourly_limit ? `(${selectedBatch.hourly_limit} số/giờ)` : ''}
+                                    </span>
+
+                                    <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs text-emerald-600 dark:text-emerald-400 font-bold">
+                                        ✓ <b>Lọc CRM:</b> {selectedBatch.skip_crm_existing ? 'Bỏ qua SĐT đã có' : 'Quét tất cả'}
+                                    </span>
+
+                                    <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
+                                        🟢 <b>Quy tắc:</b> {selectedBatch.contact_assignment_mode === 'single' ? 'Gán 1 nick' : 'Phân tán'}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setReassignMode(selectedBatch.contact_assignment_mode || 'distributed');
+                                                setReassignAccountId(selectedBatch.assigned_account_id || '');
+                                                setShowReassignModal(true);
+                                            }}
+                                            className="ml-1 text-[10px] text-blue-500 hover:underline cursor-pointer"
+                                            title="Đổi quy tắc phân bổ"
+                                        >
+                                            ⚡ Đổi
+                                        </button>
+                                    </span>
+
+                                    {selectedBatchTags.length > 0 && (
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs">
+                                            <span className="text-gray-400">🏷️ <b>Nhãn:</b></span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {selectedBatchTags.map(tag => (
+                                                    <span
+                                                        key={tag.id}
+                                                        className="px-2 py-0.5 text-[10px] font-bold rounded-md"
+                                                        style={{
+                                                            backgroundColor: `${tag.color || '#3B82F6'}18`,
+                                                            color: tag.color || '#3B82F6'
+                                                        }}
+                                                    >
+                                                        {tag.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Status Tabs & Account Filter inside detail */}
                         <div className="px-5 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
                             <div className="flex items-center gap-2">
