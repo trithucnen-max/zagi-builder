@@ -140,121 +140,123 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
 
   return (
     <>
-      <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150" onClick={onClose}>
-        <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden p-5 space-y-4" onClick={e => e.stopPropagation()}>
-          
-          {/* Header - Matching Hình 2 */}
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-              Chọn chiến dịch
-            </h3>
+      {!showCreateModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150" onClick={onClose}>
+          <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            
+            {/* Header - Matching Hình 2 */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Chọn chiến dịch
+              </h3>
 
-            <button
-              type="button"
-              onClick={() => {
-                setErrorMsg('');
-                setShowCreateModal(true);
-              }}
-              className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              + Tạo mới
-            </button>
-          </div>
-
-          {errorMsg && (
-            <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 text-xs font-semibold">
-              ⚠️ {errorMsg}
-            </div>
-          )}
-
-          {/* Zalo Account Selector (If multiple active accounts) */}
-          {zaloAccounts.length > 1 && (
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-gray-400">Tài khoản Zalo chiến dịch:</label>
-              <select
-                value={selectedZaloId}
-                onChange={e => setSelectedZaloId(e.target.value)}
-                className="w-full p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:outline-none cursor-pointer"
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMsg('');
+                  setShowCreateModal(true);
+                }}
+                className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
-                {zaloAccounts.map(acc => (
-                  <option key={acc.zalo_id} value={acc.zalo_id}>
-                    {acc.full_name || acc.zalo_id}
-                  </option>
-                ))}
-              </select>
+                + Tạo mới
+              </button>
             </div>
-          )}
 
-          {/* Mode: Existing READY Campaigns List (Hình 2) */}
-          <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-            {fetchingCampaigns ? (
-              <div className="py-8 text-center text-xs text-gray-400 italic">Đang kiểm tra các chiến dịch sẵn sàng...</div>
-            ) : existingCampaigns.length === 0 ? (
-              <div className="p-4 text-center text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/60 rounded-2xl space-y-2">
-                <p>Chưa có chiến dịch nào đang mở sẵn sàng.</p>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs cursor-pointer"
-                >
-                  + Tạo chiến dịch mới
-                </button>
+            {errorMsg && (
+              <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 text-xs font-semibold">
+                ⚠️ {errorMsg}
               </div>
-            ) : (
-              existingCampaigns.map(c => {
-                const isSelected = selectedCampaignId === c.id;
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => setSelectedCampaignId(c.id)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
-                      isSelected
-                        ? 'border-2 border-blue-500 bg-blue-50/20 dark:bg-blue-950/20 shadow-xs'
-                        : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 bg-white dark:bg-gray-850'
-                    }`}
-                  >
-                    <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border flex-shrink-0 ${
-                      isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-400'
-                    }`}>
-                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-
-                    <div>
-                      <h4 className="font-bold text-xs text-gray-900 dark:text-white">
-                        {c.name}
-                      </h4>
-                      <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-                        {c.total_contacts || 0} liên hệ
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
             )}
+
+            {/* Zalo Account Selector (If multiple active accounts) */}
+            {zaloAccounts.length > 1 && (
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-gray-400">Tài khoản Zalo chiến dịch:</label>
+                <select
+                  value={selectedZaloId}
+                  onChange={e => setSelectedZaloId(e.target.value)}
+                  className="w-full p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:outline-none cursor-pointer"
+                >
+                  {zaloAccounts.map(acc => (
+                    <option key={acc.zalo_id} value={acc.zalo_id}>
+                      {acc.full_name || acc.zalo_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Mode: Existing READY Campaigns List (Hình 2) */}
+            <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+              {fetchingCampaigns ? (
+                <div className="py-8 text-center text-xs text-gray-400 italic">Đang kiểm tra các chiến dịch sẵn sàng...</div>
+              ) : existingCampaigns.length === 0 ? (
+                <div className="p-4 text-center text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/60 rounded-2xl space-y-2">
+                  <p>Chưa có chiến dịch nào đang mở sẵn sàng.</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(true)}
+                    className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs cursor-pointer"
+                  >
+                    + Tạo chiến dịch mới
+                  </button>
+                </div>
+              ) : (
+                existingCampaigns.map(c => {
+                  const isSelected = selectedCampaignId === c.id;
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => setSelectedCampaignId(c.id)}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
+                        isSelected
+                          ? 'border-2 border-blue-500 bg-blue-50/20 dark:bg-blue-950/20 shadow-xs'
+                          : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 bg-white dark:bg-gray-850'
+                      }`}
+                    >
+                      <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border flex-shrink-0 ${
+                        isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-400'
+                      }`}>
+                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+
+                      <div>
+                        <h4 className="font-bold text-xs text-gray-900 dark:text-white">
+                          {c.name}
+                        </h4>
+                        <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                          {c.total_contacts || 0} liên hệ
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer Pill Buttons - Exactly Matching Hình 2 */}
+            <div className="pt-2 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="py-2.5 px-5 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs transition-colors text-center cursor-pointer"
+              >
+                Hủy
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading || !selectedCampaignId}
+                className="py-2.5 px-5 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs shadow-md transition-all text-center disabled:opacity-50 active:scale-95 cursor-pointer"
+              >
+                {loading ? 'Đang thêm...' : `Thêm ${foundCount} liên hệ`}
+              </button>
+            </div>
+
           </div>
-
-          {/* Footer Pill Buttons - Exactly Matching Hình 2 */}
-          <div className="pt-2 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="py-2.5 px-5 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs transition-colors text-center cursor-pointer"
-            >
-              Hủy
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading || !selectedCampaignId}
-              className="py-2.5 px-5 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs shadow-md transition-all text-center disabled:opacity-50 active:scale-95 cursor-pointer"
-            >
-              {loading ? 'Đang thêm...' : `Thêm ${foundCount} liên hệ`}
-            </button>
-          </div>
-
         </div>
-      </div>
+      )}
 
       {/* Full Module Campaign Creation Modal */}
       {showCreateModal && (
