@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
+import CampaignCreateModal from '../campaigns/CampaignCreateModal';
 
 interface ConvertScanToCampaignModalProps {
   isOpen: boolean;
@@ -22,16 +23,14 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
   const { accounts } = useAccountStore();
   const zaloAccounts = accounts.filter(a => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
 
-  const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false);
   const [selectedZaloId, setSelectedZaloId] = useState<string>(zaloAccounts[0]?.zalo_id || '');
   
   // Existing campaign list state
   const [existingCampaigns, setExistingCampaigns] = useState<any[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
 
-  // New campaign state
-  const [newCampaignName, setNewCampaignName] = useState<string>(`Chiến dịch SĐT Quét #${batchId}: ${batchName}`);
-  const [newCampaignType, setNewCampaignType] = useState<'message' | 'friend_request' | 'mixed'>('message');
+  // Full module CampaignCreateModal state
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
 
   const [loading, setLoading] = useState<boolean>(false);
   const [fetchingCampaigns, setFetchingCampaigns] = useState<boolean>(false);
@@ -43,10 +42,11 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
     }
   }, [zaloAccounts, selectedZaloId]);
 
-  // Load ONLY campaigns ready to accept contacts (status !== 'done' && status !== 'stopped')
-  useEffect(() => {
+  // Load ONLY campaigns ready to accept contacts (status !== 'done' && status !== 'stopped' && status !== 'completed')
+  const loadCampaigns = useCallback(async (autoSelectId?: number) => {
     setFetchingCampaigns(true);
-    ipc.crm.getCampaigns({ zaloId: selectedZaloId || '' }).then(res => {
+    try {
+      const res = await ipc.crm.getCampaigns({ zaloId: selectedZaloId || '' });
       const campaignList = res?.campaigns || res?.data || [];
       if (Array.isArray(campaignList)) {
         // Filter ONLY ready / active campaigns
@@ -57,26 +57,57 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
           !c.is_deleted
         );
         setExistingCampaigns(readyCampaigns);
-        if (readyCampaigns.length > 0 && !selectedCampaignId) {
-          setSelectedCampaignId(readyCampaigns[0].id);
+
+        if (autoSelectId) {
+          setSelectedCampaignId(autoSelectId);
+        } else if (readyCampaigns.length > 0) {
+          // If previous selected is still valid keep it, else select first
+          if (!selectedCampaignId || !readyCampaigns.some((c: any) => c.id === selectedCampaignId)) {
+            setSelectedCampaignId(readyCampaigns[0].id);
+          }
+        } else {
+          setSelectedCampaignId(null);
         }
       }
-    }).catch(() => {
+    } catch (err) {
       setExistingCampaigns([]);
-    }).finally(() => {
+    } finally {
       setFetchingCampaigns(false);
-    });
-  }, [selectedZaloId]);
+    }
+  }, [selectedZaloId, selectedCampaignId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadCampaigns();
+    }
+  }, [isOpen, selectedZaloId]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = async () => {
-    if (isCreatingNew && !newCampaignName.trim()) {
-      setErrorMsg('Vui lòng nhập tên chiến dịch mới');
-      return;
-    }
+  // Handle saving new campaign created via standard CampaignCreateModal
+  const handleSaveNewCampaign = async (formData: any) => {
+    try {
+      const targetZaloId = selectedZaloId || (zaloAccounts[0]?.zalo_id || '');
+      const res = await ipc.crm.saveCampaign({
+        zaloId: targetZaloId,
+        campaign: formData
+      });
 
-    if (!isCreatingNew && !selectedCampaignId) {
+      if (res?.success) {
+        const newCampaignId = res.campaignId || res.data?.id || res.id;
+        setShowCreateModal(false);
+        // Reload campaigns list and automatically select newly created campaign
+        await loadCampaigns(newCampaignId);
+      } else {
+        alert('Có lỗi khi tạo chiến dịch: ' + (res?.error || 'Không xác định'));
+      }
+    } catch (err: any) {
+      alert('Lỗi kết nối khi tạo chiến dịch: ' + (err.message || err));
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedCampaignId) {
       setErrorMsg('Vui lòng chọn 1 chiến dịch sẵn sàng');
       return;
     }
@@ -88,30 +119,14 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
       const payload: any = {
         batchId,
         zaloId: selectedZaloId || (zaloAccounts[0]?.zalo_id || ''),
-        mode: isCreatingNew ? 'new' : 'existing',
+        mode: 'existing',
+        existingCampaignId: selectedCampaignId,
         statusFilter: 'found'
       };
 
-      if (isCreatingNew) {
-        payload.newCampaign = {
-          name: newCampaignName.trim(),
-          campaign_type: newCampaignType,
-          template_message: 'Chào {salutation} {name}, bên em gửi thông tin tư vấn nhé!',
-          friend_request_message: 'Chào {salutation} {name}, kết bạn Zalo với em nhé!',
-          delay_seconds: 30,
-          delay_min_seconds: 20,
-          delay_max_seconds: 40,
-          daily_send_limit: 50,
-          daily_start_time: '08:00',
-          mixed_config: JSON.stringify({ actions: ['message'], send_order: 'text_first' })
-        };
-      } else {
-        payload.existingCampaignId = selectedCampaignId;
-      }
-
       const res = await ipc.crm.convertScanToCampaign(payload);
       if (res.success) {
-        onSuccess(res.campaignId);
+        onSuccess(selectedCampaignId);
         onClose();
       } else {
         setErrorMsg(res.error || 'Có lỗi xảy ra khi thêm liên hệ vào chiến dịch');
@@ -124,53 +139,53 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden p-5 space-y-4" onClick={e => e.stopPropagation()}>
-        
-        {/* Header - Matching Hình 2 */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-            {isCreatingNew ? 'Tạo chiến dịch mới' : 'Chọn chiến dịch'}
-          </h3>
+    <>
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150" onClick={onClose}>
+        <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden p-5 space-y-4" onClick={e => e.stopPropagation()}>
+          
+          {/* Header - Matching Hình 2 */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              Chọn chiến dịch
+            </h3>
 
-          <button
-            type="button"
-            onClick={() => {
-              setIsCreatingNew(!isCreatingNew);
-              setErrorMsg('');
-            }}
-            className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-          >
-            {isCreatingNew ? '← Chọn có sẵn' : '+ Tạo mới'}
-          </button>
-        </div>
-
-        {errorMsg && (
-          <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 text-xs font-semibold">
-            ⚠️ {errorMsg}
-          </div>
-        )}
-
-        {/* Zalo Account Selector (If multiple active accounts) */}
-        {zaloAccounts.length > 1 && (
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-gray-400">Tài khoản Zalo chiến dịch:</label>
-            <select
-              value={selectedZaloId}
-              onChange={e => setSelectedZaloId(e.target.value)}
-              className="w-full p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:outline-none cursor-pointer"
+            <button
+              type="button"
+              onClick={() => {
+                setErrorMsg('');
+                setShowCreateModal(true);
+              }}
+              className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
-              {zaloAccounts.map(acc => (
-                <option key={acc.zalo_id} value={acc.zalo_id}>
-                  {acc.full_name || acc.zalo_id}
-                </option>
-              ))}
-            </select>
+              + Tạo mới
+            </button>
           </div>
-        )}
 
-        {/* Mode: Existing READY Campaigns List (Hình 2) */}
-        {!isCreatingNew && (
+          {errorMsg && (
+            <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 text-xs font-semibold">
+              ⚠️ {errorMsg}
+            </div>
+          )}
+
+          {/* Zalo Account Selector (If multiple active accounts) */}
+          {zaloAccounts.length > 1 && (
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-gray-400">Tài khoản Zalo chiến dịch:</label>
+              <select
+                value={selectedZaloId}
+                onChange={e => setSelectedZaloId(e.target.value)}
+                className="w-full p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:outline-none cursor-pointer"
+              >
+                {zaloAccounts.map(acc => (
+                  <option key={acc.zalo_id} value={acc.zalo_id}>
+                    {acc.full_name || acc.zalo_id}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Mode: Existing READY Campaigns List (Hình 2) */}
           <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
             {fetchingCampaigns ? (
               <div className="py-8 text-center text-xs text-gray-400 italic">Đang kiểm tra các chiến dịch sẵn sàng...</div>
@@ -179,8 +194,8 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
                 <p>Chưa có chiến dịch nào đang mở sẵn sàng.</p>
                 <button
                   type="button"
-                  onClick={() => setIsCreatingNew(true)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs cursor-pointer"
                 >
                   + Tạo chiến dịch mới
                 </button>
@@ -217,73 +232,41 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
               })
             )}
           </div>
-        )}
 
-        {/* Mode: New Campaign Form */}
-        {isCreatingNew && (
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-400">Tên chiến dịch mới:</label>
-              <input
-                type="text"
-                value={newCampaignName}
-                onChange={e => setNewCampaignName(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="Nhập tên chiến dịch..."
-              />
-            </div>
+          {/* Footer Pill Buttons - Exactly Matching Hình 2 */}
+          <div className="pt-2 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="py-2.5 px-5 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs transition-colors text-center cursor-pointer"
+            >
+              Hủy
+            </button>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-400">Hành động chính:</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setNewCampaignType('message')}
-                  className={`p-2 rounded-xl font-bold text-xs border transition-all text-center ${
-                    newCampaignType === 'message'
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
-                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
-                  }`}
-                >
-                  💬 Gửi tin nhắn
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewCampaignType('friend_request')}
-                  className={`p-2 rounded-xl font-bold text-xs border transition-all text-center ${
-                    newCampaignType === 'friend_request'
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
-                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
-                  }`}
-                >
-                  🤝 Kết bạn
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading || !selectedCampaignId}
+              className="py-2.5 px-5 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs shadow-md transition-all text-center disabled:opacity-50 active:scale-95 cursor-pointer"
+            >
+              {loading ? 'Đang thêm...' : `Thêm ${foundCount} liên hệ`}
+            </button>
           </div>
-        )}
 
-        {/* Footer Pill Buttons - Exactly Matching Hình 2 */}
-        <div className="pt-2 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-2.5 px-5 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs transition-colors text-center cursor-pointer"
-          >
-            Hủy
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={loading || (!isCreatingNew && !selectedCampaignId)}
-            className="py-2.5 px-5 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs shadow-md transition-all text-center disabled:opacity-50 active:scale-95 cursor-pointer"
-          >
-            {loading ? 'Đang thêm...' : `Thêm ${foundCount} liên hệ`}
-          </button>
         </div>
-
       </div>
-    </div>
+
+      {/* Full Module Campaign Creation Modal */}
+      {showCreateModal && (
+        <CampaignCreateModal
+          zaloId={selectedZaloId}
+          initialData={{
+            name: `Chiến dịch SĐT Quét #${batchId}: ${batchName}`
+          }}
+          onClose={() => setShowCreateModal(false)}
+          onSave={handleSaveNewCampaign}
+        />
+      )}
+    </>
   );
 };
