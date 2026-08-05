@@ -111,6 +111,7 @@ export default function PhoneScanPanel() {
     const [itemsPage, setItemsPage] = useState(0);
     const [itemsStatusFilter, setItemsStatusFilter] = useState<string>('all');
     const [itemsAccountFilter, setItemsAccountFilter] = useState<string>('all');
+    const [itemsSearchQuery, setItemsSearchQuery] = useState<string>('');
     const [batchFilterTab, setBatchFilterTab] = useState<'all' | 'active_queued' | 'draft' | 'paused' | 'completed'>('active_queued');
     
     // Creation Form
@@ -2835,7 +2836,12 @@ export default function PhoneScanPanel() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium">
-                                                {items.map((item, idx) => (
+                                                 {(itemsSearchQuery.trim() ? items.filter((item: any) =>
+                                                     (item.phone && item.phone.toLowerCase().includes(itemsSearchQuery.toLowerCase().trim())) ||
+                                                     (item.zalo_name && item.zalo_name.toLowerCase().includes(itemsSearchQuery.toLowerCase().trim())) ||
+                                                     (item.full_name_raw && item.full_name_raw.toLowerCase().includes(itemsSearchQuery.toLowerCase().trim())) ||
+                                                     (item.real_name && item.real_name.toLowerCase().includes(itemsSearchQuery.toLowerCase().trim()))
+                                                 ) : items).map((item, idx) => (
                                                     <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
                                                         <td className="py-2.5 px-3 text-gray-400">{itemsPage * itemsLimit + idx + 1}</td>
                                                         <td className="py-2.5 px-3 font-mono font-bold text-gray-900 dark:text-white">
