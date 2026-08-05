@@ -894,27 +894,38 @@ a{text-decoration:none}
 </head>
 <body>
 
-<div class="topbar">
-  <span class="dot"></span>
-  Đang <strong>Beta</strong> — Dùng thử <strong>14 ngày miễn phí</strong> · Gói cá nhân từ <strong>990.000đ</strong> —
-  <a href="#training">Xem lịch học</a>
+<div class="topbar" id="promobar" style="background: linear-gradient(90deg, #D97706, #F59E0B); color: #2B1A02; font-weight: 700; font-size: 13.5px; padding: 8px 16px;">
+  <div style="display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; text-align: center;">
+    <span class="material-symbols-rounded" style="font-size: 18px; color: #452B03;">card_giftcard</span>
+    <span id="promo-banner-text">THÁNG 8 — NHÂN ĐÔI THỜI HẠN: Mua 6 tháng dùng 12, Mua 12 tháng dùng 24.</span>
+    <span class="cd" id="cd" style="display: inline-flex; gap: 5px; align-items: center; font-variant-numeric: tabular-nums;">
+      <b id="cdD" style="background: rgba(0,0,0,0.85); color: #FFD98A; border-radius: 6px; padding: 2px 7px; font-size: 13px; min-width: 28px; text-align: center;">--</b><span style="font-size: 11px; opacity: 0.85;">ngày</span>
+      <b id="cdH" style="background: rgba(0,0,0,0.85); color: #FFD98A; border-radius: 6px; padding: 2px 7px; font-size: 13px; min-width: 28px; text-align: center;">--</b><span style="font-size: 11px; opacity: 0.85;">giờ</span>
+      <b id="cdM" style="background: rgba(0,0,0,0.85); color: #FFD98A; border-radius: 6px; padding: 2px 7px; font-size: 13px; min-width: 28px; text-align: center;">--</b><span style="font-size: 11px; opacity: 0.85;">phút</span>
+      <b id="cdS" style="background: rgba(0,0,0,0.85); color: #FFD98A; border-radius: 6px; padding: 2px 7px; font-size: 13px; min-width: 28px; text-align: center;">--</b><span style="font-size: 11px; opacity: 0.85;">giây</span>
+    </span>
+  </div>
 </div>
 
 <header class="header" id="header">
   <div class="header-inner">
-    <!-- Zagi Logo Chính Thức (Official Brand Logo Image) -->
-    <a href="#" class="zagi-brand" style="display: flex; align-items: center; text-decoration: none;">
-      <img src="zagi-logo.png" alt="Zagi Logo" class="zagi-logo-img" style="height: 40px; width: auto; object-fit: contain;" />
+    <!-- Logo Zagi Chuẩn (Hình 1: zag navy, i electric blue) -->
+    <a href="#" class="zagi-brand" style="display: flex; align-items: center; gap: 8px; text-decoration: none;">
+      <span class="zagi-logo-typography" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 900; font-size: 32px; letter-spacing: -1.2px; display: inline-flex; align-items: center; line-height: 1;">
+        <span style="color: #0A3064;">zag</span><span style="color: #0068FF;">i</span>
+      </span>
+      <span style="font-size: 10px; font-weight: 800; letter-spacing: 0.5px; color: #D97706; background: #FFFBEB; border: 1px solid rgba(217,119,6,0.3); padding: 2px 6px; border-radius: 99px;">BETA</span>
     </a>
     <nav class="nav">
       <a href="#pain">Vấn đề</a>
       <a href="#features">Tính năng</a>
+      <a href="#compare">So sánh</a>
       <a href="#security">Bảo mật</a>
       <a href="#pricing">Bảng giá</a>
       <a href="#training">Đào tạo</a>
       <a href="#faq">Hỏi đáp</a>
     </nav>
-    <button onclick="openCheckout('trial_14d')" class="btn btn-primary"><span class="material-symbols-rounded">download</span>Dùng thử 14 ngày Miễn Phí</button>
+    <button onclick="downloadSmartOSFile(event)" class="btn btn-primary"><span class="material-symbols-rounded">download</span>Dùng thử 14 ngày Miễn Phí</button>
   </div>
 </header>
 
@@ -929,8 +940,8 @@ a{text-decoration:none}
         
         <div class="hero-ctas">
           <!-- Smart Auto-Detected Download/Register Button -->
-          <a id="smart-hero-btn" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.1.6/Zagi.v3.1.6.MacOS.M1%2B.arm64.dmg" class="btn btn-white btn-lg">
-            <span class="material-symbols-rounded">download</span>Tải Zagi v3.1.6 Miễn Phí
+          <a id="smart-hero-btn" href="#" onclick="downloadSmartOSFile(event)" class="btn btn-white btn-lg">
+            <span class="material-symbols-rounded">download</span>Dùng thử 14 ngày — Tải về ngay
           </a>
           <button id="secondary-hero-btn" onclick="openDownloadModal()" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">laptop_mac</span>Chọn bản khác</button>
         </div>
@@ -1122,6 +1133,89 @@ a{text-decoration:none}
   </div>
 </section>
 
+<!-- COMPARISON TABLE SECTION (HÌNH 2) -->
+<section class="section compare-section" id="compare" style="background: var(--surface-1); padding: 76px 0;">
+  <div class="container">
+    <div class="head-center reveal">
+      <div class="eyebrow" style="background: rgba(0,104,255,0.12); color: var(--primary);">So sánh trực diện</div>
+      <h2 class="section-title">Zagi khác gì các tool quét lead 200k?</h2>
+      <p class="section-sub">Câu hỏi công bằng. Đây là câu trả lời không né tránh.</p>
+    </div>
+
+    <div class="cmp-table-wrapper reveal" style="overflow-x: auto; border-radius: var(--r-xl, 20px); border: 1px solid var(--border); box-shadow: var(--e2); background: #fff;">
+      <table class="cmp-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14.5px; min-width: 760px;">
+        <thead>
+          <tr style="background: #F8FAFC; border-bottom: 1px solid var(--border);">
+            <th style="padding: 16px 20px; font-weight: 800; color: var(--ink-3); text-transform: uppercase; font-size: 12px; width: 24%;">TIÊU CHÍ</th>
+            <th style="padding: 16px 18px; font-weight: 800; color: #16A34A; font-size: 13px;">LÀM TAY</th>
+            <th style="padding: 16px 18px; font-weight: 800; color: var(--ink-2); font-size: 13px;">CÁC TOOL QUÉT LEAD</th>
+            <th style="padding: 16px 18px; font-weight: 800; color: var(--ink-2); font-size: 13px;">CRM CLOUD NGOẠI</th>
+            <th style="padding: 16px 20px; font-weight: 900; background: #0068FF; color: #fff; font-size: 14px; text-transform: uppercase; width: 28%;">ZAGI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #F1F5F9;">
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--ink);">Chạm được Zalo cá nhân</td>
+            <td style="padding: 16px 18px; color: #16A34A; font-weight: 800;">Có</td>
+            <td style="padding: 16px 18px; color: #16A34A; font-weight: 800;">Có</td>
+            <td style="padding: 16px 18px; color: #DC2626; font-weight: 800;">Không</td>
+            <td style="padding: 16px 20px; background: #EFF6FF; color: #0047AB; font-weight: 800; border-left: 2px solid #0068FF; border-right: 2px solid #0068FF;">Có, nhiều nick cùng lúc</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #F1F5F9;">
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--ink);">Dữ liệu thuộc về ai</td>
+            <td style="padding: 16px 18px; color: var(--ink-2);">Nhân viên giữ</td>
+            <td style="padding: 16px 18px; color: var(--ink-2);">Nhà cung cấp giữ</td>
+            <td style="padding: 16px 18px; color: var(--ink-2);">Máy chủ nước ngoài</td>
+            <td style="padding: 16px 20px; background: #EFF6FF; color: #0047AB; font-weight: 900; border-left: 2px solid #0068FF; border-right: 2px solid #0068FF;">Máy của bạn</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #F1F5F9;">
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--ink);">Có phễu &amp; chấm điểm lead</td>
+            <td style="padding: 16px 18px; color: #DC2626; font-weight: 800;">Không</td>
+            <td style="padding: 16px 18px; color: #DC2626; font-weight: 800;">Không</td>
+            <td style="padding: 16px 18px; color: #16A34A; font-weight: 800;">Có</td>
+            <td style="padding: 16px 20px; background: #EFF6FF; color: #0047AB; font-weight: 800; border-left: 2px solid #0068FF; border-right: 2px solid #0068FF;">Có, tự động</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #F1F5F9;">
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--ink);">Phanh an toàn giữ nick</td>
+            <td style="padding: 16px 18px; color: var(--ink-3);">—</td>
+            <td style="padding: 16px 18px; color: #DC2626; font-weight: 800;">Không</td>
+            <td style="padding: 16px 18px; color: var(--ink-3);">—</td>
+            <td style="padding: 16px 20px; background: #EFF6FF; color: #0047AB; font-weight: 800; border-left: 2px solid #0068FF; border-right: 2px solid #0068FF;">Có, bật sẵn</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #F1F5F9;">
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--ink);">Nhắc lời hứa với khách</td>
+            <td style="padding: 16px 18px; color: var(--ink-2);">Sổ tay</td>
+            <td style="padding: 16px 18px; color: #DC2626; font-weight: 800;">Không</td>
+            <td style="padding: 16px 18px; color: var(--ink-3);">Tuỳ cấu hình</td>
+            <td style="padding: 16px 20px; background: #EFF6FF; color: #0047AB; font-weight: 800; border-left: 2px solid #0068FF; border-right: 2px solid #0068FF;">Tự động</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #F1F5F9;">
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--ink);">Báo cáo hiệu suất nhân viên</td>
+            <td style="padding: 16px 18px; color: #DC2626; font-weight: 800;">Không</td>
+            <td style="padding: 16px 18px; color: #DC2626; font-weight: 800;">Không</td>
+            <td style="padding: 16px 18px; color: #16A34A; font-weight: 800;">Có</td>
+            <td style="padding: 16px 20px; background: #EFF6FF; color: #0047AB; font-weight: 800; border-left: 2px solid #0068FF; border-right: 2px solid #0068FF;">Có, theo thời gian thực</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #F1F5F9;">
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--ink);">Có người dạy dùng</td>
+            <td style="padding: 16px 18px; color: #DC2626; font-weight: 800;">Không</td>
+            <td style="padding: 16px 18px; color: #DC2626; font-weight: 800;">Không</td>
+            <td style="padding: 16px 18px; color: var(--ink-3);">Tài liệu tiếng Anh</td>
+            <td style="padding: 16px 20px; background: #EFF6FF; color: #0047AB; font-weight: 800; border-left: 2px solid #0068FF; border-right: 2px solid #0068FF;">Lớp trực tiếp tối thứ Năm</td>
+          </tr>
+          <tr>
+            <td style="padding: 16px 20px; font-weight: 700; color: var(--ink);">Chi phí mỗi tháng</td>
+            <td style="padding: 16px 18px; color: var(--ink-2);">0đ + mất khách</td>
+            <td style="padding: 16px 18px; color: var(--ink-2);">~200.000đ + rủi ro khoá nick</td>
+            <td style="padding: 16px 18px; color: var(--ink-2);">500.000đ – 2tr / người dùng</td>
+            <td style="padding: 16px 20px; background: #EFF6FF; color: #0047AB; font-weight: 900; border-left: 2px solid #0068FF; border-right: 2px solid #0068FF; border-bottom: 2px solid #0068FF;">Từ 55.000đ, không tính đầu người</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 <!-- SECURITY -->
 <section class="section sec-bg" id="security">
   <div class="container">
@@ -1234,6 +1328,10 @@ a{text-decoration:none}
         <div class="pname">Gói Solo 6 Tháng</div>
         <div class="ptag">Dành cho 1 người bán hàng độc lập trên 1 máy BOSS.</div>
         <div class="pamt"><span class="num">990.000</span><span class="per">đ / 6 tháng</span></div>
+        <div class="pbonus" style="margin: 6px 0 12px; background: #FFFBEB; border: 1px dashed #D97706; border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 700; color: #D97706; display: flex; align-items: center; gap: 6px;">
+          <span class="material-symbols-rounded" style="font-size: 16px;">card_giftcard</span>
+          <span>Tặng +6 tháng (Tổng 12M dùng)</span>
+        </div>
         <ul class="pfeat">
           <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp)</li>
           <li><span class="material-symbols-rounded">check</span>Quản lý đa tài khoản Zalo &amp; FB</li>
@@ -1248,6 +1346,10 @@ a{text-decoration:none}
         <div class="pname">Gói Solo 12 Tháng</div>
         <div class="ptag">Lựa chọn tiết kiệm tối ưu 1 năm cho cá nhân kinh doanh.</div>
         <div class="pamt"><span class="num">1.690.000</span><span class="per">đ / 12 tháng</span></div>
+        <div class="pbonus" style="margin: 6px 0 12px; background: #FEF3C7; border: 1px dashed #B45309; border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 800; color: #B45309; display: flex; align-items: center; gap: 6px;">
+          <span class="material-symbols-rounded" style="font-size: 16px;">stars</span>
+          <span>Tặng +12 tháng (Tổng 24M dùng)</span>
+        </div>
         <ul class="pfeat">
           <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp)</li>
           <li><span class="material-symbols-rounded">check</span>Đầy đủ tính năng cao cấp Zagi</li>
@@ -1257,17 +1359,21 @@ a{text-decoration:none}
         <button onclick="openCheckout('solo_12m')" class="btn btn-primary">Mua gói 1 năm</button>
       </div>
 
-      <!-- Gói Solo 5 Năm -->
-      <div class="pcard reveal" data-plan="solo_5y">
-        <div class="pname">Gói Solo 5 Năm</div>
-        <div class="ptag">Thanh toán 1 lần, sở hữu phần mềm trọn vẹn 5 năm (1.825 ngày).</div>
-        <div class="pamt"><span class="num">4.900.000</span><span class="per">đ / 5 Năm</span></div>
+      <!-- Gói Solo Trọn Đời -->
+      <div class="pcard reveal" data-plan="solo_lifetime">
+        <div class="pname">Gói Solo Trọn Đời</div>
+        <div class="ptag">Thanh toán 1 lần, sở hữu phần mềm vĩnh viễn không giới hạn.</div>
+        <div class="pamt"><span class="num">4.900.000</span><span class="per">đ / Vĩnh viễn</span></div>
+        <div class="pbonus" style="margin: 6px 0 12px; background: #ECFDF5; border: 1px dashed #059669; border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 800; color: #059669; display: flex; align-items: center; gap: 6px;">
+          <span class="material-symbols-rounded" style="font-size: 16px;">all_inclusive</span>
+          <span>Sử dụng vĩnh viễn (0đ phí duy trì)</span>
+        </div>
         <ul class="pfeat">
-          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp) 5 năm (1.825 ngày)</li>
+          <li><span class="material-symbols-rounded">check</span>1 Máy BOSS (Sếp) dùng vĩnh viễn</li>
           <li><span class="material-symbols-rounded">check</span>Không phí duy trì hàng năm</li>
-          <li><span class="material-symbols-rounded">check</span>Tặng thêm +1 tháng khi nhập Mã Giới Thiệu</li>
+          <li><span class="material-symbols-rounded">check</span>Miễn phí cập nhật tính năng mới</li>
         </ul>
-        <button onclick="openCheckout('solo_5y')" class="btn btn-accent">Đăng Ký Gói 5 Năm</button>
+        <button onclick="openCheckout('solo_lifetime')" class="btn btn-accent">Đăng Ký Trọn Đời</button>
       </div>
 
       <!-- Gói Team 12M -->
@@ -1275,6 +1381,10 @@ a{text-decoration:none}
         <div class="pname">Gói Team 12 Tháng</div>
         <div class="ptag">1 Máy BOSS + Tối đa 5 Máy Nhân viên kết nối.</div>
         <div class="pamt"><span class="num">8.900.000</span><span class="per">đ / 12 tháng</span></div>
+        <div class="pbonus" style="margin: 6px 0 12px; background: #EFF6FF; border: 1px dashed #2563EB; border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 800; color: #1D4ED8; display: flex; align-items: center; gap: 6px;">
+          <span class="material-symbols-rounded" style="font-size: 16px;">groups</span>
+          <span>Tặng +12 tháng cho Team (Tổng 24M)</span>
+        </div>
         <ul class="pfeat">
           <li><span class="material-symbols-rounded">check</span>1 Máy BOSS + 5 Máy Nhân viên</li>
           <li><span class="material-symbols-rounded">check</span>Phân quyền chi tiết cho NV</li>
@@ -1442,8 +1552,8 @@ a{text-decoration:none}
     <h2>Sẵn sàng biến Zalo &amp; Facebook thành kênh bán hàng tự động?</h2>
     <p>Tải bản dùng thử 14 ngày Miễn phí hoặc đăng ký kích hoạt tự động 24/7 ngay hôm nay.</p>
     <div class="btn-group">
-      <button onclick="openCheckout('trial_14d')" class="btn btn-white btn-lg"><span class="material-symbols-rounded">rocket_launch</span>Đăng ký Dùng thử 14 ngày (0đ)</button>
-      <button onclick="openDownloadModal()" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">download</span>Tải cài đặt ứng dụng</button>
+      <button onclick="downloadSmartOSFile(event)" class="btn btn-white btn-lg"><span class="material-symbols-rounded">download</span>Dùng thử 14 ngày (Tải về ngay)</button>
+      <button onclick="openDownloadModal()" class="btn btn-ghost btn-lg"><span class="material-symbols-rounded">laptop_mac</span>Chọn bản OS khác</button>
     </div>
 
     <div class="steps">
@@ -1868,9 +1978,96 @@ function applySmartOSLink(key, text, label, cardId) {
   }
 }
 
+function downloadSmartOSFile(e) {
+  if (e) e.preventDefault();
+  const detected = detectSmartOS();
+  
+  if (detected.isMobile) {
+    openCheckout('trial_14d');
+    return;
+  }
+
+  const downloadUrl = RELEASE_LINKS[detected.key] || RELEASE_LINKS.win_x64;
+
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  showToastBanner(`🚀 Đang tự động tải bản Zagi (${detected.text.replace('Tải Zagi cho ', '')}) cho thiết bị của bạn!`);
+}
+
+function showToastBanner(msg) {
+  let toast = document.getElementById('zagi-toast-banner');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'zagi-toast-banner';
+    toast.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:9999; background:#0068FF; color:#ffffff; padding:12px 24px; border-radius:30px; font-weight:700; font-size:14px; box-shadow:0 10px 30px rgba(0,104,255,0.35); transition:all 0.3s ease; text-align:center; max-width:90%;';
+    document.body.appendChild(toast);
+  }
+  toast.innerText = msg;
+  toast.style.opacity = '1';
+  toast.style.display = 'block';
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.style.display = 'none', 400);
+  }, 4500);
+}
+
+// ─── Promo Campaign Config & Timer ──────────────────────────────────────────
+window.PROMO_CONFIG = {
+  active: true,
+  title: "THÁNG 8 — NHÂN ĐÔI THỜI HẠN: mua 6 tháng dùng 12, mua 12 tháng dùng 24.",
+  end_date: "2026-08-31T23:59:59+07:00",
+  rules: {
+    solo_6m: { bonus_months: 6, total_months: 12, badge: "🎁 TẶNG +6 THÁNG (Tổng 12M)" },
+    solo_12m: { bonus_months: 12, total_months: 24, badge: "🎁 TẶNG +12 THÁNG (Tổng 24M)" },
+    team_12m: { bonus_months: 12, total_months: 24, badge: "🎁 TẶNG +12 THÁNG CHO TEAM (Tổng 24M)" }
+  }
+};
+
+function updatePromoTimer() {
+  const endDate = new Date(window.PROMO_CONFIG.end_date).getTime();
+  const now = new Date().getTime();
+  const diff = endDate - now;
+
+  if (diff <= 0) {
+    const cdD = document.getElementById('cdD');
+    const cdH = document.getElementById('cdH');
+    const cdM = document.getElementById('cdM');
+    const cdS = document.getElementById('cdS');
+    if (cdD) cdD.innerText = '00';
+    if (cdH) cdH.innerText = '00';
+    if (cdM) cdM.innerText = '00';
+    if (cdS) cdS.innerText = '00';
+    return;
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  const cdD = document.getElementById('cdD');
+  const cdH = document.getElementById('cdH');
+  const cdM = document.getElementById('cdM');
+  const cdS = document.getElementById('cdS');
+
+  if (cdD) cdD.innerText = String(days).padStart(2, '0');
+  if (cdH) cdH.innerText = String(hours).padStart(2, '0');
+  if (cdM) cdM.innerText = String(minutes).padStart(2, '0');
+  if (cdS) cdS.innerText = String(seconds).padStart(2, '0');
+}
+
+setInterval(updatePromoTimer, 1000);
+
 function initSmartDownload() {
   const detected = detectSmartOS();
   applySmartOSLink(detected.key, detected.text, detected.label, detected.cardId);
+  updatePromoTimer();
 }
 window.addEventListener('DOMContentLoaded', initSmartDownload);
 window.addEventListener('resize', initSmartDownload);
@@ -1882,6 +2079,29 @@ function openDownloadModal() {
 function closeDownloadModal() {
   document.getElementById('download-modal').classList.remove('active');
 }
+
+async function loadSupabasePromo() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/promo_campaigns?is_active=eq.true&select=*`, {
+      headers: { 'apikey': SUPABASE_ANON_KEY }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      const activePromo = data[0];
+      if (activePromo.end_at) window.PROMO_CONFIG.end_date = activePromo.end_at;
+      if (activePromo.banner_text) {
+        const textEl = document.getElementById('promo-banner-text');
+        if (textEl) textEl.innerText = activePromo.banner_text;
+      }
+      if (activePromo.rules) window.PROMO_CONFIG.rules = activePromo.rules;
+      updatePromoTimer();
+    }
+  } catch (e) {
+    console.warn('[loadSupabasePromo] Bỏ qua lỗi sync promo:', e);
+  }
+}
+window.addEventListener('DOMContentLoaded', loadSupabasePromo);
 
 // loadSupabasePlans: đọc giá từ bảng plans (chỉ đọc public data qua RLS, không cần key nhạy cảm)
 async function loadSupabasePlans() {
