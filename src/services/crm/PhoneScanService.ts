@@ -167,13 +167,14 @@ class PhoneScanService {
             }
 
             // Fetch pending items ONLY for this active batch
+            // Fetch pending items ONLY for this active batch (up to 500)
             const pendingItems = db.query<any>(`
                 SELECT psi.*, psb.assigned_account_id, psb.auto_tag_ids, psb.daily_limit, psb.hourly_limit
                 FROM phone_scan_items psi
                 INNER JOIN phone_scan_batches psb ON psi.batch_id = psb.id
                 WHERE psi.status = 'pending' AND psb.status = 'active' AND psb.id = ?
                 ORDER BY psi.id ASC
-                LIMIT 10
+                LIMIT 500
             `, [activeBatch.id]);
 
             if (!pendingItems || pendingItems.length === 0) {
@@ -263,11 +264,14 @@ class PhoneScanService {
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
             const accountsUsedInTick = new Set<string>();
 
-            for (const item of pendingItems) {
+            let remainingPendingItems = [...pendingItems];
+
+            while (remainingPendingItems.length > 0) {
                 let targetZaloId: string | null = null;
                 const oneHourAgo = Date.now() - 60 * 60 * 1000;
                 let bestZaloId: string | null = null;
                 let minHourlyCount = Infinity;
+                let maxAvailableQuota = 0;
 
                 for (const zaloId of eligibleZaloIds) {
                     if (accountsUsedInTick.has(zaloId)) continue;
@@ -279,44 +283,65 @@ class PhoneScanService {
                     const todayCount = db.getDailyScanCountForAccount(zaloId, startOfToday);
                     const hourlyCount = db.getHourlyScanCountForAccount(zaloId, oneHourAgo);
 
-                    if (todayCount < limits.scanDailyLimit && hourlyCount < limits.scanHourlyLimit) {
+                    const availableDaily = limits.scanDailyLimit - todayCount;
+                    const availableHourly = limits.scanHourlyLimit - hourlyCount;
+                    const availableQuota = Math.min(availableDaily, availableHourly);
+
+                    if (availableQuota > 0) {
                         if (hourlyCount < minHourlyCount) {
                             minHourlyCount = hourlyCount;
                             bestZaloId = zaloId;
+                            maxAvailableQuota = availableQuota;
                         }
                     }
                 }
-                targetZaloId = bestZaloId;
 
+                targetZaloId = bestZaloId;
                 if (!targetZaloId) {
-                    continue;
+                    break; // No more eligible accounts with quota available in this tick
                 }
 
-                // Check Jitter: don't request too fast on the same account
+                // Check Jitter between requests on the same account
                 const lastScan = this.lastScanTimePerAccount.get(targetZaloId) || 0;
                 const randomDelay = 2500 + Math.random() * 3500;
                 if (!isManual && Date.now() - lastScan < randomDelay) {
+                    accountsUsedInTick.add(targetZaloId); // skip trying this account again in current tick
                     continue;
                 }
 
-                // Mark account as used in this tick for parallel multi-account batching
+                // Yêu cầu: Gom ngẫu nhiên 70 - 95 SĐT vào 1 request
+                const randomChunkSize = Math.floor(Math.random() * (95 - 70 + 1)) + 70; // random integer between 70 and 95
+                const actualChunkSize = Math.min(randomChunkSize, maxAvailableQuota, remainingPendingItems.length);
+
+                if (actualChunkSize <= 0) {
+                    accountsUsedInTick.add(targetZaloId);
+                    continue;
+                }
+
+                // Slice chunk items for this request
+                const chunkItems = remainingPendingItems.slice(0, actualChunkSize);
+                remainingPendingItems = remainingPendingItems.slice(actualChunkSize);
+
+                // Mark account as used in this tick
                 accountsUsedInTick.add(targetZaloId);
 
-                // Picked! Lock item status to scanning
-                db.updatePhoneScanItemStatus({
-                    itemId: item.id,
-                    status: 'scanning',
-                    scannedByAccountId: targetZaloId
-                });
-                EventBroadcaster.emit('crm:phoneScanUpdate', { batchId: item.batch_id });
+                // Lock chunk items status to 'scanning'
+                for (const item of chunkItems) {
+                    db.updatePhoneScanItemStatus({
+                        itemId: item.id,
+                        status: 'scanning',
+                        scannedByAccountId: targetZaloId
+                    });
+                }
+                EventBroadcaster.emit('crm:phoneScanUpdate', { batchId: activeBatch.id });
 
                 // Update last scan time
                 this.lastScanTimePerAccount.set(targetZaloId, Date.now());
 
-                // Execute scan in background
-                this.executeScan(item.id, item.phone, item.phone_normalized, item.batch_id, targetZaloId, item.auto_tag_ids)
+                // Execute bulk scan in background
+                this.executeBulkScan(chunkItems, activeBatch.id, targetZaloId)
                     .catch(err => {
-                        Logger.error(`[PhoneScanService] Scan execution error for item ${item.id}: ${err.message}`);
+                        Logger.error(`[PhoneScanService] Bulk scan execution error for batch ${activeBatch.id}: ${err.message}`);
                     });
             }
         } catch (err: any) {
@@ -490,6 +515,170 @@ class PhoneScanService {
             db.save();
         } catch (err: any) {
             Logger.error(`[PhoneScanService] handleRateLimit error: ${err.message}`);
+        }
+    }
+
+    /**
+     * Execute bulk scan for a chunk of 70-95 phone numbers in 1 single getMultiUsersByPhones API request
+     */
+    private async executeBulkScan(
+        chunkItems: any[],
+        batchId: number,
+        zaloId: string
+    ): Promise<void> {
+        const db = DatabaseService.getInstance();
+        try {
+            const conn = ConnectionManager.getConnection(zaloId);
+            if (!conn) {
+                for (const item of chunkItems) {
+                    db.updatePhoneScanItemStatus({
+                        itemId: item.id,
+                        status: 'error',
+                        scannedByAccountId: zaloId,
+                        errorMsg: 'Zalo account disconnected'
+                    });
+                }
+                EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
+                return;
+            }
+
+            const zaloService = await ZaloService.getInstance(conn.auth);
+
+            // Extract phone list for bulk lookup
+            const phones = chunkItems.map(item => item.phone_normalized || item.phone);
+
+            // Helper to extract user profile
+            const extractZaloUser = (raw: any, phoneFallback: string): { uid: string; name: string; avatar: string; gender?: number | null } | null => {
+                if (!raw) return null;
+                const u = raw.data ?? raw.response ?? raw;
+                if (!u) return null;
+                const uid = String(u.uid || u.userId || u.uId || u.id || '');
+                if (!uid || uid === '0' || uid === 'undefined' || uid === 'null') return null;
+                const name = u.displayName || u.display_name || u.zaloName || u.zalo_name || u.name || u.dpName || phoneFallback;
+                const avatar = u.avatar || u.avatarUrl || u.avatar_url || '';
+                let gender: number | null = null;
+                const gVal = u.gender ?? u.sd?.gender ?? u.sex;
+                if (gVal === 0 || gVal === '0' || gVal === 'male' || gVal === 'Male') gender = 0;
+                else if (gVal === 1 || gVal === '1' || gVal === 'female' || gVal === 'Female') gender = 1;
+                return { uid, name, avatar, gender };
+            };
+
+            let mapObj: Record<string, any> = {};
+
+            try {
+                Logger.log(`[PhoneScanService] 🚀 Executing bulk lookup for ${phones.length} phones (Random Chunk 70-95) using account ${zaloId}...`);
+                const res: any = await zaloService.getMultiUsersByPhones(phones);
+                const rawResult = res?.data ?? res?.response ?? res;
+                if (rawResult && typeof rawResult === 'object') {
+                    mapObj = rawResult;
+                }
+            } catch (err: any) {
+                if (this.isWarningTooFastError(err)) {
+                    await this.handleScanWarningRateLimit(zaloId, batchId, chunkItems[0]?.id || null);
+                    return;
+                }
+                if (this.isRateLimitError(err)) {
+                    Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 on getMultiUsersByPhones bulk lookup. Pausing account ${zaloId}.`);
+                    await this.handleRateLimit(zaloId, batchId, chunkItems[0]?.id || null);
+                    EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
+                    return;
+                }
+                Logger.warn(`[PhoneScanService] Bulk getMultiUsersByPhones error: ${err.message}.`);
+            }
+
+            // Process each item in chunk
+            const batchInfo = db.queryOne<any>('SELECT name, update_zalo_alias, auto_workflow_id, contact_assignment_mode, assigned_account_id, target_account_id FROM phone_scan_batches WHERE id = ?', [batchId]);
+            const assignmentMode = batchInfo?.contact_assignment_mode || (batchInfo?.assigned_account_id ? 'single' : 'distributed');
+            
+            let targetAccountIds: string[] = [];
+            if (assignmentMode === 'single') {
+                const targetId = batchInfo?.target_account_id || batchInfo?.assigned_account_id || zaloId;
+                if (targetId) targetAccountIds = [targetId];
+            } else if (assignmentMode === 'all_accounts') {
+                const activeAccounts = db.getAccounts() || [];
+                const activeZaloAccounts = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+                targetAccountIds = activeZaloAccounts.map((a: any) => String(a.zalo_id));
+                if (targetAccountIds.length === 0) targetAccountIds = [zaloId];
+            } else {
+                targetAccountIds = [zaloId];
+            }
+
+            for (const item of chunkItems) {
+                const phoneKey = item.phone_normalized || item.phone;
+                const phoneRaw = item.phone || phoneKey;
+
+                // Match phone in mapObj
+                let rawUser = mapObj[phoneKey] || mapObj[phoneRaw];
+                if (!rawUser) {
+                    const keyAlt1 = phoneKey.startsWith('84') ? '0' + phoneKey.slice(2) : '84' + phoneKey.replace(/^0/, '');
+                    rawUser = mapObj[keyAlt1];
+                }
+
+                let zaloUser = extractZaloUser(rawUser, phoneRaw);
+
+                if (zaloUser?.uid) {
+                    const uid = zaloUser.uid;
+                    const name = zaloUser.name || phoneRaw;
+                    const avatar = zaloUser.avatar || '';
+
+                    db.updatePhoneScanItemStatus({
+                        itemId: item.id,
+                        status: 'found',
+                        scannedByAccountId: zaloId,
+                        zaloUid: uid,
+                        zaloName: name,
+                        zaloAvatar: avatar
+                    });
+
+                    // Update CRM contact
+                    const realNameFromFile = item.real_name || null;
+                    const fullNameRawFromFile = item.full_name_raw || null;
+
+                    for (const accId of targetAccountIds) {
+                        db.updateContactProfile(accId, uid, name, avatar, phoneKey, 'user', zaloUser?.gender, null, realNameFromFile, fullNameRawFromFile);
+                    }
+
+                    // Alias update if enabled
+                    try {
+                        const shouldUpdateAlias = Boolean(batchInfo && batchInfo.update_zalo_alias != null && Number(batchInfo.update_zalo_alias) === 1);
+                        if (shouldUpdateAlias && batchInfo?.name) {
+                            const batchName = batchInfo.name.trim();
+                            const phoneDisplay = phoneRaw;
+                            const rawZaloName = (name && name !== phoneDisplay && name !== phoneKey) ? name : 'Khách';
+                            const formattedAlias = `${batchName} - ${rawZaloName} - ${phoneDisplay}`;
+
+                            for (const accId of targetAccountIds) {
+                                db.setContactAlias(accId, uid, formattedAlias);
+                                EventBroadcaster.emit('db:contactAliasChanged', { ownerZaloId: accId, contactId: uid, alias: formattedAlias });
+                            }
+
+                            if (zaloService && typeof (zaloService as any).changeFriendAlias === 'function') {
+                                zaloService.changeFriendAlias(formattedAlias, uid).catch(() => {});
+                            }
+                        }
+                    } catch (aliasErr: any) {}
+                } else {
+                    // SĐT không có Zalo
+                    db.updatePhoneScanItemStatus({
+                        itemId: item.id,
+                        status: 'not_found',
+                        scannedByAccountId: zaloId
+                    });
+                }
+            }
+
+            EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
+        } catch (err: any) {
+            Logger.error(`[PhoneScanService] executeBulkScan error: ${err.message}`);
+            for (const item of chunkItems) {
+                db.updatePhoneScanItemStatus({
+                    itemId: item.id,
+                    status: 'error',
+                    scannedByAccountId: zaloId,
+                    errorMsg: err.message || 'Scan error'
+                });
+            }
+            EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
         }
     }
 
