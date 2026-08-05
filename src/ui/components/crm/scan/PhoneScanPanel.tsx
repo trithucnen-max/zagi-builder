@@ -1517,8 +1517,10 @@ export default function PhoneScanPanel() {
                                         ⏱️ <b>Giới hạn:</b> {selectedBatch.daily_limit} số/ngày {selectedBatch.hourly_limit ? `(${selectedBatch.hourly_limit} số/giờ)` : ''}
                                     </span>
 
-                                    <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs text-emerald-600 dark:text-emerald-400 font-bold">
-                                        ✓ <b>Lọc CRM:</b> {selectedBatch.skip_crm_existing ? 'Bỏ qua SĐT đã có' : 'Quét tất cả'}
+                                    <span className={`px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs font-bold ${
+                                        selectedBatch.skip_crm_existing ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500'
+                                    }`}>
+                                        {selectedBatch.skip_crm_existing ? '✓ Lọc CRM' : 'Tắt lọc CRM'}
                                     </span>
 
                                     <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
