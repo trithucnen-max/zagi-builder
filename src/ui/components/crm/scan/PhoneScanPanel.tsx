@@ -1505,58 +1505,6 @@ export default function PhoneScanPanel() {
                             </div>
                         )}
 
-                                        </span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setReassignMode(selectedBatch.contact_assignment_mode || 'distributed');
-                                            setReassignAccountId(selectedBatch.assigned_account_id || '');
-                                            setShowReassignModal(true);
-                                        }}
-                                        className="px-2.5 py-1 text-[11px] font-bold rounded-md bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-700/50 transition-all flex items-center gap-1 cursor-pointer"
-                                    >
-                                        ⚡ Chuyển phân bổ liên hệ
-                                    </button>
-                                </div>
-
-                                {/* Auto Workflow */}
-                                {selectedBatchWorkflow && (
-                                    <div className="flex items-center gap-1.5 col-span-full">
-                                        <span className="font-semibold text-gray-400">Workflow tự động:</span>
-                                        <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium">
-                                            ⚡ {selectedBatchWorkflow.name}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Auto-assigned Tags */}
-                            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-200 dark:border-gray-700/40">
-                                <span className="font-semibold text-gray-400 text-[11px] flex-shrink-0">🏷️ Nhãn đã gán tự động ({selectedBatchTags.length}):</span>
-                                {selectedBatchTags.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {selectedBatchTags.map(tag => (
-                                            <span
-                                                key={tag.id}
-                                                className="px-2 py-0.5 text-[10px] font-semibold rounded-full flex items-center gap-1 border shadow-xs"
-                                                style={{
-                                                    backgroundColor: `${tag.color || '#3B82F6'}15`,
-                                                    borderColor: `${tag.color || '#3B82F6'}50`,
-                                                    color: tag.color || '#3B82F6'
-                                                }}
-                                            >
-                                                <span>{tag.emoji || '🏷️'}</span>
-                                                <span>{tag.name}</span>
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <span className="text-gray-400 italic text-[11px]">Không cài đặt nhãn tự động</span>
-                                )}
-                            </div>
-                        </div>
-
                         {/* Status Tabs & Account Filter inside detail */}
                         <div className="px-5 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
                             <div className="flex items-center gap-2">
