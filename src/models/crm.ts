@@ -27,7 +27,7 @@ export interface CRMCampaign {
     status: CRMCampaignStatus;
     priority?: 'high' | 'normal';
     queued_at?: number;
-    pause_reason?: 'user_manual' | 'daily_quota' | 'hourly_quota' | 'quiet_hours' | null;
+    pause_reason?: 'user_manual' | 'daily_quota' | 'hourly_quota' | 'quiet_hours' | 'code_127' | 'code_108' | 'code_3001' | 'session_expired' | string | null;
     queue_position?: number;
     delay_seconds: number;
     delay_min_seconds?: number;

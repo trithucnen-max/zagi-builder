@@ -1184,12 +1184,13 @@ class CRMQueueService {
             const errMsg = err?.message || String(err);
             Logger.error(`[CRMQueue] ❌ Failed to send to ${effectiveContactId}: ${errMsg}`);
 
-            // Auto-detect if user blocked messaging
+            // Auto-detect if user blocked messaging (ONLY for client-side privacy errors, NOT account-side errors like 108/127)
             const isBlockedErr = (() => {
                 const lower = errMsg.toLowerCase();
                 const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
-                if (code === -201 || code === -202 || code === 108 || code === 127 || code === 300) return true;
-                return lower.includes('chặn') || lower.includes('blocked') || lower.includes('không thể nhận') || lower.includes('không thể gửi tin') || lower.includes('người lạ');
+                if (code === 108 || code === 127) return false; // Account-side limit, NOT recipient block!
+                if (code === -201 || code === -202 || code === 201 || code === 202 || code === 300) return true;
+                return (lower.includes('chặn') || lower.includes('blocked') || lower.includes('người lạ')) && !lower.includes('hạn chế') && !lower.includes('khóa');
             })();
 
             if (isBlockedErr) {
@@ -1205,6 +1206,7 @@ class CRMQueueService {
 
             if (errorDetail.shouldAutoPauseCampaign) {
                 Logger.warn(`[CRMQueue] 🛑 Account limit / policy error (${errorDetail.code}: ${errorDetail.title}) detected! Pausing campaign ${item.campaign_id}...`);
+                try {
                     const pauseReasonKey = errorDetail.category === 'EXPIRED_SESSION' 
                         ? 'session_expired' 
                         : (errorDetail.code ? `code_${errorDetail.code}` : 'daily_quota');
@@ -1235,8 +1237,14 @@ class CRMQueueService {
                     }
 
                     EventBroadcaster.emit('crm:campaignChanged', { action: 'pause', ownerZaloId: zaloId, campaignId: item.campaign_id, reason: String(errorDetail.code) });
-                    this.promoteNextQueuedCampaign(zaloId);
-                } catch {}
+
+                    // Only promote next campaign if the account itself is NOT blocked/rate-limited
+                    if (errorDetail.category !== 'ACCOUNT_LIMIT' && errorDetail.code !== 127 && errorDetail.code !== 108) {
+                        this.promoteNextQueuedCampaign(zaloId);
+                    }
+                } catch (pauseErr: any) {
+                    Logger.error(`[CRMQueue] Error handling auto pause: ${pauseErr?.message || pauseErr}`);
+                }
             }
 
             // Always save log on failure — use describeBlock for human-readable message

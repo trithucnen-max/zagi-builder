@@ -127,10 +127,11 @@ export default function CampaignDetail({
     const err = String(c?.error || '').toLowerCase();
     const rawError = c?.error || '';
 
-    // ── Detect specific Zalo error codes ──────────────────────────────────
+    // ── Detect specific Zalo error codes using word/digit boundary ────────
     const hasCode = (code: number | string) => {
-      const s = String(code);
-      return rawError.includes(s) || err.includes(s);
+      const s = String(code).replace('-', '\\-');
+      const reg = new RegExp(`(?<!\\d)${s}(?!\\d)`);
+      return reg.test(rawError) || reg.test(err);
     };
 
     const isStrangerPrivacy = hasCode(201) || hasCode(-201) ||  // tắt nhận tin người lạ
@@ -141,12 +142,15 @@ export default function CampaignDetail({
     const isSpamSuspect108 = hasCode(108);                      // zalo nghi spam
     const isContentBanned  = hasCode(3001);                     // nội dung chứa từ/link cấm
     const isSessionExpired = hasCode(-5000) || hasCode(1001) || // hết phiên QR
-      err.includes('session') || err.includes('hết phiên') || err.includes('disconnect');
+      err.includes('hết phiên') || err.includes('qr') || err.includes('đăng nhập lại');
     const isNoZaloAccount  = hasCode(5001) || hasCode(5004) ||  // không có tài khoản Zalo
       err.includes('không tồn tại') || err.includes('chưa đăng ký');
 
+    const isSpecificError = isStrangerPrivacy || isBlockedByUser || isNickLocked127 ||
+      isSpamSuspect108 || isContentBanned || isSessionExpired || isNoZaloAccount;
+
     // ── Legacy keyword fallbacks (for backward-compat) ────────────────────
-    const isMsgFailed    = err.includes('lỗi gửi tin') || (c?.status === 'failed' && !err.includes('kết bạn') && !err.includes('nhóm'));
+    const isMsgFailed    = (err.includes('lỗi gửi tin') || (c?.status === 'failed' && !err.includes('kết bạn') && !err.includes('nhóm'))) && !isSpecificError;
     const isFriendFailed = err.includes('lỗi kết bạn') || err.includes('kết bạn');
     const isInviteFailed = err.includes('lỗi mời nhóm') || err.includes('nhóm');
     const isBlocked      = isStrangerPrivacy || isBlockedByUser || err.includes('privacy');
