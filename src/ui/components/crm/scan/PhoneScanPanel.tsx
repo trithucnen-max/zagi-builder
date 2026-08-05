@@ -200,13 +200,13 @@ export default function PhoneScanPanel() {
     const handleExportBatchExcel = useCallback(async (batch: Batch) => {
         if (!batch) return;
         try {
-            const res = await ipc.crm.getPhoneScanBatchItems({ batchId: batch.id, page: 0, pageSize: 100000 });
-            if (!res.success || !Array.isArray(res.items) || res.items.length === 0) {
+            const res = await ipc.crm.getPhoneScanItems({ batchId: batch.id, limit: 100000, offset: 0, status: 'all' });
+            const allItems = res?.items || res?.data || [];
+            if (!Array.isArray(allItems) || allItems.length === 0) {
                 alert('Không có dữ liệu SĐT nào trong lô này để xuất file Excel');
                 return;
             }
 
-            const allItems = res.items;
             const foundItems = allItems.filter((i: any) => i.status === 'found');
             const notFoundItems = allItems.filter((i: any) => i.status === 'not_found');
             const errorItems = allItems.filter((i: any) => i.status === 'error' || i.status === 'failed');
@@ -214,11 +214,13 @@ export default function PhoneScanPanel() {
             const formatRows = (itemsArr: any[]) => itemsArr.map((item: any, idx: number) => ({
                 'STT': idx + 1,
                 'Số điện thoại': item.phone || '',
-                'Trạng thái Zalo': item.status === 'found' ? 'Có Zalo' : (item.status === 'not_found' ? 'Không có Zalo' : 'Lỗi quét'),
+                'Họ tên gốc (CSV/CRM)': item.full_name_raw || item.real_name || '',
+                'Trạng thái Zalo': item.status === 'found' ? '✓ Có Zalo' : (item.status === 'not_found' ? 'Không Zalo' : 'Lỗi quét'),
                 'Tên Zalo': item.zalo_name || '',
                 'Zalo UID': item.zalo_uid || '',
-                'Thông báo lỗi / Ghi chú': item.error_msg || '',
-                'Nick Zalo thực hiện quét': item.scanned_by_account_id || '',
+                'Tài khoản quét': item.scanned_by_account_id ? (accounts.find(a => a.zalo_id === item.scanned_by_account_id)?.full_name || item.scanned_by_account_id) : '',
+                'Tài khoản nhận CRM': item.target_account_id ? (accounts.find(a => a.zalo_id === item.target_account_id)?.full_name || item.target_account_id) : '',
+                'Ghi chú lỗi': item.error_msg || '',
                 'Thời gian quét': item.scanned_at ? new Date(item.scanned_at).toLocaleString('vi-VN') : ''
             }));
 
@@ -226,7 +228,7 @@ export default function PhoneScanPanel() {
 
             // Tab 1: Tất cả SĐT
             const wsAll = XLSX.utils.json_to_sheet(formatRows(allItems));
-            XLSX.utils.book_append_sheet(wb, wsAll, 'Tất cả SĐT');
+            XLSX.utils.book_append_sheet(wb, wsAll, `Tất cả SĐT (${allItems.length})`);
 
             // Tab 2: Có Zalo
             if (foundItems.length > 0) {
@@ -253,7 +255,7 @@ export default function PhoneScanPanel() {
             console.error('Export Excel error:', err);
             alert('Không thể xuất file Excel: ' + (err.message || err));
         }
-    }, []);
+    }, [accounts]);
 
     // Auto-select 1st Zalo account when single assignment mode is selected if empty
     useEffect(() => {

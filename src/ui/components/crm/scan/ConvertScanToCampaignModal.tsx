@@ -43,40 +43,41 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
     }
   }, [zaloAccounts, selectedZaloId]);
 
+  // Load ONLY campaigns ready to accept contacts (status !== 'done' && status !== 'stopped')
   useEffect(() => {
-    if (selectedZaloId) {
-      setFetchingCampaigns(true);
-      ipc.crm.getCampaigns({ zaloId: selectedZaloId }).then(res => {
-        if (res.success && Array.isArray(res.data)) {
-          const activeOrDraft = res.data.filter((c: any) => c.status !== 'done' && !c.is_deleted);
-          setExistingCampaigns(activeOrDraft);
-          if (activeOrDraft.length > 0 && !selectedCampaignId) {
-            setSelectedCampaignId(activeOrDraft[0].id);
-          }
+    setFetchingCampaigns(true);
+    ipc.crm.getCampaigns({ zaloId: selectedZaloId || '' }).then(res => {
+      const campaignList = res?.campaigns || res?.data || [];
+      if (Array.isArray(campaignList)) {
+        // Filter ONLY ready / active campaigns
+        const readyCampaigns = campaignList.filter((c: any) => 
+          c.status !== 'done' && 
+          c.status !== 'stopped' && 
+          c.status !== 'completed' && 
+          !c.is_deleted
+        );
+        setExistingCampaigns(readyCampaigns);
+        if (readyCampaigns.length > 0 && !selectedCampaignId) {
+          setSelectedCampaignId(readyCampaigns[0].id);
         }
-      }).catch(() => {
-        setExistingCampaigns([]);
-      }).finally(() => {
-        setFetchingCampaigns(false);
-      });
-    }
+      }
+    }).catch(() => {
+      setExistingCampaigns([]);
+    }).finally(() => {
+      setFetchingCampaigns(false);
+    });
   }, [selectedZaloId]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
-    if (!selectedZaloId) {
-      setErrorMsg('Vui lòng chọn tài khoản Zalo');
-      return;
-    }
-
     if (isCreatingNew && !newCampaignName.trim()) {
       setErrorMsg('Vui lòng nhập tên chiến dịch mới');
       return;
     }
 
     if (!isCreatingNew && !selectedCampaignId) {
-      setErrorMsg('Vui lòng chọn 1 chiến dịch');
+      setErrorMsg('Vui lòng chọn 1 chiến dịch sẵn sàng');
       return;
     }
 
@@ -86,7 +87,7 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
     try {
       const payload: any = {
         batchId,
-        zaloId: selectedZaloId,
+        zaloId: selectedZaloId || (zaloAccounts[0]?.zalo_id || ''),
         mode: isCreatingNew ? 'new' : 'existing',
         statusFilter: 'found'
       };
@@ -123,12 +124,12 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-md w-full border border-gray-100 dark:border-gray-800 shadow-2xl overflow-hidden p-6 space-y-5">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden p-5 space-y-4" onClick={e => e.stopPropagation()}>
         
-        {/* Header - Matching Hình 1 */}
+        {/* Header - Matching Hình 2 */}
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-extrabold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
             {isCreatingNew ? 'Tạo chiến dịch mới' : 'Chọn chiến dịch'}
           </h3>
 
@@ -138,26 +139,26 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
               setIsCreatingNew(!isCreatingNew);
               setErrorMsg('');
             }}
-            className="text-sm font-bold text-blue-500 hover:text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+            className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
           >
             {isCreatingNew ? '← Chọn có sẵn' : '+ Tạo mới'}
           </button>
         </div>
 
         {errorMsg && (
-          <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 text-xs font-semibold">
+          <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 text-xs font-semibold">
             ⚠️ {errorMsg}
           </div>
         )}
 
-        {/* Zalo Account selector if multi-account */}
+        {/* Zalo Account Selector (If multiple active accounts) */}
         {zaloAccounts.length > 1 && (
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Tài khoản Zalo gửi:</label>
+            <label className="text-[11px] font-semibold text-gray-400">Tài khoản Zalo chiến dịch:</label>
             <select
               value={selectedZaloId}
               onChange={e => setSelectedZaloId(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:outline-none"
+              className="w-full p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:outline-none cursor-pointer"
             >
               {zaloAccounts.map(acc => (
                 <option key={acc.zalo_id} value={acc.zalo_id}>
@@ -168,14 +169,21 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
           </div>
         )}
 
-        {/* Mode: Existing Campaigns (Hình 1 UI Card List) */}
+        {/* Mode: Existing READY Campaigns List (Hình 2) */}
         {!isCreatingNew && (
-          <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+          <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
             {fetchingCampaigns ? (
-              <div className="py-8 text-center text-xs text-gray-400 italic">Đang tải danh sách chiến dịch...</div>
+              <div className="py-8 text-center text-xs text-gray-400 italic">Đang kiểm tra các chiến dịch sẵn sàng...</div>
             ) : existingCampaigns.length === 0 ? (
-              <div className="p-5 text-center text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-                Chưa có chiến dịch nào đang mở. Bấm <b>+ Tạo mới</b> để bắt đầu.
+              <div className="p-4 text-center text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/60 rounded-2xl space-y-2">
+                <p>Chưa có chiến dịch nào đang mở sẵn sàng.</p>
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingNew(true)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
+                >
+                  + Tạo chiến dịch mới
+                </button>
               </div>
             ) : (
               existingCampaigns.map(c => {
@@ -184,23 +192,23 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
                   <div
                     key={c.id}
                     onClick={() => setSelectedCampaignId(c.id)}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${
                       isSelected
                         ? 'border-2 border-blue-500 bg-blue-50/20 dark:bg-blue-950/20 shadow-xs'
                         : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 bg-white dark:bg-gray-850'
                     }`}
                   >
-                    <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border ${
+                    <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border flex-shrink-0 ${
                       isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-400'
                     }`}>
                       {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-sm text-gray-900 dark:text-white">
+                      <h4 className="font-bold text-xs text-gray-900 dark:text-white">
                         {c.name}
                       </h4>
-                      <p className="text-xs text-gray-400 font-medium mt-0.5">
+                      <p className="text-[11px] text-gray-400 font-medium mt-0.5">
                         {c.total_contacts || 0} liên hệ
                       </p>
                     </div>
@@ -213,25 +221,25 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
 
         {/* Mode: New Campaign Form */}
         {isCreatingNew && (
-          <div className="space-y-3.5">
+          <div className="space-y-3">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Tên chiến dịch:</label>
+              <label className="text-xs font-semibold text-gray-400">Tên chiến dịch mới:</label>
               <input
                 type="text"
                 value={newCampaignName}
                 onChange={e => setNewCampaignName(e.target.value)}
-                className="w-full p-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="Nhập tên chiến dịch mới..."
+                className="w-full p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Nhập tên chiến dịch..."
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Hành động:</label>
+              <label className="text-xs font-semibold text-gray-400">Hành động chính:</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setNewCampaignType('message')}
-                  className={`p-2.5 rounded-2xl font-bold text-xs border transition-all text-center ${
+                  className={`p-2 rounded-xl font-bold text-xs border transition-all text-center ${
                     newCampaignType === 'message'
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
                       : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
@@ -242,25 +250,25 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
                 <button
                   type="button"
                   onClick={() => setNewCampaignType('friend_request')}
-                  className={`p-2.5 rounded-2xl font-bold text-xs border transition-all text-center ${
+                  className={`p-2 rounded-xl font-bold text-xs border transition-all text-center ${
                     newCampaignType === 'friend_request'
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
                       : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                   }`}
                 >
-                  🤝 Gửi kết bạn
+                  🤝 Kết bạn
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Footer Pill Buttons - Exactly Matching Hình 1 */}
+        {/* Footer Pill Buttons - Exactly Matching Hình 2 */}
         <div className="pt-2 grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="py-3 px-6 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm transition-colors text-center cursor-pointer"
+            className="py-2.5 px-5 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs transition-colors text-center cursor-pointer"
           >
             Hủy
           </button>
@@ -269,7 +277,7 @@ export const ConvertScanToCampaignModal: React.FC<ConvertScanToCampaignModalProp
             type="button"
             onClick={handleSubmit}
             disabled={loading || (!isCreatingNew && !selectedCampaignId)}
-            className="py-3 px-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm shadow-md transition-all text-center disabled:opacity-50 active:scale-95 cursor-pointer"
+            className="py-2.5 px-5 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs shadow-md transition-all text-center disabled:opacity-50 active:scale-95 cursor-pointer"
           >
             {loading ? 'Đang thêm...' : `Thêm ${foundCount} liên hệ`}
           </button>
