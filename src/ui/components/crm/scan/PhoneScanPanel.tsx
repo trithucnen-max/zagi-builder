@@ -2877,6 +2877,8 @@ export default function PhoneScanPanel() {
                         </div>
                     </div>
                 </div>
+            )}
+
             {exportModalBatch && (
                 <ExportExcelColumnModal
                     isOpen={!!exportModalBatch}
