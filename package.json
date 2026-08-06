@@ -169,6 +169,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "allowElevation": true,
+      "killProcessOnUninstaller": true,
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
       "perMachine": false
     },
