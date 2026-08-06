@@ -309,8 +309,8 @@ class PhoneScanService {
                     continue;
                 }
 
-                // Yêu cầu: Gom ngẫu nhiên 70 - 95 SĐT vào 1 request
-                const randomChunkSize = Math.floor(Math.random() * (95 - 70 + 1)) + 70; // random integer between 70 and 95
+                // Điều chỉnh gom ngẫu nhiên 6 - 10 SĐT vào 1 request (Phù hợp chuẩn định mức Zalo: 30 số/giờ, 100-200 số/ngày)
+                const randomChunkSize = Math.floor(Math.random() * (10 - 6 + 1)) + 6; // random integer between 6 and 10
                 const actualChunkSize = Math.min(randomChunkSize, maxAvailableQuota, remainingPendingItems.length);
 
                 if (actualChunkSize <= 0) {
