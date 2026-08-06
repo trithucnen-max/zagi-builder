@@ -9873,7 +9873,30 @@ class DatabaseService {
     // ── Pipeline & Schedule CRM ──
 
     public getPipelineStages(): any[] {
-        return this.query<any>(`SELECT * FROM crm_pipeline_stages ORDER BY position ASC`);
+        if (!this.initialized) return [];
+        let stages = this.query<any>(`SELECT * FROM crm_pipeline_stages ORDER BY position ASC`);
+        if (!stages || stages.length === 0) {
+            const defaultStages = [
+                { name: 'Khách hàng tiềm năng (Lead)', color: '#3b82f6', position: 1 },
+                { name: 'Khách hàng triển vọng (Prospect)', color: '#06b6d4', position: 2 },
+                { name: 'Khách hàng đang đàm phán (Opportunity)', color: '#f59e0b', position: 3 },
+                { name: 'Khách hàng thực tế (Customer)', color: '#10b981', position: 4 },
+                { name: 'Khách hàng trung thành (Loyal)', color: '#8b5cf6', position: 5 },
+                { name: 'Khách hàng rời bỏ (Churned/Lost)', color: '#ef4444', position: 6 }
+            ];
+            const now = Math.floor(Date.now() / 1000);
+            for (const st of defaultStages) {
+                try {
+                    this.run(
+                        `INSERT INTO crm_pipeline_stages (name, color, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+                        [st.name, st.color, st.position, now, now]
+                    );
+                } catch { /* ignore insert error */ }
+            }
+            this.save();
+            stages = this.query<any>(`SELECT * FROM crm_pipeline_stages ORDER BY position ASC`);
+        }
+        return stages;
     }
 
     public savePipelineStage(params: { stage: any }): { success: boolean } {

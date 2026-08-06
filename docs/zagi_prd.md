@@ -6,8 +6,9 @@
 
 ---
 
-#### 🚀 v3.1.7 — Tự Khôi Phục Profile Danh Bạ Chat từ CRM & Cách Ly Sự Cố IPC Đa Nền Tảng (Official Release)
+#### 🚀 v3.1.7 — Tự Khôi Phục Profile Danh Bạ Chat, Phễu CRM Mẫu 6 Trạng Thái & Cách Ly IPC Đa Nền Tảng (Official Release)
 * **Tính năng mới & Sửa lỗi nổi bật:**
+  * **📊 Tự Động Nạp 6 Trạng Thái CRM Phễu Mẫu (`getPipelineStages`)**: Tự động khởi tạo 6 cột phễu CRM chuẩn (*Khách hàng tiềm năng, Khách hàng triển vọng, Đang đàm phán, Khách hàng thực tế, Khách hàng trung thành, Khách hàng rời bỏ*) kèm mã màu phong phú ngay khi khởi tạo Workspace mới hoặc khi bảng phễu bị trống.
   * **🛠️ Tự Khôi Phục Tên & Avatar Thật Từ CRM Sang Danh Sách Chat (`healContactProfilesFromCrm`)**: Tự động nhận diện các liên hệ gửi tin chiến dịch bị hiển thị dạng số Zalo UID (`9035429026671422707`) và khôi phục 100% Tên thật và Ảnh đại diện từ danh bạ CRM (`crm_contacts`) / Quét SĐT (`phone_scan_items`) sang giao diện Chat.
   * **🛡️ Bộ Cách Ly Sự Cố Nạp Kênh IPC Đa Nền Tảng (`safeRegister` & `safeHandle`)**: Cách ly try-catch riêng biệt cho từng module IPC và tự động gỡ sạch kênh cũ trước khi gán kênh mới. Loại bỏ triệt để lỗi "No handler registered for..." trên Windows khi nâng cấp đè lên bản Zagi cũ.
   * **⚙️ Cấu Hình Bộ Cài Tự Đóng Tiến Trình Cũ Windows (`killProcessOnUninstaller: true`)**: Cấu hình bộ nạp installer NSIS tự động đóng các tiến trình `zagi.exe` cũ đang chạy ngầm trên Windows trước khi chép file mới.
