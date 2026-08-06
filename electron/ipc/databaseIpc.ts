@@ -55,6 +55,8 @@ async function countFiles(dir: string): Promise<number> {
         }
     }
     return count;
+}
+
 function safeHandle(channel: string, handler: any) {
     try {
         ipcMain.removeHandler(channel);

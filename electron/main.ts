@@ -1028,7 +1028,7 @@ async function startupAfterLicenseCheck(): Promise<void> {
     try {
       fn();
     } catch (err: any) {
-      Logger.error(`[Main] IPC module ${modName} registration warning: ${err?.message || err}`);
+      console.error(`[Main] IPC module ${modName} registration warning: ${err?.message || err}`);
     }
   };
 
