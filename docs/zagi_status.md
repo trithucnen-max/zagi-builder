@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 02/08/2026  
-> **Phiên bản:** v3.1.1 (Stable)  
+> **Ngày cập nhật:** 06/08/2026  
+> **Phiên bản:** v3.1.6 (Stable)  
 > **Nhánh Git hiện tại:** `main`  
 ---
 
@@ -115,11 +115,14 @@
     *   **Tích hợp Sapo Private App & Chuẩn hóa đồng bộ đơn hàng**: Nâng cấp `SapoAdapter.ts` hỗ trợ xác thực cổng Sapo Admin qua Basic Auth. Sửa lỗi đồng bộ đơn hàng: làm phẳng sản phẩm theo Variant level gửi đúng `variant_id` (mã phiên bản sản phẩm) thay vì Product ID cha. Bổ sung đối tượng `customer` và map Họ & Tên vào `first_name`/`last_name` ở address để Sapo tự động liên kết hồ sơ khách hàng đầy đủ SĐT/Email và tự động điền thông tin giao hàng để chủ shop có thể lên đơn "Đẩy vận chuyển" trực tiếp từ Sapo Admin không bị lệch thông tin. Tách bạch các trường tùy chọn và bắt buộc của Sapo & Haravan trên giao diện cấu hình, sửa lỗi required validation khi kết nối.
     *   **Tham gia nhóm Zalo trực tiếp bằng Link**: Tự động đánh chặn các link nhóm zalo.me được click trên khung chat và gọi API `joinGroupLink` trực tiếp trên tài khoản Zagi active. Đồng thời thêm nút **Vào nhóm bằng link** (icon 🔗) ở Sidebar danh sách chat để paste link tham gia nhanh chóng.
 
-## 4. Trạng Thái Kiểm Thử & Chạy Thử
-*   **Preview Server:** ⚪ **Stopped** (Đang dừng).
-*   **Hệ thống Unit Test:** Đã cấu hình Jest & `ts-jest` thành công:
-    1.  `lunar.test.ts` (Kiểm tra thuật toán chuyển đổi lịch âm Việt Nam).
-    2.  `import.test.ts` (Kiểm tra logic chuẩn hóa số điện thoại và phân tách CSV).
-    3.  `workflowCheckpoint.test.ts` (Kiểm tra động cơ checkpoint, contextSerializer, scheduler và Calendar wait calculations).
-    4.  `zaloGroupJoin.test.ts` (Kiểm tra regex tìm kiếm group link và luồng interceptor IPC shell).
-    *   *Lưu ý kỹ thuật:* Chạy test toàn bộ hệ thống thành công qua `npx jest --no-coverage` với 11/11 test suites đạt tỷ lệ PASS 100%.
+118: ## 4. Trạng Thái Kiểm Thử & Chạy Thử
+119: *   **Preview Server:** ⚪ **Stopped** (Đang dừng).
+120: *   **Hệ thống Unit Test:** Đã cấu hình Jest & `ts-jest` thành công với **27/27 test suites (240/240 tests) PASS 100%**.
+121: 
+122: 20. **Quét SĐT Gom Mảng An Toàn & Vô Hiệu Hóa findUser Chiến Dịch CRM (v3.1.6):**
+123:     *   **Gom mảng ngẫu nhiên 6 – 10 SĐT / Request (`PhoneScanService.ts`)**: Tinh chỉnh gói gom mảng `getMultiUsersByPhones` ngẫu nhiên 6-10 SĐT cho mỗi đợt request, phù hợp định mức an toàn Zalo (**30 số/giờ** và **100-200 số/ngày**). Tăng tốc độ quét gấp ~10 lần nhưng không làm Zalo Server đánh dấu nghi ngờ hay bùng nổ traffic.
+124:     *   **Quét song song đa tài khoản**: Động cơ quét luân phiên đa nick chạy ngầm song song cho cả 3 chế độ lưu trữ: 🟢 Phân tán theo nick quét, 🔵 Gom về 1 nick Master (Sếp), 🟣 Đồng bộ tất cả các nick Zalo active.
+125:     *   **Vô hiệu hóa findUser API khi chạy Chiến dịch CRM**: 100% không gọi API `findUser` trong suốt quá trình chạy chiến dịch. Tự động giải mã Zalo UID từ Local DB (`crm_contacts` & `phone_scan_items`). Nếu SĐT chưa có Zalo UID, an toàn đánh dấu *"SĐT chưa có Zalo UID (Hãy chạy Quét SĐT trước)"* mà không làm đứt luồng chiến dịch hay làm nick bị soft-block `5001/5004`.
+126:     *   **Modal Xuất Excel Tùy Chỉnh Trường Dữ Liệu (`ExportExcelColumnModal`)**: Cho phép chọn linh hoạt 12 trường thông tin tùy chỉnh trước khi xuất file báo cáo Excel.
+127:     *   **Làm sạch code dư thừa (Clean Code)**: Loại bỏ hoàn toàn tính năng và code dư thừa `convertScanToCampaign` giúp ứng dụng mượt mà, tối ưu bộ nhớ.
+

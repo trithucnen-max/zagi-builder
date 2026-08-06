@@ -1,18 +1,21 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
 > **Phiên bản tài liệu:** 3.1.6  
-> **Ngày cập nhật:** 05/08/2026  
+> **Ngày cập nhật:** 06/08/2026  
 > **Trạng thái sản phẩm hiện tại:** v3.1.6 (Official Release)  
 > **Chủ quản:** Product Management Team  
 
 ---
 
-#### 🚀 v3.1.6 — Phân Loại Lỗi Chiến Dịch Chi Tiết, Badge Nguyên Nhân Từng Liên Hệ & Giao Diện Quét SĐT Đa Nick (Official Release)
+#### 🚀 v3.1.6 — Quét SĐT An Toàn 6-10 Số/Request, Vô Hiệu Hóa findUser Chiến Dịch CRM & Báo Cáo Excel Tùy Chỉnh (Official Release)
 * **Tính năng mới & Sửa lỗi nổi bật:**
-  * **🛑 Badge Trạng Thái Chiến Dịch Tách Biệt Theo Mã Lỗi**: Tách riêng 4 badge tạm dừng cấp chiến dịch (`Mã 127` - Khóa gửi tin người lạ / `Mã 108` - Nghi ngờ Spam / `Mã 3001` - Nội dung cấm / `Session expired` - Hết phiên QR) thay vì gom chung "Tạm dừng" mơ hồ.
-  * **📋 Badge Nguyên Nhân Lỗi Từng Liên Hệ**: Thêm helper `getContactErrorBadge()` phân tích mã Zalo và hiển thị badge màu riêng: `🛑 Nick bị khóa gửi tin lạ` (127), `⚠️ Zalo nghi Spam` (108), `📝 Nội dung bị chặn` (3001), `🔑 Hết phiên QR`, `🚫 Đã chặn bạn` (202), `📵 Tắt nhận tin lạ` (201), `❓ Không có Zalo` (5001/5004). Áp dụng cho mọi loại chiến dịch.
-  * **💬 Modal Chi Tiết Lỗi Nâng Cấp (`ErrorDetailModal`)**: Hiển thị 1 badge lỗi chính + hướng xử lý cụ thể theo loại lỗi (đổi nick / tăng delay / sửa template / quét lại QR). Thông điệp kỹ thuật Zalo đưa xuống phụ tránh gây rối người dùng.
+  * **🔍 Quét SĐT Gom Mảng An Toàn 6–10 Số/Request (`PhoneScanService.ts`)**: Gom ngẫu nhiên 6 - 10 SĐT trong 1 request API `getMultiUsersByPhones`. Tuân thủ tuyệt đối ngạch an toàn Zalo (**30 số/giờ** & **100-200 số/ngày**), tăng tốc độ quét gấp ~10 lần mà không làm nick bị Zalo Server nghi ngờ hay đánh dấu spam bot.
+  * **⚡ Quét Song Song Đa Tài Khoản Cho 3 Chế Độ Lưu Trữ**: Động cơ quét chạy ngầm luân phiên đa nick song song cho cả 3 quy tắc phân bổ liên hệ CRM: 🟢 Phân tán theo nick quét, 🔵 Gom về 1 nick Master (Sếp), 🟣 Đồng bộ tất cả các nick Zalo active.
+  * **🛡️ Vô Hiệu Hóa Gọi API `findUser` Trong Chiến Dịch CRM (`CRMQueueService.ts`)**: 100% vắng mặt câu lệnh `findUser` khi gửi tin chiến dịch. Tự động giải mã Zalo UID từ Local DB (`crm_contacts` & `phone_scan_items`). Bỏ qua nguy cơ nick Zalo bị soft-block `5001/5004` từ Zalo Server.
+  * **📊 Modal Xuất File Excel Tùy Chọn Trường Dữ Liệu (`ExportExcelColumnModal.tsx`)**: Tích chọn linh hoạt 12 trường thông tin tùy chỉnh trước khi xuất file báo cáo Excel.
+  * **🛑 Badge Trạng Thái Chiến Dịch Tách Biệt Theo Mã Lỗi**: Tách riêng 4 badge tạm dừng cấp chiến dịch (`Mã 127` - Khóa gửi tin người lạ / `Mã 108` - Nghi ngờ Spam / `Mã 3001` - Nội dung cấm / `Session expired` - Hết phiên QR).
+  * **📋 Badge Nguyên Nhân Lỗi Từng Liên Hệ**: Thêm helper `getContactErrorBadge()` phân tích mã Zalo và hiển thị badge màu riêng: `🛑 Nick bị khóa gửi tin lạ` (127), `⚠️ Zalo nghi Spam` (108), `📝 Nội dung bị chặn` (3001), `🔑 Hết phiên QR`, `🚫 Đã chặn bạn` (202), `📵 Tắt nhận tin lạ` (201), `❓ Không có Zalo` (5001/5004).
   * **🔄 Giao Diện Quét SĐT Đa Nick Failover**: Banner realtime hiển thị từng nick với avatar/tên/trạng thái + countdown timer. Tự động skip nick đã đạt hạn ngạch, chuyển sang nick tiếp theo. Modal xem báo cáo lô quét fullscreen.
-  * **❌ Xóa Tab "Theo SĐT" Khỏi Chiến Dịch**: Loại bỏ tính năng chọn đối tượng theo SĐT do thiếu cơ chế bảo vệ định mức -216.
+  * **🧹 Clean Code**: Loại bỏ hoàn toàn tính năng và code dư thừa `convertScanToCampaign` giúp ứng dụng mượt mà, tối ưu bộ nhớ.
 
 
 * **Tính năng mới & Sửa lỗi nổi bật:**

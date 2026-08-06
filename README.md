@@ -552,16 +552,16 @@ npm run production
 
 
 <details>
-<summary><strong>v3.1.6</strong> — 2026-07-17</summary>
+<summary><strong>v3.1.6</strong> — 2026-08-06</summary>
 
-### 🚀 Nâng cấp nổi bật
+### 🚀 Nâng cấp nổi bật (Official Release)
 
-- 💾 **Workflow Persistent Checkpoints (Bước đang chờ)**: Hỗ trợ tự động lưu ngữ cảnh chạy (`ExecutionContext`) vào SQLite khi thời gian chờ của node `logic.wait` vượt quá 5 phút. Giúp giải phóng hoàn toàn bộ nhớ RAM/CPU.
-- 📅 **Chế độ chờ Ngày thực tế (Calendar Delay)**: Node Chờ hỗ trợ cấu hình theo ngày thực tế dịch chuyển (ví dụ: ngày mai) kết hợp khung giờ gửi cố định mong muốn (ví dụ: 09:00). Bộ lọc an toàn tự động thực thi ngay nếu giờ đích trong ngày hôm nay đã trôi qua.
-- 🔄 **Khôi phục sau khi tắt máy**: Khi khởi động lại máy Boss/máy chủ, động cơ `CheckpointScheduler` tự động phát hiện, tiếp tục chạy (resume) các bước chờ đến hạn hoặc bị lỡ lịch.
-- 📋 **Tab quản lý "Đang Chờ" trên UI**: Tích hợp tab chuyên biệt trong phân hệ Workflow Automation hiển thị số lượng badge pending, countdown thời gian chờ thực tế và hỗ trợ Hủy checkpoint nhanh.
-- 🛡️ **Tuần tự hóa an toàn (contextSerializer)**: Giải quyết triệt để vấn đề tham chiếu vòng (circular refs), ép Set ↔ Array và rút gọn chuỗi >10KB để tránh phình dữ liệu.
-- 🧪 **Bộ kiểm thử tự động toàn diện**: Bổ sung file `workflowCheckpoint.test.ts` gồm 46 test cases đạt tỷ lệ pass 100% cho toàn bộ vòng đời checkpoint và thuật toán tính giờ thực tế (Calendar wait type).
+- 🔍 **Quét SĐT Gom Mảng An Toàn 6–10 Số/Request (`PhoneScanService.ts`)**: Gom ngẫu nhiên 6 - 10 SĐT trong 1 request API `getMultiUsersByPhones`. Giảm 90% số lượng request kết nối Zalo Server và tuân thủ tuyệt đối ngạch an toàn Zalo (**30 số/giờ** & **100-200 số/ngày**).
+- ⚡ **Quét song song đa tài khoản**: Động cơ quét luân phiên đa nick chạy ngầm song song cho cả 3 chế độ lưu trữ: 🟢 Phân tán theo nick quét, 🔵 Gom về 1 nick Master (Sếp), 🟣 Đồng bộ tất cả các nick Zalo active.
+- 🛡️ **Vô hiệu hóa findUser API khi chạy Chiến dịch CRM (`CRMQueueService.ts`)**: 100% vắng mặt câu lệnh `findUser` khi gửi tin chiến dịch. Tự động giải mã Zalo UID từ Local DB (`crm_contacts` & `phone_scan_items`), bỏ qua hoàn toàn nguy cơ dính soft-block `5001/5004` từ Zalo Server.
+- 📊 **Modal Xuất File Excel Tùy Chọn Trường Dữ Liệu (`ExportExcelColumnModal.tsx`)**: Tích chọn linh hoạt 12 trường thông tin tùy chỉnh trước khi xuất file báo cáo Excel.
+- 🛑 **Badge Trạng Thái & Nguyên Nhân Lỗi Chi Tiết**: Badge phân loại nguyên nhân lỗi tạm dừng cấp chiến dịch và cấp liên hệ (`Mã 127`, `Mã 108`, `Mã 3001`, `Mã 5001/5004`, `Session expired`).
+- 🧹 **Clean Code**: Loại bỏ hoàn toàn tính năng và code dư thừa `convertScanToCampaign` giúp ứng dụng mượt mà, tối ưu bộ nhớ.
 
 </details>
 

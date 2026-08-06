@@ -218,6 +218,25 @@ Quản lý thực thi chiến dịch gửi tin nhắn / kết bạn hàng loạt
 
 ---
 
+## PhoneScanService
+
+**File:** `src/services/crm/PhoneScanService.ts`
+**Singleton:** `PhoneScanService.getInstance()`
+
+### Purpose
+Quản lý động cơ Quét số điện thoại Zalo hàng loạt đa tài khoản (Multi-Account Parallel Scanning & Smart Adaptive Quota).
+
+### Key Features (v3.1.6)
+- **Random Chunking (6 – 10 SĐT / Request)**: Gom ngẫu nhiên 6 - 10 SĐT trong 1 request API `getMultiUsersByPhones`. Giảm 90% số lượng request kết nối Zalo Server và tuân thủ tuyệt đối ngạch an toàn Zalo (**30 số/giờ** & **100-200 số/ngày**).
+- **Quét song song đa tài khoản**: Luân phiên phân bổ các tài khoản Zalo active theo `hourlyCount` để san đều tải và quét song song.
+- **Hỗ trợ 3 quy tắc lưu trữ CRM**:
+  - 🟢 **Phân tán theo nick quét**: Nick nào quét thấy lưu vào danh bạ CRM nick đó.
+  - 🔵 **Gom về 1 nick Master**: Các nick phụ hỗ trợ quét song song, toàn bộ kết quả tạo profile CRM đổ về 1 nick chỉ định (Sếp).
+  - 🟣 **Đồng bộ tất cả các nick**: Các nick hỗ trợ quét song song, dữ liệu kết quả được nhân bản lưu đồng thời ở tất cả các nick Zalo active.
+- **Smart Adaptive Quota (Mã -216 & 50004)**: Tự động phát hiện lỗi `-216` / `50004` từ Zalo Server để tạm dừng nick, tự động rollback SĐT đang quét dở dang về `pending` cho nick khác tiếp quản và đếm ngược thời gian hồi phục (60 phút / 00:00).
+
+---
+
 ## UploadChunkService
 
 **File:** `src/services/file/UploadChunkService.ts`
