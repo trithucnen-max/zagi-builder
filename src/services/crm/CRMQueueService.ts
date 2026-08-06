@@ -534,42 +534,44 @@ class CRMQueueService {
         try {
             db.updateCampaignContactStatus(item.id!, 'sending');
 
-            // ── Phone resolution at send time ──────────────────────────────
+            // ── Phone resolution at send time (DB ONLY - NO findUser API CALL) ──
             const rawContactId = String(item.contact_id || '').trim();
             const rawPhone = String((item as any).phone || (item as any).contact_phone || '').trim();
-            const isAlreadyUid = /^\d{10,}$/.test(rawContactId);
-            const isPhoneFormat = !isAlreadyUid && (
-                rawContactId.startsWith('phone:') ||
-                /^(0|84)[35789]\d{8}$/.test(rawContactId) ||
-                (!rawContactId && /^(0|84)[35789]\d{8}$/.test(rawPhone))
-            );
+            const isAlreadyUid = /^\d{5,}$/.test(rawContactId) && !rawContactId.startsWith('phone:');
 
-            if (isPhoneFormat) {
+            if (!isAlreadyUid) {
                 const phone = rawContactId.startsWith('phone:') ? rawContactId.slice(6) : (rawPhone || rawContactId);
-                Logger.log(`[CRMQueue] Resolving phone ${phone} at send time...`);
-                const resolved = await this.resolvePhoneContact(phone, conn.api);
-                if (!resolved || !resolved.success || !resolved.uid) {
-                    const failMsg = resolved?.error || 'SĐT chưa đăng ký Zalo hoặc bị chặn tìm kiếm';
-                    Logger.warn(`[CRMQueue] Phone ${phone} resolve failed: ${failMsg}`);
+                Logger.log(`[CRMQueue] Resolving phone ${phone} from DB (findUser API disabled during campaign)...`);
+                
+                const normPhone = phone.replace(/\D/g, '');
+                const normPhone84 = normPhone.startsWith('0') ? '84' + normPhone.slice(1) : normPhone;
+                const normPhone0 = normPhone.startsWith('84') ? '0' + normPhone.slice(2) : normPhone;
+
+                const foundInCrm = db.queryOne<any>(
+                    `SELECT zalo_id, display_name FROM crm_contacts WHERE phone IN (?, ?, ?) AND zalo_id IS NOT NULL AND zalo_id != '' LIMIT 1`,
+                    [phone, normPhone84, normPhone0]
+                );
+                const foundInScan = !foundInCrm ? db.queryOne<any>(
+                    `SELECT zalo_uid as zalo_id, zalo_name as display_name FROM phone_scan_items WHERE (phone IN (?, ?, ?) OR phone_normalized IN (?, ?, ?)) AND status = 'found' AND zalo_uid IS NOT NULL AND zalo_uid != '' LIMIT 1`,
+                    [phone, normPhone84, normPhone0, phone, normPhone84, normPhone0]
+                ) : null;
+
+                const dbResolved = foundInCrm || foundInScan;
+
+                if (dbResolved && dbResolved.zalo_id) {
+                    effectiveContactId = String(dbResolved.zalo_id);
+                    effectiveDisplayName = dbResolved.display_name || phone;
+                    try { db.updateCampaignContactId(item.id!, dbResolved.zalo_id, effectiveDisplayName); } catch {}
+                    Logger.log(`[CRMQueue] Phone ${phone} resolved from DB → UID ${dbResolved.zalo_id} (${effectiveDisplayName})`);
+                } else {
+                    const failMsg = 'SĐT chưa có Zalo UID (Hãy chạy Quét SĐT trước khi tạo chiến dịch)';
+                    Logger.warn(`[CRMQueue] Phone ${phone} has no Zalo UID in DB and findUser API is disabled during campaign. Failing item.`);
                     db.updateCampaignContactStatus(item.id!, 'failed', failMsg);
                     db.save();
                     this.broadcastProgress(zaloId, item.campaign_id, item.contact_id, 'failed', failMsg);
-
-                    // 🛑 USER DIRECTIVE: Immediately pause campaign if rate limit -216 is detected
-                    if (resolved?.isRateLimit) {
-                        Logger.warn(`[CRMQueue] 🛑 Rate limit -216 hit on Zalo ${zaloId}. Immediately pausing campaign ${item.campaign_id}...`);
-                        db.updateCRMCampaignStatusWithReason(item.campaign_id, 'paused', failMsg);
-                        db.save();
-                        EventBroadcaster.emit('crm:campaignChanged', { action: 'pause', ownerZaloId: zaloId, campaignId: item.campaign_id, reason: 'rate_limit' });
-                    }
-
                     this.isProcessing.set(zaloId, false);
                     return;
                 }
-                effectiveContactId = resolved.uid;
-                effectiveDisplayName = resolved.name || phone;
-                try { db.updateCampaignContactId(item.id!, resolved.uid, effectiveDisplayName); } catch { /* non-critical */ }
-                Logger.log(`[CRMQueue] Phone ${phone} → UID ${resolved.uid} (${effectiveDisplayName})`);
             }
 
             // ── UID resolution at send time ────────────────────────────────
