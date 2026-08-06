@@ -55,10 +55,15 @@ async function countFiles(dir: string): Promise<number> {
         }
     }
     return count;
+function safeHandle(channel: string, handler: any) {
+    try {
+        ipcMain.removeHandler(channel);
+    } catch (_) {}
+    ipcMain.handle(channel, handler);
 }
 
 export function registerDatabaseIpc() {
-    ipcMain.handle('db:getMessages', async (_event, { zaloId, threadId, limit = 50, offset = 0, before = 0 }) => {
+    safeHandle('db:getMessages', async (_event, { zaloId, threadId, limit = 50, offset = 0, before = 0 }) => {
         try {
             const _isEmp = isEmployeeMode();
             if (_isEmp) {

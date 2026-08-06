@@ -1023,34 +1023,42 @@ async function startupAfterLicenseCheck(): Promise<void> {
     }
   };
 
-  // Register all IPC handlers
-  registerLoginIpc(mainWindow);
-  registerZaloIpc();
-  registerMediaIpc();
-  registerDatabaseIpc();
-  registerFileIpc();
-  registerCRMIpc();
-  registerWorkflowIpc();
-  registerIntegrationIpc();
-  loadTunnelConfig(); // Apply saved Cloudflare Tunnel Token + custom domains before any tunnel starts
-  registerAIAssistantIpc();
-  registerUtilIpc();
-  registerEmployeeIpc();
-  registerRelayIpc();
-  registerSyncIpc();
-  registerWorkspaceIpc(mainWindow);
-  registerFacebookIpc();
-  registerProxyIpc();
-  registerErpTaskIpc();
-  registerErpCalendarIpc();
-  registerErpNoteIpc();
-  registerErpNotificationIpc();
-  registerErpHrmIpc();
-  registerLockScreenIpc();
-  registerLibraryIpc();
-  registerLicenseIpc(); // Tab Bản quyền trong Settings cũng cần (re-register safe — ipcMain dùng Map)
-  registerTelemetryIpc();
-  TelemetryService.init(app.getPath('userData'));
+  // Register all IPC handlers safely to isolate exceptions during upgrade/reload
+  const safeRegister = (modName: string, fn: () => void) => {
+    try {
+      fn();
+    } catch (err: any) {
+      Logger.error(`[Main] IPC module ${modName} registration warning: ${err?.message || err}`);
+    }
+  };
+
+  safeRegister('LoginIpc', () => registerLoginIpc(mainWindow));
+  safeRegister('ZaloIpc', registerZaloIpc);
+  safeRegister('MediaIpc', registerMediaIpc);
+  safeRegister('DatabaseIpc', registerDatabaseIpc);
+  safeRegister('FileIpc', registerFileIpc);
+  safeRegister('CRMIpc', registerCRMIpc);
+  safeRegister('WorkflowIpc', registerWorkflowIpc);
+  safeRegister('IntegrationIpc', registerIntegrationIpc);
+  try { loadTunnelConfig(); } catch (e) {}
+  safeRegister('AIAssistantIpc', registerAIAssistantIpc);
+  safeRegister('UtilIpc', registerUtilIpc);
+  safeRegister('EmployeeIpc', registerEmployeeIpc);
+  safeRegister('RelayIpc', registerRelayIpc);
+  safeRegister('SyncIpc', registerSyncIpc);
+  safeRegister('WorkspaceIpc', () => registerWorkspaceIpc(mainWindow));
+  safeRegister('FacebookIpc', registerFacebookIpc);
+  safeRegister('ProxyIpc', registerProxyIpc);
+  safeRegister('ErpTaskIpc', registerErpTaskIpc);
+  safeRegister('ErpCalendarIpc', registerErpCalendarIpc);
+  safeRegister('ErpNoteIpc', registerErpNoteIpc);
+  safeRegister('ErpNotificationIpc', registerErpNotificationIpc);
+  safeRegister('ErpHrmIpc', registerErpHrmIpc);
+  safeRegister('LockScreenIpc', registerLockScreenIpc);
+  safeRegister('LibraryIpc', registerLibraryIpc);
+  safeRegister('LicenseIpc', () => registerLicenseIpc());
+  safeRegister('TelemetryIpc', registerTelemetryIpc);
+  try { TelemetryService.init(app.getPath('userData')); } catch (e) {}
 
   // Lắng nghe sự kiện ngủ / thức dậy của hệ thống — reconnect ngay lập tức
   const restartZaloListeners = async () => {
