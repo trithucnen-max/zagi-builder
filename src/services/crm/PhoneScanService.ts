@@ -595,21 +595,9 @@ class PhoneScanService {
             }
 
             // Process each item in chunk
-            const batchInfo = db.queryOne<any>('SELECT name, update_zalo_alias, auto_workflow_id, contact_assignment_mode, assigned_account_id, target_account_id FROM phone_scan_batches WHERE id = ?', [batchId]);
-            const assignmentMode = batchInfo?.contact_assignment_mode || (batchInfo?.assigned_account_id ? 'single' : 'distributed');
-            
-            let targetAccountIds: string[] = [];
-            if (assignmentMode === 'single') {
-                const targetId = batchInfo?.target_account_id || batchInfo?.assigned_account_id || zaloId;
-                if (targetId) targetAccountIds = [targetId];
-            } else if (assignmentMode === 'all_accounts') {
-                const activeAccounts = db.getAccounts() || [];
-                const activeZaloAccounts = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
-                targetAccountIds = activeZaloAccounts.map((a: any) => String(a.zalo_id));
-                if (targetAccountIds.length === 0) targetAccountIds = [zaloId];
-            } else {
-                targetAccountIds = [zaloId];
-            }
+            // Always assign contact to the scanner account directly to ensure valid Zalo UID
+            const targetAccountIds: string[] = [zaloId];
+            const batchInfo = db.queryOne<any>('SELECT name, update_zalo_alias, auto_workflow_id FROM phone_scan_batches WHERE id = ?', [batchId]);
 
             for (const item of chunkItems) {
                 const phoneKey = item.phone_normalized || item.phone;
