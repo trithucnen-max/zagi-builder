@@ -1,6 +1,6 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
 > **Ngày cập nhật:** 06/08/2026  
-> **Phiên bản:** v3.1.6 (Stable)  
+> **Phiên bản:** v3.1.7 (Stable)  
 > **Nhánh Git hiện tại:** `main`  
 ---
 
@@ -125,4 +125,7 @@
 125:     *   **Vô hiệu hóa findUser API khi chạy Chiến dịch CRM**: 100% không gọi API `findUser` trong suốt quá trình chạy chiến dịch. Tự động giải mã Zalo UID từ Local DB (`crm_contacts` & `phone_scan_items`). Nếu SĐT chưa có Zalo UID, an toàn đánh dấu *"SĐT chưa có Zalo UID (Hãy chạy Quét SĐT trước)"* mà không làm đứt luồng chiến dịch hay làm nick bị soft-block `5001/5004`.
 126:     *   **Modal Xuất Excel Tùy Chỉnh Trường Dữ Liệu (`ExportExcelColumnModal`)**: Cho phép chọn linh hoạt 12 trường thông tin tùy chỉnh trước khi xuất file báo cáo Excel.
 127:     *   **Làm sạch code dư thừa (Clean Code)**: Loại bỏ hoàn toàn tính năng và code dư thừa `convertScanToCampaign` giúp ứng dụng mượt mà, tối ưu bộ nhớ.
-
+128: 21. **Tự Khôi Phục Profile Danh Bạ Chat & Nâng Cấp Bộ Nạp IPC An Toàn (v3.1.7):**
+129:     *   **Tự khôi phục Tên & Avatar thật (`healContactProfilesFromCrm`)**: Tự động nhận diện các liên hệ gửi tin chiến dịch bị hiển thị dạng số Zalo UID (`9035429026671422707`) và phục hồi 100% Tên thật và Ảnh đại diện từ danh bạ CRM (`crm_contacts`) / Quét SĐT (`phone_scan_items`) sang danh sách Chat.
+130:     *   **Cách ly sự cố nạp kênh IPC (`safeRegister` & `safeHandle`)**: Bọc try-catch riêng biệt cho 25+ module IPC trong `main.ts` và tự động gỡ sạch kênh cũ trước khi gán kênh mới (`crmIpc.ts`, `databaseIpc.ts`). Loại bỏ hoàn toàn lỗi "No handler registered for..." khi nâng cấp đè trên Windows.
+131:     *   **Tự tắt tiến trình cũ khi cài đặt (`killProcessOnUninstaller: true`)**: Bộ nạp NSIS installer tự động tắt các tiến trình `zagi.exe` cũ chạy ngầm trước khi nâng cấp.

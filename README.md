@@ -552,6 +552,17 @@ npm run production
 
 
 <details>
+<summary><strong>v3.1.7</strong> — 2026-08-06</summary>
+
+### 🚀 Nâng cấp nổi bật (Official Release)
+
+- 🛠️ **Tự Khôi Phục Tên & Avatar Thật Sang Danh Sách Chat (`healContactProfilesFromCrm`)**: Tự động phục hồi 100% Tên thật và Ảnh đại diện từ danh bạ CRM (`crm_contacts`) / Quét SĐT (`phone_scan_items`) cho các hội thoại gửi tin chiến dịch bị hiển thị dạng số Zalo UID (`9035429026671422707`).
+- 🛡️ **Bộ Cách Ly Sự Cố Nạp Kênh IPC (`safeRegister` & `safeHandle`)**: Cách ly try-catch riêng biệt cho 25+ module IPC trong `main.ts` và tự động gỡ sạch kênh cũ trước khi gán kênh mới (`crmIpc.ts`, `databaseIpc.ts`). Loại bỏ hoàn toàn lỗi "No handler registered for..." trên Windows khi cài nâng cấp đè.
+- ⚙️ **Cấu Hình Bộ Cài Tự Đóng Tiến Trình Cũ Windows (`killProcessOnUninstaller: true`)**: Bộ nạp NSIS installer tự động đóng các tiến trình `zagi.exe` cũ đang chạy ngầm trên Windows trước khi nâng cấp.
+
+</details>
+
+<details>
 <summary><strong>v3.1.6</strong> — 2026-08-06</summary>
 
 ### 🚀 Nâng cấp nổi bật (Official Release)

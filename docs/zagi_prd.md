@@ -1,10 +1,16 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 3.1.6  
+> **Phiên bản tài liệu:** 3.1.7  
 > **Ngày cập nhật:** 06/08/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.1.6 (Official Release)  
+> **Trạng thái sản phẩm hiện tại:** v3.1.7 (Official Release)  
 > **Chủ quản:** Product Management Team  
 
 ---
+
+#### 🚀 v3.1.7 — Tự Khôi Phục Profile Danh Bạ Chat từ CRM & Cách Ly Sự Cố IPC Đa Nền Tảng (Official Release)
+* **Tính năng mới & Sửa lỗi nổi bật:**
+  * **🛠️ Tự Khôi Phục Tên & Avatar Thật Từ CRM Sang Danh Sách Chat (`healContactProfilesFromCrm`)**: Tự động nhận diện các liên hệ gửi tin chiến dịch bị hiển thị dạng số Zalo UID (`9035429026671422707`) và khôi phục 100% Tên thật và Ảnh đại diện từ danh bạ CRM (`crm_contacts`) / Quét SĐT (`phone_scan_items`) sang giao diện Chat.
+  * **🛡️ Bộ Cách Ly Sự Cố Nạp Kênh IPC Đa Nền Tảng (`safeRegister` & `safeHandle`)**: Cách ly try-catch riêng biệt cho từng module IPC và tự động gỡ sạch kênh cũ trước khi gán kênh mới. Loại bỏ triệt để lỗi "No handler registered for..." trên Windows khi nâng cấp đè lên bản Zagi cũ.
+  * **⚙️ Cấu Hình Bộ Cài Tự Đóng Tiến Trình Cũ Windows (`killProcessOnUninstaller: true`)**: Cấu hình bộ nạp installer NSIS tự động đóng các tiến trình `zagi.exe` cũ đang chạy ngầm trên Windows trước khi chép file mới.
 
 #### 🚀 v3.1.6 — Quét SĐT An Toàn 6-10 Số/Request, Vô Hiệu Hóa findUser Chiến Dịch CRM & Báo Cáo Excel Tùy Chỉnh (Official Release)
 * **Tính năng mới & Sửa lỗi nổi bật:**
