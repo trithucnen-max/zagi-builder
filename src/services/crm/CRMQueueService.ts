@@ -537,9 +537,12 @@ class CRMQueueService {
             // ── Phone resolution at send time ──────────────────────────────
             const rawContactId = String(item.contact_id || '').trim();
             const rawPhone = String((item as any).phone || (item as any).contact_phone || '').trim();
-            const isPhoneFormat = rawContactId.startsWith('phone:') ||
-                                  /^(0|84)[35789]\d{8}$/.test(rawContactId) ||
-                                  (rawPhone && (rawContactId === rawPhone || /^(0|84)[35789]\d{8}$/.test(rawPhone)));
+            const isAlreadyUid = /^\d{10,}$/.test(rawContactId);
+            const isPhoneFormat = !isAlreadyUid && (
+                rawContactId.startsWith('phone:') ||
+                /^(0|84)[35789]\d{8}$/.test(rawContactId) ||
+                (!rawContactId && /^(0|84)[35789]\d{8}$/.test(rawPhone))
+            );
 
             if (isPhoneFormat) {
                 const phone = rawContactId.startsWith('phone:') ? rawContactId.slice(6) : (rawPhone || rawContactId);
