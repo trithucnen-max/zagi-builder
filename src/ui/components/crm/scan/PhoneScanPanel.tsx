@@ -685,17 +685,12 @@ export default function PhoneScanPanel() {
             return;
         }
 
-        if (formContactAssignmentMode === 'single' && !formTargetAccountId) {
-            showNotification('Vui lòng chọn 1 tài khoản Zalo nhận dữ liệu liên hệ', 'error');
-            return;
-        }
-
         try {
             const res = await ipc.crm?.createPhoneScanBatch({
                 name: formName.trim(),
                 assignedAccountId: formAssignedAccount || null,
-                targetAccountId: formContactAssignmentMode === 'single' ? (formTargetAccountId || null) : null,
-                contactAssignmentMode: formContactAssignmentMode,
+                targetAccountId: null,
+                contactAssignmentMode: 'distributed',
                 autoTagIds: formAutoTagIds,
                 dailyLimit: formDailyLimit,
                 hourlyLimit: formHourlyLimit,
@@ -1889,106 +1884,71 @@ export default function PhoneScanPanel() {
                                         />
                                     </div>
 
-                                     {/* Quy tắc phân bổ liên hệ & nhãn CRM (Chỉ hiển thị khi có từ 2 tài khoản Zalo trở lên) */}
+                                     {/* Chọn các tài khoản Zalo tham gia quét số */}
                                      {hasMultipleZaloAccounts && (
                                          <div className="bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl p-3.5 space-y-2 flex-shrink-0">
-                                             <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
-                                                 Quy tắc phân bổ liên hệ CRM *
-                                             </label>
-                                             <div className="flex flex-col gap-2">
-                                                 <label
-                                                     onClick={() => setFormContactAssignmentMode('distributed')}
-                                                     className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                                                         formContactAssignmentMode === 'distributed'
-                                                             ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500/80 ring-1 ring-emerald-500/20'
-                                                             : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                                     }`}
-                                                 >
-                                                     <input
-                                                         type="radio"
-                                                         name="contact_assignment_mode"
-                                                         checked={formContactAssignmentMode === 'distributed'}
-                                                         onChange={() => setFormContactAssignmentMode('distributed')}
-                                                         className="mt-0.5"
-                                                     />
-                                                     <div>
-                                                         <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                                             <span>🟢 Phân tán theo tài khoản trực tiếp quét</span>
-                                                         </div>
-                                                         <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                                             Tài khoản Zalo nào trực tiếp tìm thấy SĐT thì SĐT và nhãn CRM đó thuộc về tài khoản Zalo đó.
-                                                         </div>
-                                                     </div>
+                                             <div className="flex items-center justify-between">
+                                                 <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
+                                                     Tài khoản Zalo tham gia quét SĐT *
                                                  </label>
+                                                 <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
+                                                     {formAssignedAccount ? 'Đã chọn tài khoản cụ thể' : 'Tất cả tài khoản active'}
+                                                 </span>
+                                             </div>
 
-                                                 <label
-                                                     onClick={() => setFormContactAssignmentMode('single')}
-                                                     className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                                                         formContactAssignmentMode === 'single'
-                                                             ? 'bg-blue-50/50 dark:bg-blue-950/30 border-blue-500/80 ring-1 ring-blue-500/20'
-                                                             : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
+                                             <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-1">
+                                                 {/* Option: Tất cả tài khoản active */}
+                                                 <button
+                                                     type="button"
+                                                     onClick={() => setFormAssignedAccount('')}
+                                                     className={`w-full text-left p-2 rounded-lg border text-xs font-bold transition-all flex items-center justify-between ${
+                                                         !formAssignedAccount
+                                                             ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-500/80 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/20'
+                                                             : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300'
                                                      }`}
                                                  >
-                                                     <input
-                                                         type="radio"
-                                                         name="contact_assignment_mode"
-                                                         checked={formContactAssignmentMode === 'single'}
-                                                         onChange={() => setFormContactAssignmentMode('single')}
-                                                         className="mt-0.5"
-                                                     />
-                                                     <div className="flex-1">
-                                                         <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                                             <span>🔵 Gom toàn bộ về 1 tài khoản chỉ định</span>
-                                                         </div>
-                                                         <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                                             Tất cả SĐT tìm thấy (bởi bất kỳ tài khoản nào) đều lưu profile và gán nhãn CRM về 1 tài khoản Zalo duy nhất.
-                                                         </div>
-                                                         {formContactAssignmentMode === 'single' && (
-                                                             <div className="mt-2">
-                                                                 <select
-                                                                     value={formTargetAccountId}
-                                                                     onChange={e => setFormTargetAccountId(e.target.value)}
-                                                                     className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100"
-                                                                 >
-                                                                     <option value="">-- Chọn tài khoản Zalo nhận toàn bộ --</option>
-                                                                     {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
-                                                                         <option key={acc.zalo_id} value={acc.zalo_id}>
-                                                                             {acc.full_name || acc.zalo_id}
-                                                                         </option>
-                                                                     ))}
-                                                                 </select>
+                                                     <span className="flex items-center gap-2">
+                                                         <span>⚡ Tất cả tài khoản Zalo active</span>
+                                                         <span className="text-[10px] font-normal opacity-80">(Chạy song song tối ưu tốc độ)</span>
+                                                     </span>
+                                                     {!formAssignedAccount && <span className="text-blue-600 dark:text-blue-400 font-extrabold text-sm">✓</span>}
+                                                 </button>
+
+                                                 {/* Individual Account Options */}
+                                                 {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => {
+                                                     const isSelected = formAssignedAccount === acc.zalo_id;
+                                                     return (
+                                                         <button
+                                                             key={acc.zalo_id}
+                                                             type="button"
+                                                             onClick={() => setFormAssignedAccount(acc.zalo_id)}
+                                                             className={`w-full text-left p-2 rounded-lg border text-xs font-medium transition-all flex items-center justify-between ${
+                                                                 isSelected
+                                                                     ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-500/80 text-emerald-800 dark:text-emerald-300 ring-1 ring-emerald-500/20 font-bold'
+                                                                     : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300'
+                                                             }`}
+                                                         >
+                                                             <div className="flex items-center gap-2 overflow-hidden">
+                                                                 {acc.avatar ? (
+                                                                     <img src={acc.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                                                                 ) : (
+                                                                     <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                                                                         {(acc.full_name || acc.zalo_id).charAt(0)}
+                                                                     </div>
+                                                                 )}
+                                                                 <span className="truncate">{acc.full_name || acc.zalo_id}</span>
                                                              </div>
-                                                         )}
-                                                     </div>
-                                                 </label>
+                                                             {isSelected && <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">✓</span>}
+                                                         </button>
+                                                     );
+                                                 })}
+                                             </div>
 
-                                                 <label
-                                                      onClick={() => setFormContactAssignmentMode('all_accounts')}
-                                                      className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                                                          formContactAssignmentMode === 'all_accounts'
-                                                              ? 'bg-purple-50/50 dark:bg-purple-950/30 border-purple-500/80 ring-1 ring-purple-500/20'
-                                                              : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                                      }`}
-                                                  >
-                                                      <input
-                                                          type="radio"
-                                                          name="contact_assignment_mode"
-                                                          checked={formContactAssignmentMode === 'all_accounts'}
-                                                          onChange={() => setFormContactAssignmentMode('all_accounts')}
-                                                          className="mt-0.5"
-                                                      />
-                                                      <div>
-                                                          <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                                              <span>🟣 Đồng bộ có mặt ở TẤT CẢ các tài khoản Zalo</span>
-                                                          </div>
-                                                          <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                                              Tự động tạo profile liên hệ và gán nhãn CRM cho toàn bộ danh sách tài khoản Zalo active trong ứng dụng.
-                                                          </div>
-                                                      </div>
-                                                  </label>
-                                              </div>
-                                          </div>
-                                      )}
+                                             <div className="text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-750">
+                                                 🟢 <b>Quy tắc phân tán:</b> SĐT tìm thấy bởi tài khoản nào sẽ lưu profile và nhãn CRM trực tiếp vào tài khoản đó, giúp 100% UID chính chủ để chạy chiến dịch độc lập.
+                                             </div>
+                                         </div>
+                                     )}
 
                                      {/* Initial Status Selection */}
                                      <div>
