@@ -13,6 +13,9 @@ import { setCustomSalutationMap, resetSalutationMapToDefault, getEffectiveSaluta
 const CUSTOM_EMPLOYEE_CHANNELS = new Set(['crm:saveNote', 'crm:saveCampaign', 'crm:cloneCampaign']);
 
 function ipcHandle(channel: string, handler: any) {
+    try {
+        ipcMain.removeHandler(channel);
+    } catch (_) {}
     ipcMain.handle(channel, async (event: any, ...args: any[]) => {
         if (isEmployeeMode() && !CUSTOM_EMPLOYEE_CHANNELS.has(channel)) {
             return await proxyToBossAsync(channel, args[0]);
