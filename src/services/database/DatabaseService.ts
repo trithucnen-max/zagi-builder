@@ -4093,17 +4093,113 @@ class DatabaseService {
         const display = this.formatLastMessageContent(content, msgType);
         const unreadIncrement = incrementUnread ? 1 : 0;
 
+        // Smart name & avatar resolution from crm_contacts / phone_scan_items / existing contacts
+        let resolvedName = contactId;
+        let resolvedAvatar = '';
+
+        const existing = this.queryOne<{ display_name: string; avatar_url: string }>(
+            'SELECT display_name, avatar_url FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?',
+            [ownerZaloId, contactId]
+        );
+
+        if (existing) {
+            resolvedName = (existing.display_name && existing.display_name !== contactId) ? existing.display_name : contactId;
+            resolvedAvatar = existing.avatar_url || '';
+        }
+
+        if (resolvedName === contactId || !resolvedAvatar) {
+            const crmMatch = this.queryOne<{ display_name: string; real_name: string; zalo_name: string; avatar_url: string }>(
+                `SELECT display_name, real_name, zalo_name, avatar_url FROM crm_contacts 
+                 WHERE (zalo_id = ? OR phone = ?) AND (display_name IS NOT NULL OR real_name IS NOT NULL OR zalo_name IS NOT NULL) LIMIT 1`,
+                [contactId, contactId]
+            );
+            if (crmMatch) {
+                if (resolvedName === contactId) {
+                    resolvedName = crmMatch.display_name || crmMatch.real_name || crmMatch.zalo_name || contactId;
+                }
+                if (!resolvedAvatar) {
+                    resolvedAvatar = crmMatch.avatar_url || '';
+                }
+            }
+        }
+
+        if (resolvedName === contactId || !resolvedAvatar) {
+            const scanMatch = this.queryOne<{ zalo_name: string; zalo_avatar: string }>(
+                `SELECT zalo_name, zalo_avatar FROM phone_scan_items WHERE zalo_uid = ? AND status = 'found' LIMIT 1`,
+                [contactId]
+            );
+            if (scanMatch) {
+                if (resolvedName === contactId) resolvedName = scanMatch.zalo_name || contactId;
+                if (!resolvedAvatar) resolvedAvatar = scanMatch.zalo_avatar || '';
+            }
+        }
+
         // Chỉ update last_message nếu tin nhắn mới hơn (hoặc chưa có contact)
         // Tránh old messages ghi đè last_message/last_message_time của hội thoại
         this.run(
             `INSERT INTO contacts (owner_zalo_id, contact_id, display_name, avatar_url, is_friend, contact_type, unread_count, last_message, last_message_time)
              VALUES (?,?,?,?,0,?,?,?,?)
              ON CONFLICT(owner_zalo_id, contact_id) DO UPDATE SET
+               display_name = CASE WHEN (contacts.display_name IS NULL OR contacts.display_name = '' OR contacts.display_name = contacts.contact_id) AND excluded.display_name != excluded.contact_id THEN excluded.display_name ELSE contacts.display_name END,
+               avatar_url = CASE WHEN (contacts.avatar_url IS NULL OR contacts.avatar_url = '') AND excluded.avatar_url != '' THEN excluded.avatar_url ELSE contacts.avatar_url END,
                last_message = CASE WHEN excluded.last_message_time >= COALESCE(contacts.last_message_time, 0) THEN excluded.last_message ELSE contacts.last_message END,
                last_message_time = CASE WHEN excluded.last_message_time >= COALESCE(contacts.last_message_time, 0) THEN excluded.last_message_time ELSE contacts.last_message_time END,
-               unread_count=contacts.unread_count + ?`,
-            [ownerZaloId, contactId, contactId, '', threadType === 1 ? 'group' : 'user', unreadIncrement, display, timestamp, unreadIncrement]
+               unread_count = contacts.unread_count + ?`,
+            [ownerZaloId, contactId, resolvedName, resolvedAvatar, threadType === 1 ? 'group' : 'user', unreadIncrement, display, timestamp, unreadIncrement]
         );
+    }
+
+    /**
+     * Tự động quét và khôi phục tên/avatar thật từ CRM & PhoneScan cho các liên hệ trong contacts
+     * bị hiển thị dạng UID số (ví dụ 9035429026671422707).
+     */
+    public healContactProfilesFromCrm(): void {
+        if (!this.initialized) return;
+        try {
+            // 1. Phục hồi từ crm_contacts
+            this.run(`
+                UPDATE contacts
+                SET display_name = (
+                    SELECT COALESCE(NULLIF(crm.display_name, ''), NULLIF(crm.real_name, ''), NULLIF(crm.zalo_name, ''), contacts.contact_id)
+                    FROM crm_contacts crm
+                    WHERE (crm.zalo_id = contacts.contact_id OR crm.phone = contacts.contact_id)
+                      AND (crm.display_name IS NOT NULL OR crm.real_name IS NOT NULL OR crm.zalo_name IS NOT NULL)
+                    LIMIT 1
+                ),
+                avatar_url = COALESCE(
+                    NULLIF(contacts.avatar_url, ''),
+                    (SELECT crm.avatar_url FROM crm_contacts crm WHERE (crm.zalo_id = contacts.contact_id OR crm.phone = contacts.contact_id) AND crm.avatar_url IS NOT NULL AND crm.avatar_url != '' LIMIT 1)
+                )
+                WHERE (contacts.display_name = contacts.contact_id OR contacts.display_name IS NULL OR contacts.display_name = '' OR contacts.avatar_url IS NULL OR contacts.avatar_url = '')
+                  AND contacts.contact_type = 'user'
+                  AND EXISTS (
+                      SELECT 1 FROM crm_contacts crm WHERE (crm.zalo_id = contacts.contact_id OR crm.phone = contacts.contact_id)
+                  )
+            `);
+
+            // 2. Phục hồi từ phone_scan_items
+            this.run(`
+                UPDATE contacts
+                SET display_name = CASE 
+                    WHEN (contacts.display_name = contacts.contact_id OR contacts.display_name IS NULL OR contacts.display_name = '') 
+                    THEN (SELECT psi.zalo_name FROM phone_scan_items psi WHERE psi.zalo_uid = contacts.contact_id AND psi.zalo_name IS NOT NULL AND psi.zalo_name != '' LIMIT 1)
+                    ELSE contacts.display_name
+                END,
+                avatar_url = CASE 
+                    WHEN (contacts.avatar_url IS NULL OR contacts.avatar_url = '') 
+                    THEN (SELECT psi.zalo_avatar FROM phone_scan_items psi WHERE psi.zalo_uid = contacts.contact_id AND psi.zalo_avatar IS NOT NULL AND psi.zalo_avatar != '' LIMIT 1)
+                    ELSE contacts.avatar_url
+                END
+                WHERE (contacts.display_name = contacts.contact_id OR contacts.display_name IS NULL OR contacts.display_name = '' OR contacts.avatar_url IS NULL OR contacts.avatar_url = '')
+                  AND contacts.contact_type = 'user'
+                  AND EXISTS (
+                      SELECT 1 FROM phone_scan_items psi WHERE psi.zalo_uid = contacts.contact_id AND psi.status = 'found'
+                  )
+            `);
+            Logger.log('[DatabaseService] ✅ healContactProfilesFromCrm completed successfully.');
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] healContactProfilesFromCrm error: ${err.message}`);
+        }
     }
 
     /**

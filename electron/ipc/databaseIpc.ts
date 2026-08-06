@@ -86,8 +86,22 @@ export function registerDatabaseIpc() {
     ipcMain.handle('db:getContacts', async (_event, { zaloId }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getContacts', { zaloId });
-            const contacts = DatabaseService.getInstance().getContacts(zaloId);
+            const db = DatabaseService.getInstance();
+            db.healContactProfilesFromCrm();
+            const contacts = db.getContacts(zaloId);
             return { success: true, contacts };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('db:getContactsWithFlags', async (_event, { zaloId }: { zaloId: string }) => {
+        try {
+            if (isEmployeeMode()) return await proxyToBossAsync('db:getContactsWithFlags', { zaloId });
+            const db = DatabaseService.getInstance();
+            db.healContactProfilesFromCrm();
+            const rows = db.getContactsWithFlags(zaloId);
+            return { success: true, rows };
         } catch (error: any) {
             return { success: false, error: error.message };
         }
@@ -1122,7 +1136,9 @@ export function registerDatabaseIpc() {
     ipcMain.handle('db:getContactsWithFlags', async (_event, { zaloId }: { zaloId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getContactsWithFlags', { zaloId });
-            const rows = DatabaseService.getInstance().getContactsWithFlags(zaloId);
+            const db = DatabaseService.getInstance();
+            db.healContactProfilesFromCrm();
+            const rows = db.getContactsWithFlags(zaloId);
             return { success: true, rows };
         } catch (error: any) {
             return { success: false, error: error.message };

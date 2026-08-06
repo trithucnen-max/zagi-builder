@@ -1079,6 +1079,26 @@ class CRMQueueService {
             )?.status;
 
             if (currentStatus === 'sent') {
+                if (!isGroup && effectiveContactId) {
+                    try {
+                        const itemAvatar = (item as any).avatar_url || (item as any).zalo_avatar || '';
+                        db.updateContactProfile(
+                            zaloId,
+                            effectiveContactId,
+                            effectiveDisplayName || smartName || effectiveContactId,
+                            itemAvatar,
+                            contactPhone,
+                            'user',
+                            null,
+                            null,
+                            realName || null
+                        );
+                        db.healContactProfilesFromCrm();
+                    } catch (profErr: any) {
+                        Logger.warn(`[CRMQueue] Profile sync error for ${effectiveContactId}: ${profErr.message}`);
+                    }
+                }
+
                 let mixedConfig: any = {};
                 try {
                     mixedConfig = JSON.parse((campaignData as any).mixed_config || '{}');
