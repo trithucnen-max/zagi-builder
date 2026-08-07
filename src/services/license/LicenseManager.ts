@@ -538,14 +538,35 @@ export class LicenseManager {
       const filePath = this.getLicenseFile();
       if (!fs.existsSync(filePath)) return null;
       const buffer = fs.readFileSync(filePath);
-      let jsonStr: string;
+      let jsonStr: string = '';
       if (safeStorage.isEncryptionAvailable()) {
-        jsonStr = safeStorage.decryptString(buffer);
+        try {
+          jsonStr = safeStorage.decryptString(buffer);
+        } catch (decryptErr: any) {
+          Logger.warn(`[LicenseManager] safeStorage decryption failed: ${decryptErr?.message} — falling back to UTF-8 plain text string`);
+          jsonStr = buffer.toString('utf-8');
+        }
       } else {
-        jsonStr = buffer.toString();
+        jsonStr = buffer.toString('utf-8');
       }
-      return JSON.parse(jsonStr) as LicenseInfo;
-    } catch (err) {
+
+      let parsed: LicenseInfo | null = null;
+      try {
+        parsed = JSON.parse(jsonStr) as LicenseInfo;
+      } catch (jsonErr: any) {
+        Logger.error('[LicenseManager] Failed to parse license JSON content:', jsonErr?.message);
+        return null;
+      }
+
+      if (parsed && (parsed.licenseKey || parsed.email)) {
+        try {
+          this.saveLicense(parsed);
+        } catch {}
+      }
+
+      return parsed;
+    } catch (err: any) {
+      Logger.error('[LicenseManager] loadLicense error:', err?.message);
       return null;
     }
   }

@@ -942,6 +942,41 @@ app.whenReady().then(async () => {
     }
   }
 
+  // ── Init Telemetry & Auto-migrate Legacy App Data ──────────────────────────
+  try { TelemetryService.init(app.getPath('userData')); } catch (e) {}
+
+  try {
+    const parentDir = path.dirname(app.getPath('userData'));
+    const legacyCandidates = ['deplao', 'Zagi', 'zagi', 'zagi-app', 'Zagi-Desktop'];
+    const filesToMigrate = ['license.dat', 'zagi-tool.db', 'zagi-config.json', 'workspaces.json', 'machine_id.txt'];
+
+    for (const folderName of legacyCandidates) {
+      const sourceDir = path.join(parentDir, folderName);
+      if (sourceDir.toLowerCase() === app.getPath('userData').toLowerCase() || !fs.existsSync(sourceDir)) {
+        continue;
+      }
+
+      for (const fileName of filesToMigrate) {
+        const sourceFile = path.join(sourceDir, fileName);
+        const targetFile = path.join(app.getPath('userData'), fileName);
+
+        if (fs.existsSync(sourceFile) && !fs.existsSync(targetFile)) {
+          try {
+            if (!fs.existsSync(app.getPath('userData'))) {
+              fs.mkdirSync(app.getPath('userData'), { recursive: true });
+            }
+            fs.copyFileSync(sourceFile, targetFile);
+            console.log(`[Main] Auto-migrated legacy file ${fileName} from ${sourceDir} to ${app.getPath('userData')}`);
+          } catch (copyErr: any) {
+            console.error(`[Main] Failed to copy legacy file ${fileName}:`, copyErr?.message);
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error('[Main] Legacy data migration error:', err?.message);
+  }
+
   // ── Load License Config & Check License ────────────────────────────────────
   loadLicenseConfig();
 
