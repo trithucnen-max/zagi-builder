@@ -1884,150 +1884,120 @@ export default function PhoneScanPanel() {
                                         />
                                     </div>
 
-                                     {/* Chọn các tài khoản Zalo tham gia quét số */}
-                                     {hasMultipleZaloAccounts && (
-                                         <div className="bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl p-3.5 space-y-3 flex-shrink-0">
-                                             <div className="flex items-center justify-between">
-                                                 <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
-                                                     Tài khoản Zalo tham gia quét SĐT *
-                                                 </label>
-                                                 <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">
-                                                     {!formAssignedAccount 
-                                                         ? `⚡ Tất cả (${visibleAccounts.filter(a => !a.channel || a.channel === 'zalo').length} TK)`
-                                                         : formAssignedAccount.includes(',')
-                                                             ? `👥 Đã chọn ${formAssignedAccount.split(',').filter(Boolean).length} TK`
-                                                             : '👤 1 TK duy nhất'}
-                                                 </span>
-                                             </div>
+                                     {/* Danh sách Multi-select Checkbox chọn tài khoản Zalo tham gia quét số */}
+                                     {hasMultipleZaloAccounts && (() => {
+                                         const zaloAccounts = visibleAccounts.filter(a => !a.channel || a.channel === 'zalo');
+                                         const selectedList = !formAssignedAccount 
+                                             ? zaloAccounts.map(a => a.zalo_id)
+                                             : formAssignedAccount.split(',').filter(Boolean);
+                                         const allSelected = selectedList.length === zaloAccounts.length;
 
-                                             {/* 3 Chế độ lựa chọn */}
-                                             <div className="grid grid-cols-3 gap-1.5 p-1 bg-gray-100 dark:bg-gray-750 rounded-xl text-xs font-semibold">
-                                                 <button
-                                                     type="button"
-                                                     onClick={() => setFormAssignedAccount('')}
-                                                     className={`py-1.5 px-2 rounded-lg text-center transition-all ${
-                                                         !formAssignedAccount
-                                                             ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
-                                                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
-                                                     }`}
-                                                 >
-                                                     ⚡ Tất cả TK
-                                                 </button>
-                                                 <button
-                                                     type="button"
-                                                     onClick={() => {
-                                                         const zaloAccounts = visibleAccounts.filter(a => !a.channel || a.channel === 'zalo');
-                                                         if (!formAssignedAccount || formAssignedAccount.includes(',')) {
-                                                             setFormAssignedAccount(zaloAccounts[0]?.zalo_id || '');
-                                                         }
-                                                     }}
-                                                     className={`py-1.5 px-2 rounded-lg text-center transition-all ${
-                                                         formAssignedAccount && !formAssignedAccount.includes(',')
-                                                             ? 'bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-2xs font-bold'
-                                                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
-                                                     }`}
-                                                 >
-                                                     👤 1 Tài khoản
-                                                 </button>
-                                                 <button
-                                                     type="button"
-                                                     onClick={() => {
-                                                         const zaloAccounts = visibleAccounts.filter(a => !a.channel || a.channel === 'zalo');
-                                                         const firstTwo = zaloAccounts.slice(0, 2).map(a => a.zalo_id).join(',');
-                                                         setFormAssignedAccount(firstTwo);
-                                                     }}
-                                                     className={`py-1.5 px-2 rounded-lg text-center transition-all ${
-                                                         formAssignedAccount && formAssignedAccount.includes(',')
-                                                             ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-2xs font-bold'
-                                                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
-                                                     }`}
-                                                 >
-                                                     👥 Chọn nhiều TK
-                                                 </button>
-                                             </div>
-
-                                             {/* Mode 1: Tất cả tài khoản */}
-                                             {!formAssignedAccount && (
-                                                 <div className="p-2.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-xs text-blue-800 dark:text-blue-300 flex items-center justify-between">
+                                         return (
+                                             <div className="bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl p-3.5 space-y-2.5 flex-shrink-0">
+                                                 <div className="flex items-center justify-between">
+                                                     <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
+                                                         Tài khoản Zalo quét SĐT (Mặc định chọn tất cả)
+                                                     </label>
                                                      <div className="flex items-center gap-2">
-                                                         <span className="text-base">🚀</span>
-                                                         <span>Quét song song luân phiên qua tất cả {visibleAccounts.filter(a => !a.channel || a.channel === 'zalo').length} tài khoản Zalo đang hoạt động.</span>
+                                                         <button
+                                                             type="button"
+                                                             onClick={() => setFormAssignedAccount('')}
+                                                             className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                                                         >
+                                                             Chọn tất cả
+                                                         </button>
+                                                         <span className="text-gray-300 dark:text-gray-600">|</span>
+                                                         <button
+                                                             type="button"
+                                                             onClick={() => {
+                                                                 // Để lại ít nhất 1 tài khoản đầu tiên
+                                                                 setFormAssignedAccount(zaloAccounts[0]?.zalo_id || '');
+                                                             }}
+                                                             className="text-[10px] text-gray-500 dark:text-gray-400 hover:underline font-semibold"
+                                                         >
+                                                             Chỉ chọn 1 TK
+                                                         </button>
                                                      </div>
                                                  </div>
-                                             )}
 
-                                             {/* Mode 2: 1 Tài khoản duy nhất (Dropdown Selector) */}
-                                             {formAssignedAccount && !formAssignedAccount.includes(',') && (
-                                                 <div className="space-y-1.5">
-                                                     <select
-                                                         value={formAssignedAccount}
-                                                         onChange={(e) => setFormAssignedAccount(e.target.value)}
-                                                         className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer"
-                                                     >
-                                                         {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => (
-                                                             <option key={acc.zalo_id} value={acc.zalo_id}>
-                                                                 👤 {acc.full_name || acc.zalo_id} {acc.phone ? `(${acc.phone})` : ''}
-                                                             </option>
-                                                         ))}
-                                                     </select>
-                                                     <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                                                         ✓ Lô này sẽ chỉ sử dụng duy nhất tài khoản đã chọn để quét.
-                                                     </div>
-                                                 </div>
-                                             )}
-
-                                             {/* Mode 3: Nhiều tài khoản tùy chọn (Checkboxes) */}
-                                             {formAssignedAccount && formAssignedAccount.includes(',') && (
-                                                 <div className="space-y-1.5">
-                                                     <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
-                                                         {visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').map(acc => {
-                                                             const currentSelected = formAssignedAccount.split(',').filter(Boolean);
-                                                             const isChecked = currentSelected.includes(acc.zalo_id);
-                                                             return (
-                                                                 <button
-                                                                     key={acc.zalo_id}
-                                                                     type="button"
-                                                                     onClick={() => {
-                                                                         let updated: string[];
-                                                                         if (isChecked) {
-                                                                             updated = currentSelected.filter(id => id !== acc.zalo_id);
-                                                                             if (updated.length === 0) updated = [acc.zalo_id];
-                                                                         } else {
-                                                                             updated = [...currentSelected, acc.zalo_id];
+                                                 {/* Multi-select Checkbox List */}
+                                                 <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-1">
+                                                     {zaloAccounts.map(acc => {
+                                                         const isChecked = selectedList.includes(acc.zalo_id);
+                                                         return (
+                                                             <button
+                                                                 key={acc.zalo_id}
+                                                                 type="button"
+                                                                 onClick={() => {
+                                                                     let updated: string[];
+                                                                     if (isChecked) {
+                                                                         // Bỏ chọn tài khoản này
+                                                                         updated = selectedList.filter(id => id !== acc.zalo_id);
+                                                                         if (updated.length === 0) {
+                                                                             // Giữ ít nhất 1 tài khoản
+                                                                             updated = [acc.zalo_id];
                                                                          }
+                                                                     } else {
+                                                                         // Thêm tài khoản này vào danh sách quét
+                                                                         updated = [...selectedList, acc.zalo_id];
+                                                                     }
+                                                                     if (updated.length === zaloAccounts.length) {
+                                                                         setFormAssignedAccount(''); // Tất cả tài khoản
+                                                                     } else {
                                                                          setFormAssignedAccount(updated.join(','));
-                                                                     }}
-                                                                     className={`w-full text-left p-2 rounded-lg border text-xs font-medium transition-all flex items-center justify-between ${
-                                                                         isChecked
-                                                                             ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-500/80 text-indigo-900 dark:text-indigo-200 ring-1 ring-indigo-500/20 font-bold'
-                                                                             : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300'
-                                                                     }`}
-                                                                 >
-                                                                     <div className="flex items-center gap-2 overflow-hidden">
-                                                                         {acc.avatar ? (
-                                                                             <img src={acc.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
-                                                                         ) : (
-                                                                             <div className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
-                                                                                 {(acc.full_name || acc.zalo_id).charAt(0)}
-                                                                             </div>
-                                                                         )}
-                                                                         <span className="truncate">{acc.full_name || acc.zalo_id}</span>
+                                                                     }
+                                                                 }}
+                                                                 className={`w-full text-left p-2 rounded-xl border text-xs transition-all flex items-center justify-between ${
+                                                                     isChecked
+                                                                         ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-400/80 dark:border-blue-700/80 text-blue-950 dark:text-blue-200 font-semibold ring-1 ring-blue-500/20'
+                                                                         : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-500 dark:text-gray-400 opacity-70'
+                                                                 }`}
+                                                             >
+                                                                 <div className="flex items-center gap-2.5 overflow-hidden">
+                                                                     {/* Custom Checkbox */}
+                                                                     <div className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] font-extrabold border transition-all flex-shrink-0 ${
+                                                                         isChecked 
+                                                                             ? 'bg-blue-600 border-blue-600 text-white' 
+                                                                             : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-transparent'
+                                                                     }`}>
+                                                                         ✓
                                                                      </div>
-                                                                     <span className={`text-xs font-extrabold ${isChecked ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>
-                                                                         {isChecked ? '☑' : '☐'}
-                                                                     </span>
-                                                                 </button>
-                                                             );
-                                                         })}
-                                                     </div>
+                                                                     {acc.avatar ? (
+                                                                         <img src={acc.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                                                                     ) : (
+                                                                         <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                                                                             {(acc.full_name || acc.zalo_id).charAt(0)}
+                                                                         </div>
+                                                                     )}
+                                                                     <div className="flex items-center gap-1.5 truncate">
+                                                                         <span className="truncate">{acc.full_name || acc.zalo_id}</span>
+                                                                         {acc.phone && <span className="text-[10px] text-gray-400 font-normal">({acc.phone})</span>}
+                                                                     </div>
+                                                                 </div>
+                                                                 <span className="text-[10px] font-medium opacity-80">
+                                                                     {isChecked ? 'Đang chọn quét' : 'Đã bỏ qua'}
+                                                                 </span>
+                                                             </button>
+                                                         );
+                                                     })}
                                                  </div>
-                                             )}
 
-                                             <div className="text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-750">
-                                                 🟢 <b>Quy tắc phân tán:</b> SĐT tìm thấy bởi tài khoản nào sẽ lưu profile và nhãn CRM trực tiếp vào tài khoản đó, giúp 100% UID chính chủ để chạy chiến dịch độc lập.
+                                                 {/* Summary Footer */}
+                                                 <div className="text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-750 flex items-center justify-between">
+                                                     <span>
+                                                         {allSelected 
+                                                             ? `⚡ Quét song song qua tất cả ${zaloAccounts.length} tài khoản Zalo active`
+                                                             : selectedList.length === 1
+                                                                 ? `👤 Chỉ quét độc quyền bằng 1 tài khoản đã chọn`
+                                                                 : `👥 Quét luân phiên qua ${selectedList.length} / ${zaloAccounts.length} tài khoản đã chọn`}
+                                                     </span>
+                                                     <span className="font-bold text-blue-600 dark:text-blue-400">
+                                                         {selectedList.length}/{zaloAccounts.length} TK
+                                                     </span>
+                                                 </div>
                                              </div>
-                                         </div>
-                                     )}
+                                         );
+                                     })()}
 
                                      {/* Initial Status Selection */}
                                      <div>
