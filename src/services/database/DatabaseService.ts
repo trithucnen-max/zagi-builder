@@ -6,6 +6,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
 import ContactAISummarizer from '../ai/ContactAISummarizer';
 import EventBroadcaster from '../event/EventBroadcaster';
+import { splitRealName } from '../crm/import/nameSplitter';
 
 // declare global db variables to prevent multiple instances load issues
 declare global {
@@ -3710,16 +3711,22 @@ class DatabaseService {
                     [birthday, ownerZaloId, contactId]
                 );
             }
-            if (realName !== undefined && realName !== null && realName !== '') {
+            const cleanNameSplit = splitRealName(displayName || '');
+            const effectiveRealName = (realName && typeof realName === 'string' && realName.trim()) ? realName.trim() : (cleanNameSplit.realName || null);
+            const effectiveFullNameRaw = (fullNameRaw && typeof fullNameRaw === 'string' && fullNameRaw.trim())
+                ? fullNameRaw.trim()
+                : (displayName && displayName !== normalizedPhone && displayName !== contactId ? displayName.trim() : null);
+
+            if (effectiveRealName) {
                 this.run(
                     `UPDATE contacts SET real_name = CASE WHEN real_name IS NULL OR real_name = '' THEN ? ELSE real_name END WHERE owner_zalo_id=? AND contact_id=?`,
-                    [realName, ownerZaloId, contactId]
+                    [effectiveRealName, ownerZaloId, contactId]
                 );
             }
-            if (fullNameRaw !== undefined && fullNameRaw !== null && fullNameRaw !== '') {
+            if (effectiveFullNameRaw) {
                 this.run(
                     `UPDATE contacts SET full_name_raw = CASE WHEN full_name_raw IS NULL OR full_name_raw = '' THEN ? ELSE full_name_raw END WHERE owner_zalo_id=? AND contact_id=?`,
-                    [fullNameRaw, ownerZaloId, contactId]
+                    [effectiveFullNameRaw, ownerZaloId, contactId]
                 );
             }
 
@@ -4247,6 +4254,48 @@ class DatabaseService {
                       SELECT 1 FROM phone_scan_items psi WHERE psi.zalo_uid = contacts.contact_id AND psi.status = 'found'
                   )
             `);
+
+            // 3. Tự động phục hồi full_name_raw từ display_name cho các liên hệ còn trống
+            this.run(`
+                UPDATE contacts
+                SET full_name_raw = display_name
+                WHERE (full_name_raw IS NULL OR full_name_raw = '')
+                  AND display_name IS NOT NULL
+                  AND display_name != ''
+                  AND display_name != contact_id
+                  AND display_name != phone
+                  AND contact_type = 'user'
+            `);
+
+            // 4. Auto-split real_name cho các liên hệ có Họ tên gốc/Tên Zalo nhưng real_name còn trống
+            try {
+                const emptyRealNameRows = this.query<{ owner_zalo_id: string; contact_id: string; full_name_raw: string; display_name: string; phone: string }>(`
+                    SELECT owner_zalo_id, contact_id, full_name_raw, display_name, phone
+                    FROM contacts
+                    WHERE (real_name IS NULL OR real_name = '')
+                      AND contact_type = 'user'
+                      AND (
+                          (full_name_raw IS NOT NULL AND full_name_raw != '')
+                          OR (display_name IS NOT NULL AND display_name != '' AND display_name != contact_id AND display_name != phone)
+                      )
+                `) || [];
+
+                for (const row of emptyRealNameRows) {
+                    const raw = row.full_name_raw || row.display_name;
+                    if (raw) {
+                        const splitRes = splitRealName(raw);
+                        if (splitRes.realName) {
+                            this.run(
+                                `UPDATE contacts SET real_name = ? WHERE owner_zalo_id = ? AND contact_id = ?`,
+                                [splitRes.realName, row.owner_zalo_id, row.contact_id]
+                            );
+                        }
+                    }
+                }
+            } catch (splitErr: any) {
+                Logger.warn(`[DatabaseService] healContactProfilesFromCrm splitRealName error: ${splitErr.message}`);
+            }
+
             Logger.log('[DatabaseService] ✅ healContactProfilesFromCrm completed successfully.');
         } catch (err: any) {
             Logger.warn(`[DatabaseService] healContactProfilesFromCrm error: ${err.message}`);

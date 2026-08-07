@@ -4,6 +4,7 @@ import ZaloService from '../zalo/ZaloService';
 import AppModeManager from '../../utils/AppModeManager';
 import Logger from '../../utils/Logger';
 import EventBroadcaster from '../event/EventBroadcaster';
+import { splitRealName } from './import/nameSplitter';
 
 class PhoneScanService {
     private static instance: PhoneScanService;
@@ -627,8 +628,9 @@ class PhoneScanService {
                     });
 
                     // Update CRM contact
-                    const realNameFromFile = item.real_name || null;
-                    const fullNameRawFromFile = item.full_name_raw || null;
+                    const cleanNameSplit = splitRealName(name || '');
+                    const realNameFromFile = item.real_name || cleanNameSplit.realName || null;
+                    const fullNameRawFromFile = item.full_name_raw || (name && name !== phoneRaw && name !== phoneKey ? name : null);
 
                     for (const accId of targetAccountIds) {
                         db.updateContactProfile(accId, uid, name, avatar, phoneKey, 'user', zaloUser?.gender, null, realNameFromFile, fullNameRawFromFile);
@@ -799,8 +801,9 @@ class PhoneScanService {
 
                 // Fetch real_name & full_name_raw from phone_scan_items if available
                 const itemData = db.queryOne<any>('SELECT real_name, full_name_raw FROM phone_scan_items WHERE id = ?', [itemId]);
-                const realNameFromFile = itemData?.real_name || null;
-                const fullNameRawFromFile = itemData?.full_name_raw || null;
+                const cleanNameSplit = splitRealName(name || '');
+                const realNameFromFile = itemData?.real_name || cleanNameSplit.realName || null;
+                const fullNameRawFromFile = itemData?.full_name_raw || (name && name !== phoneNormalized && name !== phone ? name : null);
 
                 // Create/update CRM contact across target account(s)
                 for (const accId of targetAccountIds) {

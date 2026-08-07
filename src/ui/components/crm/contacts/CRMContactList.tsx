@@ -12,6 +12,7 @@ import GroupAvatar from '@/components/common/GroupAvatar';
 import ipc from '@/lib/ipc';
 import { useEmployeeStore } from '@/store/employeeStore';
 import useIsMobile from '@/hooks/useIsMobile';
+import { splitRealName } from '../../../../services/crm/import/nameSplitter';
 
 
 interface CRMContactListProps {
@@ -1134,7 +1135,7 @@ export default function CRMContactList({
     }
   }, [pendingEdits, pendingCount, onPatchContact]);
 
-  /** Commit giá trị mớt cho một ô */
+  /** Commit giá trị mới cho một ô */
   const commitEdit = useCallback((contactId: string, field: string, rawValue: string) => {
     const trimmed = rawValue.trim();
     let value: any = trimmed || null;
@@ -1145,9 +1146,19 @@ export default function CRMContactList({
     } else if (field === 'ai_auto_summary_threshold') {
       value = trimmed ? parseInt(trimmed, 10) : 30;
     }
+
+    // 🌟 Option C: Tự động tách Tên thật khi sửa Họ tên gốc (2-way sync)
+    let extraUpdates: Record<string, any> = {};
+    if (field === 'full_name_raw' && trimmed) {
+      const splitRes = splitRealName(trimmed);
+      if (splitRes.realName) {
+        extraUpdates.real_name = splitRes.realName;
+      }
+    }
+
     setPendingEdits(prev => ({
       ...prev,
-      [contactId]: { ...(prev[contactId] || {}), [field]: value },
+      [contactId]: { ...(prev[contactId] || {}), [field]: value, ...extraUpdates },
     }));
     setEditingCell(null);
   }, []);
