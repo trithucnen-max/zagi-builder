@@ -610,7 +610,9 @@ class CRMQueueService {
             const realName     = (item as any).real_name || (item as any).realName || '';
             const contactAlias = (item as any).alias || '';
             const zaloName     = (item as any).zalo_name || item.display_name || item.contact_id || '';
-            const smartName    = contactAlias || effectiveDisplayName || zaloName;
+            const coreZaloName = this.extractCoreZaloName(zaloName, (item as any).phone || '');
+            // Tên thật thông minh: Ưu tiên Tên thật (Excel / nhập tay) -> Tên Zalo gốc sạch sẽ (Tuyệt đối không lấy chuỗi Tên lô từ alias)
+            const resolvedRealName = realName || coreZaloName || zaloName;
 
             let bDay = '';
             let bMonth = '';
@@ -643,11 +645,11 @@ class CRMQueueService {
 
                 // Bước 2: Thay thế các biến còn lại
                 result = result
-                    .replace(/\{name\}/g,             smartName || item.contact_id)
-                    .replace(/\{zalo_name\}/g,        zaloName)
-                    .replace(/\{real_name\}/g,        realName || smartName || item.contact_id)
-                    .replace(/\{realName\}/g,         realName || smartName || item.contact_id)
-                    .replace(/\{ten_that\}/g,         realName || smartName || item.contact_id)
+                    .replace(/\{name\}/g,             resolvedRealName || item.contact_id)
+                    .replace(/\{zalo_name\}/g,        coreZaloName || zaloName)
+                    .replace(/\{real_name\}/g,        resolvedRealName || item.contact_id)
+                    .replace(/\{realName\}/g,         resolvedRealName || item.contact_id)
+                    .replace(/\{ten_that\}/g,         resolvedRealName || item.contact_id)
                     .replace(/\{userId\}/g,           effectiveContactId)
                     .replace(/\{alias\}/g,            contactAlias)
                     .replace(/\{phone\}/g,            contactPhone)
@@ -1085,7 +1087,7 @@ class CRMQueueService {
                         db.updateContactProfile(
                             zaloId,
                             effectiveContactId,
-                            effectiveDisplayName || smartName || effectiveContactId,
+                            effectiveDisplayName || resolvedRealName || effectiveContactId,
                             itemAvatar,
                             contactPhone,
                             'user',
