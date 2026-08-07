@@ -24,7 +24,7 @@ EventBroadcaster.broadcast('event:message', {
               └─► chatStore.addMessage() → UI re-render
 ```
 
-## Flow 2: Workflow gửi tin Zalo (Nhân viên machine)
+## Flow 2: Workflow gửi tin Zalo & Đính kèm Media (Nhân viên machine)
 
 ```
 WorkflowEngine.executeNode('zalo.sendMessage', cfg, ctx)
@@ -32,14 +32,23 @@ WorkflowEngine.executeNode('zalo.sendMessage', cfg, ctx)
     ▼
 getApi(ctx.pageId, ctx.trigger?.zaloId)
     │
-    ├── [workspace.local] → ConnectionManager.getConnection(zaloId).api
+    ├── [workspace.local (Boss)] → ConnectionManager.getConnection(zaloId).api
     │       └─► ZaloService.sendMessage() → zca-js → Zalo server ✅
     │
-    └── [workspace.remote] → proxy object
+    └── [workspace.remote (Nhân viên)] → proxy object
             │
+            ├── [Nếu có attachments ảnh/tệp]
+            │       │ (Đọc file local → Base64 / Stream)
+            │       ▼
+            │   HttpClientService.uploadMedia(base64, filename, targetZaloId)
+            │       │ POST Boss /api/media/upload (hoặc upload-chunk nếu >2MB)
+            │       ▼
+            │   Boss lưu file vào ổ đĩa và trả về: { success: true, bossPath: "..." }
+            │       │ (Thay thế đường dẫn attachments thành bossPath)
+            │       ▼
             ▼
         HttpConnectionManager.proxyAction(workspaceId, 'zalo:sendMessage', {
-            zaloId, message, threadId, type, typeMessage
+            zaloId, message: { ...msg, attachments: [bossPath] }, threadId, type, typeMessage
         })
             │
             ▼
@@ -49,11 +58,7 @@ getApi(ctx.pageId, ctx.trigger?.zaloId)
         Boss: ipcHandlerRegistry['zalo:sendMessage'](null, params)
             │
             ▼
-        ZaloService.sendMessage() → zca-js → Zalo server ✅
-
-⚠️  BUG (zalo.sendImage): proxy object không truyền attachments
-    → Boss nhận typeMessage='file' nhưng attachments=[undefined]
-    → throw "No attachments provided" → ảnh không gửi được
+        ZaloService.sendMessage() → zca-js → Zalo server (Gửi ảnh & text thành công 100%) ✅
 ```
 
 ## Flow 3: CRM Campaign gửi hàng loạt
