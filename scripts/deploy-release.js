@@ -15,23 +15,31 @@ function question(query) {
   return new Promise((resolve) => rl.question(query, resolve));
 }
 
-function runCmd(cmd) {
+function runCmd(cmd, options = {}) {
   console.log(`$ ${cmd}`);
-  return execSync(cmd, { stdio: 'inherit', cwd: ROOT_DIR });
+  return execSync(cmd, { stdio: 'inherit', cwd: ROOT_DIR, ...options });
+}
+
+/** Lấy tiền tố token cho lệnh `gh` nếu có GH_TOKEN, ngược lại dùng `gh` trực tiếp nếu đã gh auth login */
+function getGhCmd(subCommand, ghToken) {
+  if (ghToken) {
+    return `GH_TOKEN=${ghToken} gh ${subCommand}`;
+  }
+  return `gh ${subCommand}`;
 }
 
 async function main() {
-  console.log('🚀 === ZAGI DEPLOYMENT WIZARD (OPTION A) === 🚀\n');
+  console.log('🚀 === ZAGI DEPLOYMENT WIZARD (OPTIMIZED) === 🚀\n');
 
-  // 1. Get current version
+  // 1. Lấy phiên bản hiện tại từ package.json
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
   const currentVersion = pkg.version;
-  console.log(`Phiên bản hiện tại trong package.json: ${currentVersion}`);
+  console.log(`📌 Phiên bản hiện tại trong package.json: ${currentVersion}`);
 
-  // 2. Ask for Action Mode
+  // 2. Lựa chọn phương thức phát hành
   console.log('\nChọn phương thức triển khai:');
   console.log('  1. Phát hành phiên bản mới (Release New Version - Tự động tạo tag, đẩy lên GitHub kích hoạt CI/CD, build Mac local & upload)');
-  console.log('  2. Ghi đè lên phiên bản hiện tại (Overwrite Current Version - Chỉ build Mac local và ghi đè tệp tin lên Release hiện tại)');
+  console.log('  2. Ghi đè lên phiên bản hiện tại (Overwrite Current Version - Build Mac local và ghi đè tệp tin lên Release hiện tại)');
   
   const modeChoice = await question('Lựa chọn của bạn (1 hoặc 2, mặc định 1): ');
   const isOverwrite = modeChoice.trim() === '2';
@@ -50,7 +58,7 @@ async function main() {
   console.log(`\n🎯 Phiên bản mục tiêu: ${targetVersion} (Tag: ${tag})`);
   console.log(`⚙️ Chế độ: ${isOverwrite ? 'Ghi đè (Overwrite)' : 'Phát hành mới (New Release)'}`);
 
-  // Check git status
+  // Kiểm tra trạng thái git làm việc
   const status = execSync('git status --porcelain', { cwd: ROOT_DIR }).toString().trim();
   if (status && !isOverwrite) {
     console.log('\n⚠️ Cảnh báo: Có thay đổi chưa commit trong git:');
@@ -65,15 +73,13 @@ async function main() {
     runCmd(`git commit -m "${commitMsg.trim()}"`);
   }
 
-  // Use the remote repository URL PAT directly
+  // Tự động kiểm tra Token / Auth của GitHub CLI
   let GH_TOKEN = process.env.GH_TOKEN || '';
   if (!GH_TOKEN) {
     try {
       const remoteUrl = execSync('git remote get-url origin', { cwd: ROOT_DIR }).toString().trim();
-      // Extract the username:token part
       const match = remoteUrl.match(/:([^@]+)@/);
       if (match && match[1]) {
-        // If it's username:token, split by colon
         const parts = match[1].split(':');
         GH_TOKEN = parts.length > 1 ? parts[1] : parts[0];
       }
@@ -82,19 +88,28 @@ async function main() {
   const currentBranch = execSync('git branch --show-current', { cwd: ROOT_DIR }).toString().trim() || 'main';
 
   if (!isOverwrite) {
-    // 3. New Release Flow
+    // 3. Luồng phát hành mới (New Release Flow)
     console.log(`\n⚡ Bước 1: Cập nhật package.json lên phiên bản ${targetVersion}...`);
     pkg.version = targetVersion;
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
 
-    // Update CHANGELOG.md automatically by adding a new header at the top
-    console.log('\n⚡ Bước 1.2: Cập nhật CHANGELOG.md...');
+    // Hỏi release notes động cho CHANGELOG.md
+    console.log('\n⚡ Bước 1.2: Nhập mô tả phiên bản cho CHANGELOG.md...');
+    const userNotes = await question('Nhập mô tả tóm tắt bản mới (Phân cách bằng dấu chấm phẩy ;, hoặc nhấn Enter để dùng mặc định): ');
+    
     const changelogPath = path.join(ROOT_DIR, 'CHANGELOG.md');
     let changelogContent = fs.readFileSync(changelogPath, 'utf8');
     const todayStr = new Date().toISOString().split('T')[0];
-    const newSectionHeader = `## [${tag}] - ${todayStr}\n\n### 🐛 Sửa lỗi & Cải tiến\n\n- Khắc phục dứt điểm lỗi gửi và forward hình ảnh trên máy BOSS.\n- Tự động tải tệp tin ảnh từ URL CDN Zalo về đĩa tạm nếu chưa có trên máy local.\n- Nâng cấp cơ chế tra cứu và remap đường dẫn thư viện (\`library/\`) linh hoạt khi di chuyển dữ liệu.\n- Cập nhật chuẩn hóa liên kết tải xuống mượt mà trên Landing Page và README.\n\n`;
+
+    let noteBullets = '';
+    if (userNotes.trim()) {
+      noteBullets = userNotes.split(';').map(n => `- ${n.trim()}`).filter(n => n.length > 2).join('\n');
+    } else {
+      noteBullets = `- Cập nhật nâng cấp tối ưu hệ thống Zagi Desktop ${tag}.\n- Sửa lỗi nhỏ và cải tiến hiệu năng vận hành đa tài khoản.`;
+    }
+
+    const newSectionHeader = `## [${tag}] - ${todayStr}\n\n### 🐛 Sửa lỗi & Cải tiến\n\n${noteBullets}\n\n`;
     
-    // Insert new section right below the header line and description
     const separatorIdx = changelogContent.indexOf('---');
     if (separatorIdx !== -1) {
       changelogContent = changelogContent.substring(0, separatorIdx + 3) + '\n\n' + newSectionHeader + changelogContent.substring(separatorIdx + 3);
@@ -102,10 +117,14 @@ async function main() {
       console.log('  -> Đã cập nhật nhật ký phiên bản mới vào CHANGELOG.md.');
     }
 
-    console.log('\n⚡ Bước 2: Commit và gắn tag git...');
-    runCmd(`git commit -am "chore: bump version to ${targetVersion} and update CHANGELOG.md"`);
+    // TỐI ƯU CỐT LÕI: Cập nhật liên kết Landing Page & README TRƯỚC KHI COMMIT & TAG!
+    console.log(`\n⚡ Bước 1.3: Đồng bộ liên kết tải về (${tag}) trên Landing Page & README...`);
+    updateLandingPageDownloadLinks(targetVersion, currentBranch, false);
+
+    console.log('\n⚡ Bước 2: Commit toàn bộ thay đổi và gắn tag git...');
+    runCmd('git add .');
+    runCmd(`git commit -m "chore: release ${tag} & update release download links"`);
     
-    // Check if tag already exists locally and delete it to avoid conflict
     try {
       execSync(`git tag -d ${tag}`, { stdio: 'ignore', cwd: ROOT_DIR });
     } catch {}
@@ -115,7 +134,6 @@ async function main() {
     console.log(`\n⚡ Bước 3: Push code và tag lên GitHub (Kích hoạt CI/CD Windows + Linux trên branch ${currentBranch})...`);
     runCmd(`git push origin ${currentBranch}`);
     
-    // Check if tag already exists on remote and delete it to allow overwrite
     try {
       execSync(`git push origin :refs/tags/${tag}`, { stdio: 'ignore', cwd: ROOT_DIR });
     } catch {}
@@ -123,23 +141,23 @@ async function main() {
     runCmd(`git push origin ${tag}`);
     console.log('✅ Đã push tag lên GitHub. CI/CD Windows + Linux đang chạy trên GitHub Actions!');
   } else {
-    // Overwrite mode: Trigger GitHub Actions manually to build Windows & Linux
+    // Overwrite mode: Trigger GitHub Actions thủ công
     console.log(`\n⚡ Bước 3: Kích hoạt lại GitHub Actions CI/CD để build lại Windows và Linux cho ${tag}...`);
     try {
-      execSync(`GH_TOKEN=${GH_TOKEN} gh workflow run build-all.yml --ref ${currentBranch} -f tag_name=${tag} -f publish=true`, { stdio: 'inherit', cwd: ROOT_DIR });
+      runCmd(getGhCmd(`workflow run build-all.yml --ref ${currentBranch} -f tag_name=${tag} -f publish=true`, GH_TOKEN));
       console.log('✅ Đã kích hoạt GitHub Actions build Windows và Linux thành công!');
     } catch (err) {
       console.error('❌ Lỗi khi kích hoạt GitHub Actions workflow:', err.message);
     }
   }
 
-  // 4. Build macOS locally
+  // 4. Build macOS cục bộ
   console.log(`\n⚡ Bước 4: Khởi chạy build & sign bản macOS cục bộ...`);
   console.log('Quy trình này sẽ gọi build-mac.sh để biên dịch và ký số bản Mac Intel & M1+');
   runCmd('chmod +x build-mac.sh');
   runCmd('./build-mac.sh');
 
-  // Verify built macOS files exist
+  // Kiểm tra file DMG sau khi build
   const distDir = path.join(ROOT_DIR, 'dist-electron-build');
   const macArmDotFile = `Zagi.v${targetVersion}.MacOS.M1+.arm64.dmg`;
   const macIntelDotFile = `Zagi.v${targetVersion}.MacOS.Intel.dmg`;
@@ -157,14 +175,13 @@ async function main() {
   console.log(`  - ${macArmDotFile}`);
   console.log(`  - ${macIntelDotFile}`);
 
-  // 5. Upload macOS binaries to GitHub Release
+  // 5. Upload macOS binaries lên GitHub Release
   console.log(`\n⚡ Bước 5: Tải bản macOS lên GitHub Release...`);
 
-  // Kiểm tra xem Release tag đã tồn tại trên GitHub chưa, nếu chưa có thì tự động tạo mới
   console.log(`Đang kiểm tra GitHub Release ${tag}...`);
   let releaseExists = false;
   try {
-    execSync(`GH_TOKEN=${GH_TOKEN} gh release view ${tag}`, { stdio: 'pipe', cwd: ROOT_DIR });
+    execSync(getGhCmd(`release view ${tag}`, GH_TOKEN), { stdio: 'pipe', cwd: ROOT_DIR });
     releaseExists = true;
     console.log(` ✅ Đã xác nhận Release ${tag} tồn tại trên GitHub.`);
   } catch {
@@ -174,27 +191,26 @@ async function main() {
   if (!releaseExists) {
     console.log(` 📝 Đang tạo GitHub Release mới: ${tag}...`);
     try {
-      execSync(`GH_TOKEN=${GH_TOKEN} gh release create ${tag} --latest --title "🎉 Zagi ${tag}" --notes "Bản phát hành v${targetVersion} nâng cấp CRM, Workflow, Quét SĐT & Đa tài khoản."`, { stdio: 'inherit', cwd: ROOT_DIR });
+      runCmd(getGhCmd(`release create ${tag} --latest --title "🎉 Zagi ${tag}" --notes "Bản phát hành v${targetVersion} nâng cấp CRM, Workflow, Quét SĐT & Đa tài khoản."`, GH_TOKEN));
       console.log(` ✅ Đã tạo thành công GitHub Release ${tag}!`);
     } catch (createErr) {
       console.error(` ❌ Lỗi khi tạo GitHub Release ${tag}:`, createErr.message);
     }
   } else {
-    // Đảm bảo Release luôn luôn nhận được nhãn Latest (Mới nhất)
     try {
-      execSync(`GH_TOKEN=${GH_TOKEN} gh release edit ${tag} --latest`, { stdio: 'pipe', cwd: ROOT_DIR });
+      execSync(getGhCmd(`release edit ${tag} --latest`, GH_TOKEN), { stdio: 'pipe', cwd: ROOT_DIR });
       console.log(` 🌟 Đã cập nhật ${tag} thành phiên bản MỚI NHẤT (Latest Release) trên GitHub!`);
     } catch {}
   }
 
-  // Dọn dẹp các asset cũ có khoảng trắng bị trùng lặp trên GitHub Release (nếu có)
+  // Dọn dẹp các asset cũ có khoảng trắng
   const legacySpaceFiles = [
     `Zagi v${targetVersion} MacOS M1+ arm64.dmg`,
     `Zagi v${targetVersion} MacOS Intel.dmg`
   ];
   for (const legacyName of legacySpaceFiles) {
     try {
-      execSync(`GH_TOKEN=${GH_TOKEN} gh release delete-asset ${tag} "${legacyName}" -y`, { stdio: 'pipe', cwd: ROOT_DIR });
+      execSync(getGhCmd(`release delete-asset ${tag} "${legacyName}" -y`, GH_TOKEN), { stdio: 'pipe', cwd: ROOT_DIR });
       console.log(` 🧹 Đã dọn dẹp asset trùng lặp cũ: ${legacyName}`);
     } catch {}
   }
@@ -206,25 +222,25 @@ async function main() {
     const fileName = path.basename(filePath);
     console.log(` ⬆️ Đang tải lên tệp: ${fileName}...`);
 
-    // Xóa asset trùng tên cũ trên GitHub Release nếu có (tránh lỗi HTTP 404 clobber của GitHub CLI)
     try {
-      execSync(`GH_TOKEN=${GH_TOKEN} gh release delete-asset ${tag} "${fileName}" -y`, { stdio: 'pipe', cwd: ROOT_DIR });
+      execSync(getGhCmd(`release delete-asset ${tag} "${fileName}" -y`, GH_TOKEN), { stdio: 'pipe', cwd: ROOT_DIR });
     } catch {}
 
-    // Tải lên từng file một
     try {
-      execSync(`GH_TOKEN=${GH_TOKEN} gh release upload ${tag} "${filePath}" --clobber`, { stdio: 'inherit', cwd: ROOT_DIR });
+      runCmd(getGhCmd(`release upload ${tag} "${filePath}" --clobber`, GH_TOKEN));
       console.log(`   ✅ Tải thành công: ${fileName}`);
     } catch (err) {
       console.error(`   ❌ Lỗi khi tải lên ${fileName}:`, err.message);
     }
   }
 
-  // 6. Auto-update landing page, docs index, README, and Supabase functions download links
-  console.log(`\n⚡ Bước 6: Tự động cập nhật liên kết tải về (${tag}) lên Landing Page, README & Supabase...`);
-  updateLandingPageDownloadLinks(targetVersion, currentBranch);
+  // 6. Kiểm tra lại việc đồng bộ Landing Page ở chế độ Overwrite nếu có
+  if (isOverwrite) {
+    console.log(`\n⚡ Bước 6: Tự động cập nhật liên kết tải về (${tag}) lên Landing Page, README & Supabase...`);
+    updateLandingPageDownloadLinks(targetVersion, currentBranch, true);
+  }
 
-  // 7. Verify release artifacts & print summary board
+  // 7. Verify release artifacts
   console.log(`\n⚡ Bước 7: Kiểm tra xác thực tự động (Auto-Verification Check)...`);
   verifyReleaseArtifacts(targetVersion);
 
@@ -233,7 +249,7 @@ async function main() {
   rl.close();
 }
 
-function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main') {
+function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main', shouldCommitAndPush = true) {
   const tag = `v${targetVersion}`;
 
   const filesToUpdate = [
@@ -252,22 +268,26 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main') {
     let content = fs.readFileSync(filePath, 'utf8');
     const originalContent = content;
 
-    // Replace download release tags (e.g. /releases/download/v3.0.7/Zagi.v3.0.7.Window.exe)
+    // Thay thế liên kết tải về chính xác (/releases/download/vX.X.X/Zagi.vX.X.X)
     content = content.replace(
       /\/releases\/download\/v\d+\.\d+\.\d+\/Zagi\.v\d+\.\d+\.\d+/g,
       `/releases/download/${tag}/Zagi.${tag}`
     );
 
-    // Replace shield badges tags (e.g. -v3.0.7-)
+    // Thay thế nhãn shield version (-vX.X.X-)
     content = content.replace(
       /-(v3\.\d+\.\d+)-/g,
       `-${tag}-`
     );
 
-    // Replace all text version strings in titles, prompts & modals (e.g. "Tải phần mềm Zagi Desktop v3.0.7", "Zagi v3.0.7")
+    // Thay thế thẻ tiêu đề và modal download ("Tải phần mềm Zagi Desktop v3.X.X", "Zagi v3.X.X")
     content = content.replace(
-      /v3\.\d+\.\d+/g,
-      tag
+      /Zagi Desktop v3\.\d+\.\d+/g,
+      `Zagi Desktop ${tag}`
+    );
+    content = content.replace(
+      /Zagi v3\.\d+\.\d+/g,
+      `Zagi ${tag}`
     );
 
     if (content !== originalContent) {
@@ -278,7 +298,7 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main') {
     }
   }
 
-  if (anyModified) {
+  if (anyModified && shouldCommitAndPush) {
     try {
       console.log('  -> Đang tự động commit & push liên kết Landing Page vừa cập nhật...');
       runCmd('git add -f landing/ docs/ README.md README.en.md supabase/');
@@ -288,7 +308,7 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main') {
     } catch (err) {
       console.log('  ⚠️ Không thể tự động commit landing page:', err.message);
     }
-  } else {
+  } else if (!anyModified) {
     console.log('  ℹ️ Liên kết tải về trên Landing Page đã ở phiên bản mới nhất.');
   }
 }
@@ -317,11 +337,10 @@ function verifyReleaseArtifacts(targetVersion) {
     if (hasTag) {
       console.log(` ✅ [PASS] ${item.name}: Đã xác nhận tất cả liên kết tải về đều thuộc ${tag}`);
     } else {
-      console.log(` ❌ [FAIL] ${item.name}: CẢNH BÁO - Chưa tìm thấy thẻ phiên bản ${tag}`);
+      console.log(` ❌ [FAIL] ${item.name}: CẢNH BẢO - Chưa tìm thấy thẻ phiên bản ${tag}`);
     }
   }
 
-  // Check build DMG files
   const distDir = path.join(ROOT_DIR, 'dist-electron-build');
   const macArmFile = path.join(distDir, `Zagi.${tag}.MacOS.M1+.arm64.dmg`);
   const macIntelFile = path.join(distDir, `Zagi.${tag}.MacOS.Intel.dmg`);
