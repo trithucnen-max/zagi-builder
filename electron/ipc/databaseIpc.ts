@@ -10,6 +10,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import AppModeManager from '../../src/utils/AppModeManager';
 import WorkspaceManager from '../../src/utils/WorkspaceManager';
+import { ipcHandlerRegistry } from './ipcRegistry';
 
 // Copy toàn bộ thư mục src → dest (async, recursive).
 // opts.overwrite=true → ghi đè file đã tồn tại; opts.onFile → progress callback.
@@ -61,7 +62,8 @@ function safeHandle(channel: string, handler: any) {
     try {
         ipcMain.removeHandler(channel);
     } catch (_) {}
-    ipcMain.handle(channel, handler);
+    safeHandle(channel, handler);
+    ipcHandlerRegistry.set(channel, (event: any, params: any) => handler(event, params));
 }
 
 export function registerDatabaseIpc() {
@@ -80,7 +82,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getMessagesAround', async (_event, { zaloId, threadId, timestamp, limit = 50 }) => {
+    safeHandle('db:getMessagesAround', async (_event, { zaloId, threadId, timestamp, limit = 50 }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getMessagesAround', { zaloId, threadId, timestamp, limit });
             const messages = DatabaseService.getInstance().getMessagesAround(zaloId, threadId, timestamp, limit);
@@ -90,7 +92,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getContacts', async (_event, { zaloId }) => {
+    safeHandle('db:getContacts', async (_event, { zaloId }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getContacts', { zaloId });
             const db = DatabaseService.getInstance();
@@ -102,7 +104,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getContactsWithFlags', async (_event, { zaloId }: { zaloId: string }) => {
+    safeHandle('db:getContactsWithFlags', async (_event, { zaloId }: { zaloId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getContactsWithFlags', { zaloId });
             const db = DatabaseService.getInstance();
@@ -114,7 +116,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:searchContactByPhone', async (_event, { zaloId, phone }) => {
+    safeHandle('db:searchContactByPhone', async (_event, { zaloId, phone }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:searchContactByPhone', { zaloId, phone });
             const contact = DatabaseService.getInstance().searchContactByPhone(zaloId, phone);
@@ -124,7 +126,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:searchMessages', async (_event, { zaloId, query }) => {
+    safeHandle('db:searchMessages', async (_event, { zaloId, query }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:searchMessages', { zaloId, query });
             const results = DatabaseService.getInstance().searchMessages(zaloId, query);
@@ -134,7 +136,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getMediaMessages', async (_event, { zaloId, threadId, limit, offset }) => {
+    safeHandle('db:getMediaMessages', async (_event, { zaloId, threadId, limit, offset }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getMediaMessages', { zaloId, threadId, limit, offset });
             const messages = threadId
@@ -146,7 +148,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getFileMessages', async (_event, { zaloId, threadId, limit, offset }) => {
+    safeHandle('db:getFileMessages', async (_event, { zaloId, threadId, limit, offset }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getFileMessages', { zaloId, threadId, limit, offset });
             const messages = DatabaseService.getInstance().getFileMessages(zaloId, threadId, limit ?? 50, offset ?? 0);
@@ -156,7 +158,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getUnreadCount', async (_event, { zaloId }) => {
+    safeHandle('db:getUnreadCount', async (_event, { zaloId }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getUnreadCount', { zaloId });
             const total = DatabaseService.getInstance().getTotalUnread(zaloId);
@@ -166,7 +168,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:markAsRead', async (_event, { zaloId, contactId }) => {
+    safeHandle('db:markAsRead', async (_event, { zaloId, contactId }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:markAsRead', { zaloId, contactId });
             DatabaseService.getInstance().markAsRead(zaloId, contactId);
@@ -177,7 +179,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:markMessageRecalled', async (_event, { zaloId, msgId }) => {
+    safeHandle('db:markMessageRecalled', async (_event, { zaloId, msgId }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:markMessageRecalled', { zaloId, msgId });
             DatabaseService.getInstance().markMessageRecalled(zaloId, msgId);
@@ -187,7 +189,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:deleteMessages', async (_event, { zaloId, msgIds }: { zaloId: string; msgIds: string[] }) => {
+    safeHandle('db:deleteMessages', async (_event, { zaloId, msgIds }: { zaloId: string; msgIds: string[] }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:deleteMessages', { zaloId, msgIds });
             DatabaseService.getInstance().deleteMessages(zaloId, msgIds);
@@ -197,7 +199,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:updateContactProfile', async (_event, { zaloId, contactId, displayName, avatarUrl, phone, contactType, gender, birthday }) => {
+    safeHandle('db:updateContactProfile', async (_event, { zaloId, contactId, displayName, avatarUrl, phone, contactType, gender, birthday }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:updateContactProfile', { zaloId, contactId, displayName, avatarUrl, phone, contactType, gender, birthday });
@@ -215,7 +217,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:updateAccountPhone', async (_event, { zaloId, phone }: { zaloId: string; phone: string }) => {
+    safeHandle('db:updateAccountPhone', async (_event, { zaloId, phone }: { zaloId: string; phone: string }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:updateAccountPhone', { zaloId, phone });
             DatabaseService.getInstance().updateAccountPhone(zaloId, phone);
@@ -225,7 +227,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:updateReaction', async (_event, { zaloId, msgId, userId, icon }) => {
+    safeHandle('db:updateReaction', async (_event, { zaloId, msgId, userId, icon }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:updateReaction', { zaloId, msgId, userId, icon });
             DatabaseService.getInstance().updateMessageReaction(zaloId, String(msgId), userId, icon || '');
@@ -235,7 +237,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:updateLocalPaths', async (_event, { zaloId, msgId, localPaths }) => {
+    safeHandle('db:updateLocalPaths', async (_event, { zaloId, msgId, localPaths }) => {
         try {
             DatabaseService.getInstance().updateLocalPaths(zaloId, String(msgId), localPaths || {});
             return { success: true };
@@ -244,7 +246,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getMessageById', async (_event, { zaloId, msgId }) => {
+    safeHandle('db:getMessageById', async (_event, { zaloId, msgId }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getMessageById', { zaloId, msgId });
             const message = DatabaseService.getInstance().getMessageById(zaloId, String(msgId));
@@ -255,7 +257,7 @@ export function registerDatabaseIpc() {
     });
 
     // ─── Storage path management ──────────────────────────────────────────
-    ipcMain.handle('db:getStoragePath', async () => {
+    safeHandle('db:getStoragePath', async () => {
         try {
             if (isEmployeeMode()) {
                 // Employee mode: trả về thông tin local của Employee (không phải Boss)
@@ -305,7 +307,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:setStoragePath', async (event, { newFolder, useExisting }: { newFolder: string; useExisting?: boolean }) => {
+    safeHandle('db:setStoragePath', async (event, { newFolder, useExisting }: { newFolder: string; useExisting?: boolean }) => {
         try {
             if (!fs.existsSync(newFolder)) {
                 fs.mkdirSync(newFolder, { recursive: true });
@@ -432,7 +434,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:selectStorageFolder', async () => {
+    safeHandle('db:selectStorageFolder', async () => {
         try {
             const result = await dialog.showOpenDialog({
                 properties: ['openDirectory', 'createDirectory'],
@@ -451,7 +453,7 @@ export function registerDatabaseIpc() {
     });
 
     // ─── Friend Cache ─────────────────────────────────────────────────────
-    ipcMain.handle('db:isFriend', async (_event, { zaloId, userId }: { zaloId: string; userId: string }) => {
+    safeHandle('db:isFriend', async (_event, { zaloId, userId }: { zaloId: string; userId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:isFriend', { zaloId, userId });
             const isFriend = DatabaseService.getInstance().checkIsFriend(zaloId, userId);
@@ -461,7 +463,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getFriends', async (_event, { zaloId }: { zaloId: string }) => {
+    safeHandle('db:getFriends', async (_event, { zaloId }: { zaloId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getFriends', { zaloId });
             const friends = DatabaseService.getInstance().getFriends(zaloId);
@@ -472,7 +474,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:saveFriends', async (_event, { zaloId, friends }: { zaloId: string; friends: any[] }) => {
+    safeHandle('db:saveFriends', async (_event, { zaloId, friends }: { zaloId: string; friends: any[] }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:saveFriends', { zaloId, friends });
             DatabaseService.getInstance().saveFriends(zaloId, friends);
@@ -482,7 +484,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:deleteConversation', async (_event, { zaloId, contactId }: { zaloId: string; contactId: string }) => {
+    safeHandle('db:deleteConversation', async (_event, { zaloId, contactId }: { zaloId: string; contactId: string }) => {
         try {
             DatabaseService.getInstance().deleteConversation(zaloId, contactId);
             if (isEmployeeMode()) {
@@ -495,7 +497,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getLinks', async (_event, { zaloId, threadId, limit, offset }: { zaloId: string; threadId: string; limit?: number; offset?: number }) => {
+    safeHandle('db:getLinks', async (_event, { zaloId, threadId, limit, offset }: { zaloId: string; threadId: string; limit?: number; offset?: number }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getLinks', { zaloId, threadId, limit, offset });
             const links = DatabaseService.getInstance().getLinks(zaloId, threadId, limit ?? 50, offset ?? 0);
@@ -505,7 +507,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:saveLink', async (_event, { zaloId, threadId, msgId, url, title, domain, thumbUrl, timestamp }: any) => {
+    safeHandle('db:saveLink', async (_event, { zaloId, threadId, msgId, url, title, domain, thumbUrl, timestamp }: any) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:saveLink', { zaloId, threadId, msgId, url, title, domain, thumbUrl, timestamp });
             DatabaseService.getInstance().saveLink(zaloId, threadId, msgId, url || '', title || '', domain || '', thumbUrl || '', timestamp || Date.now());
@@ -516,7 +518,7 @@ export function registerDatabaseIpc() {
     });
 
     // ─── Group Member Cache ───────────────────────────────────────────────
-    ipcMain.handle('db:getGroupMembers', async (_event, { zaloId, groupId }: { zaloId: string; groupId: string }) => {
+    safeHandle('db:getGroupMembers', async (_event, { zaloId, groupId }: { zaloId: string; groupId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getGroupMembers', { zaloId, groupId });
             const members = DatabaseService.getInstance().getGroupMembers(zaloId, groupId);
@@ -526,7 +528,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getAllGroupMembers', async (_event, { zaloId }: { zaloId: string }) => {
+    safeHandle('db:getAllGroupMembers', async (_event, { zaloId }: { zaloId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getAllGroupMembers', { zaloId });
             const rows = DatabaseService.getInstance().getAllGroupMembers(zaloId);
@@ -536,7 +538,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:saveGroupMembers', async (_event, { zaloId, groupId, members }: { zaloId: string; groupId: string; members: any[] }) => {
+    safeHandle('db:saveGroupMembers', async (_event, { zaloId, groupId, members }: { zaloId: string; groupId: string; members: any[] }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:saveGroupMembers', { zaloId, groupId, members });
             DatabaseService.getInstance().saveGroupMembers(zaloId, groupId, members);
@@ -546,7 +548,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:mergeGroupMembers', async (_event, { zaloId, groupId, members }: { zaloId: string; groupId: string; members: any[] }) => {
+    safeHandle('db:mergeGroupMembers', async (_event, { zaloId, groupId, members }: { zaloId: string; groupId: string; members: any[] }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:mergeGroupMembers', { zaloId, groupId, members });
             DatabaseService.getInstance().mergeGroupMembers(zaloId, groupId, members);
@@ -556,7 +558,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:upsertGroupMember', async (_event, { zaloId, groupId, member }: { zaloId: string; groupId: string; member: any }) => {
+    safeHandle('db:upsertGroupMember', async (_event, { zaloId, groupId, member }: { zaloId: string; groupId: string; member: any }) => {
         try {
             if (isEmployeeMode()) proxyToBoss("upsertGroupMember", { zaloId, groupId, member });
             DatabaseService.getInstance().upsertGroupMember(zaloId, groupId, member);
@@ -566,7 +568,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:removeGroupMember', async (_event, { zaloId, groupId, memberId }: { zaloId: string; groupId: string; memberId: string }) => {
+    safeHandle('db:removeGroupMember', async (_event, { zaloId, groupId, memberId }: { zaloId: string; groupId: string; memberId: string }) => {
         try {
             if (isEmployeeMode()) proxyToBoss("removeGroupMember", { zaloId, groupId, memberId });
             DatabaseService.getInstance().removeGroupMember(zaloId, groupId, memberId);
@@ -579,7 +581,7 @@ export function registerDatabaseIpc() {
     // ─── Sticker Cache ────────────────────────────────────────────────
 
     // ─── Sticker Cache ────────────────────────────────────────────────────
-    ipcMain.handle('db:saveStickers', async (_event, { stickers }: { stickers: any[] }) => {
+    safeHandle('db:saveStickers', async (_event, { stickers }: { stickers: any[] }) => {
         try {
             if (isEmployeeMode()) proxyToBoss("saveStickers", { stickers });
             DatabaseService.getInstance().saveStickers(stickers || []);
@@ -589,7 +591,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getStickerById', async (_event, { stickerId }: { stickerId: number }) => {
+    safeHandle('db:getStickerById', async (_event, { stickerId }: { stickerId: number }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getStickerById', { stickerId });
             const sticker = DatabaseService.getInstance().getStickerById(stickerId);
@@ -599,7 +601,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getRecentStickers', async (_event, params: any) => {
+    safeHandle('db:getRecentStickers', async (_event, params: any) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getRecentStickers', params);
             const limit = params?.limit ?? 30;
@@ -610,7 +612,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:addRecentSticker', async (_event, { stickerId }: { stickerId: number }) => {
+    safeHandle('db:addRecentSticker', async (_event, { stickerId }: { stickerId: number }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:addRecentSticker', { stickerId });
             DatabaseService.getInstance().addRecentSticker(stickerId);
@@ -620,7 +622,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:markStickerUnsupported', async (_event, { stickerId }: { stickerId: number }) => {
+    safeHandle('db:markStickerUnsupported', async (_event, { stickerId }: { stickerId: number }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:markStickerUnsupported', { stickerId });
             DatabaseService.getInstance().markStickerUnsupported(stickerId);
@@ -630,7 +632,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:saveStickerPacks', async (_event, { packs }: { packs: any[] }) => {
+    safeHandle('db:saveStickerPacks', async (_event, { packs }: { packs: any[] }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:saveStickerPacks', { packs });
             DatabaseService.getInstance().saveStickerPacks(packs || []);
@@ -640,7 +642,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getStickerPacks', async () => {
+    safeHandle('db:getStickerPacks', async () => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getStickerPacks', {});
             const packs = DatabaseService.getInstance().getStickerPacks();
@@ -650,7 +652,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getStickersByPackId', async (_event, { catId }: { catId: number }) => {
+    safeHandle('db:getStickersByPackId', async (_event, { catId }: { catId: number }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getStickersByPackId', { catId });
             const stickers = DatabaseService.getInstance().getStickersByPackId(catId);
@@ -662,7 +664,7 @@ export function registerDatabaseIpc() {
 
     // ─── Keyword Stickers Cache ─────────────────────────────────────────
 
-    ipcMain.handle('db:saveKeywordStickers', async (_event, { keyword, stickerIds }: { keyword: string; stickerIds: number[] }) => {
+    safeHandle('db:saveKeywordStickers', async (_event, { keyword, stickerIds }: { keyword: string; stickerIds: number[] }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:saveKeywordStickers', { keyword, stickerIds });
             DatabaseService.getInstance().saveKeywordStickers(keyword, stickerIds);
@@ -672,7 +674,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getKeywordStickers', async (_event, { keyword }: { keyword: string }) => {
+    safeHandle('db:getKeywordStickers', async (_event, { keyword }: { keyword: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getKeywordStickers', { keyword });
             const stickerIds = DatabaseService.getInstance().getKeywordStickers(keyword);
@@ -682,7 +684,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getStickersByIds', async (_event, { stickerIds }: { stickerIds: number[] }) => {
+    safeHandle('db:getStickersByIds', async (_event, { stickerIds }: { stickerIds: number[] }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getStickersByIds', { stickerIds });
             const stickers = DatabaseService.getInstance().getStickersByIds(stickerIds);
@@ -692,7 +694,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getAllCachedPackSummaries', async () => {
+    safeHandle('db:getAllCachedPackSummaries', async () => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getAllCachedPackSummaries', {});
             const packs = DatabaseService.getInstance().getAllCachedPackSummaries();
@@ -703,7 +705,7 @@ export function registerDatabaseIpc() {
     });
 
     // ─── Friend Request Cache ─────────────────────────────────────────────
-    ipcMain.handle('db:getFriendRequests', async (_event, { zaloId, direction }: { zaloId: string; direction: 'received' | 'sent' }) => {
+    safeHandle('db:getFriendRequests', async (_event, { zaloId, direction }: { zaloId: string; direction: 'received' | 'sent' }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getFriendRequests', { zaloId, direction });
             const requests = DatabaseService.getInstance().getFriendRequests(zaloId, direction);
@@ -714,7 +716,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:saveFriendRequests', async (_event, { zaloId, requests, direction }: { zaloId: string; requests: any[]; direction: 'received' | 'sent' }) => {
+    safeHandle('db:saveFriendRequests', async (_event, { zaloId, requests, direction }: { zaloId: string; requests: any[]; direction: 'received' | 'sent' }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:saveFriendRequests', { zaloId, requests, direction });
             DatabaseService.getInstance().saveFriendRequests(zaloId, requests, direction);
@@ -724,7 +726,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:upsertFriendRequest', async (_event, { zaloId, request, direction }: { zaloId: string; request: any; direction: 'received' | 'sent' }) => {
+    safeHandle('db:upsertFriendRequest', async (_event, { zaloId, request, direction }: { zaloId: string; request: any; direction: 'received' | 'sent' }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:upsertFriendRequest', { zaloId, request, direction });
             DatabaseService.getInstance().upsertFriendRequest(zaloId, request, direction);
@@ -734,7 +736,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:removeFriendRequest', async (_event, { zaloId, userId, direction }: { zaloId: string; userId: string; direction: 'received' | 'sent' }) => {
+    safeHandle('db:removeFriendRequest', async (_event, { zaloId, userId, direction }: { zaloId: string; userId: string; direction: 'received' | 'sent' }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:removeFriendRequest', { zaloId, userId, direction });
             DatabaseService.getInstance().removeFriendRequest(zaloId, userId, direction);
@@ -746,7 +748,7 @@ export function registerDatabaseIpc() {
 
     // ─── Call Log ─────────────────────────────────────────────────────────────
 
-    ipcMain.handle('db:getCallLogsForContact', async (_event, { zaloId, threadId, limit = 300 }: { zaloId: string; threadId: string; limit?: number }) => {
+    safeHandle('db:getCallLogsForContact', async (_event, { zaloId, threadId, limit = 300 }: { zaloId: string; threadId: string; limit?: number }) => {
         try {
             if (isEmployeeMode()) {
                 return await proxyToBossAsync('db:getCallLogsForContact', { zaloId, threadId, limit });
@@ -758,7 +760,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getCallReport', async (_event, { zaloId, fromTs, toTs, localLabelIds, zaloLabelThreadIds }: any) => {
+    safeHandle('db:getCallReport', async (_event, { zaloId, fromTs, toTs, localLabelIds, zaloLabelThreadIds }: any) => {
         try {
             Logger.log(`[databaseIpc:db:getCallReport] Received: zaloId=${zaloId}, fromTs=${fromTs}, toTs=${toTs}, localLabelIds=${JSON.stringify(localLabelIds)}, zaloLabelThreadIds=${JSON.stringify(zaloLabelThreadIds)}`);
             if (isEmployeeMode()) {
@@ -771,7 +773,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getContactNamesBatch', async (_event, { zaloId, contactIds }: { zaloId: string; contactIds: string[] }) => {
+    safeHandle('db:getContactNamesBatch', async (_event, { zaloId, contactIds }: { zaloId: string; contactIds: string[] }) => {
         try {
             if (isEmployeeMode()) {
                 return await proxyToBossAsync('db:getContactNamesBatch', { zaloId, contactIds });
@@ -783,7 +785,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:addFriend', async (_event, { zaloId, friend }: { zaloId: string; friend: any }) => {
+    safeHandle('db:addFriend', async (_event, { zaloId, friend }: { zaloId: string; friend: any }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:addFriend', { zaloId, friend });
             DatabaseService.getInstance().addFriend(zaloId, friend);
@@ -793,7 +795,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:removeFriend', async (_event, { zaloId, userId }: { zaloId: string; userId: string }) => {
+    safeHandle('db:removeFriend', async (_event, { zaloId, userId }: { zaloId: string; userId: string }) => {
         try {
             if (isEmployeeMode()) proxyToBoss('db:removeFriend', { zaloId, userId });
             DatabaseService.getInstance().removeFriend(zaloId, userId);
@@ -803,7 +805,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getMessagesByType', async (_event, { zaloId, threadId, msgType, limit = 100 }: { zaloId: string; threadId: string; msgType: string; limit?: number }) => {
+    safeHandle('db:getMessagesByType', async (_event, { zaloId, threadId, msgType, limit = 100 }: { zaloId: string; threadId: string; msgType: string; limit?: number }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getMessagesByType', { zaloId, threadId, msgType, limit });
             const messages = DatabaseService.getInstance().getMessagesByType(zaloId, threadId, msgType, limit);
@@ -815,7 +817,7 @@ export function registerDatabaseIpc() {
 
     // ─── Pinned Messages ──────────────────────────────────────────────────────
 
-    ipcMain.handle('db:getPinnedMessages', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
+    safeHandle('db:getPinnedMessages', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getPinnedMessages', { zaloId, threadId });
             const pins = DatabaseService.getInstance().getPinnedMessages(zaloId, threadId);
@@ -825,7 +827,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:pinMessage', async (_event, { zaloId, threadId, pin }: { zaloId: string; threadId: string; pin: any }) => {
+    safeHandle('db:pinMessage', async (_event, { zaloId, threadId, pin }: { zaloId: string; threadId: string; pin: any }) => {
         try {
             DatabaseService.getInstance().pinMessage(zaloId, threadId, pin);
             EventBroadcaster.emit('db:pinnedMessageChanged', { action: 'pin', ownerZaloId: zaloId, threadId, pin });
@@ -836,7 +838,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:unpinMessage', async (_event, { zaloId, threadId, msgId }: { zaloId: string; threadId: string; msgId: string }) => {
+    safeHandle('db:unpinMessage', async (_event, { zaloId, threadId, msgId }: { zaloId: string; threadId: string; msgId: string }) => {
         try {
             DatabaseService.getInstance().unpinMessage(zaloId, threadId, msgId);
             EventBroadcaster.emit('db:pinnedMessageChanged', { action: 'unpin', ownerZaloId: zaloId, threadId, msgId });
@@ -847,7 +849,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:bringPinnedToTop', async (_event, { zaloId, threadId, msgId }: { zaloId: string; threadId: string; msgId: string }) => {
+    safeHandle('db:bringPinnedToTop', async (_event, { zaloId, threadId, msgId }: { zaloId: string; threadId: string; msgId: string }) => {
         try {
             DatabaseService.getInstance().bringPinnedToTop(zaloId, threadId, msgId);
             EventBroadcaster.emit('db:pinnedMessageChanged', { action: 'bringToTop', ownerZaloId: zaloId, threadId, msgId });
@@ -860,7 +862,7 @@ export function registerDatabaseIpc() {
 
     // ─── Local Quick Messages ──────────────────────────────────────────────
 
-    ipcMain.handle('db:getLocalQuickMessages', async (_event, { zaloId }: { zaloId: string }) => {
+    safeHandle('db:getLocalQuickMessages', async (_event, { zaloId }: { zaloId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getLocalQuickMessages', { zaloId });
             const items = DatabaseService.getInstance().getLocalQuickMessages(zaloId);
@@ -870,7 +872,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:upsertLocalQuickMessage', async (_event, { zaloId, item }: { zaloId: string; item: { keyword: string; title: string; media?: any } }) => {
+    safeHandle('db:upsertLocalQuickMessage', async (_event, { zaloId, item }: { zaloId: string; item: { keyword: string; title: string; media?: any } }) => {
         try {
             const id = DatabaseService.getInstance().upsertLocalQuickMessage(zaloId, item);
             DatabaseService.getInstance()['save']?.();
@@ -882,7 +884,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:deleteLocalQuickMessage', async (_event, { zaloId, id }: { zaloId: string; id: number }) => {
+    safeHandle('db:deleteLocalQuickMessage', async (_event, { zaloId, id }: { zaloId: string; id: number }) => {
         try {
             DatabaseService.getInstance().deleteLocalQuickMessage(zaloId, id);
             DatabaseService.getInstance()['save']?.();
@@ -894,7 +896,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:bulkReplaceLocalQuickMessages', async (_event, { zaloId, items }: { zaloId: string; items: any[] }) => {
+    safeHandle('db:bulkReplaceLocalQuickMessages', async (_event, { zaloId, items }: { zaloId: string; items: any[] }) => {
         try {
             DatabaseService.getInstance().bulkReplaceLocalQuickMessages(zaloId, items);
             EventBroadcaster.emit('db:localQuickMessageChanged', { action: 'bulkReplace', ownerZaloId: zaloId });
@@ -905,7 +907,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:cloneLocalQuickMessages', async (_event, { sourceZaloId, targetZaloId }: { sourceZaloId: string; targetZaloId: string }) => {
+    safeHandle('db:cloneLocalQuickMessages', async (_event, { sourceZaloId, targetZaloId }: { sourceZaloId: string; targetZaloId: string }) => {
         try {
             const count = DatabaseService.getInstance().cloneLocalQuickMessages(sourceZaloId, targetZaloId);
             EventBroadcaster.emit('db:localQuickMessageChanged', { action: 'clone', ownerZaloId: targetZaloId });
@@ -916,7 +918,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getAllLocalQuickMessages', async () => {
+    safeHandle('db:getAllLocalQuickMessages', async () => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getAllLocalQuickMessages', {});
             const items = DatabaseService.getInstance().getAllLocalQuickMessages();
@@ -926,7 +928,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:setLocalQMActive', async (_event, { id, isActive }: { id: number; isActive: number }) => {
+    safeHandle('db:setLocalQMActive', async (_event, { id, isActive }: { id: number; isActive: number }) => {
         try {
             DatabaseService.getInstance().setLocalQMActive(id, isActive);
             EventBroadcaster.emit('db:localQuickMessageChanged', { action: 'active', id, isActive });
@@ -937,7 +939,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:setLocalQMOrder', async (_event, { id, order }: { id: number; order: number }) => {
+    safeHandle('db:setLocalQMOrder', async (_event, { id, order }: { id: number; order: number }) => {
         try {
             DatabaseService.getInstance().setLocalQMOrder(id, order);
             EventBroadcaster.emit('db:localQuickMessageChanged', { action: 'reorder', id, order });
@@ -950,7 +952,7 @@ export function registerDatabaseIpc() {
 
     // ─── Local Labels ──────────────────────────────────────────────────────
 
-    ipcMain.handle('db:getLocalLabels', async (_event, { zaloId }) => {
+    safeHandle('db:getLocalLabels', async (_event, { zaloId }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getLocalLabels', { zaloId });
             const labels = DatabaseService.getInstance().getLocalLabels(zaloId);
@@ -958,7 +960,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:upsertLocalLabel', async (_event, { label }) => {
+    safeHandle('db:upsertLocalLabel', async (_event, { label }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:upsertLocalLabel', { label });
@@ -977,7 +979,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:deleteLocalLabel', async (_event, { id }) => {
+    safeHandle('db:deleteLocalLabel', async (_event, { id }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:deleteLocalLabel', { id });
@@ -995,7 +997,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:setLocalLabelActive', async (_event, { id, isActive }: { id: number; isActive: number }) => {
+    safeHandle('db:setLocalLabelActive', async (_event, { id, isActive }: { id: number; isActive: number }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:setLocalLabelActive', { id, isActive });
@@ -1013,7 +1015,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:setLocalLabelOrder', async (_event, { id, order }: { id: number; order: number }) => {
+    safeHandle('db:setLocalLabelOrder', async (_event, { id, order }: { id: number; order: number }) => {
         try {
             DatabaseService.getInstance().setLocalLabelOrder(id, order);
             EventBroadcaster.emit('db:localLabelChanged', { action: 'reorder', labelId: id, order });
@@ -1022,7 +1024,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:cloneLocalLabels', async (_event, { sourceZaloId, targetZaloId }) => {
+    safeHandle('db:cloneLocalLabels', async (_event, { sourceZaloId, targetZaloId }) => {
         try {
             const count = DatabaseService.getInstance().cloneLocalLabels(sourceZaloId, targetZaloId);
             EventBroadcaster.emit('db:localLabelChanged', { action: 'clone' });
@@ -1031,7 +1033,7 @@ export function registerDatabaseIpc() {
         } catch (err: any) { return { success: false, error: err.message }; }
     });
 
-    ipcMain.handle('db:getLocalLabelThreads', async (_event, { zaloId }) => {
+    safeHandle('db:getLocalLabelThreads', async (_event, { zaloId }) => {
         try {
             if (isEmployeeMode()) {
                 return await proxyToBossAsync('db:getLocalLabelThreads', { zaloId });
@@ -1043,7 +1045,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:assignLocalLabelToThread', async (_event, { zaloId, labelId, threadId, threadType, labelText, labelColor, labelEmoji }: {
+    safeHandle('db:assignLocalLabelToThread', async (_event, { zaloId, labelId, threadId, threadType, labelText, labelColor, labelEmoji }: {
         zaloId: string; labelId: number; threadId: string;
         threadType?: number; labelText?: string; labelColor?: string; labelEmoji?: string;
     }) => {
@@ -1073,7 +1075,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:removeLocalLabelFromThread', async (_event, { zaloId, labelId, threadId, threadType, labelText, labelColor, labelEmoji }: {
+    safeHandle('db:removeLocalLabelFromThread', async (_event, { zaloId, labelId, threadId, threadType, labelText, labelColor, labelEmoji }: {
         zaloId: string; labelId: number; threadId: string;
         threadType?: number; labelText?: string; labelColor?: string; labelEmoji?: string;
     }) => {
@@ -1103,7 +1105,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getThreadLocalLabels', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
+    safeHandle('db:getThreadLocalLabels', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getThreadLocalLabels', { zaloId, threadId });
             const labels = DatabaseService.getInstance().getThreadLocalLabels(zaloId, threadId);
@@ -1114,7 +1116,7 @@ export function registerDatabaseIpc() {
     });
 
     // ─── Contact Flags (mute / others) ───────────────────────────────────
-    ipcMain.handle('db:setContactFlags', async (_event, { zaloId, contactId, flags }: { zaloId: string; contactId: string; flags: { is_muted?: number; mute_until?: number; is_in_others?: number } }) => {
+    safeHandle('db:setContactFlags', async (_event, { zaloId, contactId, flags }: { zaloId: string; contactId: string; flags: { is_muted?: number; mute_until?: number; is_in_others?: number } }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:setContactFlags', { zaloId, contactId, flags });
@@ -1134,7 +1136,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getContactsWithFlags', async (_event, { zaloId }: { zaloId: string }) => {
+    safeHandle('db:getContactsWithFlags', async (_event, { zaloId }: { zaloId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getContactsWithFlags', { zaloId });
             const db = DatabaseService.getInstance();
@@ -1146,7 +1148,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:setContactAlias', async (_event, { zaloId, contactId, alias }: { zaloId: string; contactId: string; alias: string }) => {
+    safeHandle('db:setContactAlias', async (_event, { zaloId, contactId, alias }: { zaloId: string; contactId: string; alias: string }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:setContactAlias', { zaloId, contactId, alias });
@@ -1166,7 +1168,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:patchContactFields', async (_event, { zaloId, contactId, fields }: { zaloId: string; contactId: string; fields: any }) => {
+    safeHandle('db:patchContactFields', async (_event, { zaloId, contactId, fields }: { zaloId: string; contactId: string; fields: any }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:patchContactFields', { zaloId, contactId, fields });
@@ -1185,21 +1187,21 @@ export function registerDatabaseIpc() {
     });
 
     // ─── Message Drafts ───────────────────────────────────────────────────
-    ipcMain.handle('db:upsertDraft', async (_event, { zaloId, threadId, content }: { zaloId: string; threadId: string; content: string }) => {
+    safeHandle('db:upsertDraft', async (_event, { zaloId, threadId, content }: { zaloId: string; threadId: string; content: string }) => {
         try {
             DatabaseService.getInstance().upsertDraft(zaloId, threadId, content);
             return { success: true };
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:deleteDraft', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
+    safeHandle('db:deleteDraft', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
         try {
             DatabaseService.getInstance().deleteDraft(zaloId, threadId);
             return { success: true };
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:getDraft', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
+    safeHandle('db:getDraft', async (_event, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
         try {
             if (isEmployeeMode()) return { success: true };
             const draft = DatabaseService.getInstance().getDraft(zaloId, threadId);
@@ -1207,7 +1209,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:getDrafts', async (_event, { zaloId }: { zaloId: string }) => {
+    safeHandle('db:getDrafts', async (_event, { zaloId }: { zaloId: string }) => {
         try {
             if (isEmployeeMode()) return { success: true };
             const drafts = DatabaseService.getInstance().getDrafts(zaloId);
@@ -1215,7 +1217,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:deleteOldDrafts', async (_event, { days }: { days?: number }) => {
+    safeHandle('db:deleteOldDrafts', async (_event, { days }: { days?: number }) => {
         try {
             DatabaseService.getInstance().deleteOldDrafts(days);
             return { success: true };
@@ -1223,7 +1225,7 @@ export function registerDatabaseIpc() {
     });
 
     // ─── Bank Cards ─────────────────────────────────────────────────────
-    ipcMain.handle('db:getBankCards', async (_event, { zaloId }: { zaloId: string }) => {
+    safeHandle('db:getBankCards', async (_event, { zaloId }: { zaloId: string }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:getBankCards', { zaloId });
             const cards = DatabaseService.getInstance().getBankCards(zaloId);
@@ -1231,7 +1233,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:upsertBankCard', async (_event, { zaloId, card }: { zaloId: string; card: any }) => {
+    safeHandle('db:upsertBankCard', async (_event, { zaloId, card }: { zaloId: string; card: any }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:upsertBankCard', { zaloId, card });
             const id = DatabaseService.getInstance().upsertBankCard(zaloId, card);
@@ -1239,7 +1241,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:deleteBankCard', async (_event, { zaloId, id }: { zaloId: string; id: number }) => {
+    safeHandle('db:deleteBankCard', async (_event, { zaloId, id }: { zaloId: string; id: number }) => {
         try {
             if (isEmployeeMode()) return await proxyToBossAsync('db:deleteBankCard', { zaloId, id });
             DatabaseService.getInstance().deleteBankCard(zaloId, id);
@@ -1248,7 +1250,7 @@ export function registerDatabaseIpc() {
     });
 
     // ─── Local Pinned Conversations ──────────────────────────────────────
-    ipcMain.handle('db:getLocalPinnedConversations', async (_event, { zaloId }: { zaloId: string }) => {
+    safeHandle('db:getLocalPinnedConversations', async (_event, { zaloId }: { zaloId: string }) => {
         try {
             if (isEmployeeMode()) return { success: true };
             const threadIds = DatabaseService.getInstance().getLocalPinnedConversations(zaloId);
@@ -1256,7 +1258,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:setLocalPinnedConversation', async (_event, { zaloId, threadId, isPinned }: { zaloId: string; threadId: string; isPinned: boolean }) => {
+    safeHandle('db:setLocalPinnedConversation', async (_event, { zaloId, threadId, isPinned }: { zaloId: string; threadId: string; isPinned: boolean }) => {
         try {
             DatabaseService.getInstance().setLocalPinnedConversation(zaloId, threadId, isPinned);
             EventBroadcaster.emit('db:pinnedConversationChanged', { ownerZaloId: zaloId, threadId, isPinned });
@@ -1266,7 +1268,7 @@ export function registerDatabaseIpc() {
     });
 
     // ─── App Settings ─────────────────────────────────────────────────────────
-    ipcMain.handle('db:getSetting', async (_event, { key }: { key: string }) => {
+    safeHandle('db:getSetting', async (_event, { key }: { key: string }) => {
         try {
             const value = DatabaseService.getInstance().getSetting(key);
             return { success: true, value };
@@ -1275,7 +1277,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:setSetting', async (_event, { key, value }: { key: string; value: string }) => {
+    safeHandle('db:setSetting', async (_event, { key, value }: { key: string; value: string }) => {
         try {
             DatabaseService.getInstance().setSetting(key, value);
             return { success: true };
@@ -1285,7 +1287,7 @@ export function registerDatabaseIpc() {
     });
 
     // ─── CRM Import ───────────────────────────────────────────────────────────
-    ipcMain.handle('db:checkPhonesDuplicate', async (_event, { zaloId, phones }: { zaloId: string; phones: string[] }) => {
+    safeHandle('db:checkPhonesDuplicate', async (_event, { zaloId, phones }: { zaloId: string; phones: string[] }) => {
         try {
             const duplicates = DatabaseService.getInstance().checkPhonesDuplicate(zaloId, phones);
             return { success: true, duplicates };
@@ -1294,7 +1296,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:updateContactExtraData', async (_event, { zaloId, contactId, extraData }: { zaloId: string; contactId: string; extraData: Record<string, any> }) => {
+    safeHandle('db:updateContactExtraData', async (_event, { zaloId, contactId, extraData }: { zaloId: string; contactId: string; extraData: Record<string, any> }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:updateContactExtraData', { zaloId, contactId, extraData });
@@ -1313,7 +1315,7 @@ export function registerDatabaseIpc() {
         }
     });
 
-    ipcMain.handle('db:getPipelineStages', async () => {
+    safeHandle('db:getPipelineStages', async () => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:getPipelineStages', {});
@@ -1324,7 +1326,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:savePipelineStage', async (_event, { stage }: { stage: any }) => {
+    safeHandle('db:savePipelineStage', async (_event, { stage }: { stage: any }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:savePipelineStage', { stage });
@@ -1340,7 +1342,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:deletePipelineStage', async (_event, { id }: { id: number }) => {
+    safeHandle('db:deletePipelineStage', async (_event, { id }: { id: number }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:deletePipelineStage', { id });
@@ -1356,7 +1358,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:updateContactPipelineStage', async (_event, { ownerZaloId, contactId, stageId }: { ownerZaloId: string; contactId: string; stageId: number | null }) => {
+    safeHandle('db:updateContactPipelineStage', async (_event, { ownerZaloId, contactId, stageId }: { ownerZaloId: string; contactId: string; stageId: number | null }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:updateContactPipelineStage', { ownerZaloId, contactId, stageId });
@@ -1372,7 +1374,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:updateContactAIProfile', async (_event, { ownerZaloId, contactId, aiProfile }: { ownerZaloId: string; contactId: string; aiProfile: string | null }) => {
+    safeHandle('db:updateContactAIProfile', async (_event, { ownerZaloId, contactId, aiProfile }: { ownerZaloId: string; contactId: string; aiProfile: string | null }) => {
         try {
             if (isEmployeeMode()) {
                 const res = await proxyToBossAsync('db:updateContactAIProfile', { ownerZaloId, contactId, aiProfile });
@@ -1388,7 +1390,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:updateContactAIConfig', async (_event, { ownerZaloId, contactId, assistantId, autoSummary, threshold }: {
+    safeHandle('db:updateContactAIConfig', async (_event, { ownerZaloId, contactId, assistantId, autoSummary, threshold }: {
         ownerZaloId: string;
         contactId: string;
         assistantId: string | null;
@@ -1410,7 +1412,7 @@ export function registerDatabaseIpc() {
         } catch (error: any) { return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle('db:getCalendarEventsByContact', async (_event, { contactId }: { contactId: string }) => {
+    safeHandle('db:getCalendarEventsByContact', async (_event, { contactId }: { contactId: string }) => {
         try {
             if (isEmployeeMode()) {
                 return await proxyToBossAsync('db:getCalendarEventsByContact', { contactId });
