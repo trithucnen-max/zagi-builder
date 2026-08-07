@@ -606,7 +606,7 @@ export class LicenseManager {
   needsActivation(): boolean {
     const license = this.getCurrentLicense();
     if (!license) {
-      // 🌟 GIỐNG DEPLAO-GỐC: Kiểm tra nếu máy đã có CSDL SQLite cũ (zagi-tool.db)
+      // 🌟 Kiểm tra nếu máy đã có CSDL SQLite Zagi cục bộ (zagi-tool.db)
       try {
         const userDataPath = app.getPath('userData');
         const dbPath = path.join(userDataPath, 'zagi-tool.db');
@@ -624,7 +624,7 @@ export class LicenseManager {
               daysLeft: null,
             };
             this.saveLicense(restoredLicense);
-            Logger.log('[LicenseManager] 🏠 Phát hiện CSDL cũ (Deplao-gốc) — Tự động kích hoạt bản quyền cục bộ mà không chặn màn hình');
+            Logger.log('[LicenseManager] 🏠 Phát hiện CSDL Zagi cục bộ (zagi-tool.db) — Tự động kích hoạt bản quyền vĩnh viễn không chặn màn hình');
             return false;
           }
         }

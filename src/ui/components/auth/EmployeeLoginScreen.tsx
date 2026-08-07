@@ -27,7 +27,7 @@ export default function EmployeeLoginScreen({ onBossMode, onEmployeeConnected }:
     // Load saved values from localStorage
     useEffect(() => {
         try {
-            const saved = localStorage.getItem('zagi_employee_login') || localStorage.getItem('deplao_employee_login');
+            const saved = localStorage.getItem('zagi_employee_login');
             if (saved) {
                 const data = JSON.parse(saved);
                 if (data.bossAddress) setBossAddress(data.bossAddress);

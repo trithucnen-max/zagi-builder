@@ -281,10 +281,7 @@ export function registerDatabaseIpc() {
                 };
             }
             const userDataPath = app.getPath('userData');
-            let configPath = path.join(userDataPath, 'zagi-config.json');
-            if (!fs.existsSync(configPath) && fs.existsSync(path.join(userDataPath, 'deplao-config.json'))) {
-                configPath = path.join(userDataPath, 'deplao-config.json');
-            }
+            const configPath = path.join(userDataPath, 'zagi-config.json');
             let customPath: string | null = null;
             if (fs.existsSync(configPath)) {
                 try {
@@ -445,10 +442,7 @@ export function registerDatabaseIpc() {
                 return { success: true, canceled: true };
             }
             const folder = result.filePaths[0];
-            let dbFilePath = path.join(folder, 'zagi-tool.db');
-            if (!fs.existsSync(dbFilePath) && fs.existsSync(path.join(folder, 'deplao-tool.db'))) {
-                dbFilePath = path.join(folder, 'deplao-tool.db');
-            }
+            const dbFilePath = path.join(folder, 'zagi-tool.db');
             const hasExistingData = fs.existsSync(dbFilePath);
             return { success: true, canceled: false, folder, hasExistingData };
         } catch (error: any) {

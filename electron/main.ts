@@ -947,7 +947,7 @@ app.whenReady().then(async () => {
 
   try {
     const parentDir = path.dirname(app.getPath('userData'));
-    const legacyCandidates = ['deplao', 'Zagi', 'zagi', 'zagi-app', 'Zagi-Desktop'];
+    const legacyCandidates = ['Zagi', 'zagi', 'zagi-app', 'Zagi-Desktop'];
     const filesToMigrate = ['license.dat', 'zagi-tool.db', 'zagi-config.json', 'workspaces.json', 'machine_id.txt'];
 
     for (const folderName of legacyCandidates) {

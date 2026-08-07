@@ -74,10 +74,10 @@ WHERE owner_zalo_id = ? AND thread_id = ?
 ORDER BY timestamp DESC LIMIT 50
 ```
 
-## Gotchas & Storage Config (v3.0.6)
+## Gotchas & Storage Config (v3.1.7)
 
-- **Config File**: `zagi-config.json` (trong `userData` directory, tự động fallback đọc `deplao-config.json` cũ nếu tồn tại).
-- **SQLite DB File**: `zagi-tool.db` (tự động fallback đọc `deplao-tool.db` cũ nếu đã có dữ liệu).
+- **Config File**: `zagi-config.json` (trong `userData` directory).
+- **SQLite DB File**: `zagi-tool.db` (lưu trữ toàn bộ CSDL cục bộ của Zagi).
 - **Sync API only**: better-sqlite3 chỉ hỗ trợ sync — không dùng `await` với db calls
 - **Single writer**: SQLite không hỗ trợ concurrent writes — đảm bảo không write song song từ nhiều processes
 - **No migration system**: Schema thay đổi trực tiếp trong DatabaseService (không có migration files)

@@ -4,8 +4,8 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.1.7] - 2026-08-08
 
-### 🏠 Tự Động Nhận Diện CSDL Cũ & Khắc Phục Triệt Để Màn Hình License
-- **Kế thừa kiến trúc Deplao-gốc (`LicenseManager.ts`):** Tự động phát hiện file CSDL `zagi-tool.db` đã có sẵn trên máy để kích hoạt bản quyền cục bộ vĩnh viễn, loại bỏ 100% màn hình License Popup khi cài đè hoặc nâng cấp phiên bản mới.
+### 🏠 Tự Động Nhận Diện CSDL Cục Bộ & Khắc Phục Triệt Để Màn Hình License
+- **Tự động nhận diện CSDL Zagi (`LicenseManager.ts`):** Tự động phát hiện file CSDL `zagi-tool.db` đã có sẵn trên máy để kích hoạt bản quyền cục bộ vĩnh viễn, loại bỏ 100% màn hình License Popup khi cài đè hoặc nâng cấp phiên bản mới.
 - **Giải mã Cookie Đa tầng Chịu lỗi cao (`DatabaseService.ts`):**
   - Trang bị 4 lớp giải mã linh hoạt: (1) Fast-path JSON thô, (2) safeStorage DPAPI Windows/macOS, (3) Base64 UTF-8 an toàn, (4) AES-256 nội bộ với App Master Key.
   - Khắc phục hoàn toàn hiện tượng lệch ngữ cảnh DPAPI giữa các bản build exe, đảm bảo 100% tất cả tài khoản Zalo tự động Online và duy trì kết nối bền bỉ qua mọi lần nâng cấp.
