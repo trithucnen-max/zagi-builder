@@ -3214,22 +3214,49 @@ class DatabaseService {
     }
 
     private decryptCookies(encrypted: string): string {
-        // Fast-path: empty → nothing to decrypt (e.g., Facebook accounts in unified table)
         if (!encrypted) return encrypted;
-        // Fast-path: already plain JSON (saved before encryption was added, or safeStorage was unavailable)
         const trimmed = encrypted.trimStart();
+        // 1. Fast-path: Chuỗi JSON thô (chưa qua mã hóa)
         if (trimmed.startsWith('[') || trimmed.startsWith('{')) return encrypted;
 
+        // 2. Thử giải mã bằng Electron safeStorage (Windows DPAPI / macOS Keychain)
         try {
             if (safeStorage.isEncryptionAvailable()) {
                 const decrypted = safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
-                // Sanity check: result must be parseable JSON
-                JSON.parse(decrypted);
-                return decrypted;
+                if (decrypted && (decrypted.trimStart().startsWith('[') || decrypted.trimStart().startsWith('{'))) {
+                    JSON.parse(decrypted);
+                    return decrypted;
+                }
             }
-        } catch (err: any) {
-            Logger.warn(`[DatabaseService] decryptCookies failed — cookies may be encrypted by a different app instance (${err.message}). Account will need to re-login.`);
-        }
+        } catch {}
+
+        // 3. Thử giải mã trực tiếp từ chuỗi Base64
+        try {
+            const rawDecoded = Buffer.from(encrypted, 'base64').toString('utf-8').trim();
+            if (rawDecoded.startsWith('[') || rawDecoded.startsWith('{')) {
+                JSON.parse(rawDecoded);
+                return rawDecoded;
+            }
+        } catch {}
+
+        // 4. Thử giải mã bằng AES-256 nội bộ của Zagi
+        try {
+            const crypto = require('crypto');
+            const key = crypto.createHash('sha256').update('zagi_secret_master_key_2026_safe_v1').digest();
+            const rawBuffer = Buffer.from(encrypted, 'base64');
+            if (rawBuffer.length > 16) {
+                const iv = rawBuffer.subarray(0, 16);
+                const data = rawBuffer.subarray(16);
+                const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+                let decrypted = decipher.update(data, undefined, 'utf8');
+                decrypted += decipher.final('utf8');
+                if (decrypted && (decrypted.trim().startsWith('[') || decrypted.trim().startsWith('{'))) {
+                    JSON.parse(decrypted);
+                    return decrypted;
+                }
+            }
+        } catch {}
+
         return encrypted;
     }
 

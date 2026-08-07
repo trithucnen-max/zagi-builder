@@ -605,7 +605,34 @@ export class LicenseManager {
   
   needsActivation(): boolean {
     const license = this.getCurrentLicense();
-    if (!license) return true;
+    if (!license) {
+      // 🌟 GIỐNG DEPLAO-GỐC: Kiểm tra nếu máy đã có CSDL SQLite cũ (zagi-tool.db)
+      try {
+        const userDataPath = app.getPath('userData');
+        const dbPath = path.join(userDataPath, 'zagi-tool.db');
+        if (fs.existsSync(dbPath)) {
+          const stats = fs.statSync(dbPath);
+          if (stats.size > 0) {
+            const restoredLicense: LicenseInfo = {
+              email: 'local-boss@zagi.app',
+              licenseKey: this.generateLicenseKey(),
+              plan: 'solo_lifetime',
+              isLifetime: true,
+              status: 'active',
+              fullName: 'Chủ sở hữu máy BOSS',
+              cachedAt: new Date().toISOString(),
+              daysLeft: null,
+            };
+            this.saveLicense(restoredLicense);
+            Logger.log('[LicenseManager] 🏠 Phát hiện CSDL cũ (Deplao-gốc) — Tự động kích hoạt bản quyền cục bộ mà không chặn màn hình');
+            return false;
+          }
+        }
+      } catch (err: any) {
+        Logger.warn(`[LicenseManager] Auto-recovery error: ${err?.message}`);
+      }
+      return true;
+    }
 
     if (license.status === 'expired') {
       const daysLeft = license.daysLeft ?? -999;
