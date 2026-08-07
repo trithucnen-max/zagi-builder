@@ -977,6 +977,42 @@ app.whenReady().then(async () => {
     console.error('[Main] Legacy data migration error:', err?.message);
   }
 
+  // ── Register ALL Core IPC Handlers BEFORE Window Creation ──────────────────
+  const safeRegister = (modName: string, fn: () => void) => {
+    try {
+      fn();
+    } catch (err: any) {
+      console.error(`[Main] IPC module ${modName} registration warning: ${err?.message || err}`);
+    }
+  };
+
+  safeRegister('LoginIpc', () => registerLoginIpc(mainWindow));
+  safeRegister('ZaloIpc', registerZaloIpc);
+  safeRegister('MediaIpc', registerMediaIpc);
+  safeRegister('DatabaseIpc', registerDatabaseIpc);
+  safeRegister('FileIpc', registerFileIpc);
+  safeRegister('CRMIpc', registerCRMIpc);
+  safeRegister('WorkflowIpc', registerWorkflowIpc);
+  safeRegister('IntegrationIpc', registerIntegrationIpc);
+  try { loadTunnelConfig(); } catch (e) {}
+  safeRegister('AIAssistantIpc', registerAIAssistantIpc);
+  safeRegister('UtilIpc', registerUtilIpc);
+  safeRegister('EmployeeIpc', registerEmployeeIpc);
+  safeRegister('RelayIpc', registerRelayIpc);
+  safeRegister('SyncIpc', registerSyncIpc);
+  safeRegister('WorkspaceIpc', () => registerWorkspaceIpc(mainWindow));
+  safeRegister('FacebookIpc', registerFacebookIpc);
+  safeRegister('ProxyIpc', registerProxyIpc);
+  safeRegister('ErpTaskIpc', registerErpTaskIpc);
+  safeRegister('ErpCalendarIpc', registerErpCalendarIpc);
+  safeRegister('ErpNoteIpc', registerErpNoteIpc);
+  safeRegister('ErpNotificationIpc', registerErpNotificationIpc);
+  safeRegister('ErpHrmIpc', registerErpHrmIpc);
+  safeRegister('LockScreenIpc', registerLockScreenIpc);
+  safeRegister('LibraryIpc', registerLibraryIpc);
+  safeRegister('LicenseIpc', () => registerLicenseIpc());
+  safeRegister('TelemetryIpc', registerTelemetryIpc);
+
   // ── Load License Config & Check License ────────────────────────────────────
   loadLicenseConfig();
 
@@ -1057,42 +1093,6 @@ async function startupAfterLicenseCheck(): Promise<void> {
       originalHandle(channel, handler);
     }
   };
-
-  // Register all IPC handlers safely to isolate exceptions during upgrade/reload
-  const safeRegister = (modName: string, fn: () => void) => {
-    try {
-      fn();
-    } catch (err: any) {
-      console.error(`[Main] IPC module ${modName} registration warning: ${err?.message || err}`);
-    }
-  };
-
-  safeRegister('LoginIpc', () => registerLoginIpc(mainWindow));
-  safeRegister('ZaloIpc', registerZaloIpc);
-  safeRegister('MediaIpc', registerMediaIpc);
-  safeRegister('DatabaseIpc', registerDatabaseIpc);
-  safeRegister('FileIpc', registerFileIpc);
-  safeRegister('CRMIpc', registerCRMIpc);
-  safeRegister('WorkflowIpc', registerWorkflowIpc);
-  safeRegister('IntegrationIpc', registerIntegrationIpc);
-  try { loadTunnelConfig(); } catch (e) {}
-  safeRegister('AIAssistantIpc', registerAIAssistantIpc);
-  safeRegister('UtilIpc', registerUtilIpc);
-  safeRegister('EmployeeIpc', registerEmployeeIpc);
-  safeRegister('RelayIpc', registerRelayIpc);
-  safeRegister('SyncIpc', registerSyncIpc);
-  safeRegister('WorkspaceIpc', () => registerWorkspaceIpc(mainWindow));
-  safeRegister('FacebookIpc', registerFacebookIpc);
-  safeRegister('ProxyIpc', registerProxyIpc);
-  safeRegister('ErpTaskIpc', registerErpTaskIpc);
-  safeRegister('ErpCalendarIpc', registerErpCalendarIpc);
-  safeRegister('ErpNoteIpc', registerErpNoteIpc);
-  safeRegister('ErpNotificationIpc', registerErpNotificationIpc);
-  safeRegister('ErpHrmIpc', registerErpHrmIpc);
-  safeRegister('LockScreenIpc', registerLockScreenIpc);
-  safeRegister('LibraryIpc', registerLibraryIpc);
-  safeRegister('LicenseIpc', () => registerLicenseIpc());
-  safeRegister('TelemetryIpc', registerTelemetryIpc);
   try { TelemetryService.init(app.getPath('userData')); } catch (e) {}
 
   // Lắng nghe sự kiện ngủ / thức dậy của hệ thống — reconnect ngay lập tức

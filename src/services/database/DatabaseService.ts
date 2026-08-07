@@ -1191,6 +1191,30 @@ class DatabaseService {
             );
         `);
 
+        // Tự động gieo 6 giai đoạn phễu mẫu cho tài khoản / CSDL mới
+        try {
+            const countRows = this.query<any>(`SELECT count(*) as count FROM crm_pipeline_stages`);
+            if (!countRows || countRows[0]?.count === 0) {
+                const defaultStages = [
+                    { name: 'Khách hàng tiềm năng (Lead)', color: '#3b82f6', position: 1 },
+                    { name: 'Khách hàng triển vọng (Prospect)', color: '#06b6d4', position: 2 },
+                    { name: 'Khách hàng đang đàm phán (Opportunity)', color: '#f59e0b', position: 3 },
+                    { name: 'Khách hàng thực tế (Customer)', color: '#10b981', position: 4 },
+                    { name: 'Khách hàng trung thành (Loyal)', color: '#8b5cf6', position: 5 },
+                    { name: 'Khách hàng rời bỏ (Churned/Lost)', color: '#ef4444', position: 6 }
+                ];
+                const now = Math.floor(Date.now() / 1000);
+                for (const st of defaultStages) {
+                    this.run(
+                        `INSERT INTO crm_pipeline_stages (name, color, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+                        [st.name, st.color, st.position, now, now]
+                    );
+                }
+                this.save();
+                Logger.log('[DatabaseService] 🎯 Đã tự động tạo 6 giai đoạn phễu CRM mặc định cho CSDL mới');
+            }
+        } catch {}
+
         this.exec(`
             CREATE TABLE IF NOT EXISTS group_pin_schedules (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
