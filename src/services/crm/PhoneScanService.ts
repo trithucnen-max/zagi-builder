@@ -144,7 +144,7 @@ class PhoneScanService {
 
             // 1. Find the single active batch (Strict Single Active Batch Queue)
             let activeBatch = db.queryOne<any>(`
-                SELECT id, name FROM phone_scan_batches
+                SELECT * FROM phone_scan_batches
                 WHERE status = 'active'
                 LIMIT 1
             `);
@@ -154,7 +154,7 @@ class PhoneScanService {
                 const promoted = this.promoteNextQueuedBatch();
                 if (promoted) {
                     activeBatch = db.queryOne<any>(`
-                        SELECT id, name FROM phone_scan_batches
+                        SELECT * FROM phone_scan_batches
                         WHERE status = 'active'
                         LIMIT 1
                     `);
