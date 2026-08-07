@@ -88,12 +88,10 @@ if (AI_WRITE_CHANNELS.has(channel) && activeWs?.type === 'remote') {
 
 ## Known Bugs (2026-07-08)
 
-### BUG-01: zalo.sendImage không gửi ảnh từ máy nhân viên
-- **Location:** `WorkflowEngineService.ts` dòng 3362-3370 (getApi proxy sendMessage)
-- **Root cause:** Proxy `sendMessage` bỏ `attachments` → Boss không có file để gửi
-- **Symptom:** output `{ success: true, _targetCount: 1 }` nhưng không có tin nào được gửi
-- **Secondary bug:** Dòng 1751-1754 hardcode `success: true` bất kể lỗi
-- **Fix cần làm:** Upload file qua `uploadMedia()` trước (hỗ trợ chunk từ v27.2.6), rồi proxy `zalo:sendImages` với bossPath
+### BUG-01: zalo.sendImage không gửi ảnh từ máy nhân viên (Đã sửa v3.1.0/v3.1.7)
+- **Location:** `WorkflowEngineService.ts` (`getApi` proxy sendMessage) & `HttpClientService.ts`
+- **Root cause:** Ban đầu proxy `sendMessage` chưa stream file → Boss không có file local của nhân viên để gửi.
+- **Giải pháp đã thực hiện:** `getApi()` tự động đọc file và gọi `uploadMedia()` stream Base64/Chunks lên máy Boss trước, nhận `bossPath`, sau đó proxy `zalo:sendMessage` với `attachments: [bossPath]` → Gửi ảnh & file thành công 100%.
 
 ### BUG-02: Double-save khi async handler gọi 2 lần
 - **Root cause:** Dùng `useState` làm guard thay vì `useRef`
