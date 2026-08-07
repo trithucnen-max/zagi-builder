@@ -56,7 +56,14 @@ Toàn bộ bạn bè và thành viên các nhóm Zalo được đồng bộ tự
   - Hệ thống tự động kiểm tra cờ bạn bè (`is_friend = 1` - hiển thị dấu tích xanh `✓`) dựa trên sự tồn tại thực tế trong bảng bạn bè `friends` của từng tài khoản, loại bỏ hoàn toàn tình trạng hiển thị nhầm tích xanh cho liên hệ chưa kết bạn.
 Tách biệt cột **Biệt danh CRM** (do doanh nghiệp tự đặt, click đúp sửa nhanh) và **Tên Zalo gốc** (tên khách hàng đăng ký Zalo) để tránh lẫn lộn thông tin.
 **Xưng hô & Tự xưng Thông Minh**: Tự sinh "Anh"/"Chị"/"Bạn" dựa vào giới tính khi đồng bộ profile Zalo. Cung cấp trang quản lý quy tắc xưng hô (`Cài đặt ➔ 🗣️ Xưng hô & Tự xưng`) và biến **`[Tự xưng]`** (`{tu_xung}` / `$item.tu_xung`) xuất hiện trên thanh công cụ chèn nhanh CRM & Workflow (tự động xưng *em, cháu, con, mình* viết hoa/thường chuẩn ngữ cảnh).
-**Đồng bộ biến Chiến dịch & Workflow**: hỗ trợ chèn biến linh hoạt: `{zalo_name}` / `$item.zalo_name` (tên Zalo gốc), `{alias}` / `$item.alias` (biệt danh CRM), `{name}` / `$item.display_name` (tên liên hệ thông minh: alias > display_name), `{salutation}` (xưng hô khách) và `{tu_xung}` (tự xưng người gửi).
+**Đồng bộ biến Chiến dịch & Workflow**: hỗ trợ chèn biến linh hoạt: 
+- `{real_name}` / `{ten_that}` / `{name}`: Ưu tiên Tên thật (tải vào từ file Excel hoặc chỉnh sửa thủ công trên CRM) ➔ fallback về Tên Zalo gốc sạch sẽ (`zalo_name`), tuyệt đối không làm lộ chuỗi Tên lô nội bộ vào nội dung gửi cho khách.
+- `{zalo_name}` / `$item.zalo_name`: Tên Zalo gốc của khách (không kèm tiền tố lô quét hay SĐT).
+- `{alias}` / `$item.alias`: Biệt danh CRM đầy đủ (ví dụ: `Lô 1 - Hùng - 0336176666`).
+- `{salutation}` / `{xung_ho}`: Xưng hô tự động theo giới tính (Nam ➔ Anh, Nữ ➔ Chị) và tự động Viết Hoa ở đầu câu, Viết thường ở giữa câu.
+- `{tu_xung}`: Tự xưng tương ứng chuẩn phong cách Việt Nam (Anh/Chị ➔ Em; Bác/Ông/Bà ➔ Cháu; Cô/Chú ➔ Con).
+- **Tùy chọn `TÊN ZALO SAU KHI GỬI: Không đổi`**: Giữ nguyên 100% biệt danh `[Tên lô] - [Tên Zalo] - [SĐT]` đã đặt lúc quét số trên App Zalo điện thoại/PC sau khi gửi tin chiến dịch.
+- **Bộ chọn tài khoản Quét số hàng loạt**: Multi-select Checkbox trực quan mặc định chọn 100% tất cả tài khoản active để quét song song, hỗ trợ 1-click bỏ chọn tài khoản phụ hoặc phím tắt `[ Chỉ chọn 1 TK ]` để quét độc quyền.
 **Quy tắc Xóa Liên Hệ CRM (`Xóa liên hệ đã chọn`)**: Xóa dữ liệu trong CRM Zagi **KHÔNG hủy kết bạn, KHÔNG chặn và KHÔNG xóa danh bạ Zalo thật** trên ứng dụng Zalo điện thoại/PC. Thao tác này chỉ dọn dẹp tin nhắn, nhãn, ghi chú và lịch sử chiến dịch khỏi bộ nhớ local SQLite trên máy tính.
 **Autocomplete & Toolbar**: Soạn tin nhắn chiến dịch & workflow hỗ trợ nhập dấu `{` tự động hiển thị gợi ý biến thông minh và thanh công cụ chip chèn nhanh tiện dụng.
 Quản lý nhóm & rời nhóm hàng loạt: xem/tìm kiếm thành viên, rời nhiều nhóm cùng lúc, tự động chuyển quyền trưởng nhóm trước khi rời để tránh nhóm bị giải tán, AI soạn lời tạm biệt lịch sự.

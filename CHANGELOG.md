@@ -2,6 +2,34 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.1.7] - 2026-08-08
+
+### 🏠 Tự Động Nhận Diện CSDL Cũ & Khắc Phục Triệt Để Màn Hình License
+- **Kế thừa kiến trúc Deplao-gốc (`LicenseManager.ts`):** Tự động phát hiện file CSDL `zagi-tool.db` đã có sẵn trên máy để kích hoạt bản quyền cục bộ vĩnh viễn, loại bỏ 100% màn hình License Popup khi cài đè hoặc nâng cấp phiên bản mới.
+- **Giải mã Cookie Đa tầng Chịu lỗi cao (`DatabaseService.ts`):**
+  - Trang bị 4 lớp giải mã linh hoạt: (1) Fast-path JSON thô, (2) safeStorage DPAPI Windows/macOS, (3) Base64 UTF-8 an toàn, (4) AES-256 nội bộ với App Master Key.
+  - Khắc phục hoàn toàn hiện tượng lệch ngữ cảnh DPAPI giữa các bản build exe, đảm bảo 100% tất cả tài khoản Zalo tự động Online và duy trì kết nối bền bỉ qua mọi lần nâng cấp.
+
+### 📋 Sửa Lỗi IPC Pipeline & Tự Động Tạo Phễu CRM Mẫu
+- **Đăng ký Core IPC Sớm (`electron/main.ts`):** Di chuyển toàn bộ việc đăng ký IPC Handlers (`DatabaseIpc`, `CRMIpc`, `WorkflowIpc`...) lên ngay trong `app.whenReady()` trước khi mở bất kỳ cửa sổ nào, khắc phục triệt để lỗi `Error: No handler registered for 'db:getPipelineStages'`.
+- **Tự động Gieo 6 Cột Phễu Mặc Định (`DatabaseService.ts`):** Tự động tạo sẵn 6 giai đoạn phễu chuẩn CRM (Lead, Prospect, Opportunity, Customer, Loyal, Churned) cho tài khoản/CSDL mới.
+
+### 👥 Bộ Chọn Tài Khoản Quét Số Hàng Loạt Tối Giản & Trực Quan (`PhoneScanPanel.tsx`, `PhoneScanService.ts`)
+- **Multi-select Checkbox Chọn Tất Cả Mặc Định:** Modal tạo lô quét tự động tích chọn sẵn 100% tài khoản Zalo active. Người dùng chỉ cần 1 click để bỏ chọn tài khoản không muốn tham gia quét.
+- **Phím tắt 1 chạm:** Hỗ trợ nút `[ Chọn tất cả ]` và `[ Chỉ chọn 1 TK ]` để chuyển đổi nhanh chóng giữa chế độ quét song song đa nick và quét độc quyền bằng 1 nick duy nhất.
+- **Khắc phục Bộ Lọc Worker:** Sửa câu truy vấn `SELECT * FROM phone_scan_batches` để tiến trình quét nhận diện chính xác danh sách tài khoản được chỉ định (`assigned_account_id`).
+
+### 🏷️ Chuẩn Hóa Biến Tên Thật & Xưng Hô Tự Nhiên Cho Chiến Dịch (`CRMQueueService.ts`, `salutationUtils.ts`)
+- **Tách biệt Biệt danh Gợi nhớ & Tên Tin nhắn:**
+  - Biệt danh `[Tên lô] - [Tên Zalo] - [SĐT]` được bảo toàn trên App Zalo điện thoại khi chọn tùy chọn *"TÊN ZALO SAU KHI GỬI: Không đổi"*.
+  - Biến `{Tên}` (`{name}`) và `{Tên thật}` (`{real_name}`) trong tin nhắn ưu tiên lấy Tên thật từ file Excel / chỉnh sửa tay $\rightarrow$ fallback về Tên Zalo gốc sạch sẽ (`zalo_name`), tuyệt đối không làm lộ chuỗi Tên lô nội bộ vào nội dung gửi cho khách hàng.
+- **Quy tắc Xưng hô Thông minh:**
+  - Tự động nhận diện Giới tính Nam $\rightarrow$ `Anh`, Nữ $\rightarrow$ `Chị`.
+  - Tự động Viết Hoa ở đầu câu và Viết thường ở giữa câu theo ngữ cảnh tiếng Việt.
+  - Tự động sinh `{tu_xung}` tương ứng (Anh/Chị $\rightarrow$ Em; Bác/Ông/Bà $\rightarrow$ Cháu).
+
+---
+
 ## [v3.1.6] - 2026-08-05
 
 ### 🛑 Phân Loại Lỗi Chiến Dịch & Cảnh Báo Rõ Ràng Cho Người Dùng
