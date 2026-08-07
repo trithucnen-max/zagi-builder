@@ -74,6 +74,9 @@ jobs:
             VERSION=$(node -p "require('./package.json').version")
             TAG="v${VERSION}"
             SHOULD_PUBLISH="${{ github.event.inputs.publish }}"
+            if [ -z "$SHOULD_PUBLISH" ]; then
+              SHOULD_PUBLISH="true"
+            fi
           fi
           VERSION="${TAG#v}"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
@@ -160,6 +163,7 @@ jobs:
         with:
           repository: ${{ github.repository }}
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
@@ -230,6 +234,7 @@ jobs:
         with:
           repository: ${{ github.repository }}
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
@@ -309,6 +314,7 @@ jobs:
         with:
           repository: ${{ github.repository }}
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: "🎉 Zagi ${{ needs.resolve-tag.outputs.tag }}"
           body: ${{ needs.resolve-tag.outputs.release_notes }}
           files: |
