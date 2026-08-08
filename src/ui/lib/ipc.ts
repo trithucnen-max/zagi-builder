@@ -291,6 +291,9 @@ declare global {
         reassignBatchContacts: (params: { batchId: number; targetMode: 'single' | 'distributed' | 'all_accounts'; targetAccountId?: string | null }) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
         deletePhoneScanBatch: (params: { batchId: number }) => Promise<{ success: boolean; error?: string }>;
         updatePhoneScanBatchStatus: (params: { batchId: number; status: string }) => Promise<{ success: boolean; error?: string }>;
+        updatePhoneScanBatchAssignedAccount: (params: { batchId: number; assignedAccountId: string | null }) => Promise<{ success: boolean; error?: string }>;
+        retryPhoneScanErrorItems: (params: { batchId: number }) => Promise<{ success: boolean; retriedCount?: number; error?: string }>;
+        resumePhoneScanBatchSingleMode: (params: { batchId: number }) => Promise<{ success: boolean; error?: string }>;
         startPhoneScanImmediate: () => Promise<{ success: boolean; error?: string }>;
         getPhoneScanLimitStatus: () => Promise<{ success: boolean; accountsStatus?: Array<{ zaloId: string; fullName: string; todayCount: number; hourlyCount: number }>; error?: string }>;
         updatePhoneScanBatchPriority: (params: { batchId: number; priority: number }) => Promise<{ success: boolean; error?: string }>;

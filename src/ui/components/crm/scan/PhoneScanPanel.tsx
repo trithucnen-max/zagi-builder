@@ -3000,6 +3000,84 @@ export default function PhoneScanPanel() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Action Bar for Single Mode Resume & Reassignment */}
+                            <div className="pt-2.5 border-t border-gray-100 dark:border-gray-800/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-500 dark:text-gray-400">⚡ Điều khiển quét:</span>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            await (ipc.crm as any)?.resumePhoneScanBatchSingleMode({ batchId: fullscreenReportBatch.id });
+                                            await ipc.crm?.startPhoneScanImmediate();
+                                            showNotification(`Đang tiếp tục quét Lô #${fullscreenReportBatch.id} bằng Single Mode (findUser)...`, 'success');
+                                            fetchBatches();
+                                            if (selectedBatch?.id === fullscreenReportBatch.id) {
+                                                fetchItems(fullscreenReportBatch.id, itemsPage, itemsStatusFilter);
+                                            }
+                                        }}
+                                        className="px-3 py-1 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-2xs flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                                        title="Chuyển sang chế độ Single Mode (findUser) để quét tiếp các số còn lại an toàn"
+                                    >
+                                        <span>⚡ Tiếp tục quét Single Mode (findUser)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const res = await (ipc.crm as any)?.retryPhoneScanErrorItems({ batchId: fullscreenReportBatch.id });
+                                            await ipc.crm?.startPhoneScanImmediate();
+                                            showNotification(`Đã đưa ${res?.retriedCount || 0} số bị lỗi về hàng đợi để quét lại bằng Single Mode!`, 'success');
+                                            fetchBatches();
+                                            if (selectedBatch?.id === fullscreenReportBatch.id) {
+                                                fetchItems(fullscreenReportBatch.id, itemsPage, itemsStatusFilter);
+                                            }
+                                        }}
+                                        className="px-3 py-1 rounded-xl bg-amber-500/15 dark:bg-amber-950/40 hover:bg-amber-500/25 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 font-bold transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                                        title="Chuyển các số đang báo Lỗi (-216) về trạng thái Chờ quét để quét lại bằng Single Mode"
+                                    >
+                                        <span>🔄 Quét lại các số Lỗi (Mã -216)</span>
+                                    </button>
+                                </div>
+
+                                {/* Reassign to other healthy active accounts on the machine */}
+                                {healthyZaloAccounts.length > 1 && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-500 dark:text-gray-400">🔄 Đổi Nick quét tiếp:</span>
+                                        <div className="flex items-center gap-1.5">
+                                            {healthyZaloAccounts.map(acc => (
+                                                <button
+                                                    key={acc.zalo_id}
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        await (ipc.crm as any)?.updatePhoneScanBatchAssignedAccount({
+                                                            batchId: fullscreenReportBatch.id,
+                                                            assignedAccountId: `${acc.zalo_id}:100`
+                                                        });
+                                                        await ipc.crm?.startPhoneScanImmediate();
+                                                        showNotification(`Đã chuyển Lô #${fullscreenReportBatch.id} sang Nick "${acc.full_name || acc.zalo_id}" để quét tiếp!`, 'success');
+                                                        setFullscreenReportBatch(prev => prev ? ({ ...prev, assigned_account_id: `${acc.zalo_id}:100`, status: 'active' }) : null);
+                                                        fetchBatches();
+                                                        if (selectedBatch?.id === fullscreenReportBatch.id) {
+                                                            fetchItems(fullscreenReportBatch.id, itemsPage, itemsStatusFilter);
+                                                        }
+                                                    }}
+                                                    className="px-2.5 py-1 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600 border border-gray-200 dark:border-gray-700 font-semibold transition-all flex items-center gap-1.5 cursor-pointer text-xs"
+                                                >
+                                                    {acc.avatar_url ? (
+                                                        <img src={acc.avatar_url} className="w-4 h-4 rounded-full object-cover" alt="" />
+                                                    ) : (
+                                                        <div className="w-4 h-4 rounded-full bg-blue-500 text-white flex items-center justify-center text-[9px] font-bold">
+                                                            {(acc.full_name || acc.zalo_id).charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <span>{acc.full_name || acc.zalo_id}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Middle: Accounts Health & Quota Overview (Filtered to ONLY accounts assigned to this batch) */}

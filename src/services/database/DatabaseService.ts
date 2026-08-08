@@ -10706,11 +10706,57 @@ class DatabaseService {
             } else if (pauseReason !== undefined) {
                 this.run(`UPDATE phone_scan_batches SET status = ?, pause_reason = ? WHERE id = ?`, [status, pauseReason, batchId]);
             } else {
-                this.run(`UPDATE phone_scan_batches SET status = ? WHERE id = ?`, [status, batchId]);
+                this.run(`UPDATE phone_scan_batches SET status = ?, pause_reason = NULL, paused_until = NULL WHERE id = ?`, [status, batchId]);
             }
             this.save();
         } catch (err: any) {
             Logger.error(`[DB] updatePhoneScanBatchStatus error: ${err.message}`);
+        }
+    }
+
+    public updatePhoneScanBatchAssignedAccount(batchId: number, assignedAccountId: string | null): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`UPDATE phone_scan_batches SET assigned_account_id = ?, status = 'active', pause_reason = NULL, paused_until = NULL WHERE id = ?`, [assignedAccountId, batchId]);
+            this.save();
+            Logger.log(`[DB] ✅ Updated assigned_account_id for batch #${batchId} to: ${assignedAccountId} and resumed batch`);
+        } catch (err: any) {
+            Logger.error(`[DB] updatePhoneScanBatchAssignedAccount error: ${err.message}`);
+        }
+    }
+
+    public retryPhoneScanErrorItems(batchId: number): number {
+        if (!this.initialized) return 0;
+        try {
+            const rows = this.query<any>(`SELECT id FROM phone_scan_items WHERE batch_id = ? AND status = 'error'`, [batchId]);
+            if (rows.length === 0) return 0;
+            this.run(`UPDATE phone_scan_items SET status = 'pending', error_msg = NULL, scanned_by_account_id = NULL, scanned_at = NULL WHERE batch_id = ? AND status = 'error'`, [batchId]);
+            this.run(`UPDATE phone_scan_batches SET error_count = 0, status = 'active', pause_reason = NULL, paused_until = NULL WHERE id = ?`, [batchId]);
+            this.save();
+            Logger.log(`[DB] ✅ Retried ${rows.length} error items for batch #${batchId}`);
+            return rows.length;
+        } catch (err: any) {
+            Logger.error(`[DB] retryPhoneScanErrorItems error: ${err.message}`);
+            return 0;
+        }
+    }
+
+    public resumePhoneScanBatchSingleMode(batchId: number): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`UPDATE phone_scan_batches SET status = 'active', pause_reason = NULL, paused_until = NULL WHERE id = ?`, [batchId]);
+            const batch = this.queryOne<any>(`SELECT assigned_account_id FROM phone_scan_batches WHERE id = ?`, [batchId]);
+            if (batch?.assigned_account_id) {
+                const parts = batch.assigned_account_id.split(',').map((s: string) => s.split(':')[0].trim()).filter(Boolean);
+                for (const accId of parts) {
+                    this.setAccountScanPauseState(accId, null, null);
+                    this.setAccountScanBulkMode(accId, 'single', Date.now());
+                }
+            }
+            this.save();
+            Logger.log(`[DB] ✅ Resumed batch #${batchId} in SINGLE mode`);
+        } catch (err: any) {
+            Logger.error(`[DB] resumePhoneScanBatchSingleMode error: ${err.message}`);
         }
     }
 
