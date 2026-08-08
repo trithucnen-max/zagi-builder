@@ -248,9 +248,20 @@ class PhoneScanService {
                 allowedZaloIds = activeZaloAccounts.map((a: any) => String(a.zalo_id));
             }
 
-            // Filter by batch assigned_account_id if specified (single or specific accounts selection)
+            // Filter and extract weights from assigned_account_id (format: "zaloId1:50,zaloId2:30,zaloId3:20" or "zaloId1,zaloId2")
+            const weightMap = new Map<string, number>();
             if (activeBatch.assigned_account_id) {
-                const assignedList = String(activeBatch.assigned_account_id).split(',').map(s => s.trim()).filter(Boolean);
+                const assignedParts = String(activeBatch.assigned_account_id).split(',').map(s => s.trim()).filter(Boolean);
+                const assignedList: string[] = [];
+                for (const part of assignedParts) {
+                    const [id, wStr] = part.split(':');
+                    const cleanId = id.trim();
+                    if (cleanId) {
+                        assignedList.push(cleanId);
+                        const weight = wStr ? parseFloat(wStr) : 0;
+                        if (weight > 0) weightMap.set(cleanId, weight);
+                    }
+                }
                 if (assignedList.length > 0) {
                     allowedZaloIds = allowedZaloIds.filter(id => assignedList.includes(id));
                 }
@@ -273,13 +284,24 @@ class PhoneScanService {
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
             const accountsUsedInTick = new Set<string>();
 
+            // Query batch scan counts per account so far for weighted ratio distribution
+            const batchCounts: Record<string, number> = {};
+            try {
+                const rows = db.query<any>('SELECT scanned_by_account_id, COUNT(*) as cnt FROM phone_scan_items WHERE batch_id = ? AND scanned_by_account_id IS NOT NULL GROUP BY scanned_by_account_id', [activeBatch.id]);
+                for (const r of rows) {
+                    if (r.scanned_by_account_id) batchCounts[r.scanned_by_account_id] = Number(r.cnt) || 0;
+                }
+            } catch {}
+            const totalBatchProcessed = Object.values(batchCounts).reduce((a, b) => a + b, 0);
+            const totalAssignedWeight = Array.from(weightMap.values()).reduce((a, b) => a + b, 0) || (eligibleZaloIds.length * (100 / (eligibleZaloIds.length || 1)));
+
             let remainingPendingItems = [...pendingItems];
 
             while (remainingPendingItems.length > 0) {
                 let targetZaloId: string | null = null;
                 const oneHourAgo = Date.now() - 60 * 60 * 1000;
                 let bestZaloId: string | null = null;
-                let minHourlyCount = Infinity;
+                let highestScore = -Infinity;
                 let maxAvailableQuota = 0;
 
                 for (const zaloId of eligibleZaloIds) {
@@ -297,8 +319,15 @@ class PhoneScanService {
                     const availableQuota = Math.min(availableDaily, availableHourly);
 
                     if (availableQuota > 0) {
-                        if (hourlyCount < minHourlyCount) {
-                            minHourlyCount = hourlyCount;
+                        // Weighted ratio scoring
+                        const targetWeight = weightMap.get(zaloId) ?? (100 / (eligibleZaloIds.length || 1));
+                        const targetShare = targetWeight / (totalAssignedWeight || 1);
+                        const actualShare = totalBatchProcessed > 0 ? ((batchCounts[zaloId] || 0) / totalBatchProcessed) : 0;
+                        const deficit = targetShare - actualShare;
+                        const score = deficit * 1000 - hourlyCount;
+
+                        if (score > highestScore) {
+                            highestScore = score;
                             bestZaloId = zaloId;
                             maxAvailableQuota = availableQuota;
                         }

@@ -122,6 +122,7 @@ export default function PhoneScanPanel() {
     const [isCreateFormMaximized, setIsCreateFormMaximized] = useState(false);
     const [formName, setFormName] = useState('');
     const [formAssignedAccount, setFormAssignedAccount] = useState<string>('');
+    const [formAccountWeights, setFormAccountWeights] = useState<Record<string, number>>({});
     const [formTargetAccountId, setFormTargetAccountId] = useState<string>('');
     const [formContactAssignmentMode, setFormContactAssignmentMode] = useState<'single' | 'distributed' | 'all_accounts'>('distributed');
     const [showReassignModal, setShowReassignModal] = useState(false);
@@ -1883,102 +1884,149 @@ export default function PhoneScanPanel() {
                                             className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all font-medium shadow-2xs"
                                         />
                                     </div>
+                                        {zaloAccounts.map(acc => {
+                                            const isChecked = selectedList.includes(acc.zalo_id);
+                                            const currentVal = formAccountWeights[acc.zalo_id] ?? (selectedList.length > 0 ? Math.floor(100 / selectedList.length) : 0);
 
-                                     {/* Danh sách Multi-select Checkbox chọn tài khoản Zalo tham gia quét số */}
-                                     {hasMultipleZaloAccounts && (() => {
-                                         const zaloAccounts = visibleAccounts.filter(a => !a.channel || a.channel === 'zalo');
-                                         const selectedList = !formAssignedAccount 
-                                             ? zaloAccounts.map(a => a.zalo_id)
-                                             : formAssignedAccount.split(',').filter(Boolean);
-                                         const allSelected = selectedList.length === zaloAccounts.length;
+                                            return (
+                                                <div
+                                                    key={acc.zalo_id}
+                                                    className={`w-full text-left p-2 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 ${
+                                                        isChecked
+                                                            ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-400/80 dark:border-blue-700/80 text-blue-950 dark:text-blue-200 font-semibold ring-1 ring-blue-500/20'
+                                                            : 'border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40 text-gray-400 dark:text-gray-500 opacity-60'
+                                                    }`}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            let updated: string[];
+                                                            if (isChecked) {
+                                                                updated = selectedList.filter(id => id !== acc.zalo_id);
+                                                                if (updated.length === 0) updated = [acc.zalo_id];
+                                                            } else {
+                                                                updated = [...selectedList, acc.zalo_id];
+                                                            }
+                                                            if (updated.length === zaloAccounts.length) {
+                                                                setFormAssignedAccount('');
+                                                            } else {
+                                                                setFormAssignedAccount(updated.join(','));
+                                                            }
+                                                            // Rebalance weights on change
+                                                            const base = Math.floor(100 / updated.length);
+                                                            const rem = 100 - base * updated.length;
+                                                            const next: Record<string, number> = {};
+                                                            updated.forEach((id, idx) => {
+                                                                next[id] = base + (idx < rem ? 1 : 0);
+                                                            });
+                                                            setFormAccountWeights(next);
+                                                        }}
+                                                        className="flex items-center gap-2.5 overflow-hidden flex-1 text-left"
+                                                    >
+                                                        {/* Custom Checkbox */}
+                                                        <div className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] font-extrabold border transition-all flex-shrink-0 ${
+                                                            isChecked 
+                                                                ? 'bg-blue-600 border-blue-600 text-white' 
+                                                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-transparent'
+                                                        }`}>
+                                                            ✓
+                                                        </div>
+                                                        {acc.avatar ? (
+                                                            <img src={acc.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                                                        ) : (
+                                                            <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                                                                {(acc.full_name || acc.zalo_id).charAt(0)}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center gap-1.5 truncate">
+                                                            <span className="truncate">{acc.full_name || acc.zalo_id}</span>
+                                                            {acc.phone && <span className="text-[10px] text-gray-400 font-normal">({acc.phone})</span>}
+                                                        </div>
+                                                    </button>
 
-                                         return (
-                                             <div className="bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl p-3.5 space-y-2.5 flex-shrink-0">
-                                                 <div className="flex items-center justify-between">
-                                                     <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
-                                                         Tài khoản Zalo quét SĐT (Mặc định chọn tất cả)
-                                                     </label>
-                                                     <div className="flex items-center gap-2">
-                                                         <button
-                                                             type="button"
-                                                             onClick={() => setFormAssignedAccount('')}
-                                                             className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
-                                                         >
-                                                             Chọn tất cả
-                                                         </button>
-                                                         <span className="text-gray-300 dark:text-gray-600">|</span>
-                                                         <button
-                                                             type="button"
-                                                             onClick={() => {
-                                                                 // Để lại ít nhất 1 tài khoản đầu tiên
-                                                                 setFormAssignedAccount(zaloAccounts[0]?.zalo_id || '');
-                                                             }}
-                                                             className="text-[10px] text-gray-500 dark:text-gray-400 hover:underline font-semibold"
-                                                         >
-                                                             Chỉ chọn 1 TK
-                                                         </button>
-                                                     </div>
-                                                 </div>
+                                                    {/* Inline % Controls */}
+                                                    {isChecked ? (
+                                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setFormAccountWeights(prev => ({
+                                                                        ...prev,
+                                                                        [acc.zalo_id]: Math.max(0, currentVal - 5)
+                                                                    }));
+                                                                }}
+                                                                className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-xs"
+                                                                title="Giảm 5%"
+                                                            >
+                                                                -
+                                                            </button>
+                                                            <div className="relative flex items-center">
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={100}
+                                                                    value={currentVal}
+                                                                    onChange={(e) => {
+                                                                        const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                                                                        setFormAccountWeights(prev => ({
+                                                                            ...prev,
+                                                                            [acc.zalo_id]: val
+                                                                        }));
+                                                                    }}
+                                                                    className="w-12 text-center py-0.5 px-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-xs font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:border-blue-500"
+                                                                />
+                                                                <span className="text-[10px] text-gray-500 ml-0.5">%</span>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setFormAccountWeights(prev => ({
+                                                                        ...prev,
+                                                                        [acc.zalo_id]: Math.min(100, currentVal + 5)
+                                                                    }));
+                                                                }}
+                                                                className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-xs"
+                                                                title="Tăng 5%"
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] font-medium text-gray-400">
+                                                            0% (Đã bỏ qua)
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
 
-                                                 {/* Multi-select Checkbox List */}
-                                                 <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-1">
-                                                     {zaloAccounts.map(acc => {
-                                                         const isChecked = selectedList.includes(acc.zalo_id);
-                                                         return (
-                                                             <button
-                                                                 key={acc.zalo_id}
-                                                                 type="button"
-                                                                 onClick={() => {
-                                                                     let updated: string[];
-                                                                     if (isChecked) {
-                                                                         // Bỏ chọn tài khoản này
-                                                                         updated = selectedList.filter(id => id !== acc.zalo_id);
-                                                                         if (updated.length === 0) {
-                                                                             // Giữ ít nhất 1 tài khoản
-                                                                             updated = [acc.zalo_id];
-                                                                         }
-                                                                     } else {
-                                                                         // Thêm tài khoản này vào danh sách quét
-                                                                         updated = [...selectedList, acc.zalo_id];
-                                                                     }
-                                                                     if (updated.length === zaloAccounts.length) {
-                                                                         setFormAssignedAccount(''); // Tất cả tài khoản
-                                                                     } else {
-                                                                         setFormAssignedAccount(updated.join(','));
-                                                                     }
-                                                                 }}
-                                                                 className={`w-full text-left p-2 rounded-xl border text-xs transition-all flex items-center justify-between ${
-                                                                     isChecked
-                                                                         ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-400/80 dark:border-blue-700/80 text-blue-950 dark:text-blue-200 font-semibold ring-1 ring-blue-500/20'
-                                                                         : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 text-gray-500 dark:text-gray-400 opacity-70'
-                                                                 }`}
-                                                             >
-                                                                 <div className="flex items-center gap-2.5 overflow-hidden">
-                                                                     {/* Custom Checkbox */}
-                                                                     <div className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] font-extrabold border transition-all flex-shrink-0 ${
-                                                                         isChecked 
-                                                                             ? 'bg-blue-600 border-blue-600 text-white' 
-                                                                             : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-transparent'
-                                                                     }`}>
-                                                                         ✓
-                                                                     </div>
-                                                                     {acc.avatar ? (
-                                                                         <img src={acc.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
-                                                                     ) : (
-                                                                         <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
-                                                                             {(acc.full_name || acc.zalo_id).charAt(0)}
-                                                                         </div>
-                                                                     )}
-                                                                     <div className="flex items-center gap-1.5 truncate">
-                                                                         <span className="truncate">{acc.full_name || acc.zalo_id}</span>
-                                                                         {acc.phone && <span className="text-[10px] text-gray-400 font-normal">({acc.phone})</span>}
-                                                                     </div>
-                                                                 </div>
-                                                                 <span className="text-[10px] font-medium opacity-80">
-                                                                     {isChecked ? 'Đang chọn quét' : 'Đã bỏ qua'}
-                                                                 </span>
-                                                             </button>
-                                                         );
+                                    {/* Summary Footer */}
+                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-750 flex items-center justify-between">
+                                        <span>
+                                            {allSelected 
+                                                ? `⚡ Quét song song theo tỉ lệ % qua tất cả ${zaloAccounts.length} tài khoản active`
+                                                : selectedList.length === 1
+                                                    ? `👤 Chỉ quét độc quyền 100% bằng 1 tài khoản đã chọn`
+                                                    : `👥 Quét phân bổ theo tỉ lệ % qua ${selectedList.length} / ${zaloAccounts.length} tài khoản đã chọn`}
+                                        </span>
+                                        <span className="font-bold text-blue-600 dark:text-blue-400">
+                                            {selectedList.length}/{zaloAccounts.length} TK ({totalPercent}%)
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formName}
+                                            onChange={e => setFormName(e.target.value)}
+                                            placeholder="VD: Lô khách hàng VIP Tháng 7..."
+                                            className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all font-medium shadow-2xs"
+                                        />
                                                      })}
                                                  </div>
 
