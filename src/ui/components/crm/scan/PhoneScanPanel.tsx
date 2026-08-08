@@ -84,6 +84,8 @@ interface ScanItem {
     phone: string;
     phone_normalized: string;
     real_name?: string | null;
+    full_name_raw?: string | null;
+    target_account_id?: string | null;
     gender?: number | null;
     birthday?: string | null;
     status: 'pending' | 'scanning' | 'found' | 'not_found' | 'error' | 'duplicate';
