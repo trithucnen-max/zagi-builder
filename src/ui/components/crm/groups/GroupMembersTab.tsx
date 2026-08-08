@@ -98,7 +98,7 @@ export default function GroupMembersTab() {
   const [searchMember, setSearchMember] = useState('');
 
   // ── Managed groups state ──────────────────────────────────────────────────
-  const [groupFilter, setGroupFilter] = useState<'managed' | 'not_managed'>('managed');
+  const [groupFilter, setGroupFilter] = useState<'all' | 'managed' | 'not_managed'>('all');
   const [managedGroupIds, setManagedGroupIds] = useState<Set<string>>(new Set());
 
   // ── Bulk Group management modal state ───────────────────────────────────
@@ -318,9 +318,19 @@ export default function GroupMembersTab() {
   // ── Load groups from contacts (contact_type='group') ──────────────────────
   const loadGroupsFromDB = useCallback(async () => {
     if (!activeAccountId) return;
-    const contactsRes = await ipc.db?.getContacts(activeAccountId);
-    const allContacts: any[] = contactsRes?.contacts ?? contactsRes ?? [];
-    const groupContacts = allContacts.filter((c: any) => c.contact_type === 'group');
+    const contactsRes = await ipc.crm?.getContacts({ zaloId: activeAccountId, opts: { contactType: 'group', limit: 10000 } });
+    let allContacts: any[] = contactsRes?.contacts ?? (await ipc.db?.getContacts(activeAccountId))?.contacts ?? [];
+    let groupContacts = allContacts.filter((c: any) => c.contact_type === 'group' || (c.contact_id && String(c.contact_id).startsWith('g')) || c.is_group);
+
+    // Fallback: Nếu contacts table chưa nạp nhóm, lấy từ contactsWithFlags
+    if (groupContacts.length === 0) {
+      try {
+        const directRes = await ipc.db?.getContactsWithFlags?.({ zaloId: activeAccountId });
+        if (directRes?.contacts) {
+          groupContacts = directRes.contacts.filter((c: any) => c.contact_type === 'group' || (c.contact_id && String(c.contact_id).startsWith('g')));
+        }
+      } catch {}
+    }
 
     const allMembersRes = await ipc.db?.getAllGroupMembers({ zaloId: activeAccountId });
     const memberRows: any[] = allMembersRes?.rows ?? [];
@@ -1453,6 +1463,12 @@ export default function GroupMembersTab() {
 
             <div className="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700">
               <button
+                onClick={() => setGroupFilter('all')}
+                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'all' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                Tất cả ({groups.length})
+              </button>
+              <button
                 onClick={() => setGroupFilter('managed')}
                 className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'managed' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
@@ -1462,7 +1478,7 @@ export default function GroupMembersTab() {
                 onClick={() => setGroupFilter('not_managed')}
                 className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'not_managed' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                Không quản lý ({groups.length - managedGroupIds.size})
+                Thành viên ({Math.max(0, groups.length - managedGroupIds.size)})
               </button>
             </div>
 

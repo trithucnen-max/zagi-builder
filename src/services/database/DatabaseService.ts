@@ -3449,18 +3449,36 @@ class DatabaseService {
 
     public getMessages(ownerZaloId: string, threadId: string, limit = 50, offset = 0, before?: number): Message[] {
         if (!this.initialized) return [];
+        const cleanThreadId = threadId.startsWith('g') ? threadId.slice(1) : threadId;
+        const gThreadId = threadId.startsWith('g') ? threadId : `g${threadId}`;
+
         if (before && before > 0) {
-            const msgs = this.query<Message>(
-                'SELECT * FROM messages WHERE owner_zalo_id = ? AND thread_id = ? AND timestamp < ? ORDER BY timestamp DESC, id DESC LIMIT ?',
-                [ownerZaloId, threadId, before, limit]
+            let msgs = this.query<Message>(
+                'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp < ? ORDER BY timestamp DESC, id DESC LIMIT ?',
+                [ownerZaloId, threadId, cleanThreadId, gThreadId, before, limit]
             );
+            if (!msgs || msgs.length === 0) {
+                msgs = this.query<Message>(
+                    'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp < ? ORDER BY timestamp DESC, id DESC LIMIT ?',
+                    [threadId, cleanThreadId, gThreadId, before, limit]
+                );
+            }
             Logger.log(`[DB:getMessages] owner=${ownerZaloId} thread=${threadId} before=${before} → ${msgs.length} msgs`);
             return msgs;
         }
-        const msgs = this.query<Message>(
-            'SELECT * FROM messages WHERE owner_zalo_id = ? AND thread_id = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?',
-            [ownerZaloId, threadId, limit, offset]
+
+        let msgs = this.query<Message>(
+            'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) ORDER BY timestamp DESC LIMIT ? OFFSET ?',
+            [ownerZaloId, threadId, cleanThreadId, gThreadId, limit, offset]
         );
+
+        if (!msgs || msgs.length === 0) {
+            msgs = this.query<Message>(
+                'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) ORDER BY timestamp DESC LIMIT ? OFFSET ?',
+                [threadId, cleanThreadId, gThreadId, limit, offset]
+            );
+        }
+
         Logger.log(`[DB:getMessages] owner=${ownerZaloId} thread=${threadId} limit=${limit} offset=${offset} → ${msgs.length} msgs (first: ${msgs[0]?.msg_id || 'none'}, channel: ${msgs[0]?.channel || 'none'})`);
         if (msgs.length === 0) {
             // Diagnostic: check if there are ANY messages for this owner or thread
@@ -3479,15 +3497,30 @@ class DatabaseService {
     public getMessagesAround(ownerZaloId: string, threadId: string, timestamp: number, limit = 50): Message[] {
         if (!this.initialized) return [];
         const half = Math.floor(limit / 2);
+        const cleanThreadId = threadId.startsWith('g') ? threadId.slice(1) : threadId;
+        const gThreadId = threadId.startsWith('g') ? threadId : `g${threadId}`;
+
         // Lấy half tin nhắn CŨ hơn hoặc bằng timestamp + half tin nhắn MỚI hơn timestamp
-        const older = this.query<Message>(
-            'SELECT * FROM messages WHERE owner_zalo_id = ? AND thread_id = ? AND timestamp <= ? ORDER BY timestamp DESC LIMIT ?',
-            [ownerZaloId, threadId, timestamp, half]
+        let older = this.query<Message>(
+            'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp <= ? ORDER BY timestamp DESC LIMIT ?',
+            [ownerZaloId, threadId, cleanThreadId, gThreadId, timestamp, half]
         );
-        const newer = this.query<Message>(
-            'SELECT * FROM messages WHERE owner_zalo_id = ? AND thread_id = ? AND timestamp > ? ORDER BY timestamp ASC LIMIT ?',
-            [ownerZaloId, threadId, timestamp, half]
+        let newer = this.query<Message>(
+            'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp > ? ORDER BY timestamp ASC LIMIT ?',
+            [ownerZaloId, threadId, cleanThreadId, gThreadId, timestamp, half]
         );
+
+        if ((!older || older.length === 0) && (!newer || newer.length === 0)) {
+            older = this.query<Message>(
+                'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp <= ? ORDER BY timestamp DESC LIMIT ?',
+                [threadId, cleanThreadId, gThreadId, timestamp, half]
+            );
+            newer = this.query<Message>(
+                'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp > ? ORDER BY timestamp ASC LIMIT ?',
+                [threadId, cleanThreadId, gThreadId, timestamp, half]
+            );
+        }
+
         // Merge + sort ASC theo timestamp, trả về theo thứ tự cũ → mới
         const combined = [...older, ...newer];
         // Dedup by msg_id (in case timestamp overlap)
