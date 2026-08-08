@@ -808,6 +808,33 @@ class PhoneScanService {
                         db.updateContactProfile(accId, uid, name, avatar, phoneKey, 'user', zaloUser?.gender, null, realNameFromFile, fullNameRawFromFile);
                     }
 
+                    // Auto-assign batch tags/labels to CRM contact in local_label_threads
+                    try {
+                        let autoTagIds: number[] = [];
+                        if (batchInfo?.auto_tag_ids) {
+                            const parsed = JSON.parse(batchInfo.auto_tag_ids);
+                            if (Array.isArray(parsed)) autoTagIds = parsed.map(Number).filter(n => !isNaN(n) && n > 0);
+                        }
+                        for (const accId of targetAccountIds) {
+                            for (const tagId of autoTagIds) {
+                                db.assignLocalLabelToThread(accId, tagId, uid);
+                                EventBroadcaster.emit('db:localLabelThreadChanged', {
+                                    action: 'assign',
+                                    ownerZaloId: accId,
+                                    labelId: tagId,
+                                    threadId: uid
+                                });
+                            }
+                            if (autoTagIds.length > 0) {
+                                EventBroadcaster.emit('db:localLabelChanged', { zaloId: accId });
+                                EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
+                                EventBroadcaster.emit('ui:threadLabelsChanged', { zaloId: accId, threadId: uid });
+                            }
+                        }
+                    } catch (tagErr: any) {
+                        Logger.warn(`[PhoneScanService] Auto assign tags error: ${tagErr.message}`);
+                    }
+
                     // Alias update if enabled
                     try {
                         const shouldUpdateAlias = Boolean(batchInfo && batchInfo.update_zalo_alias != null && Number(batchInfo.update_zalo_alias) === 1);
@@ -997,6 +1024,33 @@ class PhoneScanService {
                 // Create/update CRM contact across target account(s)
                 for (const accId of targetAccountIds) {
                     db.updateContactProfile(accId, uid, name, avatar, phoneNormalized, 'user', zaloUser?.gender, null, realNameFromFile, fullNameRawFromFile);
+                }
+
+                // Auto-assign batch tags/labels to CRM contact in local_label_threads
+                try {
+                    let autoTagIds: number[] = [];
+                    if (batchInfo?.auto_tag_ids) {
+                        const parsed = JSON.parse(batchInfo.auto_tag_ids);
+                        if (Array.isArray(parsed)) autoTagIds = parsed.map(Number).filter(n => !isNaN(n) && n > 0);
+                    }
+                    for (const accId of targetAccountIds) {
+                        for (const tagId of autoTagIds) {
+                            db.assignLocalLabelToThread(accId, tagId, uid);
+                            EventBroadcaster.emit('db:localLabelThreadChanged', {
+                                action: 'assign',
+                                ownerZaloId: accId,
+                                labelId: tagId,
+                                threadId: uid
+                            });
+                        }
+                        if (autoTagIds.length > 0) {
+                            EventBroadcaster.emit('db:localLabelChanged', { zaloId: accId });
+                            EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
+                            EventBroadcaster.emit('ui:threadLabelsChanged', { zaloId: accId, threadId: uid });
+                        }
+                    }
+                } catch (tagErr: any) {
+                    Logger.warn(`[PhoneScanService] Auto assign tags error: ${tagErr.message}`);
                 }
 
                 // Update Zalo & CRM Alias based on Campaign/Batch rule if explicitly enabled (update_zalo_alias === 1)

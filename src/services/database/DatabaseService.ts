@@ -2963,6 +2963,9 @@ class DatabaseService {
             this.ensureColumn('phone_scan_items', 'real_name', 'TEXT DEFAULT NULL');
             this.ensureColumn('phone_scan_items', 'full_name_raw', 'TEXT DEFAULT NULL');
 
+            // Auto-backfill tags for phone scan batches on startup
+            this.backfillPhoneScanBatchTags();
+
             this.save();
             Logger.log('[DatabaseService] ✅ Migration: CSV import tables & contacts columns initialized');
         } catch (err: any) {
@@ -10572,6 +10575,91 @@ class DatabaseService {
         } catch (err: any) {
             Logger.error(`[DB] reassignBatchContacts error: ${err.message}`);
             return { success: false, reassignedCount: 0, error: err.message };
+        }
+    }
+
+    /**
+     * Auto-backfill labels for all existing found phone scan items from batches with auto_tag_ids
+     * Ensures all scanned contacts in existing batches (e.g. Lô 2) immediately receive their configured labels.
+     */
+    public backfillPhoneScanBatchTags(): number {
+        if (!this.initialized) return 0;
+        try {
+            const batches = this.query<any>(`
+                SELECT id, name, assigned_account_id, target_account_id, contact_assignment_mode, auto_tag_ids
+                FROM phone_scan_batches
+                WHERE auto_tag_ids IS NOT NULL AND auto_tag_ids != '' AND auto_tag_ids != '[]'
+            `);
+
+            if (!batches || batches.length === 0) return 0;
+
+            const activeAccounts = this.getAccounts() || [];
+            const activeZaloAccounts = activeAccounts.filter((a: any) => a.is_active !== 0 && (!a.channel || a.channel === 'zalo'));
+            const allZaloIds = activeZaloAccounts.map((a: any) => String(a.zalo_id));
+
+            let backfilledCount = 0;
+            const modifiedZaloIds = new Set<string>();
+
+            for (const batch of batches) {
+                let tagIds: number[] = [];
+                try {
+                    const parsed = JSON.parse(batch.auto_tag_ids);
+                    if (Array.isArray(parsed)) {
+                        tagIds = parsed.map(Number).filter(n => !isNaN(n) && n > 0);
+                    }
+                } catch {}
+
+                if (tagIds.length === 0) continue;
+
+                const foundItems = this.query<any>(`
+                    SELECT id, phone, phone_normalized, zalo_uid, zalo_name, zalo_avatar, scanned_by_account_id, real_name, full_name_raw
+                    FROM phone_scan_items
+                    WHERE batch_id = ? AND status = 'found' AND zalo_uid IS NOT NULL AND zalo_uid != ''
+                `, [batch.id]);
+
+                if (!foundItems || foundItems.length === 0) continue;
+
+                const targetMode = batch.contact_assignment_mode || 'distributed';
+                const finalTargetAccountId = batch.target_account_id || batch.assigned_account_id || null;
+
+                for (const item of foundItems) {
+                    const uid = String(item.zalo_uid);
+                    const scannerId = item.scanned_by_account_id || finalTargetAccountId || (allZaloIds[0] ?? '');
+
+                    let targetAccountIds: string[] = [];
+                    if (targetMode === 'single') {
+                        const singleId = finalTargetAccountId || scannerId;
+                        if (singleId) targetAccountIds = [singleId];
+                    } else if (targetMode === 'all_accounts') {
+                        targetAccountIds = allZaloIds.length > 0 ? allZaloIds : [scannerId];
+                    } else {
+                        if (scannerId) targetAccountIds = [scannerId];
+                    }
+
+                    for (const accId of targetAccountIds) {
+                        if (!accId) continue;
+                        for (const tagId of tagIds) {
+                            this.assignLocalLabelToThread(accId, tagId, uid);
+                            modifiedZaloIds.add(accId);
+                            backfilledCount++;
+                        }
+                    }
+                }
+            }
+
+            if (backfilledCount > 0) {
+                this.save();
+                for (const accId of modifiedZaloIds) {
+                    EventBroadcaster.emit('db:localLabelChanged', { zaloId: accId });
+                    EventBroadcaster.emit('local-labels-changed', { zaloId: accId });
+                }
+                Logger.log(`[DatabaseService] ✅ Auto-backfilled ${backfilledCount} label attachments from phone scan batches`);
+            }
+
+            return backfilledCount;
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] backfillPhoneScanBatchTags error: ${err.message}`);
+            return 0;
         }
     }
 
