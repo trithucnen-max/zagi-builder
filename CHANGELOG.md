@@ -41,6 +41,15 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ---
 
+## [v3.1.8] - 2026-08-08
+
+### 🐛 Sửa lỗi & Cải tiến
+
+- Cập nhật nâng cấp tối ưu hệ thống Zagi Desktop v3.1.8.
+- Sửa lỗi nhỏ và cải tiến hiệu năng vận hành đa tài khoản.
+
+
+
 ## [v3.1.6] - 2026-08-05
 
 ### 🛑 Phân Loại Lỗi Chiến Dịch & Cảnh Báo Rõ Ràng Cho Người Dùng
