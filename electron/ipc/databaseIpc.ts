@@ -62,7 +62,7 @@ function safeHandle(channel: string, handler: any) {
     try {
         ipcMain.removeHandler(channel);
     } catch (_) {}
-    safeHandle(channel, handler);
+    ipcMain.handle(channel, handler);
     ipcHandlerRegistry.set(channel, (event: any, params: any) => handler(event, params));
 }
 
