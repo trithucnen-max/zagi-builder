@@ -1884,7 +1884,126 @@ export default function PhoneScanPanel() {
                                             className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all font-medium shadow-2xs"
                                         />
                                     </div>
-                                        {zaloAccounts.map(acc => {
+
+                                    {/* Danh sách Multi-select Checkbox chọn tài khoản Zalo tham gia quét số kèm phân chia tỉ lệ % */}
+                                    {hasMultipleZaloAccounts && (() => {
+                                        const zaloAccounts = visibleAccounts.filter(a => !a.channel || a.channel === 'zalo');
+                                        const selectedList = !formAssignedAccount 
+                                            ? zaloAccounts.map(a => a.zalo_id)
+                                            : formAssignedAccount.split(',').map(s => s.split(':')[0].trim()).filter(Boolean);
+                                        const allSelected = selectedList.length === zaloAccounts.length;
+
+                                        // Calculate total current percentage
+                                        const totalPercent = selectedList.reduce((sum, id) => {
+                                            return sum + (formAccountWeights[id] ?? (selectedList.length > 0 ? Math.floor(100 / selectedList.length) : 0));
+                                        }, 0);
+
+                                        // Quick helper to distribute evenly
+                                        const handleDistributeEvenly = () => {
+                                            if (selectedList.length === 0) return;
+                                            const base = Math.floor(100 / selectedList.length);
+                                            const remainder = 100 - base * selectedList.length;
+                                            const next: Record<string, number> = {};
+                                            selectedList.forEach((id, idx) => {
+                                                next[id] = base + (idx < remainder ? 1 : 0);
+                                            });
+                                            setFormAccountWeights(next);
+                                        };
+
+                                        // Quick helper to auto-fill remainder into target account
+                                        const handleAutoFillRemainder = (targetId?: string) => {
+                                            const target = targetId || selectedList[selectedList.length - 1];
+                                            if (!target) return;
+                                            const othersSum = selectedList.filter(id => id !== target).reduce((sum, id) => {
+                                                return sum + (formAccountWeights[id] ?? Math.floor(100 / selectedList.length));
+                                            }, 0);
+                                            const remainder = Math.max(0, 100 - othersSum);
+                                            setFormAccountWeights(prev => ({
+                                                ...prev,
+                                                [target]: remainder
+                                            }));
+                                        };
+
+                                        return (
+                                            <div className="bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl p-3.5 space-y-2.5 flex-shrink-0">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
+                                                        Tài khoản Zalo quét SĐT (Phân bổ tỉ lệ %)
+                                                    </label>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormAssignedAccount('');
+                                                                const base = Math.floor(100 / zaloAccounts.length);
+                                                                const remainder = 100 - base * zaloAccounts.length;
+                                                                const next: Record<string, number> = {};
+                                                                zaloAccounts.forEach((a, idx) => {
+                                                                    next[a.zalo_id] = base + (idx < remainder ? 1 : 0);
+                                                                });
+                                                                setFormAccountWeights(next);
+                                                            }}
+                                                            className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                                                        >
+                                                            Chọn tất cả
+                                                        </button>
+                                                        <span className="text-gray-300 dark:text-gray-600">|</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const firstId = zaloAccounts[0]?.zalo_id || '';
+                                                                setFormAssignedAccount(firstId);
+                                                                setFormAccountWeights({ [firstId]: 100 });
+                                                            }}
+                                                            className="text-[10px] text-gray-500 dark:text-gray-400 hover:underline font-semibold"
+                                                        >
+                                                            Chỉ chọn 1 TK
+                                                        </button>
+                                                        <span className="text-gray-300 dark:text-gray-600">|</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleDistributeEvenly}
+                                                            className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline font-semibold flex items-center gap-0.5"
+                                                            title="Tự động chia đều 100% cho các tài khoản đang chọn"
+                                                        >
+                                                            ⚖️ Chia đều
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Real-time Percentage Allocation Bar & Alert */}
+                                                {selectedList.length >= 2 && (
+                                                    <div className={`p-2 rounded-lg border text-xs flex items-center justify-between transition-all ${
+                                                        totalPercent === 100
+                                                            ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold'
+                                                            : totalPercent < 100
+                                                                ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300'
+                                                                : 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 font-semibold'
+                                                    }`}>
+                                                        <div className="flex items-center gap-1.5 truncate">
+                                                            {totalPercent === 100 ? (
+                                                                <span>✓ Đã phân bổ chuẩn 100% ({selectedList.length} tài khoản)</span>
+                                                            ) : totalPercent < 100 ? (
+                                                                <span>⚠️ Còn thiếu <strong className="font-bold underline">{100 - totalPercent}%</strong> chưa phân phối (Tổng: {totalPercent}%)</span>
+                                                            ) : (
+                                                                <span>⛔ Vượt quá <strong className="font-bold underline">{totalPercent}%</strong> (+{totalPercent - 100}%). Vui lòng giảm bớt!</span>
+                                                            )}
+                                                        </div>
+                                                        {totalPercent < 100 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleAutoFillRemainder()}
+                                                                className="px-2 py-0.5 rounded bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold transition-all shadow-xs flex-shrink-0"
+                                                            >
+                                                                ⚡ Tự bù {100 - totalPercent}%
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Multi-select List with Inline % Input */}
+                                                <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
+                                                    {zaloAccounts.map(acc => {
                                             const isChecked = selectedList.includes(acc.zalo_id);
                                             const currentVal = formAccountWeights[acc.zalo_id] ?? (selectedList.length > 0 ? Math.floor(100 / selectedList.length) : 0);
 
@@ -2019,35 +2138,8 @@ export default function PhoneScanPanel() {
                                 </div>
                             );
                         })()}
-                                        <input
-                                            type="text"
-                                            required
-                                            value={formName}
-                                            onChange={e => setFormName(e.target.value)}
-                                            placeholder="VD: Lô khách hàng VIP Tháng 7..."
-                                            className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3.5 py-2 text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all font-medium shadow-2xs"
-                                        />
-                                                     })}
-                                                 </div>
 
-                                                 {/* Summary Footer */}
-                                                 <div className="text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-750 flex items-center justify-between">
-                                                     <span>
-                                                         {allSelected 
-                                                             ? `⚡ Quét song song qua tất cả ${zaloAccounts.length} tài khoản Zalo active`
-                                                             : selectedList.length === 1
-                                                                 ? `👤 Chỉ quét độc quyền bằng 1 tài khoản đã chọn`
-                                                                 : `👥 Quét luân phiên qua ${selectedList.length} / ${zaloAccounts.length} tài khoản đã chọn`}
-                                                     </span>
-                                                     <span className="font-bold text-blue-600 dark:text-blue-400">
-                                                         {selectedList.length}/{zaloAccounts.length} TK
-                                                     </span>
-                                                 </div>
-                                             </div>
-                                         );
-                                     })()}
-
-                                     {/* Initial Status Selection */}
+                                    {/* Initial Status Selection */}
                                      <div>
                                          <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Trạng thái khởi tạo</label>
                                          <div className="flex gap-2">
