@@ -37,6 +37,7 @@ interface Batch {
     status: 'active' | 'queued' | 'draft' | 'paused' | 'completed';
     pause_reason?: string | null;
     paused_until?: number | null;
+    scheduled_time?: string;
     total_count: number;
     scanned_count: number;
     found_count: number;
@@ -196,6 +197,93 @@ export default function PhoneScanPanel() {
     const [quotaModalZaloId, setQuotaModalZaloId] = useState<string | null>(null);
     const [fullscreenReportBatch, setFullscreenReportBatch] = useState<Batch | null>(null);
     const [exportModalBatch, setExportModalBatch] = useState<Batch | null>(null);
+
+    const getBatchRealTimeStatus = useCallback((b: Batch) => {
+        if (b.status === 'completed') {
+            return {
+                type: 'completed',
+                label: '✓ Hoàn thành',
+                badgeClass: 'bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300'
+            };
+        }
+        if (b.status === 'draft') {
+            return {
+                type: 'draft',
+                label: '📝 Nháp',
+                badgeClass: 'bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+            };
+        }
+        if (b.status === 'paused' && b.pause_reason !== 'hourly_quota' && b.pause_reason !== 'daily_quota') {
+            return {
+                type: 'paused_manual',
+                label: '⏸️ Tạm dừng (Thủ công)',
+                badgeClass: 'bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800/60 text-amber-700 dark:text-amber-300'
+            };
+        }
+
+        // Check if assigned account (or all accounts) are paused/cooling down
+        const assignedAcc = b.assigned_account_id
+            ? limitStatusList.find((a: any) => a.zaloId === String(b.assigned_account_id))
+            : null;
+        const allPaused = limitStatusList.length > 0 && limitStatusList.every((a: any) => a.status !== 'active');
+        const relevantAcc = assignedAcc || (allPaused ? limitStatusList[0] : null);
+
+        const isHourlyPaused = b.pause_reason === 'hourly_quota' || (relevantAcc && relevantAcc.status === 'hourly_quota');
+        const isDailyPaused = b.pause_reason === 'daily_quota' || (relevantAcc && relevantAcc.status === 'daily_quota');
+        const pausedUntil = b.paused_until || relevantAcc?.pausedUntil || null;
+
+        if (isHourlyPaused) {
+            return {
+                type: 'hourly_quota',
+                label: '⏳ Chờ hạn ngạch GIỜ (-216)',
+                pausedUntil,
+                accountName: relevantAcc?.fullName || relevantAcc?.name,
+                badgeClass: 'bg-orange-100 dark:bg-orange-950/80 border border-orange-300 dark:border-orange-800/60 text-orange-800 dark:text-orange-300'
+            };
+        }
+
+        if (isDailyPaused) {
+            return {
+                type: 'daily_quota',
+                label: '🌙 Chờ 00:00 (Hạn ngạch NGÀY)',
+                accountName: relevantAcc?.fullName || relevantAcc?.name,
+                badgeClass: 'bg-red-100 dark:bg-red-950/80 border border-red-300 dark:border-red-800/60 text-red-700 dark:text-red-300'
+            };
+        }
+
+        if (b.scheduled_time) {
+            const [hh, mm] = b.scheduled_time.split(':').map(Number);
+            if (!isNaN(hh) && !isNaN(mm)) {
+                const now = new Date();
+                const sched = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+                if (now < sched) {
+                    return {
+                        type: 'scheduled',
+                        label: `⏰ Hẹn ${b.scheduled_time}`,
+                        badgeClass: 'bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300'
+                    };
+                }
+            }
+        }
+
+        if (b.status === 'queued') {
+            const label = b.pause_reason === 'priority_preempted' ? '⏳ Nhường Lô Ưu Tiên'
+                : b.pause_reason === 'auto_resumed_hourly' ? '⏱️ Tự khôi phục giờ mới'
+                : b.pause_reason === 'auto_resumed_daily' ? '🌅 Tự khôi phục ngày mới'
+                : '🟡 Chờ hàng đợi';
+            return {
+                type: 'queued',
+                label,
+                badgeClass: 'bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300'
+            };
+        }
+
+        return {
+            type: 'active',
+            label: '🟢 Đang quét',
+            badgeClass: 'bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 animate-pulse shadow-2xs'
+        };
+    }, [limitStatusList]);
 
     const handleExportBatchExcel = useCallback(async (batch: Batch, selectedKeys?: string[]) => {
         if (!batch) return;
@@ -1270,41 +1358,20 @@ export default function PhoneScanPanel() {
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex flex-wrap items-center gap-2">
                                                             <span className="font-bold text-gray-900 dark:text-white text-xs truncate max-w-[200px]">{batch.name}</span>
-                                                            {batch.status === 'active' ? (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 rounded-full animate-pulse shadow-2xs">
-                                                                    🟢 Đang quét
-                                                                </span>
-                                                            ) : batch.status === 'queued' ? (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-100 dark:bg-blue-950/80 border border-blue-300 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 rounded-full" title={batch.pause_reason === 'priority_preempted' ? 'Đang nhường lượt cho Lô ưu tiên khác' : batch.pause_reason === 'auto_resumed_hourly' ? 'Đã tự động khôi phục chạy tiếp khi sang giờ mới' : batch.pause_reason === 'auto_resumed_daily' ? 'Đã tự động khôi phục chạy tiếp khi sang ngày mới' : 'Đang chờ hàng đợi'}>
-                                                                    {batch.pause_reason === 'priority_preempted' ? '⏳ Nhường Lô Ưu Tiên' : batch.pause_reason === 'auto_resumed_hourly' ? '⏱️ Tự khôi phục giờ mới' : batch.pause_reason === 'auto_resumed_daily' ? '🌅 Tự khôi phục ngày mới' : `🟡 Chờ hàng đợi (#${queuedIndex >= 0 ? queuedIndex + 1 : 1})`}
-                                                                </span>
-                                                            ) : batch.status === 'draft' ? (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
-                                                                    📝 Nháp
-                                                                </span>
-                                                            ) : batch.status === 'paused' ? (
-                                                                batch.pause_reason === 'hourly_quota' ? (
-                                                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold bg-orange-100 dark:bg-orange-950/80 border border-orange-300 dark:border-orange-800/60 text-orange-800 dark:text-orange-300 rounded-full" title="Tài khoản Zalo đã đạt giới hạn quét SĐT theo GIỜ (Mã -216). Hệ thống sẽ tự động quét tiếp khi sang giờ mới.">
-                                                                        <span>🛑 Tạm dừng (Hạn ngạch GIỜ -216)</span>
-                                                                        <span>•</span>
-                                                                        <QuotaCountdownBadge pausedUntil={batch.paused_until} />
+                                                            {(() => {
+                                                                const realStatus = getBatchRealTimeStatus(batch);
+                                                                return (
+                                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-full ${realStatus.badgeClass}`}>
+                                                                        <span>{realStatus.label}</span>
+                                                                        {realStatus.type === 'hourly_quota' && realStatus.pausedUntil && (
+                                                                            <>
+                                                                                <span>•</span>
+                                                                                <QuotaCountdownBadge pausedUntil={realStatus.pausedUntil} />
+                                                                            </>
+                                                                        )}
                                                                     </span>
-                                                                ) : batch.pause_reason === 'daily_quota' ? (
-                                                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold bg-red-100 dark:bg-red-950/80 border border-red-300 dark:border-red-800/60 text-red-700 dark:text-red-300 rounded-full" title="Tài khoản Zalo đã đạt giới hạn quét SĐT trong NGÀY (Mã -216). Hệ thống sẽ tự khôi phục lúc 00:00.">
-                                                                        <span>🛑 Tạm dừng (Hạn ngạch NGÀY -216)</span>
-                                                                        <span>•</span>
-                                                                        <span className="font-mono text-[9px] text-red-600 dark:text-red-400">🌅 Chờ 00:00</span>
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="px-2 py-0.5 text-[9px] font-bold bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-800/60 text-amber-700 dark:text-amber-300 rounded-full" title="Tạm dừng thủ công bởi người dùng">
-                                                                        ⏸️ Tạm dừng (Thủ công)
-                                                                    </span>
-                                                                )
-                                                            ) : (
-                                                                <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 rounded-full">
-                                                                    ✓ Hoàn thành
-                                                                </span>
-                                                            )}
+                                                                );
+                                                            })()}
                                                             {batch.priority === 1 && (
                                                                 <span className="px-1.5 py-0.5 text-[8px] font-bold bg-rose-50 dark:bg-rose-955/80 border border-rose-200 dark:border-rose-800/40 text-rose-600 dark:text-rose-400 rounded">
                                                                     Ưu tiên
@@ -1447,81 +1514,90 @@ export default function PhoneScanPanel() {
                         </div>
 
                         {/* Rate Limit Alert Banner */}
-                        {selectedBatch.status === 'paused' && (selectedBatch.pause_reason === 'hourly_quota' || selectedBatch.pause_reason === 'daily_quota') && (
-                            <div className={`mx-5 mt-4 p-4 rounded-xl border flex items-start gap-3 shadow-2xs ${
-                                selectedBatch.pause_reason === 'hourly_quota' 
-                                    ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800/60 text-orange-900 dark:text-orange-200'
-                                    : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60 text-red-900 dark:text-red-200'
-                            }`}>
-                                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/60 text-orange-600 dark:text-orange-300 flex-shrink-0 mt-0.5">
-                                    <AppIcon name="alert-triangle" size={18} />
-                                </div>
-                                <div className="flex-1 min-w-0 text-xs space-y-1">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <h4 className="font-bold text-xs flex items-center gap-1.5">
-                                            <span>🛑 Lô quét tạm dừng do chạm Hạn ngạch Zalo (Mã -216)</span>
-                                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-white dark:bg-gray-800 border shadow-2xs">
-                                                {selectedBatch.pause_reason === 'hourly_quota' ? 'Hạn ngạch GIỜ' : 'Hạn ngạch NGÀY'}
-                                            </span>
-                                        </h4>
+                        {(() => {
+                            const realStatus = getBatchRealTimeStatus(selectedBatch);
+                            const isPausedOrWaiting = selectedBatch.status === 'paused' || realStatus.type === 'hourly_quota' || realStatus.type === 'daily_quota';
+                            if (!isPausedOrWaiting) return null;
+
+                            const isHourly = realStatus.type === 'hourly_quota' || selectedBatch.pause_reason === 'hourly_quota';
+                            const pausedUntil = realStatus.pausedUntil || selectedBatch.paused_until;
+
+                            return (
+                                <div className={`mx-5 mt-4 p-4 rounded-xl border flex items-start gap-3 shadow-2xs ${
+                                    isHourly 
+                                        ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800/60 text-orange-900 dark:text-orange-200'
+                                        : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60 text-red-900 dark:text-red-200'
+                                }`}>
+                                    <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/60 text-orange-600 dark:text-orange-300 flex-shrink-0 mt-0.5">
+                                        <AppIcon name="alert-triangle" size={18} />
                                     </div>
-                                    <p className="text-[11px] leading-relaxed text-gray-700 dark:text-gray-300">
-                                        {selectedBatch.pause_reason === 'hourly_quota' ? (
-                                            <>
-                                                Tài khoản Zalo quét đã đạt giới hạn tìm kiếm SĐT trong 60 phút vừa qua. 
-                                                Hệ thống <strong>Smart Adaptive Quota</strong> đã tự động điều chỉnh hạ định mức an toàn và sẽ <strong className="text-orange-600 dark:text-orange-400">tự động khôi phục quét tiếp sau 60 phút</strong>.
-                                            </>
-                                        ) : (
-                                            <>
-                                                Tài khoản Zalo quét đã đạt giới hạn tìm kiếm SĐT trong ngày hôm nay. 
-                                                Hệ thống sẽ <strong className="text-red-600 dark:text-red-400">tự động khôi phục quét tiếp khi sang ngày mới (lúc 00:00)</strong>.
-                                            </>
+                                    <div className="flex-1 min-w-0 text-xs space-y-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <h4 className="font-bold text-xs flex items-center gap-1.5">
+                                                <span>🛑 Lô quét đang tạm nghỉ do chạm Hạn ngạch Zalo (Mã -216)</span>
+                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-white dark:bg-gray-800 border shadow-2xs">
+                                                    {isHourly ? 'Hạn ngạch GIỜ' : 'Hạn ngạch NGÀY'}
+                                                </span>
+                                            </h4>
+                                        </div>
+                                        <p className="text-[11px] leading-relaxed text-gray-700 dark:text-gray-300">
+                                            {isHourly ? (
+                                                <>
+                                                    Tài khoản Zalo quét {realStatus.accountName ? <strong>({realStatus.accountName})</strong> : ''} đã đạt giới hạn tìm kiếm SĐT trong 60 phút vừa qua. 
+                                                    Hệ thống <strong>Smart Adaptive Quota</strong> đã tự động điều chỉnh hạ định mức an toàn và đang đếm ngược để <strong className="text-orange-600 dark:text-orange-400">tự động quét tiếp sau 60 phút</strong>.
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Tài khoản Zalo quét {realStatus.accountName ? <strong>({realStatus.accountName})</strong> : ''} đã đạt giới hạn tìm kiếm SĐT trong ngày hôm nay. 
+                                                    Hệ thống sẽ <strong className="text-red-600 dark:text-red-400">tự động khôi phục quét tiếp khi sang ngày mới (lúc 00:00)</strong>.
+                                                </>
+                                            )}
+                                        </p>
+                                        {/* Account paused list */}
+                                        {limitStatusList.filter((a: any) => a.status !== 'active').length > 0 && (
+                                            <div className="pt-2 border-t border-red-200/60 dark:border-red-900/40 space-y-1">
+                                                <span className="font-bold text-[11px] text-gray-800 dark:text-gray-200">Chi tiết Nick Zalo chạm giới hạn:</span>
+                                                <div className="flex flex-wrap gap-2 pt-0.5">
+                                                    {limitStatusList.filter((a: any) => a.status !== 'active').map((acc: any) => (
+                                                        <div key={acc.zaloId} className="inline-flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900/60 shadow-2xs text-[11px]">
+                                                            {acc.avatar ? (
+                                                                <img src={acc.avatar} className="w-4 h-4 rounded-full object-cover" alt="" />
+                                                            ) : (
+                                                                <span className="w-4 h-4 rounded-full bg-red-100 dark:bg-red-950 text-red-600 text-[10px] font-bold flex items-center justify-center">
+                                                                    {(acc.fullName || 'Z').charAt(0).toUpperCase()}
+                                                                </span>
+                                                            )}
+                                                            <span className="font-bold text-gray-900 dark:text-white">{acc.fullName}</span>
+                                                            <span className="text-red-600 dark:text-red-400 font-medium">({acc.pauseReasonMsg || 'Tạm dừng -216'})</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
-                                    </p>
-                                    {/* Account paused list */}
-                                    {limitStatusList.filter((a: any) => a.status !== 'active').length > 0 && (
-                                        <div className="pt-2 border-t border-red-200/60 dark:border-red-900/40 space-y-1">
-                                            <span className="font-bold text-[11px] text-gray-800 dark:text-gray-200">Chi tiết Nick Zalo chạm giới hạn:</span>
-                                            <div className="flex flex-wrap gap-2 pt-0.5">
-                                                {limitStatusList.filter((a: any) => a.status !== 'active').map((acc: any) => (
-                                                    <div key={acc.zaloId} className="inline-flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900/60 shadow-2xs text-[11px]">
-                                                        {acc.avatar ? (
-                                                            <img src={acc.avatar} className="w-4 h-4 rounded-full object-cover" alt="" />
-                                                        ) : (
-                                                            <span className="w-4 h-4 rounded-full bg-red-100 dark:bg-red-950 text-red-600 text-[10px] font-bold flex items-center justify-center">
-                                                                {(acc.fullName || 'Z').charAt(0).toUpperCase()}
+
+                                        <div className="pt-1.5 flex flex-wrap items-center gap-4 text-[11px]">
+                                            <div className="flex items-center gap-1.5 font-bold">
+                                                <span>⏳ Thời gian dự kiến tự khôi phục:</span>
+                                                {isHourly ? (
+                                                    <div className="inline-flex items-center gap-1 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg border shadow-2xs">
+                                                        <QuotaCountdownBadge pausedUntil={pausedUntil} />
+                                                        {pausedUntil && (
+                                                            <span className="text-gray-400 text-[10px]">
+                                                                ({new Date(pausedUntil).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})
                                                             </span>
                                                         )}
-                                                        <span className="font-bold text-gray-900 dark:text-white">{acc.fullName}</span>
-                                                        <span className="text-red-600 dark:text-red-400 font-medium">({acc.pauseReasonMsg || 'Tạm dừng -216'})</span>
                                                     </div>
-                                                ))}
+                                                ) : (
+                                                    <span className="bg-white dark:bg-gray-800 px-2 py-0.5 rounded border font-mono font-bold text-red-600 dark:text-red-400">
+                                                        00:00 (Đầu ngày mới)
+                                                    </span>
+                                                )}
                                             </div>
-                                        </div>
-                                    )}
-
-                                    <div className="pt-1.5 flex flex-wrap items-center gap-4 text-[11px]">
-                                        <div className="flex items-center gap-1.5 font-bold">
-                                            <span>⏳ Thời gian dự kiến tự khôi phục:</span>
-                                            {selectedBatch.pause_reason === 'hourly_quota' ? (
-                                                <div className="inline-flex items-center gap-1 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg border shadow-2xs">
-                                                    <QuotaCountdownBadge pausedUntil={selectedBatch.paused_until} />
-                                                    {selectedBatch.paused_until && (
-                                                        <span className="text-gray-400 text-[10px]">
-                                                            ({new Date(selectedBatch.paused_until).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <span className="bg-white dark:bg-gray-800 px-2 py-0.5 rounded border font-mono font-bold text-red-600 dark:text-red-400">
-                                                    00:00 (Đầu ngày mới)
-                                                </span>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
 
                         {/* Streamlined Setup & Report Card (Hình 3) */}
                         <div className="mx-5 mt-3 p-2.5 bg-gray-50/80 dark:bg-gray-800/50 border border-gray-200/80 dark:border-gray-700/80 rounded-2xl text-xs flex-shrink-0">

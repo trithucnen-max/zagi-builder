@@ -6,8 +6,17 @@
 
 ---
 
-#### 🚀 v3.1.7 — Tinh Gọn Luồng Quét SĐT Phân Tán Trực Tiếp, Bộ Chọn Tài Khoản Quét & Phễu CRM Mẫu 6 Trạng Thái (Official Release)
+#### 🚀 v3.1.7 — Động Cơ Quét SĐT Dàn Đều (Steady Pacing 90s–120s), Failover Single Mode Bền Bỉ & Đồng Hồ Đếm Ngược Thời Gian Thực (Official Release)
 * **Tính năng mới & Sửa lỗi nổi bật:**
+  * **⏱️ Cơ Chế Dàn Đều Nhịp Quét 90s – 120s / Số (Steady Pacing Rate Limiter)**: Tự động điều hòa tần suất quét giữa 2 lần gọi API trên cùng 1 tài khoản Zalo từ 90s đến 120s (kèm jitter ngẫu nhiên). Giúp tài khoản quét bền bỉ **25 – 34 số/giờ** và **100 – 200 số/ngày**, mô phỏng 100% người dùng thật đang tìm kiếm & chat tư vấn, loại bỏ 99% nguy cơ bị Zalo phát hiện bot hoặc cảnh báo `50004` (quét quá nhanh).
+  * **🔀 Failover Option A + C (Bulk ➔ Single Mode & SQLite Persistence)**: Khi API Bulk `getMultiUsersByPhones` dính mã `-216`, tài khoản được tự động chuyển sang chế độ `single` (gọi `findUser` đơn lẻ với quota riêng và bỏ qua mã 216 của ZCA). Trạng thái `single` mode được lưu persistent vào SQLite (`setAccountScanBulkMode` trong `DatabaseService.ts`), duy trì qua các lần khởi động lại ứng dụng và tự động reset sau 60 phút hoặc qua 00:00 ngày mới.
+  * **🛡️ Phân Loại Lỗi 3 Nhánh Chuẩn Xác (`classifyPhoneLookupError`)**:
+    * 1. *Chưa đăng ký Zalo*: (code 5001, 5004, data rỗng) ➔ Trả về `status: 'not_found'` với ghi chú rõ ràng.
+    * 2. *Khách cài Quyền riêng tư*: (code 201, 202, 204, 214, 576) ➔ Trả về `status: 'not_found'` với ghi chú "Khách hàng cài đặt quyền riêng tư (Tắt tìm kiếm qua SĐT / Chặn người lạ)".
+    * 3. *Lỗi mạng / Timeout tạm thời*: Rollback về `pending` để hệ thống tự động thử lại khi kết nối ổn định.
+  * **🎨 Huy Hiệu Động & Đồng Hồ Đếm Ngược Thời Gian Thực (`PhoneScanPanel.tsx`)**:
+    * Thay thế trạng thái tĩnh bằng hệ thống huy hiệu động: `🟢 Đang quét` (chỉ khi đang gọi API), `⏳ Chờ hạn ngạch GIỜ (-216)` (kèm đếm ngược từng giây `⏳ Chờ 42p 15s`), `🌙 Chờ 00:00 (Hạn ngạch NGÀY)`, `⏰ Hẹn 08:30`, `🟡 Chờ hàng đợi (#2)`, `⏸️ Tạm dừng (Thủ công)`.
+    * Khung cảnh báo Rate Limit Alert Banner ở chi tiết Lô hiển thị rõ tên Nick Zalo chạm hạn ngạch và đếm ngược thời gian chính xác tự động quét tiếp.
   * **🎯 Tinh Gọn Luồng Quét Phân Tán Trực Tiếp & Bộ Chọn Tài Khoản Quét SĐT (`PhoneScanPanel.tsx`)**: Loại bỏ hoàn toàn quy tắc gom/đồng bộ cũ. Chuẩn hóa 100% luồng lưu danh bạ CRM trực tiếp cho chính tài khoản Zalo quét (đảm bảo Zalo UID chính chủ không bị lỗi 5001/5004). Bổ sung bộ chọn tài khoản Zalo linh hoạt cho phép người dùng tick chọn quét từ 1 tài khoản chỉ định, 2 tài khoản hoặc tất cả tài khoản Zalo active để chạy chiến dịch độc lập.
   * **📊 Tự Động Nạp 6 Trạng Thái CRM Phễu Mẫu (`getPipelineStages`)**: Tự động khởi tạo 6 cột phễu CRM chuẩn (*Khách hàng tiềm năng, Khách hàng triển vọng, Đang đàm phán, Khách hàng thực tế, Khách hàng trung thành, Khách hàng rời bỏ*) kèm mã màu phong phú ngay khi khởi tạo Workspace mới hoặc khi bảng phễu bị trống.
   * **🛠️ Tự Khôi Phục Tên & Avatar Thật Từ CRM Sang Danh Sách Chat (`healContactProfilesFromCrm`)**: Tự động nhận diện các liên hệ gửi tin chiến dịch bị hiển thị dạng số Zalo UID (`9035429026671422707`) và khôi phục 100% Tên thật và Ảnh đại diện từ danh bạ CRM (`crm_contacts`) / Quét SĐT (`phone_scan_items`) sang giao diện Chat.

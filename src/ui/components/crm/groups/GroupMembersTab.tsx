@@ -98,7 +98,7 @@ export default function GroupMembersTab() {
   const [searchMember, setSearchMember] = useState('');
 
   // ── Managed groups state ──────────────────────────────────────────────────
-  const [groupFilter, setGroupFilter] = useState<'all' | 'managed' | 'not_managed'>('all');
+  const [groupFilter, setGroupFilter] = useState<'managed' | 'not_managed'>('managed');
   const [managedGroupIds, setManagedGroupIds] = useState<Set<string>>(new Set());
 
   // ── Bulk Group management modal state ───────────────────────────────────
@@ -1463,12 +1463,6 @@ export default function GroupMembersTab() {
 
             <div className="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700">
               <button
-                onClick={() => setGroupFilter('all')}
-                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'all' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-              >
-                Tất cả ({groups.length})
-              </button>
-              <button
                 onClick={() => setGroupFilter('managed')}
                 className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'managed' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
@@ -1478,7 +1472,7 @@ export default function GroupMembersTab() {
                 onClick={() => setGroupFilter('not_managed')}
                 className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-colors ${groupFilter === 'not_managed' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                Thành viên ({Math.max(0, groups.length - managedGroupIds.size)})
+                Không quản lý ({Math.max(0, groups.length - managedGroupIds.size)})
               </button>
             </div>
 
@@ -1526,7 +1520,7 @@ export default function GroupMembersTab() {
             <div className="flex flex-col items-center justify-center p-6 text-center text-xs text-gray-500">
               {groupFilter === 'managed'
                 ? 'Bạn chưa có nhóm nào làm Trưởng/Phó nhóm, hoặc cần nhấn "Tải toàn bộ nhóm từ Zalo" để cập nhật thông tin vai trò.'
-                : 'Không tìm thấy nhóm'}
+                : 'Không có nhóm nào mà bạn là thành viên thường.'}
             </div>
           ) : (
             <div className="py-1">

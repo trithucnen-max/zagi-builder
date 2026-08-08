@@ -98,12 +98,19 @@ interface GroupAvatarProps {
  */
 export default function GroupAvatar({ avatarUrl, groupInfo, name, size = 'md', className = '' }: GroupAvatarProps) {
   const [imgError, setImgError] = useState(false);
+  const [imgError2, setImgError2] = useState(false);
   const { sizeClass, fallbackText } = SIZE_MAP[size];
   const cls = `${sizeClass} ${className}`.trim();
 
-  // 1. Avatar URL → hiển thị ảnh
+  // 1. Avatar URL prop → hiển thị ảnh
   if (avatarUrl && !imgError) {
     return <img src={avatarUrl} alt="" className={`${cls} rounded-full object-cover flex-shrink-0`} onError={() => setImgError(true)} />;
+  }
+
+  // 1b. Fallback: groupInfo.avatar (fresh URL fetched khi click nhóm) — dùng khi avatarUrl từ DB đã expire
+  const cachedAvatar = groupInfo?.avatar;
+  if (cachedAvatar && cachedAvatar !== avatarUrl && !imgError2) {
+    return <img src={cachedAvatar} alt="" className={`${cls} rounded-full object-cover flex-shrink-0`} onError={() => setImgError2(true)} />;
   }
 
   // 2. Composite avatar từ members cache (Ưu tiên người có avatar, tự động lấp đầy bằng initials của các thành viên khác)

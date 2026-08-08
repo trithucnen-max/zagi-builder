@@ -10904,6 +10904,38 @@ class DatabaseService {
         }
     }
 
+    /**
+     * Persist single/bulk mode state across app restarts.
+     * When getMultiUsersByPhones hits -216, saved to DB so app restart doesn't re-trigger -216.
+     */
+    public setAccountScanBulkMode(zaloId: string, mode: 'bulk' | 'single', switchedAt?: number): void {
+        if (!this.initialized) return;
+        try {
+            if (mode === 'single') {
+                this.setSetting(`scan_bulk_mode_${zaloId}`, 'single');
+                this.setSetting(`scan_bulk_switched_at_${zaloId}`, String(switchedAt || Date.now()));
+            } else {
+                this.setSetting(`scan_bulk_mode_${zaloId}`, 'bulk');
+                this.setSetting(`scan_bulk_switched_at_${zaloId}`, '');
+            }
+            this.save();
+        } catch (err: any) {
+            Logger.error(`[DB] setAccountScanBulkMode: ${err.message}`);
+        }
+    }
+
+    public getAccountScanBulkMode(zaloId: string): { mode: 'bulk' | 'single'; switchedAt: number } {
+        if (!this.initialized) return { mode: 'bulk', switchedAt: 0 };
+        try {
+            const mode = this.getSetting(`scan_bulk_mode_${zaloId}`);
+            const switchedAtStr = this.getSetting(`scan_bulk_switched_at_${zaloId}`);
+            const switchedAt = switchedAtStr ? parseInt(switchedAtStr, 10) : 0;
+            return { mode: mode === 'single' ? 'single' : 'bulk', switchedAt };
+        } catch {
+            return { mode: 'bulk', switchedAt: 0 };
+        }
+    }
+
     public getScanQuotaSummaryForAccounts(): Array<{
         zaloId: string;
         name: string;

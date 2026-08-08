@@ -12,6 +12,39 @@ class PhoneScanService {
     private isProcessing = false;
     private lastScanTimePerAccount: Map<string, number> = new Map();
 
+    /**
+     * Option C — Per-account bulk mode state (PERSISTED IN DATABASE).
+     * When getMultiUsersByPhones hits -216, switch account to 'single' mode in DB
+     * so all subsequent scans and app restarts use findUser instead of the exhausted bulk endpoint.
+     * Resets automatically after BULK_MODE_COOLDOWN_MS (60 min) or at 00:00.
+     */
+    private readonly BULK_MODE_COOLDOWN_MS = 60 * 60 * 1000; // 60 minutes
+
+    /** True if account should use findUser (single) instead of getMultiUsersByPhones */
+    private isInSingleMode(zaloId: string): boolean {
+        const db = DatabaseService.getInstance();
+        const state = db.getAccountScanBulkMode(zaloId);
+        if (!state || state.mode === 'bulk') return false;
+        if (Date.now() - state.switchedAt >= this.BULK_MODE_COOLDOWN_MS) {
+            // Auto-reset: 60 min has passed, restore bulk mode in DB
+            db.setAccountScanBulkMode(zaloId, 'bulk');
+            Logger.log(`[PhoneScanService] 🔄 Account ${zaloId} bulk quota likely reset (60 min elapsed). Restored bulk mode in DB.`);
+            return false;
+        }
+        return true;
+    }
+
+    /** Option C — switch account to single mode after bulk -216 (saved to DB across restarts) */
+    private switchToSingleMode(zaloId: string): void {
+        const db = DatabaseService.getInstance();
+        const existing = db.getAccountScanBulkMode(zaloId);
+        if (existing?.mode === 'single' && (Date.now() - existing.switchedAt < this.BULK_MODE_COOLDOWN_MS)) {
+            return; // already switched and within cooldown
+        }
+        db.setAccountScanBulkMode(zaloId, 'single', Date.now());
+        Logger.warn(`[PhoneScanService] 🔀 Account ${zaloId} switched to PERSISTENT SINGLE mode (findUser). Saved to DB. Will restore bulk mode in 60 min.`);
+    }
+
     private constructor() {}
 
     public static getInstance(): PhoneScanService {
@@ -339,17 +372,17 @@ class PhoneScanService {
                     break; // No more eligible accounts with quota available in this tick
                 }
 
-                // Check Jitter between requests on the same account
+                // Giãn cách Dàn đều 90s - 120s giữa các lần quét trên cùng 1 tài khoản (Steady Pacing Rate Limiter)
+                // Giúp tài khoản quét bền bỉ 25 - 34 số/giờ xuyên suốt cả ngày, hoàn toàn biến mất khỏi hệ thống chống spam của Zalo
                 const lastScan = this.lastScanTimePerAccount.get(targetZaloId) || 0;
-                const randomDelay = 2500 + Math.random() * 3500;
-                if (!isManual && Date.now() - lastScan < randomDelay) {
-                    accountsUsedInTick.add(targetZaloId); // skip trying this account again in current tick
+                const steadyPacingDelay = isManual ? (2500 + Math.random() * 2500) : (90_000 + Math.random() * 30_000);
+                if (Date.now() - lastScan < steadyPacingDelay) {
+                    accountsUsedInTick.add(targetZaloId); // Bỏ qua nick này trong tick hiện tại cho đến khi hết 90s-120s
                     continue;
                 }
 
-                // Điều chỉnh gom ngẫu nhiên 6 - 10 SĐT vào 1 request (Phù hợp chuẩn định mức Zalo: 30 số/giờ, 100-200 số/ngày)
-                const randomChunkSize = Math.floor(Math.random() * (10 - 6 + 1)) + 6; // random integer between 6 and 10
-                const actualChunkSize = Math.min(randomChunkSize, maxAvailableQuota, remainingPendingItems.length);
+                // Trong chế độ Dàn đều: Quét 1 số mỗi 90s - 120s (mô phỏng chính xác người thật tìm kiếm và nhắn tin)
+                const actualChunkSize = Math.min(1, maxAvailableQuota, remainingPendingItems.length);
 
                 if (actualChunkSize <= 0) {
                     accountsUsedInTick.add(targetZaloId);
@@ -557,7 +590,53 @@ class PhoneScanService {
     }
 
     /**
-     * Execute bulk scan for a chunk of 70-95 phone numbers in 1 single getMultiUsersByPhones API request
+     * Classify why a phone lookup failed or returned no user.
+     * Distinguishes: 'not_registered' vs 'privacy_restricted' vs 'temp_error' vs 'rate_limit'.
+     */
+    private classifyPhoneLookupError(err: any): { errorMsg: string; isPrivacy: boolean; isRateLimit: boolean; isTooFast: boolean; isTemp: boolean } {
+        const code = Number(err?.errorCode ?? err?.code ?? err?.error_code ?? 0);
+        const msg = String(err?.message || err?.error || err || '').toLowerCase();
+
+        const isRateLimit = (
+            code === -216 || code === 216 ||
+            msg.includes('-216') || msg.includes('216') ||
+            msg.includes('search limit') || msg.includes('find user limit') ||
+            msg.includes('quá số lần tìm') || msg.includes('hạn ngạch')
+        );
+
+        const isTooFast = (
+            code === 50004 || msg.includes('50004') || msg.includes('quá nhanh')
+        );
+
+        const isPrivacy = (
+            [201, -201, 202, -202, 204, -204, 214, 576, 579, 5001].includes(code) ||
+            msg.includes('chặn') || msg.includes('riêng tư') || msg.includes('privacy') ||
+            msg.includes('không cho phép') || msg.includes('tắt tìm kiếm') ||
+            msg.includes('không nhận tin nhắn') || msg.includes('stranger')
+        );
+
+        const isTemp = (
+            msg.includes('timeout') || msg.includes('econnreset') ||
+            msg.includes('enotfound') || msg.includes('disconnected') ||
+            msg.includes('socket') || msg.includes('network')
+        );
+
+        let errorMsg = 'SĐT chưa đăng ký tài khoản Zalo';
+        if (isRateLimit) {
+            errorMsg = 'Tài khoản Zalo đã đạt giới hạn quét SĐT trong ngày (Mã -216). Vui lòng chờ reset giờ/ngày hoặc đổi nick';
+        } else if (isTooFast) {
+            errorMsg = 'Tần suất tìm kiếm quá nhanh (Mã 50004). Đang tạm nghỉ để bảo vệ tài khoản';
+        } else if (isPrivacy) {
+            errorMsg = 'Khách hàng cài đặt quyền riêng tư (Tắt tìm kiếm qua SĐT / Chặn người lạ)';
+        } else if (isTemp) {
+            errorMsg = `Lỗi kết nối tạm thời (${err?.message || 'Network'}), hệ thống sẽ tự động thử lại`;
+        }
+
+        return { errorMsg, isPrivacy, isRateLimit, isTooFast, isTemp };
+    }
+
+    /**
+     * Execute bulk scan for a chunk of 6-10 phone numbers in 1 single getMultiUsersByPhones API request
      */
     private async executeBulkScan(
         chunkItems: any[],
@@ -602,26 +681,35 @@ class PhoneScanService {
             };
 
             let mapObj: Record<string, any> = {};
+            let bulkHitRateLimit = false;
 
-            try {
-                Logger.log(`[PhoneScanService] 🚀 Executing bulk lookup for ${phones.length} phones (Random Chunk 70-95) using account ${zaloId}...`);
-                const res: any = await zaloService.getMultiUsersByPhones(phones);
-                const rawResult = res?.data ?? res?.response ?? res;
-                if (rawResult && typeof rawResult === 'object') {
-                    mapObj = rawResult;
+            // Option C: skip bulk entirely if account already in single mode
+            if (this.isInSingleMode(zaloId)) {
+                Logger.log(`[PhoneScanService] 🔀 Account ${zaloId} is in SINGLE mode — skipping bulk, using findUser fallback directly.`);
+                bulkHitRateLimit = true;
+            } else {
+                try {
+                    Logger.log(`[PhoneScanService] 🚀 Executing bulk lookup for ${phones.length} phones using account ${zaloId}...`);
+                    const res: any = await zaloService.getMultiUsersByPhones(phones);
+                    const rawResult = res?.data ?? res?.response ?? res;
+                    if (rawResult && typeof rawResult === 'object') {
+                        mapObj = rawResult;
+                    }
+                } catch (err: any) {
+                    if (this.isWarningTooFastError(err)) {
+                        await this.handleScanWarningRateLimit(zaloId, batchId, chunkItems[0]?.id || null);
+                        return;
+                    }
+                    if (this.isRateLimitError(err)) {
+                        // Option C: mark account as single mode in DB
+                        this.switchToSingleMode(zaloId);
+                        // Option A: don't stop — fallback each phone via findUser below
+                        Logger.warn(`[PhoneScanService] ⚠️ Bulk -216 on account ${zaloId}. Switched to SINGLE mode. Retrying ${chunkItems.length} phones via findUser...`);
+                        bulkHitRateLimit = true;
+                    } else {
+                        Logger.warn(`[PhoneScanService] Bulk getMultiUsersByPhones error: ${err.message}.`);
+                    }
                 }
-            } catch (err: any) {
-                if (this.isWarningTooFastError(err)) {
-                    await this.handleScanWarningRateLimit(zaloId, batchId, chunkItems[0]?.id || null);
-                    return;
-                }
-                if (this.isRateLimitError(err)) {
-                    Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 on getMultiUsersByPhones bulk lookup. Pausing account ${zaloId}.`);
-                    await this.handleRateLimit(zaloId, batchId, chunkItems[0]?.id || null);
-                    EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
-                    return;
-                }
-                Logger.warn(`[PhoneScanService] Bulk getMultiUsersByPhones error: ${err.message}.`);
             }
 
             // Process each item in chunk
@@ -633,14 +721,69 @@ class PhoneScanService {
                 const phoneKey = item.phone_normalized || item.phone;
                 const phoneRaw = item.phone || phoneKey;
 
-                // Match phone in mapObj
-                let rawUser = mapObj[phoneKey] || mapObj[phoneRaw];
-                if (!rawUser) {
-                    const keyAlt1 = phoneKey.startsWith('84') ? '0' + phoneKey.slice(2) : '84' + phoneKey.replace(/^0/, '');
-                    rawUser = mapObj[keyAlt1];
-                }
+                let zaloUser: { uid: string; name: string; avatar: string; gender?: number | null } | null = null;
+                let notFoundErrorMsg = 'SĐT chưa đăng ký tài khoản Zalo';
 
-                let zaloUser = extractZaloUser(rawUser, phoneRaw);
+                if (bulkHitRateLimit) {
+                    // Option 3: Add jitter delay between each single findUser call to prevent 50004
+                    await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
+
+                    // Option A — bulk quota exhausted: try each phone individually via findUser
+                    try {
+                        const findRes: any = await zaloService.findUser(phoneKey);
+                        // findUser ignores -216 in zca-js and may still return data
+                        const u = findRes?.data ?? findRes?.response ?? findRes;
+                        if (u) {
+                            const uid = String(u.uid || u.userId || u.uId || u.id || '');
+                            if (uid && uid !== '0' && uid !== 'undefined' && uid !== 'null') {
+                                const name = u.displayName || u.display_name || u.zaloName || u.zalo_name || u.name || u.dpName || phoneRaw;
+                                const avatar = u.avatar || u.avatarUrl || u.avatar_url || '';
+                                let gender: number | null = null;
+                                const gVal = u.gender ?? u.sd?.gender ?? u.sex;
+                                if (gVal === 0 || gVal === '0' || gVal === 'male' || gVal === 'Male') gender = 0;
+                                else if (gVal === 1 || gVal === '1' || gVal === 'female' || gVal === 'Female') gender = 1;
+                                zaloUser = { uid, name, avatar, gender };
+                                Logger.log(`[PhoneScanService] ✅ findUser fallback found ${phoneRaw} → UID ${uid}`);
+                            }
+                        }
+                    } catch (findErr: any) {
+                        const classified = this.classifyPhoneLookupError(findErr);
+                        notFoundErrorMsg = classified.errorMsg;
+
+                        if (this.isWarningTooFastError(findErr)) {
+                            // Too fast on findUser too — rollback item and cool-down
+                            await this.handleScanWarningRateLimit(zaloId, batchId, item.id || null);
+                            // Rollback remaining items in this chunk to pending
+                            db.run(
+                                `UPDATE phone_scan_items SET status = 'pending', scanned_by_account_id = NULL, scanned_at = NULL WHERE id = ?`,
+                                [item.id]
+                            );
+                            continue;
+                        }
+                        if (this.isRateLimitError(findErr)) {
+                            // Both bulk AND findUser quota exhausted → now actually pause
+                            Logger.warn(`[PhoneScanService] 🛑 Both bulk AND findUser -216 exhausted for account ${zaloId}. Pausing account.`);
+                            await this.handleRateLimit(zaloId, batchId, item.id || null);
+                            EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
+                            return;
+                        }
+                        if (classified.isTemp) {
+                            // Temporary network issue — rollback to pending so it will be retried
+                            Logger.warn(`[PhoneScanService] Temporary network issue for ${phoneRaw}: ${findErr.message}. Resetting to pending.`);
+                            db.run(`UPDATE phone_scan_items SET status = 'pending', scanned_by_account_id = NULL, scanned_at = NULL, error_msg = ? WHERE id = ?`, [classified.errorMsg, item.id]);
+                            continue;
+                        }
+                        Logger.warn(`[PhoneScanService] findUser fallback note for ${phoneRaw}: ${classified.errorMsg}`);
+                    }
+                } else {
+                    // Normal path: extract result from bulk mapObj
+                    let rawUser = mapObj[phoneKey] || mapObj[phoneRaw];
+                    if (!rawUser) {
+                        const keyAlt1 = phoneKey.startsWith('84') ? '0' + phoneKey.slice(2) : '84' + phoneKey.replace(/^0/, '');
+                        rawUser = mapObj[keyAlt1];
+                    }
+                    zaloUser = extractZaloUser(rawUser, phoneRaw);
+                }
 
                 if (zaloUser?.uid) {
                     const uid = zaloUser.uid;
@@ -685,11 +828,12 @@ class PhoneScanService {
                         }
                     } catch (aliasErr: any) {}
                 } else {
-                    // SĐT không có Zalo
+                    // SĐT không có Zalo hoặc bị chặn tìm kiếm
                     db.updatePhoneScanItemStatus({
                         itemId: item.id,
                         status: 'not_found',
-                        scannedByAccountId: zaloId
+                        scannedByAccountId: zaloId,
+                        errorMsg: notFoundErrorMsg
                     });
                 }
             }
@@ -734,6 +878,7 @@ class PhoneScanService {
             const zaloService = await ZaloService.getInstance(conn.auth);
 
             let zaloUser: { uid: string; name: string; avatar: string; gender?: number | null } | null = null;
+            let notFoundErrorMsg = 'SĐT chưa đăng ký tài khoản Zalo';
 
             // Helper to extract user profile from various zca-js response structures
             const extractZaloUser = (raw: any): { uid: string; name: string; avatar: string; gender?: number | null } | null => {
@@ -751,62 +896,77 @@ class PhoneScanService {
                 return { uid, name, avatar, gender };
             };
 
-            // 1. Try getMultiUsersByPhones bulk lookup first
-            try {
-                const res: any = await zaloService.getMultiUsersByPhones([phoneNormalized]);
-                const mapObj = res?.data ?? res?.response ?? res;
-                if (mapObj && typeof mapObj === 'object') {
-                    for (const [phoneKey, userRaw] of Object.entries(mapObj)) {
-                        const parsed = extractZaloUser(userRaw);
-                        if (parsed) {
-                            zaloUser = parsed;
-                            break;
+            // 1. Try getMultiUsersByPhones bulk lookup first (skip if account already in single mode — Option C)
+            if (!this.isInSingleMode(zaloId)) {
+                try {
+                    const res: any = await zaloService.getMultiUsersByPhones([phoneNormalized]);
+                    const mapObj = res?.data ?? res?.response ?? res;
+                    if (mapObj && typeof mapObj === 'object') {
+                        for (const [, userRaw] of Object.entries(mapObj)) {
+                            const parsed = extractZaloUser(userRaw);
+                            if (parsed) {
+                                zaloUser = parsed;
+                                break;
+                            }
                         }
                     }
-                }
-            } catch (err: any) {
-                // Detect -216 early — don't waste a second findUser call when account is already blocked
-                if (this.isWarningTooFastError(err)) {
-                    await this.handleScanWarningRateLimit(zaloId, batchId, itemId);
-                    return;
-                }
-                if (this.isRateLimitError(err)) {
-                    Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 on getMultiUsersByPhones for ${phoneNormalized}. Stopping early.`);
-                    await this.handleRateLimit(zaloId, batchId, itemId);
-                    EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
-                    return;
-                }
-                Logger.warn(`[PhoneScanService] getMultiUsersByPhones failed for ${phoneNormalized}: ${err.message}. Trying findUser fallback...`);
-            }
-
-            // 2. Fallback to findUser if bulk lookup did not find the user
-            if (!zaloUser) {
-                try {
-                    const findRes: any = await zaloService.findUser(phoneNormalized);
-                    zaloUser = extractZaloUser(findRes);
                 } catch (err: any) {
                     if (this.isWarningTooFastError(err)) {
                         await this.handleScanWarningRateLimit(zaloId, batchId, itemId);
                         return;
                     }
-
-                    const isRateLimit = this.isRateLimitError(err);
-                    const errorMsg = isRateLimit
-                        ? 'Tài khoản Zalo hiện tại đã đạt giới hạn quét SĐT (Mã -216). Vui lòng chờ reset giờ/ngày hoặc đổi nick'
-                        : (err.message || 'Lookup failed');
-
-                    Logger.error(`[PhoneScanService] findUser failed for ${phoneNormalized}: ${errorMsg}`);
-                    db.updatePhoneScanItemStatus({
-                        itemId,
-                        status: 'error',
-                        scannedByAccountId: zaloId,
-                        errorMsg
-                    });
-                    if (isRateLimit) {
-                        await this.handleRateLimit(zaloId, batchId, null);
+                    if (this.isRateLimitError(err)) {
+                        // Option C: mark as single mode in DB, Option A: fall through to findUser below
+                        this.switchToSingleMode(zaloId);
+                        Logger.warn(`[PhoneScanService] ⚠️ Bulk -216 on executeScan for ${phoneNormalized}. Switched to SINGLE mode. Falling through to findUser...`);
+                    } else {
+                        Logger.warn(`[PhoneScanService] getMultiUsersByPhones failed for ${phoneNormalized}: ${err.message}. Trying findUser fallback...`);
                     }
-                    EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
-                    return;
+                }
+            } else {
+                Logger.log(`[PhoneScanService] 🔀 Account ${zaloId} in SINGLE mode — skipping bulk for ${phoneNormalized}.`);
+            }
+
+            // 2. Fallback to findUser if bulk lookup did not find the user
+            if (!zaloUser) {
+                // Option 3: Jitter delay before single findUser call
+                if (this.isInSingleMode(zaloId)) {
+                    await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
+                }
+
+                try {
+                    const findRes: any = await zaloService.findUser(phoneNormalized);
+                    zaloUser = extractZaloUser(findRes);
+                } catch (err: any) {
+                    const classified = this.classifyPhoneLookupError(err);
+                    notFoundErrorMsg = classified.errorMsg;
+
+                    if (this.isWarningTooFastError(err)) {
+                        await this.handleScanWarningRateLimit(zaloId, batchId, itemId);
+                        return;
+                    }
+
+                    if (classified.isRateLimit) {
+                        Logger.error(`[PhoneScanService] findUser failed for ${phoneNormalized}: ${classified.errorMsg}`);
+                        db.updatePhoneScanItemStatus({
+                            itemId,
+                            status: 'error',
+                            scannedByAccountId: zaloId,
+                            errorMsg: classified.errorMsg
+                        });
+                        await this.handleRateLimit(zaloId, batchId, null);
+                        EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
+                        return;
+                    }
+
+                    if (classified.isTemp) {
+                        // Reset to pending on network glitch
+                        db.run(`UPDATE phone_scan_items SET status = 'pending', scanned_by_account_id = NULL, scanned_at = NULL, error_msg = ? WHERE id = ?`, [classified.errorMsg, itemId]);
+                        EventBroadcaster.emit('crm:phoneScanUpdate', { batchId });
+                        return;
+                    }
+
+                    Logger.warn(`[PhoneScanService] findUser note for ${phoneNormalized}: ${classified.errorMsg}`);
                 }
             }
 
@@ -919,7 +1079,8 @@ class PhoneScanService {
                 db.updatePhoneScanItemStatus({
                     itemId,
                     status: 'not_found',
-                    scannedByAccountId: zaloId
+                    scannedByAccountId: zaloId,
+                    errorMsg: notFoundErrorMsg
                 });
             }
 

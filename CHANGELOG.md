@@ -4,6 +4,17 @@ Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Za
 
 ## [v3.1.7] - 2026-08-08
 
+### ⏱️ Động Cơ Quét SĐT Dàn Đều (Steady Pacing 90s–120s) & Failover Single Mode Bền Bỉ
+- **Nhịp Quét Dàn Đều 90s – 120s / SĐT (`PhoneScanService.ts`):** Dàn đều thời gian quét giữa các số từ 90s đến 120s (kèm jitter ngẫu nhiên), phân bổ đều đặn **25 – 34 số/giờ** và **100 – 200 số/ngày**. Mô phỏng 100% hành vi người dùng thật, loại bỏ 99% nguy cơ bị Zalo phát hiện bot hoặc cảnh báo `50004` (quét quá nhanh).
+- **Failover Option A + C (Bulk ➔ Single Mode & SQLite Persistence):** Khi API Bulk `getMultiUsersByPhones` dính mã `-216`, tài khoản được tự động chuyển sang chế độ `single` (gọi `findUser` đơn lẻ với quota riêng và bỏ qua mã 216 của ZCA). Trạng thái `single` mode được lưu persistent vào SQLite (`setAccountScanBulkMode` trong `DatabaseService.ts`), duy trì qua các lần khởi động lại ứng dụng và tự động reset sau 60 phút hoặc qua 00:00 ngày mới.
+- **Phân loại lỗi 3 nhánh chuẩn xác (`classifyPhoneLookupError`):**
+  - 1. *Chưa đăng ký Zalo*: (code 5001, 5004, data rỗng) ➔ Trả về `status: 'not_found'` với ghi chú rõ ràng.
+  - 2. *Khách cài Quyền riêng tư*: (code 201, 202, 204, 214, 576) ➔ Trả về `status: 'not_found'` với ghi chú "Khách hàng cài đặt quyền riêng tư (Tắt tìm kiếm qua SĐT / Chặn người lạ)".
+  - 3. *Lỗi mạng / Timeout tạm thời*: Rollback về `pending` để hệ thống tự động thử lại khi kết nối ổn định.
+- **Huy Hiệu Động & Đồng Hồ Đếm Ngược Thời Gian Thực (`PhoneScanPanel.tsx`):**
+  - Thay thế trạng thái tĩnh bằng hệ thống huy hiệu động: `🟢 Đang quét` (chỉ khi đang gọi API), `⏳ Chờ hạn ngạch GIỜ (-216)` (kèm đếm ngược từng giây `⏳ Chờ 42p 15s`), `🌙 Chờ 00:00 (Hạn ngạch NGÀY)`, `⏰ Hẹn 08:30`, `🟡 Chờ hàng đợi (#2)`, `⏸️ Tạm dừng (Thủ công)`.
+  - Khung cảnh báo Rate Limit Alert Banner ở chi tiết Lô hiển thị rõ tên Nick Zalo chạm hạn ngạch và đếm ngược thời gian chính xác tự động quét tiếp.
+
 ### 🏠 Tự Động Nhận Diện CSDL Cục Bộ & Khắc Phục Triệt Để Màn Hình License
 - **Tự động nhận diện CSDL Zagi (`LicenseManager.ts`):** Tự động phát hiện file CSDL `zagi-tool.db` đã có sẵn trên máy để kích hoạt bản quyền cục bộ vĩnh viễn, loại bỏ 100% màn hình License Popup khi cài đè hoặc nâng cấp phiên bản mới.
 - **Giải mã Cookie Đa tầng Chịu lỗi cao (`DatabaseService.ts`):**

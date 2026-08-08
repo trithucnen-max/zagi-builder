@@ -224,16 +224,23 @@ Quản lý thực thi chiến dịch gửi tin nhắn / kết bạn hàng loạt
 **Singleton:** `PhoneScanService.getInstance()`
 
 ### Purpose
-Quản lý động cơ Quét số điện thoại Zalo hàng loạt đa tài khoản (Multi-Account Parallel Scanning & Smart Adaptive Quota).
+Quản lý động cơ Quét số điện thoại Zalo hàng loạt đa tài khoản với cơ chế Điều hòa Tần suất (Steady Pacing Rate Limiting), Tự động chuyển Single Mode khi chạm `-216`, và Phân loại lỗi 3 nhánh chuẩn xác.
 
-### Key Features (v3.1.6)
-- **Random Chunking (6 – 10 SĐT / Request)**: Gom ngẫu nhiên 6 - 10 SĐT trong 1 request API `getMultiUsersByPhones`. Giảm 90% số lượng request kết nối Zalo Server và tuân thủ tuyệt đối ngạch an toàn Zalo (**30 số/giờ** & **100-200 số/ngày**).
-- **Quét song song đa tài khoản**: Luân phiên phân bổ các tài khoản Zalo active theo `hourlyCount` để san đều tải và quét song song.
+### Key Features (v3.1.7)
+- **Steady Pacing Rate Limiter (90s – 120s / SĐT)**: Dàn đều thời gian quét giữa các số từ 90s đến 120s (kèm jitter ngẫu nhiên), phân bổ đều đặn **25 – 34 số/giờ** và **100 – 200 số/ngày**. Mô phỏng 100% hành vi người dùng thật, loại bỏ 99% nguy cơ bị Zalo phát hiện bot hoặc cảnh báo `50004` (quét quá nhanh).
+- **Failover Option A + C (Bulk ➔ Single Mode & SQLite Persistence)**:
+  - Khi API Bulk `getMultiUsersByPhones` chạm trần `-216`, hệ thống tự động chuyển nick sang chế độ `single` (gọi `findUser` đơn lẻ với quota độc lập và bỏ qua mã 216).
+  - Trạng thái `single` mode được lưu cố định vào SQLite (`scan_bulk_mode_${zaloId}` qua `DatabaseService.ts`), duy trì bền bỉ qua các lần khởi động lại ứng dụng và tự reset sau 60 phút hoặc qua 00:00 ngày mới.
+- **Phân loại lỗi 3 nhánh chuẩn xác (`classifyPhoneLookupError`)**:
+  - `not_found`: Phân biệt rõ **"SĐT chưa đăng ký tài khoản Zalo"** (code 5001, 5004, data rỗng).
+  - `not_found` (Privacy): Phân biệt **"Khách hàng cài đặt quyền riêng tư (Tắt tìm kiếm qua SĐT / Chặn người lạ)"** (code 201, 202, 204, 214, 576).
+  - `pending` (Temporary): Lỗi mạng / timeout tạm thời sẽ tự động hoàn tác về `pending` để thử lại.
+- **Huy hiệu Động & Đồng hồ Đếm ngược Thời gian thực (`QuotaCountdownBadge`)**:
+  - Giao diện phản ánh chính xác trạng thái thực tế: `🟢 Đang quét`, `⏳ Chờ hạn ngạch GIỜ (-216)` (kèm đếm ngược từng phút giây), `🌙 Chờ 00:00 (Hạn ngạch NGÀY)`, `⏰ Hẹn giờ`, `🟡 Chờ hàng đợi`.
 - **Hỗ trợ 3 quy tắc lưu trữ CRM**:
   - 🟢 **Phân tán theo nick quét**: Nick nào quét thấy lưu vào danh bạ CRM nick đó.
-  - 🔵 **Gom về 1 nick Master**: Các nick phụ hỗ trợ quét song song, toàn bộ kết quả tạo profile CRM đổ về 1 nick chỉ định (Sếp).
-  - 🟣 **Đồng bộ tất cả các nick**: Các nick hỗ trợ quét song song, dữ liệu kết quả được nhân bản lưu đồng thời ở tất cả các nick Zalo active.
-- **Smart Adaptive Quota (Mã -216 & 50004)**: Tự động phát hiện lỗi `-216` / `50004` từ Zalo Server để tạm dừng nick, tự động rollback SĐT đang quét dở dang về `pending` cho nick khác tiếp quản và đếm ngược thời gian hồi phục (60 phút / 00:00).
+  - 🔵 **Gom về 1 nick Master**: Các nick phụ hỗ trợ quét, toàn bộ kết quả tạo profile CRM đổ về 1 nick chỉ định (Sếp).
+  - 🟣 **Đồng bộ tất cả các nick**: Dữ liệu kết quả được nhân bản lưu đồng thời ở tất cả các nick Zalo active.
 
 ---
 
