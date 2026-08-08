@@ -148,6 +148,16 @@ if (!empSvc.hasPermission(employee.employee_id, module)) {
 * Khi bắt sự kiện `resume` hoặc `unlock-screen` từ `powerMonitor`, **KHÔNG** kích hoạt kết nối lại ngay lập tức.
 * **LUÔN trì hoãn 3-5 giây** (sử dụng `setTimeout`) trước khi gọi các hàm kết nối DNS để card mạng của hệ thống có đủ thời gian lấy IP ổn định.
 
+### 10. Option C: Smart Single-Mode Resilience & Rate-Limit Adaptive Cooldown (v3.1.8)
+Khi thực thi quét SĐT hàng loạt:
+* Bắt mã `-216` ở cả dạng exception và JSON response payload (`res?.error_code === -216`).
+* Tự động chuyển tài khoản sang chế độ Single Mode (`findUser`) kết hợp jitter an toàn (`1.5s - 3s`), không bao giờ ngắt cả lô khi gặp 1 số lỗi.
+* Áp dụng quy tắc ngưỡng 3 lần liên tiếp (`consecutiveSingleRateLimitCount`): lỗi 1-2 lần đơn lẻ rollback về `pending` và nghỉ 3 phút (`accountCooldownUntil`), chỉ khi 3 số khác nhau liên tiếp đều lỗi mới pause tài khoản.
+
+### 11. Fullscreen Batch Report Filtering & 1-Click Reassignment (v3.1.8)
+* Modal báo cáo lô phóng to (`fullscreenReportBatch`) lọc danh sách tài khoản & quota card chính xác theo những nick được gán trong lô (`getBatchAssignedAccounts`) kèm tỷ lệ `%`.
+* Trang bị bộ phím điều khiển tức thì: `⚡ Tiếp tục quét Single Mode`, `🔄 Quét lại các số Lỗi`, và `🔄 Đổi Nick quét tiếp` với 1 chạm.
+
 ---
 
 ## Performance Gotchas

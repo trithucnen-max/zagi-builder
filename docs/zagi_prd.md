@@ -1,8 +1,32 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 3.1.7  
-> **Ngày cập nhật:** 06/08/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.1.7 (Official Release)  
+> **Phiên bản tài liệu:** 3.1.8  
+> **Ngày cập nhật:** 09/08/2026  
+> **Trạng thái sản phẩm hiện tại:** v3.1.8 (Official Release)  
 > **Chủ quản:** Product Management Team  
+
+---
+
+#### 🚀 v3.1.8 — Option C: Smart Single-Mode Resilience, Rate-Limit Adaptive Cooldown, Lọc Báo Cáo Fullscreen & Phím Điều Khiển Quét Nhanh (Official Release)
+* **Tính năng mới & Sửa lỗi nổi bật:**
+  * **🔀 Đột Phá Option C: Fallback Single Mode Bền Bỉ (`PhoneScanService.ts`)**:
+    * Bắt toàn diện mã lỗi `-216` ở cả dạng throw exception và JSON response payload (`{ error_code: -216 }` hoặc `isRateLimitError(res)`).
+    * Khi gặp `-216` ở chế độ quét gộp (Bulk), hệ thống tự động chuyển tài khoản sang chế độ Single Mode (`findUser`) kết hợp khoảng nghỉ jitter an toàn (`1.5s - 3s/lần`), tiếp tục quét thông suốt toàn bộ danh sách SĐT (kể cả các số hợp lệ phía sau số lỗi mà trước đây bị dừng oan).
+    * Khi kết quả quét gộp không thấy SĐT trong map phản hồi, tự động kích hoạt fallback `findUser` đơn lẻ ngay lập tức trước khi kết luận không tìm thấy.
+  * **⏳ Cơ Chế Smart Cooldown 3 Phút & Ngưỡng Lỗi Liên Tiếp 3 Lần (Không Hủy Cả Lô Vì 1 Số)**:
+    * Bổ sung bộ đếm `consecutiveSingleRateLimitCount` và thời gian nghỉ `accountCooldownUntil` (3 phút).
+    * **Lỗi 1-2 lần đơn lẻ trên số điện thoại**: Tự động rollback SĐT đó về trạng thái `Chờ quét (pending)` và đưa nick vào trạng thái nghỉ thông minh 3 phút để hạ nhiệt, cho phép scheduler tiếp tục quét các nick khác hoặc quét các số còn lại sau khi hết thời gian nghỉ.
+    * **Chỉ khi 3 số điện thoại khác nhau liên tiếp đều trả về `-216`**: Hệ thống mới kết luận tài khoản đã thực sự cạn kiệt hạn ngạch tìm kiếm của Zalo và mới tạm dừng tài khoản.
+  * **⚡ Bộ Phím Điều Khiển Quét Tức Thì Trong Báo Cáo Phóng To (`PhoneScanPanel.tsx`)**:
+    * **`⚡ Tiếp tục quét Single Mode (findUser)`**: Unpause lô ngay lập tức, xóa cooldown tài khoản, chuyển sang Single Mode và kích hoạt quét ngay.
+    * **`🔄 Quét lại các số Lỗi (Mã -216)`**: Reset toàn bộ các số có trạng thái `error` về lại `pending`, xóa lỗi của lô và tiếp tục quét an toàn bằng Single Mode.
+    * **`🔄 Đổi Nick quét tiếp`**: Hiển thị danh sách các tài khoản Zalo đang kết nối ổn định (`Gohr Platform`, `Nguyen Tat Huu`...) để bấm 1 chạm chuyển toàn bộ các số còn lại sang nick mới và quét tiếp ngay lập tức.
+  * **🎯 Chuẩn Hóa Bộ Lọc Thẻ Quota & Tránh Chọn Nick Mất Kết Nối**:
+    * Thẻ Hạn ngạch & Phân bổ (`📊 Trạng thái Hạn ngạch & Phân bổ`) trong Báo cáo phóng to chỉ hiển thị chính xác các tài khoản Zalo được gán trong Lô kèm tỷ lệ `%` phân bổ tương ứng.
+    * Trong Modal Tạo Lô Quét: Tự động vô hiệu hóa các tài khoản Zalo đang bị mất kết nối và gắn huy hiệu đỏ `⚠️ Mất kết nối` để người dùng không chọn nhầm tài khoản chết.
+  * **🗄️ Bổ Sung Các Hàm CSDL Phục Hồi Lô & Đổi Nick Cấp Tốc (`DatabaseService.ts` & `ipc.ts`)**:
+    * `updatePhoneScanBatchAssignedAccount(batchId, assignedAccountId)`: Cập nhật tài khoản gán cho lô và tự động unpause lô.
+    * `retryPhoneScanErrorItems(batchId)`: Đưa các số lỗi về `pending`, reset `error_count = 0` và kích hoạt lại lô.
+    * `resumePhoneScanBatchSingleMode(batchId)`: Khởi động lại lô ở chế độ Single Mode và xóa trạng thái rate limit pause.
 
 ---
 

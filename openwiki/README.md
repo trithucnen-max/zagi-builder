@@ -60,6 +60,14 @@ Nhân viên machine:
 
 ## Changelog
 
+## Release Highlights (v3.1.8)
+
+- **🔀 Đột Phá Option C: Fallback Single Mode Bền Bỉ (`PhoneScanService.ts`)**: Bắt toàn diện mã lỗi `-216` ở cả dạng throw exception và JSON response payload (`{ error_code: -216 }`). Khi gặp `-216`, tài khoản được tự động chuyển sang Single Mode (`findUser`) kết hợp jitter an toàn (1.5s–3s) tiếp tục quét thông suốt toàn bộ các số hợp lệ phía sau số lỗi.
+- **⏳ Cơ Chế Smart Cooldown 3 Phút & Ngưỡng Lỗi Liên Tiếp 3 Lần**: Single phone `-216` được tự động rollback về `pending` và đưa nick vào trạng thái nghỉ 3 phút để hạ nhiệt thay vì ngắt cả lô; chỉ khi 3 số khác nhau liên tiếp đều lỗi mới tạm dừng tài khoản.
+- **⚡ Bộ Phím Điều Khiển Quét Tức Thì Trong Báo Cáo Phóng To (`PhoneScanPanel.tsx`)**: Bổ sung thanh điều khiển 1 chạm: `⚡ Tiếp tục quét Single Mode (findUser)`, `🔄 Quét lại các số Lỗi (Mã -216)`, và `🔄 Đổi Nick quét tiếp` sang tài khoản Zalo đang kết nối ổn định khác.
+- **🎯 Chuẩn Hóa Bộ Lọc Thẻ Quota & Tránh Chọn Nick Mất Kết Nối**: Thẻ Quota trong Báo cáo phóng to chỉ hiển thị chính xác các nick được gán trong Lô kèm tỷ lệ `%` phân bổ; Modal tạo lô tự động vô hiệu hóa và cảnh báo nick mất kết nối `⚠️ Mất kết nối`.
+- **🗄️ Bổ Sung Các Hàm CSDL Phục Hồi Lô & Đổi Nick Cấp Tốc (`DatabaseService.ts` & `ipc.ts`)**: `updatePhoneScanBatchAssignedAccount`, `retryPhoneScanErrorItems`, và `resumePhoneScanBatchSingleMode`.
+
 ## Release Highlights (v3.1.7)
 
 - **🏠 Tự Động Nhận Diện CSDL Cục Bộ & Khắc Phục License Gate**: Tự động phát hiện file `zagi-tool.db` đã có sẵn trên máy để kích hoạt bản quyền vĩnh viễn và vào thẳng Dashboard, loại bỏ 100% màn hình License Popup khi cài đè hoặc nâng cấp phiên bản mới.
@@ -69,6 +77,7 @@ Nhân viên machine:
 - **💬 Fallback Khôi Phục 100% Lịch Sử Tin Nhắn Cũ**: Cơ chế Smart Thread Matching tự động chuẩn hóa tiền tố `g` của nhóm và fallback tìm kiếm theo `thread_id` chung nếu lệch session Zalo ID, khôi phục nguyên vẹn toàn bộ tin nhắn đã lưu trữ trong CSDL hiển thị lên màn hình chat.
 - **🏷️ Chuẩn Hóa Họ Tên Gốc & 2-Chiều Tách Tên Thật CRM**: Tự động gán `full_name_raw = display_name` khi quét SĐT và tách `real_name` chuẩn ngữ pháp Việt Nam ("Chào Chị Xuân"); Cho phép click đúp sửa trực tiếp trên bảng CRM tự động đồng bộ 2 chiều vào CSDL.
 
+- 2026-08-09: v3.1.8 — Triển khai Phương án C: Fallback Single Mode (`findUser`) bền bỉ và bắt mã lỗi -216 toàn diện; Cơ chế Smart Cooldown 3 phút & quy tắc ngưỡng 3 lỗi liên tiếp bảo vệ tài khoản không ngắt cả lô; Bộ phím điều khiển tức thì trong Báo cáo phóng to (`⚡ Tiếp tục quét Single Mode`, `🔄 Quét lại các số Lỗi`, `🔄 Đổi Nick quét tiếp`); Chuẩn hóa bộ lọc thẻ Hạn ngạch & tỷ lệ % theo từng lô; Vô hiệu hóa tài khoản mất kết nối trong Modal Tạo Lô Quét.
 - 2026-08-08: v3.1.7 — Tự động nhận diện CSDL Zagi cục bộ xóa bỏ License Popup; Giải mã Cookie 4 lớp cho Zalo Accounts tự động Online; Đăng ký Core IPC sớm khắc phục lỗi `getPipelineStages` & tự gieo 6 cột phễu Kanban mẫu; Nâng cấp Tải đầy đủ 280 Nhóm Zalo từ CSDL SQLite mặc định `Tất cả` kèm 3 nút phân loại (`Tất cả`, `Tôi quản lý`, `Thành viên`); Fallback truy vấn Thread thông minh khôi phục 100% lịch sử tin nhắn cũ trên giao diện chat; Tách biệt Biệt danh Gợi nhớ Zalo và Chuẩn hóa biến Tên thật `{real_name}`, `{name}` cùng bộ quy tắc `{salutation}` & `{tu_xung}` thông minh theo ngữ cảnh tiếng Việt.
 - 2026-08-04: v3.1.6 — Nâng cấp Bộ Lọc Dải Năm Sinh CRM (`1985 - 2000`) & Phím Tắt Thế Hệ (Gen Z, 9x, 8x, 7x trở trước); Phân loại 10 tình huống Trạng thái Lô quét & Badge Lý do Tạm dừng (`pause_reason`); Tự Động Khôi Phục Chạy Tiếp Sang Ngày Mới (Auto-Resume Next Day) sau 00:00 cho cả Quét số & Chiến dịch; Smart Adaptive Quota Auto-Tuning tự động hạ định mức an toàn khi gặp lỗi Zalo -216; Header `⚙️ ĐỊNH MỨC HÔM NAY` & Nâng cấp `AccountQuotaModal.tsx` với Avatar + Tên Nick Zalo thực tế + SĐT; Chuẩn hóa Logo PNG `zagi-logo.png` & Phục hồi tiến trình dở dang sau khi khởi động lại app.
 - 2026-08-02: v3.1.2 — Tối ưu hóa phân hệ CRM & Chiến dịch Zalo: Tự động lọc trùng Lời mời kết bạn (Deduplication - `hasSentFriendRequest`), Chặn cứng 1 chiến dịch / 1 Zalo, Xóa mềm chiến dịch (Phương Án A) kèm tự động dọn dẹp theo hạn lưu trữ 30 ngày, Cô lập nhật ký gửi tin theo từng Zalo Account, và Bổ sung cảnh báo rủi ro màu đỏ khi cài đặt định mức > 50/ngày.

@@ -182,3 +182,39 @@ Nhân viên: uploadMedia(base64, filename)
     └── Renderer tự động re-initialize RestQueryService(bossUrl, token)
           └─► Đảm bảo mọi request REST API tiếp theo đi đúng địa chỉ LAN/WAN mới ✅
 ```
+
+## Flow 9: Phone Scan Bulk & Option C Resilient Single Mode Fallback (v3.1.8)
+
+```
+[User tạo Lô / Bắt đầu Quét SĐT]
+    │
+    ▼
+PhoneScanService.tick()
+    │
+    ├── Phân bổ công bằng theo % trọng số của các nick Zalo active
+    ├── Kiểm tra Steady Pacing (90s - 120s giữa các lượt trên cùng 1 nick)
+    ├── Kiểm tra accountCooldownUntil (tránh nick đang trong 3 phút nghỉ)
+    │
+    ▼
+PhoneScanService.executeBulkScan(chunkItems, batchId, zaloId)
+    │
+    ├── [Trường hợp 1: Chế độ Bulk mặc định]
+    │       │ Gọi getMultiUsersByPhones(phones) [6-10 số/lần]
+    │       ├── Thành công ➔ Cập nhật profile CRM & gán nhãn tự động
+    │       └── Dính mã -216 (hoặc ném exception / payload error_code === -216)
+    │               │
+    │               ▼
+    │           Chuyển tài khoản sang SINGLE mode & lưu persistent SQLite
+    │
+    └── [Trường hợp 2: Chế độ SINGLE mode (findUser)]
+            │ Lặp từng số trong chunk với jitter an toàn (1.5s - 3s)
+            ├── findUser(phone) ➔ Tìm thấy profile Zalo UID ➔ Cập nhật CRM
+            └── Gặp lỗi -216 trên số điện thoại:
+                    │
+                    ├── Lỗi < 3 lần liên tiếp:
+                    │     ├── Rollback SĐT về 'pending'
+                    │     └── Đưa nick vào nghỉ Smart Cooldown 3 phút
+                    │
+                    └── Lỗi ≥ 3 lần liên tiếp trên các số khác nhau:
+                          └── Đánh dấu 'error' & pause tài khoản hết hạn ngạch ngày/giờ
+```
