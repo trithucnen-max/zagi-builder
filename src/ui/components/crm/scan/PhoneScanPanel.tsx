@@ -99,7 +99,18 @@ interface ScanItem {
 export default function PhoneScanPanel() {
     const { showNotification } = useAppStore();
     const visibleAccounts = useVisibleAccounts();
-    const hasMultipleZaloAccounts = visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo').length >= 2;
+
+    const isAccountHealthy = useCallback((acc: AccountInfo) => {
+        if (acc.channel && acc.channel !== 'zalo') return false;
+        if ((acc.is_active ?? 1) === 0) return false;
+        if (acc.listenerActive === false) return false;
+        if (acc.isConnected === false && !acc.isOnline) return false;
+        return true;
+    }, []);
+
+    const allZaloAccounts = useMemo(() => visibleAccounts.filter(acc => !acc.channel || acc.channel === 'zalo'), [visibleAccounts]);
+    const healthyZaloAccounts = useMemo(() => allZaloAccounts.filter(isAccountHealthy), [allZaloAccounts, isAccountHealthy]);
+    const hasMultipleZaloAccounts = healthyZaloAccounts.length >= 2;
     const activeAccountId = useAccountStore(s => s.activeAccountId);
     
     // State
@@ -625,12 +636,67 @@ export default function PhoneScanPanel() {
         };
     }, [selectedBatch, itemsPage, itemsStatusFilter, fetchBatches, fetchItems]);
 
-    // Auto-select single Zalo account if only 1 account connected
+    // Auto-select healthy Zalo accounts when creating batch
     useEffect(() => {
-        if (visibleAccounts.length === 1 && !formAssignedAccount) {
-            setFormAssignedAccount(visibleAccounts[0].zalo_id);
+        if (healthyZaloAccounts.length === 1 && !formAssignedAccount) {
+            setFormAssignedAccount(healthyZaloAccounts[0].zalo_id);
+            setFormAccountWeights({ [healthyZaloAccounts[0].zalo_id]: 100 });
+        } else if (healthyZaloAccounts.length > 1 && !formAssignedAccount && Object.keys(formAccountWeights).length === 0) {
+            const base = Math.floor(100 / healthyZaloAccounts.length);
+            const rem = 100 - base * healthyZaloAccounts.length;
+            const initWeights: Record<string, number> = {};
+            healthyZaloAccounts.forEach((acc, idx) => {
+                initWeights[acc.zalo_id] = base + (idx < rem ? 1 : 0);
+            });
+            setFormAccountWeights(initWeights);
         }
-    }, [visibleAccounts, formAssignedAccount]);
+    }, [healthyZaloAccounts, formAssignedAccount, formAccountWeights]);
+
+    // Helper to parse batch assigned accounts with percentages
+    const getBatchAssignedAccounts = useCallback((b: Batch | null) => {
+        if (!b) return [];
+        const zaloAccs = visibleAccounts.filter(a => !a.channel || a.channel === 'zalo');
+        const raw = (b.assigned_account_id || '').trim();
+
+        if (!raw || raw === 'all') {
+            const base = zaloAccs.length > 0 ? Math.floor(100 / zaloAccs.length) : 0;
+            const remainder = 100 - base * zaloAccs.length;
+            return zaloAccs.map((acc, idx) => ({
+                account: acc,
+                zaloId: acc.zalo_id,
+                fullName: acc.full_name || acc.display_name || acc.zalo_id,
+                avatar: acc.avatar_url,
+                weight: base + (idx < remainder ? 1 : 0),
+            }));
+        }
+
+        const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+        const result: Array<{
+            account?: AccountInfo;
+            zaloId: string;
+            fullName: string;
+            avatar?: string;
+            weight: number;
+        }> = [];
+
+        const defaultWeight = parts.length > 0 ? Math.floor(100 / parts.length) : 100;
+        const remainder = 100 - defaultWeight * parts.length;
+
+        parts.forEach((part, idx) => {
+            const [id, weightStr] = part.split(':').map(s => s.trim());
+            const weight = weightStr ? Number(weightStr) : (defaultWeight + (idx < remainder ? 1 : 0));
+            const matchedAcc = visibleAccounts.find(a => String(a.zalo_id) === String(id));
+            result.push({
+                account: matchedAcc,
+                zaloId: id,
+                fullName: matchedAcc?.full_name || matchedAcc?.display_name || id,
+                avatar: matchedAcc?.avatar_url,
+                weight: isNaN(weight) ? defaultWeight : weight,
+            });
+        });
+
+        return result;
+    }, [visibleAccounts]);
 
     // Parse auto-assigned tag IDs for selected batch
     const parsedAutoTagIds: number[] = React.useMemo(() => {
@@ -774,10 +840,24 @@ export default function PhoneScanPanel() {
             return;
         }
 
+        let finalAssignedAccountId: string | null = formAssignedAccount || null;
+        if (hasMultipleZaloAccounts) {
+            const selectedList = !formAssignedAccount 
+                ? healthyZaloAccounts.map(a => a.zalo_id)
+                : formAssignedAccount.split(',').map(s => s.split(':')[0].trim()).filter(Boolean);
+            
+            if (selectedList.length > 0) {
+                finalAssignedAccountId = selectedList.map(id => {
+                    const weight = formAccountWeights[id] ?? Math.floor(100 / selectedList.length);
+                    return `${id}:${weight}`;
+                }).join(',');
+            }
+        }
+
         try {
             const res = await ipc.crm?.createPhoneScanBatch({
                 name: formName.trim(),
-                assignedAccountId: formAssignedAccount || null,
+                assignedAccountId: finalAssignedAccountId,
                 targetAccountId: null,
                 contactAssignmentMode: 'distributed',
                 autoTagIds: formAutoTagIds,
@@ -1963,11 +2043,9 @@ export default function PhoneScanPanel() {
 
                                     {/* Danh sách Multi-select Checkbox chọn tài khoản Zalo tham gia quét số kèm phân chia tỉ lệ % */}
                                     {hasMultipleZaloAccounts && (() => {
-                                        const zaloAccounts = visibleAccounts.filter(a => !a.channel || a.channel === 'zalo');
                                         const selectedList = !formAssignedAccount 
-                                            ? zaloAccounts.map(a => a.zalo_id)
+                                            ? healthyZaloAccounts.map(a => a.zalo_id)
                                             : formAssignedAccount.split(',').map(s => s.split(':')[0].trim()).filter(Boolean);
-                                        const allSelected = selectedList.length === zaloAccounts.length;
 
                                         // Calculate total current percentage
                                         const totalPercent = selectedList.reduce((sum, id) => {
@@ -2011,23 +2089,23 @@ export default function PhoneScanPanel() {
                                                             type="button"
                                                             onClick={() => {
                                                                 setFormAssignedAccount('');
-                                                                const base = Math.floor(100 / zaloAccounts.length);
-                                                                const remainder = 100 - base * zaloAccounts.length;
+                                                                const base = Math.floor(100 / healthyZaloAccounts.length);
+                                                                const remainder = 100 - base * healthyZaloAccounts.length;
                                                                 const next: Record<string, number> = {};
-                                                                zaloAccounts.forEach((a, idx) => {
+                                                                healthyZaloAccounts.forEach((a, idx) => {
                                                                     next[a.zalo_id] = base + (idx < remainder ? 1 : 0);
                                                                 });
                                                                 setFormAccountWeights(next);
                                                             }}
                                                             className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
                                                         >
-                                                            Chọn tất cả
+                                                            Chọn tất cả ({healthyZaloAccounts.length} TK)
                                                         </button>
                                                         <span className="text-gray-300 dark:text-gray-600">|</span>
                                                         <button
                                                             type="button"
                                                             onClick={() => {
-                                                                const firstId = zaloAccounts[0]?.zalo_id || '';
+                                                                const firstId = healthyZaloAccounts[0]?.zalo_id || '';
                                                                 setFormAssignedAccount(firstId);
                                                                 setFormAccountWeights({ [firstId]: 100 });
                                                             }}
@@ -2048,7 +2126,7 @@ export default function PhoneScanPanel() {
                                                 </div>
 
                                                 {/* Real-time Percentage Allocation Bar & Alert */}
-                                                {selectedList.length >= 2 && (
+                                                {selectedList.length >= 1 && (
                                                     <div className={`p-2 rounded-lg border text-xs flex items-center justify-between transition-all ${
                                                         totalPercent === 100
                                                             ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold'
@@ -2058,7 +2136,7 @@ export default function PhoneScanPanel() {
                                                     }`}>
                                                         <div className="flex items-center gap-1.5 truncate">
                                                             {totalPercent === 100 ? (
-                                                                <span>✓ Đã phân bổ chuẩn 100% ({selectedList.length} tài khoản)</span>
+                                                                <span>✓ Đã phân bổ chuẩn 100% ({selectedList.length} tài khoản active)</span>
                                                             ) : totalPercent < 100 ? (
                                                                 <span>⚠️ Còn thiếu <strong className="font-bold underline">{100 - totalPercent}%</strong> chưa phân phối (Tổng: {totalPercent}%)</span>
                                                             ) : (
@@ -2079,124 +2157,145 @@ export default function PhoneScanPanel() {
 
                                                 {/* Multi-select List with Inline % Input */}
                                                 <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-1">
-                                                    {zaloAccounts.map(acc => {
-                                            const isChecked = selectedList.includes(acc.zalo_id);
-                                            const currentVal = formAccountWeights[acc.zalo_id] ?? (selectedList.length > 0 ? Math.floor(100 / selectedList.length) : 0);
+                                                    {allZaloAccounts.map(acc => {
+                                                        const isDead = !isAccountHealthy(acc);
+                                                        const isChecked = selectedList.includes(acc.zalo_id) && !isDead;
+                                                        const currentVal = isChecked
+                                                            ? (formAccountWeights[acc.zalo_id] ?? (selectedList.length > 0 ? Math.floor(100 / selectedList.length) : 0))
+                                                            : 0;
 
-                                            return (
-                                                <div
-                                                    key={acc.zalo_id}
-                                                    className={`w-full text-left p-2 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 ${
-                                                        isChecked
-                                                            ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-400/80 dark:border-blue-700/80 text-blue-950 dark:text-blue-200 font-semibold ring-1 ring-blue-500/20'
-                                                            : 'border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40 text-gray-400 dark:text-gray-500 opacity-60'
-                                                    }`}
-                                                >
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            let updated: string[];
-                                                            if (isChecked) {
-                                                                updated = selectedList.filter(id => id !== acc.zalo_id);
-                                                                if (updated.length === 0) updated = [acc.zalo_id];
-                                                            } else {
-                                                                updated = [...selectedList, acc.zalo_id];
-                                                            }
-                                                            if (updated.length === zaloAccounts.length) {
-                                                                setFormAssignedAccount('');
-                                                            } else {
-                                                                setFormAssignedAccount(updated.join(','));
-                                                            }
-                                                            // Rebalance weights on change
-                                                            const base = Math.floor(100 / updated.length);
-                                                            const rem = 100 - base * updated.length;
-                                                            const next: Record<string, number> = {};
-                                                            updated.forEach((id, idx) => {
-                                                                next[id] = base + (idx < rem ? 1 : 0);
-                                                            });
-                                                            setFormAccountWeights(next);
-                                                        }}
-                                                        className="flex items-center gap-2.5 overflow-hidden flex-1 text-left"
-                                                    >
-                                                        {/* Custom Checkbox */}
-                                                        <div className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] font-extrabold border transition-all flex-shrink-0 ${
-                                                            isChecked 
-                                                                ? 'bg-blue-600 border-blue-600 text-white' 
-                                                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-transparent'
-                                                        }`}>
-                                                            ✓
-                                                        </div>
-                                                        {acc.avatar ? (
-                                                            <img src={acc.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
-                                                        ) : (
-                                                            <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
-                                                                {(acc.full_name || acc.zalo_id).charAt(0)}
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center gap-1.5 truncate">
-                                                            <span className="truncate">{acc.full_name || acc.zalo_id}</span>
-                                                            {acc.phone && <span className="text-[10px] text-gray-400 font-normal">({acc.phone})</span>}
-                                                        </div>
-                                                    </button>
-
-                                                    {/* Inline % Controls */}
-                                                    {isChecked ? (
-                                                        <div className="flex items-center gap-1 flex-shrink-0">
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setFormAccountWeights(prev => ({
-                                                                        ...prev,
-                                                                        [acc.zalo_id]: Math.max(0, currentVal - 5)
-                                                                    }));
-                                                                }}
-                                                                className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-xs"
-                                                                title="Giảm 5%"
+                                                        return (
+                                                            <div
+                                                                key={acc.zalo_id}
+                                                                className={`w-full text-left p-2 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 ${
+                                                                    isDead
+                                                                        ? 'border-gray-200 dark:border-gray-800 bg-gray-100/60 dark:bg-gray-800/20 opacity-60'
+                                                                        : isChecked
+                                                                            ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-400/80 dark:border-blue-700/80 text-blue-950 dark:text-blue-200 font-semibold ring-1 ring-blue-500/20'
+                                                                            : 'border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/40 text-gray-400 dark:text-gray-500 opacity-60'
+                                                                }`}
                                                             >
-                                                                -
-                                                            </button>
-                                                            <div className="relative flex items-center">
-                                                                <input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    max={100}
-                                                                    value={currentVal}
-                                                                    onChange={(e) => {
-                                                                        const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                                                                        setFormAccountWeights(prev => ({
-                                                                            ...prev,
-                                                                            [acc.zalo_id]: val
-                                                                        }));
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={isDead}
+                                                                    onClick={() => {
+                                                                        if (isDead) {
+                                                                            showNotification(`Tài khoản "${acc.full_name || acc.zalo_id}" đang mất kết nối Zalo. Vui lòng kết nối lại trước khi quét.`, 'warning');
+                                                                            return;
+                                                                        }
+                                                                        let updated: string[];
+                                                                        if (isChecked) {
+                                                                            updated = selectedList.filter(id => id !== acc.zalo_id);
+                                                                            if (updated.length === 0) updated = [acc.zalo_id];
+                                                                        } else {
+                                                                            updated = [...selectedList, acc.zalo_id];
+                                                                        }
+                                                                        if (updated.length === healthyZaloAccounts.length) {
+                                                                            setFormAssignedAccount('');
+                                                                        } else {
+                                                                            setFormAssignedAccount(updated.join(','));
+                                                                        }
+                                                                        // Rebalance weights on change
+                                                                        const base = Math.floor(100 / updated.length);
+                                                                        const rem = 100 - base * updated.length;
+                                                                        const next: Record<string, number> = {};
+                                                                        updated.forEach((id, idx) => {
+                                                                            next[id] = base + (idx < rem ? 1 : 0);
+                                                                        });
+                                                                        setFormAccountWeights(next);
                                                                     }}
-                                                                    className="w-12 text-center py-0.5 px-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-xs font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:border-blue-500"
-                                                                />
-                                                                <span className="text-[10px] text-gray-500 ml-0.5">%</span>
+                                                                    className={`flex items-center gap-2.5 overflow-hidden flex-1 text-left ${isDead ? 'cursor-not-allowed' : ''}`}
+                                                                >
+                                                                    {/* Custom Checkbox */}
+                                                                    <div className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] font-extrabold border transition-all flex-shrink-0 ${
+                                                                        isDead
+                                                                            ? 'border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-800 text-gray-400'
+                                                                            : isChecked 
+                                                                                ? 'bg-blue-600 border-blue-600 text-white' 
+                                                                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-transparent'
+                                                                    }`}>
+                                                                        {isChecked ? '✓' : ''}
+                                                                    </div>
+                                                                    {acc.avatar_url ? (
+                                                                        <img src={acc.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                                                    ) : (
+                                                                        <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                                                                            {(acc.full_name || acc.zalo_id).charAt(0)}
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="flex items-center gap-1.5 truncate">
+                                                                        <span className="truncate">{acc.full_name || acc.zalo_id}</span>
+                                                                        {acc.phone && <span className="text-[10px] text-gray-400 font-normal">({acc.phone})</span>}
+                                                                    </div>
+                                                                    {isDead && (
+                                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 flex items-center gap-0.5 flex-shrink-0 ml-1">
+                                                                            ⚠️ Mất kết nối
+                                                                        </span>
+                                                                    )}
+                                                                </button>
+
+                                                                {/* Inline % Controls */}
+                                                                {isDead ? (
+                                                                    <span className="text-[10px] font-medium text-red-500 dark:text-red-400 italic flex-shrink-0">
+                                                                        Không khả dụng
+                                                                    </span>
+                                                                ) : isChecked ? (
+                                                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setFormAccountWeights(prev => ({
+                                                                                    ...prev,
+                                                                                    [acc.zalo_id]: Math.max(0, currentVal - 5)
+                                                                                }));
+                                                                            }}
+                                                                            className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-xs"
+                                                                            title="Giảm 5%"
+                                                                        >
+                                                                            -
+                                                                        </button>
+                                                                        <div className="relative flex items-center">
+                                                                            <input
+                                                                                type="number"
+                                                                                min={0}
+                                                                                max={100}
+                                                                                value={currentVal}
+                                                                                onChange={(e) => {
+                                                                                    const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                                                                                    setFormAccountWeights(prev => ({
+                                                                                        ...prev,
+                                                                                        [acc.zalo_id]: val
+                                                                                    }));
+                                                                                }}
+                                                                                className="w-12 text-center py-0.5 px-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-xs font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:border-blue-500"
+                                                                            />
+                                                                            <span className="text-[10px] text-gray-500 ml-0.5">%</span>
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setFormAccountWeights(prev => ({
+                                                                                    ...prev,
+                                                                                    [acc.zalo_id]: Math.min(100, currentVal + 5)
+                                                                                }));
+                                                                            }}
+                                                                            className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-xs"
+                                                                            title="Tăng 5%"
+                                                                        >
+                                                                            +
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-[10px] font-medium text-gray-400">
+                                                                        0% (Đã bỏ qua)
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setFormAccountWeights(prev => ({
-                                                                        ...prev,
-                                                                        [acc.zalo_id]: Math.min(100, currentVal + 5)
-                                                                    }));
-                                                                }}
-                                                                className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-xs"
-                                                                title="Tăng 5%"
-                                                            >
-                                                                +
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-[10px] font-medium text-gray-400">
-                                                            0% (Đã bỏ qua)
-                                                        </span>
-                                                    )}
+                                                        );
+                                                    })}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
 
                                     {/* Summary Footer */}
                                     <div className="text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-750 flex items-center justify-between">
@@ -2821,9 +2920,27 @@ export default function PhoneScanPanel() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                                 <div>
                                     <span className="text-gray-400 font-medium block text-[11px]">Tài khoản Zalo chạy:</span>
-                                    <span className="font-bold text-gray-900 dark:text-white mt-0.5 block">
-                                        {selectedBatchAccount ? (selectedBatchAccount.full_name || selectedBatchAccount.zalo_id) : 'Tất cả tài khoản active'}
-                                    </span>
+                                    {(() => {
+                                        const bAccounts = getBatchAssignedAccounts(fullscreenReportBatch);
+                                        if (bAccounts.length === 0) {
+                                            return <span className="font-bold text-gray-900 dark:text-white mt-0.5 block">Tất cả tài khoản active</span>;
+                                        }
+                                        return (
+                                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                                {bAccounts.map(ba => (
+                                                    <span
+                                                        key={ba.zaloId}
+                                                        className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-bold flex items-center gap-1.5 text-xs shadow-2xs"
+                                                    >
+                                                        <span>{ba.fullName}</span>
+                                                        <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[10px] font-extrabold">
+                                                            {ba.weight}%
+                                                        </span>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
 
                                 <div>
@@ -2885,55 +3002,90 @@ export default function PhoneScanPanel() {
                             </div>
                         </div>
 
-                        {/* Middle: Accounts Health & Quota Overview */}
-                        {limitStatusList.length > 0 && (
-                            <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xs flex-shrink-0">
-                                <h4 className="font-bold text-xs text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
-                                    <span>📊 Trạng thái Hạn ngạch sức khỏe của các Nick Zalo quét:</span>
-                                </h4>
-                                <div className="flex flex-wrap gap-2.5">
-                                    {limitStatusList.map((acc: any) => (
-                                        <div
-                                            key={acc.zaloId}
-                                            className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs transition-all ${
-                                                acc.status === 'active'
-                                                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/60'
-                                                    : 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-800/60'
-                                            }`}
-                                        >
-                                            {acc.avatar ? (
-                                                <img src={acc.avatar} className="w-6 h-6 rounded-full object-cover border" alt="" />
-                                            ) : (
-                                                <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 font-bold text-xs flex items-center justify-center">
-                                                    {(acc.fullName || 'Z').charAt(0).toUpperCase()}
+                        {/* Middle: Accounts Health & Quota Overview (Filtered to ONLY accounts assigned to this batch) */}
+                        {(() => {
+                            const bAccounts = getBatchAssignedAccounts(fullscreenReportBatch);
+                            const assignedZaloIdSet = new Set(bAccounts.map(ba => String(ba.zaloId)));
+                            
+                            // Only include quota stats for accounts assigned to this batch
+                            const relevantQuotaList = limitStatusList.filter((acc: any) => assignedZaloIdSet.has(String(acc.zaloId)));
+                            
+                            const displayQuotaList = relevantQuotaList.length > 0
+                                ? relevantQuotaList
+                                : bAccounts.map(ba => ({
+                                    zaloId: ba.zaloId,
+                                    fullName: ba.fullName,
+                                    avatar: ba.avatar,
+                                    status: 'active',
+                                    todayCount: 0,
+                                    scanDailyLimit: fullscreenReportBatch.daily_limit,
+                                    hourlyCount: 0,
+                                    scanHourlyLimit: fullscreenReportBatch.hourly_limit || 30,
+                                    pauseReasonMsg: ''
+                                }));
+
+                            if (displayQuotaList.length === 0) return null;
+
+                            return (
+                                <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xs flex-shrink-0">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="font-bold text-xs text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                                            <span>📊 Trạng thái Hạn ngạch & Phân bổ của {displayQuotaList.length} Nick Zalo trong Lô #{fullscreenReportBatch.id}:</span>
+                                        </h4>
+                                        <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                                            (Chỉ hiển thị các tài khoản được gán trong Lô này)
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2.5">
+                                        {displayQuotaList.map((acc: any) => {
+                                            const assignedWeight = bAccounts.find(ba => String(ba.zaloId) === String(acc.zaloId))?.weight ?? 100;
+                                            return (
+                                                <div
+                                                    key={acc.zaloId}
+                                                    className={`p-2.5 rounded-xl border flex items-center gap-2.5 text-xs transition-all ${
+                                                        acc.status === 'active'
+                                                            ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/60'
+                                                            : 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-800/60'
+                                                    }`}
+                                                >
+                                                    {acc.avatar ? (
+                                                        <img src={acc.avatar} className="w-7 h-7 rounded-full object-cover border" alt="" />
+                                                    ) : (
+                                                        <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 font-bold text-xs flex items-center justify-center">
+                                                            {(acc.fullName || 'Z').charAt(0).toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <div className="font-bold text-gray-900 dark:text-white leading-tight flex items-center gap-1.5">
+                                                            <span>{acc.fullName}</span>
+                                                            <span className="px-1.5 py-0.2 rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-[10px] font-extrabold">
+                                                                Tỉ lệ: {assignedWeight}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5">
+                                                            <span>Ngày: {acc.todayCount}/{acc.scanDailyLimit}</span>
+                                                            <span>•</span>
+                                                            <span>Giờ: {acc.hourlyCount}/{acc.scanHourlyLimit}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="ml-2">
+                                                        {acc.status === 'active' ? (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                                                                🟢 Hoạt động
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300" title={acc.pauseReasonMsg}>
+                                                                🔴 {acc.status === 'hourly_quota' ? 'Dừng 1h (Mã -216)' : 'Dừng Ngày (Mã -216)'}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            )}
-                                            <div>
-                                                <div className="font-bold text-gray-900 dark:text-white leading-tight">
-                                                    {acc.fullName}
-                                                </div>
-                                                <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5">
-                                                    <span>Ngày: {acc.todayCount}/{acc.scanDailyLimit}</span>
-                                                    <span>•</span>
-                                                    <span>Giờ: {acc.hourlyCount}/{acc.scanHourlyLimit}</span>
-                                                </div>
-                                            </div>
-                                            <div className="ml-2">
-                                                {acc.status === 'active' ? (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
-                                                        🟢 Hoạt động
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300" title={acc.pauseReasonMsg}>
-                                                        🔴 {acc.status === 'hourly_quota' ? 'Dừng 1h (Mã -216)' : 'Dừng Ngày (Mã -216)'}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
 
                         {/* Main Interactive Table View */}
                         <div className="flex-1 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xs flex flex-col overflow-hidden">
