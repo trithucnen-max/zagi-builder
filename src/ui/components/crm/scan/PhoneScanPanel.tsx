@@ -2049,6 +2049,8 @@ export default function PhoneScanPanel() {
                                             ? healthyZaloAccounts.map(a => a.zalo_id)
                                             : formAssignedAccount.split(',').map(s => s.split(':')[0].trim()).filter(Boolean);
 
+                                        const allSelected = selectedList.length === healthyZaloAccounts.length;
+
                                         // Calculate total current percentage
                                         const totalPercent = selectedList.reduce((sum, id) => {
                                             return sum + (formAccountWeights[id] ?? (selectedList.length > 0 ? Math.floor(100 / selectedList.length) : 0));
@@ -2303,13 +2305,13 @@ export default function PhoneScanPanel() {
                                     <div className="text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-750 flex items-center justify-between">
                                         <span>
                                             {allSelected 
-                                                ? `⚡ Quét song song theo tỉ lệ % qua tất cả ${zaloAccounts.length} tài khoản active`
+                                                ? `⚡ Quét song song theo tỉ lệ % qua tất cả ${healthyZaloAccounts.length} tài khoản active`
                                                 : selectedList.length === 1
                                                     ? `👤 Chỉ quét độc quyền 100% bằng 1 tài khoản đã chọn`
-                                                    : `👥 Quét phân bổ theo tỉ lệ % qua ${selectedList.length} / ${zaloAccounts.length} tài khoản đã chọn`}
+                                                    : `👥 Quét phân bổ theo tỉ lệ % qua ${selectedList.length} / ${healthyZaloAccounts.length} tài khoản đã chọn`}
                                         </span>
                                         <span className="font-bold text-blue-600 dark:text-blue-400">
-                                            {selectedList.length}/{zaloAccounts.length} TK ({totalPercent}%)
+                                            {selectedList.length}/{healthyZaloAccounts.length} TK ({totalPercent}%)
                                         </span>
                                     </div>
                                 </div>
