@@ -8,6 +8,16 @@
 
 #### 🚀 v3.1.8 — Option C: Smart Single-Mode Resilience, Rate-Limit Adaptive Cooldown, Lọc Báo Cáo Fullscreen & Phím Điều Khiển Quét Nhanh (Official Release)
 * **Tính năng mới & Sửa lỗi nổi bật:**
+  * **🛡️ Bảo Toàn 100% Định Mức Ngày & Cơ Chế Cooldown 60 Phút Khi Gặp `-216` (`PhoneScanService.ts`, `DatabaseService.ts`)**:
+    * Loại bỏ hoàn toàn thuật toán tự ý bóp nghẹt giảm `scanDailyLimit` xuống con số thực tế vừa quét (13, 20).
+    * Phân loại ngắt nhịp chuẩn xác: Khi `todayCount < scanDailyLimit` (chưa chạm 100 số/ngày), lỗi `-216` được định tuyến chuẩn xác là Rate Limit Khung Giờ của Zalo $\rightarrow$ Chuyển sang trạng thái `⏳ Dừng 1h (Mã -216)` (nghỉ đúng 60 phút). Hết 60 phút hệ thống tự động thức dậy tiếp tục quét các số còn lại trong ngày.
+    * Tự động phục hồi CSDL: Tự động khôi phục định mức ngày $\ge 100$ và chuẩn hóa các cờ `daily_quota` quá hạn sang `hourly_quota`.
+  * **🧹 Loại Bỏ Hoàn Toàn Cơ Chế & Giao Diện "Quy Tắc Phân Bổ Liên Hệ CRM" (`PhoneScanPanel.tsx`)**:
+    * Gỡ bỏ toàn bộ popup lựa chọn 3 phương thức (*Phân tán*, *Gom về 1 nick*, *Đồng bộ tất cả*) và nút `🟢 Quy tắc: Phân tán ⚡ Đổi` ở thanh thông số Lô.
+    * Chuẩn hóa: Nick nào quét được SĐT nào thì lưu UID/profile và gán nhãn thuộc về chính nick đó.
+    * Tinh gọn bảng kết quả: Bỏ cột "Tài khoản nhận CRM" dư thừa, tập trung hiển thị trực quan avatar + tên nick ở cột `Zalo đã quét`.
+  * **🐞 Khắc Phục Lỗi Runtime Modal Tạo Lô Quét (`PhoneScanPanel.tsx`)**:
+    * Sửa triệt để lỗi `ReferenceError: allSelected is not defined`: Khai báo chính xác scope biến `allSelected` và chuẩn hóa danh sách tài khoản active về `healthyZaloAccounts.length`.
   * **🔀 Đột Phá Option C: Fallback Single Mode Bền Bỉ (`PhoneScanService.ts`)**:
     * Bắt toàn diện mã lỗi `-216` ở cả dạng throw exception và JSON response payload (`{ error_code: -216 }` hoặc `isRateLimitError(res)`).
     * Khi gặp `-216` ở chế độ quét gộp (Bulk), hệ thống tự động chuyển tài khoản sang chế độ Single Mode (`findUser`) kết hợp khoảng nghỉ jitter an toàn (`1.5s - 3s/lần`), tiếp tục quét thông suốt toàn bộ danh sách SĐT (kể cả các số hợp lệ phía sau số lỗi mà trước đây bị dừng oan).

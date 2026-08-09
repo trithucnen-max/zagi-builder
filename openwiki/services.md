@@ -364,7 +364,7 @@ Quản lý tính năng Quét số điện thoại Zalo hàng loạt, phân chia 
 ### Key Methods & Features (v3.1.8)
 - `executeBulkScan(chunkItems, batchId, zaloId)`: Quét gom 6-10 số/request với `getMultiUsersByPhones`. Bắt mã `-216` ở cả exception và JSON response payload, tự động chuyển sang Single Mode (`findUser`) với safe jitter delay (1.5s–3s).
 - `handleScanWarningRateLimit(zaloId, batchId, itemId)`: Bắt cảnh báo `50004` (quét quá nhanh), đưa nick vào trạng thái cooldown 3 phút và rollback item về `pending`.
-- `handleRateLimit(zaloId, batchId, triggerItemId)`: Rollback các item đang scanning về pending, phân loại chạm hạn ngạch giờ vs ngày (Smart Adaptive Quota), tự động failover sang nick active khác nếu còn quota.
+- `handleRateLimit(zaloId, batchId, triggerItemId)`: Rollback các item đang scanning về pending. Phân biệt Rate Limit Khung Giờ (cooldown 60 phút khi `todayCount < scanDailyLimit`) và Hạn ngạch Ngày (`todayCount >= scanDailyLimit`), **bảo toàn 100% định mức cài đặt** (không bao giờ tự ý bóp nghẹt giảm `scanDailyLimit` xuống 13 hay 20), tự động failover sang nick active khác nếu còn quota.
 - `consecutiveSingleRateLimitCount` & `accountCooldownUntil`: Bộ đếm lỗi 3 lần liên tiếp trước khi pause nick; lỗi 1-2 lần chỉ nghỉ 3 phút và rollback item về `pending`.
 - `getPhoneScanOverallStats(timeRange)`: Trả về số liệu thống kê tổng thể (`total`, `scanned`, `found`, `notFound`, `error`, `pending`) được lọc theo thời gian quét mốc `scanned_at` (`all`, `today`, `this_week`, `this_month`).
 - `DatabaseService.updatePhoneScanBatchAssignedAccount(batchId, assignedAccountId)`: Cập nhật nick gán cho lô và unpause lô.

@@ -62,6 +62,9 @@ Nhân viên machine:
 
 ## Release Highlights (v3.1.8)
 
+- **🛡️ Bảo Toàn Định Mức Ngày & Cooldown 60 Phút Khi Gặp `-216` (`PhoneScanService.ts`, `DatabaseService.ts`)**: Loại bỏ việc tự động hạ `scanDailyLimit` xuống con số thực tế vừa quét (13, 20). Định tuyến lỗi `-216` thành Rate Limit Khung Giờ (`⏳ Dừng 1h (Mã -216)`), nghỉ đúng 60 phút và tự động thức dậy quét tiếp các số còn lại; chỉ khi `todayCount >= scanDailyLimit` (đủ 100 số) mới chuyển `🌙 Dừng Ngày (00:00)`.
+- **🧹 Loại Bỏ Hoàn Toàn Quy Tắc Phân Bổ Liên Hệ CRM Cũ (`PhoneScanPanel.tsx`)**: Xóa bỏ Modal & Badge Quy tắc (*Phân tán*, *Gom về 1 nick*, *Đồng bộ tất cả*). Chuẩn hóa liên hệ thuộc trực tiếp về nick Zalo thực hiện quét. Bỏ cột "Tài khoản nhận CRM" dư thừa.
+- **🐞 Khắc Phục Lỗi Runtime `ReferenceError: allSelected is not defined`**: Sửa triệt để lỗi scope trong Modal Tạo Lô Quét Mới.
 - **🔀 Đột Phá Option C: Fallback Single Mode Bền Bỉ (`PhoneScanService.ts`)**: Bắt toàn diện mã lỗi `-216` ở cả dạng throw exception và JSON response payload (`{ error_code: -216 }`). Khi gặp `-216`, tài khoản được tự động chuyển sang Single Mode (`findUser`) kết hợp jitter an toàn (1.5s–3s) tiếp tục quét thông suốt toàn bộ các số hợp lệ phía sau số lỗi.
 - **⏳ Cơ Chế Smart Cooldown 3 Phút & Ngưỡng Lỗi Liên Tiếp 3 Lần**: Single phone `-216` được tự động rollback về `pending` và đưa nick vào trạng thái nghỉ 3 phút để hạ nhiệt thay vì ngắt cả lô; chỉ khi 3 số khác nhau liên tiếp đều lỗi mới tạm dừng tài khoản.
 - **⚡ Bộ Phím Điều Khiển Quét Tức Thì Trong Báo Cáo Phóng To (`PhoneScanPanel.tsx`)**: Bổ sung thanh điều khiển 1 chạm: `⚡ Tiếp tục quét Single Mode (findUser)`, `🔄 Quét lại các số Lỗi (Mã -216)`, và `🔄 Đổi Nick quét tiếp` sang tài khoản Zalo đang kết nối ổn định khác.
