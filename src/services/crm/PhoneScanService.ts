@@ -528,39 +528,27 @@ class PhoneScanService {
                 });
             }
 
-            // 3. Smart Adaptive Quota: classify and reduce limits
+            // 3. Classify rate limit: Hourly Window Limit (60m) vs Daily Quota (00:00)
             const currentLimits = db.getAccountScanLimits(zaloId);
             const dailyCompleted = db.getTodayScannedCountForAccount(zaloId);       // counts 'found' since 00:00
             const hourlyCompleted = db.getHourlyScannedFoundCountForAccount(zaloId); // counts completed in last hour
 
-            const isHourlyExceeded = hourlyCompleted >= currentLimits.scanHourlyLimit;
+            // Check if account truly hit the full daily limit configured (e.g. >= 100)
             const isDailyExceeded = dailyCompleted >= currentLimits.scanDailyLimit;
 
-            let newDailyLimit = currentLimits.scanDailyLimit;
-            let newHourlyLimit = currentLimits.scanHourlyLimit;
+            let pauseReason: 'hourly_quota' | 'daily_quota' = 'hourly_quota';
+            let pausedUntil: number = Date.now() + 60 * 60 * 1000; // Default: 60 minutes cooldown for hourly rate limit
 
-            let pauseReason: 'hourly_quota' | 'daily_quota' = 'daily_quota';
-            let pausedUntil: number = new Date().setHours(23, 59, 59, 999) + 1; // Default midnight tonight
-
-            if (isHourlyExceeded && !isDailyExceeded) {
-                // Clearly hourly limit: only reduce hourly, preserve daily
-                newHourlyLimit = Math.max(3, hourlyCompleted);
-                pauseReason = 'hourly_quota';
-                pausedUntil = Date.now() + 60 * 60 * 1000; // 60 minutes from now
-                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [HOURLY]: ${zaloId} hourly ${currentLimits.scanHourlyLimit}→${newHourlyLimit} (daily unchanged). Paused until ${new Date(pausedUntil).toLocaleTimeString()}`);
-            } else if (isDailyExceeded && !isHourlyExceeded) {
-                // Clearly daily limit: only reduce daily, preserve hourly
-                newDailyLimit = Math.max(5, dailyCompleted);
+            if (isDailyExceeded) {
+                // Truly reached/exceeded full daily quota (>= 100) -> Sleep until 00:00 midnight tonight
                 pauseReason = 'daily_quota';
                 pausedUntil = new Date().setHours(23, 59, 59, 999) + 1;
-                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [DAILY]: ${zaloId} daily ${currentLimits.scanDailyLimit}→${newDailyLimit} (hourly unchanged). Paused until 00:00`);
+                Logger.warn(`[PhoneScanService] 🌙 Account ${zaloId} completed ${dailyCompleted}/${currentLimits.scanDailyLimit} numbers today. Pausing until midnight (00:00).`);
             } else {
-                // Both exceeded or unknown: Zalo's real limit is lower than configured — reduce both
-                newDailyLimit = Math.max(5, dailyCompleted);
-                newHourlyLimit = Math.max(3, hourlyCompleted);
-                pauseReason = 'daily_quota';
-                pausedUntil = new Date().setHours(23, 59, 59, 999) + 1;
-                Logger.warn(`[PhoneScanService] 📉 Smart Adaptive Quota [BOTH]: ${zaloId} daily ${currentLimits.scanDailyLimit}→${newDailyLimit}, hourly ${currentLimits.scanHourlyLimit}→${newHourlyLimit}`);
+                // Rate limit -216 encountered during hourly window -> Cooldown 60 minutes, KEEP daily limit intact!
+                pauseReason = 'hourly_quota';
+                pausedUntil = Date.now() + 60 * 60 * 1000;
+                Logger.warn(`[PhoneScanService] ⏳ Account ${zaloId} hit hourly rate limit -216 (${hourlyCompleted}/hr, ${dailyCompleted}/${currentLimits.scanDailyLimit} daily). Cooldown 60 min until ${new Date(pausedUntil).toLocaleTimeString()}. Daily limit preserved at ${currentLimits.scanDailyLimit}.`);
             }
 
             // 4. Record pause state for this specific account
@@ -596,13 +584,6 @@ class PhoneScanService {
                 // Pause the batch only when NO active accounts remain
                 Logger.warn(`[PhoneScanService] 🛑 Rate limit -216 for account ${zaloId}. All accounts depleted. Pausing batch ${batchId} (Reason: ${pauseReason}), rolling back scanning items.`);
                 db.updatePhoneScanBatchStatus(batchId, 'paused', pauseReason, pausedUntil);
-            }
-
-            const dailyChanged = newDailyLimit < currentLimits.scanDailyLimit;
-            const hourlyChanged = newHourlyLimit < currentLimits.scanHourlyLimit;
-            if (dailyChanged || hourlyChanged) {
-                db.setAccountScanLimits(zaloId, newDailyLimit, newHourlyLimit);
-                EventBroadcaster.emit('crm:accountQuotaUpdate', { zaloId, newDailyLimit, newHourlyLimit });
             }
 
             db.save();

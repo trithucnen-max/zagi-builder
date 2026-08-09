@@ -10964,8 +10964,11 @@ class DatabaseService {
         try {
             const dailyStr = this.getSetting(`scan_daily_limit_${zaloId}`);
             const hourlyStr = this.getSetting(`scan_hourly_limit_${zaloId}`);
-            const scanDailyLimit = dailyStr ? Math.max(1, parseInt(dailyStr) || 100) : 100;
-            const scanHourlyLimit = hourlyStr ? Math.max(1, parseInt(hourlyStr) || 30) : 30;
+            const parsedDaily = dailyStr ? parseInt(dailyStr, 10) : 0;
+            const parsedHourly = hourlyStr ? parseInt(hourlyStr, 10) : 0;
+            // Ensure daily limit is at least 100 if it was reduced to a low number by old adaptive code
+            const scanDailyLimit = parsedDaily >= 100 ? parsedDaily : (parsedDaily > 0 && parsedDaily <= 50 ? 100 : (parsedDaily || 100));
+            const scanHourlyLimit = parsedHourly >= 10 ? parsedHourly : (parsedHourly > 0 && parsedHourly < 10 ? 30 : (parsedHourly || 30));
             return { scanDailyLimit, scanHourlyLimit };
         } catch {
             return { scanDailyLimit: 100, scanHourlyLimit: 30 };
@@ -11103,11 +11106,17 @@ class DatabaseService {
                 let pauseReasonMsg: string | null = null;
 
                 if (pauseState.pauseReason && pauseState.pausedUntil && pauseState.pausedUntil > Date.now()) {
-                    status = pauseState.pauseReason as any;
-                    if (pauseState.pauseReason === 'hourly_quota') {
+                    if (pauseState.pauseReason === 'daily_quota' && todayCount < limits.scanDailyLimit) {
+                        // Normalize any past erroneous daily pause to hourly_quota when todayCount < scanDailyLimit
+                        status = 'hourly_quota';
                         pauseReasonMsg = `Chạm hạn ngạch GIỜ (Mã -216) - Reset sau 60 phút`;
                     } else {
-                        pauseReasonMsg = `Chạm hạn ngạch NGÀY (Mã -216) - Reset lúc 00:00`;
+                        status = pauseState.pauseReason as any;
+                        if (pauseState.pauseReason === 'hourly_quota') {
+                            pauseReasonMsg = `Chạm hạn ngạch GIỜ (Mã -216) - Reset sau 60 phút`;
+                        } else {
+                            pauseReasonMsg = `Chạm hạn ngạch NGÀY (Mã -216) - Reset lúc 00:00`;
+                        }
                     }
                 } else if (todayCount >= limits.scanDailyLimit) {
                     status = 'daily_quota';

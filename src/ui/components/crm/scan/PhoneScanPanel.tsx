@@ -229,8 +229,11 @@ export default function PhoneScanPanel() {
         }
 
         // Check if assigned account (or all accounts) are paused/cooling down
-        const assignedAcc = b.assigned_account_id
-            ? limitStatusList.find((a: any) => a.zaloId === String(b.assigned_account_id))
+        const assignedIds = b.assigned_account_id
+            ? b.assigned_account_id.split(',').map(s => s.split(':')[0].trim()).filter(Boolean)
+            : [];
+        const assignedAcc = assignedIds.length > 0
+            ? limitStatusList.find((a: any) => assignedIds.includes(String(a.zaloId)))
             : null;
         const allPaused = limitStatusList.length > 0 && limitStatusList.every((a: any) => a.status !== 'active');
         const relevantAcc = assignedAcc || (allPaused ? limitStatusList[0] : null);
@@ -2921,9 +2924,13 @@ export default function PhoneScanPanel() {
                                                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
                                                                 🟢 Hoạt động
                                                             </span>
+                                                        ) : acc.status === 'hourly_quota' ? (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 dark:bg-orange-950/80 text-orange-800 dark:text-orange-300 border border-orange-300 dark:border-orange-800/60" title={acc.pauseReasonMsg}>
+                                                                ⏳ Dừng 1h (Mã -216)
+                                                            </span>
                                                         ) : (
                                                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300" title={acc.pauseReasonMsg}>
-                                                                🔴 {acc.status === 'hourly_quota' ? 'Dừng 1h (Mã -216)' : 'Dừng Ngày (Mã -216)'}
+                                                                🌙 Dừng Ngày (00:00)
                                                             </span>
                                                         )}
                                                     </div>
