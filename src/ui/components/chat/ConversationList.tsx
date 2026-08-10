@@ -2339,18 +2339,22 @@ function formatLastMessage(msg: string | undefined): string {
       return '📞 Cuộc gọi';
     }
     // Handle chat.recommended messages
-    if (action.startsWith('recommened.') || action.startsWith('chat.recommended')) {
+    if (action.startsWith('recommened.') || action.startsWith('chat.recommended') || action === 'sendBubbleMessage') {
       const params = (() => { try { const pr = p?.params; return typeof pr === 'string' ? JSON.parse(pr) : (pr || {}); } catch { return {}; } })();
+      const item = params?.item || params?.bubbleItem || p?.item || p?.bubbleItem || {};
       
-      // Link preview (recommened.link) - show media title prominently
-      if (action === 'recommened.link') {
-        const mediaTitle = params.mediaTitle || params.src || '';
-        // Only show title, not description (matching Zalo's conversation list style)
-        if (mediaTitle) {
+      // Link preview (recommened.link / sendBubbleMessage) - show media title prominently
+      if (action === 'recommened.link' || action === 'sendBubbleMessage') {
+        const mediaTitle = params.mediaTitle || params.title || item.title || (p?.title && p?.title !== 'sendBubbleMessage' ? p.title : '');
+        if (mediaTitle && mediaTitle !== 'sendBubbleMessage') {
           return mediaTitle;
         }
+        const mediaDesc = params.mediaDesc || params.desc || item.desc || (p?.description && p?.description !== 'sendBubbleMessage' ? p.description : '');
+        if (mediaDesc && mediaDesc !== 'sendBubbleMessage') {
+          return mediaDesc;
+        }
         // Fallback to URL hostname if no title
-        const href = p?.href || p?.title || '';
+        const href = p?.href || params?.url || params?.rawUrl || '';
         if (href && href.includes('://')) {
           try {
             const url = new URL(href);
@@ -2362,7 +2366,7 @@ function formatLastMessage(msg: string | undefined): string {
       
       // Other recommended messages (text suggestions, etc.)
       const textContent = params.content || params.message || params.text || p?.content || p?.msg;
-      if (textContent && typeof textContent === 'string' && textContent.trim()) {
+      if (textContent && typeof textContent === 'string' && textContent.trim() && textContent !== 'sendBubbleMessage') {
         return textContent;
       }
       return '[Tin nhắn gợi ý]';

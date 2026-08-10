@@ -4015,7 +4015,7 @@ class DatabaseService {
                     if (secs > 0) { const m = Math.floor(secs / 60), s = secs % 60; return `📞 Cuộc gọi (${m > 0 ? `${m}p ` : ''}${s}s)`; }
                     return '📞 Cuộc gọi';
                 }
-                if (p?.title) return `🔗 ${p.title}`;
+                if (p?.title && p.title !== 'sendBubbleMessage') return `🔗 ${p.title}`;
             } catch {}
             return '🔗 Link';
         }
@@ -4025,7 +4025,7 @@ class DatabaseService {
             try {
                 const p = JSON.parse(content);
                 if (p?.action === 'zinstant.bankcard') return '🏦 Tài khoản ngân hàng';
-                if (p?.title) return p.title;
+                if (p?.title && p.title !== 'sendBubbleMessage') return p.title;
             } catch {}
         }
 
@@ -4039,7 +4039,7 @@ class DatabaseService {
         if (mt === 'chat.location.new') {
             try {
                 const p = JSON.parse(content);
-                if (p?.description) return `📍 ${p.description}`;
+                if (p?.description && p.description !== 'sendBubbleMessage') return `📍 ${p.description}`;
                 const params = typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {});
                 if (params?.latitude && params?.longitude) return `📍 ${String(params.latitude).slice(0, 8)}, ${String(params.longitude).slice(0, 8)}`;
             } catch {}
@@ -4073,29 +4073,36 @@ class DatabaseService {
                 }
                 // Sticker detected from content
                 if (p.sticker_id || p.stickerId) return '🎭 Nhãn dán';
-                // Link action (recommened.link)
-                if (action === 'recommened.link' || action === 'recommended.link') {
-                    if (p.title) return `🔗 ${p.title}`;
+                // parse params (may be string)
+                let params: any = p.params;
+                if (typeof params === 'string') { try { params = JSON.parse(params); } catch { params = null; } }
+                const item = params?.item || params?.bubbleItem || p?.item || p?.bubbleItem || {};
+
+                // Link action (recommened.link / sendBubbleMessage)
+                if (action === 'recommened.link' || action === 'recommended.link' || action === 'sendBubbleMessage') {
+                    const title = params?.mediaTitle || params?.title || item?.title || (p.title && p.title !== 'sendBubbleMessage' ? p.title : null);
+                    if (title) return `🔗 ${title}`;
+                    const desc = params?.mediaDesc || params?.desc || item?.desc || (p.description && p.description !== 'sendBubbleMessage' ? p.description : null);
+                    if (desc) return `🔗 ${desc}`;
                     return '🔗 Link';
                 }
                 // Bank card action
                 if (action === 'zinstant.bankcard') return '🏦 Tài khoản ngân hàng';
-                // parse params (may be string)
-                let params: any = p.params;
-                if (typeof params === 'string') { try { params = JSON.parse(params); } catch { params = null; } }
                 // File: has title + file-specific fields (fileSize, fileExt, fileUrl, normalUrl)
-                if (p.title && (params?.fileSize || params?.fileExt || params?.fileUrl || p.normalUrl || p.fileUrl)) return `📂 ${p.title}`;
+                if (p.title && p.title !== 'sendBubbleMessage' && (params?.fileSize || params?.fileExt || params?.fileUrl || p.normalUrl || p.fileUrl)) return `📂 ${p.title}`;
                 // Link heuristic: title + href without image params → link, not image
-                if (p.title && p.href && !params?.rawUrl && !params?.hd) return `🔗 ${p.title}`;
+                if (p.title && p.title !== 'sendBubbleMessage' && p.href && !params?.rawUrl && !params?.hd) return `🔗 ${p.title}`;
                 // Image heuristic: has rawUrl/hd, or href/thumb without title
                 if (params?.rawUrl || params?.hd) return '🖼 Hình ảnh';
-                if ((p.href || p.thumb) && !p.title) return '🖼 Hình ảnh';
+                if ((p.href || p.thumb) && (!p.title || p.title === 'sendBubbleMessage')) return '🖼 Hình ảnh';
                 // Plain text stored as JSON string
                 if (typeof p === 'string') return p.length > 100 ? p.substring(0, 100) + '...' : p;
                 // title without file markers → show title as text (e.g. reminder, link preview)
-                if (p.title && typeof p.title === 'string') return p.title;
-                if (p.msg && typeof p.msg === 'string') return p.msg;
-                if (p.content && typeof p.content === 'string') return p.content;
+                if (p.title && typeof p.title === 'string' && p.title !== 'sendBubbleMessage') return p.title;
+                if (p.msg && typeof p.msg === 'string' && p.msg !== 'sendBubbleMessage') return p.msg;
+                if (p.content && typeof p.content === 'string' && p.content !== 'sendBubbleMessage') return p.content;
+                const anyTitle = params?.mediaTitle || params?.title || item?.title;
+                if (anyTitle && anyTitle !== 'sendBubbleMessage') return anyTitle;
                 return '[Đính kèm]';
             }
             if (typeof p === 'string') return p.length > 100 ? p.substring(0, 100) + '...' : p;

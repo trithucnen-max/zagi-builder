@@ -147,9 +147,16 @@ function buildMessagePreview(
     return '📞 Cuộc gọi';
   }
 
-  // ── Link preview (action=recommened.link) — phải check trước heuristic ảnh ──
-  if (action === 'recommened.link' || action === 'recommended.link') {
-    if (typeof contentRaw === 'object' && contentRaw !== null && contentRaw.title && typeof contentRaw.title === 'string') return `🔗 ${contentRaw.title}`;
+  // ── Link preview (action=recommened.link / sendBubbleMessage) ──────────────
+  if (action === 'recommened.link' || action === 'recommended.link' || action === 'sendBubbleMessage') {
+    if (typeof contentRaw === 'object' && contentRaw !== null) {
+      const params = (() => { try { const p = contentRaw.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
+      const item = params?.item || params?.bubbleItem || contentRaw?.item || contentRaw?.bubbleItem || {};
+      const title = params?.mediaTitle || params?.title || item?.title || (contentRaw.title && contentRaw.title !== 'sendBubbleMessage' ? contentRaw.title : null);
+      if (title) return `🔗 ${title}`;
+      const desc = params?.mediaDesc || params?.desc || item?.desc || (contentRaw.description && contentRaw.description !== 'sendBubbleMessage' ? contentRaw.description : null);
+      if (desc) return `🔗 ${desc}`;
+    }
     return '🔗 Link';
   }
 
@@ -182,13 +189,18 @@ function buildMessagePreview(
 
   // ── System card (chat.ecard): nhắc hẹn, thông báo nhóm ────────────────
   if (mt === 'chat.ecard') {
-    if (typeof contentRaw === 'object' && contentRaw !== null && contentRaw.title) return `🔔 ${contentRaw.title}`;
+    if (typeof contentRaw === 'object' && contentRaw !== null && contentRaw.title && contentRaw.title !== 'sendBubbleMessage') return `🔔 ${contentRaw.title}`;
     return '🔔 Thông báo';
   }
 
   // ── Link types (chat.recommended, chat.link, share.link) ───────────────
   if (mt === 'chat.recommended' || mt === 'chat.recommend' || mt === 'chat.link' || mt === 'share.link') {
-    if (typeof contentRaw === 'object' && contentRaw !== null && contentRaw.title && typeof contentRaw.title === 'string') return `🔗 ${contentRaw.title}`;
+    if (typeof contentRaw === 'object' && contentRaw !== null) {
+      const params = (() => { try { const p = contentRaw.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
+      const item = params?.item || params?.bubbleItem || contentRaw?.item || contentRaw?.bubbleItem || {};
+      const title = params?.mediaTitle || params?.title || item?.title || (contentRaw.title && contentRaw.title !== 'sendBubbleMessage' ? contentRaw.title : null);
+      if (title) return `🔗 ${title}`;
+    }
     return '🔗 Link';
   }
 
@@ -206,7 +218,7 @@ function buildMessagePreview(
   // ── Location ──────────────────────────────────────────────────────────
   if (mt === 'chat.location.new') {
     const p = typeof contentRaw === 'string' ? (() => { try { return JSON.parse(contentRaw); } catch { return {}; } })() : (contentRaw || {});
-    const desc = p.description || '';
+    const desc = p.description && p.description !== 'sendBubbleMessage' ? p.description : '';
     return desc ? `📍 ${desc}` : '📍 [Vị trí]';
   }
 
@@ -215,7 +227,7 @@ function buildMessagePreview(
 
   // ── File (explicit type) ─────────────────────────────────────────────────
   if (mt.includes('file') || mt === 'share.file') {
-    const title = typeof contentRaw === 'object' && contentRaw !== null ? contentRaw?.title : null;
+    const title = typeof contentRaw === 'object' && contentRaw !== null && contentRaw?.title !== 'sendBubbleMessage' ? contentRaw?.title : null;
     return title ? `📂 ${title}` : '📂 File đính kèm';
   }
 
@@ -224,17 +236,20 @@ function buildMessagePreview(
     // Bank card (webcontent + zinstant.bankcard)
     if (contentRaw.action === 'zinstant.bankcard') return '🏦 Tài khoản ngân hàng';
     const params = (() => { try { const p = contentRaw.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
+    const item = params?.item || params?.bubbleItem || contentRaw?.item || contentRaw?.bubbleItem || {};
     // File heuristic: title + file-specific fields
-    if (contentRaw.title && (params?.fileSize || params?.fileExt || params?.fileUrl || contentRaw.normalUrl || contentRaw.fileUrl)) return `📂 ${contentRaw.title}`;
+    if (contentRaw.title && contentRaw.title !== 'sendBubbleMessage' && (params?.fileSize || params?.fileExt || params?.fileUrl || contentRaw.normalUrl || contentRaw.fileUrl)) return `📂 ${contentRaw.title}`;
     // Link heuristic: title + href without image params → link, not image
-    if (contentRaw.title && contentRaw.href && !params?.rawUrl && !params?.hd) return `🔗 ${contentRaw.title}`;
+    if (contentRaw.title && contentRaw.title !== 'sendBubbleMessage' && contentRaw.href && !params?.rawUrl && !params?.hd) return `🔗 ${contentRaw.title}`;
     // Image heuristic: has rawUrl/hd, or href/thumb without title
     if (params?.rawUrl || params?.hd) return '🖼 Hình ảnh';
-    if ((contentRaw.href || contentRaw.thumb) && !contentRaw.title) return '🖼 Hình ảnh';
+    if ((contentRaw.href || contentRaw.thumb) && (!contentRaw.title || contentRaw.title === 'sendBubbleMessage')) return '🖼 Hình ảnh';
     // title without file markers → plain text (reminder, link preview, etc.)
-    if (contentRaw.title && typeof contentRaw.title === 'string') return contentRaw.title;
-    if (contentRaw.msg && typeof contentRaw.msg === 'string') return contentRaw.msg;
-    if (contentRaw.content && typeof contentRaw.content === 'string') return contentRaw.content;
+    if (contentRaw.title && typeof contentRaw.title === 'string' && contentRaw.title !== 'sendBubbleMessage') return contentRaw.title;
+    if (contentRaw.msg && typeof contentRaw.msg === 'string' && contentRaw.msg !== 'sendBubbleMessage') return contentRaw.msg;
+    if (contentRaw.content && typeof contentRaw.content === 'string' && contentRaw.content !== 'sendBubbleMessage') return contentRaw.content;
+    const anyTitle = params?.mediaTitle || params?.title || item?.title;
+    if (anyTitle && anyTitle !== 'sendBubbleMessage') return anyTitle;
     return '[Đính kèm]';
   }
 

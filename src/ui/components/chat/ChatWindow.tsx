@@ -3384,18 +3384,22 @@ function parseQuoteMsg(msg: string, msgType?: string): string {
       if (parsed.msg && typeof parsed.msg === 'string') return String(parsed.msg);
       if (parsed.content && typeof parsed.content === 'string') return String(parsed.content);
 
-      // 2. Kiểm tra LINK với action="recommened.link"
-      if (parsed.action === 'recommened.link' || parsed.action === 'recommended.link') {
-        // Ưu tiên title gốc (có thể chứa text người dùng), fallback sang mediaTitle
-        const mediaTitle = parsed.title || paramsObj?.mediaTitle;
-        if (mediaTitle) {
+      // 2. Kiểm tra LINK với action="recommened.link" hoặc "sendBubbleMessage"
+      if (parsed.action === 'recommened.link' || parsed.action === 'recommended.link' || parsed.action === 'sendBubbleMessage') {
+        const item = paramsObj?.item || paramsObj?.bubbleItem || parsed.item || parsed.bubbleItem || {};
+        const mediaTitle = paramsObj?.mediaTitle || paramsObj?.title || item.title || (parsed.title && parsed.title !== 'sendBubbleMessage' ? parsed.title : '');
+        if (mediaTitle && mediaTitle !== 'sendBubbleMessage') {
           return `🔗 ${mediaTitle}`;
+        }
+        const mediaDesc = paramsObj?.mediaDesc || paramsObj?.desc || item.desc || (parsed.description && parsed.description !== 'sendBubbleMessage' ? parsed.description : '');
+        if (mediaDesc && mediaDesc !== 'sendBubbleMessage') {
+          return `🔗 ${mediaDesc}`;
         }
         return '🔗 [Link]';
       }
 
       // 3. Kiểm tra FILE/LINK thông thường: có title + href
-      if (parsed.title && parsed.href) {
+      if (parsed.title && parsed.title !== 'sendBubbleMessage' && parsed.href) {
         // Có params.fileSize/fileExt → file
         if (paramsObj?.fileSize || paramsObj?.fileExt) {
           return `📎 ${parsed.title}`;
@@ -3404,8 +3408,10 @@ function parseQuoteMsg(msg: string, msgType?: string): string {
         const hasImageParams = !!(paramsObj?.hd || paramsObj?.rawUrl);
         if (!hasImageParams) {
           // Link thuần túy - ưu tiên title gốc để không mất text do user nhập
-          const displayTitle = parsed.title || paramsObj?.mediaTitle;
-          return `🔗 ${displayTitle}`;
+          const displayTitle = (parsed.title && parsed.title !== 'sendBubbleMessage') ? parsed.title : paramsObj?.mediaTitle;
+          if (displayTitle && displayTitle !== 'sendBubbleMessage') {
+            return `🔗 ${displayTitle}`;
+          }
         }
         // Có image params → rơi vào case ảnh bên dưới
       }

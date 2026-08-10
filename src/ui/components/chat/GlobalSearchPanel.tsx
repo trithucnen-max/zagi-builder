@@ -64,16 +64,21 @@ function parsePreview(content: string): string {
     
     if (typeof p === 'string') return p;
     
-    // Check for link preview FIRST (recommened.link) - show only media title like Zalo
+    // Check for link preview FIRST (recommened.link / sendBubbleMessage) - show only media title like Zalo
     const action = String(p?.action || '');
-    if (action === 'recommened.link') {
+    if (action === 'recommened.link' || action === 'sendBubbleMessage') {
       const par = (() => { try { return typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {}); } catch { return {}; } })();
-      const mediaTitle = par.mediaTitle || par.src || '';
-      if (mediaTitle) {
+      const item = par?.item || par?.bubbleItem || p?.item || p?.bubbleItem || {};
+      const mediaTitle = par.mediaTitle || par.title || item.title || (p?.title && p?.title !== 'sendBubbleMessage' ? p.title : '');
+      if (mediaTitle && mediaTitle !== 'sendBubbleMessage') {
         return mediaTitle;
       }
+      const mediaDesc = par.mediaDesc || par.desc || item.desc || (p?.description && p?.description !== 'sendBubbleMessage' ? p.description : '');
+      if (mediaDesc && mediaDesc !== 'sendBubbleMessage') {
+        return mediaDesc;
+      }
       // Fallback to hostname
-      const href = p?.href || p?.title || '';
+      const href = p?.href || par?.url || par?.rawUrl || '';
       if (href && href.includes('://')) {
         try {
           const url = new URL(href);

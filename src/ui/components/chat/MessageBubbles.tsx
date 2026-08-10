@@ -57,17 +57,33 @@ function parseTxt(content: string): string {
     if (typeof p === 'string') return p === 'sendBubbleMessage' ? '🔗 [Liên kết chia sẻ]' : convertZaloEmojis(p);
     if (typeof p !== 'object') return convertZaloEmojis(String(p));
     if (p?.action === 'zinstant.bankcard') return '🏦 [Tài khoản ngân hàng]';
-    if (p?.content && typeof p.content === 'string') return convertZaloEmojis(p.content);
-    if (p?.msg && typeof p.msg === 'string') return convertZaloEmojis(p.msg);
-    if (p?.message && typeof p.message === 'string') return convertZaloEmojis(p.message);
-    if (p?.title && typeof p.title === 'string' && !p.href && !p.thumb) {
-      return p.title === 'sendBubbleMessage' ? '🔗 [Liên kết chia sẻ]' : convertZaloEmojis(p.title);
+    if (p?.action === 'recommened.misscall') return '📵 [Cuộc gọi nhỡ]';
+    if (p?.action === 'recommened.calltime') return '📞 [Cuộc gọi]';
+    if (p?.content && typeof p.content === 'string' && p.content !== 'sendBubbleMessage') return convertZaloEmojis(p.content);
+    if (p?.msg && typeof p.msg === 'string' && p.msg !== 'sendBubbleMessage') return convertZaloEmojis(p.msg);
+    if (p?.message && typeof p.message === 'string' && p.message !== 'sendBubbleMessage') return convertZaloEmojis(p.message);
+
+    let params: any = {};
+    if (p?.params) {
+      if (typeof p.params === 'string') {
+        try { params = JSON.parse(p.params); } catch { params = {}; }
+      } else if (typeof p.params === 'object') {
+        params = p.params || {};
+      }
     }
-    const linkStr = p?.href || p?.url || p?.link || p?.title || p?.mediaTitle || '';
-    if (linkStr && typeof linkStr === 'string') {
-      return linkStr === 'sendBubbleMessage' ? '🔗 [Liên kết chia sẻ]' : convertZaloEmojis(linkStr);
+
+    const item = params?.item || params?.bubbleItem || p?.item || p?.bubbleItem || {};
+    const title = params?.mediaTitle || params?.title || item?.mediaTitle || item?.title || p?.mediaTitle || (p?.title && p?.title !== 'sendBubbleMessage' ? p.title : '');
+    if (title && title !== 'sendBubbleMessage') return convertZaloEmojis(title);
+
+    const desc = params?.mediaDesc || params?.desc || params?.description || item?.desc || item?.description || p?.mediaDesc || p?.description || p?.desc;
+    if (desc && typeof desc === 'string' && desc !== 'sendBubbleMessage') return convertZaloEmojis(desc);
+
+    const linkStr = p?.href || p?.url || p?.link || params?.rawUrl || params?.url || params?.href || params?.link || item?.href || item?.url || item?.link || '';
+    if (linkStr && typeof linkStr === 'string' && linkStr !== 'sendBubbleMessage') {
+      return convertZaloEmojis(linkStr);
     }
-    return '';
+    return '🔗 [Liên kết chia sẻ]';
   } catch { 
     if (content === 'sendBubbleMessage') return '🔗 [Liên kết chia sẻ]';
     return convertZaloEmojis(content); 
@@ -79,8 +95,8 @@ function isCardType(msgType: string, content: string): boolean {
   if (['chat.recommended', 'chat.recommend', 'share.link', 'chat.link', 'link'].includes(msgType)) return true;
   try {
     const parsed = JSON.parse(content);
-    if (parsed?.action && (String(parsed.action).includes('recommened') || String(parsed.action).includes('link'))) return true;
-    if (parsed?.href || parsed?.url || parsed?.link) return true;
+    if (parsed?.action && (String(parsed.action).includes('recommened') || String(parsed.action).includes('link') || String(parsed.action).includes('sendBubbleMessage'))) return true;
+    if (parsed?.title === 'sendBubbleMessage' || parsed?.href || parsed?.url || parsed?.link) return true;
   } catch {}
   return false;
 }
@@ -1132,25 +1148,48 @@ function EcardBubble({ msg, onManage }: { msg: any; onManage?: () => void }) {
   );
 }
 
-function LinkBubble({ parsed, msgContent, isSelf }: { parsed: any; msgContent?: string; isSelf: boolean }) {
-  const params = (() => {
-    try {
-      const p = parsed?.params;
-      return typeof p === 'string' ? JSON.parse(p) : (p || {});
-    } catch { return {}; }
-  })();
+function extractBubbleData(parsed: any, msgContent?: string): {
+  title: string;
+  description: string;
+  href: string;
+  thumb: string;
+  domain: string;
+  action: string;
+} {
+  let p = parsed;
+  if (typeof p === 'string') {
+    try { p = JSON.parse(p); } catch { p = {}; }
+  }
+  if (!p || typeof p !== 'object') p = {};
 
-  // Trích xuất URL linh hoạt từ tất cả các trường hoặc regex trong nội dung tin nhắn
+  let params: any = {};
+  if (p.params) {
+    if (typeof p.params === 'string') {
+      try { params = JSON.parse(p.params); } catch { params = {}; }
+    } else if (typeof p.params === 'object') {
+      params = p.params || {};
+    }
+  }
+
+  const item = params.item || params.bubbleItem || p.item || p.bubbleItem || {};
+  const action = String(p.action || params.action || '').trim();
+
   let href = String(
-    parsed?.href ||
-    parsed?.url ||
-    parsed?.link ||
-    params?.rawUrl ||
-    params?.url ||
-    params?.link ||
-    (parsed?.title && String(parsed.title).startsWith('http') ? parsed.title : '') ||
+    p.href ||
+    p.url ||
+    p.link ||
+    params.rawUrl ||
+    params.url ||
+    params.link ||
+    params.href ||
+    item.href ||
+    item.url ||
+    item.link ||
+    (p.title && String(p.title).startsWith('http') ? p.title : '') ||
     ''
   ).trim();
+
+  if (href === 'sendBubbleMessage' || href === 'undefined' || href === 'null') href = '';
 
   if (!href && msgContent) {
     const strContent = typeof msgContent === 'string' ? msgContent : JSON.stringify(msgContent);
@@ -1158,34 +1197,81 @@ function LinkBubble({ parsed, msgContent, isSelf }: { parsed: any; msgContent?: 
     if (match) href = match[0];
   }
 
-  if (!href && typeof msgContent === 'string' && msgContent.startsWith('http')) {
-    href = msgContent.trim();
+  let thumb = String(
+    p.thumb ||
+    p.thumbUrl ||
+    params.thumb ||
+    params.thumbUrl ||
+    params.image ||
+    params.cover ||
+    params.hd ||
+    item.thumb ||
+    item.thumbUrl ||
+    item.image ||
+    ''
+  ).trim();
+  if (thumb === 'sendBubbleMessage' || thumb === 'undefined' || thumb === 'null') thumb = '';
+
+  let rawTitle = String(
+    params.mediaTitle ||
+    params.title ||
+    item.mediaTitle ||
+    item.title ||
+    p.mediaTitle ||
+    p.title ||
+    ''
+  ).trim();
+
+  let rawDesc = String(
+    params.mediaDesc ||
+    params.desc ||
+    params.description ||
+    item.desc ||
+    item.description ||
+    p.mediaDesc ||
+    p.desc ||
+    p.description ||
+    ''
+  ).trim();
+
+  if (rawTitle === 'sendBubbleMessage' || rawTitle === 'undefined' || rawTitle === 'null') rawTitle = '';
+  if (rawDesc === 'sendBubbleMessage' || rawDesc === 'undefined' || rawDesc === 'null') rawDesc = '';
+
+  let title = rawTitle;
+  let description = rawDesc;
+
+  if (!title) {
+    if (description) {
+      title = description;
+      description = '';
+    } else if (href && href.startsWith('http')) {
+      try {
+        title = new URL(href).hostname;
+      } catch {
+        title = 'Liên kết chia sẻ';
+      }
+    } else {
+      title = 'Liên kết chia sẻ';
+    }
   }
 
-  let title = String(params?.mediaTitle || parsed?.title || (href && href !== 'undefined' ? href : 'Liên kết chia sẻ'));
-  if (title === 'sendBubbleMessage') {
-    title = href && href !== 'undefined' ? href : 'Liên kết chia sẻ';
+  let domain = String(params.src || p.src || item.src || '').trim();
+  if ((!domain || domain === 'sendBubbleMessage') && href.startsWith('http')) {
+    try { domain = new URL(href).hostname; } catch { domain = ''; }
   }
-  const domain = String(params?.src || (href.startsWith('http') ? (() => { try { return new URL(href).hostname; } catch { return ''; } })() : ''));
-  const thumb = String(parsed?.thumb || params?.thumb || parsed?.thumbUrl || '');
-  const description = String(params?.mediaDesc || parsed?.description || '');
 
-  // Nếu hoàn toàn không thể tìm thấy URL hợp lệ, hiển thị bóng tin nhắn text thông thường thay vì thẻ trắng trống
-  if (!href && (!parsed?.title || parsed?.title === 'sendBubbleMessage')) {
-    const rawContent = typeof msgContent === 'string' ? msgContent : JSON.stringify(parsed);
-    const textContent = (rawContent === 'sendBubbleMessage' || !rawContent) ? '🔗 [Liên kết chia sẻ]' : rawContent;
-    return (
-      <div className={`px-3.5 py-2.5 rounded-2xl text-sm max-w-[320px] break-words whitespace-pre-wrap ${isSelf ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
-        {textContent}
-      </div>
-    );
-  }
+  return { title, description, href, thumb, domain, action };
+}
+
+function LinkBubble({ parsed, msgContent, isSelf }: { parsed: any; msgContent?: string; isSelf: boolean }) {
+  const data = extractBubbleData(parsed, msgContent);
+  const { title, description, href, thumb, domain } = data;
 
   // Thẻ xem trước có hình ảnh đại diện (Thumbnail)
   if (thumb) {
     return (
       <div className="w-full max-w-sm bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col p-3 gap-2.5 text-left select-text">
-        {href && (
+        {href && href.startsWith('http') && (
           <a
             href="#"
             onClick={(e) => { e.preventDefault(); ipc.shell?.openExternal(href); }}
@@ -1195,14 +1281,14 @@ function LinkBubble({ parsed, msgContent, isSelf }: { parsed: any; msgContent?: 
           </a>
         )}
         <div
-          onClick={() => href && ipc.shell?.openExternal(href)}
-          className="w-full aspect-[16/9] rounded-lg overflow-hidden bg-gray-100 cursor-pointer border border-gray-100"
+          onClick={() => href && href.startsWith('http') && ipc.shell?.openExternal(href)}
+          className={`w-full aspect-[16/9] rounded-lg overflow-hidden bg-gray-100 border border-gray-100 ${href && href.startsWith('http') ? 'cursor-pointer' : ''}`}
         >
           <img src={thumb} alt="" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
         </div>
         <div
-          onClick={() => href && ipc.shell?.openExternal(href)}
-          className="flex flex-col gap-1 cursor-pointer"
+          onClick={() => href && href.startsWith('http') && ipc.shell?.openExternal(href)}
+          className={`flex flex-col gap-1 ${href && href.startsWith('http') ? 'cursor-pointer' : ''}`}
         >
           <h4 className="text-sm font-semibold text-slate-900 leading-snug break-words">
             {title}
@@ -1233,11 +1319,12 @@ function LinkBubble({ parsed, msgContent, isSelf }: { parsed: any; msgContent?: 
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold leading-tight break-words text-slate-900">{title !== href ? title : (domain || 'Liên kết chia sẻ')}</p>
+          <p className="text-sm font-semibold leading-tight break-words text-slate-900">{title}</p>
+          {description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 break-words">{description}</p>}
           {domain && <p className="text-xs mt-0.5 truncate text-slate-500">{domain}</p>}
         </div>
       </div>
-      {href && (
+      {href && href.startsWith('http') && (
         <button
           onClick={() => ipc.shell?.openExternal(href)}
           className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs break-all border-t border-gray-100 text-blue-600 hover:bg-slate-50 transition-colors font-medium select-text"
@@ -1248,7 +1335,7 @@ function LinkBubble({ parsed, msgContent, isSelf }: { parsed: any; msgContent?: 
             <polyline points="15 3 21 3 21 9"/>
             <line x1="10" y1="14" x2="21" y2="3"/>
           </svg>
-          <span className="break-all">{href}</span>
+          <span className="break-all truncate">{href}</span>
         </button>
       )}
     </div>
@@ -1515,16 +1602,19 @@ function CardBubble({ msg, isSelf, onOpenProfile }: { msg: any; isSelf: boolean;
     parsed = msg.content;
   }
   const action = String(parsed.action || '');
-  const mt = String(msg.msgType || msg.msg_type || '');
 
-  // Nếu msgType là share.link/chat.link/link HOẶC content chứa link/action link → Ép chắc chắn vào LinkBubble
-  const isLinkMsg = mt === 'share.link' || mt === 'chat.link' || mt === 'link' ||
-    action.includes('link') || parsed.href || parsed.url || parsed.link ||
-    (parsed.title && (String(parsed.title).startsWith('http://') || String(parsed.title).startsWith('https://')));
+  // Nếu là cuộc gọi
+  if (action.includes('calltime') || action.includes('misscall')) {
+    return <CallBubble parsed={parsed} isSelf={isSelf} />;
+  }
 
-  if (isLinkMsg) return <LinkBubble parsed={parsed} msgContent={msg.content} isSelf={isSelf} />;
-  if (action.includes('calltime') || action.includes('misscall')) return <CallBubble parsed={parsed} isSelf={isSelf} />;
-  return <ContactCardBubble parsed={parsed} isSelf={isSelf} onOpenProfile={onOpenProfile} />;
+  // Nếu là danh thiếp liên hệ (có số điện thoại, userId hoặc action liên quan danh thiếp)
+  if (parsed.phone || parsed.userId || parsed.contactId || (action.includes('recommened.user') || action.includes('contact') || action.includes('friend'))) {
+    return <ContactCardBubble parsed={parsed} isSelf={isSelf} onOpenProfile={onOpenProfile} />;
+  }
+
+  // Mọi trường hợp còn lại (link, mini app, sendBubbleMessage, bài viết chia sẻ, form...) -> Render qua LinkBubble
+  return <LinkBubble parsed={parsed} msgContent={msg.content} isSelf={isSelf} />;
 }
 
 // ── RtfBubble ─────────────────────────────────────────────────────────────────
