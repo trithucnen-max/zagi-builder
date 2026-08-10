@@ -5026,6 +5026,112 @@ function EcardBubble({ msg, onManage }: { msg: any; onManage?: () => void }) {
   );
 }
 
+function extractBubbleData(p: any, msgContent?: string) {
+  let params: any = {};
+  if (p && p.params) {
+    if (typeof p.params === 'string') {
+      try {
+        params = JSON.parse(p.params);
+      } catch {
+        params = {};
+      }
+    } else {
+      params = p.params || {};
+    }
+  }
+
+  const item = params.item || params.bubbleItem || p.item || p.bubbleItem || {};
+  const action = String(p.action || params.action || '').trim();
+
+  let href = String(
+    p.href ||
+    p.url ||
+    p.link ||
+    params.rawUrl ||
+    params.url ||
+    params.link ||
+    params.href ||
+    item.href ||
+    item.url ||
+    item.link ||
+    (p.title && String(p.title).startsWith('http') ? p.title : '') ||
+    ''
+  ).trim();
+
+  if (href === 'sendBubbleMessage' || href === 'undefined' || href === 'null') href = '';
+
+  if (!href && msgContent) {
+    const strContent = typeof msgContent === 'string' ? msgContent : JSON.stringify(msgContent);
+    const match = strContent.match(/https?:\/\/[^\s"':<>]+/i);
+    if (match) href = match[0];
+  }
+
+  let thumb = String(
+    p.thumb ||
+    p.thumbUrl ||
+    params.thumb ||
+    params.thumbUrl ||
+    params.image ||
+    params.cover ||
+    params.hd ||
+    item.thumb ||
+    item.thumbUrl ||
+    item.image ||
+    ''
+  ).trim();
+  if (thumb === 'sendBubbleMessage' || thumb === 'undefined' || thumb === 'null') thumb = '';
+
+  let rawTitle = String(
+    params.mediaTitle ||
+    params.title ||
+    item.mediaTitle ||
+    item.title ||
+    p.mediaTitle ||
+    p.title ||
+    ''
+  ).trim();
+
+  let rawDesc = String(
+    params.mediaDesc ||
+    params.desc ||
+    params.description ||
+    item.desc ||
+    item.description ||
+    p.mediaDesc ||
+    p.desc ||
+    p.description ||
+    ''
+  ).trim();
+
+  if (rawTitle === 'sendBubbleMessage' || rawTitle === 'undefined' || rawTitle === 'null') rawTitle = '';
+  if (rawDesc === 'sendBubbleMessage' || rawDesc === 'undefined' || rawDesc === 'null') rawDesc = '';
+
+  let title = rawTitle;
+  let description = rawDesc;
+
+  if (!title) {
+    if (description) {
+      title = description;
+      description = '';
+    } else if (href && href.startsWith('http')) {
+      try {
+        title = new URL(href).hostname;
+      } catch {
+        title = 'Liên kết chia sẻ';
+      }
+    } else {
+      title = 'Liên kết chia sẻ';
+    }
+  }
+
+  let domain = String(params.src || p.src || item.src || '').trim();
+  if ((!domain || domain === 'sendBubbleMessage') && href.startsWith('http')) {
+    try { domain = new URL(href).hostname; } catch { domain = ''; }
+  }
+
+  return { title, description, href, thumb, domain, action };
+}
+
 function CardBubble({ msg, isSent, onOpenProfile }: { msg: any; isSent: boolean; onOpenProfile?: (userId: string, e: React.MouseEvent) => void }) {
   let parsed: any = {};
   if (typeof msg.content === 'string') {
@@ -5037,68 +5143,42 @@ function CardBubble({ msg, isSent, onOpenProfile }: { msg: any; isSent: boolean;
   const action = String(parsed?.action || '');
   const mt = String(msg.msg_type || msg.msgType || '');
 
-  // Kiểm tra chắc chắn xem có phải tin nhắn link hay không (bao gồm share.link, chat.link, chat.recommended, href/url trong parsed, hoặc regex link trong text)
-  const isLinkMsg = mt === 'share.link' || mt === 'chat.link' || mt === 'chat.recommended' || mt === 'link' ||
-    action.includes('link') || parsed?.href || parsed?.url || parsed?.link ||
-    (parsed?.title && (String(parsed.title).startsWith('http://') || String(parsed.title).startsWith('https://'))) ||
-    (typeof msg.content === 'string' && /https?:\/\/[^\s"':<>]+/i.test(msg.content));
+  // 1. ƯU TIÊN HÀNG ĐẦU: CUỘC GỌI (calltime, misscall, call_id, hoặc có params duration/calltype/reason)
+  const isCall =
+    action.includes('calltime') ||
+    action.includes('misscall') ||
+    action.includes('call') ||
+    mt.includes('call') ||
+    parsed.call_id ||
+    parsed.callId ||
+    parsed.callType !== undefined ||
+    parsed.description === 'Cuộc gọi' ||
+    parsed.description === 'Cuộc gọi nhỡ' ||
+    (parsed.params && (typeof parsed.params === 'string' ? (parsed.params.includes('"duration"') || parsed.params.includes('"isCaller"') || parsed.params.includes('"calltype"')) : (parsed.params.duration !== undefined || parsed.params.isCaller !== undefined)));
 
-  if (isLinkMsg) return <LinkBubble parsed={parsed} msgContent={msg.content} isSent={isSent} />;
-  if (action.includes('calltime') || action.includes('misscall')) return <CallBubble parsed={parsed} isSent={isSent} />;
-  return <ContactCardBubble parsed={parsed} isSent={isSent} onOpenProfile={onOpenProfile} />;
+  if (isCall) {
+    return <CallBubble parsed={parsed} isSent={isSent} />;
+  }
+
+  // 2. Danh thiếp liên hệ
+  if (parsed.phone || parsed.userId || parsed.contactId || (action.includes('recommened.user') || action.includes('contact') || action.includes('friend'))) {
+    return <ContactCardBubble parsed={parsed} isSent={isSent} onOpenProfile={onOpenProfile} />;
+  }
+
+  // 3. Mọi loại thẻ khác (link, mini app, sendBubbleMessage, bài viết, form) -> LinkBubble
+  return <LinkBubble parsed={parsed} msgContent={msg.content} isSent={isSent} />;
 }
 
 // ─── LinkBubble — hiển thị tin nhắn link preview như Zalo ────────────────────
 function LinkBubble({ parsed, msgContent, isSent }: { parsed: any; msgContent?: string; isSent: boolean }) {
-  const params = (() => {
-    try {
-      const p = parsed?.params;
-      return typeof p === 'string' ? JSON.parse(p) : (p || {});
-    } catch { return {}; }
-  })();
-
-  // Trích xuất URL linh hoạt từ tất cả các trường hoặc regex trong nội dung tin nhắn
-  let href = String(
-    parsed?.href ||
-    parsed?.url ||
-    parsed?.link ||
-    params?.rawUrl ||
-    params?.url ||
-    params?.link ||
-    (parsed?.title && String(parsed.title).startsWith('http') ? parsed.title : '') ||
-    ''
-  ).trim();
-
-  if (!href && msgContent) {
-    const strContent = typeof msgContent === 'string' ? msgContent : JSON.stringify(msgContent);
-    const match = strContent.match(/https?:\/\/[^\s"':<>]+/i);
-    if (match) href = match[0];
-  }
-
-  if (!href && typeof msgContent === 'string' && msgContent.startsWith('http')) {
-    href = msgContent.trim();
-  }
-
-  const title = String(params?.mediaTitle || parsed?.title || (href && href !== 'undefined' ? href : 'Liên kết chia sẻ'));
-  const domain = String(params?.src || (href.startsWith('http') ? (() => { try { return new URL(href).hostname; } catch { return ''; } })() : ''));
-  const thumb = String(parsed?.thumb || params?.thumb || parsed?.thumbUrl || '');
-  const description = String(params?.mediaDesc || parsed?.description || '');
-
-  // Nếu hoàn toàn không thể tìm thấy URL hợp lệ, hiển thị bóng tin nhắn text thông thường thay vì thẻ trắng trống
-  if (!href && !parsed?.title) {
-    const textContent = typeof msgContent === 'string' ? msgContent : JSON.stringify(parsed);
-    return (
-      <div className={`px-3.5 py-2.5 rounded-2xl text-sm max-w-[320px] break-words whitespace-pre-wrap ${isSent ? 'chat-bubble-sender' : 'chat-bubble-receiver'}`}>
-        {textContent || '(Liên kết)'}
-      </div>
-    );
-  }
+  const data = extractBubbleData(parsed, msgContent);
+  const { title, description, href, thumb, domain } = data;
 
   // Thẻ xem trước có hình ảnh đại diện (Thumbnail)
   if (thumb) {
     return (
       <div className="w-full max-w-sm bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col p-3 gap-2.5 text-left select-text">
-        {href && (
+        {href && href.startsWith('http') && (
           <a
             href="#"
             onClick={(e) => { e.preventDefault(); ipc.shell?.openExternal(href); }}
@@ -5108,14 +5188,14 @@ function LinkBubble({ parsed, msgContent, isSent }: { parsed: any; msgContent?: 
           </a>
         )}
         <div
-          onClick={() => href && ipc.shell?.openExternal(href)}
-          className="w-full aspect-[16/9] rounded-lg overflow-hidden bg-gray-100 cursor-pointer border border-gray-100"
+          onClick={() => href && href.startsWith('http') && ipc.shell?.openExternal(href)}
+          className={`w-full aspect-[16/9] rounded-lg overflow-hidden bg-gray-100 border border-gray-100 ${href && href.startsWith('http') ? 'cursor-pointer' : ''}`}
         >
           <img src={thumb} alt="" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
         </div>
         <div
-          onClick={() => href && ipc.shell?.openExternal(href)}
-          className="flex flex-col gap-1 cursor-pointer"
+          onClick={() => href && href.startsWith('http') && ipc.shell?.openExternal(href)}
+          className={`flex flex-col gap-1 ${href && href.startsWith('http') ? 'cursor-pointer' : ''}`}
         >
           <h4 className="text-sm font-semibold text-slate-900 leading-snug break-words">
             {title}
@@ -5146,11 +5226,12 @@ function LinkBubble({ parsed, msgContent, isSent }: { parsed: any; msgContent?: 
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold leading-tight break-words text-slate-900">{title !== href ? title : (domain || 'Liên kết chia sẻ')}</p>
+          <p className="text-sm font-semibold leading-tight break-words text-slate-900">{title}</p>
+          {description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 break-words">{description}</p>}
           {domain && <p className="text-xs mt-0.5 truncate text-slate-500">{domain}</p>}
         </div>
       </div>
-      {href && (
+      {href && href.startsWith('http') && (
         <button
           onClick={() => ipc.shell?.openExternal(href)}
           className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs break-all border-t border-gray-100 text-blue-600 hover:bg-slate-50 transition-colors font-medium select-text"
@@ -5161,7 +5242,7 @@ function LinkBubble({ parsed, msgContent, isSent }: { parsed: any; msgContent?: 
             <polyline points="15 3 21 3 21 9"/>
             <line x1="10" y1="14" x2="21" y2="3"/>
           </svg>
-          <span className="break-all">{href}</span>
+          <span className="break-all truncate">{href}</span>
         </button>
       )}
     </div>
@@ -5171,18 +5252,18 @@ function LinkBubble({ parsed, msgContent, isSent }: { parsed: any; msgContent?: 
 // ─── CallBubble — hiển thị tin nhắn cuộc gọi ─────────────────────────────────
 function CallBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
   const params = (() => { try { const p = parsed.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
-  const duration: number = params.duration || 0;
-  const reason: number = params.reason || 0;
-  const isCaller: boolean = params.isCaller === 1;
-  const isVideo: boolean = params.calltype === 1;
+  const duration: number = Number(params.duration || parsed.duration || parsed.call_duration || 0);
+  const reason: number = Number(params.reason || parsed.reason || 0);
+  const isCaller: boolean = params.isCaller === 1 || parsed.isCaller === 1 || isSent;
+  const isVideo: boolean = params.calltype === 1 || parsed.calltype === 1 || parsed.callType === 1;
   const action = String(parsed.action || '');
-  const isMissed = action === 'recommened.misscall';
+  const isMissed = action === 'recommened.misscall' || action === 'recommended.misscall' || action.includes('misscall') || parsed.missed === true || parsed.status === 2 || (duration === 0 && (reason === 2 || !isSent));
 
   let title = 'Cuộc gọi thoại';
   let isRed = false;
 
   if (isMissed) {
-    title = isCaller ? 'Đối phương bỏ lỡ' : 'Bạn bị nhỡ';
+    title = isCaller ? 'Đối phương bỏ lỡ' : 'Cuộc gọi nhỡ';
     isRed = true;
   } else if (duration > 0) {
     title = isCaller
@@ -5192,7 +5273,7 @@ function CallBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
     if (reason === 4 && isCaller) {
       title = 'Bạn đã hủy';
     } else if (reason === 2) {
-      title = isCaller ? 'Đã từ chối' : 'Bạn đã từ chối';
+      title = isCaller ? 'Đối phương từ chối' : 'Bạn đã từ chối';
       isRed = true;
     } else {
       title = isCaller ? 'Cuộc gọi không thành công' : 'Cuộc gọi nhỡ';
@@ -5204,13 +5285,13 @@ function CallBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
   if (!isMissed && duration > 0) {
     const m = Math.floor(duration / 60);
     const s = duration % 60;
-    subtitle = `${m} phút ${s} giây`;
+    subtitle = `${m > 0 ? `${m} phút ` : ''}${s} giây`;
   }
 
   return (
-    <div className="flex flex-col px-3 py-2.5 min-w-[200px] max-w-xs bg-white border border-gray-200 rounded-xl shadow-sm text-left">
-      <div className="flex flex-col gap-1.5">
-        <span className={`text-[15px] font-bold ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
+    <div className="flex flex-col px-3.5 py-2.5 min-w-[200px] max-w-xs bg-white border border-gray-200 rounded-xl shadow-sm text-left select-text">
+      <div className="flex flex-col gap-1">
+        <span className={`text-[15px] font-bold leading-snug ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
           {title}
         </span>
         <div className="flex items-center gap-2 mt-0.5">
@@ -5246,7 +5327,7 @@ function CallBubble({ parsed, isSent }: { parsed: any; isSent: boolean }) {
               </div>
             </div>
           )}
-          <span className="text-[14px] text-slate-500 font-medium">
+          <span className="text-[13px] text-slate-500 font-medium">
             {subtitle}
           </span>
         </div>

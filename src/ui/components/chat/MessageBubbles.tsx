@@ -1345,18 +1345,18 @@ function LinkBubble({ parsed, msgContent, isSelf }: { parsed: any; msgContent?: 
 // ── CallBubble ────────────────────────────────────────────────────────────────
 function CallBubble({ parsed, isSelf }: { parsed: any; isSelf: boolean }) {
   const params = (() => { try { const p = parsed.params; return typeof p === 'string' ? JSON.parse(p) : (p || {}); } catch { return {}; } })();
-  const duration: number = params.duration || 0;
-  const reason: number = params.reason || 0;
-  const isCaller: boolean = params.isCaller === 1;
-  const isVideo: boolean = params.calltype === 1;
+  const duration: number = Number(params.duration || parsed.duration || parsed.call_duration || 0);
+  const reason: number = Number(params.reason || parsed.reason || 0);
+  const isCaller: boolean = params.isCaller === 1 || parsed.isCaller === 1 || isSelf;
+  const isVideo: boolean = params.calltype === 1 || parsed.calltype === 1 || parsed.callType === 1;
   const action = String(parsed.action || '');
-  const isMissed = action === 'recommened.misscall';
+  const isMissed = action === 'recommened.misscall' || action === 'recommended.misscall' || action.includes('misscall') || parsed.missed === true || parsed.status === 2 || (duration === 0 && (reason === 2 || !isSelf));
 
   let title = 'Cuộc gọi thoại';
   let isRed = false;
 
   if (isMissed) {
-    title = isCaller ? 'Đối phương bỏ lỡ' : 'Bạn bị nhỡ';
+    title = isCaller ? 'Đối phương bỏ lỡ' : 'Cuộc gọi nhỡ';
     isRed = true;
   } else if (duration > 0) {
     title = isCaller
@@ -1366,7 +1366,7 @@ function CallBubble({ parsed, isSelf }: { parsed: any; isSelf: boolean }) {
     if (reason === 4 && isCaller) {
       title = 'Bạn đã hủy';
     } else if (reason === 2) {
-      title = isCaller ? 'Đã từ chối' : 'Bạn đã từ chối';
+      title = isCaller ? 'Đối phương từ chối' : 'Bạn đã từ chối';
       isRed = true;
     } else {
       title = isCaller ? 'Cuộc gọi không thành công' : 'Cuộc gọi nhỡ';
@@ -1378,13 +1378,13 @@ function CallBubble({ parsed, isSelf }: { parsed: any; isSelf: boolean }) {
   if (!isMissed && duration > 0) {
     const m = Math.floor(duration / 60);
     const s = duration % 60;
-    subtitle = `${m} phút ${s} giây`;
+    subtitle = `${m > 0 ? `${m} phút ` : ''}${s} giây`;
   }
 
   return (
-    <div className="flex flex-col px-3 py-2.5 min-w-[200px] max-w-xs bg-white border border-gray-200 rounded-xl shadow-sm text-left">
-      <div className="flex flex-col gap-1.5">
-        <span className={`text-[15px] font-bold ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
+    <div className="flex flex-col px-3.5 py-2.5 min-w-[200px] max-w-xs bg-white border border-gray-200 rounded-xl shadow-sm text-left select-text">
+      <div className="flex flex-col gap-1">
+        <span className={`text-[15px] font-bold leading-snug ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
           {title}
         </span>
         <div className="flex items-center gap-2 mt-0.5">
@@ -1420,7 +1420,7 @@ function CallBubble({ parsed, isSelf }: { parsed: any; isSelf: boolean }) {
               </div>
             </div>
           )}
-          <span className="text-[14px] text-slate-500 font-medium">
+          <span className="text-[13px] text-slate-500 font-medium">
             {subtitle}
           </span>
         </div>
@@ -1602,18 +1602,31 @@ function CardBubble({ msg, isSelf, onOpenProfile }: { msg: any; isSelf: boolean;
     parsed = msg.content;
   }
   const action = String(parsed.action || '');
+  const mt = String(msg.msg_type || msg.msgType || '');
 
-  // Nếu là cuộc gọi
-  if (action.includes('calltime') || action.includes('misscall')) {
+  // 1. Ưu tiên hàng đầu: CUỘC GỌI (calltime, misscall, call_id, hoặc có params duration/calltype/reason)
+  const isCall =
+    action.includes('calltime') ||
+    action.includes('misscall') ||
+    action.includes('call') ||
+    mt.includes('call') ||
+    parsed.call_id ||
+    parsed.callId ||
+    parsed.callType !== undefined ||
+    parsed.description === 'Cuộc gọi' ||
+    parsed.description === 'Cuộc gọi nhỡ' ||
+    (parsed.params && (typeof parsed.params === 'string' ? (parsed.params.includes('"duration"') || parsed.params.includes('"isCaller"') || parsed.params.includes('"calltype"')) : (parsed.params.duration !== undefined || parsed.params.isCaller !== undefined)));
+
+  if (isCall) {
     return <CallBubble parsed={parsed} isSelf={isSelf} />;
   }
 
-  // Nếu là danh thiếp liên hệ (có số điện thoại, userId hoặc action liên quan danh thiếp)
+  // 2. Nếu là danh thiếp liên hệ (có số điện thoại, userId hoặc action liên quan danh thiếp)
   if (parsed.phone || parsed.userId || parsed.contactId || (action.includes('recommened.user') || action.includes('contact') || action.includes('friend'))) {
     return <ContactCardBubble parsed={parsed} isSelf={isSelf} onOpenProfile={onOpenProfile} />;
   }
 
-  // Mọi trường hợp còn lại (link, mini app, sendBubbleMessage, bài viết chia sẻ, form...) -> Render qua LinkBubble
+  // 3. Mọi trường hợp còn lại (link, mini app, sendBubbleMessage, bài viết chia sẻ, form...) -> Render qua LinkBubble
   return <LinkBubble parsed={parsed} msgContent={msg.content} isSelf={isSelf} />;
 }
 
