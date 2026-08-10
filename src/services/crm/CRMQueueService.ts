@@ -706,13 +706,19 @@ class CRMQueueService {
             }
 
             // ── Check if contact is a stranger (unfriended) ──
-            let isStranger = false;
-            if (!isGroup && effectiveContactId) {
+            let isStranger = !contactIsFriend;
+            if (!isGroup && effectiveContactId && !contactIsFriend) {
                 try {
                     const status = await (conn.api as any).getFriendRequestStatus(effectiveContactId);
-                    if (status && status.is_friend === false) {
-                        isStranger = true;
-                        Logger.log(`[CRMQueue] Target ${effectiveContactId} is confirmed to be a stranger.`);
+                    const resp = status?.response ?? status;
+                    if (resp) {
+                        const isFr = resp.is_friend;
+                        if (isFr === 1 || isFr === true) {
+                            isStranger = false;
+                        } else {
+                            isStranger = true;
+                            Logger.log(`[CRMQueue] Target ${effectiveContactId} is confirmed to be a stranger.`);
+                        }
                     }
                 } catch (e: any) {
                     Logger.warn(`[CRMQueue] getFriendRequestStatus failed for ${effectiveContactId}: ${e.message}`);
@@ -783,18 +789,18 @@ class CRMQueueService {
                     }
 
                     if (resolvedPaths.length > 0) {
-                        if (isStrangerTarget || !text.trim()) {
-                            // Stranger target or no text -> single message
-                            const resp = await (conn.api as any).sendMessage({ msg: text, attachments: resolvedPaths }, threadId, threadType);
+                        if (!text.trim()) {
+                            // Chỉ có ảnh, không có text -> Gửi ảnh
+                            const resp = await (conn.api as any).sendMessage({ msg: '', attachments: resolvedPaths }, threadId, threadType);
                             responses.push(resp);
                         } else {
-                            // Friend target & both text and images exist -> Controlled sequential send based on sendOrder
+                            // Cả Text và Ảnh đều có -> Luôn gửi tuần tự 2 tin nhắn theo đúng thứ tự sendOrder ('text_first' hoặc 'image_first')
                             if (sendOrder === 'text_first') {
                                 Logger.log(`[CRMQueue] Sending Text FIRST for ${threadId}...`);
                                 const textResp = await (conn.api as any).sendMessage({ msg: text }, threadId, threadType);
                                 responses.push(textResp);
 
-                                await new Promise(resolve => setTimeout(resolve, 300));
+                                await new Promise(resolve => setTimeout(resolve, 500));
 
                                 Logger.log(`[CRMQueue] Sending Images SECOND for ${threadId}...`);
                                 const imgResp = await (conn.api as any).sendMessage({ msg: '', attachments: resolvedPaths }, threadId, threadType);
@@ -804,13 +810,17 @@ class CRMQueueService {
                                 const imgResp = await (conn.api as any).sendMessage({ msg: '', attachments: resolvedPaths }, threadId, threadType);
                                 responses.push(imgResp);
 
-                                await new Promise(resolve => setTimeout(resolve, 300));
+                                await new Promise(resolve => setTimeout(resolve, 500));
 
                                 Logger.log(`[CRMQueue] Sending Text SECOND for ${threadId}...`);
                                 const textResp = await (conn.api as any).sendMessage({ msg: text }, threadId, threadType);
                                 responses.push(textResp);
                             }
                         }
+                    } else if (text.trim()) {
+                        // Không tìm thấy file ảnh trên ổ đĩa, nhưng có text -> Gửi text
+                        const resp = await (conn.api as any).sendMessage({ msg: text }, threadId, threadType);
+                        responses.push(resp);
                     }
                 } else {
                     // Không có ảnh -> Chỉ gửi tin nhắn văn bản
