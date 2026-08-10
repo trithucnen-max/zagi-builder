@@ -3471,13 +3471,13 @@ class DatabaseService {
         }
 
         let msgs = this.query<Message>(
-            'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) ORDER BY timestamp DESC LIMIT ? OFFSET ?',
+            'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?',
             [ownerZaloId, threadId, cleanThreadId, gThreadId, limit, offset]
         );
 
         if (!msgs || msgs.length === 0) {
             msgs = this.query<Message>(
-                'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) ORDER BY timestamp DESC LIMIT ? OFFSET ?',
+                'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?',
                 [threadId, cleanThreadId, gThreadId, limit, offset]
             );
         }
@@ -3505,21 +3505,21 @@ class DatabaseService {
 
         // Lấy half tin nhắn CŨ hơn hoặc bằng timestamp + half tin nhắn MỚI hơn timestamp
         let older = this.query<Message>(
-            'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp <= ? ORDER BY timestamp DESC LIMIT ?',
+            'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp <= ? ORDER BY timestamp DESC, id DESC LIMIT ?',
             [ownerZaloId, threadId, cleanThreadId, gThreadId, timestamp, half]
         );
         let newer = this.query<Message>(
-            'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp > ? ORDER BY timestamp ASC LIMIT ?',
+            'SELECT * FROM messages WHERE owner_zalo_id = ? AND (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp > ? ORDER BY timestamp ASC, id ASC LIMIT ?',
             [ownerZaloId, threadId, cleanThreadId, gThreadId, timestamp, half]
         );
 
         if ((!older || older.length === 0) && (!newer || newer.length === 0)) {
             older = this.query<Message>(
-                'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp <= ? ORDER BY timestamp DESC LIMIT ?',
+                'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp <= ? ORDER BY timestamp DESC, id DESC LIMIT ?',
                 [threadId, cleanThreadId, gThreadId, timestamp, half]
             );
             newer = this.query<Message>(
-                'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp > ? ORDER BY timestamp ASC LIMIT ?',
+                'SELECT * FROM messages WHERE (thread_id = ? OR thread_id = ? OR thread_id = ?) AND timestamp > ? ORDER BY timestamp ASC, id ASC LIMIT ?',
                 [threadId, cleanThreadId, gThreadId, timestamp, half]
             );
         }

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useChatStore, MessageItem, ContactItem } from '@/store/chatStore';
+import { useChatStore, getNextMonotonicTimestamp, MessageItem, ContactItem } from '@/store/chatStore';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import ipc from '../lib/ipc';
@@ -113,6 +113,7 @@ export function useChat() {
       const auth = getAuth();
       if (!auth || !activeThreadId || !activeAccountId) return false;
 
+      const monoTs = getNextMonotonicTimestamp(activeAccountId, activeThreadId);
       const tempMsg: MessageItem = {
         msg_id: `temp_${Date.now()}`,
         owner_zalo_id: activeAccountId,
@@ -121,7 +122,7 @@ export function useChat() {
         sender_id: activeAccountId,
         content: text,
         msg_type: 'text',
-        timestamp: Date.now(),
+        timestamp: monoTs,
         is_sent: 1,
         status: 'sending',
       };

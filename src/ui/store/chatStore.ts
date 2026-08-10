@@ -155,27 +155,64 @@ function extractDedupText(c?: string): string {
   return String(c);
 }
 
-const normTs = (t?: number) => (!t ? 0 : t < 10000000000 ? t * 1000 : t);
+export const normTs = (t?: number): number => (!t ? 0 : Number(t) < 10000000000 ? Number(t) * 1000 : Number(t));
 
+/**
+ * So sánh 2 tin nhắn theo thứ tự tăng dần thời gian (cũ -> mới).
+ * Multi-Tier Tie-Breaker đảm bảo trật tự ổn định 100% khi cùng timestamp:
+ * 1. So sánh timestamp đã chuẩn hóa về milliseconds.
+ * 2. So sánh ID tự tăng của Database SQLite (a.id vs b.id).
+ * 3. Nếu cùng timestamp, tin nhắn thật (real) luôn xếp trước tin nhắn tạm (temp_).
+ * 4. So sánh msg_id an toàn theo độ dài và chuỗi.
+ */
 export function compareMessagesAsc(a: MessageItem, b: MessageItem): number {
   const tsA = normTs(a.timestamp);
   const tsB = normTs(b.timestamp);
   if (tsA !== tsB) return tsA - tsB;
 
-  // Secondary sort 1: DB row id (if available)
+  // Secondary sort 1: DB row id (nếu cả 2 đều đã lưu trong CSDL)
   const idA = Number(a.id || 0);
   const idB = Number(b.id || 0);
   if (idA > 0 && idB > 0 && idA !== idB) return idA - idB;
 
-  // Secondary sort 2: cli_msg_id or msg_id numeric comparison
-  const numA = Number(a.cli_msg_id || a.msg_id || 0);
-  const numB = Number(b.cli_msg_id || b.msg_id || 0);
-  if (!isNaN(numA) && !isNaN(numB) && numA > 0 && numB > 0 && numA !== numB) {
-    return numA - numB;
+  // Secondary sort 2: Tin nhắn thật luôn đứng trước tin nhắn tạm (temp_) khi cùng timestamp
+  const isTempA = String(a.msg_id || '').startsWith('temp_');
+  const isTempB = String(b.msg_id || '').startsWith('temp_');
+  if (!isTempA && isTempB) return -1; // a đứng trước
+  if (isTempA && !isTempB) return 1;  // b đứng trước
+
+  // Secondary sort 3: So sánh msg_id số an toàn
+  const isNumA = /^\d+$/.test(String(a.msg_id || ''));
+  const isNumB = /^\d+$/.test(String(b.msg_id || ''));
+  if (isNumA && isNumB) {
+    const lenDiff = String(a.msg_id).length - String(b.msg_id).length;
+    if (lenDiff !== 0) return lenDiff;
+    return String(a.msg_id).localeCompare(String(b.msg_id));
   }
 
-  // Secondary sort 3: String localeCompare fallback
+  // Secondary sort 4: String localeCompare fallback
   return String(a.msg_id || '').localeCompare(String(b.msg_id || ''));
+}
+
+/**
+ * Lấy timestamp đơn điệu (Monotonic Timestamp) cho tin nhắn gửi đi mới:
+ * Đảm bảo timestamp gửi đi LUÔN >= max(Date.now(), timestamp_tin_nhắn_cuối + 1).
+ * Giúp miễn nhiễm 100% với hiện tượng lệch đồng hồ máy tính (clock skew)
+ * khiến tin nhắn trả lời bị xếp lên trước tin nhắn của khách.
+ */
+export function getNextMonotonicTimestamp(zaloId: string, threadId: string, baseTs?: number): number {
+  const key = `${zaloId}_${threadId}`;
+  const msgs = useChatStore.getState().messages[key] || [];
+  const now = baseTs && baseTs > 0 ? normTs(baseTs) : Date.now();
+  if (msgs.length === 0) return now;
+
+  let maxTs = 0;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const t = normTs(msgs[i].timestamp);
+    if (t > maxTs) maxTs = t;
+  }
+
+  return Math.max(now, maxTs + 1);
 }
 
 export function filterTempDuplicates(msgs: MessageItem[]): MessageItem[] {
@@ -321,7 +358,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         return state;
       }
 
-      const updated = filterTempDuplicates([...existing, message]);
+      // Monotonic guard: nếu tin nhắn gửi đi (is_sent = 1 hoặc temp_) có timestamp <= tin nhắn gần nhất trong thread
+      let msgToAdd = message;
+      if (message.is_sent === 1 || String(message.msg_id).startsWith('temp_')) {
+        if (existing.length > 0) {
+          let maxExistingTs = 0;
+          for (let i = existing.length - 1; i >= 0; i--) {
+            const t = normTs(existing[i].timestamp);
+            if (t > maxExistingTs) maxExistingTs = t;
+          }
+          const currentTs = normTs(message.timestamp);
+          if (currentTs <= maxExistingTs) {
+            msgToAdd = { ...message, timestamp: maxExistingTs + 1 };
+          }
+        }
+      }
+
+      const updated = filterTempDuplicates([...existing, msgToAdd]);
       updated.sort(compareMessagesAsc);
       return { messages: { ...state.messages, [key]: updated } };
     });

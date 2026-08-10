@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore, QuickChatTarget } from '@/store/appStore';
 import { useAccountStore } from '@/store/accountStore';
-import { useChatStore, MessageItem } from '@/store/chatStore';
+import { useChatStore, getNextMonotonicTimestamp, MessageItem } from '@/store/chatStore';
 import ipc from '@/lib/ipc';
 import { sendSeenForThread } from '@/lib/sendSeenHelper';
 import { toLocalMediaUrl } from '@/lib/localMedia';
@@ -510,10 +510,11 @@ export default function QuickChatModal() {
       }
 
       if (msgText) {
+        const monoTs = getNextMonotonicTimestamp(selectedZaloId, target.userId);
         const temp: MessageItem = {
           msg_id: `qc_${Date.now()}`, owner_zalo_id: selectedZaloId, thread_id: target.userId,
           thread_type: target.threadType, sender_id: selectedZaloId, content: msgText,
-          msg_type: 'text', timestamp: Date.now(), is_sent: 1, status: 'sending',
+          msg_type: 'text', timestamp: monoTs, is_sent: 1, status: 'sending',
         };
         setLocalMsgs(p => [...p, temp]);
         addMessage(selectedZaloId, target.userId, temp);

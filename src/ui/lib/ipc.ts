@@ -785,7 +785,7 @@ function wrapErpApi<T extends Record<string, any> | undefined>(api: T): T {
   return wrapped as T;
 }
 
-const originalOpenExternal = window.electronAPI?.shell?.openExternal;
+const originalOpenExternal = typeof window !== 'undefined' ? window.electronAPI?.shell?.openExternal : undefined;
 
 const openExternalWrapper = async (url: string) => {
   if (!url) return;
