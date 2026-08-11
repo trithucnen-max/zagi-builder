@@ -23,7 +23,7 @@ export interface BatchConfig {
 
 interface ImportWizardModalProps {
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (createdBatchId?: string) => void;
   initialFile?: File | null;
   batchConfig?: BatchConfig;
 }
@@ -358,7 +358,7 @@ export default function ImportWizardModal({ onClose, onSuccess, initialFile, bat
         await ipc.crm.startPhoneScanImmediate();
       }
 
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(res.batchId ? String(res.batchId) : undefined);
       onClose();
     } catch (e: any) {
       showNotification(e.message, 'error');

@@ -917,8 +917,12 @@ export default function PhoneScanPanel() {
             });
 
             if (res?.success) {
+                if (res.batchId) {
+                    setSelectedBatchId(String(res.batchId));
+                    setBatchFilterTab('all');
+                }
                 if (res.isQueued) {
-                    showNotification(`Lô "${formName.trim()}" đã được thêm vào Hàng đợi quét (Vị trí #${res.queuePosition}).`, 'info');
+                    showNotification(`Lô "${formName.trim()}" đã được thêm vào Hàng đợi quét (Vị trí #${res.queuePosition || 1}).`, 'info');
                 } else if (formStatus === 'draft') {
                     showNotification(`Đã lưu lô nháp "${formName.trim()}"!`, 'success');
                 } else {
@@ -2711,8 +2715,12 @@ export default function PhoneScanPanel() {
                         setShowImportWizard(false);
                         setWizardInitialFile(null);
                     }}
-                    onSuccess={() => {
+                    onSuccess={(createdBatchId?: string) => {
                         setShowCreateForm(false);
+                        if (createdBatchId) {
+                            setSelectedBatchId(String(createdBatchId));
+                            setBatchFilterTab('active_queued');
+                        }
                         fetchBatches();
                     }}
                 />

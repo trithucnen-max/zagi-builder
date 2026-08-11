@@ -383,7 +383,29 @@ class PhoneScanService {
 
                 targetZaloId = bestZaloId;
                 if (!targetZaloId) {
-                    break; // No more eligible accounts with quota available in this tick
+                    // Check if all assigned accounts for this batch are out of daily quota or paused
+                    let allExhausted = true;
+                    if (eligibleZaloIds.length > 0) {
+                        for (const zaloId of eligibleZaloIds) {
+                            const pauseState = db.getAccountScanPauseState(zaloId);
+                            const limits = db.getAccountScanLimits(zaloId);
+                            const todayCount = db.getDailyScanCountForAccount(zaloId, startOfToday);
+                            const availableDaily = limits.scanDailyLimit - todayCount;
+                            if (!pauseState.pausedUntil && availableDaily > 0) {
+                                allExhausted = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (allExhausted && eligibleZaloIds.length > 0) {
+                        Logger.warn(`[PhoneScanService] ⚠️ All assigned accounts for active batch ${activeBatch.id} reached daily limit or are paused. Pausing batch & promoting next in queue...`);
+                        db.run(`UPDATE phone_scan_batches SET status = 'paused', pause_reason = 'daily_quota' WHERE id = ?`, [activeBatch.id]);
+                        db.save();
+                        EventBroadcaster.emit('crm:phoneScanUpdate', { batchId: activeBatch.id });
+                        this.promoteNextQueuedBatch();
+                    }
+                    break;
                 }
 
                 // Giãn cách Dàn đều 90s - 120s giữa các lần quét trên cùng 1 tài khoản (Steady Pacing Rate Limiter)
