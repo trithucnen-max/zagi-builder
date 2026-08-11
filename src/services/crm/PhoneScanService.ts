@@ -395,8 +395,10 @@ class PhoneScanService {
                     continue;
                 }
 
-                // Trong chế độ Dàn đều: Quét 1 số mỗi 90s - 120s (mô phỏng chính xác người thật tìm kiếm và nhắn tin)
-                const actualChunkSize = Math.min(1, maxAvailableQuota, remainingPendingItems.length);
+                // Ở chế độ Bulk: Quét tối đa 5 số/lần request API. Ở chế độ Single (findUser): Quét 1 số/lần.
+                const isSingle = this.isInSingleMode(targetZaloId);
+                const maxBatchChunk = isSingle ? 1 : 5;
+                const actualChunkSize = Math.min(maxBatchChunk, maxAvailableQuota, remainingPendingItems.length);
 
                 if (actualChunkSize <= 0) {
                     accountsUsedInTick.add(targetZaloId);

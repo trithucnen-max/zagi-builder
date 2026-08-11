@@ -4,7 +4,7 @@ import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
-import { normalizePhone, isValidVietnamPhone } from '@/utils/phoneUtils';
+import { normalizePhone, isValidVietnamPhone, isValidMobilePhone } from '@/utils/phoneUtils';
 import AppIcon from '../../common/AppIcon';
 import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
 import ImportWizardModal, { BatchConfig } from '../import/ImportWizardModal';
@@ -402,23 +402,39 @@ export default function PhoneScanPanel() {
         }));
     }, [localLabels]);
 
-    const currentBatchConfig: BatchConfig = useMemo(() => ({
-        name: formName.trim(),
-        assignedAccountId: formAssignedAccount || null,
-        targetAccountId: null,
-        contactAssignmentMode: 'distributed',
-        autoTagIds: formAutoTagIds,
-        dailyLimit: formDailyLimit,
-        hourlyLimit: formHourlyLimit,
-        priority: formPriority,
-        status: formStatus,
-        scheduledTime: formScheduledTime,
-        skipCrmExisting: formSkipCrmExisting,
-        autoWorkflowId: formAutoWorkflowId ? Number(formAutoWorkflowId) : null,
-        updateZaloAlias: formUpdateZaloAlias,
-    }), [
+    const currentBatchConfig: BatchConfig = useMemo(() => {
+        const selectedList = formSelectedAccountIds.length > 0 
+            ? formSelectedAccountIds.filter(id => healthyZaloAccounts.some(a => a.zalo_id === id))
+            : healthyZaloAccounts.map(a => a.zalo_id);
+
+        let finalAssignedAccountId: string | null = null;
+        if (selectedList.length > 0) {
+            finalAssignedAccountId = selectedList.map(id => {
+                const weight = formAccountWeights[id] ?? Math.floor(100 / selectedList.length);
+                return `${id}:${weight}`;
+            }).join(',');
+        }
+
+        return {
+            name: formName.trim(),
+            assignedAccountId: finalAssignedAccountId,
+            targetAccountId: null,
+            contactAssignmentMode: 'distributed',
+            autoTagIds: formAutoTagIds,
+            dailyLimit: formDailyLimit,
+            hourlyLimit: formHourlyLimit,
+            priority: formPriority,
+            status: formStatus,
+            scheduledTime: formScheduledTime,
+            skipCrmExisting: formSkipCrmExisting,
+            autoWorkflowId: formAutoWorkflowId ? Number(formAutoWorkflowId) : null,
+            updateZaloAlias: formUpdateZaloAlias,
+        };
+    }, [
         formName,
-        formAssignedAccount,
+        formSelectedAccountIds,
+        healthyZaloAccounts,
+        formAccountWeights,
         formAutoTagIds,
         formDailyLimit,
         formHourlyLimit,
@@ -427,7 +443,7 @@ export default function PhoneScanPanel() {
         formScheduledTime,
         formSkipCrmExisting,
         formAutoWorkflowId,
-        formUpdateZaloAlias
+        formUpdateZaloAlias,
     ]);
 
     const timeFilteredBatches = useMemo(() => {
@@ -733,13 +749,13 @@ export default function PhoneScanPanel() {
         let invalidCount = 0;
         combined.forEach(p => {
             const normalized = normalizePhone(p);
-            if (normalized && isValidVietnamPhone(normalized)) {
+            if (normalized && isValidMobilePhone(normalized)) {
                 unique.add(normalized);
             } else if (p) {
                 invalidCount++;
             }
         });
-        const parsedCount = unique.size;             // unique valid phones
+        const parsedCount = unique.size;             // unique valid mobile phones
         const inListDupCount = rawCount - parsedCount - invalidCount; // duplicates within the list
         const crmDupCount = existingCrmPhonesSet.size;
         const actualScanCount = formSkipCrmExisting
@@ -759,7 +775,7 @@ export default function PhoneScanPanel() {
         const unique = new Set<string>();
         combined.forEach(p => {
             const normalized = normalizePhone(p);
-            if (normalized && isValidVietnamPhone(normalized)) {
+            if (normalized && isValidMobilePhone(normalized)) {
                 unique.add(normalized);
             }
         });
@@ -806,18 +822,23 @@ export default function PhoneScanPanel() {
                 const worksheet = workbook.Sheets[firstSheetName];
                 const jsonRows: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-                const extractedPhones: string[] = [];
+                const extractedPhonesSet = new Set<string>();
                 for (const row of jsonRows) {
                     if (Array.isArray(row)) {
                         for (const cell of row) {
                             const str = String(cell ?? '').trim();
                             const cleaned = str.replace(/[\s.\-+()]/g, '');
-                            if (cleaned.match(/^(84|0)(3|5|7|8|9|2)\d{7,10}$/)) {
-                                extractedPhones.push(str);
+                            // Reject landlines starting with 02x, only accept mobile (3|5|7|8|9)
+                            if (cleaned.match(/^(84|0)(3|5|7|8|9)\d{8}$/)) {
+                                const norm = normalizePhone(str);
+                                if (norm && isValidMobilePhone(norm)) {
+                                    extractedPhonesSet.add(norm);
+                                }
                             }
                         }
                     }
                 }
+                const extractedPhones = Array.from(extractedPhonesSet);
                 if (extractedPhones.length > 0) {
                     setCsvPhones(extractedPhones);
                 }

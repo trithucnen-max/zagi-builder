@@ -50,6 +50,16 @@ export function isValidVietnamPhone(phone?: string | null): boolean {
 }
 
 /**
+ * Validate if a phone number is a valid Vietnamese MOBILE number (03x, 05x, 07x, 08x, 09x).
+ * Filters out landlines (02x) as Zalo personal accounts only exist on mobile numbers.
+ */
+export function isValidMobilePhone(phone?: string | null): boolean {
+  const norm = normalizePhone(phone);
+  if (!norm) return false;
+  return /^0[35789]\d{8}$/.test(norm);
+}
+
+/**
  * Format phone number for display.
  */
 export function formatPhone(phone?: string | null): string {

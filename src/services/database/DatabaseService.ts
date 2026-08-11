@@ -10500,7 +10500,8 @@ class DatabaseService {
 
             for (const rawPhone of params.phones) {
                 const normalized = this.normalizeVietnamPhone(rawPhone);
-                if (!normalized) continue;
+                // Reject empty or landlines (02x) - Zalo only supports 10-digit mobile numbers (03, 05, 07, 08, 09)
+                if (!normalized || !/^0[35789]\d{8}$/.test(normalized)) continue;
 
                 if (seenPhones.has(normalized) || (skipCrmExisting && existingCrmPhones.has(normalized))) {
                     dupCount++;

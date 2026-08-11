@@ -803,19 +803,47 @@ export default class ContactImportService {
       const autoTagIdsStr = JSON.stringify(cfg.autoTagIds || []);
       const dailyLimit = cfg.dailyLimit || 100;
       const hourlyLimit = cfg.hourlyLimit || 30;
-      const priority = cfg.priority || 0;
-      const initialStatus = cfg.status || 'active';
       const scheduledTime = cfg.scheduledTime || '';
       const skipCrmExisting = cfg.skipCrmExisting !== false ? 1 : 0;
       const autoWorkflowId = cfg.autoWorkflowId ? Number(cfg.autoWorkflowId) : null;
       const updateZaloAlias = cfg.updateZaloAlias !== false ? 1 : 0;
       const now = Date.now();
 
+      const requestedStatus = (cfg.status as string) || 'active';
+      let finalStatus: string = requestedStatus;
+      let finalPriority: number = cfg.priority || 0;
+      let queuedAt: number | null = null;
+
+      if (requestedStatus === 'priority_high') {
+        finalPriority = 100;
+        const activeBatch = db.queryOne<any>('SELECT id FROM phone_scan_batches WHERE status = "active" LIMIT 1');
+        if (activeBatch) {
+          db.run('UPDATE phone_scan_batches SET status = "queued", queued_at = ? WHERE id = ?', [now, activeBatch.id]);
+        }
+        finalStatus = 'active';
+        queuedAt = null;
+      } else if (requestedStatus === 'draft') {
+        finalStatus = 'draft';
+        queuedAt = null;
+      } else {
+        const activeBatch = db.queryOne<any>('SELECT id FROM phone_scan_batches WHERE status = "active" LIMIT 1');
+        if (activeBatch) {
+          finalStatus = 'queued';
+          queuedAt = now;
+        } else {
+          finalStatus = 'active';
+          queuedAt = null;
+        }
+      }
+
+      const maxSort = db.queryOne<any>('SELECT MAX(sort_order) as m FROM phone_scan_batches')?.m ?? 0;
+      const nextSortOrder = Number(maxSort) + 1;
+
       const lastId = db.runInsert(
         `INSERT INTO phone_scan_batches (
-          name, assigned_account_id, target_account_id, contact_assignment_mode, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, total_count, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [batchName, assignedAccountId, targetAccountId, contactAssignmentMode, autoTagIdsStr, dailyLimit, hourlyLimit, priority, initialStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, rows.length, now]
+          name, assigned_account_id, target_account_id, contact_assignment_mode, auto_tag_ids, daily_limit, hourly_limit, priority, status, scheduled_time, skip_crm_existing, auto_workflow_id, update_zalo_alias, sort_order, queued_at, total_count, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [batchName, assignedAccountId, targetAccountId, contactAssignmentMode, autoTagIdsStr, dailyLimit, hourlyLimit, finalPriority, finalStatus, scheduledTime, skipCrmExisting, autoWorkflowId, updateZaloAlias, nextSortOrder, queuedAt, rows.length, now]
       );
       batchId = String(lastId);
     }
