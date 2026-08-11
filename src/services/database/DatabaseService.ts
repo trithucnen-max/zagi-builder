@@ -10296,14 +10296,24 @@ class DatabaseService {
             if (!accountIds || accountIds.length === 0) {
                 return this.query<any>(`${baseSelect} ORDER BY psb.created_at DESC, psb.id DESC`);
             }
-            const placeholders = accountIds.map(() => '?').join(',');
+
+            const conditions: string[] = [
+                "psb.assigned_account_id IS NULL",
+                "psb.assigned_account_id = ''",
+                "psb.assigned_account_id = 'all'"
+            ];
+            const queryParams: any[] = [];
+
+            for (const id of accountIds) {
+                conditions.push("psb.assigned_account_id LIKE ?");
+                queryParams.push(`%${id}%`);
+                conditions.push("psb.target_account_id LIKE ?");
+                queryParams.push(`%${id}%`);
+            }
+
             return this.query<any>(
-                `${baseSelect}
-                 WHERE psb.assigned_account_id IN (${placeholders}) 
-                    OR psb.target_account_id IN (${placeholders}) 
-                    OR psb.assigned_account_id IS NULL OR psb.assigned_account_id = ''
-                 ORDER BY psb.created_at DESC, psb.id DESC`,
-                [...accountIds, ...accountIds]
+                `${baseSelect} WHERE (${conditions.join(' OR ')}) ORDER BY psb.created_at DESC, psb.id DESC`,
+                queryParams
             );
         } catch (err: any) {
             Logger.error(`[DB] getPhoneScanBatches: ${err.message}`);
@@ -11197,9 +11207,20 @@ class DatabaseService {
             let accountSql = '';
             let accountParams: any[] = [];
             if (accountIds && accountIds.length > 0) {
-                const placeholders = accountIds.map(() => '?').join(',');
-                accountSql = ` AND (psb.assigned_account_id IN (${placeholders}) OR psb.target_account_id IN (${placeholders}) OR psi.scanned_by_account_id IN (${placeholders}) OR psb.assigned_account_id IS NULL OR psb.assigned_account_id = '') `;
-                accountParams = [...accountIds, ...accountIds, ...accountIds];
+                const subConds: string[] = [
+                    "psb.assigned_account_id IS NULL",
+                    "psb.assigned_account_id = ''",
+                    "psb.assigned_account_id = 'all'"
+                ];
+                for (const id of accountIds) {
+                    subConds.push("psb.assigned_account_id LIKE ?");
+                    accountParams.push(`%${id}%`);
+                    subConds.push("psb.target_account_id LIKE ?");
+                    accountParams.push(`%${id}%`);
+                    subConds.push("psi.scanned_by_account_id = ?");
+                    accountParams.push(id);
+                }
+                accountSql = ` AND (${subConds.join(' OR ')}) `;
             }
 
             if (!timeRange || timeRange === 'all') {
@@ -11549,10 +11570,10 @@ class DatabaseService {
                     const isOwnBatch = this.queryOne<any>(`
                         SELECT psi.id FROM phone_scan_items psi
                         INNER JOIN phone_scan_batches psb ON psi.batch_id = psb.id
-                        WHERE (psi.scanned_by_account_id = ? OR psb.assigned_account_id = ? OR psb.contact_assignment_mode = 'all_accounts')
+                        WHERE (psi.scanned_by_account_id = ? OR psb.assigned_account_id LIKE ? OR psb.contact_assignment_mode = 'all_accounts')
                           AND (psi.zalo_uid = ? OR (psi.phone != '' AND psi.phone = (SELECT phone FROM contacts WHERE owner_zalo_id = ? AND contact_id = ?)))
                         LIMIT 1
-                    `, [c.owner_zalo_id, c.owner_zalo_id, c.contact_id, c.owner_zalo_id, c.contact_id]);
+                    `, [c.owner_zalo_id, `%${c.owner_zalo_id}%`, c.contact_id, c.owner_zalo_id, c.contact_id]);
 
                     if (!isOwnBatch) {
                         this.run(`UPDATE contacts SET alias = NULL WHERE owner_zalo_id = ? AND contact_id = ?`, [c.owner_zalo_id, c.contact_id]);
