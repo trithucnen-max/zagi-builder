@@ -217,17 +217,21 @@ export class LicenseManager {
       const scriptUrl = 'https://script.google.com/macros/s/AKfycbwfAp3H9lUTrFLDakhpCmLZB6h9V9bViGSmCTMtp49MbujLK-vT6aPbSQhsJZNs0T4qVg/exec';
       const secret = 'YOUR_SECRET_KEY_HERE_hanoi@123a';
       
-      axios.post(scriptUrl, {
-        secret,
-        action: 'register',
-        email: params.email,
-        fullName: params.fullName || '',
-        phone: params.phone || '',
-        licenseKey: params.licenseKey,
-        plan: params.plan,
-        amount: params.amount || 0,
-        transferContent: params.transferContent || ''
-      }, { timeout: 10000 }).catch((err: any) => {
+      fetch(scriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret,
+          action: 'register',
+          email: params.email,
+          fullName: params.fullName || '',
+          phone: params.phone || '',
+          licenseKey: params.licenseKey,
+          plan: params.plan,
+          amount: params.amount || 0,
+          transferContent: params.transferContent || ''
+        }),
+      }).catch((err: any) => {
         Logger.warn(`[LicenseManager] Email notification background send info: ${err.message}`);
       });
     } catch (e: any) {
