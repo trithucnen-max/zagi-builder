@@ -2,6 +2,29 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.1.9] - 2026-08-11
+
+### 🛡️ Thu Hồi Tự Động License Giả Mạo `local-boss@zagi.app` & Thắt Chặt Bản Quyền (`LicenseManager.ts`)
+- **Loại bỏ triệt để bypass tự cấp bản quyền:** Khắc phục lỗi tự động tạo bản quyền vĩnh viễn cục bộ cho tài khoản `local-boss@zagi.app` ("Chủ sở hữu máy BOSS") trên các máy mới cài đặt hoặc nâng cấp.
+- **Tự động quét sạch & Thu hồi (Revoke Option A):** Hệ thống tự động xóa file `license.dat` giả mạo ngay khi mở app và hiển thị cửa sổ Kích hoạt bản quyền chuẩn (License Gate).
+- **Đối soát trực tuyến Supabase (Strict Sync Option B):** Tự động kiểm tra bản quyền ngầm với CSDL Supabase. Nếu License Key không tồn tại hoặc bị admin khóa, hệ thống lập tức thu hồi bản quyền cục bộ.
+- **Bảo toàn 100% dữ liệu:** Toàn bộ CSDL SQLite (`zagi-tool.db`) chứa dữ liệu Zalo, CRM, lịch sử tin nhắn và phễu được bảo toàn hoàn toàn khi người dùng kích hoạt License Key chính thức.
+
+### 🚀 Giao Diện Cập Nhật Mới Tinh Gọn & Tải 1-Click Trực Tiếp theo HĐH (`UpdateModal.tsx`, `UpdateNotification.tsx`)
+- **Giao diện ban ngày sáng sạch & tương phản cao:** Thiết kế chuẩn Zagi Daytime với nền sáng (`bg-white`), chữ tối tương phản (`text-slate-900`/`text-slate-700`), nút hành động Xanh Dương (`bg-blue-600`) chữ màu trắng (`text-white font-bold`).
+- **Tự động nhận diện HĐH & Chip:** Nhận diện chính xác Windows (64-bit), macOS M1/M2/M3/M4 (Apple Silicon), macOS Intel, Surface và Linux.
+- **Tải 1-Click trực tiếp (Direct Installer Download):** Chỉ cần bấm 1 nút bấm lớn duy nhất để mở link tải trực tiếp file cài đặt `.exe` hoặc `.dmg` tương ứng qua trình duyệt mà không cần qua trang GitHub Releases trung gian.
+- **Bỏ hoàn toàn cơ chế tự nâng cấp ngầm treo ở 5%:** Loại bỏ tiến trình auto-updater ngầm bị đơ/nghẽn mạng.
+
+### 📊 Khôi Phục & Tối Ưu Trình Ghép Cột (Import Wizard) Khi Nạp Excel/CSV (`PhoneScanPanel.tsx`)
+- **Tự động mở Trình ghép cột ngay khi nạp file:** Kéo thả hoặc chọn file Excel/CSV tự động bật ngay Modal `ImportWizardModal` đầy đủ xem trước, ghép cột (SĐT, Họ tên, Giới tính, Ngày sinh).
+- **Phân loại & Báo trùng/lỗi thời gian thực:** Báo chi tiết số lượng Hợp lệ 🟢, Cảnh báo 🟡, Lỗi SĐT 🔴, Trùng lặp 🟣 và cho phép lựa chọn chiến lược xử lý trùng (Bỏ qua/Ghi đè/Điền ô trống).
+- **Nút "⚙️ Mở Trình ghép cột (Wizard)" trực quan:** Cho phép mở lại trình ghép cột bất kỳ lúc nào ngay từ form tạo lô.
+
+### 🔌 Tự Động Phục Hồi Kết Nối BOSS / Remote Workspace (Heartbeat & Fast Ping)
+- **Tự động kết nối lại khi mở máy (Focus Wakeup):** Tự động phát hiện khi người dùng mở lại màn hình/tab và gửi `fastPing` kiểm tra kết nối Socket.IO/HTTP trong 2.5s.
+- **Cảnh báo mất kết nối minh bạch:** Hiển thị nút `[ 🔄 Thử lại ]` và trạng thái kết nối trên TopBar giúp người dùng theo dõi và phục hồi đường truyền tức thì.
+
 ## [v3.1.8] - 2026-08-09
 
 ### 🛡️ Bảo Toàn Định Mức Ngày & Cơ Chế Cooldown 60 Phút Khi Gặp `-216` (`PhoneScanService.ts`, `DatabaseService.ts`)

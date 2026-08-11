@@ -373,14 +373,17 @@ Quản lý tính năng Quét số điện thoại Zalo hàng loạt, phân chia 
 
 ---
 
-## LicenseManager & License Gate (v3.0.7)
+## LicenseManager & License Gate (v3.1.9)
 
 **File:** `src/services/license/LicenseManager.ts`, `electron/ipc/licenseIpc.ts`
 **Chạy:** Electron Main Process
 
 ### Key Methods & Features
+- `needsActivation()` — Đảm bảo kiểm tra nghiêm ngặt bản quyền. Đã gỡ bỏ toàn bộ cơ chế tự cấp bản quyền giả lập `local-boss@zagi.app` khi phát hiện file SQLite cũ.
+- `loadLicense()` — Tự động quét sạch và thu hồi các file `license.dat` có chứa thông tin license rác `local-boss@zagi.app`, trả về `null` để bắt buộc hiển thị màn hình License Gate.
+- `reVerifyInBackground()` — Đối soát bản quyền trực tuyến với Supabase. Nếu License Key không tồn tại trên hệ thống hoặc bị khóa, hệ thống lập tức thu hồi bản quyền cục bộ.
 - `license:switchToBoss` — IPC handler thực thi luồng chuyển từ Chế độ Nhân viên sang Chế độ BOSS. Tự động ngắt kết nối session nhân viên, switch active workspace về `'default'`, kiểm tra bản quyền `licenseManager.needsActivation()`:
-  - Nếu máychưa có Key BOSS hợp lệ: Đóng main window, kích hoạt cửa sổ License Gate (`createLicenseWindow` với `popup.html`) để Sếp thực hiện **Nhập Key** hoặc **Nhận Key** dùng thử/mua gói trước khi được mở app chính Chế độ BOSS.
+  - Nếu máy chưa có Key BOSS hợp lệ: Đóng main window, kích hoạt cửa sổ License Gate (`createLicenseWindow` với `popup.html`) để Sếp thực hiện **Nhập Key** hoặc **Nhận Key** dùng thử/mua gói trước khi được mở app chính Chế độ BOSS.
   - Nếu máy đã có Key BOSS hợp lệ: Relaunch app để vào trực tiếp Chế độ BOSS.
 - `license:startAsEmployee` — Bỏ qua kích hoạt Key máy BOSS và boot trực tiếp vào Chế độ Nhân viên cho thiết bị của nhân viên.
 
