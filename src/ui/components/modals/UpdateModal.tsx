@@ -1,85 +1,149 @@
-import React, { useState } from 'react';
-import { useCRMStore } from '@/store/crmStore';
+import React, { useState, useMemo } from 'react';
+import ipc from '@/lib/ipc';
+import pkg from '../../../../package.json';
+
+const CURRENT_VERSION = pkg.version || '3.0.8';
+
+export interface GitHubAsset {
+  name: string;
+  browser_download_url: string;
+  size: number;
+  content_type?: string;
+}
 
 export interface UpdateInfoState {
   version: string;
   releaseNotes?: string | any;
-  percent?: number;
-  bytesPerSecond?: number;
-  transferred?: number;
-  total?: number;
-  status: 'idle' | 'available' | 'downloading' | 'downloaded' | 'error';
-  error?: string;
   htmlUrl?: string;
+  publishedAt?: string;
+  assets?: GitHubAsset[];
+  status: 'idle' | 'available' | 'error';
+  error?: string;
 }
 
 interface UpdateModalProps {
   open: boolean;
   onClose: () => void;
   updateInfo: UpdateInfoState;
-  onStartDownload: () => void;
-  onInstallNow: () => void;
 }
+
+type PlatformKey = 'windows' | 'mac_arm64' | 'mac_intel' | 'surface' | 'linux';
+
+interface PlatformOption {
+  key: PlatformKey;
+  name: string;
+  shortName: string;
+  icon: string;
+  ext: string;
+  desc: string;
+}
+
+const PLATFORMS: PlatformOption[] = [
+  { key: 'windows', name: 'Windows (64-bit)', shortName: 'Windows', icon: '🪟', ext: '.exe', desc: 'Dành cho máy tính Windows 10/11' },
+  { key: 'mac_arm64', name: 'macOS (Apple Silicon M1/M2/M3/M4)', shortName: 'Mac M1+', icon: '🍎', ext: '.dmg', desc: 'Dành cho Macbook chip Apple M1/M2/M3/M4' },
+  { key: 'mac_intel', name: 'macOS (Chip Intel)', shortName: 'Mac Intel', icon: '🍏', ext: '.dmg', desc: 'Dành cho Macbook chip Intel' },
+  { key: 'surface', name: 'Windows Surface / ARM', shortName: 'Surface', icon: '💻', ext: '.exe', desc: 'Dành cho Surface hoặc Windows chip ARM' },
+  { key: 'linux', name: 'Linux (Ubuntu / Debian)', shortName: 'Linux', icon: '🐧', ext: '.AppImage', desc: 'Dành cho hệ điều hành Linux' },
+];
 
 export default function UpdateModal({
   open,
   onClose,
   updateInfo,
-  onStartDownload,
-  onInstallNow,
 }: UpdateModalProps) {
-  const [confirmStage, setConfirmStage] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showOtherPlatforms, setShowOtherPlatforms] = useState(false);
+  const [downloadTriggered, setDownloadTriggered] = useState(false);
 
-  const campaigns = useCRMStore(s => s.campaigns || []);
+  // Detect current operating system
+  const detectedOS = useMemo<PlatformKey>(() => {
+    if (typeof navigator === 'undefined') return 'windows';
+    const ua = (navigator.userAgent || '').toLowerCase();
+    const plat = (navigator.platform || '').toLowerCase();
 
-  // ✅ FIX: useMemo MUST be before any conditional return (Rules of Hooks)
-  const osName = React.useMemo(() => {
-    if (typeof navigator === 'undefined') return 'Cross-Platform';
-    const platform = (navigator.platform || navigator.userAgent || '').toLowerCase();
-    if (platform.includes('win')) return 'Windows 🪟';
-    if (platform.includes('mac')) return 'macOS 🍎';
-    if (platform.includes('linux')) return 'Linux 🐧';
-    return 'Desktop';
+    if (plat.includes('mac') || ua.includes('macintosh') || ua.includes('mac os')) {
+      const isIntel = ua.includes('intel') && !ua.includes('arm64') && !ua.includes('aarch64');
+      // Most modern macs are Apple Silicon
+      return isIntel ? 'mac_intel' : 'mac_arm64';
+    }
+
+    if (plat.includes('linux') || ua.includes('linux')) {
+      return 'linux';
+    }
+
+    // Windows
+    if (ua.includes('surface') || ua.includes('arm64')) {
+      return 'surface';
+    }
+    return 'windows';
   }, []);
 
-  // ✅ early return AFTER all hooks
+  const [selectedPlatform, setSelectedPlatform] = useState<PlatformKey>(detectedOS);
+
+  // Keep selectedPlatform in sync when modal opens
+  React.useEffect(() => {
+    if (open) {
+      setSelectedPlatform(detectedOS);
+      setDownloadTriggered(false);
+    }
+  }, [open, detectedOS]);
+
   if (!open) return null;
 
-  const runningCampaigns = campaigns.filter((c: any) => c.status === 'running');
-
   const formatBytes = (bytes?: number) => {
-    if (!bytes || bytes === 0) return '0 B';
+    if (!bytes || bytes === 0) return '';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  const formatSpeed = (bytesPerSecond?: number) => {
-    if (!bytesPerSecond) return '';
-    return `${formatBytes(bytesPerSecond)}/s`;
+  const getAssetForPlatform = (key: PlatformKey): GitHubAsset | null => {
+    const assets = updateInfo.assets || [];
+    if (assets.length === 0) return null;
+
+    if (key === 'windows') {
+      return assets.find(a => a.name.toLowerCase().includes('window.exe') || (a.name.toLowerCase().endsWith('.exe') && !a.name.toLowerCase().includes('surface'))) || null;
+    }
+    if (key === 'mac_arm64') {
+      return assets.find(a => (a.name.toLowerCase().includes('arm64') || a.name.toLowerCase().includes('m1')) && a.name.toLowerCase().endsWith('.dmg')) ||
+             assets.find(a => a.name.toLowerCase().endsWith('.dmg') && !a.name.toLowerCase().includes('intel')) || null;
+    }
+    if (key === 'mac_intel') {
+      return assets.find(a => a.name.toLowerCase().includes('intel') && a.name.toLowerCase().endsWith('.dmg')) ||
+             assets.find(a => a.name.toLowerCase().endsWith('.dmg')) || null;
+    }
+    if (key === 'surface') {
+      return assets.find(a => a.name.toLowerCase().includes('surface') && a.name.toLowerCase().endsWith('.exe')) || null;
+    }
+    if (key === 'linux') {
+      return assets.find(a => a.name.toLowerCase().endsWith('.appimage') || a.name.toLowerCase().endsWith('.deb')) || null;
+    }
+    return null;
   };
 
-  const handleInstallOnQuit = () => {
-    try {
-      localStorage.setItem('zagi_install_on_quit_version', updateInfo.version || '3.0.9');
-    } catch {}
-    setToastMessage(`Đã cài đặt! Zagi sẽ tự động nâng cấp phiên bản v${updateInfo.version || '3.0.9'} vào lần bạn tắt ứng dụng tiếp theo.`);
-    setTimeout(() => {
-      setToastMessage(null);
-      setConfirmStage(false);
-      onClose();
-    }, 2800);
+  const currentPlatformInfo = PLATFORMS.find(p => p.key === selectedPlatform) || PLATFORMS[0];
+  const currentAsset = getAssetForPlatform(selectedPlatform);
+
+  const fallbackDownloadUrl = currentAsset?.browser_download_url || updateInfo.htmlUrl || 'https://github.com/trithucnen-max/zagi-builder/releases/latest';
+
+  const handleDownload = (targetUrl?: string) => {
+    const url = targetUrl || fallbackDownloadUrl;
+    setDownloadTriggered(true);
+
+    if (ipc.shell?.openExternal) {
+      ipc.shell.openExternal(url);
+    } else {
+      window.open(url, '_blank');
+    }
   };
 
   const renderReleaseNotes = (notes?: string | any) => {
     if (!notes) {
       return (
-        <ul className="space-y-1.5 text-xs text-gray-600 dark:text-gray-300 list-disc list-inside">
+        <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300 list-disc list-inside">
           <li>Cải tiến hiệu năng &amp; tối ưu hóa bộ nhớ cho hệ thống.</li>
           <li>Nâng cấp tính năng Xưng hô thông minh &amp; Tự xưng tự động theo chuẩn Tiếng Việt.</li>
-          <li>Sửa lỗi nhỏ và tăng cường độ ổn định kết nối Zalo.</li>
+          <li>Sửa lỗi và tăng cường độ ổn định kết nối Zalo &amp; Quét danh bạ.</li>
         </ul>
       );
     }
@@ -87,12 +151,12 @@ export default function UpdateModal({
     if (typeof notes === 'string') {
       const lines = notes.split('\n').filter(l => l.trim().length > 0);
       return (
-        <div className="space-y-1.5 text-xs text-gray-600 dark:text-gray-300 font-sans">
+        <div className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300 font-sans">
           {lines.map((line, idx) => (
             <p key={idx} className="leading-relaxed">
               {line.startsWith('-') || line.startsWith('*') ? (
                 <span className="flex items-start gap-1.5">
-                  <span className="text-blue-500 font-bold">•</span>
+                  <span className="text-blue-600 font-bold">•</span>
                   <span>{line.replace(/^[-*]\s*/, '')}</span>
                 </span>
               ) : (
@@ -104,217 +168,177 @@ export default function UpdateModal({
       );
     }
 
-    return <p className="text-xs text-gray-500">{JSON.stringify(notes)}</p>;
+    return <p className="text-xs text-slate-500">{JSON.stringify(notes)}</p>;
   };
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
 
-        {/* Toast Feedback Notification */}
-        {toastMessage && (
-          <div className="absolute top-4 left-4 right-4 z-[10000] p-3.5 bg-emerald-600 text-white rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
-            <span>🌙</span>
-            <span>{toastMessage}</span>
+        {/* Modal Top Header — Clean Bright Banner with High Contrast */}
+        <div className="bg-white dark:bg-gray-900 px-6 pt-6 pb-4 border-b border-slate-100 dark:border-gray-800 flex items-start justify-between">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-2xl shadow-xs">
+              🚀
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  CẬP NHẬT BẢN MỚI
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 border border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200 font-bold text-xs">
+                  v{(updateInfo.version || '3.1.8').replace(/^v+/i, '')}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Bản hiện tại: <span className="font-semibold text-slate-700 dark:text-slate-300">v{CURRENT_VERSION}</span> &nbsp;→&nbsp; Bản mới nhất: <span className="font-bold text-blue-600 dark:text-blue-400">v{(updateInfo.version || '3.1.8').replace(/^v+/i, '')}</span>
+              </p>
+            </div>
           </div>
-        )}
 
-        {/* Modal Top Banner — Zagi Blue only */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            title="Đóng"
           >
             ✕
           </button>
+        </div>
 
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-2xl flex-shrink-0 shadow-sm">
-              {confirmStage ? '⚠️' : '🚀'}
+        {/* Modal Body */}
+        <div className="p-6 space-y-4.5 flex-1 overflow-y-auto max-h-[68vh] bg-white dark:bg-gray-900">
+          {/* Release Notes Card */}
+          <div>
+            <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+              <span>✨ CÓ GÌ MỚI TRONG BẢN CẬP NHẬT NÀY</span>
+            </h4>
+            <div className="max-h-40 overflow-y-auto bg-slate-50 dark:bg-gray-800/60 border border-slate-200/80 dark:border-gray-700/60 rounded-2xl p-4 custom-scrollbar">
+              {renderReleaseNotes(updateInfo.releaseNotes)}
             </div>
-            <div>
+          </div>
+
+          {/* Direct Download Card */}
+          <div className="bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-2xl p-4.5 space-y-3.5">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-black tracking-tight text-white">
-                  {confirmStage ? 'XÁC NHẬN NÂNG CẤP ZAGI' : 'BẢN CẬP NHẬT MỚI'}
-                </h3>
-                <span className="px-2.5 py-0.5 rounded-full bg-white/25 border border-white/40 text-white font-extrabold text-xs">
-                  v{(updateInfo.version || '3.1.1').replace(/^v+/i, '')}
-                </span>
+                <span className="text-xl">{currentPlatformInfo.icon}</span>
+                <div>
+                  <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>Hệ điều hành của bạn:</span>
+                    <span className="text-blue-700 dark:text-blue-300 font-black">{currentPlatformInfo.name}</span>
+                  </div>
+                  {currentAsset && (
+                    <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                      {currentAsset.name} {currentAsset.size ? `(${formatBytes(currentAsset.size)})` : ''}
+                    </p>
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-blue-100 mt-0.5">Zagi {osName} Auto-Update System</p>
             </div>
+
+            {/* Main Download Button (Blue with White Text) */}
+            <button
+              type="button"
+              onClick={() => handleDownload()}
+              className="w-full py-3.5 px-5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl text-sm font-extrabold shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>
+                Tải về bản cài đặt cho {currentPlatformInfo.shortName} ({currentPlatformInfo.ext}{currentAsset?.size ? ` - ${formatBytes(currentAsset.size)}` : ''})
+              </span>
+            </button>
+
+            {downloadTriggered && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 font-medium flex items-start gap-2 animate-in fade-in">
+                <span>✓</span>
+                <div>
+                  <span className="font-bold">Đang tải file cài đặt qua trình duyệt!</span>
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5">
+                    Sau khi tải xong, bạn chỉ cần nhấp đúp vào file để cập nhật phiên bản mới.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Toggle other platforms selector */}
+            <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/40 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowOtherPlatforms(!showOtherPlatforms)}
+                className="text-xs font-semibold text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>{showOtherPlatforms ? '▴ Thu gọn danh sách phiên bản khác' : '▾ Bạn muốn tải cho hệ điều hành khác? (Mac Intel, Surface, Linux...)'}</span>
+              </button>
+            </div>
+
+            {/* Other Platforms List */}
+            {showOtherPlatforms && (
+              <div className="space-y-1.5 pt-1 animate-in fade-in duration-150">
+                {PLATFORMS.map(p => {
+                  const asset = getAssetForPlatform(p.key);
+                  const isCurrent = p.key === selectedPlatform;
+                  return (
+                    <div
+                      key={p.key}
+                      onClick={() => {
+                        setSelectedPlatform(p.key);
+                        if (asset) handleDownload(asset.browser_download_url);
+                      }}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-colors ${
+                        isCurrent
+                          ? 'bg-blue-100/70 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 font-bold'
+                          : 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{p.icon}</span>
+                        <div>
+                          <p className="text-slate-800 dark:text-white">{p.name}</p>
+                          <p className="text-[10px] text-slate-400 font-normal">{p.desc}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold shrink-0 shadow-xs cursor-pointer"
+                      >
+                        ⬇️ Tải {asset?.size ? `(${formatBytes(asset.size)})` : ''}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Modal Body Content */}
-        <div className="p-6 space-y-4 flex-1">
-          {confirmStage ? (
-            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
-              <div className="text-xs text-gray-700 dark:text-gray-200 space-y-1">
-                <p className="font-extrabold text-sm text-gray-900 dark:text-white">
-                  Bạn có muốn khởi động lại Zagi ngay bây giờ?
-                </p>
-                <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
-                  Bản cập nhật v{(updateInfo.version || '3.1.1').replace(/^v+/i, '')} đã sẵn sàng. Bạn có thể chọn khởi động lại ngay hoặc để hệ thống tự áp dụng khi bạn tắt Zagi.
-                </p>
-              </div>
+        {/* Modal Footer */}
+        <div className="px-6 py-4 bg-slate-50 dark:bg-gray-850 border-t border-slate-200/80 dark:border-gray-800 flex items-center justify-between text-xs">
+          <span className="text-[11px] text-slate-400">
+            Dữ liệu tài khoản &amp; CRM được bảo toàn 100% khi nâng cấp.
+          </span>
 
-              {runningCampaigns.length > 0 && (
-                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-2xl p-4 flex items-start gap-3 text-amber-900 dark:text-amber-200">
-                  <span className="text-2xl shrink-0">⚠️</span>
-                  <div className="text-xs leading-relaxed">
-                    <p className="font-extrabold text-amber-950 dark:text-amber-100 text-sm">
-                      Cảnh báo: Đang có {runningCampaigns.length} chiến dịch CRM đang chạy!
-                    </p>
-                    <p className="mt-1 text-amber-800 dark:text-amber-300">
-                      Nếu khởi động lại ngay, chiến dịch sẽ <span className="font-bold underline">tạm dừng</span> và sẽ tự động tiếp tục gửi tin nhắn sau khi Zagi mở lại. Hoặc bạn có thể chọn <span className="font-bold text-amber-900 dark:text-amber-200">🌙 Cài khi tôi tắt Zagi</span> để chiến dịch chạy hết.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <div>
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
-                  <span>✨ CÓ GÌ MỚI TRONG BẢN CẬP NHẬT NÀY</span>
-                </h4>
-                <div className="max-h-48 overflow-y-auto bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-700/60 rounded-2xl p-4 custom-scrollbar">
-                  {renderReleaseNotes(updateInfo.releaseNotes)}
-                </div>
-              </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-full font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+            >
+              Để sau
+            </button>
 
-              {updateInfo.status === 'downloading' && (
-                <div className="bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-2xl p-4 space-y-2.5">
-                  <div className="flex items-center justify-between text-xs font-bold text-gray-800 dark:text-gray-200">
-                    <span className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                      Đang tải bản cập nhật ngầm...
-                    </span>
-                    <span className="font-mono">{updateInfo.percent || 0}%</span>
-                  </div>
-                  <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-blue-700 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.max(3, updateInfo.percent || 0)}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 font-mono">
-                    <span>{formatBytes(updateInfo.transferred)} / {formatBytes(updateInfo.total)}</span>
-                    <span>{formatSpeed(updateInfo.bytesPerSecond)}</span>
-                  </div>
-                  <div className="pt-1 border-t border-blue-200/50 dark:border-blue-900/30 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => window.open(updateInfo.htmlUrl || 'https://github.com/trithucnen-max/zagi-builder/releases/latest', '_blank')}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>🌐 Nếu bị treo hoặc không chạy, bấm vào đây để tải trực tiếp từ GitHub Release</span>
-                      <span>→</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {updateInfo.status === 'downloaded' && (
-                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-4 flex items-center gap-3 text-emerald-800 dark:text-emerald-300">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-lg flex-shrink-0">
-                    ✓
-                  </div>
-                  <div className="text-xs">
-                    <p className="font-extrabold text-emerald-900 dark:text-emerald-200">Đã tải xong bản cập nhật v{updateInfo.version}!</p>
-                    <p className="text-emerald-700 dark:text-emerald-400 mt-0.5">Bấm nút bên dưới để chọn thời điểm nâng cấp thích hợp.</p>
-                  </div>
-                </div>
-              )}
-
-              {updateInfo.status === 'error' && (
-                <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl p-4 flex items-start justify-between gap-3 text-xs text-rose-800 dark:text-rose-300">
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg">⚠️</span>
-                    <div>
-                      <p className="font-bold">Không thể tải bản cập nhật tự động:</p>
-                      <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">{updateInfo.error || 'Vui lòng kiểm tra lại kết nối mạng.'}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => window.open(updateInfo.htmlUrl || 'https://github.com/trithucnen-max/zagi-builder/releases/latest', '_blank')}
-                    className="px-3 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold shrink-0 text-xs transition-colors cursor-pointer"
-                  >
-                    Tải từ Web 🌐
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Modal Footer Buttons */}
-        <div className="p-4 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-200/80 dark:border-gray-700 flex items-center justify-end gap-2 text-xs">
-          {confirmStage ? (
-            <>
-              <button
-                onClick={() => setConfirmStage(false)}
-                className="px-4 py-2 rounded-full font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                Quay lại
-              </button>
-              <button
-                onClick={handleInstallOnQuit}
-                className="px-4 py-2.5 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                title="Tự nâng cấp ngầm khi bạn chủ động tắt ứng dụng"
-              >
-                <span>🌙 Cài khi tôi tắt Zagi</span>
-              </button>
-              <button
-                onClick={onInstallNow}
-                className="px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer animate-pulse"
-              >
-                <span>🚀 Khởi động lại ngay</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-full font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                Để sau
-              </button>
-
-              {updateInfo.status === 'available' || updateInfo.status === 'idle' ? (
-                <button
-                  onClick={onStartDownload}
-                  className="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-black shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-                >
-                  <span>🚀 Nâng cấp ngay</span>
-                  <span>→</span>
-                </button>
-              ) : updateInfo.status === 'downloading' ? (
-                <button
-                  disabled
-                  className="px-6 py-2.5 rounded-full bg-blue-400/50 text-white font-bold opacity-75 cursor-not-allowed flex items-center gap-2"
-                >
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Đang tải ({updateInfo.percent || 0}%)</span>
-                </button>
-              ) : updateInfo.status === 'downloaded' ? (
-                <button
-                  onClick={() => setConfirmStage(true)}
-                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer animate-pulse"
-                >
-                  <span>🔄 Khởi động lại &amp; Cập nhật</span>
-                </button>
-              ) : updateInfo.status === 'error' ? (
-                <button
-                  onClick={onStartDownload}
-                  className="px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-md transition-colors cursor-pointer"
-                >
-                  Thử lại
-                </button>
-              ) : null}
-            </>
-          )}
+            <button
+              type="button"
+              onClick={() => handleDownload()}
+              className="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+            >
+              ⬇️ Tải ngay
+            </button>
+          </div>
         </div>
       </div>
     </div>

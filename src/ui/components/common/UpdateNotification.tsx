@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useAppStore } from '@/store/appStore';
-import ipc from '@/lib/ipc';
-import UpdateModal, { UpdateInfoState } from '../modals/UpdateModal';
+import UpdateModal, { UpdateInfoState, GitHubAsset } from '../modals/UpdateModal';
 import pkg from '../../../../package.json';
 
 const CURRENT_VERSION = pkg.version || '3.0.8';
@@ -13,6 +11,7 @@ interface ReleaseInfo {
   body: string;
   html_url: string;
   published_at: string;
+  assets?: GitHubAsset[];
 }
 
 function parseSemver(tag: string): { major: number; minor: number; patch: number } | null {
@@ -43,71 +42,13 @@ export function UpdateNotification() {
   const [updateState, setUpdateState] = useState<UpdateInfoState>({
     version: '',
     releaseNotes: '',
-    status: 'idle'
+    status: 'idle',
+    assets: []
   });
   const [showModal, setShowModal] = useState(false);
   const [dismissedToast, setDismissedToast] = useState(false);
-  const theme = useAppStore(s => s.resolvedTheme || (s.theme === 'light' ? 'light' : 'dark'));
-  const isLight = theme === 'light';
-
-  useEffect(() => {
-    if (!ipc.on) return;
-
-    const unAvailable = ipc.on('update:available', (info: any) => {
-      const ver = info?.version ? `v${info.version.replace(/^v/i, '')}` : '';
-      setUpdateState(prev => ({
-        ...prev,
-        version: ver || prev.version,
-        releaseNotes: info?.releaseNotes || prev.releaseNotes,
-        status: 'available'
-      }));
-      setDismissedToast(false);
-    });
-
-    const unProgress = ipc.on('update:progress', (progress: any) => {
-      setUpdateState(prev => ({
-        ...prev,
-        status: 'downloading',
-        percent: progress?.percent ?? prev.percent ?? 0,
-        bytesPerSecond: progress?.bytesPerSecond ?? prev.bytesPerSecond,
-        transferred: progress?.transferred ?? prev.transferred,
-        total: progress?.total ?? prev.total
-      }));
-    });
-
-    const unDownloaded = ipc.on('update:downloaded', (info: any) => {
-      const ver = info?.version ? `v${info.version.replace(/^v/i, '')}` : '';
-      setUpdateState(prev => ({
-        ...prev,
-        version: ver || prev.version,
-        status: 'downloaded',
-        percent: 100
-      }));
-      setShowModal(true);
-    });
-
-    const unError = ipc.on('update:error', (err: any) => {
-      setUpdateState(prev => ({
-        ...prev,
-        status: 'error',
-        error: err?.message || 'Không thể tải bản cập nhật tự động.'
-      }));
-    });
-
-    return () => {
-      if (unAvailable) unAvailable();
-      if (unProgress) unProgress();
-      if (unDownloaded) unDownloaded();
-      if (unError) unError();
-    };
-  }, []);
 
   const checkGitHubRelease = useCallback(async () => {
-    // Also trigger Electron autoUpdater check in main process
-    if (ipc.update?.check) {
-      ipc.update.check();
-    }
-
     try {
       const res = await fetch(GITHUB_RELEASES_API, {
         headers: { Accept: 'application/vnd.github.v3+json' },
@@ -133,18 +74,17 @@ export function UpdateNotification() {
       const dismissedTag = localStorage.getItem('zagi_dismissed_update_tag');
 
       if (isNewerVersion(latest.tag_name, CURRENT_VERSION) && dismissedTag !== latest.tag_name) {
-        setUpdateState(prev => {
-          if (prev.status !== 'idle') return prev;
-          return {
-            ...prev,
-            version: latest.tag_name,
-            releaseNotes: latest.body,
-            htmlUrl: latest.html_url,
-            status: 'available'
-          };
+        setUpdateState({
+          version: latest.tag_name,
+          releaseNotes: latest.body,
+          htmlUrl: latest.html_url,
+          publishedAt: latest.published_at,
+          assets: latest.assets || [],
+          status: 'available'
         });
       }
     } catch {
+      // Non-fatal if offline
     }
   }, []);
 
@@ -155,7 +95,7 @@ export function UpdateNotification() {
     // Check every 30 minutes while app is open
     const timer = setInterval(checkGitHubRelease, 30 * 60 * 1000);
 
-    // ✅ Check immediately when user focuses back to Zagi (no restart needed)
+    // Check immediately when user focuses back to Zagi
     const handleFocus = () => {
       checkGitHubRelease();
     };
@@ -166,20 +106,6 @@ export function UpdateNotification() {
       window.removeEventListener('focus', handleFocus);
     };
   }, [checkGitHubRelease]);
-
-
-  const handleStartDownload = () => {
-    setUpdateState(prev => ({ ...prev, status: 'downloading', percent: 5 }));
-    if (ipc.update?.download) {
-      ipc.update.download();
-    }
-  };
-
-  const handleInstallNow = () => {
-    if (ipc.update?.install) {
-      ipc.update.install();
-    }
-  };
 
   const handleDismissToast = () => {
     if (updateState.version) {
@@ -194,30 +120,27 @@ export function UpdateNotification() {
     <>
       {hasUpdate && !dismissedToast && !showModal && (
         <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 pointer-events-none">
-          {/* Centered update notification card */}
-          <div className={`pointer-events-auto w-full max-w-sm rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-6 ${
-            isLight
-              ? 'bg-white border-blue-100 shadow-blue-500/15'
-              : 'bg-gray-900 border-blue-800/40 shadow-blue-900/30'
-          }`}>
-            {/* Blue header strip */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 flex items-center justify-between">
+          {/* Clean daytime high-contrast popup card */}
+          <div className="pointer-events-auto w-full max-w-sm rounded-3xl shadow-2xl border border-slate-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-6">
+            
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3.5 flex items-start justify-between border-b border-slate-100 dark:border-gray-800">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center text-2xl shadow-sm animate-bounce">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-xl shadow-xs">
                   🚀
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-white leading-tight">
+                  <h4 className="text-sm font-extrabold text-slate-900 dark:text-white leading-tight">
                     Có bản cập nhật mới!
                   </h4>
-                  <p className="text-xs text-blue-100 mt-0.5">
-                    Zagi <span className="font-bold">{updateState.version}</span> đã sẵn sàng
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Zagi <span className="font-bold text-blue-600 dark:text-blue-400">{updateState.version}</span> đã sẵn sàng
                   </p>
                 </div>
               </div>
               <button
                 onClick={handleDismissToast}
-                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white text-xs transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white text-xs transition-colors cursor-pointer"
                 title="Bỏ qua"
               >
                 ✕
@@ -225,31 +148,33 @@ export function UpdateNotification() {
             </div>
 
             {/* Body */}
-            <div className="px-5 py-4">
-              <p className={`text-xs leading-relaxed ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-                Bản hiện tại: <span className="font-semibold">v{CURRENT_VERSION}</span>
+            <div className="px-5 py-4 bg-slate-50/50 dark:bg-gray-850">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Bản hiện tại: <span className="font-semibold text-slate-800 dark:text-slate-200">v{CURRENT_VERSION}</span>
                 &nbsp;→&nbsp;
-                <span className={`font-bold ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>{updateState.version}</span>
+                <span className="font-extrabold text-blue-600 dark:text-blue-400">{updateState.version}</span>
+              </p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                Tải trực tiếp bản cài đặt tương thích cho máy tính của bạn chỉ với 1 cú nhấp.
               </p>
             </div>
 
             {/* Footer buttons */}
-            <div className={`px-5 pb-5 flex items-center gap-3`}>
+            <div className="px-5 py-4 bg-white dark:bg-gray-900 border-t border-slate-100 dark:border-gray-800 flex items-center gap-2.5">
               <button
+                type="button"
                 onClick={handleDismissToast}
-                className={`flex-1 py-2.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${
-                  isLight
-                    ? 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                    : 'border-gray-700 text-gray-400 hover:bg-gray-800'
-                }`}
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors cursor-pointer border border-slate-200 dark:border-gray-700"
               >
                 Để sau
               </button>
               <button
+                type="button"
                 onClick={() => setShowModal(true)}
-                className="flex-[2] py-2.5 rounded-full text-xs font-black text-white bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all shadow-md shadow-blue-500/25 cursor-pointer"
+                className="flex-[2] py-2.5 rounded-xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-98 transition-all shadow-md shadow-blue-500/25 cursor-pointer flex items-center justify-center gap-1.5"
               >
-                Xem điểm mới &amp; Nâng cấp →
+                <span>Xem &amp; Tải về</span>
+                <span>→</span>
               </button>
             </div>
           </div>
@@ -260,8 +185,6 @@ export function UpdateNotification() {
         open={showModal}
         onClose={() => setShowModal(false)}
         updateInfo={updateState}
-        onStartDownload={handleStartDownload}
-        onInstallNow={handleInstallNow}
       />
     </>
   );
