@@ -795,38 +795,38 @@ export default function PhoneScanPanel() {
                 }
             }
 
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            const jsonRows: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            setCsvFilename(file.name);
+            setWizardInitialFile(file);
 
-            const extractedPhones: string[] = [];
-            for (const row of jsonRows) {
-                if (Array.isArray(row)) {
-                    for (const cell of row) {
-                        const str = String(cell ?? '').trim();
-                        // Match phone numbers (Vietnamese 03/05/07/08/09/02 or international +84/84)
-                        const cleaned = str.replace(/[\s.\-+()]/g, '');
-                        if (cleaned.match(/^(84|0)(3|5|7|8|9|2)\d{7,10}$/)) {
-                            extractedPhones.push(str);
+            // Extract quick phone count for the UI pill
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonRows: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                const extractedPhones: string[] = [];
+                for (const row of jsonRows) {
+                    if (Array.isArray(row)) {
+                        for (const cell of row) {
+                            const str = String(cell ?? '').trim();
+                            const cleaned = str.replace(/[\s.\-+()]/g, '');
+                            if (cleaned.match(/^(84|0)(3|5|7|8|9|2)\d{7,10}$/)) {
+                                extractedPhones.push(str);
+                            }
                         }
                     }
                 }
-            }
+                if (extractedPhones.length > 0) {
+                    setCsvPhones(extractedPhones);
+                }
+            } catch { /* non-fatal */ }
 
-            if (extractedPhones.length > 0) {
-                setCsvPhones(extractedPhones);
-                setCsvFilename(file.name);
-                showNotification(`Đã nạp thành công ${extractedPhones.length} số điện thoại từ tệp "${file.name}"!`, 'success');
-            } else {
-                // If direct regex found nothing, open Import Wizard so user can map columns (SĐT, Họ tên, Giới tính, Ngày sinh)
-                setWizardInitialFile(file);
-                setShowImportWizard(true);
-            }
+            // Tự động mở Trình ghép cột (Wizard) với đầy đủ Báo trùng & Báo lỗi & Xem trước
+            setShowImportWizard(true);
         } catch (err: any) {
-            console.error('Failed to parse Excel/CSV directly:', err);
-            // Fallback to ImportWizardModal
+            console.error('Failed to process Excel/CSV:', err);
             setWizardInitialFile(file);
             setShowImportWizard(true);
         }
@@ -2463,8 +2463,8 @@ export default function PhoneScanPanel() {
                                                               ✓ Đã nạp {csvPhones.length} SĐT
                                                           </span>
                                                       </div>
-                                                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                                          Nhấp để đổi tệp Excel/CSV khác hoặc kéo thả tệp mới vào đây
+                                                      <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                                                          Hỗ trợ .xlsx, .xls, .csv (Tự động mở Trình ghép cột, Báo trùng & Báo lỗi)
                                                       </p>
                                                   </div>
                                               ) : (
@@ -2487,7 +2487,7 @@ export default function PhoneScanPanel() {
                                                       </div>
 
                                                       <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                                                          Hỗ trợ .xlsx, .xls, .csv (Tự động nhận diện cột SĐT & Họ tên)
+                                                          Hỗ trợ .xlsx, .xls, .csv (Tự động mở Trình ghép cột, Báo trùng & Báo lỗi)
                                                       </p>
                                                   </>
                                               )}
