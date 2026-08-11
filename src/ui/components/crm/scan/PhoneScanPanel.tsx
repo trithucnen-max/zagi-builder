@@ -522,11 +522,15 @@ export default function PhoneScanPanel() {
     }, [selectedScanAccount, permittedAccountIds]);
 
     // Fetch batches
-    const fetchBatches = useCallback(async () => {
+    const fetchBatches = useCallback(async (targetBatchId?: string) => {
         try {
             const res = await ipc.crm?.getPhoneScanBatches({ accountIds: activeFilterAccountIds });
             if (res?.success && res.batches) {
                 setBatches(res.batches);
+                if (targetBatchId) {
+                    const match = res.batches.find((b: Batch) => String(b.id) === String(targetBatchId));
+                    if (match) setSelectedBatch(match);
+                }
             }
         } catch (err: any) {
             console.error('Failed to fetch batches:', err);
@@ -917,10 +921,7 @@ export default function PhoneScanPanel() {
             });
 
             if (res?.success) {
-                if (res.batchId) {
-                    setSelectedBatchId(String(res.batchId));
-                    setBatchFilterTab('all');
-                }
+                setBatchFilterTab('all');
                 if (res.isQueued) {
                     showNotification(`Lô "${formName.trim()}" đã được thêm vào Hàng đợi quét (Vị trí #${res.queuePosition || 1}).`, 'info');
                 } else if (formStatus === 'draft') {
@@ -950,7 +951,7 @@ export default function PhoneScanPanel() {
                 setCsvPhones([]);
                 setCsvFilename('');
                 setShowCreateForm(false);
-                fetchBatches();
+                fetchBatches(res.batchId ? String(res.batchId) : undefined);
             } else {
                 showNotification('Khởi tạo thất bại: ' + (res?.error || 'Lỗi không rõ'), 'error');
             }
@@ -2717,11 +2718,8 @@ export default function PhoneScanPanel() {
                     }}
                     onSuccess={(createdBatchId?: string) => {
                         setShowCreateForm(false);
-                        if (createdBatchId) {
-                            setSelectedBatchId(String(createdBatchId));
-                            setBatchFilterTab('active_queued');
-                        }
-                        fetchBatches();
+                        setBatchFilterTab('all');
+                        fetchBatches(createdBatchId);
                     }}
                 />
             )}
