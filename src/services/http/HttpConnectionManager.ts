@@ -275,6 +275,14 @@ class HttpConnectionManager {
         return client.service.triggerManualLanProbe();
     }
 
+    public async fastPing(workspaceId: string): Promise<{ success: boolean; latency?: number; error?: string }> {
+        const client = this.clients.get(workspaceId);
+        if (!client) {
+            return { success: false, error: 'Workspace chưa kết nối' };
+        }
+        return client.service.fastPing();
+    }
+
     public revertToWan(workspaceId: string): void {
         const client = this.clients.get(workspaceId);
         if (client) {
@@ -402,7 +410,7 @@ class HttpConnectionManager {
      * Uses client service's stored bossUrl/token directly instead of WorkspaceManager
      * so reconnect works even for workspaces not marked as 'remote' (e.g., manual employee connections).
      */
-    public startHealthCheck(intervalMs = 60_000): void {
+    public startHealthCheck(intervalMs = 30_000): void {
         this.stopHealthCheck();
         this.healthCheckTimer = setInterval(async () => {
             for (const [wsId, client] of this.clients) {

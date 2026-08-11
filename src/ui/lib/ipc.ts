@@ -563,6 +563,7 @@ declare global {
         loginRemote: (bossUrl: string, username: string, password: string) => Promise<{ success: boolean; token?: string; employee?: any; error?: string }>;
         probeAndSwitchToLan: (id: string) => Promise<{ success: boolean; isUsingLan?: boolean; error?: string }>;
         revertToWan: (id: string) => Promise<{ success: boolean; error?: string }>;
+        fastPing: (id: string) => Promise<{ success: boolean; latency?: number; error?: string }>;
         notifyNetworkOnline: () => void;
         notifyNetworkOffline: () => void;
       };
@@ -1026,6 +1027,7 @@ const browserWorkspace = {
   },
   probeAndSwitchToLan: async () => ({ success: true }),
   revertToWan: async () => ({ success: true }),
+  fastPing: async () => ({ success: true, latency: 10 }),
   notifyNetworkOnline: () => {},
   notifyNetworkOffline: () => {},
 };

@@ -378,6 +378,15 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
         }
     });
 
+    ipcMain.handle('workspace:fastPing', async (_e, { id }: { id: string }) => {
+        try {
+            const res = await HttpConnectionManager.getInstance().fastPing(id);
+            return res;
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    });
+
     ipcMain.handle('workspace:revertToWan', async (_e, { id }: { id: string }) => {
         try {
             HttpConnectionManager.getInstance().revertToWan(id);

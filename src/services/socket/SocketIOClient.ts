@@ -106,13 +106,14 @@ class SocketIOClient {
     if (gWindow && gWindow.addEventListener) {
       const handleWakeup = () => {
         if (this.socket && !this.socket.connected && this.bossUrl && this.token) {
-          Logger.log(`[SocketIOClient] ⚡ System wake-up / network back online -> reconnecting to ${this.bossUrl}`);
+          Logger.log(`[SocketIOClient] ⚡ System wake-up / focus / network back online -> reconnecting to ${this.bossUrl}`);
           this.socket.connect();
         }
       };
       gWindow.addEventListener('visibilitychange', () => {
         if (gDoc && gDoc.visibilityState === 'visible') handleWakeup();
       });
+      gWindow.addEventListener('focus', handleWakeup);
       gWindow.addEventListener('online', handleWakeup);
     }
   }

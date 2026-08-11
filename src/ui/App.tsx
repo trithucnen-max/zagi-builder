@@ -127,6 +127,9 @@ export default function App() {
   const { activeThreadId, activeThreadType, contacts } = useChatStore();
   const { activeAccountId } = useAccountStore();
   const { mode: empMode, bossConnected } = useEmployeeStore();
+  const activeWorkspace = useWorkspaceStore(s => s.workspaces.find((w: any) => w.id === s.activeWorkspaceId));
+  const activeWsStatus = useWorkspaceStore(s => activeWorkspace ? s.connectionStatuses[activeWorkspace.id] : undefined);
+  const isRemoteWsDisconnected = activeWorkspace?.type === 'remote' && activeWsStatus !== undefined && !activeWsStatus.connected;
   const [initializing, setInitializing] = useState(true);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
@@ -975,10 +978,12 @@ export default function App() {
 
   // ─── Track remote workspace connection status ───────────
   useEffect(() => {
+    let prevActiveConnected: boolean | null = null;
     const unsub = window.electronAPI?.on('workspace:connectionStatus', (data: any) => {
       if (!data?.workspaceId) return;
+      const isConnected = !!data.connected;
       useWorkspaceStore.getState().setConnectionStatus(data.workspaceId, {
-        connected: !!data.connected,
+        connected: isConnected,
         latency: data.latency ?? 0,
       });
       // Update employeeStore.bossConnected if this is the active workspace
@@ -986,7 +991,7 @@ export default function App() {
       if (data.workspaceId === activeWsId) {
         const empStore = useEmployeeStore.getState();
         if (empStore.mode === 'employee') {
-          empStore.setBossConnected(!!data.connected);
+          empStore.setBossConnected(isConnected);
           if (data.latency !== undefined) empStore.setLatency(data.latency);
           
           const wasUsingLan = empStore.isUsingLan;
@@ -994,12 +999,12 @@ export default function App() {
           
           if (data.isUsingLan && !wasUsingLan) {
             useAppStore.getState().showNotification('🚀 Đã tự động kết nối qua LAN (Mạng nội bộ)', 'success');
-          } else if (!data.isUsingLan && wasUsingLan && data.connected) {
+          } else if (!data.isUsingLan && wasUsingLan && isConnected) {
             useAppStore.getState().showNotification('🌐 Đã chuyển sang kết nối qua WAN/Tunnel', 'info');
           }
 
           // Khởi tạo lại RestQueryService của Renderer với bossUrl thực tế đang chạy
-          if (data.connected && data.bossUrl) {
+          if (isConnected && data.bossUrl) {
             try {
               const activeWs = useWorkspaceStore.getState().activeWorkspace();
               if (activeWs && activeWs.token) {
@@ -1011,36 +1016,61 @@ export default function App() {
             }
           }
         }
+
+        // Thông báo chuyển trạng thái kết nối cho người dùng
+        if (prevActiveConnected !== null && prevActiveConnected !== isConnected) {
+          if (isConnected) {
+            useAppStore.getState().showNotification('🟢 Đã khôi phục kết nối tới Boss', 'success');
+          } else {
+            useAppStore.getState().showNotification('🔴 Mất kết nối tới Boss. Đang tự động kết nối lại...', 'warning');
+          }
+        }
+        prevActiveConnected = isConnected;
       }
     });
     return () => unsub?.();
   }, []);
 
-  // ─── Auto Reconnect on Window Wake-up / Online ─────────────
+  // ─── Auto Reconnect on Window Focus / Wake-up / Online ─────────────
   useEffect(() => {
+    let debounceTimer: any = null;
     const handleWakeup = async () => {
-      const activeWs = useWorkspaceStore.getState().activeWorkspace();
-      if (!activeWs || activeWs.type !== 'remote' || !activeWs.bossUrl || !activeWs.token) return;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        const activeWs = useWorkspaceStore.getState().activeWorkspace();
+        if (!activeWs || activeWs.type !== 'remote' || !activeWs.bossUrl || !activeWs.token) return;
 
-      // Guard: chỉ reconnect khi workspace thực sự đã mất kết nối.
-      // Không gọi connectRemote khi đang connected — tránh HttpConnectionManager
-      // destroy client đang healthy rồi tạo mới, gây "nháy mất kết nối" ngắn.
-      const connStatus = useWorkspaceStore.getState().getConnectionStatus(activeWs.id);
-      if (connStatus?.connected) {
-        console.log('[App] ⚡ Wake-up detected but workspace already connected — skipping reconnect');
-        return;
-      }
+        const connStatus = useWorkspaceStore.getState().getConnectionStatus(activeWs.id);
+        if (connStatus?.connected) {
+          console.log('[App] ⚡ Window focus / wake-up -> running fastPing check...');
+          try {
+            const pingRes = await ipc.workspace?.fastPing?.(activeWs.id);
+            if (!pingRes?.success) {
+              console.warn('[App] ⚠️ fastPing failed on focus -> triggering connectRemote...');
+              await ipc.workspace?.connectRemote?.(activeWs.id, activeWs.bossUrl, activeWs.token);
+            }
+          } catch {
+            await ipc.workspace?.connectRemote?.(activeWs.id, activeWs.bossUrl, activeWs.token);
+          }
+          return;
+        }
 
-      console.log('[App] ⚡ Window wake-up / network recovery detected -> workspace disconnected, triggering connectRemote');
-      await ipc.workspace?.connectRemote?.(activeWs.id, activeWs.bossUrl, activeWs.token);
+        console.log('[App] ⚡ Window wake-up / network recovery detected -> workspace disconnected, triggering connectRemote');
+        await ipc.workspace?.connectRemote?.(activeWs.id, activeWs.bossUrl, activeWs.token);
+      }, 500);
     };
+
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') handleWakeup();
     };
+
     window.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', handleWakeup);
     window.addEventListener('online', handleWakeup);
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       window.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', handleWakeup);
       window.removeEventListener('online', handleWakeup);
     };
   }, []);
@@ -1511,6 +1541,28 @@ export default function App() {
       <TopBar />
       <LicenseExpiryBanner />
       <EmployeeConnectionBanner />
+
+      {isRemoteWsDisconnected && empMode !== 'employee' && (
+        <div className="bg-amber-950/90 border-b border-amber-600/50 px-4 py-2 text-amber-200 flex items-center justify-between z-40 text-xs shadow-md backdrop-blur-sm flex-shrink-0 animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+            </span>
+            <span className="font-semibold text-amber-100">
+              ⚠️ Mất kết nối tới Boss ({activeWorkspace?.name || 'Remote Workspace'}) — Đang tự động kết nối lại...
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleManualReconnect}
+              className="px-3 py-1 bg-amber-800/80 hover:bg-amber-700 text-amber-100 rounded-lg font-medium transition-all active:scale-95 border border-amber-600/40 flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              🔄 Thử lại ngay
+            </button>
+          </div>
+        </div>
+      )}
 
       {empMode === 'employee' && !bossConnected && (
         <div className="fixed inset-0 z-[9999] bg-gray-950/85 backdrop-blur-md flex items-center justify-center p-4">

@@ -6,6 +6,7 @@ import { useAppStore, FONT_SCALE_MIN, FONT_SCALE_MAX, FONT_SCALE_STEP } from '@/
 import { useAccountStore } from '@/store/accountStore';
 import { useUpdateStore } from '@/store/updateStore';
 import { useEmployeeStore } from '@/store/employeeStore';
+import { useWorkspaceStore } from '@/store/workspaceStore';
 import { useChatStore } from '@/store/chatStore';
 import WorkspaceSwitcher from '@/components/common/WorkspaceSwitcher';
 import { useErpNotificationStore } from '@/store/erp/erpNotificationStore';
@@ -49,9 +50,12 @@ export default function TopBar() {
   const [macDropdownOpen, setMacDropdownOpen] = useState(false);
   const macDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Employee store
+  // Employee store & Workspace store
   const { mode: empMode, currentEmployee, bossConnected, isUsingLan, previewEmployeeId, employees } = useEmployeeStore();
   const previewEmployee = previewEmployeeId ? employees.find((e: any) => e.employee_id === previewEmployeeId) : null;
+  const activeWorkspace = useWorkspaceStore(s => s.workspaces.find((w: any) => w.id === s.activeWorkspaceId));
+  const activeWsStatus = useWorkspaceStore(s => activeWorkspace ? s.connectionStatuses[activeWorkspace.id] : undefined);
+  const isRemoteWs = activeWorkspace?.type === 'remote';
 
   // Boss connection popup (Employee mode)
   const [bossPopupOpen, setBossPopupOpen] = useState(false);
@@ -499,6 +503,30 @@ export default function TopBar() {
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Remote Workspace connection indicator (when not in employee mode) */}
+        {empMode !== 'employee' && isRemoteWs && (
+          <div className="flex items-center gap-1.5 ml-2 px-2.5 py-0.5 rounded-full border border-gray-700/80 bg-gray-800/60 text-[11px]">
+            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${activeWsStatus?.connected ? 'bg-green-400' : 'bg-red-400 animate-pulse'}`} />
+            <span className={activeWsStatus?.connected ? 'text-gray-300' : 'text-amber-400 font-semibold'}>
+              {activeWsStatus?.connected ? 'Boss Online' : 'Mất kết nối Boss'}
+            </span>
+            {!activeWsStatus?.connected && (
+              <button
+                onClick={async () => {
+                  if (activeWorkspace?.bossUrl && activeWorkspace?.token) {
+                    showNotification('🔄 Đang thử kết nối lại tới Boss...', 'info');
+                    await ipc.workspace?.connectRemote?.(activeWorkspace.id, activeWorkspace.bossUrl, activeWorkspace.token);
+                  }
+                }}
+                className="ml-1 px-1.5 py-0.5 bg-amber-800/80 hover:bg-amber-700 text-[10px] text-amber-100 rounded font-medium transition-colors cursor-pointer"
+                title="Thử kết nối lại ngay"
+              >
+                🔄 Thử lại
+              </button>
             )}
           </div>
         )}

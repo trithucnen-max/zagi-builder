@@ -530,6 +530,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAllStatuses:        () => ipcRenderer.invoke('workspace:getAllStatuses'),
     probeAndSwitchToLan:  (id: string) => ipcRenderer.invoke('workspace:probeAndSwitchToLan', { id }),
     revertToWan:          (id: string) => ipcRenderer.invoke('workspace:revertToWan', { id }),
+    fastPing:             (id: string) => ipcRenderer.invoke('workspace:fastPing', { id }),
     loginRemote:          (bossUrl: string, username: string, password: string) =>
                             ipcRenderer.invoke('workspace:loginRemote', { bossUrl, username, password }),
      notifyNetworkOnline:  () => ipcRenderer.send('workspace:network-online'),

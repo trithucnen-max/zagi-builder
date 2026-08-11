@@ -30,7 +30,7 @@ class HttpClientService {
     private workspaceId = '';
 
     private consecutiveHeartbeatFailures = 0;
-    private static MAX_HEARTBEAT_FAILURES = 5;
+    private static MAX_HEARTBEAT_FAILURES = 2;
     private callbackUrl = '';
     private lastKnownLocalIps: string[] = [];
     private lastKnownPort: number = 3000;
@@ -329,6 +329,56 @@ class HttpClientService {
             this.isUsingLan = false;
         }
         this.onStatusChange?.(false, 0, false);
+    }
+
+    /**
+     * Fast ping tới máy chủ Boss (timeout 2500ms) để xác thực trạng thái kết nối tức thì khi Window Focus / Wake-up.
+     */
+    public async fastPing(): Promise<{ success: boolean; latency?: number; error?: string }> {
+        if (!this.bossUrl || !this.token) {
+            return { success: false, error: 'Chưa cấu hình thông tin máy chủ Boss' };
+        }
+
+        const start = Date.now();
+        try {
+            const result = await this.httpPost(
+                `${this.bossUrl}/api/auth/heartbeat`,
+                { callbackUrl: this.callbackUrl },
+                { Authorization: `Bearer ${this.token}` },
+                2500
+            );
+
+            if (result?.success) {
+                const latency = Date.now() - start;
+                this.latencyMs = latency;
+                this.consecutiveHeartbeatFailures = 0;
+                const wasDisconnected = !this.connected || this.degraded;
+                this.connected = true;
+                this.degraded = false;
+                this.onStatusChange?.(true, this.latencyMs, this.isUsingLan);
+
+                if (wasDisconnected) {
+                    Logger.log(`[HttpClientService] 🟢 Fast ping re-established connection to ${this.bossUrl}!`);
+                }
+
+                // Tự động kết nối lại Socket.IO nếu đang rớt
+                if (!this.socketIOClient.isConnected()) {
+                    this.socketIOClient.reconnectIfNeeded();
+                }
+
+                return { success: true, latency };
+            } else {
+                return { success: false, error: result?.error || 'Fast ping thất bại' };
+            }
+        } catch (err: any) {
+            this.consecutiveHeartbeatFailures++;
+            if (this.consecutiveHeartbeatFailures >= 2) {
+                this.connected = false;
+                this.degraded = true;
+                this.onStatusChange?.(false, 0, false);
+            }
+            return { success: false, error: err.message };
+        }
     }
 
     // ─── Media request ────────────────────────────────────────────────
@@ -1575,7 +1625,7 @@ class HttpClientService {
         this.stopHeartbeat();
         this.consecutiveHeartbeatFailures = 0;
         this.heartbeatTimer = setInterval(async () => {
-            if (!this.connected) return;
+            if (!this.bossUrl || !this.token) return;
 
             const start = Date.now();
             try {
@@ -1584,16 +1634,24 @@ class HttpClientService {
                     `${this.bossUrl}/api/auth/heartbeat`,
                     { callbackUrl: this.callbackUrl },
                     { Authorization: `Bearer ${this.token}` },
-                    5000 // Giảm từ 10s xuống 5s để phát hiện mất kết nối nhanh hơn
+                    4000
                 );
 
-                if (result.success) {
+                if (result?.success) {
+                    const wasDisconnected = !this.connected || this.degraded;
                     this.latencyMs = Date.now() - start;
                     this.consecutiveHeartbeatFailures = 0;
                     // Kết nối thành công — xóa trạng thái degraded
                     this.connected = true;
                     this.degraded = false;
                     this.onStatusChange?.(true, this.latencyMs, this.isUsingLan);
+
+                    if (wasDisconnected) {
+                        Logger.log(`[HttpClientService] 🟢 Heartbeat auto-recovered connection to ${this.bossUrl}!`);
+                        if (!this.socketIOClient.isConnected()) {
+                            this.socketIOClient.reconnectIfNeeded();
+                        }
+                    }
 
                     // Save last known LAN details for manual triggering
                     if (Array.isArray(result.localIps) && result.port) {
@@ -1602,12 +1660,14 @@ class HttpClientService {
                     }
                 } else {
                     this.consecutiveHeartbeatFailures++;
-                    this.onStatusChange?.(false, 0);
-                    // After MAX failures (fewer for LAN to rollback faster), mark as disconnected so health check can trigger full reconnect
+                    // After MAX failures, mark as disconnected
                     const maxFailures = this.isUsingLan ? 2 : HttpClientService.MAX_HEARTBEAT_FAILURES;
                     if (this.consecutiveHeartbeatFailures >= maxFailures) {
-                        Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures — marking disconnected`);
+                        if (this.connected || !this.degraded) {
+                            Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures — marking disconnected`);
+                        }
                         this.connected = false;
+                        this.degraded = true;
                         
                         // Rollback to original WAN/Tunnel URL
                         if (this.isUsingLan) {
@@ -1619,15 +1679,16 @@ class HttpClientService {
                         this.onStatusChange?.(false, 0);
                     }
                 }
-            } catch (err) {
+            } catch (err: any) {
                 this.latencyMs = 0;
                 this.consecutiveHeartbeatFailures++;
-                this.onStatusChange?.(false, 0);
-                // After MAX failures (fewer for LAN to rollback faster), mark as disconnected so health check can trigger full reconnect
                 const maxFailures = this.isUsingLan ? 2 : HttpClientService.MAX_HEARTBEAT_FAILURES;
                 if (this.consecutiveHeartbeatFailures >= maxFailures) {
-                    Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures (error) — marking disconnected`);
+                    if (this.connected || !this.degraded) {
+                        Logger.warn(`[HttpClientService] ${this.consecutiveHeartbeatFailures} consecutive heartbeat failures (error: ${err.message}) — marking disconnected`);
+                    }
                     this.connected = false;
+                    this.degraded = true;
                     
                     // Rollback to original WAN/Tunnel URL
                     if (this.isUsingLan) {
@@ -1639,7 +1700,7 @@ class HttpClientService {
                     this.onStatusChange?.(false, 0);
                 }
             }
-        }, 15_000);
+        }, 12_000);
     }
 
     private stopHeartbeat(): void {
