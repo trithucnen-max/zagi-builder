@@ -1,7 +1,6 @@
 import { safeStorage, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import axios from 'axios';
 import Logger from '../../utils/Logger';
 import TelemetryService from '../telemetry/TelemetryService';
 
