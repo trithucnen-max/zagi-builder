@@ -606,31 +606,6 @@ export class LicenseManager {
   needsActivation(): boolean {
     const license = this.getCurrentLicense();
     if (!license) {
-      // 🌟 Kiểm tra nếu máy đã có CSDL SQLite Zagi cục bộ (zagi-tool.db)
-      try {
-        const userDataPath = app.getPath('userData');
-        const dbPath = path.join(userDataPath, 'zagi-tool.db');
-        if (fs.existsSync(dbPath)) {
-          const stats = fs.statSync(dbPath);
-          if (stats.size > 0) {
-            const restoredLicense: LicenseInfo = {
-              email: 'local-boss@zagi.app',
-              licenseKey: this.generateLicenseKey(),
-              plan: 'solo_lifetime',
-              isLifetime: true,
-              status: 'active',
-              fullName: 'Chủ sở hữu máy BOSS',
-              cachedAt: new Date().toISOString(),
-              daysLeft: null,
-            };
-            this.saveLicense(restoredLicense);
-            Logger.log('[LicenseManager] 🏠 Phát hiện CSDL Zagi cục bộ (zagi-tool.db) — Tự động kích hoạt bản quyền vĩnh viễn không chặn màn hình');
-            return false;
-          }
-        }
-      } catch (err: any) {
-        Logger.warn(`[LicenseManager] Auto-recovery error: ${err?.message}`);
-      }
       return true;
     }
 
