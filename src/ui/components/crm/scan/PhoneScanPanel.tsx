@@ -135,6 +135,7 @@ export default function PhoneScanPanel() {
     const [wizardInitialFile, setWizardInitialFile] = useState<File | null>(null);
     const [isCreateFormMaximized, setIsCreateFormMaximized] = useState(false);
     const [formName, setFormName] = useState('');
+    const [formSelectedAccountIds, setFormSelectedAccountIds] = useState<string[]>([]);
     const [formAssignedAccount, setFormAssignedAccount] = useState<string>('');
     const [formAccountWeights, setFormAccountWeights] = useState<Record<string, number>>({});
     const [formDailyLimit, setFormDailyLimit] = useState<number>(100);
@@ -627,19 +628,18 @@ export default function PhoneScanPanel() {
 
     // Auto-select healthy Zalo accounts when creating batch
     useEffect(() => {
-        if (healthyZaloAccounts.length === 1 && !formAssignedAccount) {
-            setFormAssignedAccount(healthyZaloAccounts[0].zalo_id);
-            setFormAccountWeights({ [healthyZaloAccounts[0].zalo_id]: 100 });
-        } else if (healthyZaloAccounts.length > 1 && !formAssignedAccount && Object.keys(formAccountWeights).length === 0) {
-            const base = Math.floor(100 / healthyZaloAccounts.length);
-            const rem = 100 - base * healthyZaloAccounts.length;
+        if (healthyZaloAccounts.length > 0 && formSelectedAccountIds.length === 0) {
+            const allIds = healthyZaloAccounts.map(a => a.zalo_id);
+            setFormSelectedAccountIds(allIds);
+            const base = Math.floor(100 / allIds.length);
+            const rem = 100 - base * allIds.length;
             const initWeights: Record<string, number> = {};
-            healthyZaloAccounts.forEach((acc, idx) => {
-                initWeights[acc.zalo_id] = base + (idx < rem ? 1 : 0);
+            allIds.forEach((id, idx) => {
+                initWeights[id] = base + (idx < rem ? 1 : 0);
             });
             setFormAccountWeights(initWeights);
         }
-    }, [healthyZaloAccounts, formAssignedAccount, formAccountWeights]);
+    }, [healthyZaloAccounts, formSelectedAccountIds.length]);
 
     // Helper to parse batch assigned accounts with percentages
     const getBatchAssignedAccounts = useCallback((b: Batch | null) => {
@@ -785,23 +785,59 @@ export default function PhoneScanPanel() {
     };
 
     // CSV & Excel Multi-Format File Reader
-    const processUploadedFile = (file: File) => {
-        if (!formName.trim() || formAutoTagIds.length === 0) {
-            showNotification('Vui lòng nhập Tên lô quét và chọn ít nhất 1 Nhãn ở cột bên trái trước khi tải file!', 'error');
-            return;
-        }
-        if (hasMultipleZaloAccounts && formContactAssignmentMode === 'single' && !formTargetAccountId) {
-            showNotification('Vui lòng chọn tài khoản Zalo nhận dữ liệu liên hệ ở cột bên trái!', 'error');
-            return;
-        }
+    const processUploadedFile = async (file: File) => {
+        try {
+            // Auto-fill batch name from filename if empty
+            if (!formName.trim()) {
+                const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ').trim();
+                if (cleanName) {
+                    setFormName(cleanName);
+                }
+            }
 
-        setWizardInitialFile(file);
-        setShowImportWizard(true);
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonRows: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            const extractedPhones: string[] = [];
+            for (const row of jsonRows) {
+                if (Array.isArray(row)) {
+                    for (const cell of row) {
+                        const str = String(cell ?? '').trim();
+                        // Match phone numbers (Vietnamese 03/05/07/08/09/02 or international +84/84)
+                        const cleaned = str.replace(/[\s.\-+()]/g, '');
+                        if (cleaned.match(/^(84|0)(3|5|7|8|9|2)\d{7,10}$/)) {
+                            extractedPhones.push(str);
+                        }
+                    }
+                }
+            }
+
+            if (extractedPhones.length > 0) {
+                setCsvPhones(extractedPhones);
+                setCsvFilename(file.name);
+                showNotification(`Đã nạp thành công ${extractedPhones.length} số điện thoại từ tệp "${file.name}"!`, 'success');
+            } else {
+                // If direct regex found nothing, open Import Wizard so user can map columns (SĐT, Họ tên, Giới tính, Ngày sinh)
+                setWizardInitialFile(file);
+                setShowImportWizard(true);
+            }
+        } catch (err: any) {
+            console.error('Failed to parse Excel/CSV directly:', err);
+            // Fallback to ImportWizardModal
+            setWizardInitialFile(file);
+            setShowImportWizard(true);
+        }
     };
 
     const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) processUploadedFile(file);
+        if (file) {
+            processUploadedFile(file);
+            e.target.value = ''; // Reset input to allow selecting same file again
+        }
     };
 
     const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -829,18 +865,16 @@ export default function PhoneScanPanel() {
             return;
         }
 
-        let finalAssignedAccountId: string | null = formAssignedAccount || null;
-        if (hasMultipleZaloAccounts) {
-            const selectedList = !formAssignedAccount 
-                ? healthyZaloAccounts.map(a => a.zalo_id)
-                : formAssignedAccount.split(',').map(s => s.split(':')[0].trim()).filter(Boolean);
-            
-            if (selectedList.length > 0) {
-                finalAssignedAccountId = selectedList.map(id => {
-                    const weight = formAccountWeights[id] ?? Math.floor(100 / selectedList.length);
-                    return `${id}:${weight}`;
-                }).join(',');
-            }
+        const selectedList = formSelectedAccountIds.length > 0 
+            ? formSelectedAccountIds.filter(id => healthyZaloAccounts.some(a => a.zalo_id === id))
+            : healthyZaloAccounts.map(a => a.zalo_id);
+
+        let finalAssignedAccountId: string | null = null;
+        if (selectedList.length > 0) {
+            finalAssignedAccountId = selectedList.map(id => {
+                const weight = formAccountWeights[id] ?? Math.floor(100 / selectedList.length);
+                return `${id}:${weight}`;
+            }).join(',');
         }
 
         try {
@@ -869,10 +903,15 @@ export default function PhoneScanPanel() {
                 } else {
                     showNotification(`Đã khởi tạo và bắt đầu quét lô "${formName.trim()}"!`, 'success');
                 }
-                // Reset form
+                // Reset form cleanly
                 setFormName('');
-                setFormAssignedAccount('');
-                setFormContactAssignmentMode('distributed');
+                const defaultIds = healthyZaloAccounts.map(a => a.zalo_id);
+                setFormSelectedAccountIds(defaultIds);
+                const base = defaultIds.length > 0 ? Math.floor(100 / defaultIds.length) : 100;
+                const rem = defaultIds.length > 0 ? 100 - base * defaultIds.length : 0;
+                const nextW: Record<string, number> = {};
+                defaultIds.forEach((id, idx) => { nextW[id] = base + (idx < rem ? 1 : 0); });
+                setFormAccountWeights(nextW);
                 setFormDailyLimit(100);
                 setFormHourlyLimit(30);
                 setFormPriority(0);
@@ -1999,9 +2038,9 @@ export default function PhoneScanPanel() {
 
                                     {/* Danh sách Multi-select Checkbox chọn tài khoản Zalo tham gia quét số kèm phân chia tỉ lệ % */}
                                     {hasMultipleZaloAccounts && (() => {
-                                        const selectedList = !formAssignedAccount 
-                                            ? healthyZaloAccounts.map(a => a.zalo_id)
-                                            : formAssignedAccount.split(',').map(s => s.split(':')[0].trim()).filter(Boolean);
+                                        const selectedList = formSelectedAccountIds.length > 0 
+                                            ? formSelectedAccountIds.filter(id => healthyZaloAccounts.some(a => a.zalo_id === id))
+                                            : healthyZaloAccounts.map(a => a.zalo_id);
 
                                         const allSelected = selectedList.length === healthyZaloAccounts.length;
 
@@ -2046,12 +2085,13 @@ export default function PhoneScanPanel() {
                                                         <button
                                                             type="button"
                                                             onClick={() => {
-                                                                setFormAssignedAccount('');
-                                                                const base = Math.floor(100 / healthyZaloAccounts.length);
-                                                                const remainder = 100 - base * healthyZaloAccounts.length;
+                                                                const allIds = healthyZaloAccounts.map(a => a.zalo_id);
+                                                                setFormSelectedAccountIds(allIds);
+                                                                const base = Math.floor(100 / allIds.length);
+                                                                const remainder = 100 - base * allIds.length;
                                                                 const next: Record<string, number> = {};
-                                                                healthyZaloAccounts.forEach((a, idx) => {
-                                                                    next[a.zalo_id] = base + (idx < remainder ? 1 : 0);
+                                                                allIds.forEach((a, idx) => {
+                                                                    next[a] = base + (idx < remainder ? 1 : 0);
                                                                 });
                                                                 setFormAccountWeights(next);
                                                             }}
@@ -2064,8 +2104,10 @@ export default function PhoneScanPanel() {
                                                             type="button"
                                                             onClick={() => {
                                                                 const firstId = healthyZaloAccounts[0]?.zalo_id || '';
-                                                                setFormAssignedAccount(firstId);
-                                                                setFormAccountWeights({ [firstId]: 100 });
+                                                                if (firstId) {
+                                                                    setFormSelectedAccountIds([firstId]);
+                                                                    setFormAccountWeights({ [firstId]: 100 });
+                                                                }
                                                             }}
                                                             className="text-[10px] text-gray-500 dark:text-gray-400 hover:underline font-semibold"
                                                         >
@@ -2148,12 +2190,8 @@ export default function PhoneScanPanel() {
                                                                         } else {
                                                                             updated = [...selectedList, acc.zalo_id];
                                                                         }
-                                                                        if (updated.length === healthyZaloAccounts.length) {
-                                                                            setFormAssignedAccount('');
-                                                                        } else {
-                                                                            setFormAssignedAccount(updated.join(','));
-                                                                        }
-                                                                        // Rebalance weights on change
+                                                                        setFormSelectedAccountIds(updated);
+                                                                        // Rebalance weights on change so total is always 100%
                                                                         const base = Math.floor(100 / updated.length);
                                                                         const rem = 100 - base * updated.length;
                                                                         const next: Record<string, number> = {};
@@ -2169,108 +2207,72 @@ export default function PhoneScanPanel() {
                                                                         isDead
                                                                             ? 'border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-800 text-gray-400'
                                                                             : isChecked 
-                                                                                ? 'bg-blue-600 border-blue-600 text-white' 
-                                                                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-transparent'
+                                                                                ? 'border-blue-600 bg-blue-600 text-white shadow-xs' 
+                                                                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-blue-400'
                                                                     }`}>
-                                                                        {isChecked ? '✓' : ''}
+                                                                        {isChecked && '✓'}
                                                                     </div>
-                                                                    {acc.avatar_url ? (
-                                                                        <img src={acc.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
-                                                                    ) : (
-                                                                        <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
-                                                                            {(acc.full_name || acc.zalo_id).charAt(0)}
+
+                                                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                        {acc.avatar ? (
+                                                                            <img src={acc.avatar} alt="" className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                                                                        ) : (
+                                                                            <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                                                                                {(acc.full_name || acc.zalo_id).charAt(0)}
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="truncate">
+                                                                            <span className={`block truncate ${isChecked ? 'text-gray-900 dark:text-gray-100 font-bold' : 'text-gray-600 dark:text-gray-400'}`}>
+                                                                                {acc.full_name || acc.zalo_id}
+                                                                            </span>
                                                                         </div>
-                                                                    )}
-                                                                    <div className="flex items-center gap-1.5 truncate">
-                                                                        <span className="truncate">{acc.full_name || acc.zalo_id}</span>
-                                                                        {acc.phone && <span className="text-[10px] text-gray-400 font-normal">({acc.phone})</span>}
                                                                     </div>
-                                                                    {isDead && (
-                                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 flex items-center gap-0.5 flex-shrink-0 ml-1">
-                                                                            ⚠️ Mất kết nối
-                                                                        </span>
-                                                                    )}
                                                                 </button>
 
-                                                                {/* Inline % Controls */}
-                                                                {isDead ? (
-                                                                    <span className="text-[10px] font-medium text-red-500 dark:text-red-400 italic flex-shrink-0">
-                                                                        Không khả dụng
-                                                                    </span>
-                                                                ) : isChecked ? (
-                                                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setFormAccountWeights(prev => ({
-                                                                                    ...prev,
-                                                                                    [acc.zalo_id]: Math.max(0, currentVal - 5)
-                                                                                }));
-                                                                            }}
-                                                                            className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-xs"
-                                                                            title="Giảm 5%"
-                                                                        >
-                                                                            -
-                                                                        </button>
+                                                                {/* Percentage Input & Adjust Buttons */}
+                                                                {isChecked && (
+                                                                    <div className="flex items-center gap-1.5 flex-shrink-0">
                                                                         <div className="relative flex items-center">
                                                                             <input
                                                                                 type="number"
                                                                                 min={0}
                                                                                 max={100}
+                                                                                step={5}
                                                                                 value={currentVal}
-                                                                                onChange={(e) => {
+                                                                                onChange={e => {
                                                                                     const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));
                                                                                     setFormAccountWeights(prev => ({
                                                                                         ...prev,
                                                                                         [acc.zalo_id]: val
                                                                                     }));
                                                                                 }}
-                                                                                className="w-12 text-center py-0.5 px-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-xs font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:border-blue-500"
+                                                                                className="w-14 text-center py-0.5 px-1 pr-4 bg-white dark:bg-gray-900 border border-blue-300 dark:border-blue-700 rounded-lg text-xs font-bold text-blue-700 dark:text-blue-300 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                                                                             />
-                                                                            <span className="text-[10px] text-gray-500 ml-0.5">%</span>
+                                                                            <span className="absolute right-1 text-[10px] font-bold text-gray-400 select-none">%</span>
                                                                         </div>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setFormAccountWeights(prev => ({
-                                                                                    ...prev,
-                                                                                    [acc.zalo_id]: Math.min(100, currentVal + 5)
-                                                                                }));
-                                                                            }}
-                                                                            className="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-xs"
-                                                                            title="Tăng 5%"
-                                                                        >
-                                                                            +
-                                                                        </button>
+                                                                        {selectedList.length > 1 && totalPercent !== 100 && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleAutoFillRemainder(acc.zalo_id)}
+                                                                                className="p-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 rounded border border-blue-200 dark:border-blue-800 transition-colors"
+                                                                                title="Tự động bù số % còn lại vào tài khoản này"
+                                                                            >
+                                                                                Bù
+                                                                            </button>
+                                                                        )}
                                                                     </div>
-                                                                ) : (
-                                                                    <span className="text-[10px] font-medium text-gray-400">
-                                                                        0% (Đã bỏ qua)
-                                                                    </span>
                                                                 )}
                                                             </div>
                                                         );
                                                     })}
                                                 </div>
 
-                                    {/* Summary Footer */}
-                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-750 flex items-center justify-between">
-                                        <span>
-                                            {allSelected 
-                                                ? `⚡ Quét song song theo tỉ lệ % qua tất cả ${healthyZaloAccounts.length} tài khoản active`
-                                                : selectedList.length === 1
-                                                    ? `👤 Chỉ quét độc quyền 100% bằng 1 tài khoản đã chọn`
-                                                    : `👥 Quét phân bổ theo tỉ lệ % qua ${selectedList.length} / ${healthyZaloAccounts.length} tài khoản đã chọn`}
-                                        </span>
-                                        <span className="font-bold text-blue-600 dark:text-blue-400">
-                                            {selectedList.length}/{healthyZaloAccounts.length} TK ({totalPercent}%)
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })()}
+                                                <p className="text-[10px] text-gray-400 dark:text-gray-500 italic">
+                                                    💡 Hệ thống sẽ tự động điều phối lượt quét số điện thoại theo tỉ lệ % trên giữa các nick Zalo đang hoạt động.
+                                                </p>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Initial Status Selection */}
                                      <div>
@@ -2410,99 +2412,113 @@ export default function PhoneScanPanel() {
 
                                  {/* RIGHT COLUMN: CSV/Excel Dropzone + Download Template + Paste text area */}
                                  <div className="w-1/2 flex-shrink-0 p-5 overflow-hidden flex flex-col gap-4 bg-[#f4f5f8] dark:bg-gray-900">
-                                     {/* File CSV/Excel Dropzone */}
-                                     <div>
-                                         <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">
-                                             Tải lên tệp CSV / Excel số điện thoại
-                                         </label>
-                                         
-                                         <input
-                                             type="file"
-                                             ref={fileInputRef}
-                                             accept=".csv, .xlsx, .xls"
-                                             onChange={handleCsvUpload}
-                                             className="hidden"
-                                         />
+                                      {/* File CSV/Excel Dropzone */}
+                                      <div>
+                                          <div className="flex items-center justify-between mb-1.5">
+                                              <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
+                                                  Tải lên tệp CSV / Excel số điện thoại
+                                              </label>
+                                              {csvFilename && (
+                                                  <button
+                                                      type="button"
+                                                      onClick={() => { setCsvPhones([]); setCsvFilename(''); }}
+                                                      className="text-[10px] font-bold text-red-500 hover:text-red-700 hover:underline"
+                                                  >
+                                                      ✕ Xóa tệp hiện tại
+                                                  </button>
+                                              )}
+                                          </div>
+                                          
+                                          <input
+                                              type="file"
+                                              ref={fileInputRef}
+                                              accept=".csv, .xlsx, .xls"
+                                              onChange={handleCsvUpload}
+                                              className="hidden"
+                                          />
 
-                                         <div
-                                             onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
-                                             onDragLeave={() => setIsDraggingFile(false)}
-                                             onDrop={handleFileDrop}
-                                             onClick={() => {
-                                                 if (!formName.trim() || formAutoTagIds.length === 0) {
-                                                     showNotification('Vui lòng nhập Tên lô quét và chọn ít nhất 1 Nhãn ở cột bên trái trước!', 'error');
-                                                     return;
-                                                 }
-                                                 fileInputRef.current?.click();
-                                             }}
-                                             className={`relative border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
-                                                 (!formName.trim() || formAutoTagIds.length === 0)
-                                                     ? 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800/60'
-                                                     : isDraggingFile
-                                                     ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/50 scale-[1.01]'
-                                                     : 'border-blue-300/80 dark:border-blue-800/80 bg-blue-50/20 dark:bg-blue-950/20 hover:border-blue-400 hover:bg-blue-50/40 dark:hover:bg-blue-950/30'
-                                             }`}
-                                         >
-                                             {!formName.trim() ? (
-                                                <div className="py-2 flex flex-col items-center gap-1.5 text-amber-700 dark:text-amber-300">
-                                                    <span className="text-xs font-bold flex items-center gap-1">
-                                                        <span>⚠️</span> Vui lòng điền Tên lô quét ở cột bên trái trước
-                                                    </span>
-                                                    <span className="text-[11px] text-amber-600/90 dark:text-amber-400/80">
-                                                        Nhập tên lô & cấu hình Zalo để mở khóa ô tải file CSV/Excel
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <div className="w-11 h-11 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-2xs">
-                                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                                            <polyline points="17 8 12 3 7 8" />
-                                                            <line x1="12" y1="3" x2="12" y2="15" />
-                                                        </svg>
-                                                    </div>
+                                          <div
+                                              onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
+                                              onDragLeave={() => setIsDraggingFile(false)}
+                                              onDrop={handleFileDrop}
+                                              onClick={() => fileInputRef.current?.click()}
+                                              className={`relative border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 ${
+                                                  isDraggingFile
+                                                      ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/50 scale-[1.01]'
+                                                      : csvFilename
+                                                          ? 'border-emerald-400 dark:border-emerald-700 bg-emerald-50/40 dark:bg-emerald-950/20 hover:border-emerald-500'
+                                                          : 'border-blue-300/80 dark:border-blue-800/80 bg-white dark:bg-gray-800/80 hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-950/30'
+                                              }`}
+                                          >
+                                              {csvFilename ? (
+                                                  <div className="flex flex-col items-center gap-1.5 py-1">
+                                                      <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
+                                                          <span className="text-xl">📊</span>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                                                              {csvFilename}
+                                                          </span>
+                                                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
+                                                              ✓ Đã nạp {csvPhones.length} SĐT
+                                                          </span>
+                                                      </div>
+                                                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                                          Nhấp để đổi tệp Excel/CSV khác hoặc kéo thả tệp mới vào đây
+                                                      </p>
+                                                  </div>
+                                              ) : (
+                                                  <>
+                                                      <div className="w-11 h-11 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-2xs">
+                                                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                              <polyline points="17 8 12 3 7 8" />
+                                                              <line x1="12" y1="3" x2="12" y2="15" />
+                                                          </svg>
+                                                      </div>
 
-                                                    <div>
-                                                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                                                            Chọn file CSV/Excel...
-                                                        </span>
-                                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 ml-1">
-                                                            hoặc kéo thả file vào đây
-                                                        </span>
-                                                    </div>
+                                                      <div>
+                                                          <span className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                                                              Chọn file CSV/Excel...
+                                                          </span>
+                                                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 ml-1">
+                                                              hoặc kéo thả file vào đây
+                                                          </span>
+                                                      </div>
 
-                                                    <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                                                        Hỗ trợ định dạng .csv, .xlsx, .xls (tối đa 10MB)
-                                                    </p>
-                                                </>
-                                            )}
-                                        </div>
+                                                      <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                                                          Hỗ trợ .xlsx, .xls, .csv (Tự động nhận diện cột SĐT & Họ tên)
+                                                      </p>
+                                                  </>
+                                              )}
+                                          </div>
 
-                                        {/* Download template button & File name pill */}
-                                        <div className="flex items-center justify-between mt-2.5 px-1 flex-wrap gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={(e) => { e.stopPropagation(); downloadSampleExcel(); }}
-                                                className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline transition-colors"
-                                            >
-                                                <span>📥 Tải tệp CSV/Excel mẫu (SĐT, Họ và tên, Giới tính, Ngày sinh)</span>
-                                            </button>
+                                          {/* Download template button & File name pill */}
+                                          <div className="flex items-center justify-between mt-2.5 px-1 flex-wrap gap-2">
+                                              <button
+                                                  type="button"
+                                                  onClick={(e) => { e.stopPropagation(); downloadSampleExcel(); }}
+                                                  className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline transition-colors"
+                                              >
+                                                  <span>📥 Tải tệp CSV/Excel mẫu (SĐT, Họ và tên, Giới tính, Ngày sinh)</span>
+                                              </button>
 
-                                            {csvFilename && (
-                                                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-1 rounded-xl shadow-2xs flex items-center gap-1.5 truncate max-w-[220px]">
-                                                    📄 {csvFilename} ({csvPhones.length} số)
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => { e.stopPropagation(); setCsvPhones([]); setCsvFilename(''); }}
-                                                        className="text-red-500 hover:text-red-700 font-bold ml-1"
-                                                        title="Xóa file"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
+                                              {csvFilename && (
+                                                  <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          if (wizardInitialFile) {
+                                                              setShowImportWizard(true);
+                                                          }
+                                                      }}
+                                                      className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                                                  >
+                                                      ⚙️ Trình ghép cột (Wizard)
+                                                  </button>
+                                              )}
+                                          </div>
+                                      </div>
 
                                     {/* Textarea input inside clean card */}
                                     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-2xl p-4 shadow-2xs">
