@@ -558,10 +558,21 @@ export class LicenseManager {
         return null;
       }
 
-      if (parsed && (parsed.licenseKey || parsed.email)) {
-        try {
-          this.saveLicense(parsed);
-        } catch {}
+      if (parsed) {
+        const emailLower = (parsed.email || '').trim().toLowerCase();
+        const fullName = (parsed.fullName || '').trim();
+        // 🛡️ Option A: Tự động phát hiện & Thu hồi các bản quyền giả lập local-boss@zagi.app
+        if (emailLower === 'local-boss@zagi.app' || fullName === 'Chủ sở hữu máy BOSS' || emailLower.endsWith('@zagi.app')) {
+          Logger.warn('[LicenseManager] ⚠️ Phát hiện license giả lập cục bộ (local-boss@zagi.app) — Tự động thu hồi và xóa sạch');
+          this.clearLicense();
+          return null;
+        }
+
+        if (parsed.licenseKey || parsed.email) {
+          try {
+            this.saveLicense(parsed);
+          } catch {}
+        }
       }
 
       return parsed;
@@ -609,6 +620,13 @@ export class LicenseManager {
       return true;
     }
 
+    const emailLower = (license.email || '').trim().toLowerCase();
+    const fullName = (license.fullName || '').trim();
+    if (emailLower === 'local-boss@zagi.app' || fullName === 'Chủ sở hữu máy BOSS' || emailLower.endsWith('@zagi.app')) {
+      this.clearLicense();
+      return true;
+    }
+
     if (license.status === 'expired') {
       const daysLeft = license.daysLeft ?? -999;
       if (daysLeft >= -GRACE_PERIOD_DAYS) {
@@ -644,7 +662,12 @@ export class LicenseManager {
   
   async reVerifyInBackground(email: string, licenseKey: string): Promise<void> {
     try { 
-      await this.verifyEmail(email, licenseKey); 
+      const result = await this.verifyEmail(email, licenseKey); 
+      // 🛡️ Option B: Đối soát Supabase — nếu máy chủ xác nhận không tìm thấy license hoặc đã bị khóa thì thu hồi ngay
+      if (!result.success && !result.offline && result.message && (result.message.includes('Không tìm thấy') || result.message.includes('bị khóa'))) {
+        Logger.warn(`[LicenseManager] ⚠️ License không hợp lệ trên Supabase (Key=${licenseKey}, Email=${email}) — Thu hồi bản quyền`);
+        this.clearLicense();
+      }
     } catch (err) {}
   }
   
