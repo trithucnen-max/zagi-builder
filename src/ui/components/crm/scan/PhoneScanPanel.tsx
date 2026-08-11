@@ -1071,18 +1071,30 @@ export default function PhoneScanPanel() {
 
     // Helpers to render status badges
     const getStatusBadge = (status: string) => {
-        const configs: Record<string, { label: string; cls: string }> = {
-            pending: { label: 'Chờ quét', cls: 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400' },
-            scanning: { label: 'Đang quét', cls: 'bg-blue-50 dark:bg-blue-900/35 border-blue-200 dark:border-blue-800/50 text-blue-600 dark:text-blue-400 animate-pulse' },
-            found: { label: 'Tìm thấy', cls: 'bg-emerald-50 dark:bg-emerald-955/40 border-emerald-200 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400' },
-            not_found: { label: 'Không Zalo', cls: 'bg-amber-50 dark:bg-amber-955/40 border-amber-200 dark:border-amber-800/40 text-amber-600 dark:text-amber-400' },
-            error: { label: 'Lỗi', cls: 'bg-rose-50 dark:bg-rose-955/40 border-rose-200 dark:border-rose-800/40 text-rose-600 dark:text-rose-400' },
-            duplicate: { label: 'Trùng lặp', cls: 'bg-purple-50 dark:bg-purple-955/40 border-purple-200 dark:border-purple-800/40 text-purple-600 dark:text-purple-400' },
-        };
-        const conf = configs[status] || configs.pending;
+        if (status === 'found') {
+            return (
+                <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                    ✓ Tìm thấy
+                </span>
+            );
+        }
+        if (status === 'not_found') {
+            return (
+                <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                    Không Zalo
+                </span>
+            );
+        }
+        if (status === 'error') {
+            return (
+                <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
+                    Lỗi (-216)
+                </span>
+            );
+        }
         return (
-            <span className={`px-2 py-0.5 text-[10px] font-semibold rounded border ${conf.cls}`}>
-                {conf.label}
+            <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400">
+                ⏳ Chờ quét
             </span>
         );
     };
@@ -1850,7 +1862,7 @@ export default function PhoneScanPanel() {
                                                                         {selectedBatchTags.map(tag => (
                                                                             <span
                                                                                 key={tag.id}
-                                                                                className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md flex items-center gap-0.5 border"
+                                                                                className="px-2 py-0.5 text-[9px] font-semibold rounded-md flex items-center gap-0.5 border"
                                                                                 style={{
                                                                                     backgroundColor: `${tag.color || '#3B82F6'}15`,
                                                                                     borderColor: `${tag.color || '#3B82F6'}50`,
@@ -1863,11 +1875,21 @@ export default function PhoneScanPanel() {
                                                                         ))}
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-gray-400 dark:text-gray-600 text-[10px]">-</span>
+                                                                    <span className="text-gray-400 text-[10px]">—</span>
                                                                 )}
                                                             </td>
-                                                            <td className="py-3 px-3 text-rose-500 dark:text-rose-400 max-w-[150px] truncate" title={item.error_msg || ''}>
-                                                                {item.error_msg || '-'}
+                                                            <td className="py-3 px-3 text-[11px] max-w-[200px] truncate" title={item.status === 'not_found' ? (item.error_msg || 'SĐT chưa đăng ký tài khoản Zalo') : item.status === 'error' ? (item.error_msg || 'Tài khoản Zalo đã đạt giới hạn quét SĐT (Mã -216). Vui lòng chờ reset giờ/ngày hoặc đổi nick') : ''}>
+                                                                {item.status === 'not_found' ? (
+                                                                    <span className="text-gray-500 dark:text-gray-400 italic">
+                                                                        {item.error_msg || 'SĐT chưa đăng ký tài khoản Zalo'}
+                                                                    </span>
+                                                                ) : item.status === 'error' ? (
+                                                                    <span className="text-red-500 font-medium">
+                                                                        {item.error_msg || 'Tài khoản Zalo đã đạt giới hạn quét SĐT (Mã -216). Vui lòng chờ reset giờ/ngày hoặc đổi nick'}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-400">—</span>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))}
