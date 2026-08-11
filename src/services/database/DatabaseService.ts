@@ -10269,16 +10269,40 @@ class DatabaseService {
         if (!this.initialized) return [];
         try {
             this.backfillPhoneScanAliases();
+            const baseSelect = `
+                SELECT 
+                    psb.*,
+                    COALESCE(sub.total_count, psb.total_count, 0) as total_count,
+                    COALESCE(sub.found_count, psb.found_count, 0) as found_count,
+                    COALESCE(sub.not_found_count, psb.not_found_count, 0) as not_found_count,
+                    COALESCE(sub.error_count, psb.error_count, 0) as error_count,
+                    COALESCE(sub.pending_count, (psb.total_count - psb.scanned_count), 0) as pending_count,
+                    COALESCE(sub.scanned_count, psb.scanned_count, 0) as scanned_count
+                FROM phone_scan_batches psb
+                LEFT JOIN (
+                    SELECT 
+                        batch_id,
+                        COUNT(*) as total_count,
+                        SUM(CASE WHEN status = 'found' THEN 1 ELSE 0 END) as found_count,
+                        SUM(CASE WHEN status = 'not_found' THEN 1 ELSE 0 END) as not_found_count,
+                        SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as error_count,
+                        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                        SUM(CASE WHEN status != 'pending' THEN 1 ELSE 0 END) as scanned_count
+                    FROM phone_scan_items
+                    GROUP BY batch_id
+                ) sub ON sub.batch_id = psb.id
+            `;
+
             if (!accountIds || accountIds.length === 0) {
-                return this.query<any>(`SELECT * FROM phone_scan_batches ORDER BY created_at DESC, id DESC`);
+                return this.query<any>(`${baseSelect} ORDER BY psb.created_at DESC, psb.id DESC`);
             }
             const placeholders = accountIds.map(() => '?').join(',');
             return this.query<any>(
-                `SELECT DISTINCT * FROM phone_scan_batches 
-                 WHERE assigned_account_id IN (${placeholders}) 
-                    OR target_account_id IN (${placeholders}) 
-                    OR assigned_account_id IS NULL OR assigned_account_id = ''
-                 ORDER BY created_at DESC, id DESC`,
+                `${baseSelect}
+                 WHERE psb.assigned_account_id IN (${placeholders}) 
+                    OR psb.target_account_id IN (${placeholders}) 
+                    OR psb.assigned_account_id IS NULL OR psb.assigned_account_id = ''
+                 ORDER BY psb.created_at DESC, psb.id DESC`,
                 [...accountIds, ...accountIds]
             );
         } catch (err: any) {

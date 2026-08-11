@@ -599,29 +599,31 @@ export default function PhoneScanPanel() {
 
     // Handle batch selection changes (to view details)
     useEffect(() => {
-        if (selectedBatch) {
-            fetchItems(selectedBatch.id, itemsPage, itemsStatusFilter, itemsAccountFilter);
+        const activeBatchId = fullscreenReportBatch?.id || selectedBatch?.id;
+        if (activeBatchId) {
+            fetchItems(activeBatchId, itemsPage, itemsStatusFilter, itemsAccountFilter);
             
-            // Refresh detailed items when batch is polled and updated
-            const updatedBatch = batches.find(b => b.id === selectedBatch.id);
+            const updatedBatch = batches.find(b => b.id === activeBatchId);
             if (updatedBatch) {
-                setSelectedBatch(updatedBatch);
+                if (selectedBatch && selectedBatch.id === activeBatchId) setSelectedBatch(updatedBatch);
+                if (fullscreenReportBatch && fullscreenReportBatch.id === activeBatchId) setFullscreenReportBatch(updatedBatch);
             }
         }
-    }, [selectedBatch?.id, itemsPage, itemsStatusFilter, itemsAccountFilter, fetchItems]);
+    }, [selectedBatch?.id, fullscreenReportBatch?.id, itemsPage, itemsStatusFilter, itemsAccountFilter, fetchItems, batches]);
 
     // Listen to real-time scanning updates
     useEffect(() => {
         const unsub = ipc.on?.('crm:phoneScanUpdate', (data: any) => {
             fetchBatches();
-            if (selectedBatch && data.batchId === selectedBatch.id) {
-                fetchItems(selectedBatch.id, itemsPage, itemsStatusFilter);
+            const activeBatchId = fullscreenReportBatch?.id || selectedBatch?.id;
+            if (activeBatchId && data.batchId === activeBatchId) {
+                fetchItems(activeBatchId, itemsPage, itemsStatusFilter, itemsAccountFilter);
             }
         });
         return () => {
             if (unsub) unsub();
         };
-    }, [selectedBatch, itemsPage, itemsStatusFilter, fetchBatches, fetchItems]);
+    }, [selectedBatch?.id, fullscreenReportBatch?.id, itemsPage, itemsStatusFilter, itemsAccountFilter, fetchBatches, fetchItems]);
 
     // Auto-select healthy Zalo accounts when creating batch
     useEffect(() => {
@@ -1680,31 +1682,52 @@ export default function PhoneScanPanel() {
 
                         {/* Status Tabs & Account Filter inside detail */}
                         <div className="px-5 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
-                            <div className="flex items-center gap-2">
-                                {[
-                                    { key: 'all', label: 'Tất cả' },
-                                    { key: 'pending', label: 'Chờ quét' },
-                                    { key: 'scanning', label: 'Đang quét' },
-                                    { key: 'found', label: 'Tìm thấy' },
-                                    { key: 'not_found', label: 'Không Zalo' },
-                                    { key: 'error', label: 'Lỗi' }
-                                ].map(tab => (
-                                    <button
-                                        key={tab.key}
-                                        onClick={() => {
-                                            setItemsStatusFilter(tab.key);
-                                            setItemsPage(0);
-                                        }}
-                                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                                            itemsStatusFilter === tab.key
-                                                ? 'bg-blue-600 text-white'
-                                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-850 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
-                                        }`}
-                                    >
-                                        {tab.label}
-                                    </button>
-                                ))}
-                            </div>
+                            {(() => {
+                                const total = selectedBatch?.total_count || 0;
+                                const pending = selectedBatch?.pending_count ?? Math.max(0, total - (selectedBatch?.scanned_count || 0));
+                                const found = selectedBatch?.found_count || 0;
+                                const notFound = selectedBatch?.not_found_count || 0;
+                                const error = selectedBatch?.error_count || 0;
+
+                                const tabs = [
+                                    { key: 'all', label: 'Tất cả', count: total },
+                                    { key: 'pending', label: 'Chờ quét', count: pending },
+                                    { key: 'found', label: 'Tìm thấy', count: found },
+                                    { key: 'not_found', label: 'Không Zalo', count: notFound },
+                                    { key: 'error', label: 'Lỗi', count: error }
+                                ];
+
+                                return (
+                                    <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+                                        {tabs.map(tab => (
+                                            <button
+                                                key={tab.key}
+                                                onClick={() => {
+                                                    setItemsStatusFilter(tab.key);
+                                                    setItemsPage(0);
+                                                    if (selectedBatch) {
+                                                        fetchItems(selectedBatch.id, 0, tab.key, itemsAccountFilter);
+                                                    }
+                                                }}
+                                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                                                    itemsStatusFilter === tab.key
+                                                        ? 'bg-blue-600 text-white shadow-2xs'
+                                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-800'
+                                                }`}
+                                            >
+                                                <span>{tab.label}</span>
+                                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                                                    itemsStatusFilter === tab.key
+                                                        ? 'bg-white/20 text-white'
+                                                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                                }`}>
+                                                    {tab.count}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
 
                             {/* Dropdown Lọc Nick Zalo quét */}
                             <div className="flex items-center gap-1.5 text-xs">
@@ -1712,8 +1735,12 @@ export default function PhoneScanPanel() {
                                 <select
                                     value={itemsAccountFilter}
                                     onChange={(e) => {
-                                        setItemsAccountFilter(e.target.value);
+                                        const newAcc = e.target.value;
+                                        setItemsAccountFilter(newAcc);
                                         setItemsPage(0);
+                                        if (selectedBatch) {
+                                            fetchItems(selectedBatch.id, 0, itemsStatusFilter, newAcc);
+                                        }
                                     }}
                                     className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-medium text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                                 >
@@ -2785,9 +2812,7 @@ export default function PhoneScanPanel() {
                                             await ipc.crm?.startPhoneScanImmediate();
                                             showNotification(`Đang tiếp tục quét Lô #${fullscreenReportBatch.id} bằng Single Mode (findUser)...`, 'success');
                                             fetchBatches();
-                                            if (selectedBatch?.id === fullscreenReportBatch.id) {
-                                                fetchItems(fullscreenReportBatch.id, itemsPage, itemsStatusFilter);
-                                            }
+                                            fetchItems(fullscreenReportBatch.id, itemsPage, itemsStatusFilter, itemsAccountFilter);
                                         }}
                                         className="px-3 py-1 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-2xs flex items-center gap-1.5 active:scale-95 cursor-pointer"
                                         title="Chuyển sang chế độ Single Mode (findUser) để quét tiếp các số còn lại an toàn"
@@ -2802,9 +2827,7 @@ export default function PhoneScanPanel() {
                                             await ipc.crm?.startPhoneScanImmediate();
                                             showNotification(`Đã đưa ${res?.retriedCount || 0} số bị lỗi về hàng đợi để quét lại bằng Single Mode!`, 'success');
                                             fetchBatches();
-                                            if (selectedBatch?.id === fullscreenReportBatch.id) {
-                                                fetchItems(fullscreenReportBatch.id, itemsPage, itemsStatusFilter);
-                                            }
+                                            fetchItems(fullscreenReportBatch.id, itemsPage, itemsStatusFilter, itemsAccountFilter);
                                         }}
                                         className="px-3 py-1 rounded-xl bg-amber-500/15 dark:bg-amber-950/40 hover:bg-amber-500/25 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 font-bold transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
                                         title="Chuyển các số đang báo Lỗi (-216) về trạng thái Chờ quét để quét lại bằng Single Mode"
@@ -2831,9 +2854,7 @@ export default function PhoneScanPanel() {
                                                         showNotification(`Đã chuyển Lô #${fullscreenReportBatch.id} sang Nick "${acc.full_name || acc.zalo_id}" để quét tiếp!`, 'success');
                                                         setFullscreenReportBatch(prev => prev ? ({ ...prev, assigned_account_id: `${acc.zalo_id}:100`, status: 'active' }) : null);
                                                         fetchBatches();
-                                                        if (selectedBatch?.id === fullscreenReportBatch.id) {
-                                                            fetchItems(fullscreenReportBatch.id, itemsPage, itemsStatusFilter);
-                                                        }
+                                                        fetchItems(fullscreenReportBatch.id, itemsPage, itemsStatusFilter, itemsAccountFilter);
                                                     }}
                                                     className="px-2.5 py-1 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600 border border-gray-200 dark:border-gray-700 font-semibold transition-all flex items-center gap-1.5 cursor-pointer text-xs"
                                                 >
@@ -2946,31 +2967,52 @@ export default function PhoneScanPanel() {
                         <div className="flex-1 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xs flex flex-col overflow-hidden">
                             {/* Toolbar: Status Tabs & Account Filter & Search */}
                             <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-850 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
-                                <div className="flex items-center gap-2">
-                                    {[
-                                        { key: 'all', label: 'Tất cả' },
-                                        { key: 'pending', label: 'Chờ quét' },
-                                        { key: 'scanning', label: 'Đang quét' },
-                                        { key: 'found', label: 'Tìm thấy' },
-                                        { key: 'not_found', label: 'Không Zalo' },
-                                        { key: 'error', label: 'Lỗi' }
-                                    ].map(tab => (
-                                        <button
-                                            key={tab.key}
-                                            onClick={() => {
-                                                setItemsStatusFilter(tab.key);
-                                                setItemsPage(0);
-                                            }}
-                                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                                                itemsStatusFilter === tab.key
-                                                    ? 'bg-blue-600 text-white shadow-xs'
-                                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800'
-                                            }`}
-                                        >
-                                            {tab.label}
-                                        </button>
-                                    ))}
-                                </div>
+                                {(() => {
+                                    const total = fullscreenReportBatch?.total_count || 0;
+                                    const pending = fullscreenReportBatch?.pending_count ?? Math.max(0, total - (fullscreenReportBatch?.scanned_count || 0));
+                                    const found = fullscreenReportBatch?.found_count || 0;
+                                    const notFound = fullscreenReportBatch?.not_found_count || 0;
+                                    const error = fullscreenReportBatch?.error_count || 0;
+
+                                    const tabs = [
+                                        { key: 'all', label: 'Tất cả', count: total },
+                                        { key: 'pending', label: 'Chờ quét', count: pending },
+                                        { key: 'found', label: 'Tìm thấy', count: found },
+                                        { key: 'not_found', label: 'Không Zalo', count: notFound },
+                                        { key: 'error', label: 'Lỗi', count: error }
+                                    ];
+
+                                    return (
+                                        <div className="flex items-center gap-2">
+                                            {tabs.map(tab => (
+                                                <button
+                                                    key={tab.key}
+                                                    onClick={() => {
+                                                        setItemsStatusFilter(tab.key);
+                                                        setItemsPage(0);
+                                                        if (fullscreenReportBatch) {
+                                                            fetchItems(fullscreenReportBatch.id, 0, tab.key, itemsAccountFilter);
+                                                        }
+                                                    }}
+                                                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                                                        itemsStatusFilter === tab.key
+                                                            ? 'bg-blue-600 text-white shadow-xs'
+                                                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800'
+                                                    }`}
+                                                >
+                                                    <span>{tab.label}</span>
+                                                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                                                        itemsStatusFilter === tab.key
+                                                            ? 'bg-white/20 text-white'
+                                                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                                    }`}>
+                                                        {tab.count}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
 
                                 <div className="flex items-center gap-3">
                                     {/* Account Filter */}
@@ -2979,8 +3021,12 @@ export default function PhoneScanPanel() {
                                         <select
                                             value={itemsAccountFilter}
                                             onChange={(e) => {
-                                                setItemsAccountFilter(e.target.value);
+                                                const newAcc = e.target.value;
+                                                setItemsAccountFilter(newAcc);
                                                 setItemsPage(0);
+                                                if (fullscreenReportBatch) {
+                                                    fetchItems(fullscreenReportBatch.id, 0, itemsStatusFilter, newAcc);
+                                                }
                                             }}
                                             className="px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
                                         >
@@ -3027,7 +3073,7 @@ export default function PhoneScanPanel() {
                                                     <th className="py-3 px-3">Số điện thoại</th>
                                                     <th className="py-3 px-3">Họ tên gốc (CSV/CRM)</th>
                                                     <th className="py-3 px-3">Trạng thái</th>
-                                                    <th className="py-3 px-3">Zalo đã quét</th>
+                                                    <th className="py-3 px-3 text-blue-600 dark:text-blue-400">Zalo đã quét</th>
                                                     <th className="py-3 px-3">Nhãn đã gán</th>
                                                     <th className="py-3 px-3">Ghi chú lỗi</th>
                                                 </tr>
@@ -3040,7 +3086,7 @@ export default function PhoneScanPanel() {
                                                      (item.real_name && item.real_name.toLowerCase().includes(itemsSearchQuery.toLowerCase().trim()))
                                                  ) : items).map((item, idx) => (
                                                     <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
-                                                        <td className="py-2.5 px-3 text-gray-400">{itemsPage * itemsLimit + idx + 1}</td>
+                                                        <td className="py-2.5 px-3 text-gray-400">{itemsPage * 20 + idx + 1}</td>
                                                         <td className="py-2.5 px-3 font-mono font-bold text-gray-900 dark:text-white">
                                                             {item.phone}
                                                         </td>
@@ -3049,47 +3095,99 @@ export default function PhoneScanPanel() {
                                                         </td>
                                                         <td className="py-2.5 px-3">
                                                             {item.status === 'found' ? (
-                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                                                                <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
                                                                     ✓ Tìm thấy
                                                                 </span>
                                                             ) : item.status === 'not_found' ? (
-                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                                                <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                                                                     Không Zalo
                                                                 </span>
                                                             ) : item.status === 'error' ? (
-                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
-                                                                    Lỗi
-                                                                </span>
-                                                            ) : item.status === 'scanning' ? (
-                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 animate-pulse">
-                                                                    Đang quét...
+                                                                <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
+                                                                    Lỗi (-216)
                                                                 </span>
                                                             ) : (
-                                                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
-                                                                    Chờ quét
+                                                                <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400">
+                                                                    ⏳ Chờ quét
                                                                 </span>
                                                             )}
                                                         </td>
                                                         <td className="py-2.5 px-3">
-                                                            {item.scanned_by_account_id ? (
-                                                                <span className="font-semibold text-gray-700 dark:text-gray-300">
-                                                                    {accounts.find(a => a.zalo_id === item.scanned_by_account_id)?.full_name || item.scanned_by_account_id}
-                                                                </span>
-                                                            ) : '—'}
+                                                            {(() => {
+                                                                const scannerAcc = accounts.find(a => String(a.zalo_id) === String(item.scanned_by_account_id));
+                                                                return (
+                                                                    <div className="space-y-1">
+                                                                        {/* Scanner Zalo Account info */}
+                                                                        {item.scanned_by_account_id ? (
+                                                                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-800 dark:text-gray-200">
+                                                                                {scannerAcc?.avatar_url ? (
+                                                                                    <img src={scannerAcc.avatar_url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                                                                                ) : (
+                                                                                    <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">
+                                                                                        {(scannerAcc?.full_name || item.scanned_by_account_id).charAt(0).toUpperCase()}
+                                                                                    </span>
+                                                                                )}
+                                                                                <span className="truncate max-w-[130px]" title={scannerAcc?.full_name || item.scanned_by_account_id}>
+                                                                                    {scannerAcc?.full_name || item.scanned_by_account_id}
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-gray-400 text-[10px]">—</span>
+                                                                        )}
+
+                                                                        {/* Found Zalo Profile Info */}
+                                                                        {item.status === 'found' && item.zalo_uid && (
+                                                                            <div className="flex items-center gap-1.5 pt-0.5 border-t border-gray-100 dark:border-gray-800 text-[10px] text-gray-600 dark:text-gray-400">
+                                                                                {item.zalo_avatar ? (
+                                                                                    <img src={item.zalo_avatar} alt="Avatar" className="w-3.5 h-3.5 rounded-full object-cover" />
+                                                                                ) : (
+                                                                                    <span className="w-3.5 h-3.5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[8px] font-bold">
+                                                                                        {(item.zalo_name || 'Z').charAt(0).toUpperCase()}
+                                                                                    </span>
+                                                                                )}
+                                                                                <span className="font-semibold text-emerald-700 dark:text-emerald-400 truncate max-w-[120px]" title={item.zalo_name || ''}>
+                                                                                    {item.zalo_name}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </td>
                                                         <td className="py-2.5 px-3">
-                                                            {selectedBatchTags.length > 0 ? (
+                                                            {item.status === 'found' && selectedBatchTags.length > 0 ? (
                                                                 <div className="flex flex-wrap gap-1">
                                                                     {selectedBatchTags.map(tag => (
-                                                                        <span key={tag.id} className="px-2 py-0.5 text-[9px] font-bold rounded" style={{ backgroundColor: `${tag.color || '#3B82F6'}20`, color: tag.color || '#3B82F6' }}>
-                                                                            {tag.name}
+                                                                        <span
+                                                                            key={tag.id}
+                                                                            className="px-2 py-0.5 text-[9px] font-semibold rounded-md flex items-center gap-0.5 border"
+                                                                            style={{
+                                                                                backgroundColor: `${tag.color || '#3B82F6'}15`,
+                                                                                borderColor: `${tag.color || '#3B82F6'}50`,
+                                                                                color: tag.color || '#3B82F6'
+                                                                            }}
+                                                                        >
+                                                                            <span>{tag.emoji || '🏷️'}</span>
+                                                                            <span>{tag.name}</span>
                                                                         </span>
                                                                     ))}
                                                                 </div>
-                                                            ) : '—'}
+                                                            ) : (
+                                                                <span className="text-gray-400 text-[10px]">—</span>
+                                                            )}
                                                         </td>
-                                                        <td className="py-2.5 px-3 text-red-500 text-[11px]">
-                                                            {item.error_msg || '—'}
+                                                        <td className="py-2.5 px-3 text-[11px]">
+                                                            {item.status === 'not_found' ? (
+                                                                <span className="text-gray-500 dark:text-gray-400 italic">
+                                                                    {item.error_msg || 'SĐT chưa đăng ký tài khoản Zalo'}
+                                                                </span>
+                                                            ) : item.status === 'error' ? (
+                                                                <span className="text-red-500 font-medium">
+                                                                    {item.error_msg || 'Tài khoản Zalo đã đạt giới hạn quét SĐT (Mã -216). Vui lòng chờ reset giờ/ngày hoặc đổi nick'}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-gray-400">—</span>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -3098,6 +3196,43 @@ export default function PhoneScanPanel() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Paging Footer inside Fullscreen modal */}
+                            {itemsTotal > 20 && (
+                                <div className="p-3.5 px-5 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-850/40 flex items-center justify-between flex-shrink-0">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                        Hiển thị {itemsPage * 20 + 1} - {Math.min((itemsPage + 1) * 20, itemsTotal)} trong tổng số {itemsTotal}
+                                    </span>
+                                    <div className="flex gap-2">
+                                        <button
+                                            disabled={itemsPage === 0}
+                                            onClick={() => {
+                                                const newPage = itemsPage - 1;
+                                                setItemsPage(newPage);
+                                                if (fullscreenReportBatch) {
+                                                    fetchItems(fullscreenReportBatch.id, newPage, itemsStatusFilter, itemsAccountFilter);
+                                                }
+                                            }}
+                                            className="p-1 px-3 text-xs font-bold rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                        >
+                                            Trước
+                                        </button>
+                                        <button
+                                            disabled={(itemsPage + 1) * 20 >= itemsTotal}
+                                            onClick={() => {
+                                                const newPage = itemsPage + 1;
+                                                setItemsPage(newPage);
+                                                if (fullscreenReportBatch) {
+                                                    fetchItems(fullscreenReportBatch.id, newPage, itemsStatusFilter, itemsAccountFilter);
+                                                }
+                                            }}
+                                            className="p-1 px-3 text-xs font-bold rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                        >
+                                            Tiếp theo
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
