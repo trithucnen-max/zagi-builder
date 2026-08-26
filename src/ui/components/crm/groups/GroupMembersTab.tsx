@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
-import { useAppStore } from '@/store/appStore';
+import { useAppStore, LabelData } from '@/store/appStore';
 import { useCRMStore } from '@/store/crmStore';
 import PhoneDisplay from '@/components/common/PhoneDisplay';
 import GroupAvatar from '@/components/common/GroupAvatar';
 import CampaignCreateModal from '@/components/crm/campaigns/CampaignCreateModal';
-import AddToContactsModal from '@/components/crm/contacts/AddToContactsModal';
+import UnifiedLabelPickerModal, { LoadedLabelOption } from '../modals/UnifiedLabelPickerModal';
+import type { LocalLabelItem } from '@/components/common/LocalLabelSelector';
 import BulkGroupManageModal from '../modals/BulkGroupManageModal';
 import SmartGroupModal from '../modals/SmartGroupModal';
 import ShareGroupModal from './ShareGroupModal';
@@ -234,8 +235,147 @@ export default function GroupMembersTab() {
   const [pickedCampaignId, setPickedCampaignId] = useState<number | null>(null);
   const [addingToCampaign, setAddingToCampaign] = useState(false);
 
-  // ── Add to contacts modal state ─────────────────────────────────────────
-  const [showAddToContacts, setShowAddToContacts] = useState(false);
+  // ── Unified Batch Labeling state (Thêm vào CRM + Gán nhãn hàng loạt) ──────
+  const [showBulkLabelModal, setShowBulkLabelModal] = useState(false);
+  const [localLabels, setLocalLabels] = useState<LocalLabelItem[]>([]);
+  const [selectedUnifiedLabelValues, setSelectedUnifiedLabelValues] = useState<string[]>([]);
+  const [indeterminateUnifiedLabelValues, setIndeterminateUnifiedLabelValues] = useState<string[]>([]);
+  const [applyingBulkLabel, setApplyingBulkLabel] = useState(false);
+
+  const zaloLabels: LabelData[] = useAppStore(s => (activeAccountId ? s.labels[activeAccountId] || [] : []));
+  const accounts = useAccountStore(s => s.accounts);
+
+  const loadLocalLabels = useCallback(async () => {
+    if (!activeAccountId) return;
+    try {
+      const res = await ipc.db?.getLocalLabels({ zaloId: activeAccountId });
+      if (res?.labels) {
+        setLocalLabels(res.labels);
+      }
+    } catch {}
+  }, [activeAccountId]);
+
+  useEffect(() => {
+    if (activeAccountId) {
+      loadLocalLabels();
+    }
+  }, [activeAccountId, loadLocalLabels]);
+
+  const unifiedLabelOptions: LoadedLabelOption[] = useMemo(() => {
+    const localOpts: LoadedLabelOption[] = localLabels.map((l: any) => ({
+      value: `local:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.name} (Local)`,
+      source: 'local',
+      color: l.color || '#14b8a6',
+      textColor: l.text_color || l.textColor || '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.name,
+      pageIds: l.pageIds || (l.page_ids ? (typeof l.page_ids === 'string' ? l.page_ids.split(',') : l.page_ids) : []),
+    }));
+
+    const zaloOpts: LoadedLabelOption[] = zaloLabels.map(l => ({
+      value: `zalo:${(l as any).zalo_id || (l as any).pageId || activeAccountId || ''}:${l.id}`,
+      label: `${l.emoji || '🏷️'} ${l.text} (Zalo)`,
+      source: 'zalo',
+      color: l.color || '#3b82f6',
+      textColor: '#ffffff',
+      emoji: l.emoji || '🏷️',
+      name: l.text,
+      pageId: (l as any).zalo_id || (l as any).pageId || activeAccountId || '',
+    }));
+
+    return [...localOpts, ...zaloOpts];
+  }, [localLabels, zaloLabels, activeAccountId]);
+
+  const openBulkLabelModal = useCallback(() => {
+    if (selectedMemberIds.size === 0) return;
+    loadLocalLabels();
+    setSelectedUnifiedLabelValues([]);
+    setIndeterminateUnifiedLabelValues([]);
+    setShowBulkLabelModal(true);
+  }, [selectedMemberIds, loadLocalLabels]);
+
+  const handleApplyUnifiedLabels = useCallback(async (selectedValues: string[], indeterminateValues: string[] = []) => {
+    if (!activeAccountId || selectedMemberIds.size === 0) return;
+    setApplyingBulkLabel(true);
+    try {
+      const selectedMembersList = members.filter(m => selectedMemberIds.has(m.member_id));
+      const targetIds = selectedMembersList.map(m => m.member_id);
+
+      // 1. Tự động thêm / đồng bộ tất cả thành viên được chọn vào danh bạ CRM (contacts table)
+      for (const m of selectedMembersList) {
+        await ipc.db?.updateContactProfile({
+          zaloId: activeAccountId,
+          contactId: m.member_id,
+          displayName: m.display_name || m.member_id,
+          avatarUrl: m.avatar || '',
+          phone: m.phone || '',
+          contactType: 'user',
+        });
+      }
+
+      // 2. Phân tích các nhãn Local và Zalo được chọn
+      const addLocalLabelIds = new Set<number>();
+      const addZaloLabelIds = new Set<number>();
+
+      selectedValues.forEach(val => {
+        if (val.startsWith('local:')) {
+          const id = parseInt(val.replace('local:', ''), 10);
+          if (!isNaN(id)) addLocalLabelIds.add(id);
+        } else if (val.startsWith('zalo:')) {
+          const parts = val.split(':');
+          const id = parseInt(parts[parts.length - 1], 10);
+          if (!isNaN(id)) addZaloLabelIds.add(id);
+        }
+      });
+
+      // 3. Gán nhãn Local cho từng thành viên trong DB
+      for (const memberId of targetIds) {
+        for (const newId of addLocalLabelIds) {
+          await ipc.db?.assignLocalLabelToThread({ zaloId: activeAccountId, labelId: newId, threadId: memberId });
+        }
+      }
+
+      // 4. Gán nhãn Zalo (nếu có chọn nhãn Zalo)
+      if (addZaloLabelIds.size > 0) {
+        const acc = useAccountStore.getState().getActiveAccount();
+        if (acc) {
+          try {
+            const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+            const freshRes = await ipc.zalo?.getLabels({ auth });
+            const freshLabels: LabelData[] = freshRes?.response?.labelData || zaloLabels;
+            const version: number = freshRes?.response?.version || 0;
+
+            const updated = freshLabels.map(label => {
+              if (!addZaloLabelIds.has(label.id)) return label;
+              const existing = new Set(label.conversations || []);
+              targetIds.forEach(id => existing.add(id));
+              return { ...label, conversations: [...existing] };
+            });
+
+            const res = await ipc.zalo?.updateLabels({ auth, labelData: updated, version });
+            if (res?.success) {
+              const finalLabels: LabelData[] = res.response?.labelData || updated;
+              useAppStore.getState().setLabels(activeAccountId, finalLabels);
+            }
+          } catch (zaloErr) {
+            console.warn('[handleApplyUnifiedLabels] Zalo label sync error:', zaloErr);
+          }
+        }
+      }
+
+      useAppStore.getState().showNotification(
+        `Đã thêm ${targetIds.length} thành viên vào CRM và gán nhãn thành công!`,
+        'success'
+      );
+      setShowBulkLabelModal(false);
+      setSelectedMemberIds(new Set());
+    } catch (err: any) {
+      useAppStore.getState().showNotification('Lỗi khi gán nhãn: ' + (err?.message || 'Không xác định'), 'error');
+    } finally {
+      setApplyingBulkLabel(false);
+    }
+  }, [activeAccountId, selectedMemberIds, members, zaloLabels]);
 
   // ── Sub-tab state ───────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'members' | 'scan'>('members');
@@ -2085,13 +2225,13 @@ export default function GroupMembersTab() {
                   </svg>
                   Thêm vào chiến dịch
                 </button>
-                <button onClick={() => setShowAddToContacts(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" />
-                    <line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
+                <button onClick={openBulkLabelModal}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white !text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
                   </svg>
-                  Thêm vào liên hệ
+                  <span className="text-white !text-white">Gán nhãn</span>
                 </button>
               </div>
             )}
@@ -2188,21 +2328,22 @@ export default function GroupMembersTab() {
         />
       )}
 
-      {/* ── Add to contacts modal ─────────────────────────────────────────── */}
-      {showAddToContacts && (
-        <AddToContactsModal
-          contacts={members
-            .filter(m => selectedMemberIds.has(m.member_id))
-            .map(m => ({
-              contactId: m.member_id,
-              displayName: m.display_name || m.member_id,
-              avatar: m.avatar || '',
-              phone: m.phone || '',
-            }))}
-          onClose={() => setShowAddToContacts(false)}
-          onDone={() => {
-            setSelectedMemberIds(new Set());
-            setShowAddToContacts(false);
+      {/* ── Unified Label Picker modal (Gán nhãn hàng loạt cho thành viên nhóm) ── */}
+      {showBulkLabelModal && (
+        <UnifiedLabelPickerModal
+          open={showBulkLabelModal}
+          onClose={() => setShowBulkLabelModal(false)}
+          options={unifiedLabelOptions}
+          selected={selectedUnifiedLabelValues}
+          indeterminate={indeterminateUnifiedLabelValues}
+          onChange={setSelectedUnifiedLabelValues}
+          onIndeterminateChange={setIndeterminateUnifiedLabelValues}
+          onConfirm={handleApplyUnifiedLabels}
+          accounts={accounts}
+          selectedCount={selectedMemberIds.size}
+          applying={applyingBulkLabel}
+          onNewLabelCreated={() => {
+            loadLocalLabels();
           }}
         />
       )}
