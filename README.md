@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v3.1.7** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v3.2.0** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>
@@ -459,7 +459,32 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v3.1.7</strong> — 2026-08-04 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v3.2.0</strong> — 2026-08-27 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật & Tính năng mới
+
+- 🌐 **Kho Nhóm Chung Từ Cộng Đồng (`SharedGroupsCategoryPopup.tsx`)**:
+  - Giao diện 2 cột hiện đại: Cột trái 18 danh mục ngành nghề hiển thị số lượng nhóm theo thời gian thực; Cột phải danh sách thẻ nhóm với avatar sinh động, tên nhóm, số lượng thành viên, người đóng góp và ghi chú.
+  - Tích hợp 2 nút hành động trực tiếp: `⚡ Quét nhóm` (nạp nhanh vào tab Quét nâng cao) và `📋 Copy link`.
+  - Phân trang máy chủ mượt mà, tìm kiếm nhanh theo tên nhóm, ID, người chia sẻ.
+- 📤 **Chia Sẻ Nhóm Zalo Đóng Góp Cộng Đồng (`ShareGroupModal.tsx`)**:
+  - Cho phép người dùng chia sẻ nhóm Zalo chất lượng lên cộng đồng theo 18 danh mục ngành nghề.
+  - Tự động gọi Zalo API `getGroupLinkInfo` để lấy tên đầy đủ, ảnh đại diện và số lượng thành viên thực tế của nhóm trước khi lưu vào hệ thống chung.
+- 🔍 **Động Cơ Quét Nhóm Đa Định Dạng Link & AES-128-CBC Backend Bridge (`GroupMembersTab.tsx`, `backendService.ts`)**:
+  - Hỗ trợ quét mọi định dạng link Zalo: Link token slug (`zalo.me/g/ys0msn6u0i1atxfdrqxy`), link chứa Group ID dạng số (`zalo.me/g/8975364844001396505`), hoặc Group ID số thuần.
+  - Đồng bộ hóa cơ chế mã hóa AES-128-CBC chuẩn Deplao kết nối với máy chủ `https://deplaoapp.com/api/scan/group`.
+  - Fallback thông minh: Tự động phân trang Zalo API `getGroupLinkInfo` khi backend trả về 0 thành viên để quét cạn toàn bộ thành viên.
+- 🏷️ **Gán Nhãn Hàng Loạt & Tự Động Đồng Bộ CRM (`GroupMembersTab.tsx`, `UnifiedLabelPickerModal.tsx`)**:
+  - Nút "Gán nhãn" tích hợp `UnifiedLabelPickerModal` đồng bộ chuẩn CRM.
+  - Cơ chế đồng bộ 2 trong 1: Tự động lưu/upsert thành viên nhóm được chọn vào danh bạ `contacts` của CRM, đồng thời gán nhãn Local (SQLite) và nhãn Zalo đám mây theo đúng lựa chọn.
+- 🧹 **Tinh Gọn Giao Diện & Chuẩn Hóa Màu Sắc**:
+  - Xóa bỏ các nút chọn thừa, bỏ emoji trên các tab lọc vai trò (*Tất cả*, *Ban Quản lý*, *Thành viên*).
+  - Chuẩn hóa toàn bộ icon và chữ trên các nút có màu nền sang màu trắng sắc nét.
+
+</details>
+
+<details>
+<summary><strong>v3.1.7</strong> — 2026-08-04</summary>
 
 ### 🚀 Nâng cấp nổi bật & Chuẩn hóa Hệ thống Mã Lỗi Zalo
 

@@ -1,12 +1,30 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 3.1.8  
-> **Ngày cập nhật:** 09/08/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.1.8 (Official Release)  
+> **Phiên bản tài liệu:** 3.2.0  
+> **Ngày cập nhật:** 27/08/2026  
+> **Trạng thái sản phẩm hiện tại:** v3.2.0 (Official Release)  
 > **Chủ quản:** Product Management Team  
 
 ---
 
-#### 🚀 v3.1.8 — Option C: Smart Single-Mode Resilience, Rate-Limit Adaptive Cooldown, Lọc Báo Cáo Fullscreen & Phím Điều Khiển Quét Nhanh (Official Release)
+#### 🚀 v3.2.0 — Kho Nhóm Chung Cộng Đồng, Quét Nhóm Đa Định Dạng Link & Gán Nhãn CRM Hợp Nhất (Official Release)
+* **Tính năng mới & Sửa lỗi nổi bật:**
+  * **🌐 Kho Nhóm Chung Từ Cộng Đồng (`SharedGroupsCategoryPopup.tsx`)**:
+    * Thiết kế lại giao diện 2 cột hiện đại theo phong cách mới: Cột trái chứa danh mục 18 ngành nghề với số lượng nhóm đếm theo thời gian thực; Cột phải hiển thị thẻ nhóm với avatar sinh động, tên nhóm, thành viên, người đóng góp và ghi chú.
+    * Tích hợp 2 nút hành động trực tiếp: `⚡ Quét nhóm` (nạp nhanh vào tab Quét nâng cao) và `📋 Copy link`.
+    * Phân trang máy chủ mượt mà kèm thanh tìm kiếm tức thì theo tên nhóm, ID, người chia sẻ.
+  * **📤 Chia Sẻ Nhóm Zalo & Tự Động Phân Giải Thông Tin Nhóm (`ShareGroupModal.tsx`)**:
+    * Cho phép người dùng chia sẻ nhóm Zalo chất lượng lên cộng đồng theo 18 danh mục ngành nghề.
+    * Tự động gọi Zalo API `getGroupLinkInfo` để lấy tên đầy đủ, ảnh đại diện và số lượng thành viên thực tế của nhóm trước khi lưu vào hệ thống chung.
+  * **🔍 Quét Nhóm Zalo Đa Định Dạng Link & AES-128-CBC Backend Bridge (`GroupMembersTab.tsx`, `backendService.ts`)**:
+    * Hỗ trợ quét mọi định dạng link Zalo: Link token slug (`zalo.me/g/ys0msn6u0i1atxfdrqxy`), link chứa Group ID dạng số (`zalo.me/g/8975364844001396505`), hoặc Group ID số thuần.
+    * Đồng bộ hóa cơ chế mã hóa AES-128-CBC chuẩn Deplao kết nối với máy chủ `https://deplaoapp.com/api/scan/group`.
+    * Fallback thông minh: Tự động phân trang Zalo API `getGroupLinkInfo` khi backend trả về 0 thành viên để quét cạn toàn bộ thành viên.
+  * **🏷️ Gán Nhãn Hàng Loạt & Tự Động Đồng Bộ CRM (`GroupMembersTab.tsx`, `UnifiedLabelPickerModal.tsx`)**:
+    * Thay thế nút "Thêm vào liên hệ" bằng nút "Gán nhãn" tích hợp `UnifiedLabelPickerModal`.
+    * Cơ chế đồng bộ 2 trong 1: Tự động lưu/upsert thành viên nhóm được chọn vào danh bạ `contacts` của CRM, đồng thời gán nhãn Local (SQLite) và nhãn Zalo đám mây theo đúng lựa chọn.
+  * **🧹 Tinh Gọn Bộ Lọc & Chuẩn Hóa Giao Diện (`GroupMembersTab.tsx`)**:
+    * Xóa bỏ các nút chọn thừa, bỏ emoji trên các tab lọc vai trò (*Tất cả*, *Ban Quản lý*, *Thành viên*).
+    * Chuẩn hóa toàn bộ icon và chữ trên các nút có màu nền sang màu trắng sắc nét.
 * **Tính năng mới & Sửa lỗi nổi bật:**
   * **🛡️ Bảo Toàn 100% Định Mức Ngày & Cơ Chế Cooldown 60 Phút Khi Gặp `-216` (`PhoneScanService.ts`, `DatabaseService.ts`)**:
     * Loại bỏ hoàn toàn thuật toán tự ý bóp nghẹt giảm `scanDailyLimit` xuống con số thực tế vừa quét (13, 20).
