@@ -1772,10 +1772,10 @@ export default function CRMContactList({
                     ) : (
                       <span className={`truncate ${
                         pendingEdits[contact.contact_id]?.real_name !== undefined
-                          ? 'text-green-400 font-semibold'
+                          ? 'text-green-500 font-semibold'
                           : contact.real_name
-                            ? 'text-emerald-400 font-medium'
-                            : 'text-gray-600 italic text-[11px]'
+                            ? 'text-gray-900 dark:text-gray-100 font-medium'
+                            : 'text-gray-400 dark:text-gray-500 italic text-[11px]'
                       }`}>
                         {pendingEdits[contact.contact_id]?.real_name !== undefined
                           ? (pendingEdits[contact.contact_id].real_name || '—')
@@ -1821,10 +1821,10 @@ export default function CRMContactList({
                     ) : (
                       <span className={`truncate ${
                         pendingEdits[contact.contact_id]?.full_name_raw !== undefined
-                          ? 'text-green-400 font-semibold'
+                          ? 'text-green-500 font-semibold'
                           : contact.full_name_raw
-                            ? 'text-cyan-300 font-medium'
-                            : 'text-gray-600 italic text-[11px]'
+                            ? 'text-gray-900 dark:text-gray-100 font-medium'
+                            : 'text-gray-400 dark:text-gray-500 italic text-[11px]'
                       }`}>
                         {pendingEdits[contact.contact_id]?.full_name_raw !== undefined
                           ? (pendingEdits[contact.contact_id].full_name_raw || '—')

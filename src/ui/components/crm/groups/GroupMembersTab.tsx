@@ -1812,9 +1812,13 @@ export default function GroupMembersTab() {
             {groups.length > 0 && (
               <button
                 onClick={() => setShowBulkGroupModal('add')}
-                className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1 shadow-sm"
+                className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
               >
-                <span>➕ Thêm người vào nhóm</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="text-white">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span className="text-white font-semibold">Thêm người vào nhóm</span>
               </button>
             )}
 
@@ -1912,14 +1916,14 @@ export default function GroupMembersTab() {
             </div>
             <button
               onClick={() => setShowSmartGroupModal(true)}
-              className="w-full py-2 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow"
+              className="w-full py-2 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow cursor-pointer"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="text-white">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Rời các nhóm đã chọn
+              <span className="text-white font-semibold">Rời các nhóm đã chọn</span>
             </button>
           </div>
         )}
@@ -1958,26 +1962,6 @@ export default function GroupMembersTab() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-bold text-white truncate">{selectedGroup.display_name}</h3>
-                    
-                    {/* Badge ID nhóm - Bấm vào copy ID nhóm số */}
-                    <button
-                      onClick={handleCopyGroupId}
-                      title="Bấm vào đây để sao chép ID nhóm Zalo dạng số"
-                      className="flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30 transition-colors cursor-pointer"
-                    >
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                      </svg>
-                      <span>{selectedGroup.contact_id.replace(/^g/, '')}</span>
-                    </button>
-
-                    {/* Badge Link rút gọn nếu đã tải */}
-                    {currentGroupLink && currentGroupLink.includes('zalo.me/g/') && !currentGroupLink.match(/\/g\/\d{15,22}$/) && (
-                      <span className="text-[11px] font-mono text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 truncate max-w-[200px]" title={currentGroupLink}>
-                        🔗 {currentGroupLink}
-                      </span>
-                    )}
                   </div>
                   <p className="text-[11px] text-gray-400 mt-0.5">
                     {members.length > 0
@@ -1996,21 +1980,29 @@ export default function GroupMembersTab() {
                   className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer"
                 >
                   {copyingLink ? (
-                    <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <svg className="animate-spin text-white" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
                       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
                   ) : (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="text-white">
                       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                     </svg>
                   )}
-                  <span>{copiedLinkSuccess ? 'Đã sao chép!' : 'Sao chép link nhóm'}</span>
+                  <span className="text-white font-semibold">{copiedLinkSuccess ? 'Đã sao chép!' : 'Sao chép link nhóm'}</span>
                 </button>
                 <button onClick={fetchMembersFromAPI} disabled={membersLoading || manualLoadProgress !== null}
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-sm">
-                  {membersLoading ? SpinIcon : RefreshIcon}
-                  <span>{membersLoading ? 'Đang tải...' : 'Tải thông tin thành viên'}</span>
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer">
+                  {membersLoading ? (
+                    <svg className="animate-spin text-white" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="text-white">
+                      <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.97" />
+                    </svg>
+                  )}
+                  <span className="text-white font-semibold">{membersLoading ? 'Đang tải...' : 'Tải thông tin thành viên'}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -2018,13 +2010,13 @@ export default function GroupMembersTab() {
                     setShowSmartGroupModal(true);
                   }}
                   title="Rời khỏi nhóm này"
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white !text-white text-xs font-semibold transition-colors shadow-sm">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white">
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="text-white">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
-                  <span className="text-white !text-white font-semibold">Rời khỏi nhóm</span>
+                  <span className="text-white font-semibold">Rời khỏi nhóm</span>
                 </button>
               </div>
               {/* Stop button shown only during getUserInfo fallback */}
