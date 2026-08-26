@@ -994,16 +994,10 @@ export default function GroupMembersTab() {
       let targetLink = linkOrId.trim();
       if (!targetLink.startsWith('http') && !/^\d+$/.test(targetLink)) {
         targetLink = `https://zalo.me/g/${targetLink}`;
-      } else if (/^\d+$/.test(targetLink)) {
-        targetLink = `https://zalo.me/g/${targetLink}`;
       }
 
       const linkRes: any = await ipc.zalo?.getGroupLinkInfo({ auth, link: targetLink, memberPage: 1 });
       if (!linkRes?.success || !linkRes?.response?.groupId) {
-        // Dự phòng: Nếu là Group ID số sẵn có
-        if (/^\d{15,22}$/.test(linkOrId.trim())) {
-          return { groupId: linkOrId.trim(), name: linkOrId.trim(), avatar: '', creatorId: '', adminIds: [] };
-        }
         return null;
       }
       const data = linkRes.response;
@@ -1027,12 +1021,12 @@ export default function GroupMembersTab() {
     }
   }, [activeAccountId, loadGroupsFromDB]);
 
-  // ── Scan from "Quét nâng cao" tab ──────────────
+  // ── Scan from "Quét nâng cao" tab (gọi backend API chuẩn Deplao) ──────────────
   const handleScanTab = useCallback(async () => {
     if (!activeAccountId || !scanLinkInput.trim()) return;
 
     if (!isPremium) {
-      setScanTabError('Cần kích hoạt gói Premium để sử dụng tính năng này. Bấm nút mua gói hoặc liên hệ hỗ trợ.');
+      setScanTabError('Cần kích hoạt gói Premium để sử dụng tính năng này.');
       return;
     }
 
@@ -1045,22 +1039,36 @@ export default function GroupMembersTab() {
     setScanTabResults([]);
     setScanTabGroupId(null);
     try {
-      const rawInput = scanLinkInput.trim();
-      let groupId = rawInput;
+      let groupId = scanLinkInput.trim();
       let groupInfoFromLink: { groupId: string; name: string; avatar: string; creatorId?: string; adminIds?: string[] } | null = null;
 
-      // 1. Resolve link Zalo qua getGroupLinkInfo (hỗ trợ cả token link chữ như https://zalo.me/g/ys0msn6u0i1atxfdrqxy)
-      const info = await resolveAndSaveGroupInfo(auth, rawInput);
-      if (info) {
-        groupId = info.groupId;
-        groupInfoFromLink = info;
-        setResolvedGroupInfo(info);
-      } else if (!/^\d+$/.test(groupId)) {
-        setScanTabError('Không lấy được thông tin nhóm từ đường dẫn. Vui lòng kiểm tra lại link nhóm.');
-        return;
+      // 1. Trích xuất ID số từ URL nếu có (ví dụ: https://zalo.me/g/8975364844001396505 hoặc 8975364844001396505)
+      const digitMatch = groupId.match(/\d{15,22}/);
+
+      // Nếu là link zalo.me/chat.zalo.me hoặc chuỗi slug chữ → gọi getGroupLinkInfo để resolve
+      if (groupId.includes('zalo.me') || groupId.includes('chat.zalo.me') || !digitMatch) {
+        const info = await resolveAndSaveGroupInfo(auth, groupId);
+        if (info) {
+          groupId = info.groupId;
+          groupInfoFromLink = info;
+          setResolvedGroupInfo(info);
+        } else if (digitMatch) {
+          // getGroupLinkInfo trả về lỗi với URL chứa ID số thuần, ta trích xuất ID số trực tiếp
+          groupId = digitMatch[0];
+        } else {
+          setScanTabError('Không lấy được thông tin nhóm từ đường dẫn. Vui lòng kiểm tra lại link nhóm.');
+          return;
+        }
+      } else if (digitMatch) {
+        groupId = digitMatch[0];
+        const info = await resolveAndSaveGroupInfo(auth, groupId);
+        if (info) {
+          groupInfoFromLink = info;
+          setResolvedGroupInfo(info);
+        }
       }
 
-      // Validate groupId dạng số
+      // Validate groupId
       if (!/^\d+$/.test(groupId)) {
         setScanTabError('Group ID không hợp lệ. Vui lòng nhập link nhóm hoặc Group ID dạng số.');
         return;
@@ -1068,58 +1076,21 @@ export default function GroupMembersTab() {
 
       // 2. Gọi backend API quét sâu thành viên (AES-128-CBC)
       const { scanGroupViaBackend } = await import('@/lib/backendService');
-      let result: any = null;
-      try {
-        result = await scanGroupViaBackend({
-          pageId: activeAccountId,
-          cookie: acc.cookies || '',
-          imei: acc.imei || '',
-          groupId,
-        });
-      } catch (beErr) {
-        console.warn('[handleScanTab] scanGroupViaBackend error:', beErr);
+      const result = await scanGroupViaBackend({
+        pageId: activeAccountId,
+        cookie: acc.cookies || '',
+        imei: acc.imei || '',
+        groupId,
+      });
+
+      if (!result?.success) {
+        setScanTabError(result?.error || 'Quét thất bại. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau.');
+        return;
       }
 
-      let members: any[] = (result?.success && Array.isArray(result?.members)) ? result.members : [];
-
-      // 3. Fallback: Nếu backend trả về 0 thành viên, quét trực tiếp qua Zalo API getGroupLinkInfo phân trang
+      const members = result.members || [];
       if (members.length === 0) {
-        let page = 1;
-        const linkMembers: any[] = [];
-        let targetLink = rawInput;
-        if (!targetLink.startsWith('http') && !/^\d+$/.test(targetLink)) {
-          targetLink = `https://zalo.me/g/${targetLink}`;
-        } else if (/^\d+$/.test(targetLink)) {
-          targetLink = `https://zalo.me/g/${targetLink}`;
-        }
-
-        while (page <= 50) {
-          const res = await ipc.zalo?.getGroupLinkInfo({ auth, link: targetLink, memberPage: page });
-          if (!res?.success || !res?.response) break;
-          const pageMems: any[] = res.response.currentMems || [];
-          if (pageMems.length === 0) break;
-          linkMembers.push(...pageMems);
-          if (!res.response.hasMoreMember) break;
-          page++;
-          await new Promise(r => setTimeout(r, 200));
-        }
-
-        if (linkMembers.length > 0) {
-          members = linkMembers.map((m: any) => ({
-            userId: (m.id || m.userId || '').replace(/_0$/, ''),
-            displayName: m.dName || m.displayName || m.name || m.id,
-            zaloName: m.dName || m.displayName || m.name || '',
-            avatar: m.avatar || m.avt || '',
-          }));
-        }
-      }
-
-      if (members.length === 0) {
-        if (!result?.success && result?.error) {
-          setScanTabError(result.error);
-        } else {
-          setScanTabError('Không tìm thấy thành viên nào trong nhóm.');
-        }
+        setScanTabError('Không tìm thấy thành viên nào trong nhóm.');
         return;
       }
 
@@ -1130,7 +1101,11 @@ export default function GroupMembersTab() {
       })));
       setScanTabGroupId(groupId);
 
-      // 4. Gán Role chính xác (Trưởng nhóm / Phó nhóm) và lưu vào SQLite DB
+      if (!resolvedGroupInfo && !groupInfoFromLink) {
+        setResolvedGroupInfo({ groupId, name: groupId, avatar: '', creatorId: '', adminIds: [] });
+      }
+
+      // 3. Gán Role chính xác (Trưởng nhóm / Phó nhóm) và lưu vào SQLite DB
       const creatorId = groupInfoFromLink?.creatorId || '';
       const adminIdList = groupInfoFromLink?.adminIds || [];
       const adminSet = new Set([creatorId, ...adminIdList].filter(Boolean));
@@ -1159,7 +1134,7 @@ export default function GroupMembersTab() {
     } finally {
       setScanTabLoading(false);
     }
-  }, [activeAccountId, scanLinkInput, isPremium, loadGroupsFromDB, loadMembersFromDB, resolveAndSaveGroupInfo]);
+  }, [activeAccountId, scanLinkInput, isPremium, loadGroupsFromDB, loadMembersFromDB, resolveAndSaveGroupInfo, resolvedGroupInfo]);
 
   // ── Join group from scan tab ──────────────────────────────────────────
   const handleJoinFromScanTab = useCallback(async () => {
