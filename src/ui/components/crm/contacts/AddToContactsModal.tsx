@@ -598,6 +598,10 @@ export default function AddToContactsModal({ contacts, zaloId: overrideZaloId, o
           options={unifiedLabelOptions}
           selected={selectedUnifiedValues}
           onChange={handleUnifiedChange}
+          onConfirm={(values) => {
+            handleUnifiedChange(values);
+            setShowLabelPickerModal(false);
+          }}
           accounts={accounts}
           onNewLabelCreated={fetchLocalLabels}
         />

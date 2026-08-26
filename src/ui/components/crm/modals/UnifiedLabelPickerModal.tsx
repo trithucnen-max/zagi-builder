@@ -122,8 +122,33 @@ export default function UnifiedLabelPickerModal({
   const [creating, setCreating] = useState(false);
   const [showConfirmClearAll, setShowConfirmClearAll] = useState(false);
 
+  // Draft states to ensure instant responsive toggling and clean commit on confirm
+  const [draftSelected, setDraftSelected] = useState<string[]>(selected);
+  const [draftIndeterminate, setDraftIndeterminate] = useState<string[]>(indeterminate);
+
+  // Sync draft state when modal is opened or selected prop changes externally
+  useEffect(() => {
+    if (open) {
+      setDraftSelected(selected || []);
+    }
+  }, [open, selected]);
+
+  useEffect(() => {
+    if (open) {
+      setDraftIndeterminate(indeterminate || []);
+    }
+  }, [open, indeterminate]);
+
+  const isThreeState = (onIndeterminateChange !== undefined || (indeterminate && indeterminate.length > 0)) && mode !== 'single';
+
   // Ghi nhớ danh sách ban đầu nằm ở trạng thái Indeterminate khi mở modal
-  const [initialIndeterminateSet] = useState<Set<string>>(() => new Set(indeterminate));
+  const [initialIndeterminateSet, setInitialIndeterminateSet] = useState<Set<string>>(() => new Set(indeterminate));
+
+  useEffect(() => {
+    if (open) {
+      setInitialIndeterminateSet(new Set(indeterminate || []));
+    }
+  }, [open, indeterminate]);
 
   const localOpts = useMemo(() => {
     return options.filter(o => o.source === 'local');
@@ -210,12 +235,17 @@ export default function UnifiedLabelPickerModal({
     const existing = options.find(o => o.source === 'local' && o.name.toLowerCase() === name.toLowerCase());
     if (existing) {
       if (mode === 'single') {
-        onChange([existing.value]);
+        setDraftSelected([existing.value]);
+        if (!onConfirm) onChange([existing.value]);
       } else {
-        if (!selected.includes(existing.value)) {
-          onChange([...selected, existing.value]);
-          if (indeterminate.includes(existing.value)) {
-            onIndeterminateChange?.(indeterminate.filter(x => x !== existing.value));
+        if (!draftSelected.includes(existing.value)) {
+          const next = [...draftSelected, existing.value];
+          setDraftSelected(next);
+          if (!onConfirm) onChange(next);
+          if (draftIndeterminate.includes(existing.value)) {
+            const nextIndet = draftIndeterminate.filter(x => x !== existing.value);
+            setDraftIndeterminate(nextIndet);
+            if (!onConfirm) onIndeterminateChange?.(nextIndet);
           }
         }
       }
@@ -246,15 +276,20 @@ export default function UnifiedLabelPickerModal({
           textColor: '#ffffff',
           emoji: newLocalLabelEmoji,
           name,
-          pageIds: pageIds.split(','),
+          pageIds: pageIds ? pageIds.split(',') : [],
         };
         onNewLabelCreated?.(newLabel);
         if (mode === 'single') {
-          onChange([newLabel.value]);
+          setDraftSelected([newLabel.value]);
+          if (!onConfirm) onChange([newLabel.value]);
         } else {
-          onChange([...selected, newLabel.value]);
-          if (indeterminate.includes(newLabel.value)) {
-            onIndeterminateChange?.(indeterminate.filter(x => x !== newLabel.value));
+          const next = [...draftSelected, newLabel.value];
+          setDraftSelected(next);
+          if (!onConfirm) onChange(next);
+          if (draftIndeterminate.includes(newLabel.value)) {
+            const nextIndet = draftIndeterminate.filter(x => x !== newLabel.value);
+            setDraftIndeterminate(nextIndet);
+            if (!onConfirm) onIndeterminateChange?.(nextIndet);
           }
         }
         setNewLocalLabelName('');
@@ -267,57 +302,106 @@ export default function UnifiedLabelPickerModal({
   };
 
   /**
-   * 3-State Checkbox Toggle Cycle:
-   * - Nếu ban đầu nằm ở Indeterminate [-]:
-   *   Click 1: [-] (Giữ nguyên) -> [✓] (Gán cho tất cả)
-   *   Click 2: [✓] (Gán tất cả) -> [ ] (Gỡ khỏi tất cả)
-   *   Click 3: [ ] (Gỡ tất cả)  -> [-] (Giữ nguyên nhãn cũ)
-   *
-   * - Nếu ban đầu Unchecked [ ]:
-   *   Click 1: [ ] -> [✓] (Gán tất cả)
-   *   Click 2: [✓] -> [ ] (Gỡ tất cả)
+   * Toggle Checkbox:
+   * - Nếu mode='single': Chọn 1 nhãn duy nhất
+   * - Nếu 2-State (Standard Multi-Select): Toggle [✓] / [ ]
+   * - Nếu 3-State (Bulk edit CRM): [-] -> [✓] -> [ ] -> [-]
    */
   const toggle = (v: string) => {
     if (mode === 'single') {
-      onChange(selected.includes(v) ? [] : [v]);
-    } else {
-      const isChecked = selected.includes(v);
-      const isIndet = indeterminate.includes(v);
-      const wasOriginallyIndet = initialIndeterminateSet.has(v);
+      const next = draftSelected.includes(v) ? [] : [v];
+      setDraftSelected(next);
+      if (!onConfirm) onChange(next);
+      return;
+    }
 
-      if (isIndet) {
-        // [-] -> [✓] (Gán cho tất cả)
-        onIndeterminateChange?.(indeterminate.filter(x => x !== v));
-        onChange([...selected, v]);
-      } else if (isChecked) {
-        // [✓] -> [ ] (Gỡ khỏi tất cả)
-        onChange(selected.filter(x => x !== v));
-        onIndeterminateChange?.(indeterminate.filter(x => x !== v));
+    if (!isThreeState) {
+      // Clean 2-state standard multi-select toggle
+      const next = draftSelected.includes(v)
+        ? draftSelected.filter(x => x !== v)
+        : [...draftSelected, v];
+      setDraftSelected(next);
+      if (!onConfirm) onChange(next);
+      return;
+    }
+
+    // 3-state checkbox cycle
+    const isChecked = draftSelected.includes(v);
+    const isIndet = draftIndeterminate.includes(v);
+    const wasOriginallyIndet = initialIndeterminateSet.has(v);
+
+    if (isIndet) {
+      // [-] -> [✓] (Gán cho tất cả)
+      const nextIndet = draftIndeterminate.filter(x => x !== v);
+      const nextSel = [...draftSelected, v];
+      setDraftIndeterminate(nextIndet);
+      setDraftSelected(nextSel);
+      if (!onConfirm) {
+        onIndeterminateChange?.(nextIndet);
+        onChange(nextSel);
+      }
+    } else if (isChecked) {
+      // [✓] -> [ ] (Gỡ khỏi tất cả)
+      const nextSel = draftSelected.filter(x => x !== v);
+      const nextIndet = draftIndeterminate.filter(x => x !== v);
+      setDraftSelected(nextSel);
+      setDraftIndeterminate(nextIndet);
+      if (!onConfirm) {
+        onChange(nextSel);
+        onIndeterminateChange?.(nextIndet);
+      }
+    } else {
+      // [ ] -> Nếu ban đầu là Indet -> [-] (Giữ nguyên) | Nếu không -> [✓] (Gán tất cả)
+      if (wasOriginallyIndet && !draftIndeterminate.includes(v)) {
+        const nextIndet = [...draftIndeterminate, v];
+        const nextSel = draftSelected.filter(x => x !== v);
+        setDraftIndeterminate(nextIndet);
+        setDraftSelected(nextSel);
+        if (!onConfirm) {
+          onIndeterminateChange?.(nextIndet);
+          onChange(nextSel);
+        }
       } else {
-        // [ ] -> Nếu ban đầu là Indet -> [-] (Giữ nguyên) | Nếu không -> [✓] (Gán tất cả)
-        if (wasOriginallyIndet && !indeterminate.includes(v)) {
-          onIndeterminateChange?.([...indeterminate, v]);
-          onChange(selected.filter(x => x !== v));
-        } else {
-          onChange([...selected, v]);
-          onIndeterminateChange?.(indeterminate.filter(x => x !== v));
+        const nextSel = [...draftSelected, v];
+        const nextIndet = draftIndeterminate.filter(x => x !== v);
+        setDraftSelected(nextSel);
+        setDraftIndeterminate(nextIndet);
+        if (!onConfirm) {
+          onChange(nextSel);
+          onIndeterminateChange?.(nextIndet);
         }
       }
     }
   };
 
   const handleConfirmAction = () => {
-    if (onConfirm) {
-      onConfirm(selected, indeterminate);
-    } else {
-      onClose();
+    onChange(draftSelected);
+    if (isThreeState) {
+      onIndeterminateChange?.(draftIndeterminate);
     }
+    if (onConfirm) {
+      onConfirm(draftSelected, draftIndeterminate);
+    }
+    onClose();
   };
 
   const handleExecuteClearAll = () => {
-    onChange([]);
-    onIndeterminateChange?.([]);
+    setDraftSelected([]);
+    setDraftIndeterminate([]);
+    if (!onConfirm) {
+      onChange([]);
+      onIndeterminateChange?.([]);
+    }
     setShowConfirmClearAll(false);
+  };
+
+  const handleQuickClearSelection = () => {
+    setDraftSelected([]);
+    setDraftIndeterminate([]);
+    if (!onConfirm) {
+      onChange([]);
+      onIndeterminateChange?.([]);
+    }
   };
 
   if (!open) return null;
@@ -338,11 +422,15 @@ export default function UnifiedLabelPickerModal({
             <div>
               <h2 className="text-base font-semibold text-white">Chọn nhãn</h2>
               <p className="text-xs text-gray-400">
-                {mode === 'single' ? 'Chọn 1 nhãn' : 'Có thể chọn nhiều nhãn (Hỗ trợ 3 trạng thái)'}
+                {mode === 'single'
+                  ? 'Chọn 1 nhãn'
+                  : isThreeState
+                  ? 'Có thể chọn nhiều nhãn (Hỗ trợ 3 trạng thái)'
+                  : 'Chọn một hoặc nhiều nhãn để gán'}
                 {selectedCount !== undefined && selectedCount > 0 && (
                   <span> • Áp dụng cho <span className="text-blue-400 font-semibold">{selectedCount}</span> liên hệ</span>
                 )}
-                {selected.length > 0 && ` • Đã chọn gán thêm: ${selected.length}`}
+                {draftSelected.length > 0 && ` • Đã chọn: ${draftSelected.length}`}
               </p>
             </div>
           </div>
@@ -537,8 +625,8 @@ export default function UnifiedLabelPickerModal({
               ) : (
                 <div className="space-y-1.5">
                   {filteredLabels.map(opt => {
-                    const isSelected = selected.includes(opt.value);
-                    const isIndet = indeterminate.includes(opt.value);
+                    const isSelected = draftSelected.includes(opt.value);
+                    const isIndet = isThreeState && draftIndeterminate.includes(opt.value);
                     const bgColor = opt.color || '#6b7280';
                     const textColor = opt.textColor || getContrastColor(bgColor);
                     const isGlobalLocal = opt.source === 'local' && (!opt.pageIds || opt.pageIds.length === 0);
@@ -555,11 +643,11 @@ export default function UnifiedLabelPickerModal({
                         type="button"
                         onClick={() => toggle(opt.value)}
                         title={
-                          isSelected ? 'Bấm để GỠ NHÃN KHỎI TẤT CẢ liên hệ' :
+                          isSelected ? 'Bấm để BỎ CHỌN nhãn này' :
                           isIndet ? 'Bấm để GÁN NHÃN CHO TẤT CẢ liên hệ' :
-                          'Bấm để GÁN NHÃN CHO TẤT CẢ liên hệ'
+                          'Bấm để CHỌN nhãn này'
                         }
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                           isSelected
                             ? 'ring-2 ring-offset-1 ring-offset-gray-900'
                             : isIndet
@@ -572,7 +660,7 @@ export default function UnifiedLabelPickerModal({
                           '--tw-ring-color': bgColor,
                         } as React.CSSProperties : undefined}
                       >
-                        {/* 3-State Checkbox */}
+                        {/* Checkbox */}
                         <span
                           className={`w-5 h-5 ${mode === 'single' ? 'rounded-full' : 'rounded-md'} border-2 flex items-center justify-center flex-shrink-0 transition-all`}
                           style={
@@ -617,7 +705,7 @@ export default function UnifiedLabelPickerModal({
                             [-] Giữ nguyên nhãn cũ
                           </span>
                         )}
-                        {isSelected && (
+                        {isSelected && isThreeState && (
                           <span className="text-[10px] px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/30 text-blue-400 font-medium flex-shrink-0">
                             [✓] Gán cho tất cả
                           </span>
@@ -649,24 +737,26 @@ export default function UnifiedLabelPickerModal({
 
         {/* Footer */}
         <div className="flex flex-col gap-2.5 px-5 py-3.5 border-t border-gray-700 bg-gray-800/60">
-          {/* 3-State Legend Banner */}
-          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-gray-900/80 rounded-xl border border-gray-700/50 text-[11px] text-gray-300">
-            <span className="font-semibold text-gray-400">Chú thích trạng thái:</span>
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <span className="w-3.5 h-3.5 rounded bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-[9px] text-amber-400 font-bold">➖</span>
-                <span className="text-amber-300 font-medium font-mono">[-]</span> Giữ nguyên nhãn cũ
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3.5 h-3.5 rounded bg-blue-600 flex items-center justify-center text-[9px] text-white font-bold">✓</span>
-                <span className="text-blue-400 font-medium font-mono">[✓]</span> Gán cho tất cả
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3.5 h-3.5 rounded border border-gray-600 flex items-center justify-center text-[9px]"></span>
-                <span className="text-gray-400 font-medium font-mono">[ ]</span> Gỡ khỏi tất cả
-              </span>
+          {/* 3-State Legend Banner (only shown in 3-State mode) */}
+          {isThreeState && (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-gray-900/80 rounded-xl border border-gray-700/50 text-[11px] text-gray-300">
+              <span className="font-semibold text-gray-400">Chú thích trạng thái:</span>
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <span className="w-3.5 h-3.5 rounded bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-[9px] text-amber-400 font-bold">➖</span>
+                  <span className="text-amber-300 font-medium font-mono">[-]</span> Giữ nguyên nhãn cũ
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3.5 h-3.5 rounded bg-blue-600 flex items-center justify-center text-[9px] text-white font-bold">✓</span>
+                  <span className="text-blue-400 font-medium font-mono">[✓]</span> Gán cho tất cả
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3.5 h-3.5 rounded border border-gray-600 flex items-center justify-center text-[9px]"></span>
+                  <span className="text-gray-400 font-medium font-mono">[ ]</span> Gỡ khỏi tất cả
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="text-xs text-gray-400">
@@ -676,17 +766,27 @@ export default function UnifiedLabelPickerModal({
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowConfirmClearAll(true)}
-                className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20"
-              >
-                🗑️ Xóa tất cả nhãn
-              </button>
+              {isThreeState ? (
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmClearAll(true)}
+                  className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20 cursor-pointer"
+                >
+                  🗑️ Xóa tất cả nhãn
+                </button>
+              ) : draftSelected.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleQuickClearSelection}
+                  className="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded-lg transition-colors border border-gray-700 cursor-pointer"
+                >
+                  Bỏ chọn tất cả
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors cursor-pointer"
               >
                 Hủy
               </button>
@@ -694,7 +794,7 @@ export default function UnifiedLabelPickerModal({
                 type="button"
                 disabled={applying}
                 onClick={handleConfirmAction}
-                className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg transition-colors shadow-lg flex items-center gap-1.5"
+                className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg transition-colors shadow-lg flex items-center gap-1.5 cursor-pointer"
               >
                 {applying && (
                   <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -726,14 +826,14 @@ export default function UnifiedLabelPickerModal({
               <button
                 type="button"
                 onClick={() => setShowConfirmClearAll(false)}
-                className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-xl transition-colors"
+                className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-xl transition-colors cursor-pointer"
               >
                 Hủy bỏ
               </button>
               <button
                 type="button"
                 onClick={handleExecuteClearAll}
-                className="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-500 rounded-xl shadow-lg transition-colors"
+                className="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-500 rounded-xl shadow-lg transition-colors cursor-pointer"
               >
                 Đồng ý xóa hết
               </button>

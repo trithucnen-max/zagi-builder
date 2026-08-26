@@ -31,9 +31,9 @@ interface GroupMember {
 }
 
 function roleLabel(role: number) {
-  if (role === 2) return { text: 'Trưởng nhóm', cls: 'text-yellow-400' };
-  if (role === 1) return { text: 'Phó nhóm', cls: 'text-blue-400' };
-  return { text: 'Thành viên', cls: 'text-gray-500' };
+  if (role === 2) return { text: '👑 Trưởng nhóm', cls: 'text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/30' };
+  if (role === 1) return { text: '🛡️ Phó nhóm', cls: 'text-sky-400 font-semibold bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/30' };
+  return { text: 'Thành viên', cls: 'text-gray-400' };
 }
 
 function Avatar({ src, name, size = 36 }: { src?: string; name: string; size?: number }) {
@@ -235,6 +235,7 @@ export default function GroupMembersTab() {
 
   // ── Sub-tab state ───────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'members' | 'scan'>('members');
+  const [memberRoleFilter, setMemberRoleFilter] = useState<'all' | 'admin' | 'member'>('all');
 
   // ── Quét nâng cao (Scan tab) state ──────────────────────────────────────
   const [scanLinkInput, setScanLinkInput] = useState('');
@@ -858,8 +859,51 @@ export default function GroupMembersTab() {
       return next;
     });
   };
-  const selectAllMembers = () => setSelectedMemberIds(new Set(filteredMembers.map(m => m.member_id)));
+  const selectAllMembers = () => {
+    setSelectedMemberIds(prev => {
+      const next = new Set(prev);
+      filteredMembers.forEach(m => next.add(m.member_id));
+      return next;
+    });
+  };
+  const unselectAllFilteredMembers = () => {
+    setSelectedMemberIds(prev => {
+      const next = new Set(prev);
+      filteredMembers.forEach(m => next.delete(m.member_id));
+      return next;
+    });
+  };
   const clearSelection = () => setSelectedMemberIds(new Set());
+
+  const selectAdminMembers = () => {
+    setSelectedMemberIds(prev => {
+      const next = new Set(prev);
+      members.filter(m => m.role === 1 || m.role === 2).forEach(m => next.add(m.member_id));
+      return next;
+    });
+  };
+  const unselectAdminMembers = () => {
+    setSelectedMemberIds(prev => {
+      const next = new Set(prev);
+      members.filter(m => m.role === 1 || m.role === 2).forEach(m => next.delete(m.member_id));
+      return next;
+    });
+  };
+
+  const selectRegularMembers = () => {
+    setSelectedMemberIds(prev => {
+      const next = new Set(prev);
+      members.filter(m => m.role === 0 || !m.role).forEach(m => next.add(m.member_id));
+      return next;
+    });
+  };
+  const unselectRegularMembers = () => {
+    setSelectedMemberIds(prev => {
+      const next = new Set(prev);
+      members.filter(m => m.role === 0 || !m.role).forEach(m => next.delete(m.member_id));
+      return next;
+    });
+  };
 
   // ── Open campaign picker ──────────────────────────────────────────────────
   const openCampaignPicker = useCallback(async () => {
@@ -1165,14 +1209,30 @@ export default function GroupMembersTab() {
       g.contact_id.includes(searchGroup)
     );
   });
-  const filteredMembers = members.filter(m =>
-    !searchMember.trim() ||
-    m.display_name.toLowerCase().includes(searchMember.toLowerCase()) ||
-    m.member_id.includes(searchMember)
-  );
+  const adminMembers = useMemo(() => members.filter(m => m.role === 1 || m.role === 2), [members]);
+  const regularMembers = useMemo(() => members.filter(m => m.role === 0 || !m.role), [members]);
+
+  const filteredMembers = useMemo(() => {
+    return members.filter(m => {
+      if (memberRoleFilter === 'admin' && !(m.role === 1 || m.role === 2)) return false;
+      if (memberRoleFilter === 'member' && (m.role === 1 || m.role === 2)) return false;
+      return (
+        !searchMember.trim() ||
+        (m.display_name && m.display_name.toLowerCase().includes(searchMember.toLowerCase())) ||
+        (m.member_id && m.member_id.includes(searchMember)) ||
+        (m.phone && m.phone.includes(searchMember))
+      );
+    });
+  }, [members, memberRoleFilter, searchMember]);
 
   const allFilteredSelected = filteredMembers.length > 0 &&
     filteredMembers.every(m => selectedMemberIds.has(m.member_id));
+
+  const allAdminSelected = adminMembers.length > 0 &&
+    adminMembers.every(m => selectedMemberIds.has(m.member_id));
+
+  const allRegularSelected = regularMembers.length > 0 &&
+    regularMembers.every(m => selectedMemberIds.has(m.member_id));
 
   const formatTime = (ts: number) =>
     ts ? new Date(ts).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
@@ -1723,30 +1783,131 @@ export default function GroupMembersTab() {
               </div>
             )}
 
-            {/* Search + select-all row */}
-            <div className="px-4 py-2 border-b border-gray-700/50 flex items-center gap-2 flex-shrink-0">
-              {members.length > 0 && (
-                <button onClick={allFilteredSelected ? clearSelection : selectAllMembers}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors border
-                    ${allFilteredSelected
-                      ? 'bg-blue-600/20 border-blue-500/50 text-blue-300 hover:bg-blue-600/30'
-                      : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}`}>
-                  {allFilteredSelected ? (
-                    <>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                      Bỏ chọn tất cả
-                    </>
-                  ) : (
-                    <>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /><polyline points="9 11 12 14 22 4" /></svg>
-                      Chọn tất cả ({filteredMembers.length})
-                    </>
-                  )}
-                </button>
-              )}
-              <input type="text" value={searchMember} onChange={e => setSearchMember(e.target.value)}
-                placeholder="Tìm thành viên..."
-                className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+            {/* ── Member Role Tabs + Search & Quick Action Toolbar ── */}
+            <div className="px-4 py-2.5 border-b border-gray-700/50 flex flex-col gap-2.5 flex-shrink-0 bg-gray-800/40">
+              {/* Top row: Role filter tabs & Quick Action buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1 bg-gray-900/80 p-1 rounded-xl border border-gray-700/60">
+                  <button
+                    type="button"
+                    onClick={() => setMemberRoleFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      memberRoleFilter === 'all'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    🌐 Tất cả ({members.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMemberRoleFilter('admin')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      memberRoleFilter === 'admin'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-gray-400 hover:text-amber-400 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <span>👑 Ban Quản lý</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      memberRoleFilter === 'admin' ? 'bg-amber-800 text-white' : 'bg-amber-500/20 text-amber-300'
+                    }`}>
+                      {adminMembers.length}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMemberRoleFilter('member')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      memberRoleFilter === 'member'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'text-gray-400 hover:text-emerald-400 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <span>👥 Thành viên</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      memberRoleFilter === 'member' ? 'bg-emerald-800 text-white' : 'bg-emerald-500/20 text-emerald-300'
+                    }`}>
+                      {regularMembers.length}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Quick selection action buttons */}
+                {members.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    {adminMembers.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={allAdminSelected ? unselectAdminMembers : selectAdminMembers}
+                        title={allAdminSelected ? 'Bỏ chọn toàn bộ Ban Quản lý' : 'Chọn nhanh toàn bộ Ban Quản lý (Trưởng + Phó nhóm)'}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 cursor-pointer border ${
+                          allAdminSelected
+                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/30'
+                            : 'bg-gray-800 border-gray-700 hover:border-amber-500/50 text-gray-300 hover:text-amber-400'
+                        }`}
+                      >
+                        <span>👑</span>
+                        <span>{allAdminSelected ? 'Bỏ Quản lý' : `+ Quản lý (${adminMembers.length})`}</span>
+                      </button>
+                    )}
+                    {regularMembers.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={allRegularSelected ? unselectRegularMembers : selectRegularMembers}
+                        title={allRegularSelected ? 'Bỏ chọn toàn bộ Thành viên' : 'Chọn nhanh toàn bộ Thành viên thông thường'}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 cursor-pointer border ${
+                          allRegularSelected
+                            ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/30'
+                            : 'bg-gray-800 border-gray-700 hover:border-emerald-500/50 text-gray-300 hover:text-emerald-400'
+                        }`}
+                      >
+                        <span>👥</span>
+                        <span>{allRegularSelected ? 'Bỏ TV thường' : `+ TV thường (${regularMembers.length})`}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom row: Select all current filtered & search bar */}
+              <div className="flex items-center gap-2">
+                {members.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={allFilteredSelected ? unselectAllFilteredMembers : selectAllMembers}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors border cursor-pointer
+                      ${allFilteredSelected
+                        ? 'bg-blue-600/20 border-blue-500/50 text-blue-300 hover:bg-blue-600/30'
+                        : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}`}
+                  >
+                    {allFilteredSelected ? (
+                      <>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                        Bỏ chọn {memberRoleFilter === 'admin' ? 'Quản lý' : memberRoleFilter === 'member' ? 'Thành viên' : 'tất cả'}
+                      </>
+                    ) : (
+                      <>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /><polyline points="9 11 12 14 22 4" /></svg>
+                        Chọn tất cả ({filteredMembers.length})
+                      </>
+                    )}
+                  </button>
+                )}
+                <input
+                  type="text"
+                  value={searchMember}
+                  onChange={e => setSearchMember(e.target.value)}
+                  placeholder={
+                    memberRoleFilter === 'admin'
+                      ? `Tìm trong ${adminMembers.length} quản lý (tên, SĐT, UID)...`
+                      : memberRoleFilter === 'member'
+                      ? `Tìm trong ${regularMembers.length} thành viên (tên, SĐT, UID)...`
+                      : `Tìm trong ${members.length} thành viên (tên, SĐT, UID)...`
+                  }
+                  className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
             </div>
 
             {/* Members list */}
