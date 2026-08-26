@@ -93,19 +93,76 @@ export interface SharedGroupsListResponse {
 }
 
 /**
- * Mã hóa / Base64 encode body trước khi gửi lên backend.
+ * Mã hóa body bằng AES-128-CBC trước khi gửi lên backend.
+ * Khóa bí mật là 16 bytes đầu từ hex SECRET_KEY, IV là 16 byte 0.
  */
 async function encryptBody(body: object): Promise<string> {
+  const jsonStr = JSON.stringify(body);
+
+  // 1. Thử dùng crypto của Electron/Node nếu có
   try {
-    const jsonStr = JSON.stringify(body);
     const win = (globalThis as any).window;
-    if (win && win.btoa) {
+    const nodeCrypto = win?.require ? win.require('crypto') : null;
+    if (nodeCrypto) {
+      const key = Buffer.from(SECRET_KEY, 'hex').slice(0, 16);
+      const iv = Buffer.alloc(16, 0);
+      const cipher = nodeCrypto.createCipheriv('aes-128-cbc', key, iv);
+      let encrypted = cipher.update(jsonStr, 'utf8', 'base64');
+      encrypted += cipher.final('base64');
+      return encrypted;
+    }
+  } catch (err) {
+    console.warn('[backendService] Node crypto not available, trying Web Crypto:', err);
+  }
+
+  // 2. Web Crypto API (chuẩn Web / Vite renderer)
+  try {
+    const cryptoSubtle = globalThis.crypto?.subtle;
+    if (cryptoSubtle) {
+      const rawHex = SECRET_KEY.slice(0, 32);
+      const keyBytes = new Uint8Array(16);
+      for (let i = 0; i < 16; i++) {
+        keyBytes[i] = parseInt(rawHex.substr(i * 2, 2), 16);
+      }
+      const cryptoKey = await cryptoSubtle.importKey(
+        'raw',
+        keyBytes,
+        { name: 'AES-CBC', length: 128 },
+        false,
+        ['encrypt']
+      );
+      const iv = new Uint8Array(16);
+      const encoder = new TextEncoder();
+      const encodedData = encoder.encode(jsonStr);
+      const encryptedBuffer = await cryptoSubtle.encrypt(
+        { name: 'AES-CBC', iv },
+        cryptoKey,
+        encodedData
+      );
+      let binary = '';
+      const bytes = new Uint8Array(encryptedBuffer);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const win = (globalThis as any).window;
+      if (win?.btoa) {
+        return win.btoa(binary);
+      }
+      return Buffer.from(bytes).toString('base64');
+    }
+  } catch (err) {
+    console.warn('[backendService] WebCrypto encrypt failed:', err);
+  }
+
+  // Fallback (base64 plain)
+  try {
+    const win = (globalThis as any).window;
+    if (win?.btoa) {
       return win.btoa(unescape(encodeURIComponent(jsonStr)));
     }
     return Buffer.from(jsonStr).toString('base64');
-  } catch (err) {
-    console.warn('[backendService] encryptBody fallback:', err);
-    return Buffer.from(JSON.stringify(body)).toString('base64');
+  } catch {
+    return Buffer.from(jsonStr).toString('base64');
   }
 }
 

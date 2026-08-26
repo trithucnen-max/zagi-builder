@@ -1066,23 +1066,60 @@ export default function GroupMembersTab() {
         return;
       }
 
-      // 2. Gọi backend API quét sâu thành viên
+      // 2. Gọi backend API quét sâu thành viên (AES-128-CBC)
       const { scanGroupViaBackend } = await import('@/lib/backendService');
-      const result = await scanGroupViaBackend({
-        pageId: activeAccountId,
-        cookie: acc.cookies || '',
-        imei: acc.imei || '',
-        groupId,
-      });
-
-      if (!result?.success) {
-        setScanTabError(result?.error || 'Quét thất bại. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau.');
-        return;
+      let result: any = null;
+      try {
+        result = await scanGroupViaBackend({
+          pageId: activeAccountId,
+          cookie: acc.cookies || '',
+          imei: acc.imei || '',
+          groupId,
+        });
+      } catch (beErr) {
+        console.warn('[handleScanTab] scanGroupViaBackend error:', beErr);
       }
 
-      const members = result.members || [];
+      let members: any[] = (result?.success && Array.isArray(result?.members)) ? result.members : [];
+
+      // 3. Fallback: Nếu backend trả về 0 thành viên, quét trực tiếp qua Zalo API getGroupLinkInfo phân trang
       if (members.length === 0) {
-        setScanTabError('Không tìm thấy thành viên nào trong nhóm.');
+        let page = 1;
+        const linkMembers: any[] = [];
+        let targetLink = rawInput;
+        if (!targetLink.startsWith('http') && !/^\d+$/.test(targetLink)) {
+          targetLink = `https://zalo.me/g/${targetLink}`;
+        } else if (/^\d+$/.test(targetLink)) {
+          targetLink = `https://zalo.me/g/${targetLink}`;
+        }
+
+        while (page <= 50) {
+          const res = await ipc.zalo?.getGroupLinkInfo({ auth, link: targetLink, memberPage: page });
+          if (!res?.success || !res?.response) break;
+          const pageMems: any[] = res.response.currentMems || [];
+          if (pageMems.length === 0) break;
+          linkMembers.push(...pageMems);
+          if (!res.response.hasMoreMember) break;
+          page++;
+          await new Promise(r => setTimeout(r, 200));
+        }
+
+        if (linkMembers.length > 0) {
+          members = linkMembers.map((m: any) => ({
+            userId: (m.id || m.userId || '').replace(/_0$/, ''),
+            displayName: m.dName || m.displayName || m.name || m.id,
+            zaloName: m.dName || m.displayName || m.name || '',
+            avatar: m.avatar || m.avt || '',
+          }));
+        }
+      }
+
+      if (members.length === 0) {
+        if (!result?.success && result?.error) {
+          setScanTabError(result.error);
+        } else {
+          setScanTabError('Không tìm thấy thành viên nào trong nhóm.');
+        }
         return;
       }
 
@@ -1093,7 +1130,7 @@ export default function GroupMembersTab() {
       })));
       setScanTabGroupId(groupId);
 
-      // 3. Gán Role chính xác (Trưởng nhóm / Phó nhóm) và lưu vào SQLite DB
+      // 4. Gán Role chính xác (Trưởng nhóm / Phó nhóm) và lưu vào SQLite DB
       const creatorId = groupInfoFromLink?.creatorId || '';
       const adminIdList = groupInfoFromLink?.adminIds || [];
       const adminSet = new Set([creatorId, ...adminIdList].filter(Boolean));
@@ -2469,7 +2506,10 @@ export default function GroupMembersTab() {
           </div>
         </div>
       )}
+      </div>
+      )}
 
+      {/* ── All Modals (Rendered at root so they are accessible from all sub-tabs) ── */}
       {showBulkGroupModal && (
         <BulkGroupManageModal
           isOpen={!!showBulkGroupModal}
@@ -2650,8 +2690,6 @@ export default function GroupMembersTab() {
 
       {showAffiliatePopup && (
         <AffiliateIntroPopup onClose={() => setShowAffiliatePopup(false)} />
-      )}
-      </div>
       )}
     </div>
   );
