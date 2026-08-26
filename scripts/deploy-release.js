@@ -280,7 +280,7 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main', s
       `-${tag}-`
     );
 
-    // Thay thế thẻ tiêu đề và modal download ("Tải phần mềm Zagi Desktop v3.X.X", "Zagi v3.X.X")
+    // Thay thế thẻ tiêu đề và modal download ("Tải phần mềm Zagi Desktop v3.X.X", "Zagi v3.X.X", "Bản v3.X.X")
     content = content.replace(
       /Zagi Desktop v3\.\d+\.\d+/g,
       `Zagi Desktop ${tag}`
@@ -288,6 +288,18 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main', s
     content = content.replace(
       /Zagi v3\.\d+\.\d+/g,
       `Zagi ${tag}`
+    );
+    content = content.replace(
+      /Bản v3\.\d+\.\d+/g,
+      `Bản ${tag}`
+    );
+    content = content.replace(
+      /const APP_VERSION\s*=\s*'v\d+\.\d+\.\d+';/g,
+      `const APP_VERSION       = '${tag}';`
+    );
+    content = content.replace(
+      /export const APP_VERSION\s*=\s*'\d+\.\d+\.\d+';/g,
+      `export const APP_VERSION = '${targetVersion}';`
     );
 
     if (content !== originalContent) {

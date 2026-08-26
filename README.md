@@ -49,7 +49,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 [![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)
 
-**[Zagi.v3.1.7.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)**
+**[Zagi.v3.2.0.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)**
 
 NSIS Installer · ~164 MB
 
@@ -60,7 +60,7 @@ NSIS Installer · ~164 MB
 
 [![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.2.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)
 
-**[Zagi.v3.1.7.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.2.0.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)**
 
 Apple Silicon DMG · Signed & Notarized · ~231 MB
 
@@ -71,7 +71,7 @@ Apple Silicon DMG · Signed & Notarized · ~231 MB
 
 [![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.2.0-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)
 
-**[Zagi.v3.1.7.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)**
+**[Zagi.v3.2.0.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)**
 
 Intel x64 DMG · Signed & Notarized · ~239 MB
 
@@ -82,8 +82,8 @@ Intel x64 DMG · Signed & Notarized · ~239 MB
 
 [![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.2.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.AppImage)
 
-**[Zagi.v3.1.7.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.AppImage)**  
-**[Zagi.v3.1.7.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.Debian.deb)**
+**[Zagi.v3.2.0.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.AppImage)**  
+**[Zagi.v3.2.0.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.Debian.deb)**
 
 AppImage + Debian .deb
 
@@ -100,7 +100,7 @@ AppImage + Debian .deb
 
 [![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Surface.exe)
 
-**[Zagi.v3.1.7.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Surface.exe)**
+**[Zagi.v3.2.0.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Surface.exe)**
 
 NSIS Installer ARM64 · ~166 MB · Tối ưu native cho Surface ARM
 
