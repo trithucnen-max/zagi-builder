@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
