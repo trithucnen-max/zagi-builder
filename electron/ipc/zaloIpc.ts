@@ -881,9 +881,16 @@ export function registerZaloIpc() {
                 // Nếu là URL hoặc slug chữ, thử resolve qua Zalo API
                 if (groupId.includes('zalo.me') || groupId.includes('chat.zalo.me') || !/^\d+$/.test(groupId)) {
                     try {
+                        let targetLink = cleanInput;
+                        if (!targetLink.startsWith('http') && !/^\d+$/.test(targetLink)) {
+                            targetLink = `https://zalo.me/g/${targetLink}`;
+                        } else if (/^\d+$/.test(targetLink)) {
+                            targetLink = `https://zalo.me/g/${targetLink}`;
+                        }
+
                         const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
                         const zaloService = await getService(auth);
-                        const linkRes: any = await zaloService.getGroupLinkInfo(groupId, 1);
+                        const linkRes: any = await zaloService.getGroupLinkInfo(targetLink, 1);
                         const rawInfo = linkRes?.response || linkRes;
                         const resolvedGroupId = rawInfo?.groupId || rawInfo?.group_id || rawInfo?.id;
                         

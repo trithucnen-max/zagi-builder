@@ -1457,5 +1457,21 @@ export const ipc = {
   },
 };
 
+/**
+ * Tạo auth object chuẩn để gọi các Zalo API qua IPC.
+ * Truyền `accountId` (zalo_id) giúp backend resolveZaloId() match trực tiếp,
+ * fallback đúng khi cookies rỗng + có nhiều connections active.
+ *
+ * Dùng thay vì `{ cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent }`
+ */
+export function buildZaloAuth(acc: { cookies?: string; imei?: string; user_agent?: string; zalo_id?: string }, accountId?: string) {
+  return {
+    cookies: acc.cookies || '',
+    imei: acc.imei || '',
+    userAgent: acc.user_agent || '',
+    accountId: accountId || acc.zalo_id || '',
+  };
+}
+
 export default ipc;
 

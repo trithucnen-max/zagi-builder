@@ -1,11 +1,16 @@
 /**
- * Backend Service — Giao tiếp với Backend Server Deplao (Premium features)
+ * Backend Service — Giao tiếp với Backend Server (Premium features)
  *
- * Backend xử lý: quét nhóm ẩn, kiểm tra premium.
+ * Backend xử lý: quét nhóm ẩn, kiểm tra premium, thanh toán QR, chia sẻ nhóm.
+ * App chỉ gọi API, không chứa logic business.
  *
  * API endpoints:
  *   POST https://deplaoapp.com/api/scan/premium-status  → kiểm tra premium
  *   POST https://deplaoapp.com/api/scan/group            → quét thành viên nhóm
+ *   POST https://deplaoapp.com/api/payment/create-qr     → tạo QR thanh toán
+ *   POST https://deplaoapp.com/api/payment/check-status  → kiểm tra trạng thái TT
+ *   POST https://deplaoapp.com/api/shared-groups/submit   → chia sẻ nhóm
+ *   GET  https://deplaoapp.com/api/shared-groups/list     → danh sách nhóm chung
  */
 
 const BACKEND_URL = 'https://deplaoapp.com';
@@ -34,8 +39,61 @@ export interface ScanGroupResult {
   error?: string;
 }
 
+// ─── Shared Groups Types ────────────────────────────────────────────────────
+
+export interface SharedGroupCategory {
+  id: number;
+  name: string;
+  icon: string;
+  count?: number;
+}
+
+export const DEFAULT_CATEGORIES: SharedGroupCategory[] = [
+  { id: 1, name: 'Kinh doanh', icon: '💼' },
+  { id: 2, name: 'Bất động sản', icon: '🏠' },
+  { id: 3, name: 'Giáo dục', icon: '📚' },
+  { id: 4, name: 'Công nghệ', icon: '💻' },
+  { id: 5, name: 'Sức khỏe', icon: '🏥' },
+  { id: 6, name: 'Du lịch', icon: '✈️' },
+  { id: 7, name: 'Ẩm thực', icon: '🍜' },
+  { id: 8, name: 'Thời trang', icon: '👗' },
+  { id: 9, name: 'Mỹ phẩm', icon: '💄' },
+  { id: 10, name: 'Thực phẩm chức năng', icon: '💊' },
+  { id: 11, name: 'Mẹ và bé', icon: '👶' },
+  { id: 12, name: 'Nội thất', icon: '🛋️' },
+  { id: 13, name: 'Ô tô - Xe máy', icon: '🚗' },
+  { id: 14, name: 'Điện tử', icon: '📱' },
+  { id: 15, name: 'Thể thao', icon: '⚽' },
+  { id: 16, name: 'Thú cưng', icon: '🐾' },
+  { id: 17, name: 'Nhà hàng - Khách sạn', icon: '🏨' },
+  { id: 99, name: 'Khác', icon: '📁' },
+];
+
+export interface SharedGroupItem {
+  shareId: string;
+  groupId: string;
+  groupName: string;
+  groupAvatar: string;
+  groupLink: string;           // Link nhóm Zalo (https://zalo.me/g/...)
+  memberCount: number;
+  category: SharedGroupCategory;
+  note?: string;               // Ghi chú khi chia sẻ
+  submittedBy: string;         // Tên hiển thị
+  submittedByUid?: string;     // UID Zalo
+  submittedByAvatar?: string;  // Ảnh đại diện
+  approvedAt?: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface SharedGroupsListResponse {
+  success: boolean;
+  items: SharedGroupItem[];
+  pagination: { page: number; limit: number; total: number };
+  categories: SharedGroupCategory[];
+}
+
 /**
- * Mã hóa / Base64 encode body trước khi gửi lên Deplao backend.
+ * Mã hóa / Base64 encode body trước khi gửi lên backend.
  */
 async function encryptBody(body: object): Promise<string> {
   try {
@@ -52,7 +110,7 @@ async function encryptBody(body: object): Promise<string> {
 }
 
 /**
- * Gọi API backend Deplao.
+ * Gọi API backend.
  */
 async function callBackend<T>(endpoint: string, body: object): Promise<T> {
   const url = `${BACKEND_URL}${endpoint}`;
@@ -72,7 +130,10 @@ async function callBackend<T>(endpoint: string, body: object): Promise<T> {
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': SECRET_KEY,
+    },
     body: JSON.stringify(payload),
   });
 
@@ -104,7 +165,7 @@ export async function getPremiumStatus(pageId: string): Promise<PremiumStatus> {
 }
 
 /**
- * Quét thành viên nhóm qua backend Deplao.
+ * Quét thành viên nhóm qua backend.
  */
 export async function scanGroupViaBackend(params: {
   pageId: string;
@@ -127,7 +188,92 @@ export async function scanGroupViaBackend(params: {
       groupId: params.groupId,
       totalMembers: 0,
       members: [],
-      error: err.message || 'Lỗi kết nối backend Deplao',
+      error: err.message || 'Lỗi kết nối backend',
     };
   }
+}
+
+// ─── Shared Groups API ──────────────────────────────────────────────────────
+
+/**
+ * Chia sẻ nhóm lên hệ thống (chờ admin duyệt).
+ */
+export async function submitSharedGroup(params: {
+  pageId: string;
+  groupId: string;
+  groupName: string;
+  groupAvatar: string;
+  groupLink: string;
+  memberCount: number;
+  categoryId: number;
+  note?: string;
+}): Promise<{ success: boolean; shareId: string; status: string; message: string }> {
+  const url = `${BACKEND_URL}/api/shared-groups/submit`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': SECRET_KEY,
+    },
+    body: JSON.stringify({
+      page_id: params.pageId,
+      group_id: params.groupId,
+      group_name: params.groupName,
+      group_avatar: params.groupAvatar,
+      group_link: params.groupLink,
+      member_count: params.memberCount,
+      category_id: params.categoryId,
+      note: params.note || '',
+    }),
+  });
+  const data: any = await res.json().catch(() => ({}));
+  return {
+    success: Boolean(data?.success),
+    shareId: data?.share_id || '',
+    status: data?.status || '',
+    message: data?.message || '',
+  };
+}
+
+/**
+ * Lấy danh sách nhóm chung (đã được admin duyệt).
+ */
+export async function getSharedGroups(params: {
+  pageId: string;
+  categoryId?: number;
+  page?: number;
+  limit?: number;
+}): Promise<SharedGroupsListResponse> {
+  const query = new URLSearchParams({
+    page_id: params.pageId,
+    ...(params.categoryId ? { category_id: String(params.categoryId) } : {}),
+    ...(params.page ? { page: String(params.page) } : {}),
+    ...(params.limit ? { limit: String(params.limit) } : {}),
+  }).toString();
+  const res = await fetch(`${BACKEND_URL}/api/shared-groups/list?${query}`, {
+    headers: { 'x-api-key': SECRET_KEY },
+  });
+  const data: any = await res.json().catch(() => ({}));
+
+  // Map BE response (snake_case) → FE (camelCase)
+  return {
+    success: Boolean(data?.success),
+    items: (data?.items || []).map((item: any) => ({
+      shareId: item.share_id,
+      groupId: item.group_id,
+      groupName: item.group_name,
+      groupAvatar: item.group_avatar,
+      groupLink: item.group_link || `https://zalo.me/g/${item.group_id}`,
+      memberCount: item.member_count,
+      category: item.category,
+      note: item.note,
+      submittedBy: item.submitted_by,
+      submittedByUid: item.submitted_by_uid,
+      submittedByAvatar: item.submitted_by_avatar,
+      approvedAt: item.approved_at,
+      status: item.status,
+    })),
+    pagination: data.pagination,
+    categories: data.categories,
+  } as SharedGroupsListResponse;
 }

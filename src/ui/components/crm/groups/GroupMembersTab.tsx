@@ -9,6 +9,10 @@ import CampaignCreateModal from '@/components/crm/campaigns/CampaignCreateModal'
 import AddToContactsModal from '@/components/crm/contacts/AddToContactsModal';
 import BulkGroupManageModal from '../modals/BulkGroupManageModal';
 import SmartGroupModal from '../modals/SmartGroupModal';
+import ShareGroupModal from './ShareGroupModal';
+import SharedGroupsCategoryPopup from './SharedGroupsCategoryPopup';
+import AffiliateIntroPopup from './AffiliateIntroPopup';
+import { buildZaloAuth } from '@/lib/ipc';
 import { syncZaloGroups, MemberPlaceholder, SyncGroupsProgress } from '@/lib/zaloGroupUtils';
 import Logger from '../../../../utils/Logger';
 import useIsMobile from '@/hooks/useIsMobile';
@@ -261,6 +265,12 @@ export default function GroupMembersTab() {
   // ── Resolved group info ──────────────────────────────────────────────────
   const [resolvedGroupInfo, setResolvedGroupInfo] = useState<{ groupId: string; name: string; avatar: string; creatorId?: string; adminIds?: string[] } | null>(null);
 
+  // ── Shared Groups & Affiliate Modals state ──────────────────────────────
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareGroupInfo, setShareGroupInfo] = useState<{ groupId: string; groupName: string; groupAvatar: string; memberCount: number } | null>(null);
+  const [showSharedGroupsPopup, setShowSharedGroupsPopup] = useState(false);
+  const [showAffiliatePopup, setShowAffiliatePopup] = useState(false);
+
 
   // ── Link scan state ──────────────────────────────────────────────────
   const [showLinkScanModal, setShowLinkScanModal] = useState(false);
@@ -477,6 +487,12 @@ export default function GroupMembersTab() {
 
     try {
       // ── Step 1: getGroupLinkInfo — phân trang đến khi hết (hasMoreMember = 0) ──
+      let rawLink = linkScanInput.trim();
+      let targetLink = rawLink;
+      if (!targetLink.startsWith('http') && !/^\d+$/.test(targetLink)) {
+        targetLink = `https://zalo.me/g/${targetLink}`;
+      }
+
       let groupId = '';
       let name = '';
       let avatar = '';
@@ -489,7 +505,7 @@ export default function GroupMembersTab() {
 
       while (true) {
         if (linkScanStopRef.current) break;
-        const res = await ipc.zalo?.getGroupLinkInfo({ auth, link: linkScanInput.trim(), memberPage: page });
+        const res = await ipc.zalo?.getGroupLinkInfo({ auth, link: targetLink, memberPage: page });
         if (!res?.success) {
           setLinkScanError(res?.error || 'Không thể lấy thông tin nhóm. Kiểm tra lại đường dẫn.');
           return;
@@ -975,8 +991,21 @@ export default function GroupMembersTab() {
   // ── Helper: Resolve group link → get info + save to DB ────────────────────
   const resolveAndSaveGroupInfo = useCallback(async (auth: any, linkOrId: string): Promise<{ groupId: string; name: string; avatar: string; creatorId: string; adminIds: string[] } | null> => {
     try {
-      const linkRes: any = await ipc.zalo?.getGroupLinkInfo({ auth, link: linkOrId, memberPage: 1 });
-      if (!linkRes?.success || !linkRes?.response?.groupId) return null;
+      let targetLink = linkOrId.trim();
+      if (!targetLink.startsWith('http') && !/^\d+$/.test(targetLink)) {
+        targetLink = `https://zalo.me/g/${targetLink}`;
+      } else if (/^\d+$/.test(targetLink)) {
+        targetLink = `https://zalo.me/g/${targetLink}`;
+      }
+
+      const linkRes: any = await ipc.zalo?.getGroupLinkInfo({ auth, link: targetLink, memberPage: 1 });
+      if (!linkRes?.success || !linkRes?.response?.groupId) {
+        // Dự phòng: Nếu là Group ID số sẵn có
+        if (/^\d{15,22}$/.test(linkOrId.trim())) {
+          return { groupId: linkOrId.trim(), name: linkOrId.trim(), avatar: '', creatorId: '', adminIds: [] };
+        }
+        return null;
+      }
       const data = linkRes.response;
       const groupId = data.groupId || '';
       const name = data.name || data.groupId || '';
@@ -998,7 +1027,7 @@ export default function GroupMembersTab() {
     }
   }, [activeAccountId, loadGroupsFromDB]);
 
-  // ── Scan from "Quét nâng cao" tab (Ủy quyền về Boss qua scanAdvancedGroup) ──────────────
+  // ── Scan from "Quét nâng cao" tab ──────────────
   const handleScanTab = useCallback(async () => {
     if (!activeAccountId || !scanLinkInput.trim()) return;
 
@@ -1009,49 +1038,52 @@ export default function GroupMembersTab() {
 
     const acc = useAccountStore.getState().getActiveAccount();
     if (!acc) { setScanTabError('Không tìm thấy tài khoản'); return; }
+    const auth = buildZaloAuth(acc, activeAccountId);
 
     setScanTabLoading(true);
     setScanTabError('');
     setScanTabResults([]);
     setScanTabGroupId(null);
     try {
-      let result: any = null;
+      const rawInput = scanLinkInput.trim();
+      let groupId = rawInput;
+      let groupInfoFromLink: { groupId: string; name: string; avatar: string; creatorId?: string; adminIds?: string[] } | null = null;
 
-      // 1. Ưu tiên gọi qua IPC scanAdvancedGroup (Boss sẽ giải mã auth & quét an toàn)
-      if (ipc.zalo?.scanAdvancedGroup) {
-        result = await ipc.zalo.scanAdvancedGroup({
-          zaloId: activeAccountId,
-          linkOrGroupId: scanLinkInput.trim(),
-        });
-      } else {
-        // Fallback cho môi trường không có Electron IPC
-        const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
-        let groupId = scanLinkInput.trim();
-        if (groupId.includes('zalo.me') || groupId.includes('chat.zalo.me') || /^\d+$/.test(groupId)) {
-          const info = await resolveAndSaveGroupInfo(auth, groupId);
-          if (info) {
-            groupId = info.groupId;
-            setResolvedGroupInfo(info);
-          }
-        }
-        const { scanGroupViaBackend } = await import('@/lib/backendService');
-        result = await scanGroupViaBackend({
-          pageId: activeAccountId,
-          cookie: acc.cookies || '',
-          imei: acc.imei || '',
-          groupId,
-        });
-      }
-
-      if (!result?.success) {
-        setScanTabError(result?.error || 'Quét thất bại');
+      // 1. Resolve link Zalo qua getGroupLinkInfo (hỗ trợ cả token link chữ như https://zalo.me/g/ys0msn6u0i1atxfdrqxy)
+      const info = await resolveAndSaveGroupInfo(auth, rawInput);
+      if (info) {
+        groupId = info.groupId;
+        groupInfoFromLink = info;
+        setResolvedGroupInfo(info);
+      } else if (!/^\d+$/.test(groupId)) {
+        setScanTabError('Không lấy được thông tin nhóm từ đường dẫn. Vui lòng kiểm tra lại link nhóm.');
         return;
       }
 
-      const groupId = result.groupId || scanLinkInput.trim();
+      // Validate groupId dạng số
+      if (!/^\d+$/.test(groupId)) {
+        setScanTabError('Group ID không hợp lệ. Vui lòng nhập link nhóm hoặc Group ID dạng số.');
+        return;
+      }
+
+      // 2. Gọi backend API quét sâu thành viên
+      const { scanGroupViaBackend } = await import('@/lib/backendService');
+      const result = await scanGroupViaBackend({
+        pageId: activeAccountId,
+        cookie: acc.cookies || '',
+        imei: acc.imei || '',
+        groupId,
+      });
+
+      if (!result?.success) {
+        setScanTabError(result?.error || 'Quét thất bại. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau.');
+        return;
+      }
+
       const members = result.members || [];
-      if (result.groupInfo) {
-        setResolvedGroupInfo(result.groupInfo);
+      if (members.length === 0) {
+        setScanTabError('Không tìm thấy thành viên nào trong nhóm.');
+        return;
       }
 
       setScanTabResults(members.map((m: any) => ({
@@ -1060,6 +1092,28 @@ export default function GroupMembersTab() {
         avatar: m.avatar || '',
       })));
       setScanTabGroupId(groupId);
+
+      // 3. Gán Role chính xác (Trưởng nhóm / Phó nhóm) và lưu vào SQLite DB
+      const creatorId = groupInfoFromLink?.creatorId || '';
+      const adminIdList = groupInfoFromLink?.adminIds || [];
+      const adminSet = new Set([creatorId, ...adminIdList].filter(Boolean));
+
+      await ipc.db?.saveGroupMembers({
+        zaloId: activeAccountId,
+        groupId,
+        members: members.map((m: any) => {
+          const mid = m.userId || m.id;
+          let role = 0;
+          if (mid === creatorId) role = 2;       // Trưởng nhóm
+          else if (adminSet.has(mid)) role = 1;  // Phó nhóm
+          return {
+            memberId: mid,
+            displayName: m.displayName || m.zaloName || m.userId || m.id,
+            avatar: m.avatar || '',
+            role,
+          };
+        }),
+      });
 
       await loadGroupsFromDB();
       await loadMembersFromDB(groupId);
@@ -1075,16 +1129,20 @@ export default function GroupMembersTab() {
     if (!activeAccountId || !scanLinkInput.trim()) return;
     const acc = useAccountStore.getState().getActiveAccount();
     if (!acc) return;
-    const auth = { cookies: acc.cookies, imei: acc.imei, userAgent: acc.user_agent };
+    const auth = buildZaloAuth(acc, activeAccountId);
 
     setScanJoinLoading(true);
     setScanJoinType('idle');
     setScanJoinMsg('');
     try {
-      const info = await resolveAndSaveGroupInfo(auth, scanLinkInput.trim());
+      let targetLink = scanLinkInput.trim();
+      if (!targetLink.startsWith('http') && !/^\d+$/.test(targetLink)) {
+        targetLink = `https://zalo.me/g/${targetLink}`;
+      }
+      const info = await resolveAndSaveGroupInfo(auth, targetLink);
       if (info) setResolvedGroupInfo(info);
 
-      const res = await ipc.zalo?.joinGroupLink({ auth, link: scanLinkInput.trim() });
+      const res = await ipc.zalo?.joinGroupLink({ auth, link: targetLink });
       const errCode = res?.errorCode ?? res?.error_code ?? (res?.response?.error);
       if (errCode === 178 || res?.response?.msg?.includes('already')) {
         setScanJoinType('already');
@@ -1308,13 +1366,15 @@ export default function GroupMembersTab() {
                   <button
                     onClick={handleJoinFromScanTab}
                     disabled={scanJoinLoading || !scanLinkInput.trim()}
-                    className="flex-1 sm:flex-initial px-4 py-2.5 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                    className="flex-1 sm:flex-initial px-4 py-2.5 bg-white hover:bg-gray-50 border border-gray-300 disabled:opacity-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                  >
                     {scanJoinLoading ? <>{SpinIcon} Đang join...</> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Tham gia</>}
                   </button>
                   <button
                     onClick={handleScanTab}
                     disabled={scanTabLoading || !scanLinkInput.trim()}
-                    className="flex-1 sm:flex-initial px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    className="flex-1 sm:flex-initial px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  >
                     {scanTabLoading ? (
                       <>{SpinIcon} Đang quét...</>
                     ) : (
@@ -1325,6 +1385,32 @@ export default function GroupMembersTab() {
                         Quét
                       </>
                     )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!scanLinkInput.trim()) return;
+                      let gid = scanLinkInput.trim();
+                      let gName = '';
+                      if (resolvedGroupInfo) {
+                        gid = resolvedGroupInfo.groupId;
+                        gName = resolvedGroupInfo.name;
+                      }
+                      setShareGroupInfo({
+                        groupId: gid,
+                        groupName: gName || gid,
+                        groupAvatar: resolvedGroupInfo?.avatar || '',
+                        memberCount: scanTabResults.length || 0,
+                      });
+                      setShowShareModal(true);
+                    }}
+                    disabled={!scanLinkInput.trim()}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                    Chia sẻ
                   </button>
                 </div>
               </div>
@@ -1351,7 +1437,7 @@ export default function GroupMembersTab() {
                   <p className="text-[11px] text-gray-500 mt-0.5 font-mono">ID: {resolvedGroupInfo.groupId}</p>
                 </div>
                 <button onClick={() => setResolvedGroupInfo(null)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100 cursor-pointer">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
@@ -1382,7 +1468,7 @@ export default function GroupMembersTab() {
             {/* Scan results */}
             {scanTabResults.length > 0 && (
               <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
-                <div className="px-5 py-3.5 bg-gray-50/70 border-b border-gray-200 flex items-center justify-between">
+                <div className="px-5 py-3.5 bg-gray-50/70 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-sm font-bold text-gray-900 flex items-center gap-2">
                       <span>🎉 Đã quét xong</span>
@@ -1394,14 +1480,35 @@ export default function GroupMembersTab() {
                       Dữ liệu đã tự động lưu vào tab Thành viên nhóm & CSDL máy Boss
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setActiveTab('members');
-                      if (scanTabGroupId) setSelectedGroupId(scanTabGroupId);
-                    }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm flex items-center gap-1">
-                    Xem trong tab Thành viên →
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setShareGroupInfo({
+                          groupId: scanTabGroupId || '',
+                          groupName: resolvedGroupInfo?.name || scanTabGroupId || '',
+                          groupAvatar: resolvedGroupInfo?.avatar || '',
+                          memberCount: scanTabResults.length,
+                        });
+                        setShowShareModal(true);
+                      }}
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                      </svg>
+                      Chia sẻ nhóm này
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab('members');
+                        if (scanTabGroupId) setSelectedGroupId(scanTabGroupId);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm flex items-center gap-1 cursor-pointer"
+                    >
+                      Xem trong tab Thành viên →
+                    </button>
+                  </div>
                 </div>
                 <div className="max-h-72 overflow-y-auto divide-y divide-gray-100">
                   {scanTabResults.slice(0, 50).map((m, i) => (
@@ -1421,6 +1528,51 @@ export default function GroupMembersTab() {
                 </div>
               </div>
             )}
+
+            {/* Shared groups community card */}
+            <div className="bg-white border border-gray-200/80 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center flex-shrink-0">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
+                      <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">Kho nhóm chung từ cộng đồng</p>
+                    <p className="text-[11px] text-gray-500">Cùng nhau phát triển, chia sẻ nhóm chất lượng theo 18 ngành nghề</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefits grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {[
+                  { icon: '🎯', title: 'Tiết kiệm thời gian', desc: 'Không cần tự tìm nhóm, đã có sẵn danh sách nhóm chất lượng' },
+                  { icon: '🤝', title: 'Cùng nhau phát triển', desc: 'Chia sẻ nhóm tốt giúp cộng đồng cùng tiếp cận khách hàng' },
+                  { icon: '✅', title: 'Đảm bảo chất lượng', desc: 'Mọi nhóm đều qua kiểm duyệt, hạn chế spam hoặc nhóm rác' },
+                ].map((b, i) => (
+                  <div key={i} className="bg-gray-50 border border-gray-200/60 rounded-xl p-3 text-center">
+                    <span className="text-lg">{b.icon}</span>
+                    <p className="text-xs text-gray-900 font-semibold mt-1">{b.title}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">{b.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA button */}
+              <button
+                onClick={() => setShowSharedGroupsPopup(true)}
+                className="w-full py-3 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-300 text-emerald-700 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+                Khám phá kho nhóm chung
+              </button>
+            </div>
 
             {/* Premium status */}
             <div className="bg-white border border-gray-200/80 rounded-2xl p-4 sm:p-5 shadow-sm">
@@ -2454,6 +2606,50 @@ export default function GroupMembersTab() {
             setSelectedGroupIds(new Set());
           }}
         />
+      )}
+
+      {/* ── Community & Share Group Modals ── */}
+      {showShareModal && shareGroupInfo && (
+        <ShareGroupModal
+          groupId={shareGroupInfo.groupId}
+          groupName={shareGroupInfo.groupName}
+          groupAvatar={shareGroupInfo.groupAvatar}
+          memberCount={shareGroupInfo.memberCount}
+          pageId={activeAccountId}
+          onClose={() => setShowShareModal(false)}
+          onSubmitted={() => {
+            setShowShareModal(false);
+            useAppStore.getState().showNotification('Đã gửi chia sẻ nhóm thành công! Đang chờ admin duyệt.', 'success');
+          }}
+        />
+      )}
+
+      {showSharedGroupsPopup && (
+        <SharedGroupsCategoryPopup
+          pageId={activeAccountId}
+          onClose={() => setShowSharedGroupsPopup(false)}
+          onShareGroup={() => {
+            setShowSharedGroupsPopup(false);
+            setShareGroupInfo({
+              groupId: scanLinkInput.trim() || '',
+              groupName: resolvedGroupInfo?.name || scanLinkInput.trim() || '',
+              groupAvatar: resolvedGroupInfo?.avatar || '',
+              memberCount: scanTabResults.length || 0,
+            });
+            setShowShareModal(true);
+          }}
+          onSelectGroupForScan={(groupUrl: string) => {
+            setScanLinkInput(groupUrl);
+            setActiveTab('scan');
+            setTimeout(() => {
+              handleScanTab();
+            }, 100);
+          }}
+        />
+      )}
+
+      {showAffiliatePopup && (
+        <AffiliateIntroPopup onClose={() => setShowAffiliatePopup(false)} />
       )}
       </div>
       )}
