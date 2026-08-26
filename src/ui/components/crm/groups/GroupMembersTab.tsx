@@ -87,6 +87,8 @@ const SpinIcon = (
   </svg>
 );
 
+const EMPTY_ARRAY: any[] = [];
+
 export default function GroupMembersTab() {
   const isMobile = useIsMobile();
   const { activeAccountId } = useAccountStore();
@@ -242,7 +244,10 @@ export default function GroupMembersTab() {
   const [indeterminateUnifiedLabelValues, setIndeterminateUnifiedLabelValues] = useState<string[]>([]);
   const [applyingBulkLabel, setApplyingBulkLabel] = useState(false);
 
-  const zaloLabels: LabelData[] = useAppStore(s => (activeAccountId ? s.labels[activeAccountId] || [] : []));
+  const allLabelsMap = useAppStore(s => s.labels);
+  const zaloLabels: LabelData[] = useMemo(() => {
+    return (activeAccountId && allLabelsMap[activeAccountId]) ? allLabelsMap[activeAccountId] : EMPTY_ARRAY;
+  }, [activeAccountId, allLabelsMap]);
   const accounts = useAccountStore(s => s.accounts);
 
   const loadLocalLabels = useCallback(async () => {
