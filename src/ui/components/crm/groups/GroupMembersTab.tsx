@@ -1977,7 +1977,7 @@ export default function GroupMembersTab() {
                   onClick={handleCopyGroupLink}
                   disabled={copyingLink}
                   title="Sao chép link tham gia nhóm Zalo rút gọn (zalo.me/g/slug)"
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white !text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer"
                 >
                   {copyingLink ? (
                     <svg className="animate-spin text-white" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
@@ -1989,10 +1989,10 @@ export default function GroupMembersTab() {
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                     </svg>
                   )}
-                  <span className="text-white font-semibold">{copiedLinkSuccess ? 'Đã sao chép!' : 'Sao chép link nhóm'}</span>
+                  <span className="text-white !text-white font-semibold">{copiedLinkSuccess ? 'Đã sao chép!' : 'Sao chép link nhóm'}</span>
                 </button>
                 <button onClick={fetchMembersFromAPI} disabled={membersLoading || manualLoadProgress !== null}
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer">
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white !text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer">
                   {membersLoading ? (
                     <svg className="animate-spin text-white" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
                       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -2002,7 +2002,7 @@ export default function GroupMembersTab() {
                       <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.97" />
                     </svg>
                   )}
-                  <span className="text-white font-semibold">{membersLoading ? 'Đang tải...' : 'Tải thông tin thành viên'}</span>
+                  <span className="text-white !text-white font-semibold">{membersLoading ? 'Đang tải...' : 'Tải thông tin thành viên'}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -2010,13 +2010,13 @@ export default function GroupMembersTab() {
                     setShowSmartGroupModal(true);
                   }}
                   title="Rời khỏi nhóm này"
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer">
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white !text-white text-xs font-semibold transition-colors shadow-sm cursor-pointer">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="text-white">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
-                  <span className="text-white font-semibold">Rời khỏi nhóm</span>
+                  <span className="text-white !text-white font-semibold">Rời khỏi nhóm</span>
                 </button>
               </div>
               {/* Stop button shown only during getUserInfo fallback */}

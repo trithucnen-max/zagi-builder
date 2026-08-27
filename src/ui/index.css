@@ -808,6 +808,16 @@ html[data-theme="light"] .bg-blue-500.text-white,
 html[data-theme="light"] .bg-blue-600.text-white,
 html[data-theme="light"] .bg-blue-700.text-white,
 html[data-theme="light"] .bg-blue-800.text-white,
+html[data-theme="light"] .bg-emerald-400.text-white,
+html[data-theme="light"] .bg-emerald-500.text-white,
+html[data-theme="light"] .bg-emerald-600.text-white,
+html[data-theme="light"] .bg-emerald-700.text-white,
+html[data-theme="light"] .bg-emerald-800.text-white,
+html[data-theme="light"] .bg-rose-400.text-white,
+html[data-theme="light"] .bg-rose-500.text-white,
+html[data-theme="light"] .bg-rose-600.text-white,
+html[data-theme="light"] .bg-rose-700.text-white,
+html[data-theme="light"] .bg-rose-800.text-white,
 html[data-theme="light"] .bg-red-400.text-white,
 html[data-theme="light"] .bg-red-500.text-white,
 html[data-theme="light"] .bg-red-600.text-white,
@@ -818,6 +828,9 @@ html[data-theme="light"] .bg-green-500.text-white,
 html[data-theme="light"] .bg-green-600.text-white,
 html[data-theme="light"] .bg-green-700.text-white,
 html[data-theme="light"] .bg-green-800.text-white,
+html[data-theme="light"] .bg-amber-500.text-white,
+html[data-theme="light"] .bg-amber-600.text-white,
+html[data-theme="light"] .bg-amber-700.text-white,
 html[data-theme="light"] .bg-yellow-500.text-white,
 html[data-theme="light"] .bg-yellow-600.text-white,
 html[data-theme="light"] .bg-orange-500.text-white,
@@ -834,18 +847,70 @@ html[data-theme="light"] .bg-pink-600.text-white { color: #ffffff; }
 /* Khôi phục white khi là con của nền có màu */
 html[data-theme="light"] .bg-blue-600 .text-white,
 html[data-theme="light"] .bg-blue-700 .text-white,
+html[data-theme="light"] .bg-emerald-600 .text-white,
+html[data-theme="light"] .bg-emerald-700 .text-white,
+html[data-theme="light"] .bg-rose-600 .text-white,
+html[data-theme="light"] .bg-rose-700 .text-white,
 html[data-theme="light"] .bg-red-600 .text-white,
 html[data-theme="light"] .bg-red-700 .text-white,
 html[data-theme="light"] .bg-green-600 .text-white,
 html[data-theme="light"] .bg-green-700 .text-white,
+html[data-theme="light"] .bg-amber-600 .text-white,
+html[data-theme="light"] .bg-amber-700 .text-white,
 html[data-theme="light"] .bg-purple-600 .text-white,
-html[data-theme="light"] .bg-indigo-600 .text-white { color: #ffffff; }
+html[data-theme="light"] .bg-indigo-600 .text-white,
+html[data-theme="light"] .bg-teal-600 .text-white { color: #ffffff; }
+
+/* Các nút có nền màu sắc luôn giữ chữ và icon màu trắng tuyệt đối */
+html[data-theme="light"] button.bg-emerald-600,
+html[data-theme="light"] button.bg-emerald-700,
+html[data-theme="light"] button.bg-rose-600,
+html[data-theme="light"] button.bg-rose-700,
+html[data-theme="light"] button.bg-blue-600,
+html[data-theme="light"] button.bg-blue-700,
+html[data-theme="light"] button.bg-red-600,
+html[data-theme="light"] button.bg-red-700,
+html[data-theme="light"] button.bg-green-600,
+html[data-theme="light"] button.bg-amber-600 {
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] button.bg-emerald-600 span,
+html[data-theme="light"] button.bg-emerald-700 span,
+html[data-theme="light"] button.bg-rose-600 span,
+html[data-theme="light"] button.bg-rose-700 span,
+html[data-theme="light"] button.bg-blue-600 span,
+html[data-theme="light"] button.bg-blue-700 span,
+html[data-theme="light"] button.bg-red-600 span,
+html[data-theme="light"] button.bg-red-700 span,
+html[data-theme="light"] button.bg-green-600 span,
+html[data-theme="light"] button.bg-amber-600 span {
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] button.bg-emerald-600 svg,
+html[data-theme="light"] button.bg-emerald-700 svg,
+html[data-theme="light"] button.bg-rose-600 svg,
+html[data-theme="light"] button.bg-rose-700 svg,
+html[data-theme="light"] button.bg-blue-600 svg,
+html[data-theme="light"] button.bg-blue-700 svg,
+html[data-theme="light"] button.bg-red-600 svg,
+html[data-theme="light"] button.bg-red-700 svg,
+html[data-theme="light"] button.bg-green-600 svg,
+html[data-theme="light"] button.bg-amber-600 svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
+}
 
 /* Hover lên nền màu → giữ white */
 html[data-theme="light"] .hover\:bg-red-600:hover .hover\:text-white,
 html[data-theme="light"] .hover\:bg-red-600.hover\:text-white:hover,
+html[data-theme="light"] .hover\:bg-rose-600:hover .hover\:text-white,
+html[data-theme="light"] .hover\:bg-rose-600.hover\:text-white:hover,
 html[data-theme="light"] .hover\:bg-blue-600.hover\:text-white:hover,
 html[data-theme="light"] .hover\:bg-blue-700.hover\:text-white:hover,
+html[data-theme="light"] .hover\:bg-emerald-600.hover\:text-white:hover,
+html[data-theme="light"] .hover\:bg-emerald-700.hover\:text-white:hover,
 html[data-theme="light"] .hover\:bg-green-600.hover\:text-white:hover { color: #ffffff; }
 
 /* ── 2. Accent colors quá nhạt → đậm hơn trong light theme ──────────────── */
