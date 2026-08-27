@@ -803,6 +803,9 @@ html[data-theme="light"] .text-white { color: #1a1917; }
 html[data-theme="light"] .hover\:text-white:hover { color: #1a1917; }
 
 /* Khôi phục white khi cùng element với nền có màu (buttons, badges...) */
+html[data-theme="light"] .bg-\[\#0068ff\].text-white,
+html[data-theme="light"] .bg-\[\#005ae0\].text-white,
+html[data-theme="light"] .bg-\[\#005cd9\].text-white,
 html[data-theme="light"] .bg-blue-400.text-white,
 html[data-theme="light"] .bg-blue-500.text-white,
 html[data-theme="light"] .bg-blue-600.text-white,
@@ -845,6 +848,9 @@ html[data-theme="light"] .bg-pink-500.text-white,
 html[data-theme="light"] .bg-pink-600.text-white { color: #ffffff; }
 
 /* Khôi phục white khi là con của nền có màu */
+html[data-theme="light"] .bg-\[\#0068ff\] .text-white,
+html[data-theme="light"] .bg-\[\#005ae0\] .text-white,
+html[data-theme="light"] .bg-\[\#005cd9\] .text-white,
 html[data-theme="light"] .bg-blue-600 .text-white,
 html[data-theme="light"] .bg-blue-700 .text-white,
 html[data-theme="light"] .bg-emerald-600 .text-white,
@@ -862,6 +868,9 @@ html[data-theme="light"] .bg-indigo-600 .text-white,
 html[data-theme="light"] .bg-teal-600 .text-white { color: #ffffff; }
 
 /* Các nút có nền màu sắc luôn giữ chữ và icon màu trắng tuyệt đối */
+html[data-theme="light"] button.bg-\[\#0068ff\],
+html[data-theme="light"] button.bg-\[\#005ae0\],
+html[data-theme="light"] button.bg-\[\#005cd9\],
 html[data-theme="light"] button.bg-emerald-600,
 html[data-theme="light"] button.bg-emerald-700,
 html[data-theme="light"] button.bg-rose-600,
@@ -875,6 +884,9 @@ html[data-theme="light"] button.bg-amber-600 {
   color: #ffffff !important;
 }
 
+html[data-theme="light"] button.bg-\[\#0068ff\] span,
+html[data-theme="light"] button.bg-\[\#005ae0\] span,
+html[data-theme="light"] button.bg-\[\#005cd9\] span,
 html[data-theme="light"] button.bg-emerald-600 span,
 html[data-theme="light"] button.bg-emerald-700 span,
 html[data-theme="light"] button.bg-rose-600 span,
@@ -888,6 +900,9 @@ html[data-theme="light"] button.bg-amber-600 span {
   color: #ffffff !important;
 }
 
+html[data-theme="light"] button.bg-\[\#0068ff\] svg,
+html[data-theme="light"] button.bg-\[\#005ae0\] svg,
+html[data-theme="light"] button.bg-\[\#005cd9\] svg,
 html[data-theme="light"] button.bg-emerald-600 svg,
 html[data-theme="light"] button.bg-emerald-700 svg,
 html[data-theme="light"] button.bg-rose-600 svg,

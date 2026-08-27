@@ -487,22 +487,22 @@ export default function SmartGroupModal({
                         onClick={() => setOwnerGroupActions(prev => ({ ...prev, [g.contact_id]: 'leave' }))}
                         className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all ${
                           action === 'leave'
-                            ? 'bg-[#0068ff] text-white shadow-sm'
+                            ? 'bg-[#0068ff] text-white !text-white shadow-sm'
                             : 'text-gray-500 hover:bg-gray-150 dark:hover:bg-gray-800'
                         }`}
                       >
-                        👑 Nhượng quyền & Rời
+                        <span className={action === 'leave' ? 'text-white !text-white' : ''}>👑 Nhượng quyền & Rời</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setOwnerGroupActions(prev => ({ ...prev, [g.contact_id]: 'disperse' }))}
                         className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all ${
                           action === 'disperse'
-                            ? 'bg-red-600 text-white shadow-sm'
+                            ? 'bg-red-600 text-white !text-white shadow-sm'
                             : 'text-gray-500 hover:bg-gray-150 dark:hover:bg-gray-800'
                         }`}
                       >
-                        ❌ Giải tán nhóm
+                        <span className={action === 'disperse' ? 'text-white !text-white' : ''}>❌ Giải tán nhóm</span>
                       </button>
                     </div>
 

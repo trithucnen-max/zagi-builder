@@ -1296,7 +1296,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
           </button>
 
           <button onClick={autoLayout}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-xl transition-all"
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/20 text-gray-800 dark:text-gray-200 text-xs font-semibold rounded-xl transition-all"
             title="Căn chỉnh tự động các Node sơ đồ">
             ✨ Căn chỉnh
           </button>
