@@ -391,11 +391,15 @@ function UserConversationInfo() {
         }).catch(() => {});
       }
 
-      // Save salutation and pipeline_stage_id via patchContactFields and updateContactPipelineStage
+      // Save all updated fields to DB via patchContactFields
       await ipc.db?.patchContactFields({
         zaloId: activeAccountId,
         contactId: contact.contact_id,
         fields: {
+          alias: trimmedAlias,
+          phone: editPhone.trim(),
+          gender: editGender,
+          birthday: editBirthday.trim(),
           salutation: editSalutation.trim() || null,
           pipeline_stage_id: editPipelineStageId,
         }

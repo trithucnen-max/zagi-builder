@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useCRMStore, type CRMContact, type CRMNote } from '@/store/crmStore';
+import { useChatStore } from '@/store/chatStore';
 import type { LabelData } from '@/store/appStore';
 import ipc from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
@@ -370,6 +371,46 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
   const [noteTab, setNoteTab] = useState<'local' | 'zalo'>('local');
 
   const pipelineStages = useCRMStore(s => s.pipelineStages);
+  const setPipelineStages = useCRMStore(s => s.setPipelineStages);
+  const [showStageDropdown, setShowStageDropdown] = useState(false);
+  const stageDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Auto-load pipeline stages if empty
+  useEffect(() => {
+    if (pipelineStages.length === 0) {
+      ipc.db?.getPipelineStages().then((res: any) => {
+        if (res?.success && res.stages) {
+          const sorted = [...res.stages].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+          setPipelineStages(sorted);
+        }
+      }).catch(() => {});
+    }
+  }, [pipelineStages.length]);
+
+  const sortedPipelineStages = useMemo(() => {
+    return [...pipelineStages].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  }, [pipelineStages]);
+
+  const currentStage = useMemo(() => {
+    return sortedPipelineStages.find(s => s.id === contact.pipeline_stage_id);
+  }, [sortedPipelineStages, contact.pipeline_stage_id]);
+
+  const currentStep = useMemo(() => {
+    if (!currentStage) return 0;
+    return currentStage.position !== undefined ? currentStage.position : (sortedPipelineStages.findIndex(s => s.id === currentStage.id) + 1);
+  }, [currentStage, sortedPipelineStages]);
+
+  // Close stage dropdown on outside click
+  useEffect(() => {
+    if (!showStageDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (stageDropdownRef.current && !stageDropdownRef.current.contains(e.target as Node)) {
+        setShowStageDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showStageDropdown]);
 
   // New state variables for notes & AI
   const [generatingAI, setGeneratingAI] = useState(false);
@@ -395,7 +436,7 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
         fields: { [field]: value }
       });
       if (res?.success) {
-        // Update Zustand store
+        // Update Zustand crmStore
         const crmStore = useCRMStore.getState();
         crmStore.setContacts(
           crmStore.contacts.map(c =>
@@ -403,6 +444,11 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
           ),
           crmStore.totalContacts
         );
+        // Also update chatStore
+        useChatStore.getState().updateContact(activeAccountId, {
+          contact_id: contact.contact_id,
+          [field]: value,
+        });
         showNotification('Đã cập nhật', 'success');
       } else {
         showNotification('Lỗi khi lưu: ' + (res?.error || 'Không rõ'), 'error');
@@ -676,6 +722,11 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
           ),
           currentState.totalContacts
         );
+        // Sync with chatStore
+        useChatStore.getState().updateContact(activeAccountId, {
+          contact_id: contact.contact_id,
+          pipeline_stage_id: stageId,
+        });
         showNotification('Đã cập nhật giai đoạn Pipeline', 'success');
       } else {
         showNotification('Lỗi: Không thể cập nhật giai đoạn Pipeline', 'error');
@@ -1222,22 +1273,87 @@ ${notesText}`;
           <p className="text-[10px] text-gray-500">ID: {contact.contact_id}</p>
         </div>
 
-        {/* Pipeline Stage Selector */}
-        <div className="space-y-1.5">
-          <label className="text-xs text-gray-700 font-semibold block">Trạng thái Pipeline</label>
-          <select
-            value={contact.pipeline_stage_id || ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              handleUpdatePipelineStage(val ? Number(val) : null);
-            }}
-            className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 focus:outline-none focus:border-blue-500 transition-colors"
+        {/* Pipeline Stage Selector matching Chat UI */}
+        <div className="relative space-y-1.5" ref={stageDropdownRef}>
+          <label className="text-xs text-gray-700 dark:text-gray-300 font-semibold block">Trạng thái Pipeline</label>
+          <button
+            type="button"
+            onClick={() => setShowStageDropdown(p => !p)}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white hover:border-gray-400 dark:hover:border-gray-600 focus:outline-none transition-colors shadow-2xs cursor-pointer"
           >
-            <option value="">Chưa phân loại</option>
-            {pipelineStages.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+            <div className="flex items-center gap-2.5 truncate">
+              <span
+                className="w-5 h-5 rounded-full text-white !text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-xs"
+                style={{ backgroundColor: currentStage ? currentStage.color : '#9CA3AF' }}
+              >
+                {currentStep}
+              </span>
+              <span className="truncate font-medium">
+                {currentStage ? currentStage.name : 'Chưa phân loại'}
+              </span>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-400 flex-shrink-0">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {showStageDropdown && (
+            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl p-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 text-gray-900 dark:text-white">
+              <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <span>Giai đoạn Pipeline</span>
+                <span className="text-gray-400 font-normal">CRM</span>
+              </div>
+              <div className="py-1 max-h-60 overflow-y-auto space-y-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleUpdatePipelineStage(null);
+                    setShowStageDropdown(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-750 cursor-pointer ${
+                    !currentStage ? 'bg-blue-50 dark:bg-gray-700/80 font-bold text-blue-600 dark:text-white' : 'text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-gray-400 text-white !text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                      0
+                    </span>
+                    <span className="font-medium">Chưa phân loại</span>
+                  </div>
+                  {!currentStage && <span className="text-blue-500 font-bold text-xs">✓</span>}
+                </button>
+
+                {sortedPipelineStages.map((stage, idx) => {
+                  const isSelected = contact.pipeline_stage_id === stage.id;
+                  const stepNum = stage.position !== undefined ? stage.position : idx + 1;
+                  return (
+                    <button
+                      key={stage.id}
+                      type="button"
+                      onClick={() => {
+                        handleUpdatePipelineStage(stage.id);
+                        setShowStageDropdown(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-750 cursor-pointer ${
+                        isSelected ? 'bg-blue-50 dark:bg-gray-700/80 font-bold text-blue-600 dark:text-white' : 'text-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        <span
+                          className="w-5 h-5 rounded-full text-white !text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-xs"
+                          style={{ backgroundColor: stage.color }}
+                        >
+                          {stepNum}
+                        </span>
+                        <span className="truncate font-medium">{stage.name}</span>
+                      </div>
+                      {isSelected && <span className="text-blue-500 font-bold text-xs">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Unified Label Management (Local & Zalo) */}

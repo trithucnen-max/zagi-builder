@@ -3953,7 +3953,12 @@ class DatabaseService {
         const sets: string[] = [];
         const vals: any[] = [];
         if (fields.alias !== undefined)      { sets.push('alias=?');      vals.push(fields.alias ?? ''); }
-        if (fields.salutation !== undefined) { sets.push('salutation=?'); vals.push(fields.salutation || null); }
+        if (fields.salutation !== undefined) {
+            sets.push('salutation=?');
+            vals.push(fields.salutation || null);
+            sets.push('salutation_manual=?');
+            vals.push(fields.salutation ? 1 : 0);
+        }
         if (fields.phone !== undefined)      { sets.push('phone=?');      vals.push(this.normalizeVietnamPhone(fields.phone ?? '')); }
         if (fields.gender !== undefined)     { sets.push('gender=?');     vals.push(fields.gender); }
         if (fields.birthday !== undefined)   {
