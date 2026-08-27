@@ -2071,6 +2071,7 @@ export default class ZaloService {
         allowAddNewOption?: boolean;
         hideVotePreview?: boolean;
         isAnonymous?: boolean;
+        pinAct?: boolean;
     }, groupId: string): Promise<any> {
         if (!this.api) throw new Error("API not initialized");
         try { return await (this.api as any).createPoll(options, groupId); } catch (error) { throw error; }

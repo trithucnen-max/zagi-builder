@@ -58,6 +58,29 @@ async function main() {
     console.error('[patch-icon] ❌ rcedit failed:', err.message);
     console.error('             Try running as Administrator if permission denied.');
   }
+
+  patchZcaPoll();
+}
+
+function patchZcaPoll() {
+  try {
+    const files = [
+      path.resolve(__dirname, '../node_modules/zca-js/dist/apis/createPoll.js'),
+      path.resolve(__dirname, '../node_modules/zca-js/dist/cjs/apis/createPoll.cjs')
+    ];
+    for (const f of files) {
+      if (fs.existsSync(f)) {
+        let content = fs.readFileSync(f, 'utf8');
+        if (content.includes('pinAct: false')) {
+          content = content.replace('pinAct: false', 'pinAct: !!options.pinAct');
+          fs.writeFileSync(f, content, 'utf8');
+          console.log('[patch-zca-poll] ✅ Patched pinAct in', path.basename(f));
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[patch-zca-poll] Could not patch zca-js poll:', e.message);
+  }
 }
 
 main();

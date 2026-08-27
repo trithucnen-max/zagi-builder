@@ -2960,23 +2960,71 @@ function PollBubble({ msg, isSent, activeAccountId, threadId }: { msg: any; isSe
 }
 
 
-/** CreatePollDialog — tạo cuộc bình chọn mới trong nhóm */
+/** CreatePollDialog — tạo cuộc bình chọn mới trong nhóm chuẩn 100% theo Zalo */
 export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }: {
   groupId: string; activeAccountId: string; channel?: string; onClose: () => void;
 }) {
+  const { showNotification } = useAppStore();
+
   const [question, setQuestion] = React.useState('');
   const [options, setOptions] = React.useState(['', '']);
   const [expiredTime, setExpiredTime] = React.useState('');
-  const [allowMulti, setAllowMulti] = React.useState(true);
-  const [allowAdd, setAllowAdd] = React.useState(true);
-  const [hidePreview, setHidePreview] = React.useState(false);
-  const [isAnon, setIsAnon] = React.useState(false);
   const [creating, setCreating] = React.useState(false);
-  const { showNotification } = useAppStore();
+
+  // Load defaults from localStorage if available
+  const [pinAct, setPinAct] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zagi_poll_defaults');
+      if (saved) return JSON.parse(saved).pinAct ?? false;
+    } catch {}
+    return false;
+  });
+
+  const [allowMulti, setAllowMulti] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zagi_poll_defaults');
+      if (saved) return JSON.parse(saved).allowMulti ?? true;
+    } catch {}
+    return true;
+  });
+
+  const [allowAdd, setAllowAdd] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zagi_poll_defaults');
+      if (saved) return JSON.parse(saved).allowAdd ?? true;
+    } catch {}
+    return true;
+  });
+
+  const [hidePreview, setHidePreview] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zagi_poll_defaults');
+      if (saved) return JSON.parse(saved).hidePreview ?? false;
+    } catch {}
+    return false;
+  });
+
+  const [isAnon, setIsAnon] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('zagi_poll_defaults');
+      if (saved) return JSON.parse(saved).isAnon ?? false;
+    } catch {}
+    return false;
+  });
 
   const setOption = (i: number, val: string) => setOptions(prev => prev.map((o, idx) => idx === i ? val : o));
   const addOption = () => { if (options.length < 20) setOptions(prev => [...prev, '']); };
   const removeOption = (i: number) => { if (options.length > 2) setOptions(prev => prev.filter((_, idx) => idx !== i)); };
+
+  const handleSaveDefaults = () => {
+    try {
+      const defaults = { pinAct, allowMulti, allowAdd, hidePreview, isAnon };
+      localStorage.setItem('zagi_poll_defaults', JSON.stringify(defaults));
+      showNotification('Đã lưu thiết lập mặc định cho các lần tạo bình chọn sau', 'success');
+    } catch {
+      showNotification('Không thể lưu thiết lập mặc định', 'error');
+    }
+  };
 
   const handleCreate = async (keepOpen = false) => {
     const q = question.trim();
@@ -3004,6 +3052,7 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
             question: q,
             options: opts,
             expiredTime: expMs,
+            pinAct,
             allowMultiChoices: allowMulti,
             allowAddNewOption: allowAdd,
             hideVotePreview: hidePreview,
@@ -3013,7 +3062,7 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
         });
       }
       if (res?.success) {
-        showNotification('Đã tạo bình chọn', 'success');
+        showNotification('Đã tạo bình chọn thành công' + (pinAct ? ' và ghim lên đầu nhóm' : ''), 'success');
         if (keepOpen) {
           setQuestion('');
           setOptions(['', '']);
@@ -3028,14 +3077,21 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
     } finally { setCreating(false); }
   };
 
+  const isSubmitDisabled = creating || !question.trim() || options.filter(o => o.trim()).length < 2;
+
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#1e2535] rounded-2xl shadow-2xl border border-gray-700 w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col"
-        onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-xs animate-in fade-in duration-150" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-[#1e2535] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-2xl mx-4 max-h-[92vh] flex flex-col overflow-hidden text-gray-900 dark:text-white"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 flex-shrink-0">
-          <h2 className="text-white font-bold text-lg">Tạo bình chọn</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-colors">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <h2 className="text-gray-900 dark:text-white font-bold text-lg">Tạo bình chọn</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -3045,35 +3101,43 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left: question + options */}
+            {/* Left Column: Question + Options */}
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-gray-300 font-medium mb-1.5 block">Chủ đề bình chọn</label>
-                <textarea
-                  value={question}
-                  onChange={e => setQuestion(e.target.value)}
-                  maxLength={200}
-                  placeholder="Đặt câu hỏi bình chọn"
-                  rows={3}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
-                />
-                <p className="text-right text-xs text-gray-500 mt-0.5">{question.length}/200</p>
+                <label className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1.5 block">Chủ đề bình chọn</label>
+                <div className="relative">
+                  <textarea
+                    value={question}
+                    onChange={e => setQuestion(e.target.value)}
+                    maxLength={200}
+                    placeholder="Đặt câu hỏi bình chọn"
+                    rows={4}
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors resize-none shadow-2xs"
+                  />
+                  <span className="absolute right-2.5 bottom-2 text-xs text-gray-400 font-medium select-none">
+                    {question.length}/200
+                  </span>
+                </div>
               </div>
 
               <div>
-                <label className="text-sm text-gray-300 font-medium mb-1.5 block">Các lựa chọn</label>
-                <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1.5 block">Các lựa chọn</label>
+                <div className="space-y-2.5">
                   {options.map((opt, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <input
                         value={opt}
                         onChange={e => setOption(i, e.target.value)}
                         placeholder={`Lựa chọn ${i + 1}`}
-                        className="flex-1 bg-gray-800 border border-gray-600 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                        className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors shadow-2xs"
                       />
                       {options.length > 2 && (
-                        <button onClick={() => removeOption(i)}
-                          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-red-400 transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => removeOption(i)}
+                          className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                          title="Xóa lựa chọn này"
+                        >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                           </svg>
@@ -3083,9 +3147,12 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
                   ))}
                 </div>
                 {options.length < 20 && (
-                  <button onClick={addOption}
-                    className="mt-2 flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <button
+                    type="button"
+                    onClick={addOption}
+                    className="mt-3 inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-semibold transition-colors cursor-pointer"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
                     Thêm lựa chọn
@@ -3094,44 +3161,75 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
               </div>
             </div>
 
-            {/* Right: settings */}
+            {/* Right Column: Deadline + Advanced & Anonymous Settings */}
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-gray-300 font-medium mb-1.5 block">Thời hạn bình chọn</label>
+                <label className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1.5 block">Thời hạn bình chọn</label>
                 <div className="relative">
-                  <DateInputVN
+                  <input
                     type="datetime-local"
                     value={expiredTime}
                     onChange={e => setExpiredTime(e.target.value)}
                     min={new Date().toISOString().slice(0, 16)}
-                    placeholder="Không thời hạn"
-                    className="w-full bg-gray-800 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors shadow-2xs cursor-pointer"
                   />
                   {expiredTime && (
-                    <button onClick={() => setExpiredTime('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                    <button
+                      type="button"
+                      onClick={() => setExpiredTime('')}
+                      className="absolute right-9 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors p-1 cursor-pointer"
+                      title="Bỏ thời hạn (vô thời hạn)"
+                    >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                       </svg>
                     </button>
                   )}
                 </div>
-                {!expiredTime && <p className="text-xs text-gray-500 mt-1">Không giới hạn thời gian</p>}
+                {!expiredTime && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Không thời hạn</p>
+                )}
               </div>
 
               <div>
-                <p className="text-sm text-gray-300 font-medium mb-2">Thiết lập nâng cao</p>
-                <div className="space-y-2.5">
-                  <PollToggle label="Chọn nhiều phương án" checked={allowMulti} onChange={setAllowMulti} />
-                  <PollToggle label="Có thể thêm phương án" checked={allowAdd} onChange={setAllowAdd} />
+                <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1.5">Thiết lập nâng cao</p>
+                <div className="space-y-1 bg-gray-50 dark:bg-gray-800/60 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <PollToggle
+                    label="Ghim lên đầu trò chuyện"
+                    checked={pinAct}
+                    onChange={setPinAct}
+                    tooltip="Tự động ghim cuộc bình chọn lên đầu nhóm ngay sau khi tạo"
+                  />
+                  <PollToggle
+                    label="Chọn nhiều phương án"
+                    checked={allowMulti}
+                    onChange={setAllowMulti}
+                    tooltip="Thành viên trong nhóm có thể bình chọn nhiều hơn 1 phương án"
+                  />
+                  <PollToggle
+                    label="Có thể thêm phương án"
+                    checked={allowAdd}
+                    onChange={setAllowAdd}
+                    tooltip="Cho phép các thành viên khác trong nhóm tự thêm phương án mới vào bình chọn"
+                  />
                 </div>
               </div>
 
               <div>
-                <p className="text-sm text-gray-300 font-medium mb-2">Bình chọn ẩn danh</p>
-                <div className="space-y-2.5">
-                  <PollToggle label="Ẩn kết quả khi chưa bình chọn" checked={hidePreview} onChange={setHidePreview} />
-                  <PollToggle label="Ẩn người bình chọn" checked={isAnon} onChange={setIsAnon} />
+                <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1.5">Bình chọn ẩn danh</p>
+                <div className="space-y-1 bg-gray-50 dark:bg-gray-800/60 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <PollToggle
+                    label="Ẩn kết quả khi chưa bình chọn"
+                    checked={hidePreview}
+                    onChange={setHidePreview}
+                    tooltip="Thành viên phải bỏ phiếu bình chọn trước mới xem được kết quả hiện tại"
+                  />
+                  <PollToggle
+                    label="Ẩn người bình chọn"
+                    checked={isAnon}
+                    onChange={setIsAnon}
+                    tooltip="Ẩn danh tính của người bình chọn (không ai thấy ai đã chọn phương án nào)"
+                  />
                 </div>
               </div>
             </div>
@@ -3139,39 +3237,91 @@ export function CreatePollDialog({ groupId, activeAccountId, channel, onClose }:
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-700 flex-shrink-0">
-          <button onClick={onClose}
-            className="px-5 py-2 rounded-xl text-sm font-semibold text-gray-400 hover:text-gray-250 transition-colors">
-            Huỷ
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-850/50 flex-shrink-0">
+          <button
+            type="button"
+            onClick={handleSaveDefaults}
+            className="p-2.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+            title="Lưu các thiết lập bật/tắt hiện tại làm mặc định cho các lần tạo bình chọn sau"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span className="hidden sm:inline">Lưu mặc định</span>
           </button>
-          <button onClick={() => handleCreate(true)} disabled={creating || !question.trim() || options.filter(o => o.trim()).length < 2}
-            className="px-5 py-2 rounded-xl text-sm font-semibold bg-gray-800 hover:bg-gray-750 text-gray-200 border border-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-            {creating && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
-            Tạo & Nhập tiếp
-          </button>
-          <button onClick={() => handleCreate(false)} disabled={creating || !question.trim() || options.filter(o => o.trim()).length < 2}
-            className="px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-            {creating && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
-            Tạo bình chọn
-          </button>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+            >
+              Huỷ
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCreate(true)}
+              disabled={isSubmitDisabled}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-200 dark:bg-gray-750 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+            >
+              {creating && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
+              Tạo & Nhập tiếp
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCreate(false)}
+              disabled={isSubmitDisabled}
+              className="px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm cursor-pointer"
+            >
+              {creating && <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>}
+              Tạo bình chọn
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function PollToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function PollToggle({
+  label,
+  checked,
+  onChange,
+  tooltip,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  tooltip?: string;
+}) {
   return (
-    <label className="flex items-center justify-between cursor-pointer select-none">
-      <span className="text-sm text-gray-300">{label}</span>
+    <div className="flex items-center justify-between py-1 select-none">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+        <span>{label}</span>
+        {tooltip && (
+          <span
+            className="w-4 h-4 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-blue-500 flex items-center justify-center text-[10px] cursor-help transition-colors"
+            title={tooltip}
+          >
+            ?
+          </span>
+        )}
+      </div>
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-blue-600' : 'bg-gray-600'}`}
+        className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer ${
+          checked ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+        }`}
       >
-        <span className={`absolute top-0.5 left-0 w-4 h-4 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        <span
+          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+            checked ? 'translate-x-5' : 'translate-x-0'
+          }`}
+        />
       </button>
-    </label>
+    </div>
   );
 }
 
