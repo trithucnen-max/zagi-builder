@@ -521,7 +521,7 @@ export default function SmartGroupModal({
                             <option value="">-- Chọn thành viên nhận quyền Trưởng nhóm --</option>
                             {members.map(m => (
                               <option key={m.member_id} value={m.member_id}>
-                                {m.display_name || m.member_id} ({m.member_id})
+                                {m.display_name || m.member_id}
                               </option>
                             ))}
                           </select>
@@ -698,13 +698,11 @@ export default function SmartGroupModal({
                   : isSingle
                     ? (isDisperseSingle ? 'Giải tán nhóm' : 'Rời nhóm')
                     : (hasDisperse ? `Xử lý ${selectedGroupIds.length} nhóm` : `Rời ${selectedGroupIds.length} nhóm`);
-                const btnBg = isDisperseSingle || (hasDisperse && !isSingle)
-                  ? 'bg-red-600 hover:bg-red-500'
-                  : 'bg-[#f28882] dark:bg-red-600 hover:bg-[#f0746d] dark:hover:bg-red-500';
+                const btnBg = 'bg-red-600 hover:bg-red-700';
                 return (
                   <button onClick={executeLeave} disabled={!canExecute}
-                    className={`flex-1 py-2 rounded-xl text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm ${btnBg}`}>
-                    {buttonText}
+                    className={`flex-1 py-2 rounded-xl text-white !text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm cursor-pointer ${btnBg}`}>
+                    <span className="text-white !text-white font-semibold">{buttonText}</span>
                   </button>
                 );
               })()}
