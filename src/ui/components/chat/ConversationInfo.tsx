@@ -49,6 +49,7 @@ function defaultSalutation(gender?: number | null): string {
 function UserConversationInfo() {
   const { activeThreadId, activeThreadType, contacts, updateContact } = useChatStore();
   const { activeAccountId, getActiveAccount } = useAccountStore();
+  const { pipelineStages, setPipelineStages } = useCRMStore();
   const { showNotification, setMuted, clearMuted, isMuted: isMutedFn } = useAppStore();
 
   const [isPinned, setIsPinned] = useState(false);
@@ -59,6 +60,9 @@ function UserConversationInfo() {
   const [editBirthday, setEditBirthday] = useState('');
   const [editGender, setEditGender] = useState<number>(0);
   const [editSalutation, setEditSalutation] = useState('');
+  const [editPipelineStageId, setEditPipelineStageId] = useState<number | null>(null);
+  const [showStageDropdown, setShowStageDropdown] = useState(false);
+  const stageDropdownRef = useRef<HTMLDivElement>(null);
   const [hovering, setHovering] = useState(false);
 
   const [muteDropdownOpen, setMuteDropdownOpen] = useState(false);
@@ -80,6 +84,30 @@ function UserConversationInfo() {
   // Hiển thị: ưu tiên alias → display_name
   const displayName = contact?.alias || contact?.display_name || activeThreadId || '';
   const avatarUrl = contact?.avatar_url || '';
+  const currentStage = pipelineStages.find(s => s.id === contact?.pipeline_stage_id);
+
+  // Load pipeline stages if not loaded
+  useEffect(() => {
+    if (pipelineStages.length === 0) {
+      ipc.db?.getPipelineStages().then((res: any) => {
+        if (res?.success && res.stages) {
+          setPipelineStages(res.stages);
+        }
+      }).catch(() => {});
+    }
+  }, [pipelineStages.length]);
+
+  // Close stage dropdown on outside click
+  useEffect(() => {
+    if (!showStageDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (stageDropdownRef.current && !stageDropdownRef.current.contains(e.target as Node)) {
+        setShowStageDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showStageDropdown]);
 
   // Check friends table mỗi khi thread thay đổi
   useEffect(() => {
@@ -283,7 +311,43 @@ function UserConversationInfo() {
     setEditBirthday(contact.birthday || '');
     setEditGender(contact.gender ?? 0);
     setEditSalutation(contact.salutation || '');
+    setEditPipelineStageId(contact.pipeline_stage_id ?? null);
     setIsEditingProfile(true);
+  };
+
+  const handleQuickUpdateStage = async (stageId: number | null) => {
+    if (!activeAccountId || !contact) return;
+    try {
+      const res = await ipc.db?.updateContactPipelineStage({
+        ownerZaloId: activeAccountId,
+        contactId: contact.contact_id,
+        stageId,
+      });
+      if (res?.success) {
+        updateContact(activeAccountId, {
+          contact_id: contact.contact_id,
+          pipeline_stage_id: stageId,
+        });
+        const crmStore = useCRMStore.getState();
+        if (crmStore.contacts && crmStore.contacts.length > 0) {
+          crmStore.setContacts(
+            crmStore.contacts.map(c =>
+              c.contact_id === contact.contact_id ? { ...c, pipeline_stage_id: stageId } : c
+            ),
+            crmStore.totalContacts
+          );
+        }
+        const stageObj = pipelineStages.find(s => s.id === stageId);
+        showNotification(
+          stageObj ? `Đã chuyển sang giai đoạn: ${stageObj.name}` : 'Đã chuyển sang Chưa phân loại',
+          'success'
+        );
+      }
+    } catch (err: any) {
+      showNotification('Lỗi cập nhật Pipeline: ' + err.message, 'error');
+    } finally {
+      setShowStageDropdown(false);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -324,11 +388,20 @@ function UserConversationInfo() {
         }).catch(() => {});
       }
 
-      // Save salutation via patchContactFields
+      // Save salutation and pipeline_stage_id via patchContactFields and updateContactPipelineStage
       await ipc.db?.patchContactFields({
         zaloId: activeAccountId,
         contactId: contact.contact_id,
-        fields: { salutation: editSalutation.trim() || null }
+        fields: {
+          salutation: editSalutation.trim() || null,
+          pipeline_stage_id: editPipelineStageId,
+        }
+      });
+
+      await ipc.db?.updateContactPipelineStage({
+        ownerZaloId: activeAccountId,
+        contactId: contact.contact_id,
+        stageId: editPipelineStageId,
       });
 
       updateContact(activeAccountId, {
@@ -337,7 +410,8 @@ function UserConversationInfo() {
         phone: editPhone.trim(),
         gender: editGender,
         birthday: editBirthday.trim(),
-        salutation: editSalutation.trim() || null
+        salutation: editSalutation.trim() || null,
+        pipeline_stage_id: editPipelineStageId,
       });
 
       // Sync with crmStore if it has data
@@ -353,7 +427,8 @@ function UserConversationInfo() {
                     phone: editPhone.trim(),
                     gender: editGender,
                     birthday: editBirthday.trim(),
-                    salutation: editSalutation.trim() || null
+                    salutation: editSalutation.trim() || null,
+                    pipeline_stage_id: editPipelineStageId,
                   }
                 : c
             ),
@@ -574,6 +649,21 @@ function UserConversationInfo() {
               />
             </div>
             <div className="flex flex-col gap-0.5 w-full">
+              <label className="text-[10px] uppercase font-bold text-gray-400 self-start">Giai đoạn Pipeline (CRM)</label>
+              <select
+                value={editPipelineStageId ?? ''}
+                onChange={e => setEditPipelineStageId(e.target.value === '' ? null : Number(e.target.value))}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="">⚪ Chưa phân loại</option>
+                {pipelineStages.map(stage => (
+                  <option key={stage.id} value={stage.id}>
+                    🎯 {stage.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-0.5 w-full">
               <label className="text-[10px] uppercase font-bold text-gray-400 self-start">Ngày sinh (DD/MM hoặc DD/MM/YYYY)</label>
               <input
                 value={editBirthday}
@@ -647,8 +737,72 @@ function UserConversationInfo() {
             {contact?.alias && contact?.display_name && contact.alias !== contact.display_name && (
               <p className="text-gray-500 text-xs mt-0.5 text-center">({contact.display_name})</p>
             )}
+
+            {/* Pipeline Stage Quick Switcher Badge */}
+            <div className="relative mt-2 w-full" ref={stageDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setShowStageDropdown(p => !p)}
+                className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all hover:brightness-110 shadow-sm"
+                style={{
+                  backgroundColor: currentStage ? `${currentStage.color}18` : '#37415140',
+                  borderColor: currentStage ? `${currentStage.color}50` : '#4b556350',
+                  color: currentStage ? currentStage.color : '#9ca3af'
+                }}
+                title="Bấm để đổi giai đoạn Pipeline CRM"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: currentStage ? currentStage.color : '#9ca3af' }} />
+                  <span className="text-[10px] text-gray-400 font-normal">Pipeline:</span>
+                  <span className="truncate font-semibold">{currentStage ? currentStage.name : 'Chưa phân loại'}</span>
+                </div>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="flex-shrink-0 opacity-70">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              {showStageDropdown && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-700/60 flex items-center justify-between">
+                    <span>Giai đoạn Pipeline</span>
+                    <span className="text-gray-500 font-normal">CRM</span>
+                  </div>
+                  <div className="py-1 max-h-56 overflow-y-auto space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickUpdateStage(null)}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors hover:bg-gray-700 ${!currentStage ? 'bg-gray-700/70 font-semibold text-white' : 'text-gray-300'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-gray-500" />
+                        <span>Chưa phân loại</span>
+                      </div>
+                      {!currentStage && <span className="text-blue-400 text-xs font-bold">✓</span>}
+                    </button>
+                    {pipelineStages.map(stage => {
+                      const isSelected = contact?.pipeline_stage_id === stage.id;
+                      return (
+                        <button
+                          key={stage.id}
+                          type="button"
+                          onClick={() => handleQuickUpdateStage(stage.id)}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors hover:bg-gray-700 ${isSelected ? 'bg-gray-700/70 font-semibold text-white' : 'text-gray-300'}`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                            <span className="truncate">{stage.name}</span>
+                          </div>
+                          {isSelected && <span className="text-blue-400 text-xs font-bold">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {contact?.phone && (
-              <p className="text-gray-400 text-xs mt-0.5">
+              <p className="text-gray-400 text-xs mt-2">
                 📞 <PhoneDisplay phone={contact.phone} className="text-gray-400 text-xs" />
               </p>
             )}

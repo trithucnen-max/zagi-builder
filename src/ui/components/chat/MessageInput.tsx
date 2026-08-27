@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {useChatStore} from '@/store/chatStore';
+import {useCRMStore} from '@/store/crmStore';
 import {useAccountStore} from '@/store/accountStore';
 import {useAppStore} from '@/store/appStore';
 import ipc from '@/lib/ipc';
@@ -251,13 +252,85 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
   // Debounce timer for auto-saving draft while typing (~1s)
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { activeThreadId, activeThreadType, addMessage, removeMessage, replyTo, setReplyTo, markReplied, setDraft, clearDraft } = useChatStore();
+  const { activeThreadId, activeThreadType, addMessage, removeMessage, replyTo, setReplyTo, markReplied, setDraft, clearDraft, updateContact } = useChatStore();
   const { activeAccountId, getActiveAccount, accounts: allAccounts } = useAccountStore();
+  const { pipelineStages, setPipelineStages } = useCRMStore();
   const { showNotification, groupInfoCache, mergedInboxMode, toggleIntegrationQuickPanel, pinnedIntegrationShortcuts, unpinIntegrationShortcut, editPinnedShortcutIcon, openIntegrationPanelTo, aiSuggestionsEnabled, aiSuggestions, aiSuggestionsLoading, setAiSuggestionsEnabled, setAiSuggestions, setAiSuggestionsLoading, isAiSuggestDisabled, toggleAiDisableForThread, toggleAiDisableForAccount, aiSuggestDisabledThreads, aiSuggestDisabledAccounts, theme } = useAppStore();
 
   // Channel capability for active thread
   const activeContact = useChatStore(s => (s.contacts[activeAccountId || ''] || []).find(c => c.contact_id === activeThreadId));
   const channelCap = getCapability((activeContact?.channel || 'zalo') as any);
+
+  // Pipeline quick picker state
+  const [showPipelinePicker, setShowPipelinePicker] = useState(false);
+  const pipelineBtnRef = useRef<HTMLButtonElement>(null);
+  const pipelinePickerRef = useRef<HTMLDivElement>(null);
+  const currentContactStage = pipelineStages.find(s => s.id === activeContact?.pipeline_stage_id);
+
+  // Auto-load pipeline stages if empty
+  useEffect(() => {
+    if (pipelineStages.length === 0) {
+      ipc.db?.getPipelineStages().then((res: any) => {
+        if (res?.success && res.stages) setPipelineStages(res.stages);
+      }).catch(() => {});
+    }
+  }, [pipelineStages.length]);
+
+  // Close pipeline picker on click outside
+  useEffect(() => {
+    if (!showPipelinePicker) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        pipelinePickerRef.current &&
+        !pipelinePickerRef.current.contains(e.target as Node) &&
+        pipelineBtnRef.current &&
+        !pipelineBtnRef.current.contains(e.target as Node)
+      ) {
+        setShowPipelinePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPipelinePicker]);
+
+  const handleSelectPipelineStage = async (stageId: number | null) => {
+    if (!activeAccountId || !activeThreadId) return;
+    try {
+      const res = await ipc.db?.updateContactPipelineStage({
+        ownerZaloId: activeAccountId,
+        contactId: activeThreadId,
+        stageId,
+      });
+      if (res?.success) {
+        // Update chatStore
+        updateContact(activeAccountId, {
+          contact_id: activeThreadId,
+          pipeline_stage_id: stageId,
+        });
+        // Update crmStore
+        const crmState = useCRMStore.getState();
+        if (crmState.contacts && crmState.contacts.length > 0) {
+          crmState.setContacts(
+            crmState.contacts.map(c =>
+              c.contact_id === activeThreadId ? { ...c, pipeline_stage_id: stageId } : c
+            ),
+            crmState.totalContacts
+          );
+        }
+        const stageObj = pipelineStages.find(s => s.id === stageId);
+        showNotification(
+          stageObj ? `Đã chuyển sang giai đoạn: ${stageObj.name}` : 'Đã chuyển sang Chưa phân loại',
+          'success'
+        );
+      } else {
+        showNotification('Lỗi khi cập nhật Pipeline', 'error');
+      }
+    } catch (err: any) {
+      showNotification('Lỗi: ' + err.message, 'error');
+    } finally {
+      setShowPipelinePicker(false);
+    }
+  };
 
   // state
   const [showLocalLabels, setShowLocalLabels] = useState(true);
@@ -3455,6 +3528,87 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
                 onClose={() => setShowReminderPopup(false)}
                 anchorRef={moreMenuBtnRef}
               />
+            )}
+          </div>
+        )}
+
+        {/* Cập nhật nhanh trạng thái Pipeline (CRM) */}
+        {!isGroupThread && (
+          <div className="relative">
+            <ToolbarBtn
+              ref={pipelineBtnRef}
+              onClick={() => {
+                if (pipelineStages.length === 0) {
+                  ipc.db?.getPipelineStages().then((res: any) => {
+                    if (res?.success && res.stages) setPipelineStages(res.stages);
+                  }).catch(() => {});
+                }
+                setShowPipelinePicker(v => !v);
+              }}
+              title={currentContactStage ? `Pipeline: ${currentContactStage.name} (Bấm để đổi giai đoạn)` : 'Cập nhật giai đoạn Pipeline CRM'}
+              active={showPipelinePicker || !!currentContactStage}
+              disabled={sending}
+            >
+              <div className="flex items-center gap-1">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: currentContactStage?.color || undefined }}>
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+                {currentContactStage && (
+                  <span
+                    className="max-w-[80px] truncate text-[10px] font-bold px-1.5 py-0.2 rounded-full leading-tight hidden sm:inline-block"
+                    style={{
+                      backgroundColor: `${currentContactStage.color}20`,
+                      color: currentContactStage.color,
+                      border: `1px solid ${currentContactStage.color}50`
+                    }}
+                  >
+                    {currentContactStage.name}
+                  </span>
+                )}
+              </div>
+            </ToolbarBtn>
+
+            {showPipelinePicker && activeThreadId && (
+              <div
+                ref={pipelinePickerRef}
+                className="absolute bottom-full mb-2 left-0 z-50 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-1 min-w-[210px] text-xs animate-in fade-in zoom-in-95 duration-100"
+              >
+                <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-700/60 flex items-center justify-between">
+                  <span>Giai đoạn Pipeline</span>
+                  <span className="text-gray-500 font-normal">CRM</span>
+                </div>
+                <div className="py-1 max-h-60 overflow-y-auto space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPipelineStage(null)}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-gray-700 ${!currentContactStage ? 'bg-gray-700/70 font-semibold text-white' : 'text-gray-300'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-gray-500 flex-shrink-0" />
+                      <span>Chưa phân loại</span>
+                    </div>
+                    {!currentContactStage && <span className="text-blue-400 font-bold">✓</span>}
+                  </button>
+
+                  {pipelineStages.map(stage => {
+                    const isSelected = activeContact?.pipeline_stage_id === stage.id;
+                    return (
+                      <button
+                        key={stage.id}
+                        type="button"
+                        onClick={() => handleSelectPipelineStage(stage.id)}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-gray-700 ${isSelected ? 'bg-gray-700/70 font-semibold text-white' : 'text-gray-300'}`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                          <span className="truncate">{stage.name}</span>
+                        </div>
+                        {isSelected && <span className="text-blue-400 font-bold">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
         )}

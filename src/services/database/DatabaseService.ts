@@ -3946,6 +3946,7 @@ class DatabaseService {
             birthday?: string | null;
             real_name?: string | null;
             full_name_raw?: string | null;
+            pipeline_stage_id?: number | null;
         }
     ): void {
         if (!this.initialized || !contactId) return;
@@ -3965,6 +3966,7 @@ class DatabaseService {
         }
         if (fields.real_name !== undefined)     { sets.push('real_name=?');     vals.push(fields.real_name ?? null); }
         if (fields.full_name_raw !== undefined) { sets.push('full_name_raw=?'); vals.push(fields.full_name_raw ?? null); }
+        if (fields.pipeline_stage_id !== undefined) { sets.push('pipeline_stage_id=?'); vals.push(fields.pipeline_stage_id ?? null); }
         if (sets.length === 0) return;
         vals.push(ownerZaloId, contactId);
         try {

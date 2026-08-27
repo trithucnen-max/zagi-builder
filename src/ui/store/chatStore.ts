@@ -71,6 +71,9 @@ export interface ContactItem {
   gender?: number;
   birthday?: string;
   salutation?: string | null;
+  pipeline_stage_id?: number | null;
+  real_name?: string | null;
+  full_name_raw?: string | null;
 }
 
 interface ChatStore {
