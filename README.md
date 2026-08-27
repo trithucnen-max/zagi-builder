@@ -463,6 +463,21 @@ npm run production
 
 ### 🚀 Nâng cấp nổi bật & Tính năng mới
 
+- 🗳️ **Tạo Bình Chọn Nhóm Zalo Đầy Đủ 100% Chuẩn Zalo (`ChatWindow.tsx`, `ZaloService.ts`)**:
+  - Giao diện 2 cột chuẩn Zalo: Textarea câu hỏi kèm bộ đếm `0/200` ký tự, thêm/xóa nhanh phương án (tối đa 20 lựa chọn).
+  - Hạn bình chọn thông minh (ngày/giờ hoặc không thời hạn).
+  - Thiết lập nâng cao đầy đủ: Ghim lên đầu trò chuyện 📌 (`pinAct`), Chọn nhiều phương án 🛈 (`allowMultiChoices`), Có thể thêm phương án 🛈 (`allowAddNewOption`).
+  - Bình chọn ẩn danh: Ẩn kết quả khi chưa bình chọn 🛈 (`hideVotePreview`), Ẩn người bình chọn 🛈 (`isAnonymous`).
+  - Nút ⚙️ Cài đặt mặc định: Lưu lại các tùy chọn bật/tắt yêu thích vào `localStorage` để tự động nhớ cho các lần tạo sau.
+- 👥 **Đồng Bộ Xưng Hô Tùy Chỉnh 2 Chiều (Chat ⟷ CRM) & Cờ `salutation_manual` (`DatabaseService.ts`, `ConversationInfo.tsx`)**:
+  - Gắn cờ `salutation_manual = 1` bảo vệ xưng hô người dùng tự đặt (`Chị`, `Anh`, `Cô`, `Chú`, `Bác`, `Em`...) không bị ghi đè bởi phân loại giới tính tự động.
+  - Đồng bộ thời gian thực 2 chiều giữa panel Chat và panel CRM.
+- 🎨 **Menu Trạng Thái Pipeline CRM Đồng Bộ Chuẩn Chat (`CRMContactDetailPanel.tsx`)**:
+  - Nâng cấp thẻ `<select>` cũ thành Dropdown tùy biến cao cấp.
+  - Badge tròn hiển thị số thứ tự bước Pipeline (`[1]`, `[2]`, `[3]`...) với màu nền tương ứng và chữ trắng, đồng bộ 100% với Chat.
+- 🧹 **Tinh Gọn Thao Tác Người Dùng Trong Panel Chat (`ConversationInfo.tsx`)**:
+  - Gỡ bỏ các nút Báo xấu, Xóa lịch sử trò chuyện và Hủy kết bạn để tránh thao tác nhầm lẫn.
+  - Giữ lại các tác vụ quan trọng: Chặn tin nhắn & cuộc gọi, Tắt thông báo (Mute kèm bộ chọn thời gian), Ghim hội thoại.
 - 🌐 **Kho Nhóm Chung Từ Cộng Đồng (`SharedGroupsCategoryPopup.tsx`)**:
   - Giao diện 2 cột hiện đại: Cột trái 18 danh mục ngành nghề hiển thị số lượng nhóm theo thời gian thực; Cột phải danh sách thẻ nhóm với avatar sinh động, tên nhóm, số lượng thành viên, người đóng góp và ghi chú.
   - Tích hợp 2 nút hành động trực tiếp: `⚡ Quét nhóm` (nạp nhanh vào tab Quét nâng cao) và `📋 Copy link`.

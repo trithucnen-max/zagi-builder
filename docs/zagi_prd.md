@@ -6,8 +6,30 @@
 
 ---
 
-#### 🚀 v3.2.0 — Kho Nhóm Chung Cộng Đồng, Quét Nhóm Đa Định Dạng Link & Gán Nhãn CRM Hợp Nhất (Official Release)
+#### 🚀 v3.2.0 — Tạo Bình Chọn Zalo Đầy Đủ 100%, Đồng Bộ Xưng Hô 2 Chiều & Nâng Cấp Menu Pipeline CRM (Official Release)
 * **Tính năng mới & Sửa lỗi nổi bật:**
+  * **🗳️ Nâng Cấp Toàn Diện Tính Năng Tạo Bình Chọn Nhóm Chuẩn 100% Theo Zalo (`ChatWindow.tsx`, `ZaloService.ts`)**:
+    * **Giao diện 2 cột chuẩn Zalo**: Thiết kế tối ưu trải nghiệm: Cột trái chứa Chủ đề bình chọn (textarea kèm bộ đếm `0/200` ký tự) và Danh sách lựa chọn (tối thiểu 2, tối đa 20) hỗ trợ thêm/xóa nhanh từng mục; Cột phải chứa Thời hạn bình chọn và toàn bộ Thiết lập nâng cao.
+    * **Thời hạn bình chọn thông minh**: Hộp chọn ngày/giờ có icon lịch 📅 và nút xóa nhanh để đưa về trạng thái "Không thời hạn".
+    * **Thiết lập nâng cao đầy đủ**:
+      * 📌 **Ghim lên đầu trò chuyện (`pinAct`)**: Tự động ghim cuộc bình chọn lên bảng tin đầu nhóm ngay sau khi tạo thành công.
+      * 🛈 **Chọn nhiều phương án (`allowMultiChoices`)**: Cho phép thành viên chọn nhiều phương án, kèm icon `?` tooltip giải thích.
+      * 🛈 **Có thể thêm phương án (`allowAddNewOption`)**: Cho phép thành viên tự thêm lựa chọn mới vào cuộc bình chọn.
+    * **Bình chọn ẩn danh**:
+      * 🛈 **Ẩn kết quả khi chưa bình chọn (`hideVotePreview`)**: Thành viên phải bỏ phiếu trước mới xem được kết quả hiện tại.
+      * 🛈 **Ẩn người bình chọn (`isAnonymous`)**: Ẩn danh tính của người đã tham gia bỏ phiếu.
+    * **Lưu thiết lập mặc định ⚙️**: Nút bánh răng ở góc dưới bên trái cho phép lưu toàn bộ các tùy chọn bật/tắt yêu thích vào `localStorage` để tự động áp dụng cho các lần tạo sau.
+  * **👥 Đồng Bộ Xưng Hô Tùy Chỉnh 2 Chiều (Chat ⟷ CRM) & Cờ `salutation_manual` (`DatabaseService.ts`, `ConversationInfo.tsx`)**:
+    * **Bảo toàn xưng hô người dùng đặt**: Tự động gắn cờ `salutation_manual = 1` trong SQLite (`contacts`) khi người dùng lưu xưng hô tùy chỉnh (`Chị`, `Anh`, `Cô`, `Chú`, `Bác`, `Em`...).
+    * **Chống ghi đè từ đồng bộ**: Ngăn chặn các tác vụ tự động phân loại giới tính hoặc sync dữ liệu Zalo ghi đè lên xưng hô tùy chỉnh đã thiết lập.
+    * **Đồng bộ thời gian thực**: Cập nhật xưng hô ở phần Chat lập tức phản ánh ngay trên panel chi tiết của CRM và ngược lại.
+  * **🎨 Nâng Cấp Menu Trạng Thái Pipeline Trong Panel Chi Tiết CRM (`CRMContactDetailPanel.tsx`)**:
+    * **Đồng bộ giao diện với Chat**: Thay thế thẻ `<select>` cũ bằng Menu Dropdown tùy biến cao cấp.
+    * **Badge số thứ tự bước có màu**: Hiển thị badge tròn với màu nền của bước Pipeline và số thứ tự bước màu trắng tinh (`[1]`, `[2]`, `[3]`... hoặc `[0]` cho Chưa phân loại).
+    * **Popover danh sách giai đoạn**: Hiển thị danh sách các bước đã sắp xếp theo thứ tự `position`, có màu sắc tương ứng và dấu tích xanh `✓` cho bước đang chọn.
+  * **🧹 Tinh Gọn Thao Tác Người Dùng Trong Panel Chat (`ConversationInfo.tsx`)**:
+    * Gỡ bỏ các nút Báo xấu, Xóa lịch sử trò chuyện và Hủy kết bạn để tránh thao tác nhầm lẫn.
+    * Giữ lại các tác vụ quan trọng: Chặn tin nhắn & cuộc gọi, Tắt thông báo (Mute kèm bộ chọn thời gian 1h, 8h, 24h, Vĩnh viễn), Ghim hội thoại.
   * **🌐 Kho Nhóm Chung Từ Cộng Đồng (`SharedGroupsCategoryPopup.tsx`)**:
     * Thiết kế lại giao diện 2 cột hiện đại theo phong cách mới: Cột trái chứa danh mục 18 ngành nghề với số lượng nhóm đếm theo thời gian thực; Cột phải hiển thị thẻ nhóm với avatar sinh động, tên nhóm, thành viên, người đóng góp và ghi chú.
     * Tích hợp 2 nút hành động trực tiếp: `⚡ Quét nhóm` (nạp nhanh vào tab Quét nâng cao) và `📋 Copy link`.

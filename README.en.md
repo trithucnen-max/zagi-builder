@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v3.1.7** — [View all versions](#changelog)
+> **Latest version: v3.2.0** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -49,7 +49,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 [![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)
 
-**[Zagi.v3.1.7.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)**
+**[Zagi.v3.2.0.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)**
 
 NSIS Installer · ~164 MB
 
@@ -60,7 +60,7 @@ NSIS Installer · ~164 MB
 
 [![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.2.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)
 
-**[Zagi.v3.1.7.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.2.0.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)**
 
 Apple Silicon DMG · Signed & Notarized · ~231 MB
 
@@ -384,17 +384,32 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v3.1.7</strong> — 2026-07-24 · <em>🟢 Current version</em></summary>
+<summary><strong>v3.2.0</strong> — 2026-08-27 · <em>🟢 Current version</em></summary>
 
-### 🚀 Key Highlights & System Fixes
+### 🚀 Key Highlights & New Features
 
-- 🏷️ **Zalo Contact Alias Renaming Rules**: Added 3 options during CRM campaign creation (Do not rename, `[Campaign] - [Name] - [Phone]`, `[Name] - [Phone]`).
-- 🎨 **Redesigned Campaign Creation & Phone Scanner Modals**: Expanded campaign modal to 1360px x 832px and phone scanner modal to 1280px x 800px with CSV/Excel sample download and drag-and-drop file import.
-- 🧠 **Smart Data Normalization Engine**: Automatically pads missing leading `0` for 9-digit phones, normalizes gender (`Nam`/`Nữ`) and birthdate formats.
-- 🤝 **Friend Status (`is_friend`) Synchronization**: Verified friend status against actual `friends` table per account, eliminating false positive green checkmarks for unknown contacts.
-- 🎨 **Dark Mode Contrast Fix**: Replaced invalid Tailwind classes with standard ones (`gray-900`, `gray-800`, `gray-700`, `gray-600`) and fixed editor contrast issues across all campaign modes.
+- 🗳️ **Full Zalo Group Poll Rebuild (`ChatWindow.tsx`, `ZaloService.ts`)**:
+  - Exact 2-column Zalo UI: Question textarea with `0/200` counter, dynamic option add/remove (up to 20 options).
+  - Smart voting expiration datetime picker with quick clear to "No expiration".
+  - Full Advanced Settings: Pin to top of chat 📌 (`pinAct`), Allow multiple choices 🛈 (`allowMultiChoices`), Allow adding new options 🛈 (`allowAddNewOption`).
+  - Anonymous Voting: Hide results before voting 🛈 (`hideVotePreview`), Hide voters 🛈 (`isAnonymous`).
+  - Settings Gear ⚙️ button: Save default toggle preferences to `localStorage` to auto-fill future polls.
+- 👥 **2-Way Custom Salutation Sync (Chat ⟷ CRM) & `salutation_manual` Flag (`DatabaseService.ts`, `ConversationInfo.tsx`)**:
+  - Sets `salutation_manual = 1` in SQLite (`contacts`) to protect custom salutations (`Chị`, `Anh`, `Cô`, `Chú`, `Bác`, `Em`...) from being overwritten by automatic gender sync.
+  - Real-time 2-way synchronization between Chat profile panel and CRM contact detail panel.
+- 🎨 **CRM Pipeline Stage Menu Matching Chat UI (`CRMContactDetailPanel.tsx`)**:
+  - Upgraded native `<select>` to custom dropdown with colored circular step number badges (`[1]`, `[2]`, `[3]`...).
+- 🧹 **Streamlined Chat Actions (`ConversationInfo.tsx`)**:
+  - Removed redundant actions (Report, Clear chat history, Unfriend); retained Block messages & calls, Mute with custom duration, and Pin chat.
+- 🌐 **Community Shared Group Repository (`SharedGroupsCategoryPopup.tsx`)**:
+  - 2-column catalog across 18 industries with realtime group count, 1-click Scan and Copy Link.
+- 📤 **Share Zalo Groups to Community (`ShareGroupModal.tsx`)**:
+  - Share group links with automatic resolution of group name, avatar, and active member count via Zalo API.
 
 </details>
+
+<details>
+<summary><strong>v3.1.7</strong> — 2026-07-24</summary>
 
 <details>
 <summary><strong>v3.1.7</strong> — 2026-07-22</summary>

@@ -38,7 +38,7 @@ EmployeeService.getInstance().pinToCurrentDb();
 |---|---|
 | `messages` | Tin nhắn Zalo/Facebook. Fields: id, owner_zalo_id, thread_id, is_sent, timestamp, content |
 | `threads` | Hội thoại. Fields: thread_id, owner_zalo_id, thread_type, name, avatar |
-| `contacts` | CRM contacts. Fields: zalo_id, display_name, phone, salutation, labels |
+| `contacts` | CRM contacts. Fields: zalo_id, contact_id, display_name, alias, phone, gender, birthday, salutation, salutation_manual (1 = manual, protects from overwrite), pipeline_stage_id, labels |
 | `accounts` | Zalo accounts. Fields: zalo_id, full_name, avatar_url, phone, is_business, is_active |
 | `workflows` | Workflow definitions. Fields: id, name, enabled, channel, pageIds, nodes_json, edges_json |
 | `workflow_run_logs` | Lịch sử chạy workflow. Fields: id, workflow_id, status, node_results_json |

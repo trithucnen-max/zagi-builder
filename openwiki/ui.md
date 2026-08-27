@@ -42,8 +42,8 @@ Khi Boss có nhiều tài khoản Zalo, events PHẢI được verify trước k
 
 | Folder / Component | Purpose |
 |---|---|
-| `chat/` | MessageList, MessageInput, ThreadList, TypingIndicator |
-| `crm/` | ContactList, CampaignManager, LabelManager, PhoneScanPanel (Quét SĐT Multi-Account) |
+| `chat/` | MessageList, MessageInput, ThreadList, TypingIndicator, `CreatePollDialog` (Tạo bình chọn nhóm chuẩn Zalo: 2 cột, hạn vote, ghim nhóm, ẩn danh, ⚙️ lưu mặc định) |
+| `crm/` | ContactList, CampaignManager, LabelManager, PhoneScanPanel (Quét SĐT Multi-Account), `CRMContactDetailPanel` (Chi tiết liên hệ, xưng hô tùy chỉnh, dropdown chọn giai đoạn Pipeline đồng bộ với Chat) |
 | `crm/groups/` | GroupMembersTab (Quản lý & Quét nhóm nâng cao), SharedGroupsCategoryPopup (Kho nhóm chung cộng đồng), ShareGroupModal (Chia sẻ nhóm Zalo) |
 | `common/GlobalSupportChat.tsx` | Widget Trợ lý AI hỗ trợ Zagi kết nối Dify Chatbot `app-Shoio3nzmEVuoJJOBUsycsp9` (hỗ trợ cả Boss & Employee Web Mode) |
 | `workflow/` | NodeConfigPanel, WorkflowEditor (ReactFlow), NodePicker |

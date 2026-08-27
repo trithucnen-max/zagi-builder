@@ -172,6 +172,7 @@ Wrapper quanh `zca-js` API. Xử lý gửi tin, gửi file, upload media, reacti
 - `sendImage(filePath, threadId, type, message, quote)` — gửi 1 ảnh
 - `sendImages(filePaths[], threadId, type, quote)` — gửi nhiều ảnh
 - `sendFile(filePath, threadId, type)` — gửi file
+- `createPoll(options, groupId)` — tạo bình chọn nhóm (hỗ trợ `pinAct`, `expiredTime`, `allowMultiChoices`, `allowAddNewOption`, `hideVotePreview`, `isAnonymous`)
 
 ---
 
@@ -182,6 +183,7 @@ Wrapper quanh `zca-js` API. Xử lý gửi tin, gửi file, upload media, reacti
 
 ### Purpose
 Toàn bộ CRUD cho app: messages, threads, contacts, workflows, employees, ERP data. Sử dụng `better-sqlite3` (sync API).
+- Quản lý xưng hô tùy chỉnh với cờ `salutation_manual = 1` trong hàm `patchContactFields` để chống ghi đè khi đồng bộ thông tin/giới tính.
 
 ### Pattern
 ```typescript
