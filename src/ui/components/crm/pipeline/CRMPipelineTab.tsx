@@ -42,7 +42,8 @@ export default function CRMPipelineTab() {
     try {
       const res = await ipc.db?.getPipelineStages();
       if (res?.success && res.stages) {
-        setPipelineStages(res.stages);
+        const sorted = [...res.stages].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+        setPipelineStages(sorted);
       }
     } catch (e: any) {
       showNotification('Không thể tải các trạng thái: ' + e.message, 'error');
@@ -278,7 +279,7 @@ export default function CRMPipelineTab() {
         {/* Right Action: Thêm cột trạng thái */}
         <button
           onClick={() => {
-            setEditingStage({ name: '', color: '#3B82F6', position: pipelineStages.length });
+            setEditingStage({ name: '', color: '#3B82F6', position: pipelineStages.length + 1 });
             setShowEditModal(true);
           }}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex-shrink-0"
@@ -303,17 +304,18 @@ export default function CRMPipelineTab() {
           isUnclassified
         />
 
-        {pipelineStages.map((stage) => (
+        {pipelineStages.map((stage, idx) => (
           <PipelineColumn
             key={stage.id}
             stage={stage}
+            stepNumber={stage.position !== undefined ? stage.position : idx + 1}
             title={stage.name}
             color={stage.color}
             contacts={groupedContacts[String(stage.id)] || []}
             stages={pipelineStages}
             onMove={handleMoveContact}
             onEdit={(s) => {
-              setEditingStage(s);
+              setEditingStage({ ...s, position: s.position !== undefined ? s.position : idx + 1 });
               setShowEditModal(true);
             }}
             onDelete={handleDeleteStage}
@@ -337,16 +339,30 @@ export default function CRMPipelineTab() {
             </h3>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase">Tên trạng thái</label>
-                <input
-                  type="text"
-                  required
-                  value={editingStage.name || ''}
-                  onChange={(e) => setEditingStage({ ...editingStage, name: e.target.value })}
-                  placeholder="Ví dụ: Đang đàm phán, Khách VIP..."
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
-                />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase">Tên trạng thái</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingStage.name || ''}
+                    onChange={(e) => setEditingStage({ ...editingStage, name: e.target.value })}
+                    placeholder="Ví dụ: Đang đàm phán, Khách VIP..."
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase">Thứ tự bước</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    value={editingStage.position ?? 1}
+                    onChange={(e) => setEditingStage({ ...editingStage, position: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3.5 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
 
               <div>
@@ -402,6 +418,7 @@ export default function CRMPipelineTab() {
 
 interface ColumnProps {
   stage?: PipelineStage;
+  stepNumber?: number;
   title: string;
   color: string;
   contacts: CRMContact[];
@@ -414,6 +431,7 @@ interface ColumnProps {
 
 function PipelineColumn({
   stage,
+  stepNumber,
   title,
   color,
   contacts,
@@ -445,7 +463,15 @@ function PipelineColumn({
       {/* Column Header */}
       <div className="p-3 px-3.5 border-b border-gray-200/80 dark:border-gray-800 flex items-center justify-between bg-white/80 dark:bg-gray-850">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+          {isUnclassified ? (
+            <span className="w-5 h-5 rounded-full bg-gray-400 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+              0
+            </span>
+          ) : (
+            <span className="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-xs" style={{ backgroundColor: color }}>
+              {stepNumber ?? stage?.position ?? 1}
+            </span>
+          )}
           <span className="font-extrabold text-xs text-gray-900 dark:text-white truncate max-w-[140px]">{title}</span>
           <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-[11px] px-2 py-0.5 rounded-full font-bold">
             {contacts.length}

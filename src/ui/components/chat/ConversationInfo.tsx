@@ -84,14 +84,17 @@ function UserConversationInfo() {
   // Hiển thị: ưu tiên alias → display_name
   const displayName = contact?.alias || contact?.display_name || activeThreadId || '';
   const avatarUrl = contact?.avatar_url || '';
-  const currentStage = pipelineStages.find(s => s.id === contact?.pipeline_stage_id);
+  const sortedPipelineStages = [...pipelineStages].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const currentStage = sortedPipelineStages.find(s => s.id === contact?.pipeline_stage_id);
+  const currentStageStep = currentStage ? (currentStage.position ?? (sortedPipelineStages.findIndex(s => s.id === currentStage.id) + 1)) : 0;
 
   // Load pipeline stages if not loaded
   useEffect(() => {
     if (pipelineStages.length === 0) {
       ipc.db?.getPipelineStages().then((res: any) => {
         if (res?.success && res.stages) {
-          setPipelineStages(res.stages);
+          const sorted = [...res.stages].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+          setPipelineStages(sorted);
         }
       }).catch(() => {});
     }
@@ -743,7 +746,7 @@ function UserConversationInfo() {
               <button
                 type="button"
                 onClick={() => setShowStageDropdown(p => !p)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all hover:brightness-110 shadow-sm"
+                className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all hover:brightness-110 shadow-xs cursor-pointer"
                 style={{
                   backgroundColor: currentStage ? `${currentStage.color}18` : '#37415140',
                   borderColor: currentStage ? `${currentStage.color}50` : '#4b556350',
@@ -751,8 +754,13 @@ function UserConversationInfo() {
                 }}
                 title="Bấm để đổi giai đoạn Pipeline CRM"
               >
-                <div className="flex items-center gap-1.5 truncate">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: currentStage ? currentStage.color : '#9ca3af' }} />
+                <div className="flex items-center gap-2 truncate">
+                  <span
+                    className="w-4 h-4 rounded-full text-white !text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0 shadow-xs"
+                    style={{ backgroundColor: currentStage ? currentStage.color : '#6B7280' }}
+                  >
+                    {currentStageStep}
+                  </span>
                   <span className="text-[10px] text-gray-400 font-normal">Pipeline:</span>
                   <span className="truncate font-semibold">{currentStage ? currentStage.name : 'Chưa phân loại'}</span>
                 </div>
@@ -762,7 +770,7 @@ function UserConversationInfo() {
               </button>
 
               {showStageDropdown && (
-                <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 text-white">
                   <div className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-700/60 flex items-center justify-between">
                     <span>Giai đoạn Pipeline</span>
                     <span className="text-gray-500 font-normal">CRM</span>
@@ -771,25 +779,33 @@ function UserConversationInfo() {
                     <button
                       type="button"
                       onClick={() => handleQuickUpdateStage(null)}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors hover:bg-gray-700 ${!currentStage ? 'bg-gray-700/70 font-semibold text-white' : 'text-gray-300'}`}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors hover:bg-gray-700 cursor-pointer ${!currentStage ? 'bg-gray-700/80 font-semibold text-white' : 'text-gray-300'}`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-gray-500" />
+                        <span className="w-4 h-4 rounded-full bg-gray-500 text-white !text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                          0
+                        </span>
                         <span>Chưa phân loại</span>
                       </div>
                       {!currentStage && <span className="text-blue-400 text-xs font-bold">✓</span>}
                     </button>
-                    {pipelineStages.map(stage => {
+                    {sortedPipelineStages.map((stage, idx) => {
                       const isSelected = contact?.pipeline_stage_id === stage.id;
+                      const stepNum = stage.position !== undefined ? stage.position : idx + 1;
                       return (
                         <button
                           key={stage.id}
                           type="button"
                           onClick={() => handleQuickUpdateStage(stage.id)}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors hover:bg-gray-700 ${isSelected ? 'bg-gray-700/70 font-semibold text-white' : 'text-gray-300'}`}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors hover:bg-gray-700 cursor-pointer ${isSelected ? 'bg-gray-700/80 font-semibold text-white' : 'text-gray-300'}`}
                         >
                           <div className="flex items-center gap-2 truncate">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                            <span
+                              className="w-4 h-4 rounded-full text-white !text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0 shadow-xs"
+                              style={{ backgroundColor: stage.color }}
+                            >
+                              {stepNum}
+                            </span>
                             <span className="truncate">{stage.name}</span>
                           </div>
                           {isSelected && <span className="text-blue-400 text-xs font-bold">✓</span>}

@@ -265,13 +265,20 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
   const [showPipelinePicker, setShowPipelinePicker] = useState(false);
   const pipelineBtnRef = useRef<HTMLButtonElement>(null);
   const pipelinePickerRef = useRef<HTMLDivElement>(null);
-  const currentContactStage = pipelineStages.find(s => s.id === activeContact?.pipeline_stage_id);
+  const sortedPipelineStages = [...pipelineStages].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const currentContactStage = sortedPipelineStages.find(s => s.id === activeContact?.pipeline_stage_id);
+  const currentStageStep = currentContactStage
+    ? (currentContactStage.position ?? (sortedPipelineStages.findIndex(s => s.id === currentContactStage.id) + 1))
+    : null;
 
   // Auto-load pipeline stages if empty
   useEffect(() => {
     if (pipelineStages.length === 0) {
       ipc.db?.getPipelineStages().then((res: any) => {
-        if (res?.success && res.stages) setPipelineStages(res.stages);
+        if (res?.success && res.stages) {
+          const sorted = [...res.stages].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+          setPipelineStages(sorted);
+        }
       }).catch(() => {});
     }
   }, [pipelineStages.length]);
@@ -3534,73 +3541,78 @@ Hãy viết nội dung trực tiếp, không chứa bất kỳ lời dẫn nhậ
 
         {/* Cập nhật nhanh trạng thái Pipeline (CRM) */}
         {!isGroupThread && (
-          <div className="relative">
-            <ToolbarBtn
+          <div className="relative flex items-center">
+            <button
               ref={pipelineBtnRef}
+              type="button"
               onClick={() => {
                 if (pipelineStages.length === 0) {
                   ipc.db?.getPipelineStages().then((res: any) => {
-                    if (res?.success && res.stages) setPipelineStages(res.stages);
+                    if (res?.success && res.stages) {
+                      const sorted = [...res.stages].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+                      setPipelineStages(sorted);
+                    }
                   }).catch(() => {});
                 }
                 setShowPipelinePicker(v => !v);
               }}
-              title={currentContactStage ? `Pipeline: ${currentContactStage.name} (Bấm để đổi giai đoạn)` : 'Cập nhật giai đoạn Pipeline CRM'}
-              active={showPipelinePicker || !!currentContactStage}
+              title={
+                currentContactStage
+                  ? `Bước ${currentStageStep}: ${currentContactStage.name} (Bấm để đổi giai đoạn)`
+                  : 'Giai đoạn Pipeline: Chưa phân loại (Bấm để chọn)'
+              }
               disabled={sending}
+              className="w-6 h-6 rounded-full flex items-center justify-center shadow-xs hover:brightness-110 active:scale-95 transition-all cursor-pointer disabled:opacity-50 flex-shrink-0"
+              style={{
+                backgroundColor: currentContactStage ? currentContactStage.color : '#6B7280',
+              }}
             >
-              <div className="flex items-center gap-1">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: currentContactStage?.color || undefined }}>
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-                </svg>
-                {currentContactStage && (
-                  <span
-                    className="max-w-[80px] truncate text-[10px] font-bold px-1.5 py-0.2 rounded-full leading-tight hidden sm:inline-block"
-                    style={{
-                      backgroundColor: `${currentContactStage.color}20`,
-                      color: currentContactStage.color,
-                      border: `1px solid ${currentContactStage.color}50`
-                    }}
-                  >
-                    {currentContactStage.name}
-                  </span>
-                )}
-              </div>
-            </ToolbarBtn>
+              <span className="text-white !text-white font-black text-[11px] leading-none select-none">
+                {currentStageStep !== null ? currentStageStep : '—'}
+              </span>
+            </button>
 
             {showPipelinePicker && activeThreadId && (
               <div
                 ref={pipelinePickerRef}
-                className="absolute bottom-full mb-2 left-0 z-50 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-1 min-w-[210px] text-xs animate-in fade-in zoom-in-95 duration-100"
+                className="absolute bottom-full mb-2 left-0 z-50 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-1 min-w-[220px] text-xs animate-in fade-in zoom-in-95 duration-100 text-white"
               >
                 <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-700/60 flex items-center justify-between">
                   <span>Giai đoạn Pipeline</span>
                   <span className="text-gray-500 font-normal">CRM</span>
                 </div>
-                <div className="py-1 max-h-60 overflow-y-auto space-y-0.5">
+                <div className="py-1 max-h-64 overflow-y-auto space-y-0.5">
                   <button
                     type="button"
                     onClick={() => handleSelectPipelineStage(null)}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-gray-700 ${!currentContactStage ? 'bg-gray-700/70 font-semibold text-white' : 'text-gray-300'}`}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-gray-700 cursor-pointer ${!currentContactStage ? 'bg-gray-700/80 font-semibold text-white' : 'text-gray-300'}`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-gray-500 flex-shrink-0" />
+                      <span className="w-5 h-5 rounded-full bg-gray-500 text-white !text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                        0
+                      </span>
                       <span>Chưa phân loại</span>
                     </div>
                     {!currentContactStage && <span className="text-blue-400 font-bold">✓</span>}
                   </button>
 
-                  {pipelineStages.map(stage => {
+                  {sortedPipelineStages.map((stage, idx) => {
                     const isSelected = activeContact?.pipeline_stage_id === stage.id;
+                    const stepNum = stage.position !== undefined ? stage.position : idx + 1;
                     return (
                       <button
                         key={stage.id}
                         type="button"
                         onClick={() => handleSelectPipelineStage(stage.id)}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-gray-700 ${isSelected ? 'bg-gray-700/70 font-semibold text-white' : 'text-gray-300'}`}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors hover:bg-gray-700 cursor-pointer ${isSelected ? 'bg-gray-700/80 font-semibold text-white' : 'text-gray-300'}`}
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                          <span
+                            className="w-5 h-5 rounded-full text-white !text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-xs"
+                            style={{ backgroundColor: stage.color }}
+                          >
+                            {stepNum}
+                          </span>
                           <span className="truncate">{stage.name}</span>
                         </div>
                         {isSelected && <span className="text-blue-400 font-bold">✓</span>}

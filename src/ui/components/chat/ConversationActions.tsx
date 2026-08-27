@@ -456,21 +456,14 @@ interface UserActionSectionProps {
 }
 
 export function UserActionSection({
-  userId, userName, isFriend, onMutualGroupsOpen, onFriendRemoved, channelCap,
+  userId, userName, onMutualGroupsOpen, channelCap,
 }: UserActionSectionProps) {
   const supportsMutualGroups = channelCap ? channelCap.supportsMutualGroups : true;
   const supportsBlock = channelCap ? channelCap.supportsBlock : true;
-  const supportsReport = channelCap ? channelCap.supportsReport : true;
-  const supportsRemoveFriend = channelCap ? channelCap.supportsRemoveFriend : true;
   return (
     <div className="border-t border-gray-700">
       {supportsMutualGroups && <MutualGroupsRow userId={userId} onOpen={onMutualGroupsOpen} />}
       {supportsBlock && <BlockUserAction userId={userId} userName={userName} channel={channelCap?.id || 'zalo'} />}
-      {supportsReport && <ReportAction targetId={userId} targetName={userName} targetType="user" />}
-      <DeleteHistoryAction threadId={userId} />
-      {supportsRemoveFriend && isFriend && (
-        <RemoveFriendAction userId={userId} userName={userName} onRemoved={onFriendRemoved} />
-      )}
     </div>
   );
 }
