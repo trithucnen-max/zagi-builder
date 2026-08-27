@@ -2052,14 +2052,14 @@ export default function GroupMembersTab() {
             <div className="px-4 py-2.5 border-b border-gray-700/50 flex flex-col gap-2.5 flex-shrink-0 bg-gray-800/40">
               {/* Top row: Role filter tabs */}
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-1 bg-gray-900/80 p-1 rounded-xl border border-gray-700/60">
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-900/80 p-1 rounded-xl border border-gray-200 dark:border-gray-700/60">
                   <button
                     type="button"
                     onClick={() => setMemberRoleFilter('all')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       memberRoleFilter === 'all'
                         ? 'bg-blue-600 text-white !text-white shadow-xs'
-                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                        : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-700/50'
                     }`}
                   >
                     Tất cả ({members.length})
@@ -2067,34 +2067,24 @@ export default function GroupMembersTab() {
                   <button
                     type="button"
                     onClick={() => setMemberRoleFilter('admin')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       memberRoleFilter === 'admin'
-                        ? 'bg-amber-600 text-white !text-white shadow-xs'
-                        : 'text-gray-400 hover:text-amber-400 hover:bg-gray-700/50'
+                        ? 'bg-blue-600 text-white !text-white shadow-xs'
+                        : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-700/50'
                     }`}
                   >
-                    <span>Ban Quản lý</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      memberRoleFilter === 'admin' ? 'bg-amber-800 text-white !text-white' : 'bg-amber-500/20 text-amber-300'
-                    }`}>
-                      {adminMembers.length}
-                    </span>
+                    Ban Quản lý ({adminMembers.length})
                   </button>
                   <button
                     type="button"
                     onClick={() => setMemberRoleFilter('member')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       memberRoleFilter === 'member'
-                        ? 'bg-emerald-600 text-white !text-white shadow-xs'
-                        : 'text-gray-400 hover:text-emerald-400 hover:bg-gray-700/50'
+                        ? 'bg-blue-600 text-white !text-white shadow-xs'
+                        : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-700/50'
                     }`}
                   >
-                    <span>Thành viên</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      memberRoleFilter === 'member' ? 'bg-emerald-800 text-white !text-white' : 'bg-emerald-500/20 text-emerald-300'
-                    }`}>
-                      {regularMembers.length}
-                    </span>
+                    Thành viên ({regularMembers.length})
                   </button>
                 </div>
               </div>
