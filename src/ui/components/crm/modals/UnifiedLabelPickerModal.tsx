@@ -460,15 +460,15 @@ export default function UnifiedLabelPickerModal({
                 onClick={() => setSelectedAccountId('all')}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all ${
                   selectedAccountId === 'all'
-                    ? 'bg-blue-500/20 border border-blue-500/40 text-blue-300'
-                    : 'hover:bg-gray-700/50 text-gray-400 hover:text-gray-300 border border-transparent'
+                    ? 'bg-blue-500/20 border border-blue-500/40 text-gray-900 dark:text-gray-100'
+                    : 'hover:bg-gray-700/50 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border border-transparent'
                 }`}
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-sm">
                   📋
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium truncate">Tất cả</div>
+                  <div className="text-xs font-semibold truncate text-gray-900 dark:text-gray-100">Tất cả</div>
                   <div className="text-[10px] text-gray-500">
                     {(activeTab === 'local' ? localOpts : zaloOpts).length} nhãn
                   </div>
@@ -485,13 +485,13 @@ export default function UnifiedLabelPickerModal({
                     onClick={() => setSelectedAccountId(acc.zalo_id)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all ${
                       isActive
-                        ? 'bg-teal-500/20 border border-teal-500/40 text-teal-300'
-                        : 'hover:bg-gray-700/50 text-gray-400 hover:text-gray-300 border border-transparent'
+                        ? 'bg-teal-500/20 border border-teal-500/40 text-gray-900 dark:text-gray-100'
+                        : 'hover:bg-gray-700/50 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border border-transparent'
                     }`}
                   >
                     <AccountAvatar account={acc as any} size="md" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium truncate">
+                      <div className="text-xs font-semibold truncate text-gray-900 dark:text-gray-100">
                         {formatAccountDisplayName(acc)}
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
@@ -522,17 +522,17 @@ export default function UnifiedLabelPickerModal({
               <button
                 type="button"
                 onClick={() => setActiveTab('local')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 ${
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-all border-b-2 ${
                   activeTab === 'local'
-                    ? 'border-teal-500 text-teal-400 bg-teal-500/5'
-                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-700/30'
+                    ? 'border-teal-500 text-gray-900 dark:text-gray-100 bg-teal-500/5'
+                    : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-700/30'
                 }`}
               >
                 <span>💾</span>
-                <span>Nhãn Local</span>
+                <span className="text-gray-900 dark:text-gray-100">Nhãn Local</span>
                 {localOpts.length > 0 && (
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    activeTab === 'local' ? 'bg-teal-500/20 text-teal-400' : 'bg-gray-700 text-gray-500'
+                    activeTab === 'local' ? 'bg-teal-500/20 text-gray-900 dark:text-gray-100 font-bold' : 'bg-gray-700 text-gray-500'
                   }`}>
                     {localOpts.length}
                   </span>
@@ -541,17 +541,17 @@ export default function UnifiedLabelPickerModal({
               <button
                 type="button"
                 onClick={() => setActiveTab('zalo')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 ${
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-all border-b-2 ${
                   activeTab === 'zalo'
-                    ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-700/30'
+                    ? 'border-blue-500 text-gray-900 dark:text-gray-100 bg-blue-500/5'
+                    : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-700/30'
                 }`}
               >
                 <span>☁️</span>
-                <span>Nhãn Zalo</span>
+                <span className="text-gray-900 dark:text-gray-100">Nhãn Zalo</span>
                 {zaloOpts.length > 0 && (
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    activeTab === 'zalo' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-500'
+                    activeTab === 'zalo' ? 'bg-blue-500/20 text-gray-900 dark:text-gray-100 font-bold' : 'bg-gray-700 text-gray-500'
                   }`}>
                     {zaloOpts.length}
                   </span>
@@ -714,7 +714,7 @@ export default function UnifiedLabelPickerModal({
                         {/* Account info or Global Badge on the right-hand side */}
                         {selectedAccountId === 'all' && (
                           isGlobalLocal ? (
-                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium ml-auto flex-shrink-0">
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700/60 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 font-medium ml-auto flex-shrink-0">
                               🌐 Tất cả Zalo
                             </span>
                           ) : (accId || displayAccName) ? (
