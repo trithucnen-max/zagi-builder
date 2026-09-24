@@ -725,8 +725,8 @@ class CRMQueueService {
                 }
             }
 
-            // Stranger optimization: restrict to sending only 1 block to fit 1-message stranger limit
-            if (isStranger && blocksToSend.length > 1) {
+            // Stranger optimization: only restrict if not explicitly set to 'all' mode
+            if (isStranger && blocksToSend.length > 1 && sendMode !== 'all') {
                 Logger.log(`[CRMQueue] Stranger target ${effectiveContactId} detected. Restricting to send only the first block to comply with Zalo stranger limit.`);
                 blocksToSend = [blocksToSend[0]];
             }
@@ -739,7 +739,7 @@ class CRMQueueService {
                 const text = substitute(block.text || '');
                 let imgs = (block.images || []).filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
 
-                if (isStrangerTarget && imgs.length > 1) {
+                if (isStrangerTarget && imgs.length > 1 && sendMode !== 'all') {
                     Logger.log(`[CRMQueue] Stranger target ${threadId} detected. Sending only the first image with text caption to comply with Zalo stranger limit.`);
                     imgs = [imgs[0]];
                 }

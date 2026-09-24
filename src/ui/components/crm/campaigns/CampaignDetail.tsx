@@ -250,7 +250,11 @@ export default function CampaignDetail({
       try {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.blocks)) {
-          const modeText = parsed.mode === 'sequential' ? 'Tuần tự' : `Xoay vòng ngẫu nhiên (${parsed.blocks.length} biến thể)`;
+          const modeText = parsed.mode === 'all'
+            ? `Gửi tất cả (${parsed.blocks.length} nội dung)`
+            : parsed.mode === 'sequential'
+              ? 'Tuần tự'
+              : `Xoay vòng ngẫu nhiên (${parsed.blocks.length} biến thể)`;
           return { modeText, blocks: parsed.blocks };
         }
       } catch {}

@@ -11473,7 +11473,7 @@ class DatabaseService {
                     [fromZaloId, contact.contact_id]
                 );
                 for (const tag of tags) {
-                    this.assignLocalLabelToThread(toZaloId, contact.contact_id, tag.label_id);
+                    this.assignLocalLabelToThread(toZaloId, Number(tag.label_id), contact.contact_id);
                 }
 
                 // Delete from old account unconditionally upon explicit transfer request
@@ -11525,7 +11525,7 @@ class DatabaseService {
                         [item.owner_zalo_id, item.contact_id]
                     );
                     for (const tag of tags) {
-                        this.assignLocalLabelToThread(targetZaloId, item.contact_id, tag.label_id);
+                        this.assignLocalLabelToThread(targetZaloId, Number(tag.label_id), item.contact_id);
                     }
 
                     // Chuyển alias nếu tài khoản mới chưa có

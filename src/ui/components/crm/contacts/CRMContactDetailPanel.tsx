@@ -475,12 +475,14 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
   // Local labels for this contact
   const threadLocalLabelIds = localLabelThreadMap?.[contact.contact_id] || [];
   const [localLabelToggling, setLocalLabelToggling] = useState<number | null>(null);
+  const localLabelTogglingRef = useRef(false);
 
   const handleToggleLocalLabel = useCallback(async (labelId: number) => {
-    if (!activeAccountId || localLabelToggling !== null) return;
+    if (!activeAccountId || localLabelTogglingRef.current) return;
     const label = localLabels?.find(l => l.id === labelId);
     if (!label) return;
     const exists = threadLocalLabelIds.includes(labelId);
+    localLabelTogglingRef.current = true;
     setLocalLabelToggling(labelId);
     try {
       const threadType = contact.contact_type === 'group' ? 1 : 0;
@@ -494,9 +496,10 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
     } catch {
       showNotification('Không thể cập nhật nhãn', 'error');
     } finally {
+      localLabelTogglingRef.current = false;
       setLocalLabelToggling(null);
     }
-  }, [activeAccountId, contact.contact_id, contact.contact_type, localLabelToggling, threadLocalLabelIds, localLabels, showNotification]);
+  }, [activeAccountId, contact.contact_id, contact.contact_type, threadLocalLabelIds, localLabels, showNotification]);
 
   const handleLocalLabelChange = useCallback((newIds: number[]) => {
     const added = newIds.find(id => !threadLocalLabelIds.includes(id));
@@ -549,7 +552,7 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
     return [...localValues, ...zaloValues];
   }, [threadLocalLabelIds, selectedLabelIds, unifiedLabelOptions, activeAccountId]);
 
-  const handleUnifiedChange = (newValues: string[]) => {
+  const handleUnifiedChange = async (newValues: string[]) => {
     const newLocalIds: number[] = [];
     const newZaloIds: number[] = [];
 
@@ -566,7 +569,35 @@ export default function CRMContactDetailPanel({ contact, allLabels, localLabels,
 
     const addedLocal = newLocalIds.filter(id => !threadLocalLabelIds.includes(id));
     const removedLocal = threadLocalLabelIds.filter(id => !newLocalIds.includes(id));
-    [...addedLocal, ...removedLocal].forEach(id => handleToggleLocalLabel(id));
+
+    if (addedLocal.length > 0 || removedLocal.length > 0) {
+      const threadType = contact.contact_type === 'group' ? 1 : 0;
+      for (const id of removedLocal) {
+        const label = localLabels?.find(l => l.id === id);
+        await ipc.db?.removeLocalLabelFromThread({
+          zaloId: activeAccountId,
+          labelId: id,
+          threadId: contact.contact_id,
+          threadType,
+          labelText: label?.name || '',
+          labelColor: label?.color || '',
+          labelEmoji: label?.emoji || '',
+        });
+      }
+      for (const id of addedLocal) {
+        const label = localLabels?.find(l => l.id === id);
+        await ipc.db?.assignLocalLabelToThread({
+          zaloId: activeAccountId,
+          labelId: id,
+          threadId: contact.contact_id,
+          threadType,
+          labelText: label?.name || '',
+          labelColor: label?.color || '',
+          labelEmoji: label?.emoji || '',
+        });
+      }
+      window.dispatchEvent(new CustomEvent('local-labels-changed', { detail: { zaloId: activeAccountId } }));
+    }
 
     setSelectedLabelIds(newZaloIds);
     setLabelsDirty(true);
