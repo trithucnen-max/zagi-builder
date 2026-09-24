@@ -74,6 +74,9 @@ Quản lý nhóm & rời nhóm hàng loạt: xem/tìm kiếm thành viên, rời
 4. Chuyển sang tab **Thành viên nhóm** để xem kết quả chi tiết, chọn thành viên và thêm trực tiếp vào Chiến dịch gửi tin hàng loạt, kết bạn hoặc xuất thông tin liên hệ.
 Chăm sóc theo sinh nhật/giới tính (điểm bán hàng mạnh): lọc khách sinh nhật hôm nay/tuần/tháng để gửi lời chúc + ưu đãi; chiến dịch theo giới tính (8/3, 20/10 cho khách nữ; 14/2 cho khách nam); kéo lại khách cũ chưa nhắn > 30 ngày. Cách dùng: CRM → Danh sách liên hệ → Bộ lọc → chọn tiêu chí → Chọn hết → Thêm vào chiến dịch → soạn nội dung → Gửi.
 Chiến dịch gửi tin (Campaign): gửi tin/kết bạn/mời nhóm hàng loạt có kiểm soát, cài delay tránh spam, theo dõi realtime (đã gửi/thất bại/chờ/đã phản hồi).
+- **Chế độ gửi đa nội dung linh hoạt:**
+  - **🎲 Xoay vòng ngẫu nhiên (Random):** Mỗi khách hàng nhận ngẫu nhiên 1 biến thể trong danh sách các khối nội dung và hình ảnh. Phù hợp để A/B test hoặc phân tán nội dung tránh bị hệ sinh thái Zalo nhận diện spam.
+  - **📦 Gửi tất cả (All):** Gửi tuần tự lần lượt toàn bộ các khối nội dung và hình ảnh cho từng khách hàng (hỗ trợ đầy đủ cho cả bạn bè lẫn người lạ). Phù hợp khi cần gửi combo tài liệu, catalog ảnh kèm lời chào chi tiết.
 ###
 3.5. Workflow tự động hóa
 Hệ thống tự động hóa kéo-thả theo mô hình Trigger → Node → Action, chạy nền liên tục 24/7. Không cần code.
@@ -171,6 +174,13 @@ Trang chủ khi mở app: thẻ trạng thái từng tài khoản (online/offlin
 - **🖼️ Logo Thương Hiệu Zagi PNG & Phục Hồi Sau Tắt Máy:**
   - Đồng bộ logo PNG chính thức `zagi-logo.png` toàn bộ giao diện app & landing page.
   - Tự động phục hồi trạng thái tin/SĐT dở dang (`scanning` ➔ `pending`) sau khi bật lại máy / khởi động lại app.
+### 3.15. Cập nhật mới phiên bản v3.2.1
+- **🎯 Chuẩn hóa chế độ gửi "Tất cả" nội dung Chiến dịch CRM:**
+  - Sửa lỗi hiển thị trạng thái `modeText` trong chi tiết chiến dịch (`CampaignDetail.tsx`): hiển thị rõ ràng nhãn **"Gửi tất cả (N nội dung)"** khi người dùng tạo chiến dịch với tùy chọn gửi toàn bộ khối nội dung.
+  - Động cơ hàng đợi `CRMQueueService.ts` gửi tuần tự toàn bộ các khối nội dung và tệp hình ảnh cho mọi liên hệ (bao gồm cả bạn bè và khách lạ) mà không bị giới hạn cưỡng bức 1 tin nhắn.
+- **🏷️ Đồng bộ dữ liệu Nhãn Local (Local Labels) chính xác tuyệt đối:**
+  - Sửa lỗi đảo thứ tự tham số trong hàm CSDL `transferContactBetweenAccounts` và `mergeContactsToAccount`: đảm bảo toàn bộ nhãn local được chuyển giao chính xác 100% sang tài khoản đích khi gộp hoặc điều chuyển danh bạ.
+  - Ngăn ngừa tình trạng Race Condition trong bảng thông tin chi tiết liên hệ (`CRMContactDetailPanel.tsx`): sử dụng vòng lặp tuần tự `for...of` kết hợp cờ khóa `localLabelTogglingRef`, giúp gán/gỡ nhiều nhãn liên tiếp mượt mà, không bị nuốt nhãn hay xung đột lưu ngầm.
 ##
 PHẦN 4: BẢO MẬT & QUYỀN RIÊNG TƯ 
 Dữ liệu lưu cục bộ 100% trên máy khách của khách hàng (tin nhắn, danh bạ, CRM, cài đặt). Không có server trung gian — app kết nối trực tiếp Zalo ↔ máy khách. Phiên đăng nhập được mã hóa AES, lưu cục bộ. App không lưu mật khẩu Zalo (đăng nhập qua QR). Không tích hợp SDK thu thập dữ liệu/analytics/quảng cáo bên thứ ba.

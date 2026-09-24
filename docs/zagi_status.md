@@ -1,7 +1,7 @@
 # TRẠNG THÁI HIỆN TẠI CỦA HỆ THỐNG ZAGI
-> **Ngày cập nhật:** 27/08/2026  
-> **Phiên bản:** v3.2.0 (Official Release)  
-> **Nhánh Git hiện tại:** `main`  
+> **Ngày cập nhật:** 24/09/2026  
+> **Phiên bản:** v3.2.1 (Official Release)  
+> **Nhánh Git hiện tại:** `fix/campaign-all-mode-and-local-label-sync`  
 ---
 
 ## 1. Thông Tin Chung & Kiến Trúc
@@ -115,17 +115,22 @@
     *   **Tích hợp Sapo Private App & Chuẩn hóa đồng bộ đơn hàng**: Nâng cấp `SapoAdapter.ts` hỗ trợ xác thực cổng Sapo Admin qua Basic Auth. Sửa lỗi đồng bộ đơn hàng: làm phẳng sản phẩm theo Variant level gửi đúng `variant_id` (mã phiên bản sản phẩm) thay vì Product ID cha. Bổ sung đối tượng `customer` và map Họ & Tên vào `first_name`/`last_name` ở address để Sapo tự động liên kết hồ sơ khách hàng đầy đủ SĐT/Email và tự động điền thông tin giao hàng để chủ shop có thể lên đơn "Đẩy vận chuyển" trực tiếp từ Sapo Admin không bị lệch thông tin. Tách bạch các trường tùy chọn và bắt buộc của Sapo & Haravan trên giao diện cấu hình, sửa lỗi required validation khi kết nối.
     *   **Tham gia nhóm Zalo trực tiếp bằng Link**: Tự động đánh chặn các link nhóm zalo.me được click trên khung chat và gọi API `joinGroupLink` trực tiếp trên tài khoản Zagi active. Đồng thời thêm nút **Vào nhóm bằng link** (icon 🔗) ở Sidebar danh sách chat để paste link tham gia nhanh chóng.
 
-118: ## 4. Trạng Thái Kiểm Thử & Chạy Thử
-119: *   **Preview Server:** ⚪ **Stopped** (Đang dừng).
-120: *   **Hệ thống Unit Test:** Đã cấu hình Jest & `ts-jest` thành công với **27/27 test suites (240/240 tests) PASS 100%**.
-121: 
-122: 20. **Quét SĐT Gom Mảng An Toàn & Vô Hiệu Hóa findUser Chiến Dịch CRM (v3.1.6):**
-123:     *   **Gom mảng ngẫu nhiên 6 – 10 SĐT / Request (`PhoneScanService.ts`)**: Tinh chỉnh gói gom mảng `getMultiUsersByPhones` ngẫu nhiên 6-10 SĐT cho mỗi đợt request, phù hợp định mức an toàn Zalo (**30 số/giờ** và **100-200 số/ngày**). Tăng tốc độ quét gấp ~10 lần nhưng không làm Zalo Server đánh dấu nghi ngờ hay bùng nổ traffic.
-124:     *   **Quét song song đa tài khoản**: Động cơ quét luân phiên đa nick chạy ngầm song song cho cả 3 chế độ lưu trữ: 🟢 Phân tán theo nick quét, 🔵 Gom về 1 nick Master (Sếp), 🟣 Đồng bộ tất cả các nick Zalo active.
-125:     *   **Vô hiệu hóa findUser API khi chạy Chiến dịch CRM**: 100% không gọi API `findUser` trong suốt quá trình chạy chiến dịch. Tự động giải mã Zalo UID từ Local DB (`crm_contacts` & `phone_scan_items`). Nếu SĐT chưa có Zalo UID, an toàn đánh dấu *"SĐT chưa có Zalo UID (Hãy chạy Quét SĐT trước)"* mà không làm đứt luồng chiến dịch hay làm nick bị soft-block `5001/5004`.
-126:     *   **Modal Xuất Excel Tùy Chỉnh Trường Dữ Liệu (`ExportExcelColumnModal`)**: Cho phép chọn linh hoạt 12 trường thông tin tùy chỉnh trước khi xuất file báo cáo Excel.
-127:     *   **Làm sạch code dư thừa (Clean Code)**: Loại bỏ hoàn toàn tính năng và code dư thừa `convertScanToCampaign` giúp ứng dụng mượt mà, tối ưu bộ nhớ.
-128: 21. **Tự Khôi Phục Profile Danh Bạ Chat & Nâng Cấp Bộ Nạp IPC An Toàn (v3.1.7):**
-129:     *   **Tự khôi phục Tên & Avatar thật (`healContactProfilesFromCrm`)**: Tự động nhận diện các liên hệ gửi tin chiến dịch bị hiển thị dạng số Zalo UID (`9035429026671422707`) và phục hồi 100% Tên thật và Ảnh đại diện từ danh bạ CRM (`crm_contacts`) / Quét SĐT (`phone_scan_items`) sang danh sách Chat.
-130:     *   **Cách ly sự cố nạp kênh IPC (`safeRegister` & `safeHandle`)**: Bọc try-catch riêng biệt cho 25+ module IPC trong `main.ts` và tự động gỡ sạch kênh cũ trước khi gán kênh mới (`crmIpc.ts`, `databaseIpc.ts`). Loại bỏ hoàn toàn lỗi "No handler registered for..." khi nâng cấp đè trên Windows.
-131:     *   **Tự tắt tiến trình cũ khi cài đặt (`killProcessOnUninstaller: true`)**: Bộ nạp NSIS installer tự động tắt các tiến trình `zagi.exe` cũ chạy ngầm trước khi nâng cấp.
+20. **Quét SĐT Gom Mảng An Toàn & Vô Hiệu Hóa findUser Chiến Dịch CRM (v3.1.6):**
+    *   **Gom mảng ngẫu nhiên 6 – 10 SĐT / Request (`PhoneScanService.ts`)**: Tinh chỉnh gói gom mảng `getMultiUsersByPhones` ngẫu nhiên 6-10 SĐT cho mỗi đợt request, phù hợp định mức an toàn Zalo (**30 số/giờ** và **100-200 số/ngày**). Tăng tốc độ quét gấp ~10 lần nhưng không làm Zalo Server đánh dấu nghi ngờ hay bùng nổ traffic.
+    *   **Quét song song đa tài khoản**: Động cơ quét luân phiên đa nick chạy ngầm song song cho cả 3 chế độ lưu trữ: 🟢 Phân tán theo nick quét, 🔵 Gom về 1 nick Master (Sếp), 🟣 Đồng bộ tất cả các nick Zalo active.
+    *   **Vô hiệu hóa findUser API khi chạy Chiến dịch CRM**: 100% không gọi API `findUser` trong suốt quá trình chạy chiến dịch. Tự động giải mã Zalo UID từ Local DB (`crm_contacts` & `phone_scan_items`). Nếu SĐT chưa có Zalo UID, an toàn đánh dấu *"SĐT chưa có Zalo UID (Hãy chạy Quét SĐT trước)"* mà không làm đứt luồng chiến dịch hay làm nick bị soft-block `5001/5004`.
+    *   **Modal Xuất Excel Tùy Chỉnh Trường Dữ Liệu (`ExportExcelColumnModal`)**: Cho phép chọn linh hoạt 12 trường thông tin tùy chỉnh trước khi xuất file báo cáo Excel.
+    *   **Làm sạch code dư thừa (Clean Code)**: Loại bỏ hoàn toàn tính năng và code dư thừa `convertScanToCampaign` giúp ứng dụng mượt mà, tối ưu bộ nhớ.
+21. **Tự Khôi Phục Profile Danh Bạ Chat & Nâng Cấp Bộ Nạp IPC An Toàn (v3.1.7):**
+    *   **Tự khôi phục Tên & Avatar thật (`healContactProfilesFromCrm`)**: Tự động nhận diện các liên hệ gửi tin chiến dịch bị hiển thị dạng số Zalo UID (`9035429026671422707`) và phục hồi 100% Tên thật và Ảnh đại diện từ danh bạ CRM (`crm_contacts`) / Quét SĐT (`phone_scan_items`) sang danh sách Chat.
+    *   **Cách ly sự cố nạp kênh IPC (`safeRegister` & `safeHandle`)**: Bọc try-catch riêng biệt cho 25+ module IPC trong `main.ts` và tự động gỡ sạch kênh cũ trước khi gán kênh mới (`crmIpc.ts`, `databaseIpc.ts`). Loại bỏ hoàn toàn lỗi "No handler registered for..." khi nâng cấp đè trên Windows.
+    *   **Tự tắt tiến trình cũ khi cài đặt (`killProcessOnUninstaller: true`)**: Bộ nạp NSIS installer tự động tắt các tiến trình `zagi.exe` cũ chạy ngầm trước khi nâng cấp.
+22. **Chiến Dịch Gửi Tất Cả Khối Nội Dung & Đồng Bộ Nhãn Local (v3.2.1):**
+    *   **Sửa hiển thị & thực thi Chế độ "Gửi tất cả" Chiến dịch CRM**: Khắc phục lỗi `modeText` hiển thị nhầm "Xoay vòng ngẫu nhiên" tại `CampaignDetail.tsx` khi chiến dịch thiết lập gửi đa biến thể (`mode: 'all'`). Cập nhật `CRMQueueService.ts` cho phép gửi toàn bộ các khối nội dung và hình ảnh cho từng liên hệ (kể cả khách lạ) khi người dùng chọn chế độ "Gửi tất cả".
+    *   **Sửa lỗi đảo ngược tham số gán Nhãn Local (`DatabaseService.ts`)**: Khắc phục lỗi truyền ngược thứ tự tham số `contact.contact_id` và `tag.label_id` trong hai hàm chuyển nhượng và gộp liên hệ (`transferContactBetweenAccounts` & `mergeContactsToAccount`), đảm bảo ghi đúng `toZaloId`, `label_id`, `thread_id` vào CSDL SQLite.
+    *   **Khắc phục Race Condition khi gán/gỡ Nhãn Local (`CRMContactDetailPanel.tsx`)**: Bổ sung `localLabelTogglingRef` và chuyển đổi sang vòng lặp tuần tự `for...of` với cờ `skipEvent: true`, chỉ phát 1 sự kiện `contact_updated` duy nhất sau khi hoàn tất, ngăn chặn triệt để tình trạng nuốt nhãn hoặc ghi đè dữ liệu khi thao tác liên tiếp trên danh bạ CRM.
+
+## 4. Trạng Thái Kiểm Thử & Chạy Thử
+*   **Preview Server:** ⚪ **Stopped** (Đang dừng).
+*   **Hệ thống Unit Test:** Đã cấu hình Jest & `ts-jest` thành công với **28/28 test suites (245/245 tests) PASS 100%**.
+*   **Biên dịch Electron & Renderer:** `npm run build:electron` & `npx vite build` hoàn thành không lỗi.

@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v3.2.0** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v3.2.1** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.2.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.Window.exe)
 
-**[Zagi.v3.2.0.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)**
+**[Zagi.v3.2.1.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.Window.exe)**
 
 NSIS Installer · ~164 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~164 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.2.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.2.1-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.M1%2B.arm64.dmg)
 
-**[Zagi.v3.2.0.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.2.1.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.M1%2B.arm64.dmg)**
 
 Apple Silicon DMG · Signed & Notarized · ~231 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · Signed & Notarized · ~231 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.2.0-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.2.1-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.Intel.dmg)
 
-**[Zagi.v3.2.0.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)**
+**[Zagi.v3.2.1.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.Intel.dmg)**
 
 Intel x64 DMG · Signed & Notarized · ~239 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · Signed & Notarized · ~239 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.2.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.2.1-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.Linux.AppImage)
 
-**[Zagi.v3.2.0.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.AppImage)**  
-**[Zagi.v3.2.0.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.Debian.deb)**
+**[Zagi.v3.2.1.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.Linux.AppImage)**  
+**[Zagi.v3.2.1.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.Linux.Debian.deb)**
 
 AppImage + Debian .deb
 
@@ -98,9 +98,9 @@ AppImage + Debian .deb
 > 
 > Surface Pro 7 trở xuống (Intel) → dùng bản Windows x64 phía trên.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Surface.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.2.1-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.Surface.exe)
 
-**[Zagi.v3.2.0.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Surface.exe)**
+**[Zagi.v3.2.1.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.Surface.exe)**
 
 NSIS Installer ARM64 · ~166 MB · Tối ưu native cho Surface ARM
 
@@ -124,19 +124,19 @@ NSIS Installer ARM64 · ~166 MB · Tối ưu native cho Surface ARM
 Máy tính của bạn là loại gì?
 │
 ├─ 🖥️ PC desktop / Laptop thông thường (Dell, HP, Lenovo, Asus, Acer...)
-│   └─ → Tải: Zagi v3.2.0 Window.exe  ✅
+│   └─ → Tải: Zagi v3.2.1 Window.exe  ✅
 │
 ├─ 💻 Surface Pro 7, Surface Laptop 1-4, Surface Go 1-2, Surface Book
-│   └─ → Tải: Zagi v3.2.0 Window.exe  ✅  (chip Intel, chạy ok)
+│   └─ → Tải: Zagi v3.2.1 Window.exe  ✅  (chip Intel, chạy ok)
 │
 └─ 💻 Surface Pro X, Surface Pro 9 (5G), Surface Pro 10, Surface Pro 11,
        Surface Laptop 7 (chip Snapdragon / ARM64)
-    └─ → Tải: Zagi v3.2.0 Surface.exe  ✅ (bản native ARM64)
+    └─ → Tải: Zagi v3.2.1 Surface.exe  ✅ (bản native ARM64)
 ```
 
 > 💡 **Cách kiểm tra chip máy Surface:** Vào `Settings → System → About`, xem mục **Processor**:
-> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v3.2.0 Window.exe`
-> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v3.2.0 Surface.exe`
+> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v3.2.1 Window.exe`
+> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v3.2.1 Surface.exe`
 
 ---
 
@@ -146,15 +146,15 @@ Máy tính của bạn là loại gì?
 Mac của bạn là loại gì?
 │
 ├─ 🍎 MacBook Air/Pro M1, M2, M3, M4 / Mac Neo chip A18 (2020 trở về sau)
-│   └─ → Tải: Zagi v3.2.0 MacOS M1+ arm64.dmg  ✅
+│   └─ → Tải: Zagi v3.2.1 MacOS M1+ arm64.dmg  ✅
 │
 └─ 🍎 MacBook, iMac, Mac mini chip Intel (2019 trở về trước)
-    └─ → Tải: Zagi v3.2.0 MacOS Intel.dmg  ✅
+    └─ → Tải: Zagi v3.2.1 MacOS Intel.dmg  ✅
 ```
 
 > 💡 **Cách kiểm tra:** Click logo Apple → **About This Mac** → xem mục **Chip** hoặc **Processor**:
-> - Có chữ `Apple M1/M2/M3/M4/A18` → bản `Zagi v3.2.0 MacOS M1+ arm64.dmg`
-> - Có chữ `Intel` → bản `Zagi v3.2.0 MacOS Intel.dmg`
+> - Có chữ `Apple M1/M2/M3/M4/A18` → bản `Zagi v3.2.1 MacOS M1+ arm64.dmg`
+> - Có chữ `Intel` → bản `Zagi v3.2.1 MacOS Intel.dmg`
 
 ---
 
@@ -164,11 +164,11 @@ Mac của bạn là loại gì?
 Bạn dùng distro nào?
 │
 ├─ Ubuntu, Mint, PopOS, Zorin, ElementaryOS... → Tải .deb  ✅
-│   sudo dpkg -i "Zagi v3.2.0 Linux Debian.deb"
+│   sudo dpkg -i "Zagi v3.2.1 Linux Debian.deb"
 │
 └─ Fedora, Arch, openSUSE hoặc bất kỳ distro nào
     → Tải .AppImage  ✅
-    chmod +x "Zagi v3.2.0 Linux.AppImage" && ./"Zagi v3.2.0 Linux.AppImage"
+    chmod +x "Zagi v3.2.1 Linux.AppImage" && ./"Zagi v3.2.1 Linux.AppImage"
 ```
 
 ---
@@ -177,13 +177,13 @@ Bạn dùng distro nào?
 
 | Thiết bị | File cần tải | Ghi chú |
 |---|---|---|
-| PC/Laptop Windows (Intel/AMD) | `Zagi v3.2.0 Window.exe` | Phổ biến nhất |
-| Surface Pro 7 trở xuống | `Zagi v3.2.0 Window.exe` | Chip Intel |
-| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi v3.2.0 Surface.exe` | 🆕 Chip ARM64 |
-| MacBook M1/M2/M3/M4 / Mac Neo A18 | `Zagi v3.2.0 MacOS M1+ arm64.dmg` | Apple Silicon (Signed & Notarized) |
-| MacBook/iMac Intel | `Zagi v3.2.0 MacOS Intel.dmg` | Intel x64 (Signed & Notarized) |
-| Ubuntu/Debian Linux | `Zagi v3.2.0 Linux Debian.deb` | Cài như package |
-| Fedora/Arch/Linux khác | `Zagi v3.2.0 Linux.AppImage` | Chạy mọi distro |
+| PC/Laptop Windows (Intel/AMD) | `Zagi v3.2.1 Window.exe` | Phổ biến nhất |
+| Surface Pro 7 trở xuống | `Zagi v3.2.1 Window.exe` | Chip Intel |
+| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi v3.2.1 Surface.exe` | 🆕 Chip ARM64 |
+| MacBook M1/M2/M3/M4 / Mac Neo A18 | `Zagi v3.2.1 MacOS M1+ arm64.dmg` | Apple Silicon (Signed & Notarized) |
+| MacBook/iMac Intel | `Zagi v3.2.1 MacOS Intel.dmg` | Intel x64 (Signed & Notarized) |
+| Ubuntu/Debian Linux | `Zagi v3.2.1 Linux Debian.deb` | Cài như package |
+| Fedora/Arch/Linux khác | `Zagi v3.2.1 Linux.AppImage` | Chạy mọi distro |
 
 ---
 
@@ -210,8 +210,8 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x "Zagi v3.2.0 Linux.AppImage"
-./"Zagi v3.2.0 Linux.AppImage"
+chmod +x "Zagi v3.2.1 Linux.AppImage"
+./"Zagi v3.2.1 Linux.AppImage"
 ```
 
 Nếu lỗi "FUSE not available":
@@ -221,7 +221,7 @@ sudo apt install libfuse2
 
 Hoặc dùng `.deb`:
 ```bash
-sudo dpkg -i "Zagi v3.2.0 Linux Debian.deb"
+sudo dpkg -i "Zagi v3.2.1 Linux Debian.deb"
 ```
 
 </details>
@@ -459,7 +459,22 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v3.2.0</strong> — 2026-08-27 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v3.2.1</strong> — 2026-09-24 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật & Sửa lỗi
+
+- 🎯 **Chuẩn Hóa Chế Độ Gửi Chiến Dịch CRM Đa Biến Thể (`CampaignDetail.tsx`, `CRMQueueService.ts`)**:
+  - Khắc phục lỗi hiển thị `modeText` nhầm thành *"Xoay vòng ngẫu nhiên"* khi người dùng chọn chiến dịch gửi toàn bộ các khối nội dung (`all`). Giờ đây hiển thị chính xác huy hiệu `"Gửi tất cả (N nội dung)"`.
+  - Nâng cấp động cơ hàng đợi `CRMQueueService.ts`: khi chạy chế độ `"all"`, hệ thống gửi tuần tự toàn bộ các khối tin nhắn và hình ảnh cho từng khách hàng (áp dụng cho cả bạn bè và khách lạ).
+- 🏷️ **Sửa Lỗi Đảo Ngược Tham Số Nhãn Local Trong CSDL (`DatabaseService.ts`)**:
+  - Chuẩn hóa thứ tự tham số `contact_id` và `label_id` khi gộp danh bạ (`mergeContactsToAccount`) hoặc chuyển nhượng liên hệ (`transferContactBetweenAccounts`), đảm bảo nhãn Local được chuyển giao chính xác 100% sang tài khoản đích.
+- ⚡ **Chống Race Condition Khi Gán Nhiều Nhãn Cùng Lúc (`CRMContactDetailPanel.tsx`)**:
+  - Sử dụng vòng lặp tuần tự `for...of` có `await` kết hợp `useRef` guard (`localLabelTogglingRef`) để ngăn ngừa triệt để lỗi nuốt nhãn hoặc xung đột bất đồng bộ khi người dùng tick chọn nhiều nhãn trong modal chọn nhãn tập trung.
+
+</details>
+
+<details>
+<summary><strong>v3.2.0</strong> — 2026-08-27</summary>
 
 ### 🚀 Nâng cấp nổi bật & Tính năng mới
 

@@ -1,8 +1,21 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 3.2.0  
-> **Ngày cập nhật:** 27/08/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.2.0 (Official Release)  
+> **Phiên bản tài liệu:** 3.2.1  
+> **Ngày cập nhật:** 24/09/2026  
+> **Trạng thái sản phẩm hiện tại:** v3.2.1 (Official Release)  
 > **Chủ quản:** Product Management Team  
+
+---
+
+#### 🚀 v3.2.1 — Chuẩn Hóa Chế Độ Gửi Chiến Dịch & Khắc Phục Đồng Bộ Nhãn Local (Official Release)
+* **Tính năng mới & Sửa lỗi nổi bật:**
+  * **🎯 Chuẩn Hóa Hiển Thị Chế Độ Chiến Dịch Đa Biến Thể (`CampaignDetail.tsx`)**:
+    * Sửa điều kiện nhận diện `mode === 'all'` để hiển thị chính xác huy hiệu `"Gửi tất cả (N nội dung)"`, khắc phục lỗi hiển thị nhầm thành *"Xoay vòng ngẫu nhiên"*.
+  * **📨 Gửi Đầy Đủ Nội Dung Khi Chọn "Gửi Tất Cả" (`CRMQueueService.ts`)**:
+    * Cho phép gửi toàn bộ các block nội dung/hình ảnh đến danh sách liên hệ khi cấu hình `sendMode === 'all'`, không còn bị giới hạn cưỡng bức 1 tin đối với liên hệ.
+  * **🏷️ Sửa Lỗi Đảo Ngược Tham Số Nhãn Local Trong CSDL (`DatabaseService.ts`)**:
+    * Chuẩn hóa thứ tự tham số `contact_id` và `label_id` khi gộp danh bạ (`mergeContactsToAccount`) hoặc chuyển nhượng liên hệ (`transferContactBetweenAccounts`), đảm bảo nhãn Local được ghi đúng bảng liên kết `local_label_threads`.
+  * **⚡ Chống Race Condition Khi Gán Nhiều Nhãn Cùng Lúc (`CRMContactDetailPanel.tsx`)**:
+    * Sử dụng vòng lặp tuần tự `for...of` có `await` kết hợp `useRef` guard (`localLabelTogglingRef`) để ngăn ngừa triệt để lỗi nuốt nhãn hoặc xung đột bất đồng bộ khi người dùng tick chọn nhiều nhãn trong modal chọn nhãn tập trung.
 
 ---
 

@@ -2,6 +2,18 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.2.1] - 2026-09-24
+
+### 🎯 Chuẩn Hóa Chế Độ Gửi Chiến Dịch & Hiển Thị Đa Biến Thể (`CampaignDetail.tsx`, `CRMQueueService.ts`)
+- **Sửa lỗi hiển thị chế độ chiến dịch bên ngoài:** Khắc phục lỗi kiểm tra điều kiện `mode === 'sequential'` khiến chiến dịch chọn chế độ "Tất cả" (`mode: 'all'`) bị hiển thị sai thành *"Xoay vòng ngẫu nhiên"*. Huy hiệu bên ngoài giờ đây hiển thị chính xác: `Gửi tất cả (N nội dung)` hoặc `Xoay vòng ngẫu nhiên (N biến thể)`.
+- **Gửi đầy đủ nội dung khi chọn "Gửi tất cả":** Loại bỏ giới hạn cưỡng bức chỉ gửi 1 tin đầu tiên đối với người lạ khi chiến dịch thiết lập chế độ `sendMode === 'all'`. Hệ thống sẽ gửi đầy đủ toàn bộ các block nội dung/ảnh theo đúng mong muốn của người dùng.
+
+### 🏷️ Khắc Phục Lỗi Đồng Bộ Nhãn Local & Chống Race Condition (`DatabaseService.ts`, `CRMContactDetailPanel.tsx`)
+- **Sửa lỗi đảo ngược tham số CSDL trong Gộp & Chuyển liên hệ:** Khắc phục lỗi hoán đổi tham số `contact_id` (chuỗi) và `label_id` (số) khi gọi `assignLocalLabelToThread` trong hàm `transferContactBetweenAccounts` và `mergeContactsToAccount`, bảo toàn 100% nhãn Local khi chuyển tài khoản hoặc gộp khách hàng.
+- **Xử lý Race Condition khi gán nhiều nhãn cùng lúc:** Chuyển đổi cơ chế lưu nhãn trong `CRMContactDetailPanel.tsx` từ `.forEach` song song sang vòng lặp tuần tự `for...of` có `await`, kèm `useRef` guard chống double-save. Đảm bảo toàn bộ nhãn được chọn trong popup được lưu đầy đủ vào CSDL và phát sự kiện `local-labels-changed` cập nhật giao diện thời gian thực.
+
+---
+
 ## [v3.2.0] - 2026-08-27
 
 ### 🗳️ Nâng Cấp Toàn Diện Tính Năng Tạo Bình Chọn Nhóm Chuẩn 100% Theo Zalo (`ChatWindow.tsx`, `ZaloService.ts`)
