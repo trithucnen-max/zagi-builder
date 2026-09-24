@@ -596,7 +596,7 @@ npm run production
 ### 🐛 Sửa lỗi & Cải thiện ổn định
 
 - 🔧 **Sửa lỗi contextBridge Proxy & require is not defined**: Khắc phục crash runtime `TypeError: 'get' on proxy...` bằng `wrapZaloApi` plain object. Đồng thời sửa triệt để lỗi `ReferenceError: require is not defined` trong Renderer bằng cách đổi dynamic require store sang static import.
-- 🌐 **Sửa lỗi link tải thủ công (404 Error)**: Thay đổi các đường dẫn tải macOS/Linux thủ công ở giao diện trỏ trực tiếp về GitHub Releases với quy định đặt tên tệp thống nhất (`Zagi v3.2.0 MacOS M1+ arm64.dmg`, `Zagi v3.2.0 MacOS Intel.dmg`, `Zagi v3.2.0 Linux Debian.deb`).
+- 🌐 **Sửa lỗi link tải thủ công (404 Error)**: Thay đổi các đường dẫn tải macOS/Linux thủ công ở giao diện trỏ trực tiếp về GitHub Releases với quy định đặt tên tệp thống nhất (`Zagi v3.2.1 MacOS M1+ arm64.dmg`, `Zagi v3.2.1 MacOS Intel.dmg`, `Zagi v3.2.1 Linux Debian.deb`).
 - 🕵️ **Chẩn đoán lỗi Facebook Scraper**: Xác định nguyên nhân lỗi `Không thể tìm docId cho search` do Facebook thay đổi Relay Query name. Cải thiện xử lý và thông báo lỗi cho người dùng.
 - 📋 **Ghi nhận kịch bản lỗi CRM Campaign**: Phân tích và tài liệu hoá 4 tình huống khiến nhân viên không thêm được người vào chiến dịch (mất kết nối LAN, nhóm chưa sync, định dạng SĐT sai, SQLite lock).
 - 🔨 **Sửa lỗi TypeScript TS2305**: Bổ sung `hasUnseenChangelog()` và `markChangelogSeen()` vào `settingsSeenTabs.ts` — Settings.tsx đã import nhưng module chưa export.
