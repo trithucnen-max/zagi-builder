@@ -656,10 +656,10 @@ footer a:hover{color:var(--md-primary)}
 <body>
 
 <!-- ============ PROMO BAR ============ -->
-<div class="promobar">
+<div class="promobar" style="display:none">
   <div class="wrap">
     <span class="ms ms-18">card_giftcard</span>
-    <span id="promoText">THÁNG 8 — NHÂN ĐÔI THỜI HẠN: mua 6 tháng dùng 12, mua 12 tháng dùng 24.</span>
+    <span id="promoText"></span>
     <span class="cd" id="cd" aria-live="polite" aria-atomic="true">
       <b id="cdD">--</b><i>ngày</i><b id="cdH">--</b><i>giờ</i><b id="cdM">--</b><i>phút</i><b id="cdS">--</b><i>giây</i>
     </span>
@@ -1081,7 +1081,7 @@ footer a:hover{color:var(--md-primary)}
 <section id="gia">
   <div class="wrap">
     <div class="center rv" style="margin-bottom:8px">
-      <span class="tagchip gld"><span class="ms ms-18">card_giftcard</span>Ưu đãi tháng 8</span>
+      <span class="tagchip"><span class="ms ms-18">payments</span>Bảng giá minh bạch</span>
       <h2 class="t-headline">Giá của một ly trà đá.<br>Việc của một trợ lý không ngủ.</h2>
       <p class="lead">Bảng giá quy đổi theo tháng để bạn dễ so sánh. Thanh toán một lần theo gói, kích hoạt tự động 24/7.</p>
     </div>
@@ -1091,12 +1091,11 @@ footer a:hover{color:var(--md-primary)}
         <button role="tab" id="tab-solo" aria-selected="true" aria-controls="prices" data-seg="solo"><span class="ms ms-18">person</span>Cá nhân</button>
         <button role="tab" id="tab-team" aria-selected="false" aria-controls="prices" data-seg="team"><span class="ms ms-18">groups</span>Đội nhóm</button>
       </div>
-      <div><span class="promo-note"><span class="ms ms-18">card_giftcard</span>NHÂN ĐÔI THỜI HẠN — hết hạn 23:59 ngày 31/08/2026</span></div>
     </div>
 
     <div class="prices rv" id="prices"></div>
 
-    <p class="refnote rv">Nhập <b>mã giới thiệu</b> (số điện thoại người giới thiệu) khi kích hoạt để được <b>cộng thêm 1 tháng</b>, cộng dồn với ưu đãi tháng 8.</p>
+    <p class="refnote rv">Nhập <b>mã giới thiệu</b> (số điện thoại người giới thiệu) khi kích hoạt để được <b>cộng thêm 1 tháng</b> sử dụng.</p>
 
     <div class="paybox rv">
       <div class="payicon"><span class="ms ms-40">qr_code_2</span></div>
@@ -1176,7 +1175,7 @@ footer a:hover{color:var(--md-primary)}
       <details class="q"><summary>“Thanh toán xong bao lâu có mã kích hoạt?”<span class="ms ms-24">expand_more</span></summary>
         <div class="a">Cổng VietQR MB Bank kết nối SePay chạy tự động 24/7. Tiền vào là mã bản quyền hiện ngay trên màn hình trong 1–2 giây và gửi song song về email của bạn. Hoá đơn VAT xuất từ Công ty Cổ phần Basan theo yêu cầu.</div></details>
       <details class="q"><summary>“Để hết beta rồi tính.”<span class="ms ms-24">expand_more</span></summary>
-        <div class="a">Hết beta thì hết giá này, và hết luôn ưu đãi nhân đôi thời hạn. Beta nghĩa là bạn đang trả mức giá của người vào sớm, đổi lại bạn chấp nhận sản phẩm còn đang hoàn thiện từng tuần.</div></details>
+        <div class="a">Hết beta thì mức giá ưu đãi giai đoạn đầu này sẽ được điều chỉnh theo biểu phí chính thức. Beta nghĩa là bạn đang trả mức giá của người vào sớm, đổi lại bạn chấp nhận sản phẩm còn đang hoàn thiện và cập nhật tính năng mới liên tục mỗi tuần.</div></details>
       <details class="q"><summary>“Chạy trên máy nào?”<span class="ms ms-24">expand_more</span></summary>
         <div class="a">macOS (Apple Silicon M1–M4 và Intel), Windows 10/11 64-bit, Windows ARM64 cho dòng Surface, và Linux qua AppImage hoặc gói .deb.</div></details>
     </div>
@@ -1187,7 +1186,7 @@ footer a:hover{color:var(--md-primary)}
 <section id="tai-ve">
   <div class="wrap">
     <div class="center rv" style="margin-bottom:28px">
-      <span class="tagchip"><span class="ms ms-18">download</span>Bản v3.2.0</span>
+      <span class="tagchip"><span class="ms ms-18">download</span>Bản v3.2.1</span>
       <h2 class="t-headline">Tải về và quét danh bạ ngay tối nay</h2>
       <p class="lead">14 ngày đầy đủ tính năng. Không cần thẻ tín dụng, không tự động gia hạn.</p>
     </div>
@@ -1197,7 +1196,7 @@ footer a:hover{color:var(--md-primary)}
         <div style="flex:1">
           <b>macOS — Apple Silicon (M1/M2/M3/M4)<span class="dlbadge" hidden>THIẾT BỊ CỦA BẠN</span></b>
           <small>File .dmg · ~231 MB · ký số Apple Developer ID của Basan Corp</small>
-          <a class="btn btn-filled" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg"><span class="ms ms-20">download</span>Tải cho Mac M-series</a>
+          <a class="btn btn-filled" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.M1%2B.arm64.dmg"><span class="ms ms-20">download</span>Tải cho Mac M-series</a>
         </div>
       </div>
       <div class="dlcard" id="dc-mac_intel">
@@ -1205,7 +1204,7 @@ footer a:hover{color:var(--md-primary)}
         <div style="flex:1">
           <b>macOS — Intel<span class="dlbadge" hidden>THIẾT BỊ CỦA BẠN</span></b>
           <small>File .dmg · ~239 MB · máy Mac từ 2019 trở về trước</small>
-          <a class="btn btn-outlined" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg"><span class="ms ms-20">download</span>Tải cho Mac Intel</a>
+          <a class="btn btn-outlined" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.Intel.dmg"><span class="ms ms-20">download</span>Tải cho Mac Intel</a>
         </div>
       </div>
       <div class="dlcard" id="dc-win_x64">
@@ -1250,14 +1249,14 @@ footer a:hover{color:var(--md-primary)}
       <p>Bạn chỉ cần 14 ngày và chính danh bạ Zalo bạn đang có sẵn. Quét một lần, nhìn danh sách người từng hỏi rồi bị bỏ quên hiện ra, rồi tự quyết.</p>
       <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
         <button class="btn btn-gold btn-lg" onclick="smartDownload(event)"><span class="ms ms-24">download</span>Tải về dùng thử 14 ngày</button>
-        <a href="#gia" class="btn btn-ghostnavy btn-lg">Xem bảng giá tháng 8</a>
+        <a href="#gia" class="btn btn-ghostnavy btn-lg">Xem bảng giá</a>
       </div>
       <div class="steps">
         <div class="step"><div class="sn">1</div><p>Tải và cài Zagi Desktop lên máy tính của bạn</p></div>
         <div class="step"><div class="sn">2</div><p>Đăng nhập nick Zalo và Fanpage, quét danh bạ cũ</p></div>
         <div class="step"><div class="sn">3</div><p>Nhập mã dùng thử, bật kịch bản chăm khách đầu tiên</p></div>
       </div>
-      <p class="ps"><b>Tái bút:</b> ưu đãi nhân đôi thời hạn kết thúc 23:59 ngày 31/08/2026. Sau mốc đó bạn vẫn mua được Zagi, chỉ là trả cùng số tiền để dùng một nửa thời gian.</p>
+      <p class="ps"><b>Tái bút:</b> Zagi hỗ trợ kích hoạt tự động 24/7 và chính sách bảo hành hoàn tiền trong 30 ngày nếu không đáp ứng được nhu cầu công việc của bạn.</p>
     </div>
   </div>
 </section>
@@ -1305,7 +1304,7 @@ footer a:hover{color:var(--md-primary)}
       </div>
     </div>
     <div class="fbot">
-      <span>© 2026 Công ty Cổ phần Basan. Zagi v3.2.0 (Beta). Giờ hỗ trợ 8:00–22:00 tất cả các ngày.</span>
+      <span>© 2026 Công ty Cổ phần Basan. Zagi v3.2.1 (Beta). Giờ hỗ trợ 8:00–22:00 tất cả các ngày.</span>
       <span style="color:var(--md-on-surface-variant)">Hiện tại website đang trong quá trình thử nghiệm.</span>
       <span>Zagi không liên kết và không được bảo trợ bởi Zalo (VNG) hay Meta.</span>
     </div>
@@ -1389,7 +1388,7 @@ footer a:hover{color:var(--md-primary)}
 <div class="scrim-modal" id="downloadModal" role="dialog" aria-modal="true" aria-labelledby="dlTitle">
   <div class="dialog wide">
     <div class="dhead">
-      <h3 id="dlTitle"><span class="ms ms-24">download</span>Bộ cài Zagi Desktop v3.2.0</h3>
+      <h3 id="dlTitle"><span class="ms ms-24">download</span>Bộ cài Zagi Desktop v3.2.1</h3>
       <button class="dclose" onclick="closeDownloadModal()" aria-label="Đóng"><span class="ms ms-24">close</span></button>
     </div>
     <div class="dbody">
@@ -1397,11 +1396,11 @@ footer a:hover{color:var(--md-primary)}
       <div class="dlgrid">
         <div class="dlmini" id="dm-mac_arm">
           <div><div class="mh"><span class="mi"><span class="ms ms-20">laptop_mac</span></span><div><b>macOS Apple Silicon</b><small>M1, M2, M3, M4 · .dmg ~231 MB</small></div></div></div>
-          <a class="btn btn-filled btn-block" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg"><span class="ms ms-20">download</span>Tải .dmg</a>
+          <a class="btn btn-filled btn-block" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.M1%2B.arm64.dmg"><span class="ms ms-20">download</span>Tải .dmg</a>
         </div>
         <div class="dlmini" id="dm-mac_intel">
           <div><div class="mh"><span class="mi"><span class="ms ms-20">desktop_mac</span></span><div><b>macOS Intel</b><small>Mac 2019 trở về trước · .dmg ~239 MB</small></div></div></div>
-          <a class="btn btn-outlined btn-block" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg"><span class="ms ms-20">download</span>Tải .dmg</a>
+          <a class="btn btn-outlined btn-block" href="https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.Intel.dmg"><span class="ms ms-20">download</span>Tải .dmg</a>
         </div>
         <div class="dlmini" id="dm-win_x64">
           <div><div class="mh"><span class="mi"><span class="ms ms-20">desktop_windows</span></span><div><b>Windows 10 / 11 (x64)</b><small>NSIS Installer · ~164 MB</small></div></div></div>
@@ -1433,15 +1432,16 @@ footer a:hover{color:var(--md-primary)}
 const SUPABASE_URL      = 'https://paxejunvgfhjdyulzutb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_lBfBOFuvMYCFxWl2X-yA3g_deMkL9Yo';
 const EDGE_BASE_URL     = SUPABASE_URL + '/functions/v1';
-const APP_VERSION       = 'v3.2.0';
-const REL = 'https://github.com/trithucnen-max/zagi-builder/releases/download/' + APP_VERSION + '/';
+const APP_VERSION       = 'v3.2.1';
+const REL_MAC           = 'https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/';
+const REL_WIN_LINUX     = 'https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/';
 const RELEASE_LINKS = {
-  mac_arm  : REL + 'Zagi.' + APP_VERSION + '.MacOS.M1%2B.arm64.dmg',
-  mac_intel: REL + 'Zagi.' + APP_VERSION + '.MacOS.Intel.dmg',
-  win_x64  : REL + 'Zagi.' + APP_VERSION + '.Window.exe',
-  win_arm  : REL + 'Zagi.' + APP_VERSION + '.Surface.exe',
-  linux_app: REL + 'Zagi.' + APP_VERSION + '.Linux.AppImage',
-  linux_deb: REL + 'Zagi.' + APP_VERSION + '.Linux.Debian.deb'
+  mac_arm  : REL_MAC + 'Zagi.v3.2.1.MacOS.M1%2B.arm64.dmg',
+  mac_intel: REL_MAC + 'Zagi.v3.2.1.MacOS.Intel.dmg',
+  win_x64  : REL_WIN_LINUX + 'Zagi.v3.2.0.Window.exe',
+  win_arm  : REL_WIN_LINUX + 'Zagi.v3.2.0.Surface.exe',
+  linux_app: REL_WIN_LINUX + 'Zagi.v3.2.0.Linux.AppImage',
+  linux_deb: REL_WIN_LINUX + 'Zagi.v3.2.0.Linux.Debian.deb'
 };
 /* Giá mặc định (fallback). Supabase bảng `plans` sẽ ghi đè nếu có. */
 const PLAN_PRICES = {
@@ -1603,49 +1603,138 @@ calcLoss();
 })();
 
 /* ---------- Smart OS detection ---------- */
-function detectOS(){
-  const ua = navigator.userAgent || '', pf = navigator.platform || '';
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || window.innerWidth <= 768;
-  if(isMobile) return {mobile:true, key:'win_x64', label:'Zagi là ứng dụng cho máy tính. Đăng ký để nhận mã kích hoạt và link tải qua email.'};
+/* ---------- Smart OS detection ---------- */
+const OS_CONFIGS = {
+  mac_arm:   { key:'mac_arm',   text:'Tải Zagi cho Mac M-series (.dmg)', label:'Đã nhận diện: macOS Apple Silicon (M1–M4)' },
+  mac_intel: { key:'mac_intel', text:'Tải Zagi cho Mac Intel (.dmg)',    label:'Đã nhận diện: macOS chip Intel' },
+  win_x64:   { key:'win_x64',   text:'Tải Zagi cho Windows 10/11 (.exe)', label:'Đã nhận diện: Windows 64-bit' },
+  win_arm:   { key:'win_arm',   text:'Tải Zagi cho Surface ARM64 (.exe)', label:'Đã nhận diện: Windows ARM64 / Surface' },
+  linux_app: { key:'linux_app', text:'Tải Zagi cho Linux (.AppImage)', label:'Đã nhận diện: Linux' },
+  mobile:    { mobile:true, key:'win_x64', label:'Zagi là ứng dụng cho máy tính. Đăng ký để nhận mã kích hoạt và link tải qua email.' }
+};
 
-  if(pf.includes('Mac') || ua.includes('Macintosh')){
-    let arm = false;
-    try{
+let detectedOSState = null;
+
+function detectOSSync(){
+  const ua = navigator.userAgent || '', pf = navigator.platform || '';
+  const isMobileUa = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isSmallScreen = window.innerWidth <= 768;
+  const isMacPlatform = pf.includes('Mac') || ua.includes('Macintosh');
+  // iPadOS trên trình duyệt Safari thường gửi UserAgent Desktop (Macintosh) nhưng maxTouchPoints > 1
+  const isIPad = isMacPlatform && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1;
+
+  if(isMobileUa || isSmallScreen || isIPad) {
+    return OS_CONFIGS.mobile;
+  }
+
+  if(isMacPlatform){
+    let isIntelExplicit = false;
+    let isArmExplicit = false;
+    try {
       const c = document.createElement('canvas');
       const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
       if(gl){
         const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-        if(dbg){
-          const r = String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '');
-          if(r.includes('Apple M') || r.includes('Apple A') || r.includes('Apple GPU')) arm = true;
+        const unmasked = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : '';
+        const basic = String(gl.getParameter(gl.RENDERER) || '');
+        const combined = (unmasked + ' ' + basic).toLowerCase();
+        
+        if(combined.includes('intel') || combined.includes('amd') || combined.includes('radeon')){
+          isIntelExplicit = true;
+        }
+        if(combined.includes('apple m') || combined.includes('apple a') || combined.includes('apple gpu') || combined.includes('metal')){
+          isArmExplicit = true;
         }
       }
     }catch(e){}
-    return arm
-      ? {key:'mac_arm',   text:'Tải Zagi cho Mac M-series (.dmg)', label:'Đã nhận diện: macOS Apple Silicon (M1–M4)'}
-      : {key:'mac_intel', text:'Tải Zagi cho Mac Intel (.dmg)',    label:'Đã nhận diện: macOS chip Intel'};
+
+    // QUY TẮC NHẬN DIỆN MACOS:
+    // Trình duyệt hiện đại (Safari 17+, Chrome 117+) thường che giấu WebGL renderer để chống tracking.
+    // Đến năm 2026, >95% thiết bị Mac đang vận hành là Apple Silicon (M1-M4).
+    // Do đó: Mặc định Mac luôn là Apple Silicon (M1–M4), TRỪ KHI phát hiện rõ ràng GPU Intel/AMD cũ.
+    if(isIntelExplicit && !isArmExplicit){
+      return OS_CONFIGS.mac_intel;
+    }
+    return OS_CONFIGS.mac_arm;
   }
+
   if(pf.includes('Win') || ua.includes('Windows')){
-    const arm = /ARM64|ARM/i.test(ua);
-    return arm
-      ? {key:'win_arm', text:'Tải Zagi cho Surface ARM64 (.exe)', label:'Đã nhận diện: Windows ARM64 / Surface'}
-      : {key:'win_x64', text:'Tải Zagi cho Windows 10/11 (.exe)', label:'Đã nhận diện: Windows 64-bit'};
+    const isArm = /ARM64|ARM/i.test(ua);
+    return isArm ? OS_CONFIGS.win_arm : OS_CONFIGS.win_x64;
   }
+
   if(pf.includes('Linux') || ua.includes('Linux')){
-    return {key:'linux_app', text:'Tải Zagi cho Linux (.AppImage)', label:'Đã nhận diện: Linux'};
+    return OS_CONFIGS.linux_app;
   }
-  return {key:'win_x64', text:'Tải Zagi ' + APP_VERSION, label:'Tự động chọn bộ cài phù hợp với thiết bị của bạn'};
+
+  return { key:'win_x64', text:'Tải Zagi ' + APP_VERSION, label:'Tự động chọn bộ cài phù hợp với thiết bị của bạn' };
 }
 
-function applyDetection(){
-  const os = detectOS();
+function detectOS(){
+  if(!detectedOSState){
+    detectedOSState = detectOSSync();
+  }
+  return detectedOSState;
+}
+
+// Tinh chỉnh bất đồng bộ với Chromium Client Hints & WebGPU (nếu có)
+function refineOSAsync(){
+  const ua = navigator.userAgent || '', pf = navigator.platform || '';
+  const isMac = pf.includes('Mac') || ua.includes('Macintosh');
+  const isWin = pf.includes('Win') || ua.includes('Windows');
+
+  if(navigator.userAgentData && typeof navigator.userAgentData.getHighEntropyValues === 'function'){
+    navigator.userAgentData.getHighEntropyValues(['architecture', 'bitness']).then(hints => {
+      let changed = false;
+      const arch = (hints.architecture || '').toLowerCase();
+      if(isMac){
+        if(arch === 'arm' && detectedOSState.key !== 'mac_arm'){
+          detectedOSState = OS_CONFIGS.mac_arm;
+          changed = true;
+        } else if(arch === 'x86' && detectedOSState.key !== 'mac_intel'){
+          detectedOSState = OS_CONFIGS.mac_intel;
+          changed = true;
+        }
+      } else if(isWin){
+        if(arch === 'arm' && detectedOSState.key !== 'win_arm'){
+          detectedOSState = OS_CONFIGS.win_arm;
+          changed = true;
+        }
+      }
+      if(changed) renderDetectionUI(detectedOSState);
+    }).catch(() => {});
+  } else if(isMac && navigator.gpu && typeof navigator.gpu.requestAdapter === 'function'){
+    navigator.gpu.requestAdapter().then(adapter => {
+      if(!adapter) return;
+      const info = adapter.info || {};
+      const arch = (info.architecture || '').toLowerCase();
+      const vendor = (info.vendor || '').toLowerCase();
+      const desc = (info.description || '').toLowerCase();
+      let changed = false;
+      if(vendor.includes('intel') || vendor.includes('amd') || arch.includes('x86')){
+        if(detectedOSState.key !== 'mac_intel'){
+          detectedOSState = OS_CONFIGS.mac_intel;
+          changed = true;
+        }
+      } else if(vendor.includes('apple') || arch.includes('arm') || desc.includes('apple')){
+        if(detectedOSState.key !== 'mac_arm'){
+          detectedOSState = OS_CONFIGS.mac_arm;
+          changed = true;
+        }
+      }
+      if(changed) renderDetectionUI(detectedOSState);
+    }).catch(() => {});
+  }
+}
+
+function renderDetectionUI(os){
   const note = $('#detectNote'), heroBtn = $('#heroDl');
   if(os.mobile){
-    note.innerHTML = '<span class="ms ms-18">phonelink</span>' + os.label;
-    heroBtn.innerHTML = '<span class="ms ms-24">rocket_launch</span>Nhận mã dùng thử 14 ngày (0đ)';
+    if(note) note.innerHTML = '<span class="ms ms-18">phonelink</span>' + os.label;
+    if(heroBtn) heroBtn.innerHTML = '<span class="ms ms-24">rocket_launch</span>Nhận mã dùng thử 14 ngày (0đ)';
   } else {
-    note.innerHTML = '<span class="ms ms-18">verified</span>' + os.label;
-    heroBtn.innerHTML = '<span class="ms ms-24">download</span>' + os.text;
+    if(note) note.innerHTML = '<span class="ms ms-18">verified</span>' + os.label;
+    if(heroBtn) heroBtn.innerHTML = '<span class="ms ms-24">download</span>' + os.text;
     ['mac_arm','mac_intel','win_x64','win_arm','linux_app'].forEach(k => {
       const card = document.getElementById('dc-' + k), mini = document.getElementById('dm-' + k);
       const on = (k === os.key);
@@ -1655,6 +1744,12 @@ function applyDetection(){
   }
   const okDl = $('#okDl');
   if(okDl) okDl.href = RELEASE_LINKS[os.key] || RELEASE_LINKS.win_x64;
+}
+
+function applyDetection(){
+  const os = detectOS();
+  renderDetectionUI(os);
+  refineOSAsync();
 }
 window.addEventListener('DOMContentLoaded', applyDetection);
 window.addEventListener('resize', applyDetection);
@@ -1680,22 +1775,22 @@ const PLANS = {
     {code:'trial_14d', name:'Dùng thử 14 ngày', month:0, total:0, bonus:null,
      use:'Đầy đủ tính năng, không cần thẻ', eff:0, trial:true,
      be:'Không tự động gia hạn, không ràng buộc.'},
-    {code:'solo_6m',  name:'Solo 6 tháng',  month:165000, total:990000,  bonus:'+ 6 tháng',  use:'Dùng 12 tháng', eff:82500,
+    {code:'solo_6m',  name:'Solo 6 tháng',  month:165000, total:990000,  bonus:null, use:'Thời hạn 6 tháng', eff:165000,
      be:'Hoà vốn khi chốt thêm 1 đơn.'},
-    {code:'solo_12m', name:'Solo 12 tháng', month:140000, total:1680000, bonus:'+ 12 tháng', use:'Dùng 24 tháng', eff:70000, best:true,
-     be:'Rẻ nhất tính theo tháng ở nhóm gói ngắn.'},
-    {code:'solo_5y',  name:'Solo 5 năm',    month:66000,  total:3960000, bonus:'+ 12 tháng', use:'Dùng 6 năm',    eff:55000,
+    {code:'solo_12m', name:'Solo 12 tháng', month:140000, total:1680000, bonus:null, use:'Thời hạn 12 tháng', eff:140000, best:true,
+     be:'Gói cá nhân phổ biến và tiết kiệm nhất.'},
+    {code:'solo_5y',  name:'Solo 5 năm',    month:66000,  total:3960000, bonus:null, use:'Thời hạn 5 năm', eff:66000,
      be:'1.800 đ mỗi ngày, khoá giá dài hạn.'}
   ],
   team: [
     {code:'trial_14d', name:'Dùng thử 14 ngày', month:0, total:0, bonus:null,
      use:'Đầy đủ tính năng, không cần thẻ', eff:0, trial:true,
      be:'Dùng thử trên 1 máy sếp trước khi mở cho team.'},
-    {code:'team_6m',  name:'Team 6 tháng',  month:780000, total:4680000,  bonus:'+ 6 tháng',  use:'Dùng 12 tháng', eff:390000,
+    {code:'team_6m',  name:'Team 6 tháng',  month:780000, total:4680000,  bonus:null, use:'Thời hạn 6 tháng', eff:780000,
      be:'Bằng khoảng 1/10 lương một nhân viên sale.'},
-    {code:'team_12m', name:'Team 12 tháng', month:740000, total:8880000,  bonus:'+ 12 tháng', use:'Dùng 24 tháng', eff:370000, best:true,
-     be:'Chia cho 6 người là khoảng 62.000 đ mỗi người.'},
-    {code:'team_5y',  name:'Team 5 năm',    month:280000, total:16800000, bonus:'+ 12 tháng', use:'Dùng 6 năm',    eff:233000,
+    {code:'team_12m', name:'Team 12 tháng', month:740000, total:8880000,  bonus:null, use:'Thời hạn 12 tháng', eff:740000, best:true,
+     be:'Chia cho 6 người chỉ khoảng 123.000 đ mỗi người.'},
+    {code:'team_5y',  name:'Team 5 năm',    month:280000, total:16800000, bonus:null, use:'Thời hạn 5 năm', eff:280000,
      be:'Mở rộng tới 20 nhân viên, không phụ thu đầu người.'}
   ]
 };
@@ -1734,13 +1829,13 @@ function renderPrices(seg){
       : '<div class="pmonth"><b>' + vnd.format(pr.month) + '</b><span>đ / tháng</span></div>' +
         '<div class="ptotal">Thanh toán một lần ' + money(pr.total) + '</div>';
     const bonus = p.bonus
-      ? '<div class="pbonus"><span class="ms ms-20">card_giftcard</span><span><b>Ưu đãi tháng 8: ' + p.bonus + '</b><br>' + p.use + '</span></div>'
-      : '<div class="pbonus" style="background:var(--md-tertiary-container);border-color:var(--md-tertiary);color:var(--md-on-tertiary-container)"><span class="ms ms-20">bolt</span><span><b>' + p.use + '</b></span></div>';
-    const eff = p.trial ? '' : '<div class="peff">Giá thực chỉ còn ' + vnd.format(pr.eff) + ' đ / tháng</div>';
+      ? '<div class="pbonus"><span class="ms ms-20">card_giftcard</span><span><b>Ưu đãi: ' + p.bonus + '</b><br>' + p.use + '</span></div>'
+      : '<div class="pbonus" style="background:var(--md-surface-dim);border-color:var(--md-outline-variant);color:var(--md-on-surface-variant)"><span class="ms ms-20">schedule</span><span><b>' + p.use + '</b></span></div>';
+    const eff = (p.trial || p.eff === pr.month) ? '' : '<div class="peff">Giá thực ' + vnd.format(pr.eff) + ' đ / tháng</div>';
     const badge = p.trial ? '<span class="pbadge tri">Miễn phí 14 ngày</span>'
                 : (p.best ? '<span class="pbadge">Được chọn nhiều nhất</span>' : '');
     const btnCls = p.trial ? 'btn-tonal' : (p.best ? 'btn-gold' : 'btn-filled');
-    const btnTxt = p.trial ? 'Dùng thử ngay' : 'Nhận ưu đãi tháng 8';
+    const btnTxt = p.trial ? 'Dùng thử ngay' : 'Đăng ký ngay';
     return '<div class="pcard' + (p.best ? ' best' : '') + (p.trial ? ' trial' : '') + '">' + badge +
       '<div class="pname">' + p.name + '</div>' + priceBlock + bonus + eff +
       '<ul class="plist">' + feats + '</ul>' +
