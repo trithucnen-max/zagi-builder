@@ -58,9 +58,9 @@ NSIS Installer · ~164 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.2.1-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.M1%2B.arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.2.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)
 
-**[Zagi.v3.2.1.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.2.1.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)**
 
 Apple Silicon DMG · Signed & Notarized · ~231 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · Signed & Notarized · ~231 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.2.1-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.Intel.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.2.0-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)
 
-**[Zagi.v3.2.1.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.1/Zagi.v3.2.1.MacOS.Intel.dmg)**
+**[Zagi.v3.2.1.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)**
 
 Intel x64 DMG · Signed & Notarized · ~239 MB
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi v3.2.1 Surface.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi v3.2.0 Surface.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi v3.2.1 Window.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi v3.2.0 Window.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x "Zagi v3.2.1 Linux.AppImage"
-./"Zagi v3.2.1 Linux.AppImage"
+chmod +x "Zagi v3.2.0 Linux.AppImage"
+./"Zagi v3.2.0 Linux.AppImage"
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i "Zagi v3.2.1 Linux Debian.deb"
+sudo dpkg -i "Zagi v3.2.0 Linux Debian.deb"
 ```
 
 </details>

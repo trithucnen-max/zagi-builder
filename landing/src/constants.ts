@@ -6,7 +6,7 @@
 // ──────────────────────────────────────────────────────────────
 
 /** Phiên bản hiện tại — đồng bộ với package.json root */
-export const APP_VERSION = '3.2.1';
+export const APP_VERSION = '3.2.0';
 
 const GH_RELEASES = 'https://github.com/trithucnen-max/zagi-builder/releases';
 const GH_TAG_MAC = `${GH_RELEASES}/download/v3.2.1`;
