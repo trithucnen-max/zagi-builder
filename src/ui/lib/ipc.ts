@@ -652,6 +652,13 @@ declare global {
         getForAccount: (zaloId: string) => Promise<{ success: boolean; proxy?: any; error?: string }>;
         test:          (proxy: any) => Promise<{ success: boolean; ms?: number; status?: number; error?: string }>;
       };
+      // ─── AI Agent & MCP ──────────────────────────────────────────────
+      agent: {
+        listKeys: () => Promise<{ success: boolean; keys: any[]; error?: string }>;
+        createKey: (params: { name?: string; scopes?: string[]; expiresDays?: number }) => Promise<{ success: boolean; key?: any; error?: string }>;
+        revokeKey: (id: number) => Promise<{ success: boolean; error?: string }>;
+        autoConfigureMCP: (rawKey: string) => Promise<{ success: boolean; results?: any; error?: string }>;
+      };
       erp: {
       projectList:         (params?: { archived?: boolean }) => Promise<{ success: boolean; projects: any[]; error?: string }>;
       projectCreate:       (params: any) => Promise<{ success: boolean; project?: any; error?: string }>;
@@ -1438,6 +1445,7 @@ export const ipc = {
   relay: window.electronAPI?.relay || createBrowserIpcProxy('relay'),
   fb: window.electronAPI?.fb || createBrowserIpcProxy('fb'),
   proxy: window.electronAPI?.proxy || createBrowserIpcProxy('proxy'),
+  agent: window.electronAPI?.agent || createBrowserIpcProxy('agent'),
 
   erp,
   lockScreen: window.electronAPI?.lockScreen,

@@ -17,9 +17,10 @@ import LockScreenSettings from './LockScreenSettings';
 import TunnelSettings from './TunnelSettings';
 import { loadSeenTabs, markTabSeen, SETTINGS_WATCHLIST, hasUnseenChangelog, markChangelogSeen } from '@/utils/settingsSeenTabs';
 import AccountSettings from './AccountSettings';
+import AgentSettings from './AgentSettings';
 import AppIcon, { IconType } from '../common/AppIcon';
 
-type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'appearance' | 'proxy' | 'security' | 'webhook' | 'telemetry';
+type SettingsTab = 'notifications' | 'accounts' | 'storage' | 'conversation' | 'employees' | 'workspace' | 'introduction' | 'appearance' | 'proxy' | 'security' | 'webhook' | 'telemetry' | 'agent';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('conversation');
@@ -172,6 +173,7 @@ export default function Settings() {
     { id: 'employees',     icon: 'employees',     label: 'Nhân viên', requiredPerm: 'settings_employees' },
     { id: 'workspace',     icon: 'workspace',     label: 'Workspace' },
     { id: 'webhook',       icon: 'integration',   label: 'Webhooks' },
+    { id: 'agent',         icon: 'integration',   label: 'AI Agent & MCP' },
     { id: 'storage',       icon: 'storage',       label: 'Lưu trữ' },
     { id: 'introduction',  icon: 'introduction',  label: 'Giới thiệu' },
   ];
@@ -540,6 +542,9 @@ export default function Settings() {
 
         {/* ── Webhooks / Tunnel ── */}
         {activeTab === 'webhook' && <TunnelSettings />}
+
+        {/* ── AI Agent & MCP ── */}
+        {activeTab === 'agent' && <AgentSettings />}
 
       </div>
     </div>

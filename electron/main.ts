@@ -29,6 +29,7 @@ import { registerLockScreenIpc } from './ipc/lockScreenIpc';
 import { registerLibraryIpc } from './ipc/libraryIpc';
 import { registerLicenseIpc, loadLicenseConfig, createLicenseWindow } from './ipc/licenseIpc';
 import { registerTelemetryIpc } from './ipc/telemetryIpc';
+import { registerAgentIpc } from './ipc/agentIpc';
 import TelemetryService from '../src/services/telemetry/TelemetryService';
 import licenseManager from '../src/services/license/LicenseManager';
 import WorkspaceManager from '../src/utils/WorkspaceManager';
@@ -1012,6 +1013,7 @@ app.whenReady().then(async () => {
   safeRegister('LibraryIpc', registerLibraryIpc);
   safeRegister('LicenseIpc', () => registerLicenseIpc());
   safeRegister('TelemetryIpc', registerTelemetryIpc);
+  safeRegister('AgentIpc', registerAgentIpc);
 
   // ── Load License Config & Check License ────────────────────────────────────
   loadLicenseConfig();

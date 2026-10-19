@@ -637,6 +637,21 @@ class DatabaseService {
         `);
 
         this.exec(`
+            CREATE TABLE IF NOT EXISTS agent_api_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key_hash TEXT UNIQUE NOT NULL,
+                key_prefix TEXT NOT NULL,
+                name TEXT NOT NULL,
+                scopes TEXT NOT NULL DEFAULT 'read,send,crm',
+                created_at TEXT NOT NULL,
+                expires_at TEXT,
+                last_used_at TEXT,
+                is_revoked INTEGER DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_agent_api_keys_hash ON agent_api_keys(key_hash);
+        `);
+
+        this.exec(`
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 msg_id TEXT NOT NULL,

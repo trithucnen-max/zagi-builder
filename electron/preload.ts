@@ -826,6 +826,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getForAccount: (zaloId: string)                => ipcRenderer.invoke('proxy:getForAccount', { zaloId }),
     test:          (proxy: any)                    => ipcRenderer.invoke('proxy:test', { proxy }),
   },
+
+  // ─── AI Agent & MCP ─────────────────────────────────────────────
+  agent: {
+    listKeys: () => ipcRenderer.invoke('agent:listKeys'),
+    createKey: (params: { name?: string; scopes?: string[]; expiresDays?: number }) => ipcRenderer.invoke('agent:createKey', params),
+    revokeKey: (id: number) => ipcRenderer.invoke('agent:revokeKey', { id }),
+    autoConfigureMCP: (rawKey: string) => ipcRenderer.invoke('agent:autoConfigureMCP', { rawKey }),
+  },
 });
 
 // ─── License API Bridge ──────────────────────────────────────────────────────
