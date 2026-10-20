@@ -5174,7 +5174,7 @@ dependencies = [
 
 [[package]]
 name = "zagi-cli"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5190,7 +5190,7 @@ dependencies = [
 
 [[package]]
 name = "zagi-core"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5213,7 +5213,7 @@ dependencies = [
 
 [[package]]
 name = "zagi-desktop"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5230,7 +5230,7 @@ dependencies = [
 
 [[package]]
 name = "zagi-mcp"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -5244,7 +5244,7 @@ dependencies = [
 
 [[package]]
 name = "zagi-proto"
-version = "0.1.0"
+version = "5.0.0"
 dependencies = [
  "chrono",
  "serde",

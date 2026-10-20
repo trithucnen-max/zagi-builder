@@ -3,6 +3,8 @@ name: Release Zagi Native Rust
 on:
   push:
     tags:
+      - 'v5.*'
+      - 'v*.*.*-beta*'
       - 'v*.*.*-rust*'
   workflow_dispatch:
 

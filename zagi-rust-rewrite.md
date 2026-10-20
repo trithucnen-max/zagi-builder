@@ -1,8 +1,8 @@
-# Kế hoạch chuyển đổi 100% Zagi sang Rust (Zagi Rust Rewrite Plan)
+# Kế hoạch chuyển đổi 100% Zagi sang Rust (Zagi Rust Rewrite Plan - v5.0.0 Beta)
 
 > **Mã kế hoạch:** `zagi-rust-rewrite`  
 > **Mục tiêu:** Tái cấu trúc và viết lại toàn bộ hệ thống Zagi từ TypeScript/Electron sang 100% Rust (Backend Core + Network Engine + Protocol + Database + Native UI).  
-> **Thời gian dự kiến:** 4 - 6 tháng (5 giai đoạn cuốn chiếu).  
+> **Phiên bản:** `v5.0.0-beta` (Rust Native Architecture)  
 > **Trạng thái:** 🎉 100% COMPLETED (Đã hoàn tất toàn bộ 5 giai đoạn chuyển đổi sang Rust).
 
 ---
