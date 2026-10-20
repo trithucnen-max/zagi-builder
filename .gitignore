@@ -27,5 +27,7 @@ scan-setup-auto-account.md
 security-bugfix.md
 zagi-macos-sign.md
 zagi-rich-features.md
-
-
+# Rust
+target/
+Cargo.lock.bak
+*.db
