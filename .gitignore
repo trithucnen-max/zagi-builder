@@ -31,3 +31,5 @@ zagi-rich-features.md
 target/
 Cargo.lock.bak
 *.db
+dist-artifacts/
+release-v5.0.0/

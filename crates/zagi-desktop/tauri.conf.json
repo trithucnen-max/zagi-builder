@@ -29,6 +29,9 @@
       "icons/icon.png",
       "icons/icon.ico",
       "icons/icon.icns"
-    ]
+    ],
+    "macOS": {
+      "signingIdentity": "Developer ID Application: BASAN CORPORATION (JFT5TLZ3HK)"
+    }
   }
 }
