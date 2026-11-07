@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { DOWNLOAD_URL, DOWNLOAD_URL_MAC_ARM64, DOWNLOAD_URL_MAC_X64, DOWNLOAD_URL_LINUX, APP_VERSION } from '../constants';
+import {
+  DOWNLOAD_URL,
+  DOWNLOAD_URL_WIN_ARM,
+  DOWNLOAD_URL_MAC_ARM64,
+  DOWNLOAD_URL_MAC_X64,
+  DOWNLOAD_URL_LINUX,
+  DOWNLOAD_URL_LINUX_DEB,
+  APP_VERSION,
+} from '../constants';
 
 interface FaqItem {
   question: string;
@@ -180,6 +188,18 @@ const DownloadCTA: React.FC = () => {
                 </a>
 
                 <a
+                  href={DOWNLOAD_URL_WIN_ARM}
+                  download
+                  className="btn-secondary inline-flex items-center gap-2.5 no-underline text-sm px-6 py-3.5"
+                >
+                  <span className="text-base">💻</span>
+                  <span>
+                    <span className="block font-semibold">Surface ARM64</span>
+                    <span className="text-xs opacity-70">.exe · Snapdragon ARM</span>
+                  </span>
+                </a>
+
+                <a
                   href={DOWNLOAD_URL_MAC_ARM64}
                   download
                   className="btn-secondary inline-flex items-center gap-2.5 no-underline text-sm px-6 py-3.5"
@@ -210,8 +230,20 @@ const DownloadCTA: React.FC = () => {
                 >
                   <span className="text-base">🐧</span>
                   <span>
-                    <span className="block font-semibold">Ubuntu Linux</span>
+                    <span className="block font-semibold">Linux AppImage</span>
                     <span className="text-xs opacity-70">.AppImage · mọi distro</span>
+                  </span>
+                </a>
+
+                <a
+                  href={DOWNLOAD_URL_LINUX_DEB}
+                  download
+                  className="btn-secondary inline-flex items-center gap-2.5 no-underline text-sm px-6 py-3.5"
+                >
+                  <span className="text-base">🐧</span>
+                  <span>
+                    <span className="block font-semibold">Ubuntu / Debian</span>
+                    <span className="text-xs opacity-70">.deb · 64-bit</span>
                   </span>
                 </a>
               </div>

@@ -4,7 +4,14 @@
  */
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { DOWNLOAD_URL, DOWNLOAD_URL_MAC_ARM64, DOWNLOAD_URL_MAC_X64, DOWNLOAD_URL_LINUX } from '../constants';
+import {
+  DOWNLOAD_URL,
+  DOWNLOAD_URL_WIN_ARM,
+  DOWNLOAD_URL_MAC_ARM64,
+  DOWNLOAD_URL_MAC_X64,
+  DOWNLOAD_URL_LINUX,
+  DOWNLOAD_URL_LINUX_DEB,
+} from '../constants';
 
 interface DownloadDropdownProps {
   /** Text hiển thị trên nút */
@@ -167,6 +174,23 @@ const DownloadDropdown: React.FC<DownloadDropdownProps> = ({
             </div>
           </a>
 
+          {/* Windows Surface ARM64 */}
+          <a
+            href={DOWNLOAD_URL_WIN_ARM}
+            download
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 px-4 py-3.5 text-sm text-slate-800 no-underline"
+            style={{ transition: 'background 0.15s' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(238,242,255,0.95)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span className="text-xl">💻</span>
+            <div>
+              <div className="font-semibold">Surface ARM64</div>
+              <div className="text-xs text-slate-500">.exe · Snapdragon ARM</div>
+            </div>
+          </a>
+
           <div style={{ borderTop: '1px solid rgba(148,163,184,0.14)' }} />
 
           {/* macOS Apple Silicon */}
@@ -205,7 +229,7 @@ const DownloadDropdown: React.FC<DownloadDropdownProps> = ({
 
           <div style={{ borderTop: '1px solid rgba(148,163,184,0.14)' }} />
 
-          {/* Linux */}
+          {/* Linux AppImage */}
           <a
             href={DOWNLOAD_URL_LINUX}
             download
@@ -217,8 +241,25 @@ const DownloadDropdown: React.FC<DownloadDropdownProps> = ({
           >
             <span className="text-xl">🐧</span>
             <div>
-              <div className="font-semibold">Ubuntu Linux</div>
+              <div className="font-semibold">Linux AppImage</div>
               <div className="text-xs text-slate-500">.AppImage · mọi distro</div>
+            </div>
+          </a>
+
+          {/* Linux Debian */}
+          <a
+            href={DOWNLOAD_URL_LINUX_DEB}
+            download
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 px-4 py-3.5 text-sm text-slate-800 no-underline"
+            style={{ transition: 'background 0.15s' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(238,242,255,0.95)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span className="text-xl">🐧</span>
+            <div>
+              <div className="font-semibold">Ubuntu / Debian</div>
+              <div className="text-xs text-slate-500">.deb · 64-bit</div>
             </div>
           </a>
         </div>,

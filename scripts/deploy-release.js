@@ -259,6 +259,8 @@ function updateLandingPageDownloadLinks(targetVersion, currentBranch = 'main', s
     path.join(ROOT_DIR, 'README.md'),
     path.join(ROOT_DIR, 'README.en.md'),
     path.join(ROOT_DIR, 'supabase', 'functions', 'create-order', 'index.ts'),
+    path.join(ROOT_DIR, 'src', 'ui', 'lib', 'ipc.ts'),
+    path.join(ROOT_DIR, 'src', 'services', 'ai', 'AIAssistantService.ts'),
   ];
 
   let anyModified = false;

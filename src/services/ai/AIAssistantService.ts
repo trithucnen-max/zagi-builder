@@ -806,10 +806,10 @@ YÊU CẦU BẮT BUỘC:
   private generateZagiSupportKnowledgeAnswer(q: string): string {
     const query = q.toLowerCase();
     if (query.includes('giá') || query.includes('bao nhiêu') || query.includes('gói') || query.includes('mua')) {
-      return `💰 **Bảng Giá Bản Quyền Zagi v3.0.7:**\n\n- 🎁 **Dùng Thử 14 Ngày**: **0đ** (Đầy đủ tính năng)\n- 👤 **Gói Solo 6 Tháng**: **990.000đ** (1 máy Sếp, 3 tài khoản Zalo/FB)\n- ⭐️ **Gói Solo 12 Tháng**: **1.690.000đ** (1 máy Sếp, 5 tài khoản Zalo/FB) — *Gói khuyến nghị*\n- ♾️ **Gói Solo Trọn Đời**: **4.900.000đ** (1 máy Sếp, KHÔNG GIỚI HẠN tài khoản, dùng vĩnh viễn)\n- 👥 **Gói Team 6 Tháng**: **4.900.000đ** (1 Sếp + 5 máy Nhân viên từ xa)\n\nAnh/chị muốn đăng ký gói nào ạ?`;
+      return `💰 **Bảng Giá Bản Quyền Zagi v3.3.0:**\n\n- 🎁 **Dùng Thử 14 Ngày**: **0đ** (Đầy đủ tính năng)\n- 👤 **Gói Solo 6 Tháng**: **990.000đ** (1 máy Sếp, 3 tài khoản Zalo/FB)\n- ⭐️ **Gói Solo 12 Tháng**: **1.690.000đ** (1 máy Sếp, 5 tài khoản Zalo/FB) — *Gói khuyến nghị*\n- ♾️ **Gói Solo Trọn Đời**: **4.900.000đ** (1 máy Sếp, KHÔNG GIỚI HẠN tài khoản, dùng vĩnh viễn)\n- 👥 **Gói Team 6 Tháng**: **4.900.000đ** (1 Sếp + 5 máy Nhân viên từ xa)\n\nAnh/chị muốn đăng ký gói nào ạ?`;
     }
     if (query.includes('tải') || query.includes('link') || query.includes('cài') || query.includes('mac') || query.includes('win')) {
-      return `📥 **Bộ Cài Đặt Zagi v3.0.7 Mới Nhất:**\n\n- 🪟 **Windows 10/11**: Zagi.v3.0.7.Window.exe\n- 💻 **Surface ARM64**: Zagi.v3.0.7.Surface.exe\n- 🍏 **macOS Apple Silicon (M1/M2/M3)**: Zagi.v3.0.7.MacOS.M1+.arm64.dmg\n- 🍏 **macOS Intel**: Zagi.v3.0.7.MacOS.Intel.dmg\n- 🐧 **Linux**: Zagi.v3.0.7.Linux.AppImage / .deb`;
+      return `📥 **Bộ Cài Đặt Zagi v3.3.0 Mới Nhất:**\n\n- 🪟 **Windows 10/11**: Zagi.v3.3.0.Window.exe\n- 💻 **Surface ARM64**: Zagi.v3.3.0.Surface.exe\n- 🍏 **macOS Apple Silicon (M1/M2/M3)**: Zagi.v3.3.0.MacOS.M1+.arm64.dmg\n- 🍏 **macOS Intel**: Zagi.v3.3.0.MacOS.Intel.dmg\n- 🐧 **Linux**: Zagi.v3.3.0.Linux.AppImage / .deb`;
     }
     if (query.includes('bảo mật') || query.includes('lộ') || query.includes('an toàn') || query.includes('dữ liệu')) {
       return `🛡️ **Bảo Mật Local-First Tuyệt Đối:**\n\nZagi lưu trữ 100% tin nhắn, tài khoản và dữ liệu CRM trực tiếp trên máy tính của bạn (Local SQLite). Zagi KHÔNG lưu tin nhắn lên server trung gian nên hoàn toàn bảo mật và an toàn!`;
@@ -817,7 +817,7 @@ YÊU CẦU BẮT BUỘC:
     if (query.includes('khóa') || query.includes('spam') || query.includes('mẹo')) {
       return `💡 **Mẹo Tránh Khóa Tài Khoản Zalo:**\n\n1. Sử dụng tính năng **Random Delay** (Khoảng nghỉ ngẫu nhiên 5-15s giữa các tin nhắn).\n2. Chèn biến tên [ Tên ], [ SĐT ] để nội dung tin nhắn không bị trùng lặp 100%.\n3. Chỉ gửi tin nhắn chăm sóc cho tệp khách hàng đã từng tương tác hoặc gán nhãn CRM.`;
     }
-    return `🤖 **Zagi Desktop (v3.0.7)** là giải pháp quản lý tập trung đa tài khoản Zalo & Facebook Messenger, hỗ trợ phễu CRM Kanban, gửi tin chăm sóc tự động và phân quyền máy Sếp - Nhân viên.\n\nAnh/chị có cần em hỗ trợ thao tác gì nữa không ạ?`;
+    return `🤖 **Zagi Desktop (v3.3.0)** là giải pháp quản lý tập trung đa tài khoản Zalo & Facebook Messenger, hỗ trợ phễu CRM Kanban, gửi tin chăm sóc tự động, phân quyền máy Sếp - Nhân viên và cổng kết nối AI Agent Dynamic MCP.\n\nAnh/chị có cần em hỗ trợ thao tác gì nữa không ạ?`;
   }
 
   // ─── Row mapper ─────────────────────────────────────────────────────────

@@ -1,6 +1,13 @@
 import { useState, useCallback } from 'react';
 import logo from '../logo/icon.png';
-import { DOWNLOAD_URL, DOWNLOAD_URL_MAC_ARM64, DOWNLOAD_URL_MAC_X64, DOWNLOAD_URL_LINUX } from '../constants';
+import {
+  DOWNLOAD_URL,
+  DOWNLOAD_URL_WIN_ARM,
+  DOWNLOAD_URL_MAC_ARM64,
+  DOWNLOAD_URL_MAC_X64,
+  DOWNLOAD_URL_LINUX,
+  DOWNLOAD_URL_LINUX_DEB,
+} from '../constants';
 import DownloadDropdown from './DownloadDropdown';
 
 const navLinks = [
@@ -88,17 +95,25 @@ const Navbar: React.FC = () => {
               style={{ background: 'linear-gradient(135deg, #4f46e5, #0ea5e9)' }}>
               <span>🪟</span> Tải Windows (.exe)
             </a>
+            <a href={DOWNLOAD_URL_WIN_ARM} download onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 py-2.5 px-3 rounded-2xl text-sm font-semibold text-slate-700 no-underline bg-slate-50 hover:bg-white border border-slate-200">
+              <span>💻</span> Surface ARM64 (.exe)
+            </a>
             <a href={DOWNLOAD_URL_MAC_ARM64} download onClick={() => setMenuOpen(false)}
               className="flex items-center gap-3 py-2.5 px-3 rounded-2xl text-sm font-semibold text-slate-700 no-underline bg-slate-50 hover:bg-white border border-slate-200">
               <span>🍎</span> macOS Apple Silicon
             </a>
             <a href={DOWNLOAD_URL_MAC_X64} download onClick={() => setMenuOpen(false)}
               className="flex items-center gap-3 py-2.5 px-3 rounded-2xl text-sm font-semibold text-slate-700 no-underline bg-slate-50 hover:bg-white border border-slate-200">
-              <span>🍎</span> macOS Intel
+              <span>💻</span> macOS Intel
             </a>
             <a href={DOWNLOAD_URL_LINUX} download onClick={() => setMenuOpen(false)}
               className="flex items-center gap-3 py-2.5 px-3 rounded-2xl text-sm font-semibold text-slate-700 no-underline bg-slate-50 hover:bg-white border border-slate-200">
-              <span>🐧</span> Ubuntu Linux
+              <span>🐧</span> Linux (.AppImage)
+            </a>
+            <a href={DOWNLOAD_URL_LINUX_DEB} download onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 py-2.5 px-3 rounded-2xl text-sm font-semibold text-slate-700 no-underline bg-slate-50 hover:bg-white border border-slate-200">
+              <span>🐧</span> Ubuntu / Debian (.deb)
             </a>
           </div>
         </div>

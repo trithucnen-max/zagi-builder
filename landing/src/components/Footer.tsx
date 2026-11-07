@@ -55,7 +55,7 @@ const Footer: React.FC = () => {
                 </button>
               </li>
               {[
-                { href: 'https://github.com/babyvibe/zagi-builder/issues', label: 'Báo lỗi' },
+                { href: 'https://github.com/trithucnen-max/zagi-builder/issues', label: 'Báo lỗi' },
               ].map((link) => (
                 <li key={link.label}>
                   <a href={link.href} className="text-slate-600 hover:text-slate-950 text-sm transition-colors no-underline">

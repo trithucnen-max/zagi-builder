@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import DownloadDropdown from './DownloadDropdown';
-
-const GITHUB_RELEASES_URL = 'https://github.com/babyvibe/Zagi-releases';
+import { RELEASES_URL as GITHUB_RELEASES_URL } from '../constants';
 
 const heroMetrics = [
 	{ value: '10+', label: 'module', note: 'chat · crm · ai' },
