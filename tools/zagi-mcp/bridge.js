@@ -111,7 +111,7 @@ class ZagiBridge {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
-        reject(new Error(`Timeout 15s chờ kết quả từ Zagi`));
+        reject(new Error('Timeout 15s chờ kết quả từ Zagi'));
       }, 15000);
 
       this.pendingRequests.set(id, {
@@ -135,7 +135,7 @@ class ZagiBridge {
   async getStatus() {
     const isAppRunning = fs.existsSync(DEVTOOLS_PORT_FILE);
     if (!isAppRunning) {
-      return { status: 'offline', message: 'Zagi chưa được bật trên máy tính' };
+      return { status: 'offline', message: 'Zagi chưa được bật trên máy tính. Dữ liệu đọc (Fast Read) vẫn hoạt động qua SQLite trực tiếp.' };
     }
 
     try {
@@ -153,7 +153,7 @@ class ZagiBridge {
       // Kiểm tra relay port 9900
       let relayListening = false;
       try {
-        const statusRes = await this.eval(`window.electronAPI.relay ? await window.electronAPI.relay.getServerStatus() : null`);
+        const statusRes = await this.eval('window.electronAPI?.relay ? await window.electronAPI.relay.getServerStatus() : null');
         relayListening = statusRes?.isRunning || false;
       } catch (e) {}
 
@@ -170,42 +170,43 @@ class ZagiBridge {
 
   async listAccounts() {
     return await this.eval(`(async () => {
-      if (!window.electronAPI?.db?.getContacts) return [];
-      // Lấy từ SQLite qua electronAPI
-      const list = await window.electronAPI.login.getAccounts ? await window.electronAPI.login.getAccounts() : null;
-      return list || [];
+      if (!window.electronAPI?.login?.getAccounts) return [];
+      return await window.electronAPI.login.getAccounts();
     })()`);
   }
 
   async getUnreadChats() {
     return await this.eval(`(async () => {
-      if (!window.electronAPI?.db) return [];
-      // Lấy danh sách hội thoại có tin nhắn chưa đọc
-      const unreadCount = await window.electronAPI.db.getUnreadCount();
-      return unreadCount || [];
+      if (!window.electronAPI?.db?.getUnreadCount) return [];
+      return await window.electronAPI.db.getUnreadCount();
     })()`);
   }
 
   async getThreadMessages(threadId, limit = 20) {
+    const cleanThreadId = JSON.stringify(threadId);
     return await this.eval(`(async () => {
       if (!window.electronAPI?.db?.getMessages) return [];
-      const msgs = await window.electronAPI.db.getMessages({ threadId: "${threadId}", limit: ${limit} });
-      return msgs || [];
+      return await window.electronAPI.db.getMessages({ threadId: ${cleanThreadId}, limit: ${limit} });
     })()`);
   }
 
+  /**
+   * Gửi tin nhắn văn bản
+   */
   async sendMessage({ threadId, message, type = 0, accountZaloId }) {
-    // Escape string an toàn
-    const cleanMsg = typeof message === 'string' ? JSON.stringify(message) : JSON.stringify(message);
+    const cleanMsg = JSON.stringify(message);
+    const cleanThreadId = JSON.stringify(threadId);
+    const cleanZaloId = accountZaloId ? JSON.stringify(accountZaloId) : 'undefined';
+
     const code = `(async () => {
       if (!window.electronAPI?.zalo?.sendMessage) {
         throw new Error("window.electronAPI.zalo.sendMessage không sẵn sàng");
       }
       return await window.electronAPI.zalo.sendMessage({
-        zaloId: ${accountZaloId ? `"${accountZaloId}"` : 'undefined'},
+        zaloId: ${cleanZaloId},
         auth: {},
         message: ${cleanMsg},
-        threadId: "${threadId}",
+        threadId: ${cleanThreadId},
         type: ${type},
         typeMessage: 'text'
       });
@@ -213,24 +214,157 @@ class ZagiBridge {
     return await this.eval(code);
   }
 
-  async searchContacts(query) {
-    const cleanQ = JSON.stringify(query);
-    return await this.eval(`(async () => {
-      if (!window.electronAPI?.db) return [];
-      // Tìm danh bạ theo số điện thoại hoặc tên
-      const res = await window.electronAPI.db.searchContactByPhone ? await window.electronAPI.db.searchContactByPhone(${cleanQ}) : null;
-      return res || [];
-    })()`);
+  /**
+   * Gửi hình ảnh
+   */
+  async sendImage({ threadId, filePath, message = '', type = 0, accountZaloId }) {
+    const cleanPath = JSON.stringify(filePath);
+    const cleanMsg = JSON.stringify(message);
+    const cleanThreadId = JSON.stringify(threadId);
+    const cleanZaloId = accountZaloId ? JSON.stringify(accountZaloId) : 'undefined';
+
+    const code = `(async () => {
+      if (!window.electronAPI?.zalo?.sendImage) {
+        throw new Error("window.electronAPI.zalo.sendImage không sẵn sàng");
+      }
+      return await window.electronAPI.zalo.sendImage({
+        zaloId: ${cleanZaloId},
+        auth: {},
+        filePath: ${cleanPath},
+        threadId: ${cleanThreadId},
+        type: ${type},
+        message: ${cleanMsg}
+      });
+    })()`;
+    return await this.eval(code);
   }
 
+  /**
+   * Gửi tập tin đính kèm
+   */
+  async sendFile({ threadId, filePath, type = 0, accountZaloId }) {
+    const cleanPath = JSON.stringify(filePath);
+    const cleanThreadId = JSON.stringify(threadId);
+    const cleanZaloId = accountZaloId ? JSON.stringify(accountZaloId) : 'undefined';
+
+    const code = `(async () => {
+      if (!window.electronAPI?.zalo?.sendFile) {
+        throw new Error("window.electronAPI.zalo.sendFile không sẵn sàng");
+      }
+      return await window.electronAPI.zalo.sendFile({
+        zaloId: ${cleanZaloId},
+        auth: {},
+        filePath: ${cleanPath},
+        threadId: ${cleanThreadId},
+        type: ${type}
+      });
+    })()`;
+    return await this.eval(code);
+  }
+
+  /**
+   * Thả biểu cảm cảm xúc (LIKE, HEART, HAHA, WOW, SAD, ANGRY)
+   */
+  async addReaction({ messageId, reactionType = 'LIKE', threadId, accountZaloId }) {
+    const cleanMsgId = JSON.stringify(messageId);
+    const cleanReact = JSON.stringify(reactionType.toUpperCase());
+    const cleanThreadId = JSON.stringify(threadId);
+    const cleanZaloId = accountZaloId ? JSON.stringify(accountZaloId) : 'undefined';
+
+    const code = `(async () => {
+      if (!window.electronAPI?.zalo?.addReaction) {
+        throw new Error("window.electronAPI.zalo.addReaction không sẵn sàng");
+      }
+      return await window.electronAPI.zalo.addReaction({
+        zaloId: ${cleanZaloId},
+        auth: {},
+        reactionType: ${cleanReact},
+        message: {
+          msgId: ${cleanMsgId},
+          threadId: ${cleanThreadId},
+          type: 0
+        }
+      });
+    })()`;
+    return await this.eval(code);
+  }
+
+  /**
+   * Trích dẫn và trả lời tin nhắn (Quote reply)
+   */
+  async replyMessage({ threadId, message, quoteMsgId, quoteMsgText = '', quoteSenderId = '', type = 0, accountZaloId }) {
+    const cleanMsg = JSON.stringify(message);
+    const cleanThreadId = JSON.stringify(threadId);
+    const cleanQuoteMsgId = JSON.stringify(quoteMsgId);
+    const cleanQuoteText = JSON.stringify(quoteMsgText);
+    const cleanQuoteSenderId = JSON.stringify(quoteSenderId);
+    const cleanZaloId = accountZaloId ? JSON.stringify(accountZaloId) : 'undefined';
+
+    const code = `(async () => {
+      if (!window.electronAPI?.zalo?.sendMessage) {
+        throw new Error("window.electronAPI.zalo.sendMessage không sẵn sàng");
+      }
+      return await window.electronAPI.zalo.sendMessage({
+        zaloId: ${cleanZaloId},
+        auth: {},
+        message: ${cleanMsg},
+        threadId: ${cleanThreadId},
+        type: ${type},
+        typeMessage: 'text',
+        quote: {
+          msgId: ${cleanQuoteMsgId},
+          message: ${cleanQuoteText},
+          senderId: ${cleanQuoteSenderId}
+        }
+      });
+    })()`;
+    return await this.eval(code);
+  }
+
+  /**
+   * Tạo cuộc bình chọn (Poll)
+   */
+  async createPoll({ groupId, question, options, expiredTime = 0, pinAct = false, allowMultiChoices = false, allowAddNewOption = true, hideVotePreview = false, isAnonymous = false, accountZaloId }) {
+    const cleanGroupId = JSON.stringify(groupId);
+    const cleanZaloId = accountZaloId ? JSON.stringify(accountZaloId) : 'undefined';
+    const pollOptions = JSON.stringify({
+      question,
+      options,
+      expiredTime,
+      pinAct,
+      allowMultiChoices,
+      allowAddNewOption,
+      hideVotePreview,
+      isAnonymous
+    });
+
+    const code = `(async () => {
+      if (!window.electronAPI?.zalo?.createPoll) {
+        throw new Error("window.electronAPI.zalo.createPoll không sẵn sàng");
+      }
+      return await window.electronAPI.zalo.createPoll({
+        zaloId: ${cleanZaloId},
+        auth: {},
+        groupId: ${cleanGroupId},
+        options: ${pollOptions}
+      });
+    })()`;
+    return await this.eval(code);
+  }
+
+  /**
+   * Quét tìm người dùng qua số điện thoại
+   */
   async scanPhone(phone, accountZaloId) {
     const cleanPhone = JSON.stringify(phone);
+    const cleanZaloId = accountZaloId ? JSON.stringify(accountZaloId) : 'undefined';
+
     return await this.eval(`(async () => {
       if (!window.electronAPI?.zalo?.findUser) {
         throw new Error("zalo.findUser không sẵn sàng");
       }
       return await window.electronAPI.zalo.findUser({
-        zaloId: ${accountZaloId ? `"${accountZaloId}"` : 'undefined'},
+        zaloId: ${cleanZaloId},
         auth: {},
         phone: ${cleanPhone}
       });

@@ -167,12 +167,20 @@ function getSettings() {
   };
 }
 
+function ensureAuthConfig() {
+  const db = getDb(true);
+  db.close();
+  return { ok: true, dbPath: getDbPath() };
+}
+
 module.exports = {
   getDbPath,
+  getDb,
   hashKey,
   createApiKey,
   listApiKeys,
   revokeApiKey,
   validateKey,
-  getSettings
+  getSettings,
+  ensureAuthConfig
 };

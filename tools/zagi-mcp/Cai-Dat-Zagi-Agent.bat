@@ -15,7 +15,11 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-node .\zagi-mcp\scripts\setup-agent.js "Hermes Master Agent (%USERNAME%)"
+if exist ".\scripts\setup-agent.js" (
+    node .\scripts\setup-agent.js "Hermes Master Agent (%USERNAME%)"
+) else (
+    node .\zagi-mcp\scripts\setup-agent.js "Hermes Master Agent (%USERNAME%)"
+)
 
 echo.
 echo Da hoan tat cai dat! Ban co the dong cua so nay.

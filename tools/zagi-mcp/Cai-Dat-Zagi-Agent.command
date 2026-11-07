@@ -13,7 +13,14 @@ if ! command -v node >/dev/null 2>&1; then
     exit 1
 fi
 
-node ./zagi-mcp/scripts/setup-agent.js "Hermes Master Agent ($(whoami))"
+if [ -f "./scripts/setup-agent.js" ]; then
+    node ./scripts/setup-agent.js "Hermes Master Agent ($(whoami))"
+elif [ -f "./zagi-mcp/scripts/setup-agent.js" ]; then
+    node ./zagi-mcp/scripts/setup-agent.js "Hermes Master Agent ($(whoami))"
+else
+    echo "[!] Khong tim thay scripts/setup-agent.js"
+    exit 1
+fi
 
 echo ""
 echo "Da hoan tat cai dat! Ban co the dong cua so nay."
