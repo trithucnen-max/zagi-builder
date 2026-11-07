@@ -1,5 +1,5 @@
 /**
- * Comprehensive Verification Suite for Zagi Dynamic API Key & AI Agent MCP Gateway (v3.2.0)
+ * Comprehensive Verification Suite for Zagi Dynamic API Key & AI Agent MCP Gateway (v3.3.0)
  * Kiểm thử toàn diện: SQLite Schema, SHA-256 Auth, Fast Read Layer, Action Bridge, UI & 1-Chạm
  */
 const fs = require('fs');
@@ -35,7 +35,7 @@ function assert(condition, testName, detail = '') {
 
 async function runVerification() {
   console.log('====================================================');
-  console.log('   BẮT ĐẦU QUY TRÌNH NGHIỆM THU TOÀN DIỆN (v3.2.0)  ');
+  console.log('   BẮT ĐẦU QUY TRÌNH NGHIỆM THU TOÀN DIỆN (v3.3.0)  ');
   console.log('   Zagi Dynamic MCP Gateway & Multi-Agent Bridge    ');
   console.log('====================================================\n');
 

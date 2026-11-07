@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Zagi AI Agent MCP Gateway Server (v3.2.0)
+ * Zagi AI Agent MCP Gateway Server (v3.3.0)
  * Cung cấp bộ công cụ MCP kết nối các AI Agent (Hermes, Claude, Antigravity)
  * với nền tảng Zagi qua kiến trúc Hybrid: Fast Read SQLite (<2ms) + Action Bridge (CDP WebSocket)
  */
@@ -19,7 +19,7 @@ ensureAuthConfig();
 
 const server = new McpServer({
   name: 'zagi-mcp',
-  version: '3.2.0'
+  version: '3.3.0'
 });
 
 // ─── 1. Tool: Kiểm tra trạng thái hệ thống ──────────────────────
@@ -43,7 +43,7 @@ server.tool(
         content: [{
           type: 'text',
           text: JSON.stringify({
-            gateway: 'Zagi Dynamic MCP Gateway v3.2.0',
+            gateway: 'Zagi Dynamic MCP Gateway v3.3.0',
             authOperator: auth.user,
             scopes: auth.scopes,
             runtime: bridgeStatus,
@@ -596,7 +596,7 @@ server.tool(
 // ─── 17. Tool: Tạo cuộc bình chọn (Poll) ──────────────────────
 server.tool(
   'zagi_create_poll',
-  'Tạo một cuộc bình chọn (Poll) trong nhóm Zalo hoặc hội thoại 1:1 (tính năng mới v3.2.0).',
+  'Tạo một cuộc bình chọn (Poll) trong nhóm Zalo hoặc hội thoại 1:1.',
   {
     groupId: z.string().describe('Mã nhóm Zalo hoặc threadId cần tạo bình chọn'),
     question: z.string().describe('Câu hỏi hoặc chủ đề bình chọn'),
@@ -690,7 +690,7 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('[zagi-mcp] Server v3.2.0 running on stdio with 18 tools');
+  console.error('[zagi-mcp] Server v3.3.0 running on stdio with 18 tools');
 }
 
 main().catch((err) => {

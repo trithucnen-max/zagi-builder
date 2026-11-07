@@ -1,8 +1,48 @@
 # TÀI LIỆU YÊU CẦU SẢN PHẨM (PRD) - HỆ THỐNG ZAGI DESKTOP
-> **Phiên bản tài liệu:** 3.2.0  
-> **Ngày cập nhật:** 27/08/2026  
-> **Trạng thái sản phẩm hiện tại:** v3.2.0 (Official Release)  
+> **Phiên bản tài liệu:** 3.3.0  
+> **Ngày cập nhật:** 07/11/2026  
+> **Trạng thái sản phẩm hiện tại:** v3.3.0 (Official Release)  
 > **Chủ quản:** Product Management Team  
+
+---
+
+#### 🚀 v3.3.0 — AI Agent Dynamic MCP Gateway, Fast Read SQLite Layer, Anti-Ban Engine & Multi-Agent Bridge (Official Release)
+* **Tính năng mới & Sửa lỗi nổi bật:**
+  * **🤖 Cổng Kết Nối AI Agent Độc Lập (Zagi Dynamic MCP Gateway v3.3.0 - `tools/zagi-mcp`)**:
+    * **Kiến trúc Hybrid 2 tầng (Fast Read SQLite + Dynamic Action Bridge)**:
+      * **Fast Read Layer (`directDb.js`)**: Kết nối trực tiếp vào CSDL SQLite `zagi-tool.db` ở chế độ readonly bằng `better-sqlite3`. Tốc độ truy vấn dữ liệu tức thì (< 2ms) cho 6.500+ liên hệ và 16.000+ tin nhắn, không phụ thuộc vào trạng thái giao diện Electron hay việc ứng dụng bị minimize/sleep.
+      * **Dynamic Action Bridge (`bridge.js`)**: Tự động nhận diện Chromium debugging port qua `DevToolsActivePort`, kết nối CDP WebSocket để điều khiển toàn bộ chức năng `window.electronAPI`.
+    * **Bộ công cụ 18 MCP Tools toàn diện chuẩn Zod Schema**:
+      * `zagi_get_status`: Kiểm tra trạng thái ứng dụng Zagi Desktop, CDP port và số liệu CSDL.
+      * `zagi_list_accounts`: Lấy danh sách tài khoản Zalo / Facebook đăng nhập kèm trạng thái listener.
+      * `zagi_get_conversations`: Lấy danh sách hội thoại có phân trang, lọc tài khoản và tìm kiếm từ khóa.
+      * `zagi_get_unread_chats`: Lọc nhanh các hội thoại có tin nhắn chưa đọc.
+      * `zagi_get_thread_messages`: Lấy lịch sử tin nhắn của thread theo thứ tự thời gian.
+      * `zagi_send_message`: Gửi tin nhắn text kèm cơ chế bảo vệ an toàn Anti-Ban.
+      * `zagi_send_image`: Gửi ảnh kèm chú thích (caption).
+      * `zagi_send_file`: Gửi tài liệu, file đính kèm (PDF, DOCX, XLSX, ZIP...).
+      * `zagi_add_reaction`: Thả biểu cảm cảm xúc (LIKE, HEART, HAHA, WOW, SAD, ANGRY).
+      * `zagi_reply_message`: Trích dẫn tin nhắn gốc và phản hồi (Quote reply).
+      * `zagi_search_contacts`: Tra cứu thông tin danh bạ và CRM theo tên, SĐT, contactId hoặc alias.
+      * `zagi_get_contact_detail`: Lấy hồ sơ khách hàng 360 độ (nhãn dán, CRM tags, ghi chú, pipeline stage).
+      * `zagi_update_contact`: Cập nhật xưng hô (salutation), pipeline stage và biệt danh khách hàng.
+      * `zagi_add_crm_note`: Thêm ghi chú CRM phục vụ tư vấn bán hàng.
+      * `zagi_list_labels`: Danh sách nhãn dán phân loại (local labels) và thẻ CRM.
+      * `zagi_scan_phone`: Quét kiểm tra trạng thái đăng ký Zalo của số điện thoại.
+      * `zagi_create_poll`: Tạo cuộc bình chọn trong nhóm Zalo hoặc hội thoại 1:1.
+      * `zagi_list_campaigns`: Danh sách các chiến dịch tin nhắn CRM marketing.
+  * **🛡️ Cơ Chế Bảo Vệ An Toàn Chống Ban (Anti-Ban Guardrails Engine)**:
+    * **Random Jitter Delay**: Tự động chèn khoảng trễ ngẫu nhiên 1.5s - 4.0s trước các tác vụ gửi tin hoặc quét số.
+    * **Stranger Message Quota**: Giới hạn ngặt nghèo tối đa 30 tin nhắn gửi người lạ mỗi ngày, lưu nhật ký theo dõi độc lập để bảo vệ tài khoản Zalo.
+  * **🔐 Hệ Thống Phân Quyền & Xác Thực API Key SHA-256 (`agent_api_keys`)**:
+    * Quản lý API Key độc lập trong SQLite (`zg_live_...`), lưu băm SHA-256 không bao giờ lưu key thô.
+    * Phân tách 4 quyền hạn truy cập (scopes): `read`, `send`, `crm`, `admin`.
+    * Tự động cập nhật `last_used_at` và cơ chế vô hiệu hóa (Revoke) ngay tức thì từ giao diện Zagi.
+  * **🚀 Trải Nghiệm Cài Đặt 1-Chạm (1-Touch Setup Scripts)**:
+    * Cung cấp kịch bản tự động `Cai-Dat-Zagi-Agent.command` (macOS) và `Cai-Dat-Zagi-Agent.bat` (Windows).
+    * Tự động sinh key, kiểm tra kết nối CSDL và ghi file cấu hình cho Hermes (`~/.hermes/config.yaml`), Antigravity (`~/.gemini/config/mcp_config.json`) và Claude Desktop.
+  * **🎨 Giao Diện Quản Lý Native Tab "AI Agent" Trong Cài Đặt (`AgentSettings.tsx`)**:
+    * Quản lý danh sách API Key, tạo key mới, sao chép cấu hình JSON mẫu, kích hoạt cài đặt tự động 1 chạm và thu hồi key.
 
 ---
 

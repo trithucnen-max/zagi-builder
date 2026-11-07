@@ -39,7 +39,7 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ## 📥 Download
 
-> **Latest version: v3.2.1** — [View all versions](#changelog)
+> **Latest version: v3.3.0** — [View all versions](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ with CRM · ERP · POS · Workflow Automation · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.3.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Window.exe)
 
-**[Zagi.v3.2.0.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)**
+**[Zagi.v3.3.0.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Window.exe)**
 
 NSIS Installer · ~164 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~164 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.2.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.3.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.MacOS.M1%2B.arm64.dmg)
 
-**[Zagi.v3.2.1.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.3.0.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.MacOS.M1%2B.arm64.dmg)**
 
 Apple Silicon DMG · Signed & Notarized · ~231 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · Signed & Notarized · ~231 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.2.0-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.3.0-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.MacOS.Intel.dmg)
 
-**[Zagi.v3.2.1.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)**
+**[Zagi.v3.3.0.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.MacOS.Intel.dmg)**
 
 Intel x64 DMG · Signed & Notarized · ~239 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · Signed & Notarized · ~239 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.2.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.3.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Linux.AppImage)
 
-**[Zagi.v3.2.0.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.AppImage)**  
-**[Zagi.v3.2.0.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.Debian.deb)**
+**[Zagi.v3.3.0.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Linux.AppImage)**  
+**[Zagi.v3.3.0.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Linux.Debian.deb)**
 
 AppImage + Debian .deb
 
@@ -98,9 +98,9 @@ AppImage + Debian .deb
 > 
 > Surface Pro 7 and older (Intel) → use the Windows x64 build above.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Surface.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.3.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Surface.exe)
 
-**[Zagi.v3.2.0.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Surface.exe)**
+**[Zagi.v3.3.0.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Surface.exe)**
 
 NSIS Installer ARM64 · ~166 MB · Native optimization for Surface ARM
 
@@ -122,9 +122,9 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 1. Click **More info**
 2. Click **Run anyway**
 
-> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi v3.2.0 Surface.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
+> ⚠️ **Surface ARM64**: If you use **Surface Pro X / Pro 9 5G / Pro 10 / Pro 11 / Laptop 7**, download `Zagi v3.3.0 Surface.exe` for native ARM64 performance — better battery life and faster than running the x64 build under emulation.
 > 
-> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi v3.2.0 Window.exe`.
+> **Surface Pro 7 and older (Intel x64)**: use the standard `Zagi v3.3.0 Window.exe`.
 
 ### 🍎 macOS — "cannot be opened because it is from an unidentified developer"
 
@@ -135,8 +135,8 @@ Zagi is not code-signed (we're bootstrapped), so your OS may show a warning when
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x "Zagi v3.2.0 Linux.AppImage"
-./"Zagi v3.2.0 Linux.AppImage"
+chmod +x "Zagi v3.3.0 Linux.AppImage"
+./"Zagi v3.3.0 Linux.AppImage"
 ```
 
 If you get "FUSE not available":
@@ -146,7 +146,7 @@ sudo apt install libfuse2
 
 Or use `.deb`:
 ```bash
-sudo dpkg -i "Zagi v3.2.0 Linux Debian.deb"
+sudo dpkg -i "Zagi v3.3.0 Linux Debian.deb"
 ```
 
 </details>
@@ -384,7 +384,27 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v3.2.1</strong> — 2026-09-24 · <em>🟢 Current version</em></summary>
+<summary><strong>v3.3.0</strong> — 2026-11-07 · <em>🟢 Current version</em></summary>
+
+### 🚀 Key Highlights & New Features
+
+- 🤖 **Comprehensive AI Agent Dynamic MCP Gateway (`tools/zagi-mcp`, `agentIpc.ts`, `AgentSettings.tsx`)**:
+  - Full suite of **18 MCP Tools** with Zod schema for AI Agents (Hermes, Claude, Antigravity) to safely automate Zalo & Facebook actions.
+  - **Hybrid Dual-Engine**: Fast Read Layer ([`directDb.js`](file:///Users/kimtrungduong/Downloads/04_Projects/zagi/tools/zagi-mcp/directDb.js)) reading SQLite directly (< 2ms) + Action Bridge ([`bridge.js`](file:///Users/kimtrungduong/Downloads/04_Projects/zagi/tools/zagi-mcp/bridge.js)) over CDP WebSocket.
+  - **Anti-Ban Guardrails**: Random Jitter Delay (1.5s - 4.0s) and strict Stranger Message Quota (30 strangers/day).
+  - **SHA-256 API Key Management**: `agent_api_keys` table with 4 distinct scopes (`read`, `send`, `crm`, `admin`), instant revocation, and `last_used_at` telemetry.
+  - **1-Touch Setup Scripts**: `Cai-Dat-Zagi-Agent.command` and `.bat` for automated integration.
+- 🗳️ **Full Zalo Group Poll Rebuild (`CreatePollDialog.tsx`, `ZaloService.ts`)**:
+  - Exact 2-column Zalo UI with up to 20 options, expiration picker, pin to top 📌, multiple choices, anonymous voting, and default preference persistence.
+- 👥 **2-Way Custom Salutation Sync (Chat ⟷ CRM) & `salutation_manual = 1` Flag**:
+  - Prevents gender auto-sync from overwriting user-configured salutations.
+- 🎨 **CRM Pipeline Stage Menu Matching Chat UI**:
+  - Numbered circular badges (`[1]`, `[2]`, `[3]`...) with background colors synced in realtime.
+
+</details>
+
+<details>
+<summary><strong>v3.2.1</strong> — 2026-09-24</summary>
 
 ### 🚀 Key Highlights & Bug Fixes
 

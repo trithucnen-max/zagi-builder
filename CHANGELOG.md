@@ -2,6 +2,38 @@
 
 Tất cả các thay đổi lớn và cập nhật sửa lỗi của dự án Zagi sẽ được ghi lại tại đây.
 
+## [v3.3.0] - 2026-11-07
+
+### 🤖 Cổng Kết Nối AI Agent Độc Lập (Zagi Dynamic MCP Gateway v3.3.0 - `tools/zagi-mcp`)
+- **Kiến trúc Hybrid 2 tầng (Fast Read SQLite + Action Bridge):**
+  - **Fast Read Layer (`directDb.js`):** Kết nối trực tiếp vào CSDL SQLite `zagi-tool.db` ở chế độ readonly bằng `better-sqlite3`. Tốc độ truy vấn dữ liệu tức thì (< 2ms) cho 6.500+ liên hệ và 16.000+ tin nhắn, không phụ thuộc vào trạng thái giao diện Electron hay việc ứng dụng bị minimize/sleep.
+  - **Dynamic Action Bridge (`bridge.js`):** Tự động nhận diện Chromium debugging port qua `DevToolsActivePort`, kết nối CDP WebSocket để điều khiển toàn bộ chức năng `window.electronAPI`.
+- **Bộ công cụ 18 MCP Tools toàn diện chuẩn Zod Schema:**
+  - `zagi_get_status`: Kiểm tra trạng thái ứng dụng Zagi Desktop, CDP port và số liệu CSDL.
+  - `zagi_list_accounts`: Lấy danh sách tài khoản Zalo / Facebook đăng nhập kèm trạng thái listener.
+  - `zagi_get_conversations`: Lấy danh sách hội thoại có phân trang, lọc tài khoản và tìm kiếm từ khóa.
+  - `zagi_get_unread_chats`: Lọc nhanh các hội thoại có tin nhắn chưa đọc.
+  - `zagi_get_thread_messages`: Lấy lịch sử tin nhắn của thread theo thứ tự thời gian.
+  - `zagi_send_message`: Gửi tin nhắn text kèm cơ chế bảo vệ an toàn Anti-Ban.
+  - `zagi_send_image`: Gửi ảnh kèm chú thích (caption).
+  - `zagi_send_file`: Gửi tài liệu, file đính kèm (PDF, DOCX, XLSX, ZIP...).
+  - `zagi_add_reaction`: Thả biểu cảm cảm xúc (LIKE, HEART, HAHA, WOW, SAD, ANGRY).
+  - `zagi_reply_message`: Trích dẫn tin nhắn gốc và phản hồi (Quote reply).
+  - `zagi_search_contacts`: Tra cứu thông tin danh bạ và CRM theo tên, SĐT, contactId hoặc alias.
+  - `zagi_get_contact_detail`: Lấy hồ sơ khách hàng 360 độ (nhãn dán, CRM tags, ghi chú, pipeline stage).
+  - `zagi_update_contact`: Cập nhật xưng hô (salutation), pipeline stage và biệt danh khách hàng.
+  - `zagi_add_crm_note`: Thêm ghi chú CRM phục vụ tư vấn bán hàng.
+  - `zagi_list_labels`: Danh sách nhãn dán phân loại (local labels) và thẻ CRM.
+  - `zagi_scan_phone`: Quét kiểm tra trạng thái đăng ký Zalo của số điện thoại.
+  - `zagi_create_poll`: Tạo cuộc bình chọn trong nhóm Zalo hoặc hội thoại 1:1.
+  - `zagi_list_campaigns`: Danh sách các chiến dịch tin nhắn CRM marketing.
+- **Cơ chế bảo vệ Anti-Ban Guardrails:** Random Jitter Delay (1.5s - 4.0s) và giới hạn định mức Stranger Message Quota (30 tin người lạ/ngày).
+- **Hệ thống phân quyền & Xác thực API Key SHA-256 (`agent_api_keys`):** Quản lý key an toàn, 4 scopes (`read`, `send`, `crm`, `admin`), cập nhật `last_used_at` và thu hồi tức thì.
+- **Trải nghiệm cài đặt 1-chạm:** `Cai-Dat-Zagi-Agent.command` (macOS) và `Cai-Dat-Zagi-Agent.bat` (Windows) tự động nạp cấu hình vào Hermes, Antigravity và Claude Desktop.
+- **Tab Cài đặt Native AI Agent (`AgentSettings.tsx`):** Quản lý toàn bộ danh sách key trực quan trong ứng dụng Zagi.
+
+---
+
 ## [v3.2.0] - 2026-08-27
 
 ### 🗳️ Nâng Cấp Toàn Diện Tính Năng Tạo Bình Chọn Nhóm Chuẩn 100% Theo Zalo (`ChatWindow.tsx`, `ZaloService.ts`)

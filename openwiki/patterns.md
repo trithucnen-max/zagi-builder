@@ -158,7 +158,7 @@ Khi thực thi quét SĐT hàng loạt:
 * Modal báo cáo lô phóng to (`fullscreenReportBatch`) lọc danh sách tài khoản & quota card chính xác theo những nick được gán trong lô (`getBatchAssignedAccounts`) kèm tỷ lệ `%`.
 * Trang bị bộ phím điều khiển tức thì: `⚡ Tiếp tục quét Single Mode`, `🔄 Quét lại các số Lỗi`, và `🔄 Đổi Nick quét tiếp` với 1 chạm.
 
-### 12. AI Agent API Key SHA-256 Hashing & Scope Isolation (v3.2.0)
+### 12. AI Agent API Key SHA-256 Hashing & Scope Isolation (v3.3.0)
 * **Tuyệt đối không lưu raw key:** Chỉ lưu chuỗi băm SHA-256 (`key_hash`) và tiền tố hiển thị (`key_prefix`, ví dụ `zg_live_abc123...`).
 * **Phân quyền chặt chẽ theo Scope:** Mỗi request từ Agent qua MCP Gateway phải thỏa mãn scope tương ứng:
   - `read`: Tra cứu danh bạ, lấy tin nhắn, kiểm tra hội thoại.
@@ -166,7 +166,7 @@ Khi thực thi quét SĐT hàng loạt:
   - `crm`: Cập nhật xưng hô, di chuyển giai đoạn phễu pipeline, lưu ghi chú CRM.
   - `admin`: Toàn quyền quản trị hệ thống.
 
-### 13. AI Agent Anti-Ban Guardrails (v3.2.0)
+### 13. AI Agent Anti-Ban Guardrails (v3.3.0)
 * **Jitter delay tự động:** Khi Agent gửi tin qua tool `zagi_send_message`, hệ thống bắt buộc trì hoãn ngẫu nhiên 1.5s – 4s để giả lập hành vi người dùng thật.
 * **Stranger Quota:** Kiểm soát ngặt nghèo định mức gửi tin nhắn người lạ (mặc định tối đa 30 người lạ/ngày) để bảo vệ tài khoản Zalo không bị khóa.
 

@@ -30,7 +30,7 @@
 | LicenseManager | `src/services/license/LicenseManager.ts` | — | Kiểm tra license, seat limit, mã hóa Hardware ID |
 | Supabase Edge Functions | `supabase/functions/` | — | Serverless functions cho Checkout, Payment Status & SePay Webhook (v3.0.6) |
 | LibraryService | `src/services/library/LibraryService.ts` | 21KB | Quản lý thư viện media dùng chung (ảnh, file, video, audio) |
-| Zagi MCP Gateway | `tools/zagi-mcp/` | — | Hybrid MCP Gateway điều khiển Zagi cho AI Agent (v3.2.0) |
+| Zagi MCP Gateway | `tools/zagi-mcp/` | — | Hybrid MCP Gateway điều khiển Zagi cho AI Agent (v3.3.0) |
 
 
 ---
@@ -392,7 +392,7 @@ Quản lý tính năng Quét số điện thoại Zalo hàng loạt, phân chia 
 
 ---
 
-## Zagi MCP Gateway (v3.2.0)
+## Zagi MCP Gateway (v3.3.0)
 
 **Thư mục:** `tools/zagi-mcp/`
 **Chạy:** Node.js Process (giao thức Model Context Protocol qua `stdio`)

@@ -96,7 +96,7 @@ File lớn nhất trong ipc/ (62KB). Bao gồm toàn bộ CRUD:
 | `license:activate` | Kích hoạt bản quyền qua Key |
 | `license:startAsEmployee` | Chuyển sang giao diện đăng nhập Nhân viên từ popup vai trò ban đầu (v3.0.6) |
 
-## AI Agent & MCP IPC (`electron/ipc/agentIpc.ts`) (v3.2.0)
+## AI Agent & MCP IPC (`electron/ipc/agentIpc.ts`) (v3.3.0)
 
 | Channel | Purpose | Params |
 |---|---|---|

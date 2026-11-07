@@ -119,7 +119,7 @@ zca-js listener (ZaloLoginHelper)
       └── → WorkflowEngine hooks (trigger workflows)
 ```
 
-## AI Agent & Dynamic MCP Gateway Architecture (v3.2.0)
+## AI Agent & Dynamic MCP Gateway Architecture (v3.3.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -145,7 +145,7 @@ zca-js listener (ZaloLoginHelper)
 └─────────────────────────────┘ └─────────────────────────────┘
 ```
 
-Zagi v3.2.0 tích hợp tầng Gateway MCP độc lập cho phép các trợ lý AI tương tác an toàn với tài khoản Zalo và CSDL:
+Zagi v3.3.0 tích hợp tầng Gateway MCP độc lập cho phép các trợ lý AI tương tác an toàn với tài khoản Zalo và CSDL:
 - **Xác thực:** Lưu hash SHA-256 của key trong bảng `agent_api_keys`. Các Agent truyền `apiKey` hoặc thiết lập biến môi trường `ZAGI_API_KEY`.
 - **Hybrid Dual-Engine:**
   - *Engine Đọc nhanh:* Truy vấn trực tiếp SQLite `zagi-tool.db` ở chế độ read-only, không tốn tài nguyên DOM/CDP, phản hồi tức thì.

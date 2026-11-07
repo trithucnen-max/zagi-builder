@@ -39,7 +39,7 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ## 📥 Tải xuống
 
-> **Phiên bản mới nhất: v3.2.1** — [Xem tất cả phiên bản](#changelog)
+> **Phiên bản mới nhất: v3.3.0** — [Xem tất cả phiên bản](#changelog)
 
 <table>
 <tr>
@@ -47,9 +47,9 @@ tích hợp CRM · ERP · POS · Workflow · AI Assistant
 
 ### 🪟 Windows
 
-[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)
+[![Windows](https://img.shields.io/badge/Windows_10%2F11-v3.3.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Window.exe)
 
-**[Zagi.v3.2.0.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Window.exe)**
+**[Zagi.v3.3.0.Window.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Window.exe)**
 
 NSIS Installer · ~164 MB
 
@@ -58,9 +58,9 @@ NSIS Installer · ~164 MB
 
 ### 🍎 macOS M1+
 
-[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.2.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)
+[![macOS ARM](https://img.shields.io/badge/macOS_M1%2FM2%2FM3-v3.3.0-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.MacOS.M1%2B.arm64.dmg)
 
-**[Zagi.v3.2.1.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.M1%2B.arm64.dmg)**
+**[Zagi.v3.3.0.MacOS.M1+.arm64.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.MacOS.M1%2B.arm64.dmg)**
 
 Apple Silicon DMG · Signed & Notarized · ~231 MB
 
@@ -69,9 +69,9 @@ Apple Silicon DMG · Signed & Notarized · ~231 MB
 
 ### 🍎 macOS Intel
 
-[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.2.0-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)
+[![macOS Intel](https://img.shields.io/badge/macOS_Intel-v3.3.0-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.MacOS.Intel.dmg)
 
-**[Zagi.v3.2.1.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.MacOS.Intel.dmg)**
+**[Zagi.v3.3.0.MacOS.Intel.dmg](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.MacOS.Intel.dmg)**
 
 Intel x64 DMG · Signed & Notarized · ~239 MB
 
@@ -80,10 +80,10 @@ Intel x64 DMG · Signed & Notarized · ~239 MB
 
 ### 🐧 Linux
 
-[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.2.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.AppImage)
+[![Linux](https://img.shields.io/badge/Ubuntu%2FDebian-v3.3.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Linux.AppImage)
 
-**[Zagi.v3.2.0.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.AppImage)**  
-**[Zagi.v3.2.0.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Linux.Debian.deb)**
+**[Zagi.v3.3.0.Linux.AppImage](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Linux.AppImage)**  
+**[Zagi.v3.3.0.Linux.Debian.deb](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Linux.Debian.deb)**
 
 AppImage + Debian .deb
 
@@ -98,9 +98,9 @@ AppImage + Debian .deb
 > 
 > Surface Pro 7 trở xuống (Intel) → dùng bản Windows x64 phía trên.
 
-[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.2.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Surface.exe)
+[![Surface ARM64](https://img.shields.io/badge/💻_Surface_ARM64-v3.3.0-0078d4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Surface.exe)
 
-**[Zagi.v3.2.0.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.2.0/Zagi.v3.2.0.Surface.exe)**
+**[Zagi.v3.3.0.Surface.exe](https://github.com/trithucnen-max/zagi-builder/releases/download/v3.3.0/Zagi.v3.3.0.Surface.exe)**
 
 NSIS Installer ARM64 · ~166 MB · Tối ưu native cho Surface ARM
 
@@ -124,19 +124,19 @@ NSIS Installer ARM64 · ~166 MB · Tối ưu native cho Surface ARM
 Máy tính của bạn là loại gì?
 │
 ├─ 🖥️ PC desktop / Laptop thông thường (Dell, HP, Lenovo, Asus, Acer...)
-│   └─ → Tải: Zagi v3.2.0 Window.exe  ✅
+│   └─ → Tải: Zagi v3.3.0 Window.exe  ✅
 │
 ├─ 💻 Surface Pro 7, Surface Laptop 1-4, Surface Go 1-2, Surface Book
-│   └─ → Tải: Zagi v3.2.0 Window.exe  ✅  (chip Intel, chạy ok)
+│   └─ → Tải: Zagi v3.3.0 Window.exe  ✅  (chip Intel, chạy ok)
 │
 └─ 💻 Surface Pro X, Surface Pro 9 (5G), Surface Pro 10, Surface Pro 11,
        Surface Laptop 7 (chip Snapdragon / ARM64)
-    └─ → Tải: Zagi v3.2.0 Surface.exe  ✅ (bản native ARM64)
+    └─ → Tải: Zagi v3.3.0 Surface.exe  ✅ (bản native ARM64)
 ```
 
 > 💡 **Cách kiểm tra chip máy Surface:** Vào `Settings → System → About`, xem mục **Processor**:
-> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v3.2.0 Window.exe`
-> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v3.2.0 Surface.exe`
+> - Có chữ `Intel` hoặc `AMD` → dùng bản `Zagi v3.3.0 Window.exe`
+> - Có chữ `Snapdragon` hoặc `ARM` → dùng bản `Zagi v3.3.0 Surface.exe`
 
 ---
 
@@ -146,15 +146,15 @@ Máy tính của bạn là loại gì?
 Mac của bạn là loại gì?
 │
 ├─ 🍎 MacBook Air/Pro M1, M2, M3, M4 / Mac Neo chip A18 (2020 trở về sau)
-│   └─ → Tải: Zagi v3.2.0 MacOS M1+ arm64.dmg  ✅
+│   └─ → Tải: Zagi v3.3.0 MacOS M1+ arm64.dmg  ✅
 │
 └─ 🍎 MacBook, iMac, Mac mini chip Intel (2019 trở về trước)
-    └─ → Tải: Zagi v3.2.0 MacOS Intel.dmg  ✅
+    └─ → Tải: Zagi v3.3.0 MacOS Intel.dmg  ✅
 ```
 
 > 💡 **Cách kiểm tra:** Click logo Apple → **About This Mac** → xem mục **Chip** hoặc **Processor**:
-> - Có chữ `Apple M1/M2/M3/M4/A18` → bản `Zagi v3.2.0 MacOS M1+ arm64.dmg`
-> - Có chữ `Intel` → bản `Zagi v3.2.0 MacOS Intel.dmg`
+> - Có chữ `Apple M1/M2/M3/M4/A18` → bản `Zagi v3.3.0 MacOS M1+ arm64.dmg`
+> - Có chữ `Intel` → bản `Zagi v3.3.0 MacOS Intel.dmg`
 
 ---
 
@@ -164,11 +164,11 @@ Mac của bạn là loại gì?
 Bạn dùng distro nào?
 │
 ├─ Ubuntu, Mint, PopOS, Zorin, ElementaryOS... → Tải .deb  ✅
-│   sudo dpkg -i "Zagi v3.2.0 Linux Debian.deb"
+│   sudo dpkg -i "Zagi v3.3.0 Linux Debian.deb"
 │
 └─ Fedora, Arch, openSUSE hoặc bất kỳ distro nào
     → Tải .AppImage  ✅
-    chmod +x "Zagi v3.2.0 Linux.AppImage" && ./"Zagi v3.2.0 Linux.AppImage"
+    chmod +x "Zagi v3.3.0 Linux.AppImage" && ./"Zagi v3.3.0 Linux.AppImage"
 ```
 
 ---
@@ -177,13 +177,13 @@ Bạn dùng distro nào?
 
 | Thiết bị | File cần tải | Ghi chú |
 |---|---|---|
-| PC/Laptop Windows (Intel/AMD) | `Zagi v3.2.0 Window.exe` | Phổ biến nhất |
-| Surface Pro 7 trở xuống | `Zagi v3.2.0 Window.exe` | Chip Intel |
-| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi v3.2.0 Surface.exe` | 🆕 Chip ARM64 |
-| MacBook M1/M2/M3/M4 / Mac Neo A18 | `Zagi v3.2.0 MacOS M1+ arm64.dmg` | Apple Silicon (Signed & Notarized) |
-| MacBook/iMac Intel | `Zagi v3.2.0 MacOS Intel.dmg` | Intel x64 (Signed & Notarized) |
-| Ubuntu/Debian Linux | `Zagi v3.2.0 Linux Debian.deb` | Cài như package |
-| Fedora/Arch/Linux khác | `Zagi v3.2.0 Linux.AppImage` | Chạy mọi distro |
+| PC/Laptop Windows (Intel/AMD) | `Zagi v3.3.0 Window.exe` | Phổ biến nhất |
+| Surface Pro 7 trở xuống | `Zagi v3.3.0 Window.exe` | Chip Intel |
+| Surface Pro X, 9 5G, 10, 11, Laptop 7 | `Zagi v3.3.0 Surface.exe` | 🆕 Chip ARM64 |
+| MacBook M1/M2/M3/M4 / Mac Neo A18 | `Zagi v3.3.0 MacOS M1+ arm64.dmg` | Apple Silicon (Signed & Notarized) |
+| MacBook/iMac Intel | `Zagi v3.3.0 MacOS Intel.dmg` | Intel x64 (Signed & Notarized) |
+| Ubuntu/Debian Linux | `Zagi v3.3.0 Linux Debian.deb` | Cài như package |
+| Fedora/Arch/Linux khác | `Zagi v3.3.0 Linux.AppImage` | Chạy mọi distro |
 
 ---
 
@@ -210,8 +210,8 @@ Zagi là một dự án độc lập, phiên bản hiện tại chưa có chữ 
 ### 🐧 Linux (AppImage)
 
 ```bash
-chmod +x "Zagi v3.2.0 Linux.AppImage"
-./"Zagi v3.2.0 Linux.AppImage"
+chmod +x "Zagi v3.3.0 Linux.AppImage"
+./"Zagi v3.3.0 Linux.AppImage"
 ```
 
 Nếu lỗi "FUSE not available":
@@ -221,7 +221,7 @@ sudo apt install libfuse2
 
 Hoặc dùng `.deb`:
 ```bash
-sudo dpkg -i "Zagi v3.2.0 Linux Debian.deb"
+sudo dpkg -i "Zagi v3.3.0 Linux Debian.deb"
 ```
 
 </details>
@@ -459,7 +459,28 @@ npm run production
 ## 📋 Changelog
 
 <details open>
-<summary><strong>v3.2.1</strong> — 2026-09-24 · <em>🟢 Phiên bản hiện tại</em></summary>
+<summary><strong>v3.3.0</strong> — 2026-11-07 · <em>🟢 Phiên bản hiện tại</em></summary>
+
+### 🚀 Nâng cấp nổi bật & Tính năng mới
+
+- 🤖 **Hệ Thống AI Agent & Dynamic MCP Gateway Toàn Diện (`tools/zagi-mcp`, `agentIpc.ts`, `AgentSettings.tsx`)**:
+  - Trang bị **18 MCP Tools** chuẩn Zod Schema cho phép các trợ lý AI (Hermes, Claude, Antigravity) điều khiển Zagi và tương tác trực tiếp với khách hàng Zalo/Facebook.
+  - **Kiến trúc Hybrid 2 tầng**: Fast Read Layer ([`directDb.js`](file:///Users/kimtrungduong/Downloads/04_Projects/zagi/tools/zagi-mcp/directDb.js)) đọc trực tiếp SQLite `zagi-tool.db` với `better-sqlite3` (< 2ms) + Action Bridge ([`bridge.js`](file:///Users/kimtrungduong/Downloads/04_Projects/zagi/tools/zagi-mcp/bridge.js)) điều khiển qua CDP WebSocket.
+  - **Cơ chế chống ban Anti-Ban Guardrails**: Random Jitter Delay (1.5s - 4.0s) và giới hạn định mức Stranger Message Quota (30 tin người lạ/ngày).
+  - **Bảo mật API Key SHA-256**: Bảng `agent_api_keys` phân quyền 4 scopes (`read`, `send`, `crm`, `admin`), thu hồi tức thì và cập nhật `last_used_at`.
+  - **Bộ kịch bản cài đặt 1-chạm**: `Cai-Dat-Zagi-Agent.command` (macOS) và `Cai-Dat-Zagi-Agent.bat` (Windows) tự động kết nối Hermes & Antigravity.
+- 🗳️ **Tạo Bình Chọn Nhóm Zalo Đầy Đủ 100% Chuẩn Zalo (`CreatePollDialog.tsx`, `ZaloService.ts`)**:
+  - Giao diện 2 cột chuẩn Zalo: Textarea câu hỏi kèm bộ đếm `0/200` ký tự, thêm/xóa nhanh phương án (tối đa 20 lựa chọn).
+  - Hạn bình chọn thông minh (ngày/giờ hoặc không thời hạn), ghim đầu trò chuyện 📌, chọn nhiều phương án, thêm phương án mới, ẩn kết quả khi chưa vote và bình chọn ẩn danh.
+- 👥 **Đồng Bộ Xưng Hô Tùy Chỉnh 2 Chiều (Chat ⟷ CRM) & Cờ `salutation_manual = 1`**:
+  - Bảo vệ xưng hô người dùng tự đặt (`Chị`, `Anh`, `Cô`, `Chú`, `Bác`, `Em`...) không bị ghi đè bởi phân loại giới tính tự động.
+- 🎨 **Menu Trạng Thái Pipeline CRM Đồng Bộ Chuẩn Chat**:
+  - Badge tròn hiển thị số thứ tự bước Pipeline (`[1]`, `[2]`, `[3]`...) với màu nền tương ứng và chữ trắng, đồng bộ 100% với Chat.
+
+</details>
+
+<details>
+<summary><strong>v3.2.1</strong> — 2026-09-24</summary>
 
 ### 🚀 Nâng cấp nổi bật & Sửa lỗi
 

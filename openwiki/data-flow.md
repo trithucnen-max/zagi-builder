@@ -219,7 +219,7 @@ PhoneScanService.executeBulkScan(chunkItems, batchId, zaloId)
                           └── Đánh dấu 'error' & pause tài khoản hết hạn ngạch ngày/giờ
 ```
 
-## Flow 10: AI Agent Điều Khiển Zagi Qua MCP Gateway (v3.2.0)
+## Flow 10: AI Agent Điều Khiển Zagi Qua MCP Gateway (v3.3.0)
 
 ```
 [AI Agent: Hermes / Antigravity / Claude]
