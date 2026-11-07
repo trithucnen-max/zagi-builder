@@ -218,3 +218,34 @@ PhoneScanService.executeBulkScan(chunkItems, batchId, zaloId)
                     └── Lỗi ≥ 3 lần liên tiếp trên các số khác nhau:
                           └── Đánh dấu 'error' & pause tài khoản hết hạn ngạch ngày/giờ
 ```
+
+## Flow 10: AI Agent Điều Khiển Zagi Qua MCP Gateway (v3.2.0)
+
+```
+[AI Agent: Hermes / Antigravity / Claude]
+    │ (gọi MCP Tool qua stdio, e.g. zagi_send_message / zagi_get_thread_messages)
+    ▼
+Zagi MCP Server (`tools/zagi-mcp/index.js`)
+    │
+    ├── 1. Xác thực API Key qua auth.js (Đối khớp SHA-256 hash với agent_api_keys)
+    │       └── Sai / Thu hồi / Thiếu scope ➔ Trả về lỗi xác thực ngay
+    │
+    ├── 2. Phân loại tác vụ (Dual-Engine Routing):
+    │       │
+    │       ├── [Nhóm ĐỌC: Fast Read Engine (directDb.js)]
+    │       │       │ better-sqlite3 read-only kết nối zagi-tool.db
+    │       │       ▼
+    │       │   Truy vấn danh bạ, tin nhắn, hội thoại, nhãn dán, logs
+    │       │       ▼
+    │       │   Trả kết quả JSON ngay lập tức (< 2ms) ✅
+    │       │
+    │       └── [Nhóm GHI: Safe Action Engine (bridge.js)]
+    │               │ Kiểm tra Anti-Ban Quota (Stranger message <= 30/ngày)
+    │               │ Kích hoạt Jitter Delay ngẫu nhiên (1.5s - 4s)
+    │               ▼
+    │           Thử gửi lệnh qua Chrome DevTools Protocol (CDP) WebSocket
+    │               ├── Thành công ➔ Trả về kết quả cho Agent ✅
+    │               └── CDP không sẵn sàng ➔ Fallback gọi HttpRelayService (port 9900)
+    │                       ▼
+    │                   Proxy action vào ipcHandlerRegistry trên Zagi Desktop ✅
+```

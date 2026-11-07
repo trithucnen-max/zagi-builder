@@ -54,6 +54,7 @@ EmployeeService.getInstance().pinToCurrentDb();
 | `phone_scan_batches` | Lô quét SĐT. Fields: id, name, assigned_account_id, target_account_id, contact_assignment_mode, daily_limit, hourly_limit |
 | `phone_scan_items` | Danh sách SĐT trong lô quét. Fields: id, batch_id, phone, phone_normalized, status, scanned_by_account_id |
 | `workflow_checkpoints` | Persistent checkpoints cho workflow. Fields: id, workflow_id, workflow_name, triggered_by, run_id, resume_at, created_at, resume_node_id, wait_label, context_json, status, error_message |
+| `agent_api_keys` | Khóa xác thực AI Agent & MCP (v3.2.0). Fields: id, key_hash (SHA-256), key_prefix, name, scopes (`read,send,crm,admin`), created_at, expires_at, last_used_at, is_revoked |
 
 ## Supabase Cloud Tables & Affiliate Engine (v3.0.7)
 

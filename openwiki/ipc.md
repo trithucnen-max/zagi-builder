@@ -96,6 +96,15 @@ File lớn nhất trong ipc/ (62KB). Bao gồm toàn bộ CRUD:
 | `license:activate` | Kích hoạt bản quyền qua Key |
 | `license:startAsEmployee` | Chuyển sang giao diện đăng nhập Nhân viên từ popup vai trò ban đầu (v3.0.6) |
 
+## AI Agent & MCP IPC (`electron/ipc/agentIpc.ts`) (v3.2.0)
+
+| Channel | Purpose | Params |
+|---|---|---|
+| `agent:listKeys` | Lấy danh sách API Key đã tạo trong CSDL | — |
+| `agent:createKey` | Tạo khóa API Key mới, lưu hash SHA-256 | `{ name, scopes, expiresDays }` |
+| `agent:revokeKey` | Thu hồi quyền truy cập của API Key tức thì | `{ id }` |
+| `agent:autoConfigureMCP` | Tự động ghi file cấu hình vào Hermes Agent & Antigravity IDE | `{ rawKey }` |
+
 ## threadType Values
 
 | Value | Meaning |

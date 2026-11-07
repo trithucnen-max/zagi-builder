@@ -60,6 +60,20 @@ Nhân viên machine:
 
 ## Changelog
 
+## Release Highlights (v3.2.0)
+
+- **🤖 Tích Hợp Hệ Thống AI Agent & Dynamic MCP Gateway (`tools/zagi-mcp`, `electron/ipc/agentIpc.ts`, `AgentSettings.tsx`)**:
+  - Trang bị bảng SQLite `agent_api_keys` bảo mật bằng mã băm SHA-256, kiểm soát scopes (`read`, `send`, `crm`, `admin`), thời hạn sử dụng và thu hồi tức thì (Revoke).
+  - Tích hợp giao diện quản trị API Key trực quan trong tab Cài đặt (`AgentSettings.tsx`) kèm bộ tự động đồng bộ cấu hình 1-chạm vào Hermes Agent (`~/.hermes/config.yaml`) và Antigravity IDE (`mcp_config.json`).
+  - Nâng cấp MCP Gateway `zagi-mcp` với bộ 16 công cụ toàn diện và cơ chế Hybrid Dual-Engine (Direct SQLite Fast-Read + CDP/Relay Action).
+- **🗳️ Nâng Cấp Toàn Diện Tính Năng Tạo Bình Chọn Nhóm Chuẩn 100% Theo Zalo (`CreatePollDialog.tsx`, `ZaloService.ts`)**:
+  - Giao diện Modal chuẩn 1:1 theo Zalo: 2 cột trực quan, danh sách tối đa 20 phương án bình chọn.
+  - Thiết lập đầy đủ: Ghim đầu trò chuyện (`pinAct`), Chọn nhiều phương án (`allowMultiChoices`), Cho phép thêm phương án (`allowAddNewOption`), Ẩn kết quả khi chưa vote (`hideVotePreview`), Bình chọn ẩn danh (`isAnonymous`), và nút Lưu cấu hình mặc định ⚙️.
+- **👥 Đồng Bộ Xưng Hô Tùy Chỉnh 2 Chiều (Chat ⟷ CRM) & Cờ `salutation_manual = 1` (`DatabaseService.ts`, `ConversationInfo.tsx`)**:
+  - Gắn cờ `salutation_manual = 1` trong SQLite (`contacts`) khi người dùng tự đổi xưng hô (`Chị`, `Anh`, `Cô`, `Chú`, `Bác`, `Em`...) giúp chống 100% việc tự động phân loại giới tính hoặc sync đè thông tin.
+- **🎨 Nâng Cấp Menu Trạng Thái Pipeline Trong Panel Chi Tiết CRM (`CRMContactDetailPanel.tsx`)**:
+  - Dropdown Menu phân cấp màu sắc chuẩn theo thứ tự `position` kèm badge tròn số thứ tự bước (`[1]`, `[2]`, `[3]`), đồng bộ thời gian thực với màn hình Chat.
+
 ## Release Highlights (v3.1.8)
 
 - **🛡️ Bảo Toàn Định Mức Ngày & Cooldown 60 Phút Khi Gặp `-216` (`PhoneScanService.ts`, `DatabaseService.ts`)**: Loại bỏ việc tự động hạ `scanDailyLimit` xuống con số thực tế vừa quét (13, 20). Định tuyến lỗi `-216` thành Rate Limit Khung Giờ (`⏳ Dừng 1h (Mã -216)`), nghỉ đúng 60 phút và tự động thức dậy quét tiếp các số còn lại; chỉ khi `todayCount >= scanDailyLimit` (đủ 100 số) mới chuyển `🌙 Dừng Ngày (00:00)`.
@@ -80,6 +94,7 @@ Nhân viên machine:
 - **💬 Fallback Khôi Phục 100% Lịch Sử Tin Nhắn Cũ**: Cơ chế Smart Thread Matching tự động chuẩn hóa tiền tố `g` của nhóm và fallback tìm kiếm theo `thread_id` chung nếu lệch session Zalo ID, khôi phục nguyên vẹn toàn bộ tin nhắn đã lưu trữ trong CSDL hiển thị lên màn hình chat.
 - **🏷️ Chuẩn Hóa Họ Tên Gốc & 2-Chiều Tách Tên Thật CRM**: Tự động gán `full_name_raw = display_name` khi quét SĐT và tách `real_name` chuẩn ngữ pháp Việt Nam ("Chào Chị Xuân"); Cho phép click đúp sửa trực tiếp trên bảng CRM tự động đồng bộ 2 chiều vào CSDL.
 
+- 2026-08-27: v3.2.0 — Nâng cấp toàn diện tính năng Tạo bình chọn nhóm Zalo chuẩn 1:1 (`CreatePollDialog.tsx`, `ZaloService.ts`); Đồng bộ xưng hô 2 chiều (Chat ⟷ CRM) & cờ `salutation_manual = 1`; Nâng cấp Menu trạng thái Pipeline Kanban trong CRM Contact Detail Panel; Tích hợp hệ thống AI Agent & Dynamic MCP Gateway (`tools/zagi-mcp`, `agentIpc.ts`, `AgentSettings.tsx`).
 - 2026-08-09: v3.1.8 — Triển khai Phương án C: Fallback Single Mode (`findUser`) bền bỉ và bắt mã lỗi -216 toàn diện; Cơ chế Smart Cooldown 3 phút & quy tắc ngưỡng 3 lỗi liên tiếp bảo vệ tài khoản không ngắt cả lô; Bộ phím điều khiển tức thì trong Báo cáo phóng to (`⚡ Tiếp tục quét Single Mode`, `🔄 Quét lại các số Lỗi`, `🔄 Đổi Nick quét tiếp`); Chuẩn hóa bộ lọc thẻ Hạn ngạch & tỷ lệ % theo từng lô; Vô hiệu hóa tài khoản mất kết nối trong Modal Tạo Lô Quét.
 - 2026-08-08: v3.1.7 — Tự động nhận diện CSDL Zagi cục bộ xóa bỏ License Popup; Giải mã Cookie 4 lớp cho Zalo Accounts tự động Online; Đăng ký Core IPC sớm khắc phục lỗi `getPipelineStages` & tự gieo 6 cột phễu Kanban mẫu; Nâng cấp Tải đầy đủ 280 Nhóm Zalo từ CSDL SQLite mặc định `Tất cả` kèm 3 nút phân loại (`Tất cả`, `Tôi quản lý`, `Thành viên`); Fallback truy vấn Thread thông minh khôi phục 100% lịch sử tin nhắn cũ trên giao diện chat; Tách biệt Biệt danh Gợi nhớ Zalo và Chuẩn hóa biến Tên thật `{real_name}`, `{name}` cùng bộ quy tắc `{salutation}` & `{tu_xung}` thông minh theo ngữ cảnh tiếng Việt.
 - 2026-08-04: v3.1.6 — Nâng cấp Bộ Lọc Dải Năm Sinh CRM (`1985 - 2000`) & Phím Tắt Thế Hệ (Gen Z, 9x, 8x, 7x trở trước); Phân loại 10 tình huống Trạng thái Lô quét & Badge Lý do Tạm dừng (`pause_reason`); Tự Động Khôi Phục Chạy Tiếp Sang Ngày Mới (Auto-Resume Next Day) sau 00:00 cho cả Quét số & Chiến dịch; Smart Adaptive Quota Auto-Tuning tự động hạ định mức an toàn khi gặp lỗi Zalo -216; Header `⚙️ ĐỊNH MỨC HÔM NAY` & Nâng cấp `AccountQuotaModal.tsx` với Avatar + Tên Nick Zalo thực tế + SĐT; Chuẩn hóa Logo PNG `zagi-logo.png` & Phục hồi tiến trình dở dang sau khi khởi động lại app.

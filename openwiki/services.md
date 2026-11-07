@@ -30,6 +30,7 @@
 | LicenseManager | `src/services/license/LicenseManager.ts` | — | Kiểm tra license, seat limit, mã hóa Hardware ID |
 | Supabase Edge Functions | `supabase/functions/` | — | Serverless functions cho Checkout, Payment Status & SePay Webhook (v3.0.6) |
 | LibraryService | `src/services/library/LibraryService.ts` | 21KB | Quản lý thư viện media dùng chung (ảnh, file, video, audio) |
+| Zagi MCP Gateway | `tools/zagi-mcp/` | — | Hybrid MCP Gateway điều khiển Zagi cho AI Agent (v3.2.0) |
 
 
 ---
@@ -388,6 +389,33 @@ Quản lý tính năng Quét số điện thoại Zalo hàng loạt, phân chia 
   - Nếu máy chưa có Key BOSS hợp lệ: Đóng main window, kích hoạt cửa sổ License Gate (`createLicenseWindow` với `popup.html`) để Sếp thực hiện **Nhập Key** hoặc **Nhận Key** dùng thử/mua gói trước khi được mở app chính Chế độ BOSS.
   - Nếu máy đã có Key BOSS hợp lệ: Relaunch app để vào trực tiếp Chế độ BOSS.
 - `license:startAsEmployee` — Bỏ qua kích hoạt Key máy BOSS và boot trực tiếp vào Chế độ Nhân viên cho thiết bị của nhân viên.
+
+---
+
+## Zagi MCP Gateway (v3.2.0)
+
+**Thư mục:** `tools/zagi-mcp/`
+**Chạy:** Node.js Process (giao thức Model Context Protocol qua `stdio`)
+
+### Purpose
+Cung cấp cổng giao tiếp chuẩn hoá MCP (Model Context Protocol) giữa các hệ thống AI Agent (Hermes, Antigravity, Claude Desktop, v.v.) và ứng dụng Zagi Desktop.
+
+### Kiến Trúc Hybrid Dual-Engine
+1. **Direct SQLite Fast-Read (`directDb.js`):**
+   - Đọc trực tiếp `zagi-tool.db` ở chế độ read-only thông qua `better-sqlite3`.
+   - Đáp ứng các truy vấn đọc: `zagi_list_accounts`, `zagi_get_conversations`, `zagi_get_thread_messages`, `zagi_search_contacts`, `zagi_get_contact_detail`, `zagi_list_labels`, `zagi_list_campaigns`.
+   - Độ trễ cực thấp (< 2ms), hoàn toàn độc lập với trạng thái hiển thị của cửa sổ Zagi.
+2. **Action Execution Bridge (`bridge.js`):**
+   - Thực thi các thao tác gửi dữ liệu: `zagi_send_message`, `zagi_send_image`, `zagi_send_file`, `zagi_add_reaction`, `zagi_reply_message`, `zagi_update_contact`, `zagi_add_crm_note`, `zagi_create_poll`, `zagi_scan_phone`.
+   - Primary transport: Chrome DevTools Protocol (CDP) WebSocket kết nối tới Zagi Desktop Renderer.
+   - Fallback transport: Gửi proxy POST request lên `HttpRelayService` cổng `9900` (`/api/proxy/action`) khi CDP không sẵn sàng.
+
+### Anti-Ban & Security Guardrails
+- **Mã băm SHA-256:** API Key được lưu dưới dạng SHA-256 hash trong bảng `agent_api_keys`.
+- **Phân quyền Scopes:** `read`, `send`, `crm`, `admin`.
+- **Jitter Delay ngẫu nhiên:** Trì hoãn 1.5s – 4s giữa mỗi tin nhắn gửi đi để chống hệ thống Zalo phát hiện tự động hoá.
+- **Hạn ngạch người lạ:** Giới hạn tối đa 30 tin nhắn gửi tới người lạ chưa kết bạn/ngày.
+
 
 
 

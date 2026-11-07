@@ -47,7 +47,7 @@ Khi Boss có nhiều tài khoản Zalo, events PHẢI được verify trước k
 | `crm/groups/` | GroupMembersTab (Quản lý & Quét nhóm nâng cao), SharedGroupsCategoryPopup (Kho nhóm chung cộng đồng), ShareGroupModal (Chia sẻ nhóm Zalo) |
 | `common/GlobalSupportChat.tsx` | Widget Trợ lý AI hỗ trợ Zagi kết nối Dify Chatbot `app-Shoio3nzmEVuoJJOBUsycsp9` (hỗ trợ cả Boss & Employee Web Mode) |
 | `workflow/` | NodeConfigPanel, WorkflowEditor (ReactFlow), NodePicker |
-| `settings/` | AccountSettings, EmployeeSettings (Ẩn Workspace tab với nhân viên), NotificationSettings |
+| `settings/` | AccountSettings, EmployeeSettings (Ẩn Workspace tab với nhân viên), NotificationSettings, `AgentSettings` (Quản trị khóa API Key cho AI Agent & MCP Gateway) |
 | `analytics/` | Dashboard charts (Recharts) |
 | `auth/` | Login screens |
 | `layout/` | Sidebar, Topbar, MainLayout |

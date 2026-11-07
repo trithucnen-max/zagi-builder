@@ -119,6 +119,38 @@ zca-js listener (ZaloLoginHelper)
       └── → WorkflowEngine hooks (trigger workflows)
 ```
 
+## AI Agent & Dynamic MCP Gateway Architecture (v3.2.0)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      AI AGENT HOSTS                         │
+│       Antigravity IDE / Hermes Agent / Claude Desktop       │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ stdio / JSON-RPC (MCP)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 ZAGI MCP GATEWAY (tools/zagi-mcp)           │
+│                                                             │
+│   ├── auth.js      ← SHA-256 verification với agent_api_keys│
+│   ├── antiban.js   ← Jitter delay + Stranger quota guard    │
+│   ├── directDb.js  ← Fast Read Engine (better-sqlite3 sync) │
+│   └── bridge.js    ← Action Engine (CDP + HttpRelay 9900)   │
+└──────────────┬───────────────────────────────┬──────────────┘
+               │                               │
+    (Fast Read: Messages,                      │ (Action: Send msg, image,
+     Contacts, Accounts)                       │  file, reactions, polls)
+               ▼                               ▼
+┌─────────────────────────────┐ ┌─────────────────────────────┐
+│  CSDL SQLite (zagi-tool.db) │ │   Zagi Desktop / HttpRelay  │
+└─────────────────────────────┘ └─────────────────────────────┘
+```
+
+Zagi v3.2.0 tích hợp tầng Gateway MCP độc lập cho phép các trợ lý AI tương tác an toàn với tài khoản Zalo và CSDL:
+- **Xác thực:** Lưu hash SHA-256 của key trong bảng `agent_api_keys`. Các Agent truyền `apiKey` hoặc thiết lập biến môi trường `ZAGI_API_KEY`.
+- **Hybrid Dual-Engine:**
+  - *Engine Đọc nhanh:* Truy vấn trực tiếp SQLite `zagi-tool.db` ở chế độ read-only, không tốn tài nguyên DOM/CDP, phản hồi tức thì.
+  - *Engine Thực thi an toàn:* Gửi lệnh qua DevTools Protocol (`window.electronAPI`) hoặc fallback qua HttpRelay `port 9900`. Có bộ đệm Jitter ngẫu nhiên (1.5s–4s) và hạn ngạch tối đa 30 tin người lạ/ngày để bảo vệ tài khoản khỏi bị Zalo khoá (Anti-Ban).
+
 ## Tech Decisions
 
 | Decision | Rationale |
